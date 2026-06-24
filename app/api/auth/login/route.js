@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { dbQuery } from '@/lib/db';
 
 export async function POST(request) {
@@ -69,6 +70,10 @@ export async function POST(request) {
       }
     }
 
+    // Generate unique session token for concurrent login check
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    await dbQuery("UPDATE user SET sessionToken = ? WHERE userID = ?", [sessionToken, user.userID]);
+
     // Define session JWT payload
     const tokenData = {
       userID: user.userID,
@@ -77,12 +82,13 @@ export async function POST(request) {
       roleID: user.roleID,
       fullName,
       guestID: user.role === 'Guest' ? profileID : null,
-      staffID: user.role !== 'Guest' ? profileID : null
+      staffID: user.role !== 'Guest' ? profileID : null,
+      sessionToken
     };
 
-    // Sign the JWT token (valid for 1 day)
+    // Sign the JWT token (valid for 15 minutes)
     const secret = process.env.JWT_SECRET || 'super_secret_pcc_pension_key_change_me_in_production';
-    const token = jwt.sign(tokenData, secret, { expiresIn: '1d' });
+    const token = jwt.sign(tokenData, secret, { expiresIn: '15m' });
 
     // Set Response Cookie
     const response = NextResponse.json({
@@ -95,7 +101,7 @@ export async function POST(request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 86400, // 24 hours
+      maxAge: 900, // 15 minutes
       path: '/'
     });
 

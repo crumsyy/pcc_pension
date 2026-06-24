@@ -10,17 +10,102 @@ export default async function ReceptionistLayout({ children }) {
 
   const { session } = auth;
 
+  const receptionistNav = [
+    ["/receptionist/dashboard", "📊", "Dashboard"],
+    ["/receptionist/reservations", "📅", "Reservations"],
+    ["/receptionist/bookings", "🛏", "Bookings"],
+    ["/receptionist/checkin", "✅", "Check-In / Out"],
+    ["/receptionist/orders", "🍽", "Orders"],
+    ["/receptionist/billing", "🧾", "Billing"],
+    ["/receptionist/payments", "💳", "Payments"],
+    ["/receptionist/guests", "👤", "Guests"],
+  ];
+
+  // Helper to render the navigation links list
+  const renderNavLinks = () => (
+    <ul className="nav flex-column gap-1" style={{ paddingLeft: "0", listStyle: "none" }}>
+      {receptionistNav.map(([path, icon, label], index) => (
+        <li key={index}>
+          <Link
+            href={path}
+            className="nav-link text-white d-flex align-items-center gap-2 mb-1 px-2 py-2"
+            style={{ borderRadius: "6px", fontSize: "0.9rem" }}
+          >
+            {icon} {label}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
-    <div className="d-flex" style={{ minHeight: "100vh" }}>
-      {/* SIDEBAR */}
+    <div className="d-flex flex-column flex-lg-row" style={{ minHeight: "100vh" }}>
+      
+      {/* MOBILE TOP BAR (Only visible on screens < 992px) */}
+      <div className="d-flex d-lg-none justify-content-between align-items-center p-3 text-white sticky-top" style={{ backgroundColor: "var(--pcc-blue)", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", zIndex: 1030 }}>
+        <Link href="/" className="d-flex align-items-center gap-2 text-decoration-none">
+          <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ height: "36px", borderRadius: "4px" }} />
+          <span className="fw-bold text-white" style={{ fontSize: "0.95rem" }}>PCC Front Desk</span>
+        </Link>
+        <button 
+          className="btn btn-outline-light d-flex align-items-center justify-content-center p-2" 
+          type="button" 
+          data-bs-toggle="offcanvas" 
+          data-bs-target="#receptionistOffcanvas" 
+          aria-controls="receptionistOffcanvas"
+          style={{ width: "38px", height: "38px", borderRadius: "6px" }}
+        >
+          ☰
+        </button>
+      </div>
+
+      {/* MOBILE OFFCANVAS DRAWER (Only visible on screens < 992px when opened) */}
+      <div 
+        className="offcanvas offcanvas-start d-lg-none" 
+        tabIndex="-1" 
+        id="receptionistOffcanvas" 
+        aria-labelledby="receptionistOffcanvasLabel"
+        style={{ backgroundColor: "var(--pcc-blue)", color: "white", width: "260px" }}
+      >
+        <div className="offcanvas-header d-flex justify-content-between align-items-center p-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+          <h5 className="offcanvas-title fw-bold" id="receptionistOffcanvasLabel">PCC Front Desk</h5>
+          <button type="button" className="btn-close btn-close-white text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div className="offcanvas-body d-flex flex-column p-3">
+          <div className="mb-2" style={{ fontFamily: "var(--font-tag)", fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.45)" }}>
+            Front Desk Menu
+          </div>
+          {renderNavLinks()}
+          <div className="mt-auto pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.2)" }}>
+            <div className="text-white-50" style={{ fontSize: "0.75rem" }}>Logged in as</div>
+            <div className="text-white fw-semibold" style={{ fontSize: "0.88rem" }}>{session.fullName}</div>
+            <div className="text-white-50 mb-2" style={{ fontSize: "0.75rem" }}>Receptionist</div>
+            <a
+              href="/api/auth/logout"
+              className="btn btn-sm w-100"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.12)",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.25)",
+              }}
+            >
+              Log Out
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP SIDEBAR (Only visible on screens >= 992px) */}
       <nav
         style={{
           width: "240px",
-          minHeight: "100vh",
           backgroundColor: "var(--pcc-blue)",
           flexShrink: 0,
+          position: "sticky",
+          top: 0,
+          height: "100vh"
         }}
-        className="d-flex flex-column p-3"
+        className="d-none d-lg-flex flex-column p-3"
       >
         <div className="mb-4 text-center">
           <Link href="/">
@@ -30,92 +115,23 @@ export default async function ReceptionistLayout({ children }) {
         <div
           style={{
             fontFamily: "var(--font-tag)",
-            fontSize: "0.7rem",
+            fontSize: "0.68rem",
             textTransform: "uppercase",
-            letterSpacing: "0.1em",
-            color: "rgba(255, 255, 255, 0.5)",
+            letterSpacing: "0.12em",
+            color: "rgba(255, 255, 255, 0.45)",
             marginBottom: "0.5rem",
           }}
         >
           Front Desk
         </div>
-        <ul className="nav flex-column gap-1">
-          <li>
-            <Link
-              href="/receptionist/dashboard"
-              className="nav-link text-white d-flex align-items-center gap-2"
-              style={{ borderRadius: "6px" }}
-            >
-              📊 Dashboard
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/receptionist/reservations"
-              className="nav-link text-white d-flex align-items-center gap-2"
-              style={{ borderRadius: "6px" }}
-            >
-              📅 Reservations
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/receptionist/bookings"
-              className="nav-link text-white d-flex align-items-center gap-2"
-              style={{ borderRadius: "6px" }}
-            >
-              🛏 Bookings
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/receptionist/checkin"
-              className="nav-link text-white d-flex align-items-center gap-2"
-              style={{ borderRadius: "6px" }}
-            >
-              ✅ Check-In / Out
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/receptionist/orders"
-              className="nav-link text-white d-flex align-items-center gap-2"
-              style={{ borderRadius: "6px" }}
-            >
-              🍽 Orders
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/receptionist/billing"
-              className="nav-link text-white d-flex align-items-center gap-2"
-              style={{ borderRadius: "6px" }}
-            >
-              🧾 Billing
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/receptionist/payments"
-              className="nav-link text-white d-flex align-items-center gap-2"
-              style={{ borderRadius: "6px" }}
-            >
-              💳 Payments
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/receptionist/guests"
-              className="nav-link text-white d-flex align-items-center gap-2"
-              style={{ borderRadius: "6px" }}
-            >
-              👤 Guests
-            </Link>
-          </li>
-        </ul>
-        <div className="mt-auto pt-3 border-top" style={{ borderColor: "rgba(255, 255, 255, 0.2)" }}>
-          <div className="text-white-50" style={{ fontSize: "0.8rem" }}>Logged in as</div>
-          <div className="text-white fw-semibold" style={{ fontSize: "0.9rem" }}>{session.fullName}</div>
+        
+        {/* Render nav links */}
+        {renderNavLinks()}
+
+        <div className="mt-auto pt-3" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.2)" }}>
+          <div className="text-white-50" style={{ fontSize: "0.75rem" }}>Logged in as</div>
+          <div className="text-white fw-semibold" style={{ fontSize: "0.88rem" }}>{session.fullName}</div>
+          <div className="text-white-50" style={{ fontSize: "0.75rem" }}>Receptionist</div>
           <a
             href="/api/auth/logout"
             className="btn btn-sm mt-2 w-100"
@@ -130,10 +146,10 @@ export default async function ReceptionistLayout({ children }) {
         </div>
       </nav>
 
-      {/* MAIN CONTENT PORTION */}
-      <div className="flex-grow-1 p-4" style={{ backgroundColor: "#f0f4f8", minHeight: "100vh" }}>
+      {/* MAIN CONTENT PORTION (Responsive margins and padding) */}
+      <main className="flex-grow-1 p-3 p-lg-4" style={{ backgroundColor: "#f0f4f8", minHeight: "100vh" }}>
         {children}
-      </div>
+      </main>
     </div>
   );
 }

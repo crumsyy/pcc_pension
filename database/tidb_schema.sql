@@ -72,6 +72,7 @@ CREATE TABLE `user` (
   `status` enum('Active','Inactive') NOT NULL DEFAULT 'Active',
   `otp_code` varchar(6) DEFAULT NULL,
   `otp_expires` datetime DEFAULT NULL,
+  `sessionToken` varchar(255) DEFAULT NULL,
   `roleID` int(11) NOT NULL,
   `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`userID`),

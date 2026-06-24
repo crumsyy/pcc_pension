@@ -1,5 +1,6 @@
 import "./globals.css";
 import Script from "next/script";
+import InactivityTimeout from "./components/InactivityTimeout";
 
 export const metadata = {
   title: "PCC Home Suite Home | Koronadal City",
@@ -10,6 +11,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
+        <InactivityTimeout />
         {children}
         
         {/* Bootstrap 5 JS Bundle CDN */}
