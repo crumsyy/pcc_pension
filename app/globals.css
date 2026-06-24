@@ -1,0 +1,603 @@
+@import url('https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+/* =====================================================================
+   PCC Home Suite Home - Design System
+   ===================================================================== */
+
+:root {
+  --pcc-blue: #2155B5;
+  --pcc-blue-dark: #163E82;
+  --pcc-green: #3FA34D;
+  --pcc-green-light: #CDEBCF;
+  --pcc-cream: #F6FAF7;
+  --pcc-mist: #E5EFE6;
+  --pcc-charcoal: #1F2A24;
+  --pcc-muted: #66756B;
+
+  --font-display: "Fraunces", serif;
+  --font-body: "Inter", sans-serif;
+  --font-tag: "Space Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  color: var(--pcc-charcoal);
+  background-color: var(--pcc-cream);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, .display-font {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.text-blue { color: var(--pcc-blue); }
+.text-green { color: var(--pcc-green); }
+.bg-blue { background-color: var(--pcc-blue); }
+.bg-cream { background-color: var(--pcc-cream); }
+.bg-mist { background-color: var(--pcc-mist); }
+
+/* ---------------------------------------------------------------
+   Navbar
+   --------------------------------------------------------------- */
+.navbar-pcc {
+  background-color: var(--pcc-cream);
+  border-bottom: 1px solid var(--pcc-mist);
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.navbar-pcc .navbar-brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--pcc-blue);
+}
+
+.navbar-pcc .navbar-brand span {
+  color: var(--pcc-green);
+}
+
+.navbar-pcc .nav-link {
+  font-weight: 500;
+  color: var(--pcc-charcoal);
+  margin: 0 0.5rem;
+}
+
+.navbar-pcc .nav-link:hover {
+  color: var(--pcc-blue);
+}
+
+.btn-pcc-primary {
+  background-color: var(--pcc-blue) !important;
+  border: 1px solid var(--pcc-blue) !important;
+  color: var(--pcc-cream) !important;
+  font-weight: 600;
+  padding: 0.6rem 1.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-pcc-primary:hover {
+  background-color: var(--pcc-blue-dark) !important;
+  color: var(--pcc-cream) !important;
+}
+
+.btn-pcc-outline {
+  background-color: transparent !important;
+  border: 1px solid var(--pcc-blue) !important;
+  color: var(--pcc-blue) !important;
+  font-weight: 600;
+  padding: 0.6rem 1.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-pcc-outline:hover {
+  background-color: var(--pcc-blue) !important;
+  color: var(--pcc-cream) !important;
+}
+
+/* ---------------------------------------------------------------
+   Hero
+   --------------------------------------------------------------- */
+.hero {
+  background: linear-gradient(180deg, var(--pcc-mist) 0%, var(--pcc-cream) 100%);
+  padding: 5rem 0 3rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  right: -120px;
+  top: -120px;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: var(--pcc-green-light);
+  opacity: 0.35;
+}
+
+.hero .eyebrow {
+  font-family: var(--font-tag);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  color: var(--pcc-blue);
+  font-weight: 700;
+}
+
+.hero h1 {
+  font-size: 3.4rem;
+  color: var(--pcc-blue);
+  line-height: 1.1;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--pcc-green);
+}
+
+.hero p.lead {
+  color: var(--pcc-muted);
+  font-size: 1.1rem;
+  max-width: 480px;
+}
+
+/* Availability search bar */
+.availability-bar {
+  background-color: #fff;
+  border: 1px solid var(--pcc-mist);
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px -15px rgba(27, 75, 67, 0.25);
+  position: relative;
+  z-index: 2;
+}
+
+.availability-bar label {
+  font-family: var(--font-tag);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: var(--pcc-muted);
+  font-weight: 700;
+}
+
+.availability-bar .form-control,
+.availability-bar .form-select {
+  border: 1px solid var(--pcc-mist);
+  border-radius: 4px;
+  padding: 0.6rem 0.75rem;
+}
+
+.availability-bar .form-control:focus,
+.availability-bar .form-select:focus {
+  border-color: var(--pcc-blue);
+  box-shadow: 0 0 0 0.2rem rgba(27, 75, 67, 0.12);
+}
+
+/* ---------------------------------------------------------------
+   Section headings
+   --------------------------------------------------------------- */
+.section {
+  padding: 4.5rem 0;
+}
+
+.section-eyebrow {
+  font-family: var(--font-tag);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  color: var(--pcc-green);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.section-title {
+  color: var(--pcc-blue);
+  font-size: 2.25rem;
+}
+
+/* ---------------------------------------------------------------
+   Floor directory / Room key-tag cards (signature element)
+   --------------------------------------------------------------- */
+.floor-block {
+  margin-bottom: 3rem;
+}
+
+.floor-label {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.floor-label .floor-number {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  color: var(--pcc-green);
+  line-height: 1;
+}
+
+.floor-label .floor-name {
+  font-family: var(--font-tag);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+  color: var(--pcc-muted);
+}
+
+.floor-label hr {
+  flex: 1;
+  border-top: 1px dashed var(--pcc-mist);
+  opacity: 1;
+  margin: 0;
+}
+
+/* Key tag card */
+.key-tag {
+  background-color: #fff;
+  border: 1px solid var(--pcc-mist);
+  border-radius: 10px;
+  padding: 1.5rem 1.5rem 1.25rem;
+  height: 100%;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.key-tag:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px -18px rgba(27, 75, 67, 0.35);
+}
+
+/* punch hole */
+.key-tag::before {
+  content: "";
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--pcc-cream);
+  border: 2px solid var(--pcc-mist);
+}
+
+.key-tag .room-type {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--pcc-blue);
+  margin-bottom: 0.25rem;
+  padding-right: 2.5rem;
+}
+
+.key-tag .room-meta {
+  font-family: var(--font-tag);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--pcc-muted);
+  margin-bottom: 1rem;
+}
+
+.key-tag p.room-desc {
+  font-size: 0.92rem;
+  color: var(--pcc-muted);
+  margin-bottom: 1.25rem;
+}
+
+.key-tag .rate-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 1px dashed var(--pcc-mist);
+  padding-top: 0.75rem;
+  margin-top: auto;
+}
+
+.key-tag .rate-row .rate-label {
+  font-size: 0.8rem;
+  color: var(--pcc-muted);
+}
+
+.key-tag .rate-row .rate-value {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--pcc-blue);
+  font-weight: 700;
+}
+
+.key-tag .rate-row .rate-value small {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--pcc-muted);
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------
+   Amenities / Services
+   --------------------------------------------------------------- */
+.amenity-card {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.amenity-card .amenity-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--pcc-mist);
+  border-radius: 50%;
+  color: var(--pcc-blue);
+}
+
+.amenity-card h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: var(--pcc-blue);
+}
+
+.amenity-card p {
+  font-size: 0.9rem;
+  color: var(--pcc-muted);
+}
+
+/* ---------------------------------------------------------------
+   About section
+   --------------------------------------------------------------- */
+.about-figure {
+  background-color: var(--pcc-blue);
+  border-radius: 10px;
+  min-height: 360px;
+  display: flex;
+  align-items: flex-end;
+  padding: 2rem;
+  color: var(--pcc-cream);
+  position: relative;
+  overflow: hidden;
+}
+
+.about-figure .tag-line {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.about-figure::before {
+  content: "";
+  position: absolute;
+  left: -60px;
+  bottom: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 1px dashed rgba(250, 246, 239, 0.25);
+}
+
+.stat-row {
+  display: flex;
+  gap: 2.5rem;
+  margin-top: 2rem;
+}
+
+.stat-row .stat-number {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  color: var(--pcc-blue);
+  line-height: 1;
+}
+
+.stat-row .stat-label {
+  font-family: var(--font-tag);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  color: var(--pcc-muted);
+  margin-top: 0.25rem;
+}
+
+/* ---------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------- */
+.footer-pcc {
+  background-color: var(--pcc-blue);
+  color: var(--pcc-mist);
+  padding: 3.5rem 0 1.5rem;
+}
+
+.footer-pcc h5 {
+  font-family: var(--font-display);
+  color: var(--pcc-cream);
+  margin-bottom: 1rem;
+}
+
+.footer-pcc a {
+  color: var(--pcc-mist);
+  text-decoration: none;
+}
+
+.footer-pcc a:hover {
+  color: var(--pcc-green-light);
+}
+
+.footer-pcc hr {
+  border-color: rgba(250, 246, 239, 0.15);
+  margin: 2rem 0 1rem;
+}
+
+.footer-bottom {
+  font-size: 0.8rem;
+  color: rgba(250, 246, 239, 0.6);
+}
+
+/* ---------------------------------------------------------------
+   Chatbot widget
+   --------------------------------------------------------------- */
+.chatbot-toggle {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--pcc-blue);
+  color: var(--pcc-cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px -10px rgba(27, 75, 67, 0.6);
+  border: none;
+  cursor: pointer;
+  z-index: 1050;
+  transition: transform 0.2s ease;
+}
+
+.chatbot-toggle:hover {
+  transform: scale(1.05);
+}
+
+.chatbot-window {
+  position: fixed;
+  bottom: 5.5rem;
+  right: 1.5rem;
+  width: 340px;
+  max-height: 480px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px -20px rgba(27, 75, 67, 0.5);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1050;
+  border: 1px solid var(--pcc-mist);
+}
+
+.chatbot-window.active {
+  display: flex;
+}
+
+.chatbot-header {
+  background-color: var(--pcc-blue);
+  color: var(--pcc-cream);
+  padding: 1rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chatbot-header button {
+  background: none;
+  border: none;
+  color: var(--pcc-cream);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.chatbot-body {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background-color: var(--pcc-cream);
+  max-height: 320px;
+}
+
+.chat-bubble {
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  max-width: 85%;
+  line-height: 1.4;
+}
+
+.chat-bubble.bot {
+  background-color: #fff;
+  border: 1px solid var(--pcc-mist);
+  align-self: flex-start;
+  color: var(--pcc-charcoal);
+}
+
+.chat-bubble.user {
+  background-color: var(--pcc-blue);
+  color: var(--pcc-cream);
+  align-self: flex-end;
+}
+
+.chatbot-quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0 1rem 0.75rem;
+  background-color: var(--pcc-cream);
+}
+
+.chatbot-quick-replies button {
+  font-size: 0.78rem;
+  border: 1px solid var(--pcc-blue);
+  color: var(--pcc-blue);
+  background-color: #fff;
+  border-radius: 20px;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chatbot-quick-replies button:hover {
+  background-color: var(--pcc-blue);
+  color: var(--pcc-cream);
+}
+
+.chatbot-input {
+  display: flex;
+  border-top: 1px solid var(--pcc-mist);
+  padding: 0.6rem;
+  gap: 0.5rem;
+  background-color: #fff;
+}
+
+.chatbot-input input {
+  flex: 1;
+  border: 1px solid var(--pcc-mist);
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  font-size: 0.88rem;
+}
+
+.chatbot-input input:focus {
+  outline: none;
+  border-color: var(--pcc-blue);
+}
+
+.chatbot-input button {
+  background-color: var(--pcc-blue);
+  color: var(--pcc-cream);
+  border: none;
+  border-radius: 20px;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------
+   Responsive
+   --------------------------------------------------------------- */
+@media (max-width: 991px) {
+  .hero h1 { font-size: 2.5rem; }
+  .hero { padding: 3rem 0 2rem; }
+  .section { padding: 3rem 0; }
+  .chatbot-window { width: 90vw; right: 5vw; left: 5vw; }
+}

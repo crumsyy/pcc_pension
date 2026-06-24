@@ -1,0 +1,500 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+
+export default function Home() {
+  // Search state
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [roomType, setRoomType] = useState("Any room type");
+  const [breakfast, setBreakfast] = useState("With Breakfast");
+
+  // Chatbot state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState([
+    {
+      sender: "bot",
+      text: "Hi! 👋 I'm the PCC Home Suite Home assistant. Ask me about room rates, availability, breakfast options, or check-in/check-out times — or tap a quick question below.",
+    },
+  ]);
+
+  const chatBodyRef = useRef(null);
+
+  // Auto-scroll chat body on message updates
+  useEffect(() => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  }, [messages, isChatOpen]);
+
+  // Predefined chatbot knowledge base
+  const responses = {
+    rates: "Here are our room rates per night:\n\n" +
+           "Ground Floor — Standard: ₱1,200 (₱1,500 w/ breakfast), " +
+           "Twin: ₱1,300 (₱1,800 w/ breakfast), Deluxe: ₱2,100 (₱2,500 w/ breakfast).\n\n" +
+           "Second Floor — Standard: ₱1,500 (₱1,800 w/ breakfast), " +
+           "Twin: ₱1,800 (₱2,200 w/ breakfast), Deluxe: ₱2,200 (₱2,500 w/ breakfast).",
+    checkin: "Check-in time is 2:00 PM and check-out time is 12:00 PM (noon). " +
+             "Early check-in and late check-out may be available for an additional fee — " +
+             "just let our front desk know.",
+    breakfast: "Each room type is available with or without breakfast. " +
+               "You can select your preferred option when making a reservation.",
+    agent: "Sure! I'll connect you with our front desk staff. Please type your question " +
+           "below and a receptionist will follow up with you as soon as possible.",
+    default: "I'm not totally sure about that yet, but I can help with room rates, " +
+             "availability, breakfast options, and check-in/check-out times. " +
+             "You can also tap \"Talk to staff\" to reach a receptionist directly."
+  };
+
+  const getBotReply = (userText) => {
+    const msg = userText.toLowerCase();
+    if (msg.includes('rate') || msg.includes('price') || msg.includes('cost') || msg.includes('how much')) {
+      return responses.rates;
+    }
+    if (msg.includes('check-in') || msg.includes('check in') || msg.includes('check-out') || msg.includes('check out') || msg.includes('time')) {
+      return responses.checkin;
+    }
+    if (msg.includes('breakfast')) {
+      return responses.breakfast;
+    }
+    if (msg.includes('staff') || msg.includes('agent') || msg.includes('receptionist') || msg.includes('human')) {
+      return responses.agent;
+    }
+    return responses.default;
+  };
+
+  const handleSendMessage = (text) => {
+    if (!text.trim()) return;
+
+    // Add user message
+    setMessages((prev) => [...prev, { sender: "user", text }]);
+    setChatInput("");
+
+    // Simulate chatbot response delay
+    setTimeout(() => {
+      const reply = getBotReply(text);
+      setMessages((prev) => [...prev, { sender: "bot", text: reply }]);
+    }, 400);
+  };
+
+  const handleQuickReply = (key, label) => {
+    setMessages((prev) => [...prev, { sender: "user", text: label }]);
+    setTimeout(() => {
+      const reply = responses[key] || responses.default;
+      setMessages((prev) => [...prev, { sender: "bot", text: reply }]);
+    }, 400);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    // Redirect to register/booking flow, passing search parameters
+    window.location.href = `/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_type=${roomType}&breakfast=${breakfast}`;
+  };
+
+  return (
+    <>
+      {/* NAVBAR */}
+      <nav className="navbar navbar-expand-lg navbar-pcc sticky-top">
+        <div className="container">
+          <Link href="/" className="navbar-brand d-flex align-items-center gap-2">
+            <img src="/assets/images/logo.jpg" alt="PCC Home Suite Home logo" height="42" style={{ borderRadius: "4px" }} />
+          </Link>
+          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+            <span className="navbar-toggler-icon"></span>
+          </button>
+          <div className="collapse navbar-collapse" id="mainNav">
+            <ul className="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+              <li className="nav-item"><a className="nav-link" href="#home">Home</a></li>
+              <li className="nav-item"><a className="nav-link" href="#about">About</a></li>
+              <li className="nav-item"><a className="nav-link" href="#rooms">Rooms &amp; Rates</a></li>
+              <li className="nav-item"><a className="nav-link" href="#amenities">Amenities</a></li>
+              <li className="nav-item"><a className="nav-link" href="#contact">Contact</a></li>
+              <li className="nav-item mt-2 mt-lg-0">
+                <Link href="/auth/login" className="btn btn-pcc-outline btn-sm me-2">Log In</Link>
+              </li>
+              <li className="nav-item mt-2 mt-lg-0">
+                <Link href="/auth/register" className="btn btn-pcc-primary btn-sm">Book Now</Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+
+      {/* HERO + AVAILABILITY SEARCH */}
+      <section className="hero" id="home">
+        <div className="container">
+          <div className="row align-items-center g-5">
+            <div className="col-lg-6">
+              <div className="eyebrow mb-3">Osmeña Street, Zone 1 · Koronadal City</div>
+              <h1 className="mb-3">Your <em>home</em> away<br />from home.</h1>
+              <p className="lead mb-4">
+                PCC Home Suite Home offers comfortable, affordable, and well-kept rooms
+                for travelers, families, and long-staying guests in the heart of Koronadal City —
+                with friendly service and everything you need to feel at home.
+              </p>
+              <div className="d-flex gap-3">
+                <a href="#rooms" className="btn btn-pcc-primary">View Rooms &amp; Rates</a>
+                <Link href="/auth/register" className="btn btn-pcc-outline">Create an Account</Link>
+              </div>
+            </div>
+            <div className="col-lg-6">
+              <div className="availability-bar">
+                <form onSubmit={handleSearchSubmit} className="row g-3 align-items-end">
+                  <div className="col-12">
+                    <span className="section-eyebrow d-block">Check Availability</span>
+                    <h4 className="text-blue mb-0">Plan your stay</h4>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label d-block mb-1">Check-in</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={checkIn}
+                      onChange={(e) => setCheckIn(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label d-block mb-1">Check-out</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={checkOut}
+                      onChange={(e) => setCheckOut(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-7">
+                    <label className="form-label d-block mb-1">Room Type</label>
+                    <select
+                      className="form-select"
+                      value={roomType}
+                      onChange={(e) => setRoomType(e.target.value)}
+                    >
+                      <option>Any room type</option>
+                      <option>Standard Matrimonial</option>
+                      <option>Twin Matrimonial</option>
+                      <option>Deluxe Matrimonial</option>
+                    </select>
+                  </div>
+                  <div className="col-md-5">
+                    <label className="form-label d-block mb-1">Breakfast</label>
+                    <select
+                      className="form-select"
+                      value={breakfast}
+                      onChange={(e) => setBreakfast(e.target.value)}
+                    >
+                      <option>With Breakfast</option>
+                      <option>Without Breakfast</option>
+                    </select>
+                  </div>
+                  <div className="col-12">
+                    <button type="submit" className="btn btn-pcc-primary w-100">Check Availability</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ABOUT */}
+      <section className="section" id="about">
+        <div className="container">
+          <div className="row g-5 align-items-center">
+            <div className="col-lg-6">
+              <div className="about-figure">
+                <div className="tag-line">
+                  &quot;Make yourself<br />at home —<br />that&apos;s the<br />PCC promise.&quot;
+                </div>
+              </div>
+            </div>
+            <div className="col-lg-6">
+              <div className="section-eyebrow">About Us</div>
+              <h2 className="section-title mb-3">A pension house that feels like home</h2>
+              <p className="text-muted">
+                Located along Osmeña Street, Zone 1, Koronadal City, PCC Home Suite Home
+                provides clean, secure, and budget-friendly accommodations for guests
+                visiting the city for work, leisure, or family matters. Our two-floor
+                property offers Standard, Twin, and Deluxe Matrimonial rooms, each
+                available with or without breakfast — so you can choose what fits
+                your stay best.
+              </p>
+              <div className="stat-row">
+                <div>
+                  <div className="stat-number">2</div>
+                  <div className="stat-label">Floors</div>
+                </div>
+                <div>
+                  <div className="stat-number">3</div>
+                  <div className="stat-label">Room Types</div>
+                </div>
+                <div>
+                  <div className="stat-number">24/7</div>
+                  <div className="stat-label">Front Desk</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ROOMS & RATES */}
+      <section className="section bg-mist" id="rooms">
+        <div className="container">
+          <div className="text-center mb-5">
+            <div className="section-eyebrow">Rooms &amp; Rates</div>
+            <h2 className="section-title">Find your room</h2>
+            <p className="text-muted">All rates are per night and listed without &amp; with breakfast.</p>
+          </div>
+
+          {/* Ground Floor */}
+          <div className="floor-block">
+            <div className="floor-label">
+              <div className="floor-number">01</div>
+              <div>
+                <div className="display-font text-blue" style={{ fontSize: "1.15rem" }}>Ground Floor</div>
+                <div className="floor-name">Standard · Twin · Deluxe Matrimonial</div>
+              </div>
+              <hr />
+            </div>
+            <div className="row g-4">
+              <div className="col-md-4">
+                <div className="key-tag d-flex flex-column">
+                  <div className="room-type">Standard Matrimonial</div>
+                  <div className="room-meta">Sleeps 2&ndash;4 · 2 extra foam</div>
+                  <p className="room-desc">A cozy room with the essentials for a comfortable short or long stay.</p>
+                  <div className="rate-row">
+                    <span className="rate-label">Without breakfast</span>
+                    <span className="rate-value">₱1,200</span>
+                  </div>
+                  <div className="rate-row">
+                    <span className="rate-label">With breakfast</span>
+                    <span className="rate-value">₱1,500</span>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="key-tag d-flex flex-column">
+                  <div className="room-type">Twin Matrimonial</div>
+                  <div className="room-meta">Sleeps 4&ndash;5 · 1 extra foam</div>
+                  <p className="room-desc">Twin bed setup, perfect for families or groups traveling together.</p>
+                  <div className="rate-row">
+                    <span className="rate-label">Without breakfast</span>
+                    <span className="rate-value">₱1,300</span>
+                  </div>
+                  <div className="rate-row">
+                    <span className="rate-label">With breakfast</span>
+                    <span className="rate-value">₱1,800</span>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="key-tag d-flex flex-column">
+                  <div className="room-type">Deluxe Matrimonial</div>
+                  <div className="room-meta">Sleeps 5&ndash;7 · 2 extra foam</div>
+                  <p className="room-desc">Our most spacious option, ideal for bigger groups and extended stays.</p>
+                  <div className="rate-row">
+                    <span className="rate-label">Without breakfast</span>
+                    <span className="rate-value">₱2,100</span>
+                  </div>
+                  <div className="rate-row">
+                    <span className="rate-label">With breakfast</span>
+                    <span className="rate-value">₱2,500</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Second Floor */}
+          <div className="floor-block mb-0">
+            <div className="floor-label">
+              <div className="floor-number">02</div>
+              <div>
+                <div className="display-font text-blue" style={{ fontSize: "1.15rem" }}>Second Floor</div>
+                <div className="floor-name">Standard · Twin · Deluxe Matrimonial</div>
+              </div>
+              <hr />
+            </div>
+            <div className="row g-4">
+              <div className="col-md-4">
+                <div className="key-tag d-flex flex-column">
+                  <div className="room-type">Standard Matrimonial</div>
+                  <div className="room-meta">Sleeps 2&ndash;4 · 2 extra foam</div>
+                  <p className="room-desc">A quiet upper-floor room with the same comfort as our ground floor standard.</p>
+                  <div className="rate-row">
+                    <span className="rate-label">Without breakfast</span>
+                    <span className="rate-value">₱1,500</span>
+                  </div>
+                  <div className="rate-row">
+                    <span className="rate-label">With breakfast</span>
+                    <span className="rate-value">₱1,800</span>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="key-tag d-flex flex-column">
+                  <div className="room-type">Twin Matrimonial</div>
+                  <div className="room-meta">Sleeps 4&ndash;5 · 1 extra foam</div>
+                  <p className="room-desc">Second floor twin room, great for groups who prefer a higher vantage.</p>
+                  <div className="rate-row">
+                    <span className="rate-label">Without breakfast</span>
+                    <span className="rate-value">₱1,800</span>
+                  </div>
+                  <div className="rate-row">
+                    <span className="rate-label">With breakfast</span>
+                    <span className="rate-value">₱2,200</span>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="key-tag d-flex flex-column">
+                  <div className="room-type">Deluxe Matrimonial</div>
+                  <div className="room-meta">Sleeps 5&ndash;7 · 2 extra foam</div>
+                  <p className="room-desc">Top-floor deluxe room — our largest and most premium accommodation.</p>
+                  <div className="rate-row">
+                    <span className="rate-label">Without breakfast</span>
+                    <span className="rate-value">₱2,200</span>
+                  </div>
+                  <div className="rate-row">
+                    <span className="rate-label">With breakfast</span>
+                    <span className="rate-value">₱2,500</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* AMENITIES */}
+      <section className="section" id="amenities">
+        <div className="container">
+          <div className="text-center mb-5">
+            <div className="section-eyebrow">What We Offer</div>
+            <h2 className="section-title">Amenities &amp; Services</h2>
+          </div>
+          <div className="row g-4">
+            <div className="col-md-3 col-6">
+              <div className="amenity-card">
+                <div className="amenity-icon">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16" /><path d="M2 8h18a2 2 0 0 1 2 2v10" /><path d="M2 17h20" /><path d="M6 8v9" /></svg>
+                </div>
+                <h3>Clean Linens</h3>
+                <p>Fresh bedding and towels provided for every stay.</p>
+              </div>
+            </div>
+            <div className="col-md-3 col-6">
+              <div className="amenity-card">
+                <div className="amenity-icon">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12" y2="20" /></svg>
+                </div>
+                <h3>Free Wi-Fi</h3>
+                <p>Stay connected throughout your stay at no extra cost.</p>
+              </div>
+            </div>
+            <div className="col-md-3 col-6">
+              <div className="amenity-card">
+                <div className="amenity-icon">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1" /><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" /><line x1="6" y1="2" x2="6" y2="4" /><line x1="10" y1="2" x2="10" y2="4" /><line x1="14" y1="2" x2="14" y2="4" /></svg>
+                </div>
+                <h3>Breakfast Option</h3>
+                <p>Add a hearty breakfast to any room booking.</p>
+              </div>
+            </div>
+            <div className="col-md-3 col-6">
+              <div className="amenity-card">
+                <div className="amenity-icon">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                </div>
+                <h3>24/7 Front Desk</h3>
+                <p>Our staff is on hand any time you need assistance.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="footer-pcc" id="contact">
+        <div className="container">
+          <div className="row g-4">
+            <div className="col-lg-4">
+              <h5>PCC Home Suite Home</h5>
+              <p className="mb-1">Osmeña Street, Zone 1</p>
+              <p>Koronadal City, South Cotabato</p>
+            </div>
+            <div className="col-lg-4">
+              <h5>Quick Links</h5>
+              <ul className="list-unstyled" style={{ paddingLeft: "0", listStyle: "none" }}>
+                <li className="mb-2"><a href="#rooms">Rooms &amp; Rates</a></li>
+                <li className="mb-2"><a href="#amenities">Amenities</a></li>
+                <li className="mb-2"><Link href="/auth/register">Create an Account</Link></li>
+                <li className="mb-2"><Link href="/auth/login">Staff / Guest Login</Link></li>
+              </ul>
+            </div>
+            <div className="col-lg-4">
+              <h5>Get in Touch</h5>
+              <p className="mb-1">Email: info@pccsuite.com</p>
+              <p>Phone: 09000000000</p>
+            </div>
+          </div>
+          <hr />
+          <div className="footer-bottom text-center">
+            &copy; {new Date().getFullYear()} PCC Home Suite Home. All rights reserved.
+          </div>
+        </div>
+      </footer>
+
+      {/* CHATBOT WIDGET */}
+      <button
+        className="chatbot-toggle"
+        onClick={() => setIsChatOpen((prev) => !prev)}
+        aria-label="Open chat"
+      >
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
+      </button>
+
+      <div className={`chatbot-window ${isChatOpen ? "active" : ""}`}>
+        <div className="chatbot-header">
+          <span>PCC Home Suite Assistant</span>
+          <button onClick={() => setIsChatOpen(false)} aria-label="Close chat">&times;</button>
+        </div>
+        <div className="chatbot-body" ref={chatBodyRef}>
+          {messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`chat-bubble ${msg.sender}`}
+              style={{ whiteSpace: "pre-line" }}
+            >
+              {msg.text}
+            </div>
+          ))}
+        </div>
+        <div className="chatbot-quick-replies">
+          <button onClick={() => handleQuickReply("rates", "Room rates")}>Room rates</button>
+          <button onClick={() => handleQuickReply("checkin", "Check-in / out time")}>Check-in / out time</button>
+          <button onClick={() => handleQuickReply("breakfast", "Breakfast options")}>Breakfast options</button>
+          <button onClick={() => handleQuickReply("agent", "Talk to staff")}>Talk to staff</button>
+        </div>
+        <div className="chatbot-input">
+          <input
+            type="text"
+            placeholder="Type your message..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleSendMessage(chatInput);
+              }
+            }}
+          />
+          <button onClick={() => handleSendMessage(chatInput)}>Send</button>
+        </div>
+      </div>
+    </>
+  );
+}
