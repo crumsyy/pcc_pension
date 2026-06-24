@@ -128,7 +128,7 @@ export default function AdminDiscounts() {
   };
 
   const handleDeleteDisc = async (discountID) => {
-    if (!confirm('Remove this discount?')) return;
+    if (!confirm('Are you sure you want to delete this discount?')) return;
     try {
       const res = await fetch('/api/admin/discounts', {
         method: 'POST',
@@ -189,7 +189,7 @@ export default function AdminDiscounts() {
   };
 
   const handleDeletePromo = async (promotionID) => {
-    if (!confirm('Remove this promotion?')) return;
+    if (!confirm('Are you sure you want to delete this promotion?')) return;
     try {
       const res = await fetch('/api/admin/discounts', {
         method: 'POST',
@@ -271,10 +271,10 @@ export default function AdminDiscounts() {
         </div>
         <div className="d-flex gap-2">
           <button className="btn btn-pcc-outline" onClick={openCreateDiscModal}>
-            + Discount
+            + Create Discount
           </button>
           <button className="btn btn-pcc-primary" onClick={openCreatePromoModal}>
-            + Promotion
+            + Create Promotion
           </button>
         </div>
       </div>
@@ -363,13 +363,13 @@ export default function AdminDiscounts() {
                               className="btn btn-sm btn-outline-primary"
                               onClick={() => openEditDiscModal(d)}
                             >
-                              Edit
+                              Update
                             </button>
                             <button
                               className="btn btn-sm btn-outline-danger"
                               onClick={() => handleDeleteDisc(d.discountID)}
                             >
-                              Remove
+                              Delete
                             </button>
                           </div>
                         </td>
@@ -445,13 +445,13 @@ export default function AdminDiscounts() {
                                 className="btn btn-sm btn-outline-primary"
                                 onClick={() => openEditPromoModal(p)}
                               >
-                                Edit
+                                Update
                               </button>
                               <button
                                 className="btn btn-sm btn-outline-danger"
                                 onClick={() => handleDeletePromo(p.promotionID)}
                               >
-                                Remove
+                                Delete
                               </button>
                             </div>
                           </td>
@@ -476,7 +476,7 @@ export default function AdminDiscounts() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">New Discount</h5>
+                <h5 className="modal-title">Create Discount</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateDiscSubmit}>
@@ -577,7 +577,7 @@ export default function AdminDiscounts() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Edit Discount</h5>
+                <h5 className="modal-title">Update Discount</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditDiscSubmit}>
@@ -661,7 +661,7 @@ export default function AdminDiscounts() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
+                  <button type="submit" className="btn btn-pcc-primary">Update Discount</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
@@ -680,7 +680,7 @@ export default function AdminDiscounts() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">New Promotion</h5>
+                <h5 className="modal-title">Create Promotion</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreatePromoSubmit}>
@@ -776,7 +776,7 @@ export default function AdminDiscounts() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Edit Promotion</h5>
+                <h5 className="modal-title">Update Promotion</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditPromoSubmit}>
@@ -857,7 +857,7 @@ export default function AdminDiscounts() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
+                  <button type="submit" className="btn btn-pcc-primary">Update Promotion</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>

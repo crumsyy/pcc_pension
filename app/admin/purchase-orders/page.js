@@ -163,7 +163,7 @@ export default function AdminPurchaseOrders() {
           <h2 className="section-title mb-0">Purchase Orders</h2>
         </div>
         <button className="btn btn-pcc-primary" onClick={openCreateModal}>
-          + New Purchase Order
+          + Create Purchase Order
         </button>
       </div>
 
@@ -325,7 +325,7 @@ export default function AdminPurchaseOrders() {
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">New Purchase Order</h5>
+                <h5 className="modal-title">Create Purchase Order</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreatePOSubmit}>
@@ -383,7 +383,7 @@ export default function AdminPurchaseOrders() {
                   </button>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Submit Purchase Order</button>
+                  <button type="submit" className="btn btn-pcc-primary">Create Purchase Order</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>

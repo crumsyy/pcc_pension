@@ -111,8 +111,8 @@ export default function AdminAmenities() {
     }
   };
 
-  const handleArchive = async (amenityID) => {
-    if (!confirm('Archive this amenity (stock quantity will be set to 0)?')) return;
+  const handleDelete = async (amenityID) => {
+    if (!confirm('Are you sure you want to delete this amenity (stock quantity will be set to 0)?')) return;
 
     try {
       const res = await fetch('/api/admin/amenities', {
@@ -125,9 +125,9 @@ export default function AdminAmenities() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to archive');
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
 
-      showToast(data.message || 'Amenity archived successfully');
+      showToast(data.message || 'Amenity deleted successfully');
       fetchAmenities();
     } catch (err) {
       showToast(err.message, false);
@@ -163,7 +163,7 @@ export default function AdminAmenities() {
           <h2 className="section-title mb-0">Amenities Management</h2>
         </div>
         <button className="btn btn-pcc-primary" onClick={openCreateModal}>
-          + Add Amenity
+          + Create Amenity
         </button>
       </div>
 
@@ -267,13 +267,13 @@ export default function AdminAmenities() {
                             className="btn btn-sm btn-outline-primary"
                             onClick={() => openEditModal(item)}
                           >
-                            Edit
+                            Update
                           </button>
                           <button
                             className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleArchive(item.amenityID)}
+                            onClick={() => handleDelete(item.amenityID)}
                           >
-                            Archive
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -296,7 +296,7 @@ export default function AdminAmenities() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Add Amenity</h5>
+                <h5 className="modal-title">Create Amenity</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
@@ -354,7 +354,7 @@ export default function AdminAmenities() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Add Amenity</button>
+                  <button type="submit" className="btn btn-pcc-primary">Create Amenity</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
@@ -369,7 +369,7 @@ export default function AdminAmenities() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Edit Amenity</h5>
+                <h5 className="modal-title">Update Amenity</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditSubmit}>
@@ -426,7 +426,7 @@ export default function AdminAmenities() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
+                  <button type="submit" className="btn btn-pcc-primary">Update Amenity</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>

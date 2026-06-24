@@ -24,15 +24,6 @@ export default function AdminRooms() {
     status: 'Available',
   });
 
-  const statuses = ['Available', 'Occupied', 'Reserved', 'Under Maintenance', 'Cleaning'];
-  const colors = {
-    'Available': '#3FA34D',
-    'Occupied': '#2155B5',
-    'Reserved': '#f0a500',
-    'Under Maintenance': '#dc3545',
-    'Cleaning': '#17a2b8'
-  };
-
   const fetchRooms = async () => {
     setLoading(true);
     setError('');
@@ -122,8 +113,8 @@ export default function AdminRooms() {
     }
   };
 
-  const handleArchive = async (roomID) => {
-    if (!confirm('Archive this room (it will be set to Under Maintenance)?')) return;
+  const handleDelete = async (roomID) => {
+    if (!confirm('Are you sure you want to delete this room (it will be set to Under Maintenance)?')) return;
 
     try {
       const res = await fetch('/api/admin/rooms', {
@@ -136,9 +127,9 @@ export default function AdminRooms() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to archive room');
+      if (!res.ok) throw new Error(data.error || 'Failed to delete room');
 
-      showToast(data.message || 'Room archived successfully');
+      showToast(data.message || 'Room deleted successfully');
       fetchRooms();
     } catch (err) {
       showToast(err.message, false);
@@ -166,11 +157,26 @@ export default function AdminRooms() {
     setActiveModal('edit');
   };
 
-  // Helper to count statuses
-  const counts = statuses.reduce((acc, status) => {
-    acc[status] = rooms.filter(r => r.status === status).length;
-    return acc;
-  }, {});
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Available': return '#3FA34D';
+      case 'Occupied': return '#2155B5';
+      case 'Reserved': return '#f0a500';
+      case 'Under Maintenance': return '#dc3545';
+      case 'Cleaning': return '#17a2b8';
+      default: return '#6c757d';
+    }
+  };
+
+  // Statuses list for dropdowns (only Available and Under Maintenance are admin-adjustable)
+  const getStatusOptions = (currentStatus) => {
+    const baseOptions = ['Available', 'Under Maintenance'];
+    // Preserve receptionist status if room currently has one, so details can be updated without wiping it out
+    if (currentStatus && !baseOptions.includes(currentStatus)) {
+      return [currentStatus, ...baseOptions];
+    }
+    return baseOptions;
+  };
 
   return (
     <div>
@@ -180,7 +186,7 @@ export default function AdminRooms() {
           <h2 className="section-title mb-0">Room Management</h2>
         </div>
         <button className="btn btn-pcc-primary" onClick={openCreateModal}>
-          + Add Room
+          + Create Room
         </button>
       </div>
 
@@ -232,23 +238,6 @@ export default function AdminRooms() {
         </div>
       </div>
 
-      {/* Room Status Summary */}
-      <div className="row g-2 mb-3">
-        {statuses.map((status) => (
-          <div className="col" key={status}>
-            <div
-              className="stat-card text-center text-white p-3 rounded"
-              style={{ backgroundColor: colors[status] || '#6c757d' }}
-            >
-              <div style={{ fontSize: '1.6rem', fontWeight: '700' }}>
-                {counts[status] || 0}
-              </div>
-              <div style={{ fontSize: '0.75rem', opacity: '0.9' }}>{status}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Rooms Table */}
       <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         {loading ? (
@@ -288,9 +277,9 @@ export default function AdminRooms() {
                         <span
                           className="badge"
                           style={{
-                            backgroundColor: (colors[rm.status] || '#6c757d') + '22',
-                            color: colors[rm.status] || '#6c757d',
-                            border: `1px solid ${colors[rm.status] || '#6c757d'}44`,
+                            backgroundColor: getStatusColor(rm.status) + '22',
+                            color: getStatusColor(rm.status),
+                            border: `1px solid ${getStatusColor(rm.status)}44`,
                             padding: '0.4em 0.8em',
                           }}
                         >
@@ -303,13 +292,13 @@ export default function AdminRooms() {
                             className="btn btn-sm btn-outline-primary"
                             onClick={() => openEditModal(rm)}
                           >
-                            Edit
+                            Update
                           </button>
                           <button
                             className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleArchive(rm.roomID)}
+                            onClick={() => handleDelete(rm.roomID)}
                           >
-                            Archive
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -332,7 +321,7 @@ export default function AdminRooms() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Add New Room</h5>
+                <h5 className="modal-title">Create Room</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
@@ -387,14 +376,14 @@ export default function AdminRooms() {
                       value={formData.status}
                       onChange={handleInputChange}
                     >
-                      {statuses.map(s => (
+                      {getStatusOptions().map(s => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Add Room</button>
+                  <button type="submit" className="btn btn-pcc-primary">Create Room</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
@@ -409,7 +398,7 @@ export default function AdminRooms() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Edit Room {selectedRoom.roomNumber}</h5>
+                <h5 className="modal-title">Update Room {selectedRoom.roomNumber}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditSubmit}>
@@ -461,14 +450,14 @@ export default function AdminRooms() {
                       value={formData.status}
                       onChange={handleInputChange}
                     >
-                      {statuses.map(s => (
+                      {getStatusOptions(selectedRoom.status).map(s => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
+                  <button type="submit" className="btn btn-pcc-primary">Update Room</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>

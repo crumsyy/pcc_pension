@@ -111,8 +111,8 @@ export default function AdminProducts() {
     }
   };
 
-  const handleArchive = async (productID) => {
-    if (!confirm('Archive this product (stock quantity will be set to 0)?')) return;
+  const handleDelete = async (productID) => {
+    if (!confirm('Are you sure you want to delete this product (stock quantity will be set to 0)?')) return;
 
     try {
       const res = await fetch('/api/admin/products', {
@@ -125,9 +125,9 @@ export default function AdminProducts() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to archive');
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
 
-      showToast(data.message || 'Product archived successfully');
+      showToast(data.message || 'Product deleted successfully');
       fetchProducts();
     } catch (err) {
       showToast(err.message, false);
@@ -163,7 +163,7 @@ export default function AdminProducts() {
           <h2 className="section-title mb-0">Products Management</h2>
         </div>
         <button className="btn btn-pcc-primary" onClick={openCreateModal}>
-          + Add Product
+          + Create Product
         </button>
       </div>
 
@@ -267,13 +267,13 @@ export default function AdminProducts() {
                             className="btn btn-sm btn-outline-primary"
                             onClick={() => openEditModal(p)}
                           >
-                            Edit
+                            Update
                           </button>
                           <button
                             className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleArchive(p.productID)}
+                            onClick={() => handleDelete(p.productID)}
                           >
-                            Archive
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -296,7 +296,7 @@ export default function AdminProducts() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Add Product</h5>
+                <h5 className="modal-title">Create Product</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
@@ -354,7 +354,7 @@ export default function AdminProducts() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Add Product</button>
+                  <button type="submit" className="btn btn-pcc-primary">Create Product</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
@@ -369,7 +369,7 @@ export default function AdminProducts() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Edit Product</h5>
+                <h5 className="modal-title">Update Product</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditSubmit}>
@@ -426,7 +426,7 @@ export default function AdminProducts() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
+                  <button type="submit" className="btn btn-pcc-primary">Update Product</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>

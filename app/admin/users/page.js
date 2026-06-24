@@ -368,7 +368,7 @@ export default function AdminUsers() {
                             className="btn btn-sm btn-outline-secondary"
                             onClick={() => openEditModal(u)}
                           >
-                            Edit
+                            Update
                           </button>
                           <button
                             className={`btn btn-sm ${
@@ -407,7 +407,7 @@ export default function AdminUsers() {
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">+ Create Staff Account</h5>
+                <h5 className="modal-title">Create User</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
@@ -469,7 +469,7 @@ export default function AdminUsers() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Create Account</button>
+                  <button type="submit" className="btn btn-pcc-primary">Create User</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
@@ -547,7 +547,7 @@ export default function AdminUsers() {
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">✏️ Edit Account</h5>
+                <h5 className="modal-title">Update User</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditSubmit}>
@@ -610,7 +610,7 @@ export default function AdminUsers() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
+                  <button type="submit" className="btn btn-pcc-primary">Update User</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
@@ -647,7 +647,7 @@ export default function AdminUsers() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" class="btn btn-pcc-primary">Reset Password</button>
+                  <button type="submit" className="btn btn-pcc-primary">Reset Password</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
