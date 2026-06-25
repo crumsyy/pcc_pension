@@ -29,6 +29,11 @@ export default function Home() {
     }
   }, [messages, isChatOpen]);
 
+  const [year, setYear] = useState(2026);
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+
   // Predefined chatbot knowledge base
   const responses = {
     rates: "Here are our room rates per night:\n\n" +
@@ -444,7 +449,7 @@ export default function Home() {
           </div>
           <hr />
           <div className="footer-bottom text-center">
-            &copy; {new Date().getFullYear()} PCC Home Suite Home. All rights reserved.
+            &copy; {year} PCC Home Suite Home. All rights reserved.
           </div>
         </div>
       </footer>

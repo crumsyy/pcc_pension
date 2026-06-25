@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireSessionRole } from "@/lib/session";
 import { dbQuery } from "@/lib/db";
 
+export const unstable_instant = false;
+
 export default async function GuestDashboard() {
   // Check auth and role
   const auth = await requireSessionRole("Guest");

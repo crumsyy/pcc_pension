@@ -9,14 +9,14 @@ export async function GET() {
   }
 
   try {
-    // 1. Room counts by status
-    const roomStatsRaw = await dbQuery("SELECT status, COUNT(*) as cnt FROM room GROUP BY status");
+    // 1. Room counts by status (excluding archived rooms)
+    const roomStatsRaw = await dbQuery("SELECT status, COUNT(*) as cnt FROM room WHERE isArchived = 0 GROUP BY status");
     const roomStats = roomStatsRaw.reduce((acc, row) => {
       acc[row.status] = row.cnt;
       return acc;
     }, {});
 
-    const totalRoomsRes = await dbQuery("SELECT COUNT(*) as count FROM room");
+    const totalRoomsRes = await dbQuery("SELECT COUNT(*) as count FROM room WHERE isArchived = 0");
     const totalRooms = totalRoomsRes[0]?.count || 0;
 
     // 2. Revenue summaries
@@ -68,12 +68,13 @@ export async function GET() {
     const pendingResRes = await dbQuery("SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'");
     const pendingResCount = pendingResRes[0]?.count || 0;
 
-    // 6. Room status board grid
+    // 6. Room status board grid (excluding archived rooms)
     const rooms = await dbQuery(`
       SELECT rm.roomNumber, rm.status, rt.type as roomType, fl.name as floor
       FROM room rm
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
       JOIN floor fl ON fl.floorID = rm.floorID
+      WHERE rm.isArchived = 0
       ORDER BY fl.name, rm.roomNumber
     `);
 

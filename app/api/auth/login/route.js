@@ -15,11 +15,15 @@ export async function POST(request) {
 
     const lowerEmail = email.trim().toLowerCase();
 
-    // Look up user along with their role name
+    // Look up user along with their role name and profile details in a single query
     const users = await dbQuery(`
-      SELECT u.userID, u.email, u.password, u.status, u.roleID, r.role
+      SELECT u.userID, u.email, u.password, u.status, u.roleID, r.role,
+             g.guestID, g.firstName AS guestFirst, g.lastName AS guestLast,
+             s.staffID, s.firstName AS staffFirst, s.lastName AS staffLast
       FROM user u
       JOIN role r ON r.roleID = u.roleID
+      LEFT JOIN guest g ON g.userID = u.userID AND r.role = 'Guest'
+      LEFT JOIN staff s ON s.userID = u.userID AND r.role != 'Guest'
       WHERE u.email = ?
     `, [lowerEmail]);
 
@@ -57,17 +61,11 @@ export async function POST(request) {
     let fullName = "";
 
     if (user.role === 'Guest') {
-      const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [user.userID]);
-      if (guests.length > 0) {
-        profileID = guests[0].guestID;
-        fullName = `${guests[0].firstName} ${guests[0].lastName}`.trim();
-      }
+      profileID = user.guestID;
+      fullName = `${user.guestFirst || ''} ${user.guestLast || ''}`.trim();
     } else {
-      const staff = await dbQuery("SELECT staffID, firstName, lastName FROM staff WHERE userID = ?", [user.userID]);
-      if (staff.length > 0) {
-        profileID = staff[0].staffID;
-        fullName = `${staff[0].firstName} ${staff[0].lastName}`.trim();
-      }
+      profileID = user.staffID;
+      fullName = `${user.staffFirst || ''} ${user.staffLast || ''}`.trim();
     }
 
     // Generate unique session token for concurrent login check

@@ -35,8 +35,8 @@ export async function GET(request) {
       data.totalRevenue = totalRevenue;
       data.totalTx = totalTx;
     } else if (report === 'occupancy') {
-      const totalRoomsRes = await dbQuery("SELECT COUNT(*) as count FROM room");
-      const occupiedNowRes = await dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied'");
+      const totalRoomsRes = await dbQuery("SELECT COUNT(*) as count FROM room WHERE isArchived = 0");
+      const occupiedNowRes = await dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0");
 
       const totalRooms = totalRoomsRes[0]?.count || 0;
       const occupiedNow = occupiedNowRes[0]?.count || 0;

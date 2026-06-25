@@ -29,7 +29,7 @@ export async function GET(request) {
 
     const discountTypes = await dbQuery("SELECT * FROM discount_type");
     const eligibilityTypes = await dbQuery("SELECT * FROM eligibility_type");
-    const rooms = await dbQuery("SELECT roomID, roomNumber FROM room ORDER BY roomNumber");
+    const rooms = await dbQuery("SELECT roomID, roomNumber FROM room WHERE isArchived = 0 ORDER BY roomNumber");
 
     let filteredDiscounts = discounts;
     let filteredPromotions = promotions;

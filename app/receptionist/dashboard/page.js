@@ -10,10 +10,10 @@ export default async function ReceptionistDashboard() {
     "SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked In'"
   );
   const occupiedRoomsRes = await dbQuery(
-    "SELECT COUNT(*) as count FROM room WHERE status = 'Occupied'"
+    "SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"
   );
   const availableRoomsRes = await dbQuery(
-    "SELECT COUNT(*) as count FROM room WHERE status = 'Available'"
+    "SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"
   );
   const pendingResRes = await dbQuery(
     "SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'"
@@ -58,6 +58,7 @@ export default async function ReceptionistDashboard() {
     FROM room rm
     JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
     JOIN floor fl ON fl.floorID = rm.floorID
+    WHERE rm.isArchived = 0
     ORDER BY fl.name, rm.roomNumber
   `);
 

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireSessionRole } from "@/lib/session";
 
+export const unstable_instant = false;
+
 export default async function ReceptionistLayout({ children }) {
   const auth = await requireSessionRole("Receptionist");
   if (auth.redirect) {

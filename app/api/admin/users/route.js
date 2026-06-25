@@ -43,7 +43,7 @@ export async function GET(request) {
 
   if (search) {
     const like = `%${search}%`;
-    where.push("(firstName LIKE ? OR lastName LIKE ? OR email LIKE ?)");
+    where.push("(LOWER(firstName) LIKE LOWER(?) OR LOWER(lastName) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?))");
     params.push(like, like, like);
   }
   if (roleF) {
@@ -63,7 +63,7 @@ export async function GET(request) {
   try {
     const users = await dbQuery(wrapped, params);
     const roles = await dbQuery("SELECT * FROM role ORDER BY roleID");
-    return NextResponse.json({ users, roles });
+    return NextResponse.json({ users, roles, currentUser: { userID: session.userID } });
   } catch (error) {
     console.error("Failed to fetch users:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -165,6 +165,11 @@ export async function POST(request) {
           );
         }
 
+        if (body.newPassword && body.newPassword.trim() !== '') {
+          const hashedPassword = await bcrypt.hash(body.newPassword.trim(), 10);
+          await conn.execute("UPDATE user SET password=? WHERE userID=?", [hashedPassword, uid]);
+        }
+
         await conn.commit();
         return NextResponse.json({ success: true, message: 'Account updated successfully.' });
       } catch (e) {
@@ -178,6 +183,10 @@ export async function POST(request) {
     if (action === 'toggle_status') {
       const uid = parseInt(body.userID);
       const newStatus = body.newStatus;
+
+      if (uid === session.userID && newStatus === 'Inactive') {
+        return NextResponse.json({ error: 'You cannot deactivate your own account.' }, { status: 400 });
+      }
 
       await dbQuery("UPDATE user SET status=? WHERE userID=?", [newStatus, uid]);
       return NextResponse.json({ success: true, message: `Account status updated to ${newStatus}.` });

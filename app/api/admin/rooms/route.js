@@ -11,15 +11,16 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
   const typeF = searchParams.get('roomTypeID') || '';
+  const archived = searchParams.get('archived') === 'true';
 
   let sql = `
     SELECT rm.*, rt.type as typeName, fl.name as floorName
     FROM room rm
     JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
     JOIN floor fl ON fl.floorID = rm.floorID
-    WHERE 1=1
+    WHERE rm.isArchived = ?
   `;
-  const params = [];
+  const params = [archived ? 1 : 0];
 
   if (search) {
     sql += " AND (rm.roomNumber LIKE ? OR rt.type LIKE ?)";
@@ -60,6 +61,10 @@ export async function POST(request) {
       const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);
 
+      if (status === 'Occupied') {
+        return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
+      }
+
       await dbQuery(
         "INSERT INTO room(roomNumber,status,floorID,roomTypeID) VALUES(?,?,?,?)",
         [roomNumber, status, floorID, roomTypeID]
@@ -74,6 +79,16 @@ export async function POST(request) {
       const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);
 
+      if (status === 'Occupied') {
+        return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
+      }
+
+      // Check current status in DB to ensure it is not Occupied
+      const currentRoom = await dbQuery("SELECT status FROM room WHERE roomID=?", [roomID]);
+      if (currentRoom.length > 0 && currentRoom[0].status === 'Occupied') {
+        return NextResponse.json({ error: 'Occupied rooms cannot be edited.' }, { status: 400 });
+      }
+
       await dbQuery(
         "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=? WHERE roomID=?",
         [roomNumber, status, floorID, roomTypeID, roomID]
@@ -83,11 +98,24 @@ export async function POST(request) {
 
     if (action === 'delete') {
       const roomID = parseInt(body.roomID);
+      
+      // Perform soft delete (archive)
       await dbQuery(
-        "UPDATE room SET status='Under Maintenance' WHERE roomID=?",
+        "UPDATE room SET isArchived = 1 WHERE roomID=?",
         [roomID]
       );
-      return NextResponse.json({ success: true, message: 'Room archived (set to Under Maintenance).' });
+      return NextResponse.json({ success: true, message: 'Room archived successfully.' });
+    }
+
+    if (action === 'restore') {
+      const roomID = parseInt(body.roomID);
+      
+      // Restore archived room
+      await dbQuery(
+        "UPDATE room SET isArchived = 0 WHERE roomID=?",
+        [roomID]
+      );
+      return NextResponse.json({ success: true, message: 'Room restored successfully.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
