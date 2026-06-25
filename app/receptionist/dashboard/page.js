@@ -2,65 +2,60 @@ import Link from "next/link";
 import { dbQuery } from "@/lib/db";
 
 export default async function ReceptionistDashboard() {
-  // 1. Fetch statistics
-  const checkInsTodayRes = await dbQuery(
-    "SELECT COUNT(*) as count FROM booking WHERE DATE(checkInDateTime) = CURDATE() AND status IN ('Confirmed','Pending')"
-  );
-  const checkOutsTodayRes = await dbQuery(
-    "SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked In'"
-  );
-  const occupiedRoomsRes = await dbQuery(
-    "SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"
-  );
-  const availableRoomsRes = await dbQuery(
-    "SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"
-  );
-  const pendingResRes = await dbQuery(
-    "SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'"
-  );
+  // 1. Fetch statistics, check-ins, reservations, and room status board in parallel
+  const [
+    checkInsTodayRes,
+    checkOutsTodayRes,
+    occupiedRoomsRes,
+    availableRoomsRes,
+    pendingResRes,
+    checkInsList,
+    pendingResList,
+    rooms
+  ] = await Promise.all([
+    dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkInDateTime) = CURDATE() AND status IN ('Confirmed','Pending')"),
+    dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked In'"),
+    dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
+    dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
+    dbQuery("SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'"),
+    dbQuery(`
+      SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
+             g.firstName, g.lastName, g.contact,
+             rm.roomNumber, rt.type as roomType
+      FROM booking b
+      JOIN guest g ON g.guestID = b.guestID
+      JOIN room rm ON rm.roomID = b.roomID
+      JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+      WHERE DATE(b.checkInDateTime) = CURDATE()
+      ORDER BY b.checkInDateTime ASC
+    `),
+    dbQuery(`
+      SELECT r.reservationID, r.reservationDateTime, r.status,
+             g.firstName, g.lastName, g.contact,
+             rm.roomNumber, rt.type as roomType
+      FROM reservation r
+      JOIN guest g ON g.guestID = r.guestID
+      JOIN room rm ON rm.roomID = r.roomID
+      JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+      WHERE r.status = 'Pending'
+      ORDER BY r.reservationDateTime ASC
+      LIMIT 10
+    `),
+    dbQuery(`
+      SELECT rm.roomID, rm.roomNumber, rm.status, rt.type as roomType, fl.name as floor
+      FROM room rm
+      JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+      JOIN floor fl ON fl.floorID = rm.floorID
+      WHERE rm.isArchived = 0
+      ORDER BY fl.name, rm.roomNumber
+    `)
+  ]);
 
   const checkInsToday = checkInsTodayRes[0]?.count || 0;
   const checkOutsToday = checkOutsTodayRes[0]?.count || 0;
   const occupiedRooms = occupiedRoomsRes[0]?.count || 0;
   const availableRooms = availableRoomsRes[0]?.count || 0;
   const pendingRes = pendingResRes[0]?.count || 0;
-
-  // 2. Fetch today's check-ins list
-  const checkInsList = await dbQuery(`
-    SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
-           g.firstName, g.lastName, g.contact,
-           rm.roomNumber, rt.type as roomType
-    FROM booking b
-    JOIN guest g ON g.guestID = b.guestID
-    JOIN room rm ON rm.roomID = b.roomID
-    JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-    WHERE DATE(b.checkInDateTime) = CURDATE()
-    ORDER BY b.checkInDateTime ASC
-  `);
-
-  // 3. Fetch pending reservations list
-  const pendingResList = await dbQuery(`
-    SELECT r.reservationID, r.reservationDateTime, r.status,
-           g.firstName, g.lastName, g.contact,
-           rm.roomNumber, rt.type as roomType
-    FROM reservation r
-    JOIN guest g ON g.guestID = r.guestID
-    JOIN room rm ON rm.roomID = r.roomID
-    JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-    WHERE r.status = 'Pending'
-    ORDER BY r.reservationDateTime ASC
-    LIMIT 10
-  `);
-
-  // 4. Fetch room grid status board
-  const rooms = await dbQuery(`
-    SELECT rm.roomID, rm.roomNumber, rm.status, rt.type as roomType, fl.name as floor
-    FROM room rm
-    JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-    JOIN floor fl ON fl.floorID = rm.floorID
-    WHERE rm.isArchived = 0
-    ORDER BY fl.name, rm.roomNumber
-  `);
 
   // Formatter helpers
   const formatTime = (dateStr) => {

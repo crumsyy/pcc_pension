@@ -25,30 +25,30 @@ export default async function GuestDashboard() {
   }
   const guest = guests[0];
 
-  // 2. Fetch reservations
-  const reservations = await dbQuery(
-    `SELECT r.reservationID, r.reservationDateTime, r.status,
-            rm.roomNumber, rt.type as roomType, fl.name as floor
-     FROM reservation r
-     JOIN room rm ON rm.roomID = r.roomID
-     JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-     JOIN floor fl ON fl.floorID = rm.floorID
-     WHERE r.guestID = ?
-     ORDER BY r.reservationDateTime DESC LIMIT 5`,
-    [guest.guestID]
-  );
-
-  // 3. Fetch bookings
-  const bookings = await dbQuery(
-    `SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
-            rm.roomNumber, rt.type as roomType
-     FROM booking b
-     JOIN room rm ON rm.roomID = b.roomID
-     JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-     WHERE b.guestID = ?
-     ORDER BY b.checkInDateTime DESC LIMIT 5`,
-    [guest.guestID]
-  );
+  // 2. Fetch reservations and bookings in parallel
+  const [reservations, bookings] = await Promise.all([
+    dbQuery(
+      `SELECT r.reservationID, r.reservationDateTime, r.status,
+              rm.roomNumber, rt.type as roomType, fl.name as floor
+       FROM reservation r
+       JOIN room rm ON rm.roomID = r.roomID
+       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+       JOIN floor fl ON fl.floorID = rm.floorID
+       WHERE r.guestID = ?
+       ORDER BY r.reservationDateTime DESC LIMIT 5`,
+      [guest.guestID]
+    ),
+    dbQuery(
+      `SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
+              rm.roomNumber, rt.type as roomType
+       FROM booking b
+       JOIN room rm ON rm.roomID = b.roomID
+       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+       WHERE b.guestID = ?
+       ORDER BY b.checkInDateTime DESC LIMIT 5`,
+      [guest.guestID]
+    )
+  ]);
 
   // Date formatting options
   const formatDate = (dateStr) => {

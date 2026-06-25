@@ -390,7 +390,7 @@ export default function RoomsClient() {
                                   className="btn btn-sm btn-danger text-white"
                                   onClick={() => handleArchive(rm)}
                                 >
-                                  Archive
+                                  Delete
                                 </button>
                               </>
                             ) : (

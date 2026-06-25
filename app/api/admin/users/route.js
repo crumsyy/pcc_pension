@@ -61,8 +61,10 @@ export async function GET(request) {
   wrapped += " ORDER BY createdAt DESC";
 
   try {
-    const users = await dbQuery(wrapped, params);
-    const roles = await dbQuery("SELECT * FROM role ORDER BY roleID");
+    const [users, roles] = await Promise.all([
+      dbQuery(wrapped, params),
+      dbQuery("SELECT * FROM role ORDER BY roleID")
+    ]);
     return NextResponse.json({ users, roles, currentUser: { userID: session.userID } });
   } catch (error) {
     console.error("Failed to fetch users:", error);

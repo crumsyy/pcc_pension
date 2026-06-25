@@ -35,9 +35,11 @@ export async function GET(request) {
   sql += " ORDER BY fl.name, rm.roomNumber";
 
   try {
-    const rooms = await dbQuery(sql, params);
-    const floors = await dbQuery("SELECT * FROM floor ORDER BY floorID");
-    const roomTypes = await dbQuery("SELECT * FROM room_type ORDER BY type");
+    const [rooms, floors, roomTypes] = await Promise.all([
+      dbQuery(sql, params),
+      dbQuery("SELECT * FROM floor ORDER BY floorID"),
+      dbQuery("SELECT * FROM room_type ORDER BY type")
+    ]);
     return NextResponse.json({ rooms, floors, roomTypes });
   } catch (error) {
     console.error("Failed to fetch rooms:", error);

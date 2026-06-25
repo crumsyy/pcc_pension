@@ -12,24 +12,24 @@ export async function GET(request) {
   const search = searchParams.get('search') || '';
 
   try {
-    const discounts = await dbQuery(`
-      SELECT d.*, dt.type as discType, et.eligibility 
-      FROM discounts d 
-      JOIN discount_type dt ON dt.discountTypeID = d.discountTypeID 
-      JOIN eligibility_type et ON et.eligibilityTypeID = d.eligibilityTypeID 
-      ORDER BY d.name
-    `);
-
-    const promotions = await dbQuery(`
-      SELECT p.*, rm.roomNumber 
-      FROM promotions p 
-      LEFT JOIN room rm ON rm.roomID = p.roomID 
-      ORDER BY p.startDate DESC
-    `);
-
-    const discountTypes = await dbQuery("SELECT * FROM discount_type");
-    const eligibilityTypes = await dbQuery("SELECT * FROM eligibility_type");
-    const rooms = await dbQuery("SELECT roomID, roomNumber FROM room WHERE isArchived = 0 ORDER BY roomNumber");
+    const [discounts, promotions, discountTypes, eligibilityTypes, rooms] = await Promise.all([
+      dbQuery(`
+        SELECT d.*, dt.type as discType, et.eligibility 
+        FROM discounts d 
+        JOIN discount_type dt ON dt.discountTypeID = d.discountTypeID 
+        JOIN eligibility_type et ON et.eligibilityTypeID = d.eligibilityTypeID 
+        ORDER BY d.name
+      `),
+      dbQuery(`
+        SELECT p.*, rm.roomNumber 
+        FROM promotions p 
+        LEFT JOIN room rm ON rm.roomID = p.roomID 
+        ORDER BY p.startDate DESC
+      `),
+      dbQuery("SELECT * FROM discount_type"),
+      dbQuery("SELECT * FROM eligibility_type"),
+      dbQuery("SELECT roomID, roomNumber FROM room WHERE isArchived = 0 ORDER BY roomNumber")
+    ]);
 
     let filteredDiscounts = discounts;
     let filteredPromotions = promotions;
