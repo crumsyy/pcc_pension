@@ -7,6 +7,7 @@ export default function RoomsClient() {
   const [rooms, setRooms] = useState([]);
   const [floors, setFloors] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
+  const [roomRates, setRoomRates] = useState([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -80,6 +81,7 @@ export default function RoomsClient() {
       setRooms(data.rooms || []);
       setFloors(data.floors || []);
       setRoomTypes(data.roomTypes || []);
+      setRoomRates(data.roomRates || []);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -90,6 +92,20 @@ export default function RoomsClient() {
   useEffect(() => {
     fetchRooms();
   }, [search, typeFilter, showArchived]);
+
+  const getSelectedRates = (floorID, roomTypeID) => {
+    if (!floorID || !roomTypeID) return null;
+    const withoutBreakfast = roomRates.find(
+      r => r.floorID === parseInt(floorID) && r.roomTypeID === parseInt(roomTypeID) && r.breakfastID === 1
+    );
+    const withBreakfast = roomRates.find(
+      r => r.floorID === parseInt(floorID) && r.roomTypeID === parseInt(roomTypeID) && r.breakfastID === 2
+    );
+    return {
+      withoutBreakfast: withoutBreakfast ? withoutBreakfast.rate : 0,
+      withBreakfast: withBreakfast ? withBreakfast.rate : 0
+    };
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -339,6 +355,8 @@ export default function RoomsClient() {
                   <th>Room No.</th>
                   <th>Floor</th>
                   <th>Type</th>
+                  <th>Price (w/o Breakfast)</th>
+                  <th>Price (w/ Breakfast)</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -346,7 +364,7 @@ export default function RoomsClient() {
               <tbody>
                 {rooms.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="text-center text-muted py-4">
+                    <td colSpan="7" className="text-center text-muted py-4">
                       No rooms found.
                     </td>
                   </tr>
@@ -360,6 +378,8 @@ export default function RoomsClient() {
                         </td>
                         <td>{rm.floorName}</td>
                         <td>{rm.typeName}</td>
+                        <td>₱{Number(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td>₱{Number(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>
                           <span
                             className="badge"
@@ -470,6 +490,22 @@ export default function RoomsClient() {
                       ))}
                     </select>
                   </div>
+                  {(() => {
+                    const previewRates = getSelectedRates(formData.floorID, formData.roomTypeID);
+                    return previewRates ? (
+                      <div className="mb-3 p-3 rounded" style={{ backgroundColor: '#f8f9fa', border: '1px solid #dee2e6' }}>
+                        <small className="text-muted d-block mb-2 fw-bold" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room Rate Preview</small>
+                        <div className="d-flex justify-content-between text-muted mb-1" style={{ fontSize: '0.85rem' }}>
+                          <span>Without Breakfast:</span>
+                          <span className="fw-bold text-dark">₱{Number(previewRates.withoutBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.85rem' }}>
+                          <span>With Breakfast:</span>
+                          <span className="fw-bold text-dark">₱{Number(previewRates.withBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="mb-3">
                     <label className="form-label">Status</label>
                     <select
@@ -544,6 +580,22 @@ export default function RoomsClient() {
                       ))}
                     </select>
                   </div>
+                  {(() => {
+                    const previewRates = getSelectedRates(formData.floorID, formData.roomTypeID);
+                    return previewRates ? (
+                      <div className="mb-3 p-3 rounded" style={{ backgroundColor: '#f8f9fa', border: '1px solid #dee2e6' }}>
+                        <small className="text-muted d-block mb-2 fw-bold" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room Rate Preview</small>
+                        <div className="d-flex justify-content-between text-muted mb-1" style={{ fontSize: '0.85rem' }}>
+                          <span>Without Breakfast:</span>
+                          <span className="fw-bold text-dark">₱{Number(previewRates.withoutBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.85rem' }}>
+                          <span>With Breakfast:</span>
+                          <span className="fw-bold text-dark">₱{Number(previewRates.withBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="mb-3">
                     <label className="form-label">Status</label>
                     <select

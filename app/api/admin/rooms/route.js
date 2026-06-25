@@ -14,10 +14,14 @@ export async function GET(request) {
   const archived = searchParams.get('archived') === 'true';
 
   let sql = `
-    SELECT rm.*, rt.type as typeName, fl.name as floorName
+    SELECT rm.*, rt.type as typeName, fl.name as floorName,
+           COALESCE(rr1.rate, 0) as rateWithoutBreakfast,
+           COALESCE(rr2.rate, 0) as rateWithBreakfast
     FROM room rm
     JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
     JOIN floor fl ON fl.floorID = rm.floorID
+    LEFT JOIN room_rate rr1 ON rr1.roomTypeID = rm.roomTypeID AND rr1.floorID = rm.floorID AND rr1.breakfastID = 1
+    LEFT JOIN room_rate rr2 ON rr2.roomTypeID = rm.roomTypeID AND rr2.floorID = rm.floorID AND rr2.breakfastID = 2
     WHERE rm.isArchived = ?
   `;
   const params = [archived ? 1 : 0];
@@ -35,12 +39,13 @@ export async function GET(request) {
   sql += " ORDER BY fl.name, rm.roomNumber";
 
   try {
-    const [rooms, floors, roomTypes] = await Promise.all([
+    const [rooms, floors, roomTypes, roomRates] = await Promise.all([
       dbQuery(sql, params),
       dbQuery("SELECT * FROM floor ORDER BY floorID"),
-      dbQuery("SELECT * FROM room_type ORDER BY type")
+      dbQuery("SELECT * FROM room_type ORDER BY type"),
+      dbQuery("SELECT * FROM room_rate")
     ]);
-    return NextResponse.json({ rooms, floors, roomTypes });
+    return NextResponse.json({ rooms, floors, roomTypes, roomRates });
   } catch (error) {
     console.error("Failed to fetch rooms:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
