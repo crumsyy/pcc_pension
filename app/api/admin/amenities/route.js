@@ -11,14 +11,15 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
   const catF = searchParams.get('catID') || '';
+  const archived = searchParams.get('archived') === 'true';
 
   let sql = `
     SELECT a.*, ac.name as catName
     FROM amenities a
     JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
-    WHERE 1=1
+    WHERE a.isArchived = ?
   `;
-  const params = [];
+  const params = [archived ? 1 : 0];
 
   if (search) {
     sql += " AND (a.name LIKE ? OR ac.name LIKE ?)";
@@ -82,10 +83,19 @@ export async function POST(request) {
     if (action === 'archive') {
       const amenityID = parseInt(body.amenityID);
       await dbQuery(
-        "UPDATE amenities SET quantity=0 WHERE amenityID=?",
+        "UPDATE amenities SET isArchived=1 WHERE amenityID=?",
         [amenityID]
       );
       return NextResponse.json({ success: true, message: 'Amenity archived successfully.' });
+    }
+
+    if (action === 'restore') {
+      const amenityID = parseInt(body.amenityID);
+      await dbQuery(
+        "UPDATE amenities SET isArchived=0 WHERE amenityID=?",
+        [amenityID]
+      );
+      return NextResponse.json({ success: true, message: 'Amenity restored successfully.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

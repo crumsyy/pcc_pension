@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireSessionRole } from "@/lib/session";
 import { dbQuery } from "@/lib/db";
+import NotificationBell from "../../components/NotificationBell";
 
 export const unstable_instant = false;
 
@@ -64,7 +65,7 @@ export default async function GuestDashboard() {
   return (
     <>
       {/* NAVBAR */}
-      <nav className="navbar navbar-expand-lg navbar-pcc sticky-top">
+      <nav className="navbar navbar-expand-lg navbar-pcc guest-fixed-nav">
         <div className="container-fluid px-4">
           <Link href="/" className="navbar-brand d-flex align-items-center gap-2">
             <img src="/assets/images/logo.jpg" height="42" alt="PCC Logo" style={{ borderRadius: "4px" }} />
@@ -73,12 +74,13 @@ export default async function GuestDashboard() {
             <span className="text-muted d-none d-md-inline" style={{ fontSize: "0.9rem" }}>
               Hi, <strong className="text-blue">{guest.firstName}</strong>
             </span>
+            <NotificationBell />
             <Link href="/api/auth/logout" className="btn btn-pcc-outline btn-sm">Log Out</Link>
           </div>
         </div>
       </nav>
 
-      <div className="container py-4">
+      <div className="container py-4 guest-content-wrapper">
         {/* Welcome */}
         <div className="mb-4">
           <div className="section-eyebrow">Guest Dashboard</div>

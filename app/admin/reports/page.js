@@ -17,6 +17,7 @@ export default function AdminReports() {
   const fetchReport = async () => {
     setLoading(true);
     setError('');
+    setReportData(null); // Clear old report data to prevent rendering crashes!
     try {
       const query = new URLSearchParams({
         report,
@@ -247,7 +248,7 @@ export default function AdminReports() {
                         </tr>
                       </thead>
                       <tbody>
-                        {reportData.roomUtilRows.map((row) => (
+                        {reportData?.roomUtilRows?.map((row) => (
                           <tr key={row.type}>
                             <td>{row.type}</td>
                             <td>{row.bookings} bookings</td>
@@ -279,7 +280,7 @@ export default function AdminReports() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reportData.invRows.map((row, idx) => (
+                      {reportData?.invRows?.map((row, idx) => (
                         <tr key={idx}>
                           <td>
                             {new Date(row.stockInDate).toLocaleDateString('en-US', {
@@ -323,7 +324,7 @@ export default function AdminReports() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reportData.guestRows.map((g, idx) => (
+                      {reportData?.guestRows?.map((g, idx) => (
                         <tr key={idx}>
                           <td>
                             <strong>{`${g.firstName || ''} ${g.lastName || ''}`}</strong>

@@ -109,6 +109,23 @@ export default function UsersClient() {
 
   const handleCreateSubmit = (e) => {
     e.preventDefault();
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      showAlert('error', 'Validation Error', 'First Name and Last Name are required.');
+      return;
+    }
+    if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) {
+      showAlert('error', 'Validation Error', 'A valid Email Address is required.');
+      return;
+    }
+    if (!/^\d{11}$/.test(formData.contact)) {
+      showAlert('error', 'Validation Error', 'Contact Number must be exactly 11 digits.');
+      return;
+    }
+    if (formData.password.length < 8) {
+      showAlert('error', 'Validation Error', 'Password must be at least 8 characters long.');
+      return;
+    }
+
     showConfirm('Create Account', 'Create this new user/staff account?', async () => {
       try {
         const res = await fetch('/api/admin/users', {
@@ -116,7 +133,11 @@ export default function UsersClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'create',
-            ...formData
+            ...formData,
+            firstName: formData.firstName.trim(),
+            middleName: formData.middleName.trim(),
+            lastName: formData.lastName.trim(),
+            email: formData.email.trim()
           }),
         });
 
@@ -134,6 +155,19 @@ export default function UsersClient() {
 
   const handleEditSubmit = (e) => {
     e.preventDefault();
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      showAlert('error', 'Validation Error', 'First Name and Last Name are required.');
+      return;
+    }
+    if (!/^\d{11}$/.test(formData.contact)) {
+      showAlert('error', 'Validation Error', 'Contact Number must be exactly 11 digits.');
+      return;
+    }
+    if (formData.newPassword && formData.newPassword.length < 8) {
+      showAlert('error', 'Validation Error', 'New password must be at least 8 characters long.');
+      return;
+    }
+
     showConfirm('Update Account', 'Save changes to this user account?', async () => {
       try {
         const res = await fetch('/api/admin/users', {
@@ -144,7 +178,10 @@ export default function UsersClient() {
             userID: selectedUser.userID,
             staffID: selectedUser.staffID,
             guestID: selectedUser.guestID,
-            ...formData
+            ...formData,
+            firstName: formData.firstName.trim(),
+            middleName: formData.middleName.trim(),
+            lastName: formData.lastName.trim()
           }),
         });
 

@@ -41,6 +41,29 @@ export async function POST(request) {
       [user.userID]
     );
 
+    // Generate notifications
+    try {
+      const guests = await dbQuery("SELECT firstName, lastName FROM guest WHERE userID = ?", [user.userID]);
+      const fullName = guests.length > 0 ? `${guests[0].firstName} ${guests[0].lastName}`.trim() : 'Guest';
+
+      // 1. Guest welcome notification
+      await dbQuery(
+        "INSERT INTO notification (userID, title, message) VALUES (?, 'Welcome to PCC Home Suite Home!', 'Thank you for choosing PCC! Complete your profile to get the best experience.')",
+        [user.userID]
+      );
+
+      // 2. Alert notifications for all Admin and Receptionist staff
+      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2)");
+      for (const staff of staffUsers) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'New Guest Registered', ?)",
+          [staff.userID, `Guest ${fullName} (${lowerEmail}) has verified their account.`]
+        );
+      }
+    } catch (notifErr) {
+      console.error("Failed to generate verification notifications:", notifErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: "Account verified successfully. You can now log in."

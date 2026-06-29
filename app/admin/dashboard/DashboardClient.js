@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function DashboardClient() {
+export default function DashboardClient({ userName }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,7 +82,7 @@ export default function DashboardClient() {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Administrator</div>
-          <h2 className="section-title mb-0">Dashboard</h2>
+          <h2 className="section-title mb-0">Welcome, {userName || 'Admin'}!</h2>
           <small className="text-muted">{currentTime}</small>
         </div>
       </div>

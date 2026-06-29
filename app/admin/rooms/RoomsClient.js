@@ -23,6 +23,8 @@ export default function RoomsClient() {
     floorID: '',
     roomTypeID: '',
     status: 'Available',
+    rateWithoutBreakfast: '',
+    rateWithBreakfast: '',
   });
 
   // Custom Modal dialog state
@@ -109,26 +111,49 @@ export default function RoomsClient() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      if (name === 'floorID' || name === 'roomTypeID') {
+        const rates = getSelectedRates(next.floorID, next.roomTypeID);
+        if (rates) {
+          next.rateWithoutBreakfast = rates.withoutBreakfast;
+          next.rateWithBreakfast = rates.withBreakfast;
+        } else {
+          next.rateWithoutBreakfast = '';
+          next.rateWithBreakfast = '';
+        }
+      }
+      return next;
+    });
   };
 
   const handleCreateSubmit = (e) => {
     e.preventDefault();
-    showConfirm('Create Room', 'Are you sure you want to create this room?', async () => {
+    if (!formData.roomNumber.trim()) {
+      showAlert('error', 'Validation Error', 'Room Number is required and cannot be empty.');
+      return;
+    }
+    if (parseFloat(formData.rateWithoutBreakfast) < 0 || parseFloat(formData.rateWithBreakfast) < 0) {
+      showAlert('error', 'Validation Error', 'Room rates cannot be negative.');
+      return;
+    }
+
+    showConfirm('Create Room', 'Are you sure you want to create this room and set these rates?', async () => {
       try {
         const res = await fetch('/api/admin/rooms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'create',
-            ...formData
+            ...formData,
+            roomNumber: formData.roomNumber.trim()
           }),
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create room');
 
-        showAlert('success', 'Success', data.message || 'Room created successfully');
+        showAlert('success', 'Success', data.message || 'Room and rates created successfully');
         setActiveModal(null);
         fetchRooms();
       } catch (err) {
@@ -139,7 +164,16 @@ export default function RoomsClient() {
 
   const handleEditSubmit = (e) => {
     e.preventDefault();
-    showConfirm('Update Room', `Save changes to Room ${selectedRoom.roomNumber}?`, async () => {
+    if (!formData.roomNumber.trim()) {
+      showAlert('error', 'Validation Error', 'Room Number is required and cannot be empty.');
+      return;
+    }
+    if (parseFloat(formData.rateWithoutBreakfast) < 0 || parseFloat(formData.rateWithBreakfast) < 0) {
+      showAlert('error', 'Validation Error', 'Room rates cannot be negative.');
+      return;
+    }
+
+    showConfirm('Update Room', `Save changes to Room ${selectedRoom.roomNumber} and update rates?`, async () => {
       try {
         const res = await fetch('/api/admin/rooms', {
           method: 'POST',
@@ -147,14 +181,15 @@ export default function RoomsClient() {
           body: JSON.stringify({
             action: 'update',
             roomID: selectedRoom.roomID,
-            ...formData
+            ...formData,
+            roomNumber: formData.roomNumber.trim()
           }),
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update room');
 
-        showAlert('success', 'Success', data.message || 'Room updated successfully');
+        showAlert('success', 'Success', data.message || 'Room and rates updated successfully');
         setActiveModal(null);
         fetchRooms();
       } catch (err) {
@@ -218,11 +253,16 @@ export default function RoomsClient() {
   };
 
   const openCreateModal = () => {
+    const floorID = floors[0]?.floorID || '';
+    const roomTypeID = roomTypes[0]?.roomTypeID || '';
+    const rates = getSelectedRates(floorID, roomTypeID);
     setFormData({
       roomNumber: '',
-      floorID: floors[0]?.floorID || '',
-      roomTypeID: roomTypes[0]?.roomTypeID || '',
+      floorID,
+      roomTypeID,
       status: 'Available',
+      rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
+      rateWithBreakfast: rates ? rates.withBreakfast : '',
     });
     setActiveModal('create');
   };
@@ -233,11 +273,14 @@ export default function RoomsClient() {
       return;
     }
     setSelectedRoom(room);
+    const rates = getSelectedRates(room.floorID, room.roomTypeID);
     setFormData({
       roomNumber: room.roomNumber,
       floorID: room.floorID,
       roomTypeID: room.roomTypeID,
       status: room.status,
+      rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
+      rateWithBreakfast: rates ? rates.withBreakfast : '',
     });
     setActiveModal('edit');
   };
@@ -490,22 +533,34 @@ export default function RoomsClient() {
                       ))}
                     </select>
                   </div>
-                  {(() => {
-                    const previewRates = getSelectedRates(formData.floorID, formData.roomTypeID);
-                    return previewRates ? (
-                      <div className="mb-3 p-3 rounded" style={{ backgroundColor: '#f8f9fa', border: '1px solid #dee2e6' }}>
-                        <small className="text-muted d-block mb-2 fw-bold" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room Rate Preview</small>
-                        <div className="d-flex justify-content-between text-muted mb-1" style={{ fontSize: '0.85rem' }}>
-                          <span>Without Breakfast:</span>
-                          <span className="fw-bold text-dark">₱{Number(previewRates.withoutBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                        <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.85rem' }}>
-                          <span>With Breakfast:</span>
-                          <span className="fw-bold text-dark">₱{Number(previewRates.withBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
-                    ) : null;
-                  })()}
+                  <div className="row mb-3">
+                    <div className="col-md-6">
+                      <label className="form-label">Rate W/O Breakfast (₱) *</label>
+                      <input
+                        type="number"
+                        name="rateWithoutBreakfast"
+                        className="form-control"
+                        required
+                        step="0.01"
+                        min="0"
+                        value={formData.rateWithoutBreakfast}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Rate W/ Breakfast (₱) *</label>
+                      <input
+                        type="number"
+                        name="rateWithBreakfast"
+                        className="form-control"
+                        required
+                        step="0.01"
+                        min="0"
+                        value={formData.rateWithBreakfast}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
                   <div className="mb-3">
                     <label className="form-label">Status</label>
                     <select
@@ -580,22 +635,34 @@ export default function RoomsClient() {
                       ))}
                     </select>
                   </div>
-                  {(() => {
-                    const previewRates = getSelectedRates(formData.floorID, formData.roomTypeID);
-                    return previewRates ? (
-                      <div className="mb-3 p-3 rounded" style={{ backgroundColor: '#f8f9fa', border: '1px solid #dee2e6' }}>
-                        <small className="text-muted d-block mb-2 fw-bold" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room Rate Preview</small>
-                        <div className="d-flex justify-content-between text-muted mb-1" style={{ fontSize: '0.85rem' }}>
-                          <span>Without Breakfast:</span>
-                          <span className="fw-bold text-dark">₱{Number(previewRates.withoutBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                        <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.85rem' }}>
-                          <span>With Breakfast:</span>
-                          <span className="fw-bold text-dark">₱{Number(previewRates.withBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
-                    ) : null;
-                  })()}
+                  <div className="row mb-3">
+                    <div className="col-md-6">
+                      <label className="form-label">Rate W/O Breakfast (₱) *</label>
+                      <input
+                        type="number"
+                        name="rateWithoutBreakfast"
+                        className="form-control"
+                        required
+                        step="0.01"
+                        min="0"
+                        value={formData.rateWithoutBreakfast}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Rate W/ Breakfast (₱) *</label>
+                      <input
+                        type="number"
+                        name="rateWithBreakfast"
+                        className="form-control"
+                        required
+                        step="0.01"
+                        min="0"
+                        value={formData.rateWithBreakfast}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
                   <div className="mb-3">
                     <label className="form-label">Status</label>
                     <select

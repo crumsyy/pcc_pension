@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ModalDialog from '../../components/ModalDialog';
 
 export default function AdminDiscounts() {
   const [discounts, setDiscounts] = useState([]);
@@ -10,9 +11,8 @@ export default function AdminDiscounts() {
   const [rooms, setRooms] = useState([]);
 
   const [search, setSearch] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create_disc' | 'edit_disc' | 'create_promo' | 'edit_promo' | null
@@ -38,11 +38,53 @@ export default function AdminDiscounts() {
     endDate: '',
   });
 
+  // Custom Modal dialog state
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  });
+
+  const showAlert = (type, title, message) => {
+    setModalConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+      confirmText: 'OK',
+      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+      onCancel: null
+    });
+  };
+
+  const showConfirm = (title, message, onConfirmCallback) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'confirm',
+      title,
+      message,
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        onConfirmCallback();
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
   const fetchData = async () => {
     setLoading(true);
-    setError('');
     try {
-      const query = new URLSearchParams({ search }).toString();
+      const query = new URLSearchParams({
+        search,
+        archived: showArchived ? 'true' : 'false'
+      }).toString();
       const res = await fetch(`/api/admin/discounts?${query}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch data');
@@ -53,7 +95,7 @@ export default function AdminDiscounts() {
       setEligibilityTypes(data.eligibilityTypes || []);
       setRooms(data.rooms || []);
     } catch (err) {
-      setError(err.message);
+      showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
@@ -61,17 +103,7 @@ export default function AdminDiscounts() {
 
   useEffect(() => {
     fetchData();
-  }, [search]);
-
-  const showToast = (msg, isSuccess = true) => {
-    if (isSuccess) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(''), 4000);
-    } else {
-      setError(msg);
-      setTimeout(() => setError(''), 4000);
-    }
-  };
+  }, [search, showArchived]);
 
   const handleDiscInputChange = (e) => {
     const { name, value } = e.target;
@@ -86,123 +118,229 @@ export default function AdminDiscounts() {
   // Discount Handlers
   const handleCreateDiscSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/discounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create_discount',
-          ...discFormData
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create discount');
-      showToast(data.message || 'Discount created');
-      setActiveModal(null);
-      fetchData();
-    } catch (err) {
-      showToast(err.message, false);
+    if (!discFormData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      return;
     }
+    const pct = parseFloat(discFormData.percentage);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
+      return;
+    }
+    if (parseInt(discFormData.requiredBookings || 0) < 0) {
+      showAlert('error', 'Validation Error', 'Required bookings cannot be negative.');
+      return;
+    }
+
+    showConfirm('Create Discount', 'Are you sure you want to create this discount?', async () => {
+      try {
+        const res = await fetch('/api/admin/discounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_discount',
+            ...discFormData,
+            name: discFormData.name.trim()
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create discount');
+        showAlert('success', 'Success', data.message || 'Discount created successfully');
+        setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const handleEditDiscSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/discounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_discount',
-          discountID: selectedDisc.discountID,
-          ...discFormData
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update discount');
-      showToast(data.message || 'Discount updated');
-      setActiveModal(null);
-      fetchData();
-    } catch (err) {
-      showToast(err.message, false);
+    if (!discFormData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      return;
     }
+    const pct = parseFloat(discFormData.percentage);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
+      return;
+    }
+    if (parseInt(discFormData.requiredBookings || 0) < 0) {
+      showAlert('error', 'Validation Error', 'Required bookings cannot be negative.');
+      return;
+    }
+
+    showConfirm('Update Discount', 'Are you sure you want to save changes to this discount?', async () => {
+      try {
+        const res = await fetch('/api/admin/discounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_discount',
+            discountID: selectedDisc.discountID,
+            ...discFormData,
+            name: discFormData.name.trim()
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update discount');
+        showAlert('success', 'Success', data.message || 'Discount updated successfully');
+        setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
-  const handleDeleteDisc = async (discountID) => {
-    if (!confirm('Are you sure you want to delete this discount?')) return;
-    try {
-      const res = await fetch('/api/admin/discounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'archive_discount', discountID }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete');
-      showToast(data.message);
-      fetchData();
-    } catch (err) {
-      showToast(err.message, false);
-    }
+  const handleArchiveDisc = async (discountID) => {
+    showConfirm('Delete Discount', 'Are you sure you want to delete this discount? It will be hidden from active inventory.', async () => {
+      try {
+        const res = await fetch('/api/admin/discounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'archive_discount', discountID }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete');
+        showAlert('success', 'Success', data.message || 'Discount deleted successfully');
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleRestoreDisc = async (discountID) => {
+    showConfirm('Restore Discount', 'Are you sure you want to restore this discount to active listings?', async () => {
+      try {
+        const res = await fetch('/api/admin/discounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restore_discount', discountID }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to restore');
+        showAlert('success', 'Success', data.message || 'Discount restored successfully');
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   // Promo Handlers
   const handleCreatePromoSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/discounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create_promo',
-          ...promoFormData
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create promo');
-      showToast(data.message || 'Promotion created');
-      setActiveModal(null);
-      fetchData();
-    } catch (err) {
-      showToast(err.message, false);
+    if (!promoFormData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      return;
     }
+    const pct = parseFloat(promoFormData.percentage);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
+      return;
+    }
+    if (promoFormData.startDate && promoFormData.endDate && promoFormData.endDate < promoFormData.startDate) {
+      showAlert('error', 'Validation Error', 'End Date cannot be earlier than Start Date.');
+      return;
+    }
+
+    showConfirm('Create Promotion', 'Are you sure you want to create this promotion?', async () => {
+      try {
+        const res = await fetch('/api/admin/discounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_promo',
+            ...promoFormData,
+            name: promoFormData.name.trim()
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create promo');
+        showAlert('success', 'Success', data.message || 'Promotion created successfully');
+        setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const handleEditPromoSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/discounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_promo',
-          promotionID: selectedPromo.promotionID,
-          ...promoFormData
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update promo');
-      showToast(data.message || 'Promotion updated');
-      setActiveModal(null);
-      fetchData();
-    } catch (err) {
-      showToast(err.message, false);
+    if (!promoFormData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      return;
     }
+    const pct = parseFloat(promoFormData.percentage);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
+      return;
+    }
+    if (promoFormData.startDate && promoFormData.endDate && promoFormData.endDate < promoFormData.startDate) {
+      showAlert('error', 'Validation Error', 'End Date cannot be earlier than Start Date.');
+      return;
+    }
+
+    showConfirm('Update Promotion', 'Are you sure you want to save changes to this promotion?', async () => {
+      try {
+        const res = await fetch('/api/admin/discounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_promo',
+            promotionID: selectedPromo.promotionID,
+            ...promoFormData,
+            name: promoFormData.name.trim()
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update promo');
+        showAlert('success', 'Success', data.message || 'Promotion updated successfully');
+        setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
-  const handleDeletePromo = async (promotionID) => {
-    if (!confirm('Are you sure you want to delete this promotion?')) return;
-    try {
-      const res = await fetch('/api/admin/discounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'archive_promo', promotionID }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete');
-      showToast(data.message);
-      fetchData();
-    } catch (err) {
-      showToast(err.message, false);
-    }
+  const handleArchivePromo = async (promotionID) => {
+    showConfirm('Delete Promotion', 'Are you sure you want to delete this promotion? It will be hidden from active inventory.', async () => {
+      try {
+        const res = await fetch('/api/admin/discounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'archive_promo', promotionID }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete');
+        showAlert('success', 'Success', data.message || 'Promotion deleted successfully');
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleRestorePromo = async (promotionID) => {
+    showConfirm('Restore Promotion', 'Are you sure you want to restore this promotion to active listings?', async () => {
+      try {
+        const res = await fetch('/api/admin/discounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restore_promo', promotionID }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to restore');
+        showAlert('success', 'Success', data.message || 'Promotion restored successfully');
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const openCreateDiscModal = () => {
@@ -264,13 +402,37 @@ export default function AdminDiscounts() {
 
   return (
     <div>
+      {/* Custom Modal Dialog */}
+      <ModalDialog
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={modalConfig.onCancel}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
+
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Admin</div>
           <h2 className="section-title mb-0">Discounts &amp; Promotions</h2>
         </div>
-        <div className="d-flex gap-2">
-          <button className="btn btn-pcc-outline" onClick={openCreateDiscModal}>
+        <div className="d-flex gap-2 align-items-center">
+          <button
+            className={`btn ${showArchived ? 'btn-outline-secondary' : 'btn-secondary'}`}
+            onClick={() => setShowArchived(false)}
+          >
+            Active
+          </button>
+          <button
+            className={`btn ${showArchived ? 'btn-secondary' : 'btn-outline-secondary'}`}
+            onClick={() => setShowArchived(true)}
+          >
+            Archived
+          </button>
+          <button className="btn btn-pcc-outline ms-2" onClick={openCreateDiscModal}>
             + Create Discount
           </button>
           <button className="btn btn-pcc-primary" onClick={openCreatePromoModal}>
@@ -278,20 +440,6 @@ export default function AdminDiscounts() {
           </button>
         </div>
       </div>
-
-      {/* Alerts */}
-      {success && (
-        <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
-          {success}
-          <button type="button" className="btn-close" onClick={() => setSuccess('')}></button>
-        </div>
-      )}
-      {error && (
-        <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-          {error}
-          <button type="button" className="btn-close" onClick={() => setError('')}></button>
-        </div>
-      )}
 
       {/* Search Filter */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -360,17 +508,26 @@ export default function AdminDiscounts() {
                         <td>
                           <div className="d-flex gap-1">
                             <button
-                              className="btn btn-sm btn-outline-primary"
+                              className="btn btn-sm btn-warning text-white"
                               onClick={() => openEditDiscModal(d)}
                             >
                               Update
                             </button>
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => handleDeleteDisc(d.discountID)}
-                            >
-                              Delete
-                            </button>
+                            {showArchived ? (
+                              <button
+                                className="btn btn-sm btn-success text-white"
+                                onClick={() => handleRestoreDisc(d.discountID)}
+                              >
+                                Restore
+                              </button>
+                            ) : (
+                              <button
+                                className="btn btn-sm btn-danger text-white"
+                                onClick={() => handleArchiveDisc(d.discountID)}
+                              >
+                                Delete
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -442,17 +599,26 @@ export default function AdminDiscounts() {
                           <td>
                             <div className="d-flex gap-1">
                               <button
-                                className="btn btn-sm btn-outline-primary"
+                                className="btn btn-sm btn-warning text-white"
                                 onClick={() => openEditPromoModal(p)}
                               >
                                 Update
                               </button>
-                              <button
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleDeletePromo(p.promotionID)}
-                              >
-                                Delete
-                              </button>
+                              {showArchived ? (
+                                <button
+                                  className="btn btn-sm btn-success text-white"
+                                  onClick={() => handleRestorePromo(p.promotionID)}
+                                >
+                                  Restore
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn btn-sm btn-danger text-white"
+                                  onClick={() => handleArchivePromo(p.promotionID)}
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

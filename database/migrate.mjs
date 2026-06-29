@@ -23,10 +23,21 @@ if (fs.existsSync(envPath)) {
   });
 }
 
+async function ensureColumn(connection, tableName, columnName, definition) {
+  const [columns] = await connection.execute(`SHOW COLUMNS FROM \`${tableName}\` LIKE ?`, [columnName]);
+  if (columns.length === 0) {
+    console.log(`Adding ${columnName} column to ${tableName} table...`);
+    await connection.execute(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${definition}`);
+    console.log(`Successfully added ${columnName} column!`);
+  } else {
+    console.log(`${columnName} column in ${tableName} already exists. Skipping.`);
+  }
+}
+
 async function run() {
   console.log("Database Host:", process.env.DB_HOST);
   console.log("Database Name:", process.env.DB_NAME);
-
+ 
   let connection;
   try {
     connection = await mysql.createConnection({
@@ -37,18 +48,23 @@ async function run() {
       database: process.env.DB_NAME,
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
     });
+ 
+    console.log("Connected to database. Checking and updating table structures...");
+ 
+    console.log("Altering purchase_order status column ENUM to support 'Canceled'...");
+    await connection.execute("ALTER TABLE purchase_order MODIFY COLUMN status ENUM('Pending','Approved','Completed','Canceled') NOT NULL DEFAULT 'Pending'");
 
-    console.log("Connected to database. Checking room table structure...");
+    await ensureColumn(connection, 'room', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(connection, 'amenities', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(connection, 'products', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(connection, 'products', 'isAvailable', 'TINYINT(1) NOT NULL DEFAULT 1');
+    await ensureColumn(connection, 'discounts', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(connection, 'promotions', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(connection, 'purchase_order', 'expectedDeliveryDate', 'DATE DEFAULT NULL');
+    await ensureColumn(connection, 'purchase_order', 'remarks', 'VARCHAR(255) DEFAULT NULL');
+    await ensureColumn(connection, 'purchase_order_items', 'quantityReceived', 'INT NOT NULL DEFAULT 0');
 
-    // Check if isArchived already exists
-    const [columns] = await connection.execute("SHOW COLUMNS FROM room LIKE 'isArchived'");
-    if (columns.length === 0) {
-      console.log("Adding isArchived column to room table...");
-      await connection.execute("ALTER TABLE room ADD COLUMN isArchived TINYINT(1) NOT NULL DEFAULT 0");
-      console.log("Successfully added isArchived column!");
-    } else {
-      console.log("isArchived column already exists. Skipping.");
-    }
+    console.log("All database migrations verified!");
   } catch (error) {
     console.error("Migration failed:", error);
     process.exit(1);
@@ -59,5 +75,5 @@ async function run() {
     process.exit(0);
   }
 }
-
+ 
 run();

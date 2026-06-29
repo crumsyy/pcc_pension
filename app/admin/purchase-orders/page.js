@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ModalDialog from '../../components/ModalDialog';
 
 export default function AdminPurchaseOrders() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'stock_in' | null
@@ -18,10 +17,51 @@ export default function AdminPurchaseOrders() {
     { itemName: '', itemType: 'Amenity', quantity: 1, unitPrice: 0.00 }
   ]);
   const [receivedQtys, setReceivedQtys] = useState({}); // { [orderItemID]: quantity }
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
+  const [remarks, setRemarks] = useState('');
+
+  // Custom Modal dialog state
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  });
+
+  const showAlert = (type, title, message) => {
+    setModalConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+      confirmText: 'OK',
+      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+      onCancel: null
+    });
+  };
+
+  const showConfirm = (title, message, onConfirmCallback) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'confirm',
+      title,
+      message,
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        onConfirmCallback();
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
-    setError('');
     try {
       const query = new URLSearchParams({ status: statusFilter }).toString();
       const res = await fetch(`/api/admin/purchase-orders?${query}`);
@@ -30,7 +70,7 @@ export default function AdminPurchaseOrders() {
 
       setOrders(data.orders || []);
     } catch (err) {
-      setError(err.message);
+      showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
@@ -40,84 +80,103 @@ export default function AdminPurchaseOrders() {
     fetchOrders();
   }, [statusFilter]);
 
-  const showToast = (msg, isSuccess = true) => {
-    if (isSuccess) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(''), 4000);
-    } else {
-      setError(msg);
-      setTimeout(() => setError(''), 4000);
-    }
-  };
+  const handleStatusChange = (poID, status, msg) => {
+    showConfirm('Update Status', msg || `Are you sure you want to update status to ${status}?`, async () => {
+      try {
+        const res = await fetch('/api/admin/purchase-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'update_status', poID, status }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update status');
 
-  const handleStatusChange = async (poID, status, msg) => {
-    if (!confirm(msg || `Are you sure you want to update status to ${status}?`)) return;
-
-    try {
-      const res = await fetch('/api/admin/purchase-orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_status', poID, status }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update status');
-
-      showToast(data.message);
-      fetchOrders();
-    } catch (err) {
-      showToast(err.message, false);
-    }
+        showAlert('success', 'Success', data.message || `Purchase Order status updated to ${status}.`);
+        fetchOrders();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const handleCreatePOSubmit = async (e) => {
     e.preventDefault();
     if (poItems.some(item => !item.itemName.trim())) {
-      showToast('Item Name is required for all rows', false);
+      showAlert('error', 'Validation Error', 'Item Name is required for all rows.');
       return;
     }
 
-    try {
-      const res = await fetch('/api/admin/purchase-orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_po', items: poItems }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create PO');
+    showConfirm('Create Purchase Order', 'Are you sure you want to create this purchase order?', async () => {
+      try {
+        const res = await fetch('/api/admin/purchase-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create_po', items: poItems, expectedDeliveryDate }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create PO');
 
-      showToast(data.message);
-      setActiveModal(null);
-      fetchOrders();
-    } catch (err) {
-      showToast(err.message, false);
-    }
+        showAlert('success', 'Success', data.message || 'Purchase Order created successfully.');
+        setActiveModal(null);
+        fetchOrders();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const handleStockInSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/purchase-orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'stock_in',
-          poID: selectedOrder.purchaseOrderID,
-          received: receivedQtys
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to complete stock-in');
+    showConfirm('Process Stock In', 'Are you sure you want to process this stock in? This will update the inventory stock levels.', async () => {
+      try {
+        const res = await fetch('/api/admin/purchase-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'stock_in',
+            poID: selectedOrder.purchaseOrderID,
+            received: receivedQtys,
+            remarks
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to complete stock-in');
 
-      showToast(data.message);
-      setActiveModal(null);
-      fetchOrders();
-    } catch (err) {
-      showToast(err.message, false);
-    }
+        showAlert('success', 'Success', data.message || 'Stock In processed successfully.');
+        setActiveModal(null);
+        fetchOrders();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleGenerateReorder = async (poID) => {
+    showConfirm('Generate Reorder', 'Are you sure you want to generate a reorder request for items with incomplete deliveries?', async () => {
+      try {
+        const res = await fetch('/api/admin/purchase-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate_reorder',
+            poID
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to generate reorder');
+
+        showAlert('success', 'Success', data.message || 'Reorder generated successfully.');
+        setActiveModal(null);
+        fetchOrders();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const openCreateModal = () => {
     setPoItems([{ itemName: '', itemType: 'Amenity', quantity: 1, unitPrice: 0.00 }]);
+    setExpectedDeliveryDate('');
     setActiveModal('create');
   };
 
@@ -133,6 +192,7 @@ export default function AdminPurchaseOrders() {
       initialQtys[item.orderItemID] = item.quantity;
     });
     setReceivedQtys(initialQtys);
+    setRemarks('');
     setActiveModal('stock_in');
   };
 
@@ -157,6 +217,18 @@ export default function AdminPurchaseOrders() {
 
   return (
     <div>
+      {/* Custom Modal Dialog */}
+      <ModalDialog
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={modalConfig.onCancel}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
+
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Admin</div>
@@ -167,19 +239,7 @@ export default function AdminPurchaseOrders() {
         </button>
       </div>
 
-      {/* Alerts */}
-      {success && (
-        <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
-          {success}
-          <button type="button" className="btn-close" onClick={() => setSuccess('')}></button>
-        </div>
-      )}
-      {error && (
-        <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-          {error}
-          <button type="button" className="btn-close" onClick={() => setError('')}></button>
-        </div>
-      )}
+
 
       {/* Filter */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -263,7 +323,7 @@ export default function AdminPurchaseOrders() {
                       <td>
                         <div className="d-flex gap-1 flex-wrap">
                           <button
-                            className="btn btn-sm btn-outline-primary"
+                            className="btn btn-sm btn-primary text-white"
                             onClick={() => openViewModal(po)}
                           >
                             View
@@ -271,7 +331,7 @@ export default function AdminPurchaseOrders() {
                           {po.status === 'Pending' && (
                             <>
                               <button
-                                className="btn btn-sm btn-outline-success"
+                                className="btn btn-sm btn-success text-white"
                                 onClick={() =>
                                   handleStatusChange(
                                     po.purchaseOrderID,
@@ -283,11 +343,11 @@ export default function AdminPurchaseOrders() {
                                 Approve
                               </button>
                               <button
-                                className="btn btn-sm btn-outline-danger"
+                                className="btn btn-sm btn-danger text-white"
                                 onClick={() =>
                                   handleStatusChange(
                                     po.purchaseOrderID,
-                                    'Completed',
+                                    'Canceled',
                                     'Cancel this Purchase Order?'
                                   )
                                 }
@@ -298,7 +358,7 @@ export default function AdminPurchaseOrders() {
                           )}
                           {po.status === 'Approved' && (
                             <button
-                              className="btn btn-sm btn-pcc-primary"
+                              className="btn btn-sm btn-warning text-white"
                               onClick={() => openStockInModal(po)}
                             >
                               Stock In
@@ -330,6 +390,16 @@ export default function AdminPurchaseOrders() {
               </div>
               <form onSubmit={handleCreatePOSubmit}>
                 <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Expected Delivery Date (Optional)</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={expectedDeliveryDate}
+                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                    />
+                  </div>
+                  <hr />
                   <div id="poItemsList">
                     {poItems.map((item, idx) => (
                       <div className="row g-2 mb-2 align-items-center" key={idx}>
@@ -402,22 +472,28 @@ export default function AdminPurchaseOrders() {
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <div className="modal-body">
-                <p>
-                  <strong>Date:</strong>{' '}
-                  {new Date(selectedOrder.orderDate).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}{' '}
-                  &nbsp; <strong>Status:</strong> {selectedOrder.status}
-                </p>
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <p className="mb-1"><strong>Order Date:</strong> {new Date(selectedOrder.orderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    <p className="mb-1"><strong>Status:</strong> <span className="badge text-bg-info">{selectedOrder.status}</span></p>
+                  </div>
+                  <div className="col-md-6">
+                    {selectedOrder.expectedDeliveryDate && (
+                      <p className="mb-1"><strong>Expected Delivery:</strong> {new Date(selectedOrder.expectedDeliveryDate).toLocaleDateString('en-US', { dateStyle: 'medium' })}</p>
+                    )}
+                    {selectedOrder.remarks && (
+                      <p className="mb-1"><strong>Delivery Remarks:</strong> {selectedOrder.remarks}</p>
+                    )}
+                  </div>
+                </div>
                 <div className="table-responsive">
                   <table className="table table-sm">
                     <thead>
                       <tr>
                         <th>Item</th>
                         <th>Type</th>
-                        <th>Qty</th>
+                        <th>Ordered Qty</th>
+                        <th>Received Qty</th>
                         <th>Unit Price</th>
                         <th>Total</th>
                       </tr>
@@ -428,14 +504,21 @@ export default function AdminPurchaseOrders() {
                           <td>{item.itemName}</td>
                           <td>{item.itemType}</td>
                           <td>{item.quantity}</td>
+                          <td>{selectedOrder.status === 'Completed' ? item.quantityReceived : '—'}</td>
                           <td>₱{parseFloat(item.unitPrice).toFixed(2)}</td>
-                          <td>₱{parseFloat(item.quantity * item.unitPrice).toFixed(2)}</td>
+                          <td>
+                            ₱{parseFloat(
+                              (selectedOrder.status === 'Completed'
+                                ? (item.quantityReceived ?? item.quantity)
+                                : item.quantity) * item.unitPrice
+                            ).toFixed(2)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
                       <tr>
-                        <td colSpan="4" className="text-end fw-bold">Total:</td>
+                        <td colSpan="5" className="text-end fw-bold">Total:</td>
                         <td className="fw-bold">₱{parseFloat(selectedOrder.total || 0).toFixed(2)}</td>
                       </tr>
                     </tfoot>
@@ -443,6 +526,14 @@ export default function AdminPurchaseOrders() {
                 </div>
               </div>
               <div className="modal-footer">
+                {selectedOrder.status === 'Completed' && selectedOrder.items.some(it => (it.quantityReceived || 0) < it.quantity) && (
+                  <button
+                    className="btn btn-warning me-auto text-white"
+                    onClick={() => handleGenerateReorder(selectedOrder.purchaseOrderID)}
+                  >
+                    ⚠ Generate Reorder Request
+                  </button>
+                )}
                 <button className="btn btn-secondary" onClick={() => setActiveModal(null)}>Close</button>
               </div>
             </div>
@@ -461,36 +552,48 @@ export default function AdminPurchaseOrders() {
               </div>
               <form onSubmit={handleStockInSubmit}>
                 <div className="modal-body">
-                  <table className="table table-sm">
-                    <thead>
-                      <tr>
-                        <th>Item</th>
-                        <th>Type</th>
-                        <th>Ordered</th>
-                        <th>Qty Received *</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedOrder.items.map((item) => (
-                        <tr key={item.orderItemID}>
-                          <td>{item.itemName}</td>
-                          <td>{item.itemType}</td>
-                          <td>{item.quantity}</td>
-                          <td>
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              min="0"
-                              max={item.quantity}
-                              required
-                              value={receivedQtys[item.orderItemID] || 0}
-                              onChange={(e) => handleReceivedQtyChange(item.orderItemID, parseInt(e.target.value) || 0)}
-                            />
-                          </td>
+                  <div className="table-responsive mb-3">
+                    <table className="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Item</th>
+                          <th>Type</th>
+                          <th>Ordered</th>
+                          <th>Qty Received *</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {selectedOrder.items.map((item) => (
+                          <tr key={item.orderItemID}>
+                            <td>{item.itemName}</td>
+                            <td>{item.itemType}</td>
+                            <td>{item.quantity}</td>
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control form-control-sm"
+                                min="0"
+                                max={item.quantity}
+                                required
+                                value={receivedQtys[item.orderItemID] || 0}
+                                onChange={(e) => handleReceivedQtyChange(item.orderItemID, parseInt(e.target.value) || 0)}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Delivery Remarks (Remarks/Comments)</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      placeholder="e.g. Received in good condition, missing 2 units due to supplier shortage..."
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                    ></textarea>
+                  </div>
                 </div>
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary">Confirm Stock-In</button>

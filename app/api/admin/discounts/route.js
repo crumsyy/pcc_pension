@@ -10,6 +10,7 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
+  const archived = searchParams.get('archived') === 'true';
 
   try {
     const [discounts, promotions, discountTypes, eligibilityTypes, rooms] = await Promise.all([
@@ -18,14 +19,16 @@ export async function GET(request) {
         FROM discounts d 
         JOIN discount_type dt ON dt.discountTypeID = d.discountTypeID 
         JOIN eligibility_type et ON et.eligibilityTypeID = d.eligibilityTypeID 
+        WHERE d.isArchived = ?
         ORDER BY d.name
-      `),
+      `, [archived ? 1 : 0]),
       dbQuery(`
         SELECT p.*, rm.roomNumber 
         FROM promotions p 
         LEFT JOIN room rm ON rm.roomID = p.roomID 
+        WHERE p.isArchived = ?
         ORDER BY p.startDate DESC
-      `),
+      `, [archived ? 1 : 0]),
       dbQuery("SELECT * FROM discount_type"),
       dbQuery("SELECT * FROM eligibility_type"),
       dbQuery("SELECT roomID, roomNumber FROM room WHERE isArchived = 0 ORDER BY roomNumber")
@@ -90,8 +93,14 @@ export async function POST(request) {
 
     if (action === 'archive_discount') {
       const discountID = parseInt(body.discountID);
-      await dbQuery("DELETE FROM discounts WHERE discountID=?", [discountID]);
-      return NextResponse.json({ success: true, message: 'Discount removed successfully.' });
+      await dbQuery("UPDATE discounts SET isArchived = 1 WHERE discountID=?", [discountID]);
+      return NextResponse.json({ success: true, message: 'Discount archived successfully.' });
+    }
+
+    if (action === 'restore_discount') {
+      const discountID = parseInt(body.discountID);
+      await dbQuery("UPDATE discounts SET isArchived = 0 WHERE discountID=?", [discountID]);
+      return NextResponse.json({ success: true, message: 'Discount restored successfully.' });
     }
 
     // Promotions
@@ -115,8 +124,14 @@ export async function POST(request) {
 
     if (action === 'archive_promo') {
       const promotionID = parseInt(body.promotionID);
-      await dbQuery("DELETE FROM promotions WHERE promotionID=?", [promotionID]);
-      return NextResponse.json({ success: true, message: 'Promotion removed successfully.' });
+      await dbQuery("UPDATE promotions SET isArchived = 1 WHERE promotionID=?", [promotionID]);
+      return NextResponse.json({ success: true, message: 'Promotion archived successfully.' });
+    }
+
+    if (action === 'restore_promo') {
+      const promotionID = parseInt(body.promotionID);
+      await dbQuery("UPDATE promotions SET isArchived = 0 WHERE promotionID=?", [promotionID]);
+      return NextResponse.json({ success: true, message: 'Promotion restored successfully.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

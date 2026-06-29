@@ -52,7 +52,20 @@ export async function GET(request) {
     // Sort by name
     allItems.sort((a, b) => a.name.localeCompare(b.name));
 
-    return NextResponse.json({ items: allItems });
+    // Fetch chronological stock-in history log (Module G & I - REQ044/REQ062)
+    const stockHistory = await dbQuery(`
+      SELECT i.inventoryID, DATE_FORMAT(i.stockInDate, '%Y-%m-%d %H:%i:%s') as stockInDate,
+             i.quantityReceived, i.purchaseOrderID,
+             COALESCE(a.name, p.name) as itemName,
+             CASE WHEN i.amenityID IS NOT NULL THEN 'Amenity' ELSE 'Product' END as itemType
+      FROM inventory i
+      LEFT JOIN amenities a ON a.amenityID = i.amenityID
+      LEFT JOIN products p ON p.productID = i.productID
+      ORDER BY i.stockInDate DESC, i.inventoryID DESC
+      LIMIT 100
+    `);
+
+    return NextResponse.json({ items: allItems, stockHistory });
   } catch (error) {
     console.error("Failed to fetch inventory:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

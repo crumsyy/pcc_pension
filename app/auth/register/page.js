@@ -170,7 +170,7 @@ export default function RegisterPage() {
                     <div className="invalid-feedback">Middle name must contain letters only.</div>
                   </div>
                   <div className="col-md-4">
-                    <label className="form-label">Last Name <span class="text-danger">*</span></label>
+                    <label className="form-label">Last Name <span className="text-danger">*</span></label>
                     <input
                       type="text"
                       className={`form-control ${fieldErrors.lastName ? "is-invalid" : ""}`}

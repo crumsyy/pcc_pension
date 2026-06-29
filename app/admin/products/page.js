@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ModalDialog from '../../components/ModalDialog';
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | null
@@ -23,13 +23,53 @@ export default function AdminProducts() {
     quantity: 0,
   });
 
+  // Custom Modal dialog state
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  });
+
+  const showAlert = (type, title, message) => {
+    setModalConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+      confirmText: 'OK',
+      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+      onCancel: null
+    });
+  };
+
+  const showConfirm = (title, message, onConfirmCallback) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'confirm',
+      title,
+      message,
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        onConfirmCallback();
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
   const fetchProducts = async () => {
     setLoading(true);
-    setError('');
     try {
       const query = new URLSearchParams({
         search,
         catID: catFilter,
+        archived: showArchived ? 'true' : 'false',
       }).toString();
 
       const res = await fetch(`/api/admin/products?${query}`);
@@ -39,7 +79,7 @@ export default function AdminProducts() {
       setProducts(data.products || []);
       setCategories(data.categories || []);
     } catch (err) {
-      setError(err.message);
+      showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
@@ -47,91 +87,161 @@ export default function AdminProducts() {
 
   useEffect(() => {
     fetchProducts();
-  }, [search, catFilter]);
+  }, [search, catFilter, showArchived]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const showToast = (msg, isSuccess = true) => {
-    if (isSuccess) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(''), 4000);
-    } else {
-      setError(msg);
-      setTimeout(() => setError(''), 4000);
-    }
-  };
-
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create',
-          ...formData
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create product');
-
-      showToast(data.message || 'Product created successfully');
-      setActiveModal(null);
-      fetchProducts();
-    } catch (err) {
-      showToast(err.message, false);
+    if (!formData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      return;
     }
+    if (parseFloat(formData.price) < 0) {
+      showAlert('error', 'Validation Error', 'Price cannot be negative.');
+      return;
+    }
+    if (parseInt(formData.quantity) < 0) {
+      showAlert('error', 'Validation Error', 'Quantity cannot be negative.');
+      return;
+    }
+
+    showConfirm('Create Product', 'Are you sure you want to create this product?', async () => {
+      try {
+        const res = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            ...formData,
+            name: formData.name.trim()
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create product');
+
+        showAlert('success', 'Success', data.message || 'Product created successfully');
+        setActiveModal(null);
+        fetchProducts();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update',
-          productID: selectedProduct.productID,
-          ...formData
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update product');
-
-      showToast(data.message || 'Product updated successfully');
-      setActiveModal(null);
-      fetchProducts();
-    } catch (err) {
-      showToast(err.message, false);
+    if (!formData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      return;
     }
+    if (parseFloat(formData.price) < 0) {
+      showAlert('error', 'Validation Error', 'Price cannot be negative.');
+      return;
+    }
+    if (parseInt(formData.quantity) < 0) {
+      showAlert('error', 'Validation Error', 'Quantity cannot be negative.');
+      return;
+    }
+
+    showConfirm('Update Product', 'Are you sure you want to save changes to this product?', async () => {
+      try {
+        const res = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update',
+            productID: selectedProduct.productID,
+            ...formData,
+            name: formData.name.trim()
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update product');
+
+        showAlert('success', 'Success', data.message || 'Product updated successfully');
+        setActiveModal(null);
+        fetchProducts();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
-  const handleDelete = async (productID) => {
-    if (!confirm('Are you sure you want to delete this product (stock quantity will be set to 0)?')) return;
+  const handleArchive = async (productID) => {
+    showConfirm('Delete Product', 'Are you sure you want to delete this product? It will be hidden from active inventory.', async () => {
+      try {
+        const res = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'archive',
+            productID
+          }),
+        });
 
-    try {
-      const res = await fetch('/api/admin/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'archive',
-          productID
-        }),
-      });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete');
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+        showAlert('success', 'Success', data.message || 'Product deleted successfully');
+        fetchProducts();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
 
-      showToast(data.message || 'Product deleted successfully');
-      fetchProducts();
-    } catch (err) {
-      showToast(err.message, false);
-    }
+  const handleRestore = async (productID) => {
+    showConfirm('Restore Product', 'Are you sure you want to restore this product to active listings?', async () => {
+      try {
+        const res = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'restore',
+            productID
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to restore');
+
+        showAlert('success', 'Success', data.message || 'Product restored successfully');
+        fetchProducts();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleToggleAvailability = (productID, currentAvailability) => {
+    const actionText = currentAvailability ? 'make this product unavailable?' : 'make this product available?';
+    showConfirm('Toggle Availability', `Are you sure you want to ${actionText}`, async () => {
+      try {
+        const res = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'toggle_availability',
+            productID,
+            isAvailable: !currentAvailability
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update availability');
+
+        showAlert('success', 'Success', data.message || 'Product availability updated successfully.');
+        fetchProducts();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const openCreateModal = () => {
@@ -157,29 +267,47 @@ export default function AdminProducts() {
 
   return (
     <div>
+      {/* Custom Modal Dialog */}
+      <ModalDialog
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={modalConfig.onCancel}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
+
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Admin</div>
           <h2 className="section-title mb-0">Products Management</h2>
         </div>
-        <button className="btn btn-pcc-primary" onClick={openCreateModal}>
+        <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
           + Create Product
         </button>
       </div>
 
-      {/* Alerts */}
-      {success && (
-        <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
-          {success}
-          <button type="button" className="btn-close" onClick={() => setSuccess('')}></button>
-        </div>
-      )}
-      {error && (
-        <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-          {error}
-          <button type="button" className="btn-close" onClick={() => setError('')}></button>
-        </div>
-      )}
+      {/* Tabs for Active vs Archived */}
+      <ul className="nav nav-tabs mb-3">
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setShowArchived(false)}
+          >
+            🍔 Active Products
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setShowArchived(true)}
+          >
+            📦 Archived Products
+          </button>
+        </li>
+      </ul>
 
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -234,19 +362,20 @@ export default function AdminProducts() {
                   <th>Price</th>
                   <th>Stock</th>
                   <th>Alert</th>
+                  <th>Daily Availability</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {products.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="text-center text-muted py-4">
+                    <td colSpan="8" className="text-center text-muted py-4">
                       No products found.
                     </td>
                   </tr>
                 ) : (
                   products.map((p, index) => (
-                    <tr key={p.productID} className={p.quantity <= 5 ? 'table-warning' : ''}>
+                    <tr key={p.productID} className={p.quantity <= 5 && !showArchived ? 'table-warning' : ''}>
                       <td>{index + 1}</td>
                       <td>
                         <strong>{p.name}</strong>
@@ -262,19 +391,44 @@ export default function AdminProducts() {
                         )}
                       </td>
                       <td>
+                        <div className="form-check form-switch mb-0">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id={`avail-switch-${p.productID}`}
+                            checked={!!p.isAvailable}
+                            disabled={showArchived}
+                            onChange={() => handleToggleAvailability(p.productID, !!p.isAvailable)}
+                          />
+                          <label className="form-check-label small text-muted ms-1" htmlFor={`avail-switch-${p.productID}`}>
+                            {p.isAvailable ? 'Available' : 'Unavailable'}
+                          </label>
+                        </div>
+                      </td>
+                      <td>
                         <div className="d-flex gap-1">
                           <button
-                            className="btn btn-sm btn-outline-primary"
+                            className="btn btn-sm btn-warning text-white"
                             onClick={() => openEditModal(p)}
                           >
                             Update
                           </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDelete(p.productID)}
-                          >
-                            Delete
-                          </button>
+                          {showArchived ? (
+                            <button
+                              className="btn btn-sm btn-success text-white"
+                              onClick={() => handleRestore(p.productID)}
+                            >
+                              Restore
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-danger text-white"
+                              onClick={() => handleArchive(p.productID)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

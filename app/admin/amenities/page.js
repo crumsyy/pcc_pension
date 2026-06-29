@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ModalDialog from '../../components/ModalDialog';
 
 export default function AdminAmenities() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | null
@@ -23,13 +23,53 @@ export default function AdminAmenities() {
     quantity: 0,
   });
 
+  // Custom Modal dialog state
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  });
+
+  const showAlert = (type, title, message) => {
+    setModalConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+      confirmText: 'OK',
+      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+      onCancel: null
+    });
+  };
+
+  const showConfirm = (title, message, onConfirmCallback) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'confirm',
+      title,
+      message,
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        onConfirmCallback();
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
   const fetchAmenities = async () => {
     setLoading(true);
-    setError('');
     try {
       const query = new URLSearchParams({
         search,
         catID: catFilter,
+        archived: showArchived ? 'true' : 'false',
       }).toString();
 
       const res = await fetch(`/api/admin/amenities?${query}`);
@@ -39,7 +79,7 @@ export default function AdminAmenities() {
       setItems(data.items || []);
       setCategories(data.categories || []);
     } catch (err) {
-      setError(err.message);
+      showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
@@ -47,91 +87,136 @@ export default function AdminAmenities() {
 
   useEffect(() => {
     fetchAmenities();
-  }, [search, catFilter]);
+  }, [search, catFilter, showArchived]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const showToast = (msg, isSuccess = true) => {
-    if (isSuccess) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(''), 4000);
-    } else {
-      setError(msg);
-      setTimeout(() => setError(''), 4000);
-    }
-  };
-
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/amenities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create',
-          ...formData
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create amenity');
-
-      showToast(data.message || 'Amenity created successfully');
-      setActiveModal(null);
-      fetchAmenities();
-    } catch (err) {
-      showToast(err.message, false);
+    if (!formData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      return;
     }
+    if (parseFloat(formData.price) < 0) {
+      showAlert('error', 'Validation Error', 'Price cannot be negative.');
+      return;
+    }
+    if (parseInt(formData.quantity) < 0) {
+      showAlert('error', 'Validation Error', 'Quantity cannot be negative.');
+      return;
+    }
+
+    showConfirm('Create Amenity', 'Are you sure you want to create this amenity?', async () => {
+      try {
+        const res = await fetch('/api/admin/amenities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            ...formData,
+            name: formData.name.trim()
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create amenity');
+
+        showAlert('success', 'Success', data.message || 'Amenity created successfully');
+        setActiveModal(null);
+        fetchAmenities();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/amenities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update',
-          amenityID: selectedItem.amenityID,
-          ...formData
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update amenity');
-
-      showToast(data.message || 'Amenity updated successfully');
-      setActiveModal(null);
-      fetchAmenities();
-    } catch (err) {
-      showToast(err.message, false);
+    if (!formData.name.trim()) {
+      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      return;
     }
+    if (parseFloat(formData.price) < 0) {
+      showAlert('error', 'Validation Error', 'Price cannot be negative.');
+      return;
+    }
+    if (parseInt(formData.quantity) < 0) {
+      showAlert('error', 'Validation Error', 'Quantity cannot be negative.');
+      return;
+    }
+
+    showConfirm('Update Amenity', 'Are you sure you want to save changes to this amenity?', async () => {
+      try {
+        const res = await fetch('/api/admin/amenities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update',
+            amenityID: selectedItem.amenityID,
+            ...formData,
+            name: formData.name.trim()
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update amenity');
+
+        showAlert('success', 'Success', data.message || 'Amenity updated successfully');
+        setActiveModal(null);
+        fetchAmenities();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
-  const handleDelete = async (amenityID) => {
-    if (!confirm('Are you sure you want to delete this amenity (stock quantity will be set to 0)?')) return;
+  const handleArchive = async (amenityID) => {
+    showConfirm('Delete Amenity', 'Are you sure you want to delete this amenity? It will be hidden from active inventory.', async () => {
+      try {
+        const res = await fetch('/api/admin/amenities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'archive',
+            amenityID
+          }),
+        });
 
-    try {
-      const res = await fetch('/api/admin/amenities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'archive',
-          amenityID
-        }),
-      });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete');
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+        showAlert('success', 'Success', data.message || 'Amenity deleted successfully');
+        fetchAmenities();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
 
-      showToast(data.message || 'Amenity deleted successfully');
-      fetchAmenities();
-    } catch (err) {
-      showToast(err.message, false);
-    }
+  const handleRestore = async (amenityID) => {
+    showConfirm('Restore Amenity', 'Are you sure you want to restore this amenity to active listings?', async () => {
+      try {
+        const res = await fetch('/api/admin/amenities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'restore',
+            amenityID
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to restore');
+
+        showAlert('success', 'Success', data.message || 'Amenity restored successfully');
+        fetchAmenities();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const openCreateModal = () => {
@@ -157,29 +242,47 @@ export default function AdminAmenities() {
 
   return (
     <div>
+      {/* Custom Modal Dialog */}
+      <ModalDialog
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={modalConfig.onCancel}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
+
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Admin</div>
           <h2 className="section-title mb-0">Amenities Management</h2>
         </div>
-        <button className="btn btn-pcc-primary" onClick={openCreateModal}>
+        <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
           + Create Amenity
         </button>
       </div>
 
-      {/* Alerts */}
-      {success && (
-        <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
-          {success}
-          <button type="button" className="btn-close" onClick={() => setSuccess('')}></button>
-        </div>
-      )}
-      {error && (
-        <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-          {error}
-          <button type="button" className="btn-close" onClick={() => setError('')}></button>
-        </div>
-      )}
+      {/* Tabs for Active vs Archived */}
+      <ul className="nav nav-tabs mb-3">
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setShowArchived(false)}
+          >
+            🛎️ Active Amenities
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setShowArchived(true)}
+          >
+            📦 Archived Amenities
+          </button>
+        </li>
+      </ul>
 
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -246,7 +349,7 @@ export default function AdminAmenities() {
                   </tr>
                 ) : (
                   items.map((item, index) => (
-                    <tr key={item.amenityID} className={item.quantity <= 5 ? 'table-warning' : ''}>
+                    <tr key={item.amenityID} className={item.quantity <= 5 && !showArchived ? 'table-warning' : ''}>
                       <td>{index + 1}</td>
                       <td>
                         <strong>{item.name}</strong>
@@ -264,17 +367,26 @@ export default function AdminAmenities() {
                       <td>
                         <div className="d-flex gap-1">
                           <button
-                            className="btn btn-sm btn-outline-primary"
+                            className="btn btn-sm btn-warning text-white"
                             onClick={() => openEditModal(item)}
                           >
                             Update
                           </button>
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDelete(item.amenityID)}
-                          >
-                            Delete
-                          </button>
+                          {showArchived ? (
+                            <button
+                              className="btn btn-sm btn-success text-white"
+                              onClick={() => handleRestore(item.amenityID)}
+                            >
+                              Restore
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-danger text-white"
+                              onClick={() => handleArchive(item.amenityID)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

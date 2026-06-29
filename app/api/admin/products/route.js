@@ -11,14 +11,15 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
   const catF = searchParams.get('catID') || '';
+  const archived = searchParams.get('archived') === 'true';
 
   let sql = `
     SELECT p.*, pc.name as catName
     FROM products p
     JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
-    WHERE 1=1
+    WHERE p.isArchived = ?
   `;
-  const params = [];
+  const params = [archived ? 1 : 0];
 
   if (search) {
     sql += " AND (p.name LIKE ? OR pc.name LIKE ?)";
@@ -82,10 +83,29 @@ export async function POST(request) {
     if (action === 'archive') {
       const productID = parseInt(body.productID);
       await dbQuery(
-        "UPDATE products SET quantity=0 WHERE productID=?",
+        "UPDATE products SET isArchived=1 WHERE productID=?",
         [productID]
       );
       return NextResponse.json({ success: true, message: 'Product archived successfully.' });
+    }
+
+    if (action === 'restore') {
+      const productID = parseInt(body.productID);
+      await dbQuery(
+        "UPDATE products SET isArchived=0 WHERE productID=?",
+        [productID]
+      );
+      return NextResponse.json({ success: true, message: 'Product restored successfully.' });
+    }
+
+    if (action === 'toggle_availability') {
+      const productID = parseInt(body.productID);
+      const isAvailable = body.isAvailable ? 1 : 0;
+      await dbQuery(
+        "UPDATE products SET isAvailable=? WHERE productID=?",
+        [isAvailable, productID]
+      );
+      return NextResponse.json({ success: true, message: 'Product availability updated.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

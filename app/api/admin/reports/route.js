@@ -24,7 +24,7 @@ export async function GET(request) {
         FROM transactions t
         JOIN payment p ON p.paymentID = t.paymentID
         WHERE DATE(t.transactionDateTime) BETWEEN ? AND ?
-        GROUP BY DATE(t.transactionDateTime)
+        GROUP BY DATE_FORMAT(t.transactionDateTime, '%Y-%m-%d')
         ORDER BY txDate
       `, [from, to]);
 
@@ -74,7 +74,7 @@ export async function GET(request) {
                MAX(b.checkOutDateTime) as lastStay
         FROM guest g
         LEFT JOIN booking b ON b.guestID = g.guestID AND b.status = 'Checked Out'
-        GROUP BY g.guestID
+        GROUP BY g.guestID, g.firstName, g.lastName, g.contact, g.email
         ORDER BY totalBookings DESC
         LIMIT 20
       `);

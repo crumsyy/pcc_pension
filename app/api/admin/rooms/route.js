@@ -67,6 +67,8 @@ export async function POST(request) {
       const status = body.status || 'Available';
       const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);
+      const rateWithoutBreakfast = parseFloat(body.rateWithoutBreakfast);
+      const rateWithBreakfast = parseFloat(body.rateWithBreakfast);
 
       if (status === 'Occupied') {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
@@ -76,7 +78,25 @@ export async function POST(request) {
         "INSERT INTO room(roomNumber,status,floorID,roomTypeID) VALUES(?,?,?,?)",
         [roomNumber, status, floorID, roomTypeID]
       );
-      return NextResponse.json({ success: true, message: 'Room created successfully.' });
+
+      // Upsert rates
+      if (!isNaN(rateWithoutBreakfast) && !isNaN(rateWithBreakfast)) {
+        const rr1 = await dbQuery("SELECT roomRateID FROM room_rate WHERE roomTypeID=? AND floorID=? AND breakfastID=1", [roomTypeID, floorID]);
+        if (rr1.length > 0) {
+          await dbQuery("UPDATE room_rate SET rate=? WHERE roomRateID=?", [rateWithoutBreakfast, rr1[0].roomRateID]);
+        } else {
+          await dbQuery("INSERT INTO room_rate(rate, roomTypeID, floorID, breakfastID) VALUES(?,?,?,1)", [rateWithoutBreakfast, roomTypeID, floorID]);
+        }
+
+        const rr2 = await dbQuery("SELECT roomRateID FROM room_rate WHERE roomTypeID=? AND floorID=? AND breakfastID=2", [roomTypeID, floorID]);
+        if (rr2.length > 0) {
+          await dbQuery("UPDATE room_rate SET rate=? WHERE roomRateID=?", [rateWithBreakfast, rr2[0].roomRateID]);
+        } else {
+          await dbQuery("INSERT INTO room_rate(rate, roomTypeID, floorID, breakfastID) VALUES(?,?,?,2)", [rateWithBreakfast, roomTypeID, floorID]);
+        }
+      }
+
+      return NextResponse.json({ success: true, message: 'Room and rates processed successfully.' });
     }
 
     if (action === 'update') {
@@ -85,6 +105,8 @@ export async function POST(request) {
       const status = body.status;
       const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);
+      const rateWithoutBreakfast = parseFloat(body.rateWithoutBreakfast);
+      const rateWithBreakfast = parseFloat(body.rateWithBreakfast);
 
       if (status === 'Occupied') {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
@@ -100,7 +122,25 @@ export async function POST(request) {
         "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=? WHERE roomID=?",
         [roomNumber, status, floorID, roomTypeID, roomID]
       );
-      return NextResponse.json({ success: true, message: 'Room updated successfully.' });
+
+      // Upsert rates
+      if (!isNaN(rateWithoutBreakfast) && !isNaN(rateWithBreakfast)) {
+        const rr1 = await dbQuery("SELECT roomRateID FROM room_rate WHERE roomTypeID=? AND floorID=? AND breakfastID=1", [roomTypeID, floorID]);
+        if (rr1.length > 0) {
+          await dbQuery("UPDATE room_rate SET rate=? WHERE roomRateID=?", [rateWithoutBreakfast, rr1[0].roomRateID]);
+        } else {
+          await dbQuery("INSERT INTO room_rate(rate, roomTypeID, floorID, breakfastID) VALUES(?,?,?,1)", [rateWithoutBreakfast, roomTypeID, floorID]);
+        }
+
+        const rr2 = await dbQuery("SELECT roomRateID FROM room_rate WHERE roomTypeID=? AND floorID=? AND breakfastID=2", [roomTypeID, floorID]);
+        if (rr2.length > 0) {
+          await dbQuery("UPDATE room_rate SET rate=? WHERE roomRateID=?", [rateWithBreakfast, rr2[0].roomRateID]);
+        } else {
+          await dbQuery("INSERT INTO room_rate(rate, roomTypeID, floorID, breakfastID) VALUES(?,?,?,2)", [rateWithBreakfast, roomTypeID, floorID]);
+        }
+      }
+
+      return NextResponse.json({ success: true, message: 'Room and rates updated successfully.' });
     }
 
     if (action === 'delete') {

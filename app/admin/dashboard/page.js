@@ -1,12 +1,16 @@
 import { Suspense } from 'react';
 import DashboardClient from './DashboardClient';
+import { requireSessionRole } from "@/lib/session";
 
 export const unstable_instant = {
   prefetch: 'static',
   unstable_disableValidation: true,
 };
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const auth = await requireSessionRole("Administrator");
+  const userName = auth.session?.fullName || "Admin";
+
   return (
     <Suspense
       fallback={
@@ -20,7 +24,7 @@ export default function AdminDashboardPage() {
         </div>
       }
     >
-      <DashboardClient />
+      <DashboardClient userName={userName} />
     </Suspense>
   );
 }
