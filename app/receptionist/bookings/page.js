@@ -24,6 +24,17 @@ export default function ReceptionistBookings() {
     status: 'Confirmed'
   });
 
+  const [isWalkIn, setIsWalkIn] = useState(false);
+  const [walkInForm, setWalkInForm] = useState({
+    firstName: '',
+    lastName: '',
+    contact: '',
+    email: '',
+    gender: 'Male'
+  });
+
+  const [selectedRoomType, setSelectedRoomType] = useState('');
+
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -85,6 +96,45 @@ export default function ReceptionistBookings() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (activeModal === 'create') {
+      const today = new Date();
+      today.setHours(14, 0, 0, 0);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(12, 0, 0, 0);
+
+      const offset = today.getTimezoneOffset();
+      const localToday = new Date(today.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 16);
+      const localTomorrow = new Date(tomorrow.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 16);
+
+      setFormData({
+        guestID: '',
+        roomID: '',
+        checkInDateTime: localToday,
+        checkOutDateTime: localTomorrow,
+        status: 'Confirmed'
+      });
+    } else if (!activeModal) {
+      setFormData({
+        guestID: '',
+        roomID: '',
+        checkInDateTime: '',
+        checkOutDateTime: '',
+        status: 'Confirmed'
+      });
+      setIsWalkIn(false);
+      setWalkInForm({
+        firstName: '',
+        lastName: '',
+        contact: '',
+        email: '',
+        gender: 'Male'
+      });
+      setSelectedRoomType('');
+    }
+  }, [activeModal]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -99,7 +149,8 @@ export default function ReceptionistBookings() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'create',
-            guestID: formData.guestID,
+            isWalkIn,
+            ...(isWalkIn ? walkInForm : { guestID: formData.guestID }),
             roomID: formData.roomID,
             checkInDateTime: formData.checkInDateTime.replace('T', ' ') + ':00',
             checkOutDateTime: formData.checkOutDateTime.replace('T', ' ') + ':00',
@@ -342,22 +393,123 @@ export default function ReceptionistBookings() {
               </div>
               <form onSubmit={handleCreateSubmit}>
                 <div className="modal-body">
+                  <div className="form-check form-switch mb-3">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="walkInToggle"
+                      checked={isWalkIn}
+                      onChange={(e) => setIsWalkIn(e.target.checked)}
+                    />
+                    <label className="form-check-label" htmlFor="walkInToggle">
+                      Walk-In Guest (No Account / Quick Book)
+                    </label>
+                  </div>
+
+                  {!isWalkIn ? (
+                    <div className="mb-3">
+                      <label className="form-label">Guest *</label>
+                      <select name="guestID" className="form-select" required={!isWalkIn} value={formData.guestID} onChange={handleInputChange}>
+                        <option value="" disabled>Select Guest</option>
+                        {guests.map(g => (
+                          <option key={g.guestID} value={g.guestID}>{g.lastName}, {g.firstName} ({g.contact})</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="p-3 mb-3 border rounded bg-light">
+                      <h6 className="mb-3 text-pcc-primary fw-bold">Walk-In Guest Details</h6>
+                      <div className="row g-2">
+                        <div className="col-md-6 mb-2">
+                          <label className="form-label">First Name *</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            required={isWalkIn}
+                            value={walkInForm.firstName}
+                            onChange={(e) => setWalkInForm(prev => ({ ...prev, firstName: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-md-6 mb-2">
+                          <label className="form-label">Last Name *</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            required={isWalkIn}
+                            value={walkInForm.lastName}
+                            onChange={(e) => setWalkInForm(prev => ({ ...prev, lastName: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label">Contact Number</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={walkInForm.contact}
+                          onChange={(e) => setWalkInForm(prev => ({ ...prev, contact: e.target.value }))}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label">Email (Optional)</label>
+                        <input
+                          type="email"
+                          className="form-control"
+                          value={walkInForm.email}
+                          onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label">Gender</label>
+                        <select
+                          className="form-select"
+                          value={walkInForm.gender}
+                          onChange={(e) => setWalkInForm(prev => ({ ...prev, gender: e.target.value }))}
+                        >
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  {/* Room Type and Room filtering */}
                   <div className="mb-3">
-                    <label className="form-label">Guest *</label>
-                    <select name="guestID" className="form-select" required value={formData.guestID} onChange={handleInputChange}>
-                      <option value="" disabled>Select Guest</option>
-                      {guests.map(g => (
-                        <option key={g.guestID} value={g.guestID}>{g.lastName}, {g.firstName} ({g.contact})</option>
+                    <label className="form-label">Room Type *</label>
+                    <select
+                      className="form-select"
+                      required
+                      value={selectedRoomType}
+                      onChange={(e) => {
+                        setSelectedRoomType(e.target.value);
+                        setFormData(prev => ({ ...prev, roomID: '' }));
+                      }}
+                    >
+                      <option value="" disabled>Select Room Type</option>
+                      {[...new Set(rooms.map(rm => rm.roomType))].map(type => (
+                        <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
                   </div>
+
                   <div className="mb-3">
                     <label className="form-label">Room *</label>
-                    <select name="roomID" className="form-select" required value={formData.roomID} onChange={handleInputChange}>
-                      <option value="" disabled>Select Room</option>
-                      {rooms.map(rm => (
-                        <option key={rm.roomID} value={rm.roomID}>Room {rm.roomNumber} - {rm.roomType} ({rm.status})</option>
-                      ))}
+                    <select 
+                      name="roomID" 
+                      className="form-select" 
+                      required 
+                      disabled={!selectedRoomType}
+                      value={formData.roomID} 
+                      onChange={handleInputChange}
+                    >
+                      <option value="" disabled>
+                        {selectedRoomType ? "Select Room" : "Choose Room Type first"}
+                      </option>
+                      {rooms
+                        .filter(rm => rm.roomType === selectedRoomType && rm.status === 'Available')
+                        .map(rm => (
+                          <option key={rm.roomID} value={rm.roomID}>Room {rm.roomNumber}</option>
+                        ))
+                      }
                     </select>
                   </div>
                   <div className="mb-3">

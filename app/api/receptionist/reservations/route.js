@@ -13,11 +13,13 @@ export async function GET(request) {
       dbQuery(`
         SELECT r.reservationID, r.reservationDateTime, r.status, r.guestID, r.roomID,
                g.firstName, g.lastName, g.contact,
-               rm.roomNumber, rt.type as roomType
+               rm.roomNumber, rt.type as roomType,
+               b.bookingID, b.status as bookingStatus
         FROM reservation r
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        LEFT JOIN booking b ON b.reservationID = r.reservationID
         WHERE rm.isArchived = 0
         ORDER BY r.reservationDateTime DESC
       `),
@@ -49,7 +51,22 @@ export async function POST(request) {
     const { action } = body;
 
     if (action === 'create') {
-      const guestID = parseInt(body.guestID);
+      let guestID;
+
+      if (body.isWalkIn) {
+        const { firstName, lastName, contact, email, gender } = body;
+        if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
+          return NextResponse.json({ error: 'First name and Last name are required for walk-in guests.' }, { status: 400 });
+        }
+        const insertRes = await dbQuery(
+          "INSERT INTO guest (firstName, lastName, contact, email, gender, userID) VALUES (?, ?, ?, ?, ?, NULL)",
+          [firstName.trim(), lastName.trim(), (contact || '').trim(), (email || '').trim() || null, gender || null]
+        );
+        guestID = insertRes.insertId;
+      } else {
+        guestID = parseInt(body.guestID);
+      }
+
       const roomID = parseInt(body.roomID);
       const reservationDateTime = body.reservationDateTime;
 

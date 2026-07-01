@@ -92,10 +92,67 @@ export default function Home() {
     }, 400);
   };
 
-  const handleSearchSubmit = (e) => {
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [searchTriggered, setSearchTriggered] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
+
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth/session-check');
+        const data = await res.json();
+        if (res.ok && data.valid) {
+          setCurrentUser(data.session);
+        }
+      } catch (err) {
+        console.error("Session check failed", err);
+      }
+    }
+    checkSession();
+  }, []);
+
+  const handleSearchSubmit = async (e) => {
     e.preventDefault();
-    // Redirect to register/booking flow, passing search parameters
-    window.location.href = `/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_type=${roomType}&breakfast=${breakfast}`;
+    setSearching(true);
+    setSearchTriggered(true);
+    try {
+      const res = await fetch(`/api/rooms/availability?checkIn=${checkIn}&checkOut=${checkOut}&roomType=${encodeURIComponent(roomType)}&breakfast=${encodeURIComponent(breakfast)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch room availability');
+      setAvailableRooms(data.rooms || []);
+      setShowResultsModal(true);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleBookNow = async (roomID) => {
+    if (!currentUser || currentUser.role !== 'Guest') {
+      window.location.href = `/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${roomID}&breakfast=${breakfast}`;
+      return;
+    }
+
+    setBookingInProgress(true);
+    try {
+      const res = await fetch('/api/guest/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomID, checkInDate: checkIn })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit reservation request');
+      alert(data.message || 'Reservation request submitted successfully!');
+      setShowResultsModal(false);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBookingInProgress(false);
+    }
   };
 
   return (
@@ -196,7 +253,9 @@ export default function Home() {
                     </select>
                   </div>
                   <div className="col-12">
-                    <button type="submit" className="btn btn-pcc-primary w-100">Check Availability</button>
+                    <button type="submit" className="btn btn-pcc-primary w-100" disabled={searching}>
+                      {searching ? "Checking..." : "Check Availability"}
+                    </button>
                   </div>
                 </form>
               </div>
@@ -500,6 +559,76 @@ export default function Home() {
           <button onClick={() => handleSendMessage(chatInput)}>Send</button>
         </div>
       </div>
+
+      {/* AVAILABILITY RESULTS MODAL */}
+      {showResultsModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content border-0" style={{ borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
+              <div className="modal-header px-4 py-3" style={{ background: 'var(--pcc-blue)', color: '#fff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
+                <h5 className="modal-title fw-bold">Available Rooms</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowResultsModal(false)}></button>
+              </div>
+              <div className="modal-body p-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <div className="mb-3 p-3 bg-light rounded" style={{ fontSize: '0.9rem' }}>
+                  Dates: <strong>{new Date(checkIn).toLocaleDateString()}</strong> to <strong>{new Date(checkOut).toLocaleDateString()}</strong>
+                  <span className="mx-2">|</span> Option: <strong>{breakfast}</strong>
+                </div>
+
+                {availableRooms.length === 0 ? (
+                  <div className="text-center py-5 text-muted">
+                    <span style={{ fontSize: '2.5rem' }}>🛏️</span>
+                    <h5 className="mt-3 fw-bold">No Rooms Available</h5>
+                    <p className="small mb-0">Sorry, there are no rooms of this type vacant for the selected stay dates. Please try other dates.</p>
+                  </div>
+                ) : (
+                  <div className="d-flex flex-column gap-3">
+                    {availableRooms.map((rm) => (
+                      <div key={rm.roomID} className="p-3 border rounded d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white shadow-sm" style={{ transition: 'all 0.2s' }}>
+                        <div>
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <span className="fw-bold text-dark" style={{ fontSize: '1.1rem' }}>Room {rm.roomNumber}</span>
+                            <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill" style={{ fontSize: '0.75rem' }}>Available</span>
+                          </div>
+                          <h6 className="text-pcc-primary fw-semibold mb-1">{rm.roomType} · {rm.floor}</h6>
+                          <p className="text-muted small mb-0" style={{ maxWidth: '480px' }}>{rm.description}</p>
+                        </div>
+                        <div className="text-md-end mt-3 mt-md-0 d-flex flex-row flex-md-column justify-content-between align-items-center align-items-md-end gap-2">
+                          <div>
+                            <div className="text-muted small">Price per night</div>
+                            <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.35rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</span>
+                          </div>
+                          {currentUser && currentUser.role === 'Guest' ? (
+                            <button 
+                              onClick={() => handleBookNow(rm.roomID)}
+                              className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
+                              style={{ borderRadius: '6px' }}
+                              disabled={bookingInProgress}
+                            >
+                              {bookingInProgress ? "Booking..." : "Book Now"}
+                            </button>
+                          ) : (
+                            <Link 
+                              href={`/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${rm.roomID}&breakfast=${breakfast}`}
+                              className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
+                              style={{ borderRadius: '6px' }}
+                            >
+                              Book Now
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer border-0 px-4 py-3">
+                <button type="button" className="btn btn-secondary text-white px-4" onClick={() => setShowResultsModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

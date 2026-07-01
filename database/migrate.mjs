@@ -34,6 +34,19 @@ async function ensureColumn(connection, tableName, columnName, definition) {
   }
 }
 
+async function ensureTable(connection, tableName, createSql) {
+  const [tables] = await connection.execute(`SHOW TABLES LIKE ?`, [tableName]);
+  if (tables.length === 0) {
+    console.log(`Creating table ${tableName}...`);
+    await connection.execute(createSql);
+    console.log(`Successfully created table ${tableName}!`);
+    return true;
+  } else {
+    console.log(`Table ${tableName} already exists. Skipping.`);
+    return false;
+  }
+}
+
 async function run() {
   console.log("Database Host:", process.env.DB_HOST);
   console.log("Database Name:", process.env.DB_NAME);
@@ -63,6 +76,53 @@ async function run() {
     await ensureColumn(connection, 'purchase_order', 'expectedDeliveryDate', 'DATE DEFAULT NULL');
     await ensureColumn(connection, 'purchase_order', 'remarks', 'VARCHAR(255) DEFAULT NULL');
     await ensureColumn(connection, 'purchase_order_items', 'quantityReceived', 'INT NOT NULL DEFAULT 0');
+
+    console.log("Altering guest table columns to support nullability for walk-ins...");
+    await connection.execute("ALTER TABLE guest MODIFY COLUMN userID INT(11) DEFAULT NULL");
+    await connection.execute("ALTER TABLE guest MODIFY COLUMN gender ENUM('Male','Female') DEFAULT NULL");
+    await connection.execute("ALTER TABLE guest MODIFY COLUMN dateOfBirth DATE DEFAULT NULL");
+    await connection.execute("ALTER TABLE guest MODIFY COLUMN city VARCHAR(50) DEFAULT NULL");
+    await connection.execute("ALTER TABLE guest MODIFY COLUMN province VARCHAR(50) DEFAULT NULL");
+    await connection.execute("ALTER TABLE guest MODIFY COLUMN email VARCHAR(100) DEFAULT NULL");
+
+    console.log("Checking and ensuring inquiry and notification tables exist...");
+    const createdInquiry = await ensureTable(connection, 'inquiry', `
+      CREATE TABLE \`inquiry\` (
+        \`inquiryID\` int(11) NOT NULL AUTO_INCREMENT,
+        \`name\` varchar(100) NOT NULL,
+        \`email\` varchar(100) NOT NULL,
+        \`message\` text NOT NULL,
+        \`status\` enum('Pending','Responded') NOT NULL DEFAULT 'Pending',
+        \`response\` text DEFAULT NULL,
+        \`isChatbotForwarded\` tinyint(1) NOT NULL DEFAULT 0,
+        \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`inquiryID\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    await ensureTable(connection, 'notification', `
+      CREATE TABLE \`notification\` (
+        \`notificationID\` int(11) NOT NULL AUTO_INCREMENT,
+        \`userID\` int(11) NOT NULL,
+        \`title\` varchar(100) NOT NULL,
+        \`message\` text NOT NULL,
+        \`isRead\` tinyint(1) NOT NULL DEFAULT 0,
+        \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`notificationID\`),
+        KEY \`fk_notification_user\` (\`userID\`),
+        CONSTRAINT \`fk_notification_user\` FOREIGN KEY (\`userID\`) REFERENCES \`user\` (\`userID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    if (createdInquiry) {
+      console.log("Seeding mock inquiries...");
+      await connection.execute(`
+        INSERT INTO \`inquiry\` (\`name\`, \`email\`, \`message\`, \`status\`, \`response\`, \`isChatbotForwarded\`) VALUES
+        ('Maria Santos', 'maria.santos@example.com', 'Hi, do you have room rates for family rooms? We plan to stay this coming weekend.', 'Pending', NULL, 0),
+        ('Alex Lim', 'alex.lim@example.com', 'Are pets allowed in the matrimonial room? I have a small dog.', 'Pending', NULL, 1),
+        ('Sarah G.', 'sarahg@example.com', 'Is breakfast included in the Standard Matrimonial room? How much is the extra charge?', 'Responded', 'Yes, breakfast is optional. Standard Matrimonial rate is ₱1,200 without breakfast and ₱1,500 with breakfast.', 0)
+      `);
+    }
 
     console.log("All database migrations verified!");
   } catch (error) {

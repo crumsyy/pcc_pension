@@ -29,8 +29,8 @@ export default async function ReceptionistDashboard() {
       JOIN guest g ON g.guestID = b.guestID
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      WHERE DATE(b.checkInDateTime) = CURDATE()
-      ORDER BY b.checkInDateTime ASC
+      WHERE b.status = 'Checked In'
+      ORDER BY rm.roomNumber ASC
     `),
     dbQuery(`
       SELECT r.reservationID, r.reservationDateTime, r.status,
@@ -185,17 +185,14 @@ export default async function ReceptionistDashboard() {
           </div>
         </div>
 
-        {/* Today's check-ins */}
+        {/* Currently Checked-In Rooms */}
         <div className="col-lg-8">
           <div className="key-tag mb-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="room-type">Today&apos;s Check-Ins</div>
-              <Link href="/receptionist/checkin" className="btn btn-pcc-primary btn-sm">
-                Process Check-In
-              </Link>
+              <div className="room-type">Currently Checked-In Rooms</div>
             </div>
             {checkInsList.length === 0 ? (
-              <p className="text-muted small">No check-ins scheduled for today.</p>
+              <p className="text-muted small">No guests currently checked in.</p>
             ) : (
               <div className="table-responsive">
                 <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
@@ -203,10 +200,9 @@ export default async function ReceptionistDashboard() {
                     <tr>
                       <th>Guest</th>
                       <th>Room</th>
-                      <th>Check-In</th>
-                      <th>Check-Out</th>
+                      <th>Checked In On</th>
+                      <th>Expected Check-Out</th>
                       <th>Status</th>
-                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -217,25 +213,13 @@ export default async function ReceptionistDashboard() {
                           <br />
                           <small className="text-muted">{b.contact}</small>
                         </td>
-                        <td>{b.roomNumber} - {b.roomType}</td>
-                        <td>{formatTime(b.checkInDateTime)}</td>
+                        <td><strong>Room {b.roomNumber}</strong> - {b.roomType}</td>
+                        <td>{new Date(b.checkInDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</td>
                         <td>{formatDateShort(b.checkOutDateTime)}</td>
                         <td>
-                          <span
-                            className={`badge ${
-                              b.status === "Checked In" ? "text-bg-primary" : "text-bg-warning"
-                            }`}
-                          >
-                            {b.status}
+                          <span className="badge text-bg-primary">
+                            Occupied
                           </span>
-                        </td>
-                        <td>
-                          <Link
-                            href={`/receptionist/checkin?bookingID=${b.bookingID}`}
-                            className="btn btn-sm btn-pcc-outline"
-                          >
-                            {b.status === "Checked In" ? "Check Out" : "Check In"}
-                          </Link>
                         </td>
                       </tr>
                     ))}

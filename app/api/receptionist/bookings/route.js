@@ -49,7 +49,22 @@ export async function POST(request) {
     const { action } = body;
 
     if (action === 'create') {
-      const guestID = parseInt(body.guestID);
+      let guestID;
+
+      if (body.isWalkIn) {
+        const { firstName, lastName, contact, email, gender } = body;
+        if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
+          return NextResponse.json({ error: 'First name and Last name are required for walk-in guests.' }, { status: 400 });
+        }
+        const insertRes = await dbQuery(
+          "INSERT INTO guest (firstName, lastName, contact, email, gender, userID) VALUES (?, ?, ?, ?, ?, NULL)",
+          [firstName.trim(), lastName.trim(), (contact || '').trim(), (email || '').trim() || null, gender || null]
+        );
+        guestID = insertRes.insertId;
+      } else {
+        guestID = parseInt(body.guestID);
+      }
+
       const roomID = parseInt(body.roomID);
       const checkInDateTime = body.checkInDateTime;
       const checkOutDateTime = body.checkOutDateTime;

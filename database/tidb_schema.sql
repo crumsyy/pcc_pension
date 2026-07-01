@@ -42,6 +42,8 @@ DROP TABLE IF EXISTS `breakfast_option`;
 DROP TABLE IF EXISTS `amenities`;
 DROP TABLE IF EXISTS `amenities_category`;
 DROP TABLE IF EXISTS `staff`;
+DROP TABLE IF EXISTS `notification`;
+DROP TABLE IF EXISTS `inquiry`;
 DROP TABLE IF EXISTS `guest`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `role`;
@@ -100,16 +102,46 @@ CREATE TABLE `guest` (
   `firstName` varchar(50) NOT NULL,
   `middleName` varchar(50) DEFAULT NULL,
   `lastName` varchar(50) NOT NULL,
-  `gender` enum('Male','Female') NOT NULL,
-  `dateOfBirth` date NOT NULL,
-  `city` varchar(50) NOT NULL,
-  `province` varchar(50) NOT NULL,
+  `gender` enum('Male','Female') DEFAULT NULL,
+  `dateOfBirth` date DEFAULT NULL,
+  `city` varchar(50) DEFAULT NULL,
+  `province` varchar(50) DEFAULT NULL,
   `contact` varchar(15) NOT NULL,
-  `email` varchar(100) NOT NULL,
-  `userID` int(11) NOT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `userID` int(11) DEFAULT NULL,
   PRIMARY KEY (`guestID`),
   KEY `fk_guest_user` (`userID`),
   CONSTRAINT `fk_guest_user` FOREIGN KEY (`userID`) REFERENCES `user` (`userID`)
+);
+
+-- --------------------------------------------------------
+-- Table structure for table `inquiry`
+-- --------------------------------------------------------
+CREATE TABLE `inquiry` (
+  `inquiryID` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `message` text NOT NULL,
+  `status` enum('Pending','Responded') NOT NULL DEFAULT 'Pending',
+  `response` text DEFAULT NULL,
+  `isChatbotForwarded` tinyint(1) NOT NULL DEFAULT 0,
+  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`inquiryID`)
+);
+
+-- --------------------------------------------------------
+-- Table structure for table `notification`
+-- --------------------------------------------------------
+CREATE TABLE `notification` (
+  `notificationID` int(11) NOT NULL AUTO_INCREMENT,
+  `userID` int(11) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `message` text NOT NULL,
+  `isRead` tinyint(1) NOT NULL DEFAULT 0,
+  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`notificationID`),
+  KEY `fk_notification_user` (`userID`),
+  CONSTRAINT `fk_notification_user` FOREIGN KEY (`userID`) REFERENCES `user` (`userID`) ON DELETE CASCADE
 );
 
 -- Dumping data for table `guest`
