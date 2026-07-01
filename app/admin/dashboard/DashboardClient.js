@@ -266,113 +266,119 @@ export default function DashboardClient({ userName }) {
       <div className="row g-4 mb-4">
         {/* Left Column: Recent reservations and bookings */}
         <div className="col-lg-6">
-          {/* Recent Reservations */}
-          <div
-            className="card-module mb-4 p-3 rounded"
-            style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
-          >
-            <h5 className="mb-3 text-blue">📅 Booking & Reservation Status — Recent Reservations (REQ010)</h5>
-            {recentRes.length === 0 ? (
-              <p className="text-muted small">No recent reservations.</p>
-            ) : (
-              <div className="table-responsive">
-                <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
-                  <thead>
-                    <tr>
-                      <th>Guest</th>
-                      <th>Room</th>
-                      <th>Reserved Date</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentRes.map((r) => (
-                      <tr key={r.reservationID}>
-                        <td>{`${r.firstName || ''} ${r.lastName || ''}`}</td>
-                        <td>{`${r.roomNumber} - ${r.type}`}</td>
-                        <td>
-                          {new Date(r.reservationDateTime).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              r.status === 'Confirmed'
-                                ? 'text-bg-success'
-                                : r.status === 'Canceled'
-                                ? 'text-bg-danger'
-                                : 'text-bg-warning'
-                            }`}
-                          >
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <Link href="/admin/bookings" className="btn btn-pcc-outline btn-sm mt-3">
-              View Bookings Board
-            </Link>
-          </div>
-
-          {/* Recent Bookings */}
+          {/* Reservations and Booking List status Card */}
           <div
             className="card-module p-3 rounded"
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
           >
-            <h5 className="mb-3 text-blue">🛏 Booking & Reservation Status — Recent Bookings (REQ010)</h5>
-            {recentBookings.length === 0 ? (
-              <p className="text-muted small">No recent bookings.</p>
-            ) : (
-              <div className="table-responsive">
-                <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
-                  <thead>
-                    <tr>
-                      <th>Guest</th>
-                      <th>Room</th>
-                      <th>Check-In</th>
-                      <th>Check-Out</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentBookings.map((b) => (
-                      <tr key={b.bookingID}>
-                        <td>{`${b.firstName || ''} ${b.lastName || ''}`}</td>
-                        <td>{`${b.roomNumber} - ${b.type}`}</td>
-                        <td>
-                          {new Date(b.checkInDateTime).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </td>
-                        <td>
-                          {new Date(b.checkOutDateTime).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </td>
-                        <td>
-                          <span className="badge text-bg-secondary">{b.status}</span>
-                        </td>
+            <h5 className="mb-4 text-blue">📅 Reservations and Booking List status (REQ010)</h5>
+            
+            {/* Recent Reservations Section */}
+            <div className="mb-4">
+              <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.85rem' }}>Recent Reservations</h6>
+              {recentRes.length === 0 ? (
+                <p className="text-muted small">No recent reservations.</p>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Guest</th>
+                        <th>Room</th>
+                        <th>Reserved Date</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <Link href="/admin/bookings" className="btn btn-pcc-outline btn-sm mt-3">
-              View All Bookings
-            </Link>
+                    </thead>
+                    <tbody>
+                      {recentRes.map((r) => (
+                        <tr key={r.reservationID}>
+                          <td>{`${r.firstName || ''} ${r.lastName || ''}`}</td>
+                          <td>{`${r.roomNumber} - ${r.type}`}</td>
+                          <td>
+                            {new Date(r.reservationDateTime).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </td>
+                          <td>
+                            <span
+                              className={`badge ${
+                                r.status === 'Confirmed'
+                                  ? 'text-bg-success'
+                                  : r.status === 'Canceled'
+                                  ? 'text-bg-danger'
+                                  : 'text-bg-warning'
+                              }`}
+                            >
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Recent Bookings Section */}
+            <div className="mb-3">
+              <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.85rem' }}>Recent Bookings</h6>
+              {recentBookings.length === 0 ? (
+                <p className="text-muted small">No recent bookings.</p>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Guest</th>
+                        <th>Room</th>
+                        <th>Check-In</th>
+                        <th>Check-Out</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentBookings.map((b) => (
+                        <tr key={b.bookingID}>
+                          <td>{`${b.firstName || ''} ${b.lastName || ''}`}</td>
+                          <td>{`${b.roomNumber} - ${b.type}`}</td>
+                          <td>
+                            {new Date(b.checkInDateTime).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </td>
+                          <td>
+                            {new Date(b.checkOutDateTime).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </td>
+                          <td>
+                            <span className="badge text-bg-secondary">{b.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Combined Footer Links */}
+            <div className="d-flex gap-2 mt-3 pt-3 border-top">
+              <Link href="/admin/bookings" className="btn btn-pcc-outline btn-sm w-100 text-center">
+                View Bookings Board
+              </Link>
+              <Link href="/admin/bookings" className="btn btn-pcc-outline btn-sm w-100 text-center">
+                View All Bookings
+              </Link>
+            </div>
           </div>
-        </div>
+          </div>
 
         {/* Right Column: Room Board */}
         <div className="col-lg-6">
