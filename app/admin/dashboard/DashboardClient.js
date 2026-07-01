@@ -77,6 +77,11 @@ export default function DashboardClient({ userName }) {
     'Cleaning': '#17a2b8',
   };
 
+  const totalRoomsCount = rooms ? rooms.length : 0;
+  const cleanedCount = rooms ? rooms.filter(rm => ['Available', 'Occupied', 'Reserved'].includes(rm.status)).length : 0;
+  const notCleanedCount = rooms ? rooms.filter(rm => ['Cleaning', 'Under Maintenance'].includes(rm.status)).length : 0;
+  const cleanedPercent = totalRoomsCount > 0 ? Math.round((cleanedCount / totalRoomsCount) * 100) : 0;
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -385,56 +390,112 @@ export default function DashboardClient({ userName }) {
               <p className="text-muted small">No rooms configured.</p>
             ) : (
               <>
-                <div className="d-flex flex-wrap gap-2 mb-4">
-                  {rooms.map((rm) => {
-                    const color = roomStatusColors[rm.status] || '#6c757d';
-                    return (
-                      <div
-                        key={rm.roomNumber}
-                        title={`Room ${rm.roomNumber} — ${rm.roomType} | ${rm.status}`}
-                        style={{
-                          width: '54px',
-                          height: '54px',
-                          backgroundColor: color,
-                          borderRadius: '8px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff',
-                          fontWeight: '700',
-                          fontSize: '0.8rem',
-                          cursor: 'default',
-                          gap: '1px',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                        }}
-                      >
-                        <span>{rm.roomNumber}</span>
-                        <span style={{ fontSize: '0.58rem', fontWeight: '400', opacity: 0.85 }}>
-                          {rm.floor === 'Ground Floor' ? 'GF' : '2F'}
+                <div className="row align-items-center g-3">
+                  {/* Left Column: Visual Grid of rooms */}
+                  <div className="col-md-7">
+                    <div className="d-flex flex-wrap gap-2 mb-3">
+                      {rooms.map((rm) => {
+                        const color = roomStatusColors[rm.status] || '#6c757d';
+                        return (
+                          <div
+                            key={rm.roomNumber}
+                            title={`Room ${rm.roomNumber} — ${rm.roomType} | ${rm.status}`}
+                            style={{
+                              width: '54px',
+                              height: '54px',
+                              backgroundColor: color,
+                              borderRadius: '8px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#fff',
+                              fontWeight: '700',
+                              fontSize: '0.8rem',
+                              cursor: 'default',
+                              gap: '1px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                            }}
+                          >
+                            <span>{rm.roomNumber}</span>
+                            <span style={{ fontSize: '0.58rem', fontWeight: '400', opacity: 0.85 }}>
+                              {rm.floor === 'Ground Floor' ? 'GF' : '2F'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Legend */}
+                    <div className="d-flex flex-wrap gap-2 mt-2" style={{ fontSize: '0.7rem' }}>
+                      {Object.entries(roomStatusColors).map(([status, color]) => (
+                        <span key={status} className="d-flex align-items-center me-2 mb-1">
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              width: '10px',
+                              height: '10px',
+                              backgroundColor: color,
+                              borderRadius: '2px',
+                              marginRight: '4px',
+                            }}
+                          ></span>
+                          {status}
                         </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                      ))}
+                    </div>
+                  </div>
 
-                {/* Legend */}
-                <div className="d-flex flex-wrap gap-3 mt-auto" style={{ fontSize: '0.75rem' }}>
-                  {Object.entries(roomStatusColors).map(([status, color]) => (
-                    <span key={status} className="d-flex align-items-center">
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          width: '12px',
-                          height: '12px',
-                          backgroundColor: color,
-                          borderRadius: '3px',
-                          marginRight: '5px',
-                        }}
-                      ></span>
-                      {status}
-                    </span>
-                  ))}
+                  {/* Right Column: Housekeeping Pie/Donut Chart */}
+                  <div className="col-md-5 text-center border-start ps-md-3">
+                    <h6 className="fw-bold text-muted mb-3" style={{ fontSize: '0.78rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      Housekeeping Status
+                    </h6>
+                    {totalRoomsCount === 0 ? (
+                      <p className="text-muted small">No data</p>
+                    ) : (
+                      <>
+                        <div style={{ position: 'relative', width: '110px', height: '110px', margin: '0 auto' }}>
+                          <div style={{
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: '50%',
+                            background: `conic-gradient(#3FA34D 0% ${cleanedPercent}%, #dc3545 ${cleanedPercent}% 100%)`,
+                            boxShadow: '0 3px 6px rgba(0,0,0,0.08)'
+                          }}></div>
+                          <div style={{
+                            position: 'absolute',
+                            top: '15%',
+                            left: '15%',
+                            width: '70%',
+                            height: '70%',
+                            borderRadius: '50%',
+                            backgroundColor: '#fff',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <span style={{ fontSize: '1.2rem', fontWeight: '800', color: '#1F2A24' }}>{totalRoomsCount}</span>
+                            <span style={{ fontSize: '0.55rem', color: 'var(--pcc-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Rooms</span>
+                          </div>
+                        </div>
+                        
+                        {/* Donut Chart Legend */}
+                        <div className="d-flex flex-column gap-1 align-items-center mt-3" style={{ fontSize: '0.72rem' }}>
+                          <div className="d-flex align-items-center gap-1">
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#3FA34D', borderRadius: '50%' }}></span>
+                            <span className="fw-semibold">Cleaned:</span>
+                            <span className="text-muted">{cleanedCount} ({cleanedPercent}%)</span>
+                          </div>
+                          <div className="d-flex align-items-center gap-1">
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#dc3545', borderRadius: '50%' }}></span>
+                            <span className="fw-semibold">Not Cleaned:</span>
+                            <span className="text-muted">{notCleanedCount} ({100 - cleanedPercent}%)</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Detailed Housekeeping & Room Status Table */}
