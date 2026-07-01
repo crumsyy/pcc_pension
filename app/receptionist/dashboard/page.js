@@ -14,8 +14,7 @@ export default async function ReceptionistDashboard() {
     pendingResRes,
     checkInsList,
     pendingResList,
-    rooms,
-    pendingInquiriesRes
+    rooms
   ] = await Promise.all([
     dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkInDateTime) = CURDATE() AND status IN ('Confirmed','Pending')"),
     dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked In'"),
@@ -52,8 +51,7 @@ export default async function ReceptionistDashboard() {
       JOIN floor fl ON fl.floorID = rm.floorID
       WHERE rm.isArchived = 0
       ORDER BY fl.name, rm.roomNumber
-    `),
-    dbQuery("SELECT COUNT(*) as count FROM inquiry WHERE status = 'Pending'")
+    `)
   ]);
 
   const checkInsToday = checkInsTodayRes[0]?.count || 0;
@@ -61,7 +59,6 @@ export default async function ReceptionistDashboard() {
   const occupiedRooms = occupiedRoomsRes[0]?.count || 0;
   const availableRooms = availableRoomsRes[0]?.count || 0;
   const pendingRes = pendingResRes[0]?.count || 0;
-  const pendingInquiriesCount = pendingInquiriesRes[0]?.count || 0;
 
   // Formatter helpers
   const formatTime = (dateStr) => {
@@ -119,27 +116,7 @@ export default async function ReceptionistDashboard() {
         Today — {formatDateLong(new Date())}
       </p>
 
-      {/* Flashing Inquiry Warning alert */}
-      {pendingInquiriesCount > 0 && (
-        <div 
-          className="alert alert-danger d-flex align-items-center gap-3 mb-4 shadow-sm" 
-          role="alert" 
-          style={{ 
-            borderLeft: '4px solid #dc3545',
-            animation: 'pulse 2s infinite',
-            backgroundColor: '#fff5f5'
-          }}
-        >
-          <span style={{ fontSize: '1.6rem' }}>💬</span>
-          <div>
-            <strong className="d-block text-danger" style={{ fontSize: '0.92rem' }}>New Guest Inquiry Received!</strong>
-            <span className="small text-muted">There are {pendingInquiriesCount} unanswered guest inquiries waiting for response.</span>
-          </div>
-          <Link href="/receptionist/inquiries" className="ms-auto btn btn-sm btn-danger text-white fw-semibold">
-            View Inquiries
-          </Link>
-        </div>
-      )}
+
 
       {/* Quick stats as filled colored blocks */}
       <div className="row g-3 mb-4">

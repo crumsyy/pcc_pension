@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import NotificationBell from './NotificationBell';
 
-export default function SidebarClient({ session, role }) {
+export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -76,8 +76,10 @@ export default function SidebarClient({ session, role }) {
     </ul>
   );
 
+  const mainBgColor = role === 'Administrator' ? '#f6faf7' : '#f0f4f8';
+
   return (
-    <>
+    <div className="d-flex flex-column flex-lg-row" style={{ minHeight: '100vh' }}>
       {/* MOBILE TOP BAR */}
       <div 
         className="d-flex d-lg-none justify-content-between align-items-center p-3 text-white sticky-top" 
@@ -191,19 +193,32 @@ export default function SidebarClient({ session, role }) {
         </div>
       </nav>
 
-      {/* DESKTOP HEADER PORTION */}
-      <header className="d-none d-lg-flex justify-content-between align-items-center px-4 py-3 bg-white border-bottom shadow-sm" style={{ marginLeft: '240px', position: 'sticky', top: 0, zIndex: 1010 }}>
-        <div>
-          <h4 className="m-0 text-dark fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
-        </div>
-        <div className="d-flex align-items-center gap-3">
-          <NotificationBell />
-          <div className="text-end" style={{ borderLeft: '1px solid #eee', paddingLeft: '15px' }}>
-            <div className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
-            <div className="text-muted" style={{ fontSize: '0.72rem' }}>{role}</div>
+      {/* MAIN CONTENT WRAPPER */}
+      <div 
+        className="flex-grow-1 d-flex flex-column pcc-main-wrapper" 
+        style={{ backgroundColor: mainBgColor, minHeight: '100vh' }}
+      >
+        {/* DESKTOP HEADER PORTION */}
+        <header 
+          className="d-none d-lg-flex justify-content-between align-items-center px-4 py-3 bg-white border-bottom shadow-sm" 
+          style={{ position: 'sticky', top: 0, zIndex: 1010 }}
+        >
+          <div>
+            <h4 className="m-0 text-dark fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
           </div>
-        </div>
-      </header>
+          <div className="d-flex align-items-center gap-3">
+            <NotificationBell />
+            <div className="text-end" style={{ borderLeft: '1px solid #eee', paddingLeft: '15px' }}>
+              <div className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
+              <div className="text-muted" style={{ fontSize: '0.72rem' }}>{role}</div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-grow-1 p-3 p-lg-4">
+          {children}
+        </main>
+      </div>
 
       {/* PCC THEME LOGOUT CONFIRMATION MODAL */}
       {showLogoutModal && (
@@ -243,6 +258,6 @@ export default function SidebarClient({ session, role }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
