@@ -352,7 +352,9 @@ export default function ReceptionistReservations() {
                 {filteredReservations.map((r) => (
                   <tr key={r.reservationID}>
                     <td>
-                      <div className="fw-semibold text-dark">{r.firstName} {r.lastName}</div>
+                      <div className="fw-semibold text-dark">
+                        {r.middleName ? `${r.firstName} ${r.middleName.charAt(0).toUpperCase()}. ${r.lastName}` : `${r.firstName} ${r.lastName}`}
+                      </div>
                       <small className="text-muted">{r.contact}</small>
                     </td>
                     <td>

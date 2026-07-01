@@ -15,6 +15,8 @@ export default function UsersClient() {
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'edit' | null
   const [selectedUser, setSelectedUser] = useState(null);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -241,6 +243,7 @@ export default function UsersClient() {
       password: '',
       newPassword: '',
     });
+    setShowCreatePassword(false);
     setActiveModal('create');
   };
 
@@ -264,6 +267,7 @@ export default function UsersClient() {
       status: user.status || 'Active',
       newPassword: '', // Clear newPassword field
     });
+    setShowEditPassword(false);
     setActiveModal('edit');
   };
 
@@ -374,7 +378,7 @@ export default function UsersClient() {
                         <td>{i + 1}</td>
                         <td>
                           <strong>
-                            {`${u.firstName || ''} ${u.lastName || ''}`.trim() || '—'}
+                            {u.middleName ? `${u.firstName} ${u.middleName.charAt(0).toUpperCase()}. ${u.lastName}` : `${u.firstName} ${u.lastName}`}
                           </strong>
                         </td>
                         <td>{u.email}</td>
@@ -504,7 +508,25 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Password *</label>
-                      <input type="password" name="password" className="form-control" minLength="8" required value={formData.password} onChange={handleInputChange} placeholder="Min. 8 characters" />
+                      <div className="input-group">
+                        <input
+                          type={showCreatePassword ? "text" : "password"}
+                          name="password"
+                          className="form-control"
+                          minLength="8"
+                          required
+                          value={formData.password}
+                          onChange={handleInputChange}
+                          placeholder="Min. 8 characters"
+                        />
+                        <button
+                          className="btn btn-outline-secondary"
+                          type="button"
+                          onClick={() => setShowCreatePassword(!showCreatePassword)}
+                        >
+                          {showCreatePassword ? "Hide" : "Show"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -650,15 +672,24 @@ export default function UsersClient() {
                     {/* Integrated Reset Password directly in Update Modal */}
                     <div className="col-md-6">
                       <label className="form-label">Reset Password (leave blank to keep current)</label>
-                      <input
-                        type="password"
-                        name="newPassword"
-                        className="form-control"
-                        minLength="8"
-                        placeholder="Enter new password to reset"
-                        value={formData.newPassword}
-                        onChange={handleInputChange}
-                      />
+                      <div className="input-group">
+                        <input
+                          type={showEditPassword ? "text" : "password"}
+                          name="newPassword"
+                          className="form-control"
+                          minLength="8"
+                          placeholder="Enter new password to reset"
+                          value={formData.newPassword}
+                          onChange={handleInputChange}
+                        />
+                        <button
+                          className="btn btn-outline-secondary"
+                          type="button"
+                          onClick={() => setShowEditPassword(!showEditPassword)}
+                        >
+                          {showEditPassword ? "Hide" : "Show"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

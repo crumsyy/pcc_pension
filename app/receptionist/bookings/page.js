@@ -337,7 +337,9 @@ export default function ReceptionistBookings() {
                 {filteredBookings.map((b) => (
                   <tr key={b.bookingID}>
                     <td>
-                      <div className="fw-semibold text-dark">{b.firstName} {b.lastName}</div>
+                      <div className="fw-semibold text-dark">
+                        {b.middleName ? `${b.firstName} ${b.middleName.charAt(0).toUpperCase()}. ${b.lastName}` : `${b.firstName} ${b.lastName}`}
+                      </div>
                       <small className="text-muted">{b.contact}</small>
                     </td>
                     <td>
