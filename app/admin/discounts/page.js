@@ -9,6 +9,7 @@ export default function AdminDiscounts() {
   const [discountTypes, setDiscountTypes] = useState([]);
   const [eligibilityTypes, setEligibilityTypes] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [roomTypes, setRoomTypes] = useState([]);
 
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -34,6 +35,7 @@ export default function AdminDiscounts() {
     description: '',
     percentage: 0,
     roomID: '',
+    roomTypeID: '',
     startDate: '',
     endDate: '',
   });
@@ -94,6 +96,7 @@ export default function AdminDiscounts() {
       setDiscountTypes(data.discountTypes || []);
       setEligibilityTypes(data.eligibilityTypes || []);
       setRooms(data.rooms || []);
+      setRoomTypes(data.roomTypes || []);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -374,6 +377,7 @@ export default function AdminDiscounts() {
       description: '',
       percentage: 5,
       roomID: '',
+      roomTypeID: '',
       startDate: '',
       endDate: '',
     });
@@ -387,6 +391,7 @@ export default function AdminDiscounts() {
       description: p.description || '',
       percentage: p.percentage,
       roomID: p.roomID || '',
+      roomTypeID: p.roomTypeID || '',
       startDate: p.startDate ? p.startDate.substring(0, 10) : '',
       endDate: p.endDate ? p.endDate.substring(0, 10) : '',
     });
@@ -420,19 +425,7 @@ export default function AdminDiscounts() {
           <h2 className="section-title mb-0">Discounts &amp; Promotions</h2>
         </div>
         <div className="d-flex gap-2 align-items-center">
-          <button
-            className={`btn ${showArchived ? 'btn-outline-secondary' : 'btn-secondary'}`}
-            onClick={() => setShowArchived(false)}
-          >
-            Active
-          </button>
-          <button
-            className={`btn ${showArchived ? 'btn-secondary' : 'btn-outline-secondary'}`}
-            onClick={() => setShowArchived(true)}
-          >
-            Archived
-          </button>
-          <button className="btn btn-pcc-outline ms-2" onClick={openCreateDiscModal}>
+          <button className="btn btn-pcc-primary ms-2" onClick={openCreateDiscModal}>
             + Create Discount
           </button>
           <button className="btn btn-pcc-primary" onClick={openCreatePromoModal}>
@@ -440,6 +433,26 @@ export default function AdminDiscounts() {
           </button>
         </div>
       </div>
+
+      {/* Tabs for Active vs Archived */}
+      <ul className="nav nav-tabs mb-3">
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setShowArchived(false)}
+          >
+            🏷️ Active Discounts &amp; Promos
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setShowArchived(true)}
+          >
+            📦 Archived Discounts &amp; Promos
+          </button>
+        </li>
+      </ul>
 
       {/* Search Filter */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -549,7 +562,7 @@ export default function AdminDiscounts() {
                     <th>%</th>
                     <th>Start</th>
                     <th>End</th>
-                    <th>Room Restriction</th>
+                    <th>Applicability</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -588,7 +601,7 @@ export default function AdminDiscounts() {
                               year: 'numeric',
                             })}
                           </td>
-                          <td>{p.roomNumber ? `Room ${p.roomNumber}` : 'All Rooms'}</td>
+                          <td>{p.roomNumber ? `Room ${p.roomNumber}` : p.roomTypeName ? `Room Type: ${p.roomTypeName}` : 'All Rooms'}</td>
                           <td>
                             {active ? (
                               <span className="badge text-bg-success">Active</span>
@@ -873,7 +886,7 @@ export default function AdminDiscounts() {
                     ></textarea>
                   </div>
                   <div className="row g-2 mb-3">
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Percentage (1-100) *</label>
                       <input
                         type="number"
@@ -886,17 +899,41 @@ export default function AdminDiscounts() {
                         onChange={handlePromoInputChange}
                       />
                     </div>
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Room Limit (Optional)</label>
                       <select
                         name="roomID"
                         className="form-select"
                         value={promoFormData.roomID}
-                        onChange={handlePromoInputChange}
+                        onChange={(e) => {
+                          handlePromoInputChange(e);
+                          if (e.target.value) {
+                            setPromoFormData(prev => ({ ...prev, roomTypeID: '' }));
+                          }
+                        }}
                       >
                         <option value="">All Rooms</option>
                         {rooms.map(rm => (
                           <option key={rm.roomID} value={rm.roomID}>Room {rm.roomNumber}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Room Type Limit (Optional)</label>
+                      <select
+                        name="roomTypeID"
+                        className="form-select"
+                        value={promoFormData.roomTypeID}
+                        onChange={(e) => {
+                          handlePromoInputChange(e);
+                          if (e.target.value) {
+                            setPromoFormData(prev => ({ ...prev, roomID: '' }));
+                          }
+                        }}
+                      >
+                        <option value="">All Room Types</option>
+                        {roomTypes.map(rt => (
+                          <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
                         ))}
                       </select>
                     </div>
@@ -969,7 +1006,7 @@ export default function AdminDiscounts() {
                     ></textarea>
                   </div>
                   <div className="row g-2 mb-3">
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Percentage *</label>
                       <input
                         type="number"
@@ -982,17 +1019,41 @@ export default function AdminDiscounts() {
                         onChange={handlePromoInputChange}
                       />
                     </div>
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Room Limit</label>
                       <select
                         name="roomID"
                         className="form-select"
                         value={promoFormData.roomID}
-                        onChange={handlePromoInputChange}
+                        onChange={(e) => {
+                          handlePromoInputChange(e);
+                          if (e.target.value) {
+                            setPromoFormData(prev => ({ ...prev, roomTypeID: '' }));
+                          }
+                        }}
                       >
                         <option value="">All Rooms</option>
                         {rooms.map(rm => (
                           <option key={rm.roomID} value={rm.roomID}>Room {rm.roomNumber}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Room Type Limit</label>
+                      <select
+                        name="roomTypeID"
+                        className="form-select"
+                        value={promoFormData.roomTypeID}
+                        onChange={(e) => {
+                          handlePromoInputChange(e);
+                          if (e.target.value) {
+                            setPromoFormData(prev => ({ ...prev, roomID: '' }));
+                          }
+                        }}
+                      >
+                        <option value="">All Room Types</option>
+                        {roomTypes.map(rt => (
+                          <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
                         ))}
                       </select>
                     </div>

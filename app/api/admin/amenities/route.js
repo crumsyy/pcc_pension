@@ -58,10 +58,11 @@ export async function POST(request) {
       const price = parseFloat(body.price);
       const quantity = parseInt(body.quantity);
       const amenityCategoryID = parseInt(body.amenityCategoryID);
+      const minStock = parseInt(body.minStock) || 5;
 
       await dbQuery(
-        "INSERT INTO amenities(name,price,quantity,amenityCategoryID) VALUES(?,?,?,?)",
-        [name, price, quantity, amenityCategoryID]
+        "INSERT INTO amenities(name,price,quantity,amenityCategoryID,minStock) VALUES(?,?,?,?,?)",
+        [name, price, quantity, amenityCategoryID, minStock]
       );
       return NextResponse.json({ success: true, message: 'Amenity created successfully.' });
     }
@@ -72,10 +73,11 @@ export async function POST(request) {
       const price = parseFloat(body.price);
       const quantity = parseInt(body.quantity);
       const amenityCategoryID = parseInt(body.amenityCategoryID);
+      const minStock = parseInt(body.minStock) || 5;
 
       await dbQuery(
-        "UPDATE amenities SET name=?, price=?, quantity=?, amenityCategoryID=? WHERE amenityID=?",
-        [name, price, quantity, amenityCategoryID, amenityID]
+        "UPDATE amenities SET name=?, price=?, quantity=?, amenityCategoryID=?, minStock=? WHERE amenityID=?",
+        [name, price, quantity, amenityCategoryID, minStock, amenityID]
       );
       return NextResponse.json({ success: true, message: 'Amenity updated successfully.' });
     }

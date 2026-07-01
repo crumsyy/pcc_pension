@@ -25,6 +25,7 @@ export default function RoomsClient() {
     status: 'Available',
     rateWithoutBreakfast: '',
     rateWithBreakfast: '',
+    description: '',
   });
 
   // Custom Modal dialog state
@@ -263,6 +264,7 @@ export default function RoomsClient() {
       status: 'Available',
       rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
       rateWithBreakfast: rates ? rates.withBreakfast : '',
+      description: '',
     });
     setActiveModal('create');
   };
@@ -281,6 +283,7 @@ export default function RoomsClient() {
       status: room.status,
       rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
       rateWithBreakfast: rates ? rates.withBreakfast : '',
+      description: room.description || '',
     });
     setActiveModal('edit');
   };
@@ -574,6 +577,17 @@ export default function RoomsClient() {
                       ))}
                     </select>
                   </div>
+                  <div className="mb-3">
+                    <label className="form-label">Description / Remarks (Optional)</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      rows="3"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      placeholder="Enter room details, features, or description..."
+                    />
+                  </div>
                 </div>
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary text-white">Create Room</button>
@@ -675,6 +689,17 @@ export default function RoomsClient() {
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Description / Remarks (Optional)</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      rows="3"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      placeholder="Enter room details, features, or description..."
+                    />
                   </div>
                 </div>
                 <div className="modal-footer">

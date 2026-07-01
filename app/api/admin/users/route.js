@@ -14,12 +14,14 @@ export async function GET(request) {
   const roleF = searchParams.get('role') || '';
   const statusF = searchParams.get('status') || '';
 
+  const showArchived = searchParams.get('archived') === 'true';
+
   // UNION query: staff table for Admin/Receptionist, guest table for Guest role
   const sql = `
     SELECT u.userID, u.email, u.status, u.createdAt, u.roleID, r.role,
            s.staffID, s.firstName, s.lastName, s.middleName,
            s.gender, s.dateOfBirth, s.city, s.province, s.contact,
-           NULL as guestID
+           NULL as guestID, u.suspendedUntil, u.suspensionRemarks, u.isDeleted
     FROM user u
     JOIN role r ON r.roleID = u.roleID
     LEFT JOIN staff s ON s.userID = u.userID
@@ -30,7 +32,7 @@ export async function GET(request) {
     SELECT u.userID, u.email, u.status, u.createdAt, u.roleID, r.role,
            NULL as staffID, g.firstName, g.lastName, g.middleName,
            g.gender, g.dateOfBirth, g.city, g.province, g.contact,
-           g.guestID
+           g.guestID, u.suspendedUntil, u.suspensionRemarks, u.isDeleted
     FROM user u
     JOIN role r ON r.roleID = u.roleID
     JOIN guest g ON g.userID = u.userID
@@ -40,6 +42,9 @@ export async function GET(request) {
   let wrapped = `SELECT * FROM (${sql}) AS all_users`;
   const where = [];
   const params = [];
+
+  where.push("isDeleted = ?");
+  params.push(showArchived ? 1 : 0);
 
   if (search) {
     const like = `%${search}%`;
@@ -201,6 +206,38 @@ export async function POST(request) {
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await dbQuery("UPDATE user SET password=? WHERE userID=?", [hashedPassword, uid]);
       return NextResponse.json({ success: true, message: 'Password reset successfully.' });
+    }
+
+    if (action === 'archive') {
+      const uid = parseInt(body.userID);
+      if (uid === session.userID) {
+        return NextResponse.json({ error: 'You cannot delete/archive your own account.' }, { status: 400 });
+      }
+
+      await dbQuery("UPDATE user SET isDeleted = 1 WHERE userID = ?", [uid]);
+      return NextResponse.json({ success: true, message: 'Account moved to archive successfully.' });
+    }
+
+    if (action === 'restore') {
+      const uid = parseInt(body.userID);
+      await dbQuery("UPDATE user SET isDeleted = 0 WHERE userID = ?", [uid]);
+      return NextResponse.json({ success: true, message: 'Account restored successfully.' });
+    }
+
+    if (action === 'suspend') {
+      const uid = parseInt(body.userID);
+      const days = parseInt(body.days);
+      const remarks = body.remarks || '';
+
+      if (uid === session.userID) {
+        return NextResponse.json({ error: 'You cannot suspend your own account.' }, { status: 400 });
+      }
+
+      await dbQuery(
+        "UPDATE user SET status = 'Suspended', suspendedUntil = DATE_ADD(NOW(), INTERVAL ? DAY), suspensionRemarks = ? WHERE userID = ?",
+        [days, remarks, uid]
+      );
+      return NextResponse.json({ success: true, message: `Account suspended successfully for ${days} days.` });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

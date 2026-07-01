@@ -13,7 +13,9 @@ export default function ReceptionistBookings() {
   const [statusFilter, setStatusFilter] = useState('');
 
   // Modals
-  const [activeModal, setActiveModal] = useState(null); // 'create' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create' | 'cancel_reason' | null
+  const [cancellingBookingID, setCancellingBookingID] = useState(null);
+  const [cancelRemarks, setCancelRemarks] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({
@@ -213,26 +215,74 @@ export default function ReceptionistBookings() {
     });
   };
 
-  const handleCancel = (id) => {
-    showConfirm('Cancel Booking', 'Are you sure you want to cancel this booking?', async () => {
-      try {
-        const res = await fetch('/api/receptionist/bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'cancel',
-            bookingID: id
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to cancel booking');
+  const openCancelModal = (id) => {
+    setCancellingBookingID(id);
+    setCancelRemarks('');
+    setActiveModal('cancel_reason');
+  };
 
-        showAlert('success', 'Success', 'Booking canceled.');
-        fetchData();
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
-      }
-    });
+  const handleConfirmCancel = async (e) => {
+    e.preventDefault();
+    if (!cancelRemarks.trim()) return;
+
+    try {
+      const res = await fetch('/api/receptionist/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cancel',
+          bookingID: cancellingBookingID,
+          cancelRemarks: cancelRemarks.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to cancel booking');
+
+      showAlert('success', 'Success', 'Booking canceled and room is now available.');
+      setActiveModal(null);
+      fetchData();
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
+  };
+
+  const handleRebook = (b) => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const formatDateTimeLocal = (date, hour) => {
+      const pad = (num) => String(num).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${hour}`;
+    };
+
+    if (b.guestID) {
+      setIsWalkIn(false);
+      setFormData({
+        guestID: b.guestID,
+        roomID: b.roomID || rooms[0]?.roomID || '',
+        checkInDateTime: formatDateTimeLocal(today, '14:00'),
+        checkOutDateTime: formatDateTimeLocal(tomorrow, '12:00'),
+        status: 'Confirmed'
+      });
+    } else {
+      setIsWalkIn(true);
+      setFormData({
+        guestID: '',
+        roomID: b.roomID || rooms[0]?.roomID || '',
+        checkInDateTime: formatDateTimeLocal(today, '14:00'),
+        checkOutDateTime: formatDateTimeLocal(tomorrow, '12:00'),
+        status: 'Confirmed'
+      });
+      setWalkInForm({
+        firstName: b.firstName || '',
+        lastName: b.lastName || '',
+        contact: b.contact || '',
+        email: b.email || '',
+        gender: b.gender || 'Male'
+      });
+    }
+    setActiveModal('create');
   };
 
   const getStatusBadge = (status) => {
@@ -356,6 +406,11 @@ export default function ReceptionistBookings() {
                     </td>
                     <td>
                       <span className={`badge ${getStatusBadge(b.status)}`}>{b.status}</span>
+                      {b.status === 'Canceled' && b.cancelRemarks && (
+                        <div className="text-danger small mt-1" style={{ fontSize: '0.75rem', maxWidth: '160px', fontStyle: 'italic' }}>
+                          Reason: {b.cancelRemarks}
+                        </div>
+                      )}
                     </td>
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
@@ -370,8 +425,13 @@ export default function ReceptionistBookings() {
                           </button>
                         )}
                         {(b.status === 'Confirmed' || b.status === 'Pending') && (
-                          <button className="btn btn-sm btn-outline-danger" onClick={() => handleCancel(b.bookingID)}>
+                          <button className="btn btn-sm btn-outline-danger" onClick={() => openCancelModal(b.bookingID)}>
                             Cancel
+                          </button>
+                        )}
+                        {b.status === 'Canceled' && (
+                          <button className="btn btn-sm btn-pcc-outline d-flex align-items-center gap-1" onClick={() => handleRebook(b)}>
+                            <span>🔄</span> Rebook
                           </button>
                         )}
                       </div>
@@ -474,6 +534,7 @@ export default function ReceptionistBookings() {
                       </div>
                     </div>
                   )}
+
                   {/* Room Type and Room filtering */}
                   <div className="mb-3">
                     <label className="form-label">Room Type *</label>
@@ -547,6 +608,49 @@ export default function ReceptionistBookings() {
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary text-white">Save Booking</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CANCEL REASON MODAL */}
+      {activeModal === 'cancel_reason' && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header bg-danger text-white">
+                <h5 className="modal-title">Cancel Booking</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleConfirmCancel}>
+                <div className="modal-body">
+                  <div className="alert alert-warning d-flex align-items-start gap-2 mb-3" style={{ borderLeft: '4px solid #f0a500' }}>
+                    <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                    <div>
+                      <strong className="d-block text-warning-dark" style={{ fontSize: '0.85rem' }}>PCC Non-Refundable Policy Applies</strong>
+                      <span className="small text-muted" style={{ fontSize: '0.78rem' }}>
+                        Cancellations are non-refundable under our strict client policy. Please document the mandatory reason for this cancellation below.
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Cancellation Reason *</label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      required
+                      placeholder="e.g. Guest requested cancellation via phone due to emergency..."
+                      value={cancelRemarks}
+                      onChange={(e) => setCancelRemarks(e.target.value)}
+                      style={{ fontSize: '0.82rem' }}
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-danger text-white fw-semibold">Confirm Cancel</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Close</button>
                 </div>
               </form>
             </div>

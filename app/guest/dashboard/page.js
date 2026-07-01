@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireSessionRole } from "@/lib/session";
 import { dbQuery } from "@/lib/db";
 import NotificationBell from "../../components/NotificationBell";
+import GuestChatBubble from "../../components/GuestChatBubble";
 
 export const unstable_instant = false;
 
@@ -254,6 +255,7 @@ export default async function GuestDashboard() {
           </div>
         </div>
       </div>
+      <GuestChatBubble />
     </>
   );
 }

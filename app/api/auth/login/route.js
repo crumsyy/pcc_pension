@@ -18,6 +18,7 @@ export async function POST(request) {
     // Look up user along with their role name and profile details in a single query
     const users = await dbQuery(`
       SELECT u.userID, u.email, u.password, u.status, u.roleID, r.role,
+             u.suspendedUntil, u.suspensionRemarks,
              g.guestID, g.firstName AS guestFirst, g.lastName AS guestLast,
              s.staffID, s.firstName AS staffFirst, s.lastName AS staffLast
       FROM user u
@@ -37,6 +38,21 @@ export async function POST(request) {
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
       return NextResponse.json({ success: false, message: "Incorrect email or password." }, { status: 400 });
+    }
+
+    // Check suspension
+    if (user.suspendedUntil && new Date(user.suspendedUntil) > new Date()) {
+      const formattedDate = new Date(user.suspendedUntil).toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      return NextResponse.json({
+        success: false,
+        message: `Your account has been suspended until ${formattedDate}. Reason: ${user.suspensionRemarks || 'No reason provided.'}`
+      }, { status: 403 });
     }
 
     // Check account status

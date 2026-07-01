@@ -38,7 +38,7 @@ export default function AdminInventory() {
     fetchInventory();
   }, [search, typeFilter]);
 
-  const lowStockItems = items.filter(item => item.quantity <= 5);
+  const lowStockItems = items.filter(item => item.quantity <= (item.minStock !== undefined ? item.minStock : 5));
 
   return (
     <div>
@@ -63,7 +63,7 @@ export default function AdminInventory() {
       {!loading && lowStockItems.length > 0 && (
         <div className="alert alert-warning d-flex align-items-center gap-2 mb-3 shadow-sm" role="alert">
           <span>
-            <strong>⚠ Low Stock Alert:</strong> {lowStockItems.length} item(s) are at or below 5 units.
+            <strong>⚠ Low Stock Alert:</strong> {lowStockItems.length} item(s) are at or below danger thresholds.
           </span>
           <a href="#low-stock-section" className="ms-auto btn btn-sm btn-warning">
             View Items
@@ -160,9 +160,9 @@ export default function AdminInventory() {
                         <tr
                           key={`${item.itemType}-${item.itemID}`}
                           className={
-                            item.quantity <= 5
+                            item.quantity <= (item.minStock !== undefined ? item.minStock : 5)
                               ? 'table-warning'
-                              : item.quantity <= 10
+                              : item.quantity <= (item.minStock !== undefined ? item.minStock : 5) + 5
                               ? 'table-light'
                               : ''
                           }
@@ -180,20 +180,20 @@ export default function AdminInventory() {
                               className="fw-bold"
                               style={{
                                 color:
-                                  item.quantity <= 5
+                                  item.quantity <= (item.minStock !== undefined ? item.minStock : 5)
                                     ? '#dc3545'
-                                    : item.quantity <= 10
+                                    : item.quantity <= (item.minStock !== undefined ? item.minStock : 5) + 5
                                     ? '#f0a500'
                                     : '#1e6e34',
                               }}
                             >
-                              {item.quantity}
+                              {item.quantity} {item.minStock !== undefined && <span className="text-muted small">/{item.minStock}</span>}
                             </span>
                           </td>
                           <td>
-                            {item.quantity <= 5 ? (
+                            {item.quantity <= (item.minStock !== undefined ? item.minStock : 5) ? (
                               <span className="badge text-bg-danger">⚠ Low Stock</span>
-                            ) : item.quantity <= 10 ? (
+                            ) : item.quantity <= (item.minStock !== undefined ? item.minStock : 5) + 5 ? (
                               <span className="badge text-bg-warning">Moderate</span>
                             ) : (
                               <span className="badge text-bg-success">Sufficient</span>

@@ -13,10 +13,16 @@ export default function UsersClient() {
   const [currentUserID, setCurrentUserID] = useState(null);
 
   // Modals state
-  const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'edit' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'edit' | 'suspend' | null
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Suspension Modal states
+  const [suspendDays, setSuspendDays] = useState('3');
+  const [suspendRemarks, setSuspendRemarks] = useState('');
+  const [suspendUser, setSuspendUser] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -82,6 +88,7 @@ export default function UsersClient() {
         search,
         role: roleFilter,
         status: statusFilter,
+        archived: showArchived ? 'true' : 'false',
       }).toString();
       
       const res = await fetch(`/api/admin/users?${query}`);
@@ -102,7 +109,7 @@ export default function UsersClient() {
 
   useEffect(() => {
     fetchUsers();
-  }, [search, roleFilter, statusFilter]);
+  }, [search, roleFilter, statusFilter, showArchived]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -228,6 +235,78 @@ export default function UsersClient() {
     );
   };
 
+  const handleArchive = (userID) => {
+    showConfirm('Archive Account', 'Are you sure you want to move this account to the archive?', async () => {
+      try {
+        const res = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'archive', userID })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to archive user');
+        showAlert('success', 'Success', data.message);
+        fetchUsers();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleRestore = (userID) => {
+    showConfirm('Restore Account', 'Are you sure you want to restore this archived account?', async () => {
+      try {
+        const res = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restore', userID })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to restore user');
+        showAlert('success', 'Success', data.message);
+        fetchUsers();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const openSuspendModal = (user) => {
+    setSuspendUser(user);
+    setSuspendDays('3');
+    setSuspendRemarks('');
+    setActiveModal('suspend');
+  };
+
+  const handleSuspendSubmit = async (e) => {
+    e.preventDefault();
+    if (!suspendDays || parseInt(suspendDays) <= 0) {
+      showAlert('error', 'Validation Error', 'Please enter a valid number of days.');
+      return;
+    }
+    showConfirm('Suspend Account', `Are you sure you want to suspend this user for ${suspendDays} days?`, async () => {
+      try {
+        const res = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'suspend',
+            userID: suspendUser.userID,
+            days: suspendDays,
+            remarks: suspendRemarks
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to suspend user');
+        showAlert('success', 'Success', data.message);
+        setActiveModal(null);
+        fetchUsers();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
   const openCreateModal = () => {
     setFormData({
       firstName: '',
@@ -295,8 +374,28 @@ export default function UsersClient() {
         </button>
       </div>
 
-      {/* Filter and Search */}
-      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+      {/* Tabs for Active vs Archived */}
+      <ul className="nav nav-tabs mb-3">
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setShowArchived(false)}
+          >
+            👥 Active Accounts
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setShowArchived(true)}
+          >
+            📦 Archived Accounts
+          </button>
+        </li>
+      </ul>
+
+      {/* Search & Filters */}
+      <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
           <div className="col-md-4">
             <input
@@ -389,7 +488,8 @@ export default function UsersClient() {
                         <td>
                           <span
                             className={`badge ${
-                              u.status === 'Active' ? 'text-bg-success' : 'text-bg-warning'
+                              u.status === 'Active' ? 'text-bg-success' :
+                              u.status === 'Suspended' ? 'text-bg-danger' : 'text-bg-secondary'
                             }`}
                           >
                             {u.status}
@@ -404,31 +504,55 @@ export default function UsersClient() {
                         </td>
                         <td>
                           <div className="d-flex gap-1 flex-wrap">
-                            <button
-                              className="btn btn-sm btn-primary text-white"
-                              onClick={() => openViewModal(u)}
-                            >
-                              View
-                            </button>
-                            <button
-                              className="btn btn-sm btn-warning text-white"
-                              onClick={() => openEditModal(u)}
-                            >
-                              Update
-                            </button>
-                            <button
-                              className={`btn btn-sm text-white ${
-                                u.status === 'Active'
-                                  ? 'btn-danger'
-                                  : 'btn-success'
-                              }`}
-                              onClick={() => handleToggleStatus(u)}
-                              disabled={isSelf && u.status === 'Active'}
-                              title={isSelf && u.status === 'Active' ? "You cannot deactivate your own account." : ""}
-                              style={{ opacity: isSelf && u.status === 'Active' ? 0.6 : 1 }}
-                            >
-                              {u.status === 'Active' ? 'Deactivate' : 'Activate'}
-                            </button>
+                            {!showArchived ? (
+                              <>
+                                <button
+                                  className="btn btn-sm btn-primary text-white"
+                                  onClick={() => openViewModal(u)}
+                                >
+                                  View
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-warning text-white"
+                                  onClick={() => openEditModal(u)}
+                                >
+                                  Update
+                                </button>
+                                <button
+                                  className="btn btn-sm text-white bg-warning btn-warning"
+                                  onClick={() => openSuspendModal(u)}
+                                  disabled={isSelf || u.status === 'Suspended'}
+                                  style={{ opacity: isSelf || u.status === 'Suspended' ? 0.6 : 1 }}
+                                >
+                                  Suspend
+                                </button>
+                                <button
+                                  className={`btn btn-sm text-white ${
+                                    u.status === 'Active' ? 'btn-secondary' : 'btn-success'
+                                  }`}
+                                  onClick={() => handleToggleStatus(u)}
+                                  disabled={isSelf}
+                                  style={{ opacity: isSelf ? 0.6 : 1 }}
+                                >
+                                  {u.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-danger text-white"
+                                  onClick={() => handleArchive(u.userID)}
+                                  disabled={isSelf}
+                                  style={{ opacity: isSelf ? 0.6 : 1 }}
+                                >
+                                  Archive
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                className="btn btn-sm btn-success text-white"
+                                onClick={() => handleRestore(u.userID)}
+                              >
+                                Restore
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -508,23 +632,43 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Password *</label>
-                      <div className="input-group">
+                      <div className="password-field-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input
                           type={showCreatePassword ? "text" : "password"}
                           name="password"
                           className="form-control"
-                          minLength="8"
-                          required
+                          placeholder="••••••••"
                           value={formData.password}
                           onChange={handleInputChange}
-                          placeholder="Min. 8 characters"
+                          style={{ paddingRight: '2.8rem', flex: '1' }}
+                          required
+                          minLength="8"
                         />
                         <button
-                          className="btn btn-outline-secondary"
                           type="button"
                           onClick={() => setShowCreatePassword(!showCreatePassword)}
+                          aria-label="Toggle password visibility"
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#66756b',
+                            padding: '2px',
+                            lineHeight: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            zIndex: 5
+                          }}
                         >
-                          {showCreatePassword ? "Hide" : "Show"}
+                          {showCreatePassword ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          ) : (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -672,22 +816,42 @@ export default function UsersClient() {
                     {/* Integrated Reset Password directly in Update Modal */}
                     <div className="col-md-6">
                       <label className="form-label">Reset Password (leave blank to keep current)</label>
-                      <div className="input-group">
+                      <div className="password-field-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input
                           type={showEditPassword ? "text" : "password"}
                           name="newPassword"
                           className="form-control"
-                          minLength="8"
                           placeholder="Enter new password to reset"
                           value={formData.newPassword}
                           onChange={handleInputChange}
+                          style={{ paddingRight: '2.8rem', flex: '1' }}
+                          minLength="8"
                         />
                         <button
-                          className="btn btn-outline-secondary"
                           type="button"
                           onClick={() => setShowEditPassword(!showEditPassword)}
+                          aria-label="Toggle password visibility"
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#66756b',
+                            padding: '2px',
+                            lineHeight: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            zIndex: 5
+                          }}
                         >
-                          {showEditPassword ? "Hide" : "Show"}
+                          {showEditPassword ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          ) : (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -696,6 +860,56 @@ export default function UsersClient() {
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary text-white">Update User</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUSPEND MODAL */}
+      {activeModal === 'suspend' && suspendUser && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '450px' }}>
+            <div className="modal-content border-0 shadow-lg">
+              <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue)' }}>
+                <h5 className="modal-title fw-bold">⚠️ Suspend User Account</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleSuspendSubmit}>
+                <div className="modal-body p-4">
+                  <div className="mb-3 text-center bg-light p-3 rounded">
+                    <span style={{ fontSize: '1.25rem' }} className="fw-semibold text-dark">
+                      {suspendUser.firstName} {suspendUser.lastName}
+                    </span>
+                    <div className="text-muted small mt-1">{suspendUser.email}</div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Suspension Duration (Days) *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="1"
+                      required
+                      value={suspendDays}
+                      onChange={(e) => setSuspendDays(e.target.value)}
+                      placeholder="e.g. 3"
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Reason / Remarks (Optional)</label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      value={suspendRemarks}
+                      onChange={(e) => setSuspendRemarks(e.target.value)}
+                      placeholder="Specify the reason for account suspension..."
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer border-0 pt-0">
+                  <button type="submit" className="btn btn-pcc-primary text-white w-100 fw-semibold">Suspend Account</button>
+                  <button type="button" className="btn btn-secondary text-white w-100 fw-semibold" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
             </div>

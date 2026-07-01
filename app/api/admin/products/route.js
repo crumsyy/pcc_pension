@@ -58,10 +58,11 @@ export async function POST(request) {
       const price = parseFloat(body.price);
       const quantity = parseInt(body.quantity);
       const productCategoryID = parseInt(body.productCategoryID);
+      const minStock = parseInt(body.minStock) || 5;
 
       await dbQuery(
-        "INSERT INTO products(name,price,quantity,productCategoryID) VALUES(?,?,?,?)",
-        [name, price, quantity, productCategoryID]
+        "INSERT INTO products(name,price,quantity,productCategoryID,minStock) VALUES(?,?,?,?,?)",
+        [name, price, quantity, productCategoryID, minStock]
       );
       return NextResponse.json({ success: true, message: 'Product created successfully.' });
     }
@@ -72,10 +73,11 @@ export async function POST(request) {
       const price = parseFloat(body.price);
       const quantity = parseInt(body.quantity);
       const productCategoryID = parseInt(body.productCategoryID);
+      const minStock = parseInt(body.minStock) || 5;
 
       await dbQuery(
-        "UPDATE products SET name=?, price=?, quantity=?, productCategoryID=? WHERE productID=?",
-        [name, price, quantity, productCategoryID, productID]
+        "UPDATE products SET name=?, price=?, quantity=?, productCategoryID=?, minStock=? WHERE productID=?",
+        [name, price, quantity, productCategoryID, minStock, productID]
       );
       return NextResponse.json({ success: true, message: 'Product updated successfully.' });
     }

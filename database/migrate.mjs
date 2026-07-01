@@ -67,12 +67,29 @@ async function run() {
     console.log("Altering purchase_order status column ENUM to support 'Canceled'...");
     await connection.execute("ALTER TABLE purchase_order MODIFY COLUMN status ENUM('Pending','Approved','Completed','Canceled') NOT NULL DEFAULT 'Pending'");
 
+    console.log("Altering user table for suspension and archiving...");
+    await connection.execute("ALTER TABLE `user` MODIFY COLUMN `status` ENUM('Active','Inactive','Suspended') NOT NULL DEFAULT 'Active'");
+    await ensureColumn(connection, 'user', 'suspendedUntil', 'DATETIME DEFAULT NULL');
+    await ensureColumn(connection, 'user', 'suspensionRemarks', 'VARCHAR(255) DEFAULT NULL');
+    await ensureColumn(connection, 'user', 'isDeleted', 'TINYINT(1) NOT NULL DEFAULT 0');
+
+    console.log("Altering room table for description...");
+    await ensureColumn(connection, 'room', 'description', 'TEXT DEFAULT NULL');
+
+    console.log("Altering booking table for cancellation reason...");
+    await ensureColumn(connection, 'booking', 'cancelRemarks', 'VARCHAR(255) DEFAULT NULL');
+
+    console.log("Altering products and amenities for stock danger thresholds...");
+    await ensureColumn(connection, 'products', 'minStock', 'INT NOT NULL DEFAULT 10');
+    await ensureColumn(connection, 'amenities', 'minStock', 'INT NOT NULL DEFAULT 10');
+
     await ensureColumn(connection, 'room', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
     await ensureColumn(connection, 'amenities', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
     await ensureColumn(connection, 'products', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
     await ensureColumn(connection, 'products', 'isAvailable', 'TINYINT(1) NOT NULL DEFAULT 1');
     await ensureColumn(connection, 'discounts', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
     await ensureColumn(connection, 'promotions', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(connection, 'promotions', 'roomTypeID', 'INT DEFAULT NULL');
     await ensureColumn(connection, 'purchase_order', 'expectedDeliveryDate', 'DATE DEFAULT NULL');
     await ensureColumn(connection, 'purchase_order', 'remarks', 'VARCHAR(255) DEFAULT NULL');
     await ensureColumn(connection, 'purchase_order_items', 'quantityReceived', 'INT NOT NULL DEFAULT 0');

@@ -656,3 +656,29 @@ h1, h2, h3, h4, .display-font {
   transform: translateY(-4px) !important;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
 }
+
+/* ---------------------------------------------------------------
+   Sidebar Nav Links Hover & Active Animations
+   --------------------------------------------------------------- */
+.pcc-fixed-sidebar .nav-link,
+#receptionistOffcanvas .nav-link,
+#adminOffcanvas .nav-link {
+  transition: background-color 0.25s ease, padding-left 0.25s ease, color 0.25s ease !important;
+}
+
+.pcc-fixed-sidebar .nav-link:hover,
+#receptionistOffcanvas .nav-link:hover,
+#adminOffcanvas .nav-link:hover {
+  background-color: rgba(0, 0, 0, 0.2) !important; /* Darker overlay color */
+  padding-left: 0.75rem !important; /* Subtle shift on hover to feel interactive */
+  color: #ffffff !important;
+}
+
+.pcc-fixed-sidebar .nav-link.active,
+#receptionistOffcanvas .nav-link.active,
+#adminOffcanvas .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  font-weight: 600;
+  border-left: 3px solid #ffffff;
+  padding-left: 0.75rem !important;
+}

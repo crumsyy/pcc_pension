@@ -11,8 +11,8 @@ export async function GET(request) {
   try {
     const [bookings, guests, rooms] = await Promise.all([
       dbQuery(`
-        SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status, b.reservationID, b.guestID, b.roomID,
-               g.firstName, g.lastName, g.contact,
+        SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status, b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
+               g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender,
                rm.roomNumber, rt.type as roomType
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
@@ -118,6 +118,10 @@ export async function POST(request) {
 
     if (action === 'cancel') {
       const bookingID = parseInt(body.bookingID);
+      const cancelRemarks = body.cancelRemarks?.trim() || '';
+      if (!cancelRemarks) {
+        return NextResponse.json({ error: 'Cancellation remarks are mandatory.' }, { status: 400 });
+      }
       
       const res = await dbQuery("SELECT roomID FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
@@ -125,10 +129,10 @@ export async function POST(request) {
       }
       const roomID = res[0].roomID;
 
-      await dbQuery("UPDATE booking SET status = 'Canceled' WHERE bookingID = ?", [bookingID]);
+      await dbQuery("UPDATE booking SET status = 'Canceled', cancelRemarks = ? WHERE bookingID = ?", [cancelRemarks, bookingID]);
       await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
 
-      return NextResponse.json({ success: true, message: 'Booking canceled.' });
+      return NextResponse.json({ success: true, message: 'Booking canceled successfully.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

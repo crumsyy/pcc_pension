@@ -21,6 +21,7 @@ export default function AdminProducts() {
     productCategoryID: '',
     price: 0,
     quantity: 0,
+    minStock: 5,
   });
 
   // Custom Modal dialog state
@@ -250,6 +251,7 @@ export default function AdminProducts() {
       productCategoryID: categories[0]?.productCategoryID || '',
       price: 0.00,
       quantity: 0,
+      minStock: 5,
     });
     setActiveModal('create');
   };
@@ -261,6 +263,7 @@ export default function AdminProducts() {
       productCategoryID: product.productCategoryID,
       price: product.price,
       quantity: product.quantity,
+      minStock: product.minStock !== undefined ? product.minStock : 5,
     });
     setActiveModal('edit');
   };
@@ -375,7 +378,7 @@ export default function AdminProducts() {
                   </tr>
                 ) : (
                   products.map((p, index) => (
-                    <tr key={p.productID} className={p.quantity <= 5 && !showArchived ? 'table-warning' : ''}>
+                    <tr key={p.productID} className={p.quantity <= (p.minStock !== undefined ? p.minStock : 5) && !showArchived ? 'table-warning' : ''}>
                       <td>{index + 1}</td>
                       <td>
                         <strong>{p.name}</strong>
@@ -384,27 +387,31 @@ export default function AdminProducts() {
                       <td>₱{parseFloat(p.price).toFixed(2)}</td>
                       <td>{p.quantity}</td>
                       <td>
-                        {p.quantity <= 5 ? (
-                          <span className="badge text-bg-warning">Low Stock</span>
+                        {p.quantity <= (p.minStock !== undefined ? p.minStock : 5) ? (
+                          <span className="badge text-bg-warning">Low Stock ({p.quantity}/{p.minStock !== undefined ? p.minStock : 5})</span>
                         ) : (
-                          <span className="badge text-bg-success">OK</span>
+                          <span className="badge text-bg-success">OK ({p.quantity}/{p.minStock !== undefined ? p.minStock : 5})</span>
                         )}
                       </td>
                       <td>
-                        <div className="form-check form-switch mb-0">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            role="switch"
-                            id={`avail-switch-${p.productID}`}
-                            checked={!!p.isAvailable}
-                            disabled={showArchived}
-                            onChange={() => handleToggleAvailability(p.productID, !!p.isAvailable)}
-                          />
-                          <label className="form-check-label small text-muted ms-1" htmlFor={`avail-switch-${p.productID}`}>
-                            {p.isAvailable ? 'Available' : 'Unavailable'}
-                          </label>
-                        </div>
+                        {p.productCategoryID === 3 ? (
+                          <div className="form-check form-switch mb-0">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              role="switch"
+                              id={`avail-switch-${p.productID}`}
+                              checked={!!p.isAvailable}
+                              disabled={showArchived}
+                              onChange={() => handleToggleAvailability(p.productID, !!p.isAvailable)}
+                            />
+                            <label className="form-check-label small text-muted ms-1" htmlFor={`avail-switch-${p.productID}`}>
+                              {p.isAvailable ? 'Available' : 'Unavailable'}
+                            </label>
+                          </div>
+                        ) : (
+                          <span className="badge text-bg-light border text-muted">Always Available</span>
+                        )}
                       </td>
                       <td>
                         <div className="d-flex gap-1">
@@ -482,7 +489,7 @@ export default function AdminProducts() {
                     </select>
                   </div>
                   <div className="row g-2">
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Price (₱) *</label>
                       <input
                         type="number"
@@ -494,7 +501,7 @@ export default function AdminProducts() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Initial Stock *</label>
                       <input
                         type="number"
@@ -502,6 +509,18 @@ export default function AdminProducts() {
                         className="form-control"
                         required
                         value={formData.quantity}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Min Stock Level *</label>
+                      <input
+                        type="number"
+                        name="minStock"
+                        className="form-control"
+                        required
+                        min="1"
+                        value={formData.minStock}
                         onChange={handleInputChange}
                       />
                     </div>
@@ -554,7 +573,7 @@ export default function AdminProducts() {
                     </select>
                   </div>
                   <div className="row g-2">
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Price (₱) *</label>
                       <input
                         type="number"
@@ -566,7 +585,7 @@ export default function AdminProducts() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Stock Qty *</label>
                       <input
                         type="number"
@@ -574,6 +593,18 @@ export default function AdminProducts() {
                         className="form-control"
                         required
                         value={formData.quantity}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Min Stock Level *</label>
+                      <input
+                        type="number"
+                        name="minStock"
+                        className="form-control"
+                        required
+                        min="1"
+                        value={formData.minStock}
                         onChange={handleInputChange}
                       />
                     </div>

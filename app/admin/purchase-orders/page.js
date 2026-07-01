@@ -314,6 +314,8 @@ export default function AdminPurchaseOrders() {
                               ? 'text-bg-success'
                               : po.status === 'Approved'
                               ? 'text-bg-primary'
+                              : po.status === 'Canceled'
+                              ? 'text-bg-danger'
                               : 'text-bg-warning'
                           }`}
                         >

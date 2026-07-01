@@ -14,7 +14,7 @@ export async function GET(request) {
 
   try {
     let sqlA = `
-      SELECT 'Amenity' as itemType, a.amenityID as itemID, a.name, a.quantity, a.price, ac.name as category
+      SELECT 'Amenity' as itemType, a.amenityID as itemID, a.name, a.quantity, a.price, ac.name as category, a.minStock
       FROM amenities a 
       JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
       WHERE 1=1
@@ -27,7 +27,7 @@ export async function GET(request) {
     }
 
     let sqlP = `
-      SELECT 'Product' as itemType, p.productID as itemID, p.name, p.quantity, p.price, pc.name as category
+      SELECT 'Product' as itemType, p.productID as itemID, p.name, p.quantity, p.price, pc.name as category, p.minStock
       FROM products p 
       JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
       WHERE 1=1

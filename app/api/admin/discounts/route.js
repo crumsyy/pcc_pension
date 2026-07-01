@@ -13,7 +13,7 @@ export async function GET(request) {
   const archived = searchParams.get('archived') === 'true';
 
   try {
-    const [discounts, promotions, discountTypes, eligibilityTypes, rooms] = await Promise.all([
+    const [discounts, promotions, discountTypes, eligibilityTypes, rooms, roomTypes] = await Promise.all([
       dbQuery(`
         SELECT d.*, dt.type as discType, et.eligibility 
         FROM discounts d 
@@ -23,15 +23,17 @@ export async function GET(request) {
         ORDER BY d.name
       `, [archived ? 1 : 0]),
       dbQuery(`
-        SELECT p.*, rm.roomNumber 
+        SELECT p.*, rm.roomNumber, rt.type as roomTypeName 
         FROM promotions p 
         LEFT JOIN room rm ON rm.roomID = p.roomID 
+        LEFT JOIN room_type rt ON rt.roomTypeID = p.roomTypeID
         WHERE p.isArchived = ?
         ORDER BY p.startDate DESC
       `, [archived ? 1 : 0]),
       dbQuery("SELECT * FROM discount_type"),
       dbQuery("SELECT * FROM eligibility_type"),
-      dbQuery("SELECT roomID, roomNumber FROM room WHERE isArchived = 0 ORDER BY roomNumber")
+      dbQuery("SELECT roomID, roomNumber FROM room WHERE isArchived = 0 ORDER BY roomNumber"),
+      dbQuery("SELECT roomTypeID, type FROM room_type ORDER BY type")
     ]);
 
     let filteredDiscounts = discounts;
@@ -55,6 +57,7 @@ export async function GET(request) {
       discountTypes,
       eligibilityTypes,
       rooms,
+      roomTypes
     });
   } catch (error) {
     console.error("Failed to fetch discounts/promos:", error);
@@ -105,19 +108,19 @@ export async function POST(request) {
 
     // Promotions
     if (action === 'create_promo') {
-      const { name, description, startDate, endDate, percentage, roomID } = body;
+      const { name, description, startDate, endDate, percentage, roomID, roomTypeID } = body;
       await dbQuery(
-        "INSERT INTO promotions(name,description,startDate,endDate,percentage,roomID) VALUES(?,?,?,?,?,?)",
-        [name.trim(), description.trim(), startDate, endDate, parseInt(percentage), roomID ? parseInt(roomID) : null]
+        "INSERT INTO promotions(name,description,startDate,endDate,percentage,roomID,roomTypeID) VALUES(?,?,?,?,?,?,?)",
+        [name.trim(), description.trim(), startDate, endDate, parseInt(percentage), roomID ? parseInt(roomID) : null, roomTypeID ? parseInt(roomTypeID) : null]
       );
       return NextResponse.json({ success: true, message: 'Promotion created successfully.' });
     }
 
     if (action === 'update_promo') {
-      const { promotionID, name, description, startDate, endDate, percentage, roomID } = body;
+      const { promotionID, name, description, startDate, endDate, percentage, roomID, roomTypeID } = body;
       await dbQuery(
-        "UPDATE promotions SET name=?, description=?, startDate=?, endDate=?, percentage=?, roomID=? WHERE promotionID=?",
-        [name.trim(), description.trim(), startDate, endDate, parseInt(percentage), roomID ? parseInt(roomID) : null, parseInt(promotionID)]
+        "UPDATE promotions SET name=?, description=?, startDate=?, endDate=?, percentage=?, roomID=?, roomTypeID=? WHERE promotionID=?",
+        [name.trim(), description.trim(), startDate, endDate, parseInt(percentage), roomID ? parseInt(roomID) : null, roomTypeID ? parseInt(roomTypeID) : null, parseInt(promotionID)]
       );
       return NextResponse.json({ success: true, message: 'Promotion updated successfully.' });
     }

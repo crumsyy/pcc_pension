@@ -21,6 +21,7 @@ export default function AdminAmenities() {
     amenityCategoryID: '',
     price: 0,
     quantity: 0,
+    minStock: 5,
   });
 
   // Custom Modal dialog state
@@ -225,6 +226,7 @@ export default function AdminAmenities() {
       amenityCategoryID: categories[0]?.amenityCategoryID || '',
       price: 0.00,
       quantity: 0,
+      minStock: 5,
     });
     setActiveModal('create');
   };
@@ -236,6 +238,7 @@ export default function AdminAmenities() {
       amenityCategoryID: item.amenityCategoryID,
       price: item.price,
       quantity: item.quantity,
+      minStock: item.minStock !== undefined ? item.minStock : 5,
     });
     setActiveModal('edit');
   };
@@ -349,7 +352,7 @@ export default function AdminAmenities() {
                   </tr>
                 ) : (
                   items.map((item, index) => (
-                    <tr key={item.amenityID} className={item.quantity <= 5 && !showArchived ? 'table-warning' : ''}>
+                    <tr key={item.amenityID} className={item.quantity <= (item.minStock !== undefined ? item.minStock : 5) && !showArchived ? 'table-warning' : ''}>
                       <td>{index + 1}</td>
                       <td>
                         <strong>{item.name}</strong>
@@ -358,10 +361,10 @@ export default function AdminAmenities() {
                       <td>₱{parseFloat(item.price).toFixed(2)}</td>
                       <td>{item.quantity}</td>
                       <td>
-                        {item.quantity <= 5 ? (
-                          <span className="badge text-bg-warning">Low Stock</span>
+                        {item.quantity <= (item.minStock !== undefined ? item.minStock : 5) ? (
+                          <span className="badge text-bg-warning">Low Stock ({item.quantity}/{item.minStock !== undefined ? item.minStock : 5})</span>
                         ) : (
-                          <span className="badge text-bg-success">OK</span>
+                          <span className="badge text-bg-success">OK ({item.quantity}/{item.minStock !== undefined ? item.minStock : 5})</span>
                         )}
                       </td>
                       <td>
@@ -440,7 +443,7 @@ export default function AdminAmenities() {
                     </select>
                   </div>
                   <div className="row g-2">
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Price (₱) *</label>
                       <input
                         type="number"
@@ -452,7 +455,7 @@ export default function AdminAmenities() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Initial Stock *</label>
                       <input
                         type="number"
@@ -460,6 +463,18 @@ export default function AdminAmenities() {
                         className="form-control"
                         required
                         value={formData.quantity}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Min Stock Level *</label>
+                      <input
+                        type="number"
+                        name="minStock"
+                        className="form-control"
+                        required
+                        min="1"
+                        value={formData.minStock}
                         onChange={handleInputChange}
                       />
                     </div>
@@ -512,7 +527,7 @@ export default function AdminAmenities() {
                     </select>
                   </div>
                   <div className="row g-2">
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Price (₱) *</label>
                       <input
                         type="number"
@@ -524,7 +539,7 @@ export default function AdminAmenities() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col">
+                    <div className="col-md-4">
                       <label className="form-label">Stock Qty *</label>
                       <input
                         type="number"
@@ -532,6 +547,18 @@ export default function AdminAmenities() {
                         className="form-control"
                         required
                         value={formData.quantity}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Min Stock Level *</label>
+                      <input
+                        type="number"
+                        name="minStock"
+                        className="form-control"
+                        required
+                        min="1"
+                        value={formData.minStock}
                         onChange={handleInputChange}
                       />
                     </div>
