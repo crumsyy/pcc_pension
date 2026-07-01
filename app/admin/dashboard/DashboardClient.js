@@ -271,7 +271,7 @@ export default function DashboardClient({ userName }) {
             className="card-module p-3 rounded"
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
           >
-            <h5 className="mb-4 text-blue">📅 Reservations and Booking List status (REQ010)</h5>
+            <h5 className="mb-4 text-blue">📅 Reservations and Booking List status</h5>
             
             {/* Recent Reservations Section */}
             <div className="mb-4">
@@ -368,15 +368,7 @@ export default function DashboardClient({ userName }) {
               )}
             </div>
 
-            {/* Combined Footer Links */}
-            <div className="d-flex gap-2 mt-3 pt-3 border-top">
-              <Link href="/admin/bookings" className="btn btn-pcc-outline btn-sm w-100 text-center">
-                View Bookings Board
-              </Link>
-              <Link href="/admin/bookings" className="btn btn-pcc-outline btn-sm w-100 text-center">
-                View All Bookings
-              </Link>
-            </div>
+
           </div>
           </div>
 
@@ -387,7 +379,7 @@ export default function DashboardClient({ userName }) {
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
           >
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0 text-blue">🏠 Housekeeping & Room Status Board (REQ011)</h5>
+              <h5 className="mb-0 text-blue">🏠 Housekeeping & Room Status Board</h5>
               <Link href="/admin/rooms" className="btn btn-pcc-outline btn-sm" style={{ fontSize: '0.78rem' }}>
                 Manage Rooms
               </Link>
