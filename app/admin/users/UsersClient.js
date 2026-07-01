@@ -17,7 +17,6 @@ export default function UsersClient() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
 
   // Suspension Modal states
   const [suspendDays, setSuspendDays] = useState('3');
@@ -88,7 +87,6 @@ export default function UsersClient() {
         search,
         role: roleFilter,
         status: statusFilter,
-        archived: showArchived ? 'true' : 'false',
       }).toString();
       
       const res = await fetch(`/api/admin/users?${query}`);
@@ -109,7 +107,7 @@ export default function UsersClient() {
 
   useEffect(() => {
     fetchUsers();
-  }, [search, roleFilter, statusFilter, showArchived]);
+  }, [search, roleFilter, statusFilter]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -235,41 +233,7 @@ export default function UsersClient() {
     );
   };
 
-  const handleArchive = (userID) => {
-    showConfirm('Archive Account', 'Are you sure you want to move this account to the archive?', async () => {
-      try {
-        const res = await fetch('/api/admin/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'archive', userID })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to archive user');
-        showAlert('success', 'Success', data.message);
-        fetchUsers();
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
-      }
-    });
-  };
 
-  const handleRestore = (userID) => {
-    showConfirm('Restore Account', 'Are you sure you want to restore this archived account?', async () => {
-      try {
-        const res = await fetch('/api/admin/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'restore', userID })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to restore user');
-        showAlert('success', 'Success', data.message);
-        fetchUsers();
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
-      }
-    });
-  };
 
   const openSuspendModal = (user) => {
     setSuspendUser(user);
@@ -374,25 +338,7 @@ export default function UsersClient() {
         </button>
       </div>
 
-      {/* Tabs for Active vs Archived */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(false)}
-          >
-            👥 Active Accounts
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(true)}
-          >
-            📦 Archived Accounts
-          </button>
-        </li>
-      </ul>
+
 
       {/* Search & Filters */}
       <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -504,55 +450,36 @@ export default function UsersClient() {
                         </td>
                         <td>
                           <div className="d-flex gap-1 flex-wrap">
-                            {!showArchived ? (
-                              <>
-                                <button
-                                  className="btn btn-sm btn-primary text-white"
-                                  onClick={() => openViewModal(u)}
-                                >
-                                  View
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-warning text-white"
-                                  onClick={() => openEditModal(u)}
-                                >
-                                  Update
-                                </button>
-                                <button
-                                  className="btn btn-sm text-white bg-warning btn-warning"
-                                  onClick={() => openSuspendModal(u)}
-                                  disabled={isSelf || u.status === 'Suspended'}
-                                  style={{ opacity: isSelf || u.status === 'Suspended' ? 0.6 : 1 }}
-                                >
-                                  Suspend
-                                </button>
-                                <button
-                                  className={`btn btn-sm text-white ${
-                                    u.status === 'Active' ? 'btn-secondary' : 'btn-success'
-                                  }`}
-                                  onClick={() => handleToggleStatus(u)}
-                                  disabled={isSelf}
-                                  style={{ opacity: isSelf ? 0.6 : 1 }}
-                                >
-                                  {u.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-danger text-white"
-                                  onClick={() => handleArchive(u.userID)}
-                                  disabled={isSelf}
-                                  style={{ opacity: isSelf ? 0.6 : 1 }}
-                                >
-                                  Archive
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                className="btn btn-sm btn-success text-white"
-                                onClick={() => handleRestore(u.userID)}
-                              >
-                                Restore
-                              </button>
-                            )}
+                            <button
+                              className="btn btn-sm btn-primary text-white"
+                              onClick={() => openViewModal(u)}
+                            >
+                              View
+                            </button>
+                            <button
+                              className="btn btn-sm btn-warning text-white"
+                              onClick={() => openEditModal(u)}
+                            >
+                              Update
+                            </button>
+                            <button
+                              className="btn btn-sm text-white bg-warning btn-warning"
+                              onClick={() => openSuspendModal(u)}
+                              disabled={isSelf || u.status === 'Suspended'}
+                              style={{ opacity: isSelf || u.status === 'Suspended' ? 0.6 : 1 }}
+                            >
+                              Suspend
+                            </button>
+                            <button
+                              className={`btn btn-sm text-white ${
+                                u.status === 'Active' ? 'btn-secondary' : 'btn-success'
+                              }`}
+                              onClick={() => handleToggleStatus(u)}
+                              disabled={isSelf}
+                              style={{ opacity: isSelf ? 0.6 : 1 }}
+                            >
+                              {u.status === 'Active' ? 'Deactivate' : 'Activate'}
+                            </button>
                           </div>
                         </td>
                       </tr>

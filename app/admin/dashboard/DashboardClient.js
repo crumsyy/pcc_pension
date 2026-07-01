@@ -266,7 +266,7 @@ export default function DashboardClient({ userName }) {
             className="card-module mb-4 p-3 rounded"
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
           >
-            <h5 className="mb-3 text-blue">📅 Recent Reservations</h5>
+            <h5 className="mb-3 text-blue">📅 Booking & Reservation Status — Recent Reservations (REQ010)</h5>
             {recentRes.length === 0 ? (
               <p className="text-muted small">No recent reservations.</p>
             ) : (
@@ -321,7 +321,7 @@ export default function DashboardClient({ userName }) {
             className="card-module p-3 rounded"
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
           >
-            <h5 className="mb-3 text-blue">🛏 Recent Bookings</h5>
+            <h5 className="mb-3 text-blue">🛏 Booking & Reservation Status — Recent Bookings (REQ010)</h5>
             {recentBookings.length === 0 ? (
               <p className="text-muted small">No recent bookings.</p>
             ) : (
@@ -376,7 +376,7 @@ export default function DashboardClient({ userName }) {
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
           >
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0 text-blue">🏠 Room Status Board</h5>
+              <h5 className="mb-0 text-blue">🏠 Housekeeping & Room Status Board (REQ011)</h5>
               <Link href="/admin/rooms" className="btn btn-pcc-outline btn-sm" style={{ fontSize: '0.78rem' }}>
                 Manage Rooms
               </Link>
@@ -435,6 +435,44 @@ export default function DashboardClient({ userName }) {
                       {status}
                     </span>
                   ))}
+                </div>
+
+                {/* Detailed Housekeeping & Room Status Table */}
+                <div className="mt-4 pt-3 border-top">
+                  <h6 className="mb-2 fw-bold text-secondary" style={{ fontSize: '0.85rem' }}>Detailed Status List</h6>
+                  <div className="table-responsive" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                    <table className="table table-sm table-hover align-middle mb-0" style={{ fontSize: '0.78rem' }}>
+                      <thead className="sticky-top bg-white" style={{ zIndex: 1 }}>
+                        <tr>
+                          <th>Room</th>
+                          <th>Floor</th>
+                          <th>Room Type</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rooms.map((rm) => (
+                          <tr key={rm.roomNumber}>
+                            <td className="fw-bold">Room {rm.roomNumber}</td>
+                            <td>{rm.floor}</td>
+                            <td>{rm.roomType}</td>
+                            <td>
+                              <span
+                                className={`badge ${
+                                  rm.status === 'Available' ? 'text-bg-success' :
+                                  rm.status === 'Occupied' ? 'text-bg-primary' :
+                                  rm.status === 'Reserved' ? 'text-bg-warning text-dark' :
+                                  rm.status === 'Cleaning' ? 'text-bg-info text-white' : 'text-bg-danger'
+                                }`}
+                              >
+                                {rm.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </>
             )}
