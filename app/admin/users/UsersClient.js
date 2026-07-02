@@ -463,20 +463,27 @@ export default function UsersClient() {
                               Update
                             </button>
                             <button
-                              className="btn btn-sm text-white bg-warning btn-warning"
+                              className="btn btn-sm text-white"
                               onClick={() => openSuspendModal(u)}
                               disabled={isSelf || u.status === 'Suspended'}
-                              style={{ opacity: isSelf || u.status === 'Suspended' ? 0.6 : 1 }}
+                              style={{ 
+                                backgroundColor: '#fd7e14', 
+                                borderColor: '#fd7e14', 
+                                opacity: isSelf || u.status === 'Suspended' ? 0.6 : 1 
+                              }}
                             >
                               Suspend
                             </button>
                             <button
                               className={`btn btn-sm text-white ${
-                                u.status === 'Active' ? 'btn-secondary' : 'btn-success'
+                                u.status === 'Active' ? 'btn-danger' : 'btn-success'
                               }`}
                               onClick={() => handleToggleStatus(u)}
                               disabled={isSelf}
-                              style={{ opacity: isSelf ? 0.6 : 1 }}
+                              style={{ 
+                                width: '95px', 
+                                opacity: isSelf ? 0.6 : 1 
+                              }}
                             >
                               {u.status === 'Active' ? 'Deactivate' : 'Activate'}
                             </button>
