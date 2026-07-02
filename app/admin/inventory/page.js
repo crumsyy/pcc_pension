@@ -92,6 +92,7 @@ export default function AdminInventory() {
               <option value="">All Types</option>
               <option value="Amenity">Amenities</option>
               <option value="Product">Products</option>
+              <option value="Cooked Meals">Cooked Meals</option>
             </select>
           </div>
           <div className="col-md-3 d-flex gap-2">

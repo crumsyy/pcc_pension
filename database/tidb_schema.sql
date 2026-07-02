@@ -424,7 +424,7 @@ CREATE TABLE `product_category` (
 INSERT INTO `product_category` (`productCategoryID`, `name`) VALUES
 (1, 'Snacks'),
 (2, 'Beverages'),
-(3, 'Breakfast/Silog Meals');
+(3, 'Cooked Meals');
 
 -- --------------------------------------------------------
 -- Table structure for table `products`

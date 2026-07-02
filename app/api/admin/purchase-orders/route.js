@@ -10,6 +10,8 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const statusF = searchParams.get('status') || '';
+  const searchVal = searchParams.get('search') || '';
+  const dateF = searchParams.get('date') || '';
 
   try {
     let sql = `
@@ -22,6 +24,27 @@ export async function GET(request) {
     if (statusF) {
       sql += " AND po.status = ?";
       params.push(statusF);
+    }
+    if (dateF) {
+      sql += " AND DATE(po.orderDate) = ?";
+      params.push(dateF);
+    }
+    if (searchVal) {
+      let numericId = null;
+      const match = searchVal.match(/po-(\d+)/i);
+      if (match) {
+        numericId = parseInt(match[1]);
+      } else if (/^\d+$/.test(searchVal)) {
+        numericId = parseInt(searchVal);
+      }
+
+      if (numericId !== null) {
+        sql += " AND (po.purchaseOrderID = ? OR poi.itemName LIKE ? OR po.remarks LIKE ?)";
+        params.push(numericId, `%${searchVal}%`, `%${searchVal}%`);
+      } else {
+        sql += " AND (poi.itemName LIKE ? OR po.remarks LIKE ?)";
+        params.push(`%${searchVal}%`, `%${searchVal}%`);
+      }
     }
     sql += " GROUP BY po.purchaseOrderID ORDER BY po.orderDate DESC";
 

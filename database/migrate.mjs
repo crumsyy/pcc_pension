@@ -141,6 +141,9 @@ async function run() {
       `);
     }
 
+    console.log("Renaming Breakfast/Silog Meals to Cooked Meals...");
+    await connection.execute("UPDATE product_category SET name = 'Cooked Meals' WHERE name = 'Breakfast/Silog Meals'");
+
     console.log("All database migrations verified!");
   } catch (error) {
     console.error("Migration failed:", error);

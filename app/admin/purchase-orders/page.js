@@ -6,6 +6,8 @@ import ModalDialog from '../../components/ModalDialog';
 export default function AdminPurchaseOrders() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchVal, setSearchVal] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Modals state
@@ -63,7 +65,11 @@ export default function AdminPurchaseOrders() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const query = new URLSearchParams({ status: statusFilter }).toString();
+      const query = new URLSearchParams({ 
+        status: statusFilter,
+        search: searchVal,
+        date: dateFilter
+      }).toString();
       const res = await fetch(`/api/admin/purchase-orders?${query}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch purchase orders');
@@ -78,7 +84,7 @@ export default function AdminPurchaseOrders() {
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter]);
+  }, [statusFilter, searchVal, dateFilter]);
 
   const handleStatusChange = (poID, status, msg) => {
     showConfirm('Update Status', msg || `Are you sure you want to update status to ${status}?`, async () => {
@@ -245,6 +251,17 @@ export default function AdminPurchaseOrders() {
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
           <div className="col-md-4">
+            <label className="form-label small fw-bold mb-1">Search</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search PO #, item, remarks..."
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+            />
+          </div>
+          <div className="col-md-3">
+            <label className="form-label small fw-bold mb-1">Status</label>
             <select
               className="form-select"
               value={statusFilter}
@@ -254,10 +271,20 @@ export default function AdminPurchaseOrders() {
               <option value="Pending">Pending</option>
               <option value="Approved">Approved</option>
               <option value="Completed">Completed</option>
+              <option value="Canceled">Canceled</option>
             </select>
           </div>
           <div className="col-md-3">
-            <button className="btn btn-pcc-outline w-100" onClick={() => setStatusFilter('')}>
+            <label className="form-label small fw-bold mb-1">Order Date</label>
+            <input
+              type="date"
+              className="form-control"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            />
+          </div>
+          <div className="col-md-2">
+            <button className="btn btn-pcc-outline w-100" onClick={() => { setStatusFilter(''); setSearchVal(''); setDateFilter(''); }}>
               Clear
             </button>
           </div>
