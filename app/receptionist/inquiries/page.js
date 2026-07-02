@@ -206,34 +206,36 @@ export default function ReceptionistInquiries() {
                       </div>
                     </div>
 
-                    {selectedInquiry.status === 'Responded' ? (
-                      <div className="p-3 rounded bg-success-subtle text-success border border-success-subtle">
+                    {selectedInquiry.response && (
+                      <div className="p-3 mb-4 rounded bg-success-subtle text-success border border-success-subtle">
                         <h6 className="fw-bold mb-2">Submitted Response:</h6>
                         <p className="mb-0 text-dark" style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>
                           {selectedInquiry.response}
                         </p>
                       </div>
-                    ) : (
-                      <form onSubmit={handleReplySubmit}>
-                        <div className="mb-3">
-                          <label className="form-label fw-bold text-dark">Reply Response:</label>
-                          <textarea
-                            className="form-control"
-                            rows="6"
-                            placeholder="Type your response to the guest..."
-                            required
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            style={{ borderRadius: '6px' }}
-                          ></textarea>
-                        </div>
-                        <div className="text-end">
-                          <button type="submit" className="btn btn-pcc-primary text-white px-4">
-                            Send Response
-                          </button>
-                        </div>
-                      </form>
                     )}
+
+                    <form onSubmit={handleReplySubmit}>
+                      <div className="mb-3">
+                        <label className="form-label fw-bold text-dark">
+                          {selectedInquiry.status === 'Responded' ? 'Send Another Response:' : 'Reply Response:'}
+                        </label>
+                        <textarea
+                          className="form-control"
+                          rows="6"
+                          placeholder="Type your response to the guest..."
+                          required
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          style={{ borderRadius: '6px' }}
+                        ></textarea>
+                      </div>
+                      <div className="text-end">
+                        <button type="submit" className="btn btn-pcc-primary text-white px-4">
+                          Send Response
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </>
               ) : (

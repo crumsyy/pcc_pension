@@ -131,15 +131,7 @@ async function run() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
 
-    if (createdInquiry) {
-      console.log("Seeding mock inquiries...");
-      await connection.execute(`
-        INSERT INTO \`inquiry\` (\`name\`, \`email\`, \`message\`, \`status\`, \`response\`, \`isChatbotForwarded\`) VALUES
-        ('Maria Santos', 'maria.santos@example.com', 'Hi, do you have room rates for family rooms? We plan to stay this coming weekend.', 'Pending', NULL, 0),
-        ('Alex Lim', 'alex.lim@example.com', 'Are pets allowed in the matrimonial room? I have a small dog.', 'Pending', NULL, 1),
-        ('Sarah G.', 'sarahg@example.com', 'Is breakfast included in the Standard Matrimonial room? How much is the extra charge?', 'Responded', 'Yes, breakfast is optional. Standard Matrimonial rate is ₱1,200 without breakfast and ₱1,500 with breakfast.', 0)
-      `);
-    }
+
 
     console.log("Renaming Breakfast/Silog Meals to Cooked Meals...");
     await connection.execute("UPDATE product_category SET name = 'Cooked Meals' WHERE name = 'Breakfast/Silog Meals'");

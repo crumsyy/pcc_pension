@@ -11,13 +11,32 @@ export default function GuestChatBubble() {
       text: 'Hello! I am your PCC Virtual Assistant. How can I help you with your stay today?'
     }
   ]);
+  const [dbInquiry, setDbInquiry] = useState(null);
   const chatBodyRef = useRef(null);
+
+  const fetchDbInquiry = async () => {
+    try {
+      const res = await fetch('/api/guest/inquiries');
+      if (res.ok) {
+        const data = await res.json();
+        setDbInquiry(data.inquiry || null);
+      }
+    } catch (err) {
+      console.error("Error fetching guest inquiry:", err);
+    }
+  };
 
   useEffect(() => {
     if (chatBodyRef.current) {
       chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
     }
   }, [messages, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDbInquiry();
+    }
+  }, [isOpen]);
 
   const knowledgeBase = {
     rates: "PCC room rates per night:\n" +
@@ -96,6 +115,7 @@ export default function GuestChatBubble() {
         sender: 'bot', 
         text: '🟢 Request submitted! Front Desk has been notified. A receptionist will respond shortly.' 
       }]);
+      fetchDbInquiry();
     } catch (err) {
       setMessages(prev => [...prev, { 
         sender: 'bot', 
@@ -181,6 +201,24 @@ export default function GuestChatBubble() {
             gap: '8px'
           }}
         >
+          {dbInquiry && (
+            <div className="p-2 mb-2 rounded bg-white shadow-sm border text-start" style={{ fontSize: '0.75rem', borderLeft: '3px solid var(--pcc-green)' }}>
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <span className="fw-bold text-dark">🛎️ Staff Request Status</span>
+                <span className={`badge ${dbInquiry.status === 'Pending' ? 'text-bg-warning text-dark' : 'text-bg-success text-white'}`}>
+                  {dbInquiry.status}
+                </span>
+              </div>
+              <div className="text-muted text-truncate" style={{ fontSize: '0.72rem' }}>
+                <strong>Message:</strong> {dbInquiry.message}
+              </div>
+              {dbInquiry.response && (
+                <div className="mt-1 p-1 px-2 bg-success-subtle text-success rounded" style={{ fontSize: '0.72rem', borderLeft: '2px solid #3FA34D' }}>
+                  <strong>Response:</strong> {dbInquiry.response}
+                </div>
+              )}
+            </div>
+          )}
           {messages.map((m, idx) => (
             <div 
               key={idx}
