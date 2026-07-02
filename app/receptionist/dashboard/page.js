@@ -12,6 +12,7 @@ export default async function ReceptionistDashboard() {
     occupiedRoomsRes,
     availableRoomsRes,
     pendingResRes,
+    underMaintenanceRoomsRes,
     checkInsList,
     pendingResList,
     rooms
@@ -21,6 +22,7 @@ export default async function ReceptionistDashboard() {
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'"),
+    dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Under Maintenance' AND isArchived = 0"),
     dbQuery(`
       SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
              g.firstName, g.lastName, g.contact,
@@ -59,6 +61,7 @@ export default async function ReceptionistDashboard() {
   const occupiedRooms = occupiedRoomsRes[0]?.count || 0;
   const availableRooms = availableRoomsRes[0]?.count || 0;
   const pendingRes = pendingResRes[0]?.count || 0;
+  const underMaintenanceRooms = underMaintenanceRoomsRes[0]?.count || 0;
 
   // Formatter helpers
   const formatTime = (dateStr) => {
@@ -105,7 +108,8 @@ export default async function ReceptionistDashboard() {
     ["Check-Outs Today", checkOutsToday, "#3FA34D"],
     ["Rooms Occupied", occupiedRooms, "#e05c2a"],
     ["Rooms Available", availableRooms, "#3FA34D"],
-    ["Pending Reserv.", pendingRes, "#f0a500"]
+    ["Pending Reserv.", pendingRes, "#f0a500"],
+    ["Under Maintenance", underMaintenanceRooms, "#dc3545"]
   ];
 
   return (
