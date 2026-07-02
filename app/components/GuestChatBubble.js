@@ -12,9 +12,37 @@ export default function GuestChatBubble() {
     }
   ]);
   const [dbInquiry, setDbInquiry] = useState(null);
+  const [localSubmission, setLocalSubmission] = useState(null);
   const chatBodyRef = useRef(null);
 
+  // Visitor Details States
+  const [currentUser, setCurrentUser] = useState(null);
+  const [visitorName, setVisitorName] = useState('');
+  const [visitorEmail, setVisitorEmail] = useState('');
+  const [showVisitorForm, setShowVisitorForm] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState('');
+
+  const checkSession = async () => {
+    try {
+      const res = await fetch('/api/auth/session-check');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.valid && data.session?.role === 'Guest') {
+          setCurrentUser(data.session);
+        } else {
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    } catch (err) {
+      console.error("Session check failed in chat bubble:", err);
+      setCurrentUser(null);
+    }
+  };
+
   const fetchDbInquiry = async () => {
+    if (!currentUser) return; // Only logged in guests have inquiries saved in DB
     try {
       const res = await fetch('/api/guest/inquiries');
       if (res.ok) {
@@ -27,6 +55,10 @@ export default function GuestChatBubble() {
   };
 
   useEffect(() => {
+    checkSession();
+  }, []);
+
+  useEffect(() => {
     if (chatBodyRef.current) {
       chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
     }
@@ -34,7 +66,9 @@ export default function GuestChatBubble() {
 
   useEffect(() => {
     if (isOpen) {
-      fetchDbInquiry();
+      checkSession().then(() => {
+        fetchDbInquiry();
+      });
     }
   }, [isOpen]);
 
@@ -91,22 +125,28 @@ export default function GuestChatBubble() {
     }, 400);
   };
 
-  const handleForwardToStaff = async () => {
-    if (messages.length < 2) return;
-    
-    // Find last user message
-    const userMsgs = messages.filter(m => m.sender === 'user');
-    if (userMsgs.length === 0) return;
-    
-    const lastMsg = userMsgs[userMsgs.length - 1].text;
-    
+  const handleRequestStaffPillClick = () => {
+    setMessages(prev => [...prev, { sender: 'user', text: 'Talk to Staff 👥' }]);
+    setTimeout(() => {
+      handleForwardToStaffWithMessage('I would like to speak to a staff member.');
+    }, 400);
+  };
+
+  const handleForwardToStaffWithMessage = async (msgText) => {
+    if (!currentUser) {
+      // Prompt for name and email if public visitor
+      setPendingMessage(msgText);
+      setShowVisitorForm(true);
+      return;
+    }
+
     try {
       setMessages(prev => [...prev, { sender: 'bot', text: 'Submitting request to Front Desk staff...' }]);
       
       const res = await fetch('/api/guest/inquiries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: lastMsg })
+        body: JSON.stringify({ message: msgText })
       });
       
       if (!res.ok) throw new Error('Network error');
@@ -123,6 +163,60 @@ export default function GuestChatBubble() {
       }]);
     }
   };
+
+  const handleForwardToStaff = async () => {
+    if (messages.length < 2) return;
+    
+    // Find last user message
+    const userMsgs = messages.filter(m => m.sender === 'user');
+    if (userMsgs.length === 0) return;
+    
+    const lastMsg = userMsgs[userMsgs.length - 1].text;
+    await handleForwardToStaffWithMessage(lastMsg);
+  };
+
+  const handleVisitorFormSubmit = async () => {
+    if (!visitorName.trim() || !visitorEmail.trim()) {
+      alert("Please enter both your name and email.");
+      return;
+    }
+
+    try {
+      setShowVisitorForm(false);
+      setMessages(prev => [...prev, { sender: 'bot', text: 'Submitting request to Front Desk staff...' }]);
+      
+      const res = await fetch('/api/guest/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: visitorName.trim(),
+          email: visitorEmail.trim(),
+          message: pendingMessage 
+        })
+      });
+      
+      if (!res.ok) throw new Error('Network error');
+      
+      setMessages(prev => [...prev, { 
+        sender: 'bot', 
+        text: '🟢 Request submitted! Front Desk has been notified. A receptionist will respond shortly.' 
+      }]);
+
+      setLocalSubmission({
+        name: visitorName.trim(),
+        email: visitorEmail.trim(),
+        message: pendingMessage,
+        status: 'Pending'
+      });
+    } catch (err) {
+      setMessages(prev => [...prev, { 
+        sender: 'bot', 
+        text: '❌ Failed to submit request. Please try again.' 
+      }]);
+    }
+  };
+
+  const activeInquiry = dbInquiry || localSubmission;
 
   return (
     <>
@@ -201,20 +295,20 @@ export default function GuestChatBubble() {
             gap: '8px'
           }}
         >
-          {dbInquiry && (
+          {activeInquiry && (
             <div className="p-2 mb-2 rounded bg-white shadow-sm border text-start" style={{ fontSize: '0.75rem', borderLeft: '3px solid var(--pcc-green)' }}>
               <div className="d-flex justify-content-between align-items-center mb-1">
                 <span className="fw-bold text-dark">🛎️ Staff Request Status</span>
-                <span className={`badge ${dbInquiry.status === 'Pending' ? 'text-bg-warning text-dark' : 'text-bg-success text-white'}`}>
-                  {dbInquiry.status}
+                <span className={`badge ${activeInquiry.status === 'Pending' ? 'text-bg-warning text-dark' : 'text-bg-success text-white'}`}>
+                  {activeInquiry.status}
                 </span>
               </div>
               <div className="text-muted text-truncate" style={{ fontSize: '0.72rem' }}>
-                <strong>Message:</strong> {dbInquiry.message}
+                <strong>Message:</strong> {activeInquiry.message}
               </div>
-              {dbInquiry.response && (
+              {activeInquiry.response && (
                 <div className="mt-1 p-1 px-2 bg-success-subtle text-success rounded" style={{ fontSize: '0.72rem', borderLeft: '2px solid #3FA34D' }}>
-                  <strong>Response:</strong> {dbInquiry.response}
+                  <strong>Response:</strong> {activeInquiry.response}
                 </div>
               )}
             </div>
@@ -242,73 +336,120 @@ export default function GuestChatBubble() {
           ))}
         </div>
 
-        {/* QUICK REPLIES */}
-        <div className="p-2 bg-light border-top d-flex flex-wrap gap-1" style={{ fontSize: '0.72rem' }}>
-          <button 
-            className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
-            onClick={() => handleQuickOption('rates', 'Room Rates')}
-            style={{ fontSize: '0.72rem' }}
-          >
-            Room Rates
-          </button>
-          <button 
-            className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
-            onClick={() => handleQuickOption('checkin', 'Check-In Times')}
-            style={{ fontSize: '0.72rem' }}
-          >
-            Check-In Times
-          </button>
-          <button 
-            className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
-            onClick={() => handleQuickOption('breakfast', 'Breakfast Options')}
-            style={{ fontSize: '0.72rem' }}
-          >
-            Breakfast Options
-          </button>
-          <button 
-            className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill text-danger border-danger"
-            onClick={() => handleQuickOption('support', 'Service Request')}
-            style={{ fontSize: '0.72rem' }}
-          >
-            Request Service 🛎️
-          </button>
-        </div>
+        {/* INPUT / TIMEOUT FORM AREA */}
+        {showVisitorForm ? (
+          <div className="p-3 bg-light border-top text-start" style={{ fontSize: '0.8rem' }}>
+            <div className="fw-bold mb-2 text-dark">Contact details to notify staff:</div>
+            <div className="mb-2">
+              <label className="form-label mb-0" style={{ fontSize: '0.75rem' }}>Your Name</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="John Doe"
+                value={visitorName}
+                onChange={(e) => setVisitorName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label mb-0" style={{ fontSize: '0.75rem' }}>Your Email</label>
+              <input
+                type="email"
+                className="form-control form-control-sm"
+                placeholder="john@example.com"
+                value={visitorEmail}
+                onChange={(e) => setVisitorEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="d-flex gap-2 justify-content-end">
+              <button 
+                type="button" 
+                className="btn btn-sm btn-secondary text-white"
+                onClick={() => setShowVisitorForm(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-sm btn-primary text-white"
+                onClick={handleVisitorFormSubmit}
+              >
+                Submit Request
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* QUICK REPLIES */}
+            <div className="p-2 bg-light border-top d-flex flex-wrap gap-1" style={{ fontSize: '0.72rem' }}>
+              <button 
+                className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
+                onClick={() => handleQuickOption('rates', 'Room Rates')}
+                style={{ fontSize: '0.72rem' }}
+              >
+                Room Rates
+              </button>
+              <button 
+                className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
+                onClick={() => handleQuickOption('checkin', 'Check-In Times')}
+                style={{ fontSize: '0.72rem' }}
+              >
+                Check-In Times
+              </button>
+              <button 
+                className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
+                onClick={() => handleQuickOption('breakfast', 'Breakfast Options')}
+                style={{ fontSize: '0.72rem' }}
+              >
+                Breakfast Options
+              </button>
+              <button 
+                className="btn btn-xs btn-danger py-1 px-2 rounded-pill text-white"
+                onClick={handleRequestStaffPillClick}
+                style={{ fontSize: '0.72rem' }}
+              >
+                Talk to Staff 👥
+              </button>
+            </div>
 
-        {/* INPUT FORM */}
-        <form 
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage(input);
-          }}
-          className="p-2 border-top d-flex gap-1"
-        >
-          <input 
-            type="text"
-            className="form-control form-control-sm flex-grow-1"
-            placeholder="Type your request here..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            style={{ fontSize: '0.8rem' }}
-          />
-          <button 
-            type="submit" 
-            className="btn btn-sm btn-primary px-3 text-white fw-semibold"
-            style={{ fontSize: '0.8rem' }}
-          >
-            Send
-          </button>
-          {messages.some(m => m.sender === 'user') && (
-            <button 
-              type="button" 
-              className="btn btn-sm btn-danger px-2 text-white fw-semibold"
-              onClick={handleForwardToStaff}
-              title="Submit request to staff"
-              style={{ fontSize: '0.8rem' }}
+            {/* INPUT FORM */}
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage(input);
+              }}
+              className="p-2 border-top d-flex gap-1"
             >
-              Submit Request
-            </button>
-          )}
-        </form>
+              <input 
+                type="text"
+                className="form-control form-control-sm flex-grow-1"
+                placeholder="Type your request here..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                style={{ fontSize: '0.8rem' }}
+              />
+              <button 
+                type="submit" 
+                className="btn btn-sm btn-primary px-3 text-white fw-semibold"
+                style={{ fontSize: '0.8rem' }}
+              >
+                Send
+              </button>
+              {messages.some(m => m.sender === 'user') && (
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-danger px-2 text-white fw-semibold"
+                  onClick={handleForwardToStaff}
+                  title="Submit request to staff"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  Submit Request
+                </button>
+              )}
+            </form>
+          </>
+        )}
       </div>
     </>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import GuestChatBubble from "./components/GuestChatBubble";
 
 export default function Home() {
   // Search state
@@ -10,87 +11,14 @@ export default function Home() {
   const [roomType, setRoomType] = useState("Any room type");
   const [breakfast, setBreakfast] = useState("With Breakfast");
 
-  // Chatbot state
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      sender: "bot",
-      text: "Hi! 👋 I'm the PCC Home Suite Home assistant. Ask me about room rates, availability, breakfast options, or check-in/check-out times — or tap a quick question below.",
-    },
-  ]);
 
-  const chatBodyRef = useRef(null);
-
-  // Auto-scroll chat body on message updates
-  useEffect(() => {
-    if (chatBodyRef.current) {
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-    }
-  }, [messages, isChatOpen]);
 
   const [year, setYear] = useState(2026);
   useEffect(() => {
     setYear(new Date().getFullYear());
   }, []);
 
-  // Predefined chatbot knowledge base
-  const responses = {
-    rates: "Here are our room rates per night:\n\n" +
-           "Ground Floor — Standard: ₱1,200 (₱1,500 w/ breakfast), " +
-           "Twin: ₱1,300 (₱1,800 w/ breakfast), Deluxe: ₱2,100 (₱2,500 w/ breakfast).\n\n" +
-           "Second Floor — Standard: ₱1,500 (₱1,800 w/ breakfast), " +
-           "Twin: ₱1,800 (₱2,200 w/ breakfast), Deluxe: ₱2,200 (₱2,500 w/ breakfast).",
-    checkin: "Check-in time is 2:00 PM and check-out time is 12:00 PM (noon). " +
-             "Early check-in and late check-out may be available for an additional fee — " +
-             "just let our front desk know.",
-    breakfast: "Each room type is available with or without breakfast. " +
-               "You can select your preferred option when making a reservation.",
-    agent: "Sure! I'll connect you with our front desk staff. Please type your question " +
-           "below and a receptionist will follow up with you as soon as possible.",
-    default: "I'm not totally sure about that yet, but I can help with room rates, " +
-             "availability, breakfast options, and check-in/check-out times. " +
-             "You can also tap \"Talk to staff\" to reach a receptionist directly."
-  };
 
-  const getBotReply = (userText) => {
-    const msg = userText.toLowerCase();
-    if (msg.includes('rate') || msg.includes('price') || msg.includes('cost') || msg.includes('how much')) {
-      return responses.rates;
-    }
-    if (msg.includes('check-in') || msg.includes('check in') || msg.includes('check-out') || msg.includes('check out') || msg.includes('time')) {
-      return responses.checkin;
-    }
-    if (msg.includes('breakfast')) {
-      return responses.breakfast;
-    }
-    if (msg.includes('staff') || msg.includes('agent') || msg.includes('receptionist') || msg.includes('human')) {
-      return responses.agent;
-    }
-    return responses.default;
-  };
-
-  const handleSendMessage = (text) => {
-    if (!text.trim()) return;
-
-    // Add user message
-    setMessages((prev) => [...prev, { sender: "user", text }]);
-    setChatInput("");
-
-    // Simulate chatbot response delay
-    setTimeout(() => {
-      const reply = getBotReply(text);
-      setMessages((prev) => [...prev, { sender: "bot", text: reply }]);
-    }, 400);
-  };
-
-  const handleQuickReply = (key, label) => {
-    setMessages((prev) => [...prev, { sender: "user", text: label }]);
-    setTimeout(() => {
-      const reply = responses[key] || responses.default;
-      setMessages((prev) => [...prev, { sender: "bot", text: reply }]);
-    }, 400);
-  };
 
   const [availableRooms, setAvailableRooms] = useState([]);
   const [searchTriggered, setSearchTriggered] = useState(false);
@@ -514,51 +442,7 @@ export default function Home() {
       </footer>
 
       {/* CHATBOT WIDGET */}
-      <button
-        className="chatbot-toggle"
-        onClick={() => setIsChatOpen((prev) => !prev)}
-        aria-label="Open chat"
-      >
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
-      </button>
-
-      <div className={`chatbot-window ${isChatOpen ? "active" : ""}`}>
-        <div className="chatbot-header">
-          <span>PCC Home Suite Assistant</span>
-          <button onClick={() => setIsChatOpen(false)} aria-label="Close chat">&times;</button>
-        </div>
-        <div className="chatbot-body" ref={chatBodyRef}>
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`chat-bubble ${msg.sender}`}
-              style={{ whiteSpace: "pre-line" }}
-            >
-              {msg.text}
-            </div>
-          ))}
-        </div>
-        <div className="chatbot-quick-replies">
-          <button onClick={() => handleQuickReply("rates", "Room rates")}>Room rates</button>
-          <button onClick={() => handleQuickReply("checkin", "Check-in / out time")}>Check-in / out time</button>
-          <button onClick={() => handleQuickReply("breakfast", "Breakfast options")}>Breakfast options</button>
-          <button onClick={() => handleQuickReply("agent", "Talk to staff")}>Talk to staff</button>
-        </div>
-        <div className="chatbot-input">
-          <input
-            type="text"
-            placeholder="Type your message..."
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleSendMessage(chatInput);
-              }
-            }}
-          />
-          <button onClick={() => handleSendMessage(chatInput)}>Send</button>
-        </div>
-      </div>
+      <GuestChatBubble />
 
       {/* AVAILABILITY RESULTS MODAL */}
       {showResultsModal && (
