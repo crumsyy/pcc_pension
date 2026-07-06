@@ -155,10 +155,17 @@ export async function POST(request) {
       try {
         await conn.beginTransaction();
 
-        await conn.execute(
-          "UPDATE user SET roleID=?, status=? WHERE userID=?",
-          [roleID, status, uid]
-        );
+        if (status === 'Active') {
+          await conn.execute(
+            "UPDATE user SET roleID=?, status=?, suspendedUntil=NULL, suspensionRemarks=NULL WHERE userID=?",
+            [roleID, status, uid]
+          );
+        } else {
+          await conn.execute(
+            "UPDATE user SET roleID=?, status=? WHERE userID=?",
+            [roleID, status, uid]
+          );
+        }
 
         if (staffID > 0) {
           await conn.execute(
@@ -195,7 +202,11 @@ export async function POST(request) {
         return NextResponse.json({ error: 'You cannot deactivate your own account.' }, { status: 400 });
       }
 
-      await dbQuery("UPDATE user SET status=? WHERE userID=?", [newStatus, uid]);
+      if (newStatus === 'Active') {
+        await dbQuery("UPDATE user SET status=?, suspendedUntil=NULL, suspensionRemarks=NULL WHERE userID=?", [newStatus, uid]);
+      } else {
+        await dbQuery("UPDATE user SET status=? WHERE userID=?", [newStatus, uid]);
+      }
       return NextResponse.json({ success: true, message: `Account status updated to ${newStatus}.` });
     }
 

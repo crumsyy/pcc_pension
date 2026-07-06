@@ -22,6 +22,7 @@ export default function UsersClient() {
   const [suspendDays, setSuspendDays] = useState('3');
   const [suspendRemarks, setSuspendRemarks] = useState('');
   const [suspendUser, setSuspendUser] = useState(null);
+  const [suspendReason, setSuspendReason] = useState('Violated guest terms of service / misconduct');
 
   // Form states
   const [formData, setFormData] = useState({
@@ -239,6 +240,7 @@ export default function UsersClient() {
     setSuspendUser(user);
     setSuspendDays('3');
     setSuspendRemarks('');
+    setSuspendReason('Violated guest terms of service / misconduct');
     setActiveModal('suspend');
   };
 
@@ -250,6 +252,10 @@ export default function UsersClient() {
     }
     showConfirm('Suspend Account', `Are you sure you want to suspend this user for ${suspendDays} days?`, async () => {
       try {
+        const finalRemarks = suspendReason === 'Other'
+          ? suspendRemarks.trim()
+          : `${suspendReason}${suspendRemarks.trim() ? ': ' + suspendRemarks.trim() : ''}`;
+
         const res = await fetch('/api/admin/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -257,7 +263,7 @@ export default function UsersClient() {
             action: 'suspend',
             userID: suspendUser.userID,
             days: suspendDays,
-            remarks: suspendRemarks
+            remarks: finalRemarks
           })
         });
         const data = await res.json();
@@ -831,13 +837,31 @@ export default function UsersClient() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label fw-semibold">Reason / Remarks (Optional)</label>
+                    <label className="form-label fw-semibold">Reason for Suspension *</label>
+                    <select
+                      className="form-select"
+                      value={suspendReason}
+                      onChange={(e) => setSuspendReason(e.target.value)}
+                    >
+                      <option value="Violated guest terms of service / misconduct">Violated guest terms of service / misconduct</option>
+                      <option value="Suspicious login activity detected">Suspicious login activity detected</option>
+                      <option value="Spamming reservations / no-show history">Spamming reservations / no-show history</option>
+                      <option value="Unpaid bills / payment dispute">Unpaid bills / payment dispute</option>
+                      <option value="Staff policy violation / inappropriate behavior">Staff policy violation / inappropriate behavior</option>
+                      <option value="Other">Other (Specify in remarks below)</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">
+                      {suspendReason === 'Other' ? 'Mandatory Remarks *' : 'Optional Remarks'}
+                    </label>
                     <textarea
                       className="form-control"
                       rows="3"
+                      required={suspendReason === 'Other'}
                       value={suspendRemarks}
                       onChange={(e) => setSuspendRemarks(e.target.value)}
-                      placeholder="Specify the reason for account suspension..."
+                      placeholder={suspendReason === 'Other' ? "Provide custom suspension remarks..." : "Add optional extra notes..."}
                     />
                   </div>
                 </div>
