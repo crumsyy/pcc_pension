@@ -100,9 +100,9 @@ export async function POST(request) {
       sessionToken
     };
 
-    // Sign the JWT token (valid for 15 minutes)
+    // Sign the JWT token (valid for 24 hours, client-side inactivity handles auto-logout)
     const secret = process.env.JWT_SECRET || 'super_secret_pcc_pension_key_change_me_in_production';
-    const token = jwt.sign(tokenData, secret, { expiresIn: '15m' });
+    const token = jwt.sign(tokenData, secret, { expiresIn: '24h' });
 
     // Set Response Cookie
     const response = NextResponse.json({
@@ -115,7 +115,7 @@ export async function POST(request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 900, // 15 minutes
+      maxAge: 86400, // 24 hours
       path: '/'
     });
 
