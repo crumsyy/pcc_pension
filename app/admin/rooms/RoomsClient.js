@@ -200,6 +200,10 @@ export default function RoomsClient() {
   };
 
   const handleArchive = (room) => {
+    if (room.status === 'Occupied') {
+      showAlert('error', 'Action Restricted', 'Occupied rooms cannot be deleted or archived.');
+      return;
+    }
     showConfirm(
       'Archive Room',
       `Are you sure you want to archive Room ${room.roomNumber}? This will hide the room from active listings.`,

@@ -75,6 +75,15 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
       }
 
+      // Check if room number already exists
+      const existingRoom = await dbQuery(
+        "SELECT roomID FROM room WHERE LOWER(TRIM(roomNumber)) = LOWER(TRIM(?)) AND isArchived = 0",
+        [roomNumber]
+      );
+      if (existingRoom.length > 0) {
+        return NextResponse.json({ error: 'A room with this room number already exists.' }, { status: 400 });
+      }
+
       await dbQuery(
         "INSERT INTO room(roomNumber,status,floorID,roomTypeID,description) VALUES(?,?,?,?,?)",
         [roomNumber, status, floorID, roomTypeID, description]
@@ -120,6 +129,15 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Occupied rooms cannot be edited.' }, { status: 400 });
       }
 
+      // Check if room number already exists for another room
+      const existingRoom = await dbQuery(
+        "SELECT roomID FROM room WHERE LOWER(TRIM(roomNumber)) = LOWER(TRIM(?)) AND roomID != ? AND isArchived = 0",
+        [roomNumber, roomID]
+      );
+      if (existingRoom.length > 0) {
+        return NextResponse.json({ error: 'A room with this room number already exists.' }, { status: 400 });
+      }
+
       await dbQuery(
         "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=?, description=? WHERE roomID=?",
         [roomNumber, status, floorID, roomTypeID, description, roomID]
@@ -148,6 +166,12 @@ export async function POST(request) {
     if (action === 'delete') {
       const roomID = parseInt(body.roomID);
       
+      // Prevent deleting occupied rooms
+      const currentRoom = await dbQuery("SELECT status FROM room WHERE roomID = ?", [roomID]);
+      if (currentRoom.length > 0 && currentRoom[0].status === 'Occupied') {
+        return NextResponse.json({ error: 'Occupied rooms cannot be deleted or archived.' }, { status: 400 });
+      }
+
       // Perform soft delete (archive)
       await dbQuery(
         "UPDATE room SET isArchived = 1 WHERE roomID=?",
