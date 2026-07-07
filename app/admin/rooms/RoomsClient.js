@@ -269,6 +269,7 @@ export default function RoomsClient() {
       rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
       rateWithBreakfast: rates ? rates.withBreakfast : '',
       description: '',
+      occupancyLimit: '4',
     });
     setActiveModal('create');
   };
@@ -288,6 +289,7 @@ export default function RoomsClient() {
       rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
       rateWithBreakfast: rates ? rates.withBreakfast : '',
       description: room.description || '',
+      occupancyLimit: room.occupancyLimit ? room.occupancyLimit.toString() : '4',
     });
     setActiveModal('edit');
   };
@@ -405,6 +407,7 @@ export default function RoomsClient() {
                   <th>Room No.</th>
                   <th>Floor</th>
                   <th>Type</th>
+                  <th>Occupancy Limit</th>
                   <th>Price (w/o Breakfast)</th>
                   <th>Price (w/ Breakfast)</th>
                   <th>Status</th>
@@ -414,7 +417,7 @@ export default function RoomsClient() {
               <tbody>
                 {rooms.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="text-center text-muted py-4">
+                    <td colSpan="8" className="text-center text-muted py-4">
                       No rooms found.
                     </td>
                   </tr>
@@ -428,6 +431,7 @@ export default function RoomsClient() {
                         </td>
                         <td>{rm.floorName}</td>
                         <td>{rm.typeName}</td>
+                        <td>{rm.occupancyLimit || 4} Pax</td>
                         <td>₱{Number(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>₱{Number(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>
@@ -539,6 +543,19 @@ export default function RoomsClient() {
                         <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Occupancy Limit (Pax) *</label>
+                    <input
+                      type="number"
+                      name="occupancyLimit"
+                      className="form-control"
+                      required
+                      min="1"
+                      placeholder="e.g. 4"
+                      value={formData.occupancyLimit}
+                      onChange={handleInputChange}
+                    />
                   </div>
                   <div className="row mb-3">
                     <div className="col-md-6">
@@ -652,6 +669,19 @@ export default function RoomsClient() {
                         <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Occupancy Limit (Pax) *</label>
+                    <input
+                      type="number"
+                      name="occupancyLimit"
+                      className="form-control"
+                      required
+                      min="1"
+                      placeholder="e.g. 4"
+                      value={formData.occupancyLimit}
+                      onChange={handleInputChange}
+                    />
                   </div>
                   <div className="row mb-3">
                     <div className="col-md-6">

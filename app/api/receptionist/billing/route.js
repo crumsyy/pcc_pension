@@ -4,7 +4,7 @@ import { dbQuery } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
-  if (!session || (session.role !== 'Receptionist' && session.role !== 'Administrator')) {
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -13,6 +13,17 @@ export async function GET(request) {
 
   if (!bookingID) {
     return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
+  }
+
+  // If Guest, ensure they own this booking
+  if (session.role === 'Guest') {
+    const ownerCheck = await dbQuery("SELECT guestID FROM booking WHERE bookingID = ?", [bookingID]);
+    const guestRes = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
+    if (ownerCheck.length === 0 || guestRes.length === 0 || ownerCheck[0].guestID !== guestRes[0].guestID) {
+      return NextResponse.json({ error: 'Unauthorized. Access denied.' }, { status: 403 });
+    }
+  } else if (session.role !== 'Receptionist' && session.role !== 'Administrator') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -76,7 +87,7 @@ export async function GET(request) {
       FROM order_product op
       JOIN products p ON p.productID = op.productID
       JOIN orders o ON o.orderID = op.orderID
-      WHERE o.guestID = ? AND o.orderDateTime >= ? AND o.orderStatus IN ('Served', 'Completed')
+      WHERE o.guestID = ? AND o.orderDateTime >= ? AND o.orderStatus != 'Canceled'
     `, [booking.guestID, booking.checkInDateTime]);
 
     // 4. Fetch amenity orders for this stay
@@ -85,7 +96,7 @@ export async function GET(request) {
       FROM order_amenities oa
       JOIN amenities a ON a.amenityID = oa.amenityID
       JOIN orders o ON o.orderID = oa.orderID
-      WHERE o.guestID = ? AND o.orderDateTime >= ? AND o.orderStatus IN ('Served', 'Completed')
+      WHERE o.guestID = ? AND o.orderDateTime >= ? AND o.orderStatus != 'Canceled'
     `, [booking.guestID, booking.checkInDateTime]);
 
     const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);

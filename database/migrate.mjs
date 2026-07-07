@@ -73,8 +73,9 @@ async function run() {
     await ensureColumn(connection, 'user', 'suspensionRemarks', 'VARCHAR(255) DEFAULT NULL');
     await ensureColumn(connection, 'user', 'isDeleted', 'TINYINT(1) NOT NULL DEFAULT 0');
 
-    console.log("Altering room table for description...");
+    console.log("Altering room table for description and occupancyLimit...");
     await ensureColumn(connection, 'room', 'description', 'TEXT DEFAULT NULL');
+    await ensureColumn(connection, 'room', 'occupancyLimit', 'INT NOT NULL DEFAULT 4');
 
     console.log("Altering booking table for cancellation reason...");
     await ensureColumn(connection, 'booking', 'cancelRemarks', 'VARCHAR(255) DEFAULT NULL');

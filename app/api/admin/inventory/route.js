@@ -21,7 +21,7 @@ export async function GET(request) {
     `;
     const paramsA = [];
     if (search) {
-      sqlA += " AND (a.name LIKE ? OR ac.name LIKE ?)";
+      sqlA += " AND (LOWER(a.name) LIKE LOWER(?) OR LOWER(ac.name) LIKE LOWER(?))";
       const like = `%${search}%`;
       paramsA.push(like, like);
     }
@@ -35,7 +35,7 @@ export async function GET(request) {
     `;
     const paramsP = [];
     if (search) {
-      sqlP += " AND (p.name LIKE ? OR pc.name LIKE ?)";
+      sqlP += " AND (LOWER(p.name) LIKE LOWER(?) OR LOWER(pc.name) LIKE LOWER(?))";
       const like = `%${search}%`;
       paramsP.push(like, like);
     }

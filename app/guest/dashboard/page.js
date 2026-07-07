@@ -63,6 +63,111 @@ export default async function GuestDashboard() {
 
   const activeBookingsCount = bookings.filter(b => b.status === "Checked In").length;
 
+  const activeBooking = bookings.find(b => b.status === "Checked In");
+  let activeBill = null;
+
+  if (activeBooking) {
+    const bookingID = activeBooking.bookingID;
+    
+    // 1. Fetch booking details
+    const bookingRes = await dbQuery(`
+      SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status, b.guestID, b.roomID,
+             rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID
+      FROM booking b
+      JOIN room rm ON rm.roomID = b.roomID
+      JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+      WHERE b.bookingID = ?
+    `, [bookingID]);
+
+    if (bookingRes.length > 0) {
+      const booking = bookingRes[0];
+
+      // 2. Fetch room rate
+      const rateRes = await dbQuery(
+        "SELECT rate FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = 1",
+        [booking.roomTypeID, booking.floorID]
+      );
+      const rate = rateRes[0]?.rate || 0;
+
+      // Calculate nights (min 1)
+      const checkIn = new Date(booking.checkInDateTime);
+      const checkOut = new Date(booking.checkOutDateTime);
+      const diffTime = Math.abs(checkOut - checkIn);
+      const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+      const roomCharge = rate * nights;
+
+      // Early check-in fee
+      let earlyCheckInFee = 0;
+      const standardCheckInTime = new Date(checkIn);
+      standardCheckInTime.setHours(14, 0, 0, 0);
+      if (checkIn < standardCheckInTime && checkIn.toDateString() === standardCheckInTime.toDateString()) {
+        const earlyHours = Math.ceil((standardCheckInTime - checkIn) / (1000 * 60 * 60));
+        if (earlyHours > 0) {
+          earlyCheckInFee = earlyHours * 50;
+        }
+      }
+
+      // Late check-out fee
+      let lateCheckOutFee = 0;
+      const standardCheckOutTime = new Date(checkOut);
+      standardCheckOutTime.setHours(12, 0, 0, 0);
+      if (checkOut > standardCheckOutTime && checkOut.toDateString() === standardCheckOutTime.toDateString()) {
+        const lateHours = Math.ceil((checkOut - standardCheckOutTime) / (1000 * 60 * 60));
+        if (lateHours > 0) {
+          lateCheckOutFee = lateHours * 150;
+        }
+      }
+
+      // 3. Fetch product orders
+      const productCharges = await dbQuery(`
+        SELECT op.quantity, p.name, p.price, (op.quantity * p.price) as subtotal
+        FROM order_product op
+        JOIN products p ON p.productID = op.productID
+        JOIN orders o ON o.orderID = op.orderID
+        WHERE o.guestID = ? AND o.orderDateTime >= ? AND o.orderStatus != 'Canceled'
+      `, [booking.guestID, booking.checkInDateTime]);
+
+      // 4. Fetch amenity orders
+      const amenityCharges = await dbQuery(`
+        SELECT oa.quantity, a.name, a.price, (oa.quantity * a.price) as subtotal
+        FROM order_amenities oa
+        JOIN amenities a ON a.amenityID = oa.amenityID
+        JOIN orders o ON o.orderID = oa.orderID
+        WHERE o.guestID = ? AND o.orderDateTime >= ? AND o.orderStatus != 'Canceled'
+      `, [booking.guestID, booking.checkInDateTime]);
+
+      const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
+      const amenityTotal = amenityCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
+      const totalCharges = roomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal;
+
+      // 5. Fetch payments
+      const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ?", [bookingID]);
+      let paidTotal = 0;
+      if (billingRes.length > 0) {
+        const payments = await dbQuery("SELECT amount FROM payment WHERE billingID = ?", [billingRes[0].billingID]);
+        paidTotal = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      }
+
+      const balance = totalCharges - paidTotal;
+
+      activeBill = {
+        booking: { ...booking, nights, rate, roomCharge },
+        productCharges,
+        amenityCharges,
+        summary: {
+          room: roomCharge,
+          earlyCheckIn: earlyCheckInFee,
+          lateCheckOut: lateCheckOutFee,
+          products: productTotal,
+          amenities: amenityTotal,
+          total: totalCharges,
+          paid: paidTotal,
+          balance: balance
+        }
+      };
+    }
+  }
+
   return (
     <>
       {/* NAVBAR */}
@@ -252,6 +357,129 @@ export default async function GuestDashboard() {
                 </div>
               )}
             </div>
+
+            {/* Active Stay Statement of Account */}
+            {activeBill && (
+              <div className="key-tag mt-4">
+                <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                  <div className="room-type">Active Stay Statement of Account</div>
+                  <span className="badge text-bg-primary px-3 py-2">
+                    Room {activeBill.booking.roomNumber} ({activeBill.booking.roomType})
+                  </span>
+                </div>
+                
+                <div className="mb-4">
+                  <div className="fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>Room Rent Charges</div>
+                  <table className="table table-sm align-middle" style={{ fontSize: "0.85rem" }}>
+                    <thead>
+                      <tr className="table-light">
+                        <th>Description</th>
+                        <th>Rate</th>
+                        <th>Nights</th>
+                        <th className="text-end">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{activeBill.booking.roomType} (Room {activeBill.booking.roomNumber})</td>
+                        <td>₱{parseFloat(activeBill.booking.rate).toFixed(2)}</td>
+                        <td>{activeBill.booking.nights}</td>
+                        <td className="text-end fw-bold text-dark">₱{parseFloat(activeBill.booking.roomCharge).toFixed(2)}</td>
+                      </tr>
+                      {activeBill.summary.earlyCheckIn > 0 && (
+                        <tr>
+                          <td colSpan="3" className="text-muted">Early Check-In Fee (₱50/hr before 2:00 PM)</td>
+                          <td className="text-end text-danger">₱{parseFloat(activeBill.summary.earlyCheckIn).toFixed(2)}</td>
+                        </tr>
+                      )}
+                      {activeBill.summary.lateCheckOut > 0 && (
+                        <tr>
+                          <td colSpan="3" className="text-muted">Late Check-Out Fee (₱150/hr after 12:00 PM)</td>
+                          <td className="text-end text-danger">₱{parseFloat(activeBill.summary.lateCheckOut).toFixed(2)}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mb-4">
+                  <div className="fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>Products & Meals Ordered</div>
+                  <table className="table table-sm align-middle" style={{ fontSize: "0.85rem" }}>
+                    <thead>
+                      <tr className="table-light">
+                        <th>Item</th>
+                        <th>Unit Price</th>
+                        <th>Qty</th>
+                        <th className="text-end">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeBill.productCharges.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="text-center py-2 text-muted small">No products ordered yet.</td>
+                        </tr>
+                      ) : (
+                        activeBill.productCharges.map((item, idx) => (
+                          <tr key={idx}>
+                            <td>{item.name}</td>
+                            <td>₱{parseFloat(item.price).toFixed(2)}</td>
+                            <td>{item.quantity}</td>
+                            <td className="text-end fw-bold text-dark">₱{parseFloat(item.subtotal).toFixed(2)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mb-4">
+                  <div className="fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>Extra Amenities Requested</div>
+                  <table className="table table-sm align-middle" style={{ fontSize: "0.85rem" }}>
+                    <thead>
+                      <tr className="table-light">
+                        <th>Item</th>
+                        <th>Unit Price</th>
+                        <th>Qty</th>
+                        <th className="text-end">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeBill.amenityCharges.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="text-center py-2 text-muted small">No extra amenities requested yet.</td>
+                        </tr>
+                      ) : (
+                        activeBill.amenityCharges.map((item, idx) => (
+                          <tr key={idx}>
+                            <td>{item.name}</td>
+                            <td>₱{parseFloat(item.price).toFixed(2)}</td>
+                            <td>{item.quantity}</td>
+                            <td className="text-end fw-bold text-dark">₱{parseFloat(item.subtotal).toFixed(2)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-3 bg-light rounded" style={{ fontSize: '0.9rem' }}>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Total Charges:</span>
+                    <span className="fw-semibold text-dark">₱{parseFloat(activeBill.summary.total).toFixed(2)}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1 text-success">
+                    <span>Total Amount Paid:</span>
+                    <span>₱{parseFloat(activeBill.summary.paid).toFixed(2)}</span>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center pt-2 mt-2 border-top border-secondary-subtle">
+                    <span className="fw-bold text-danger">Outstanding Balance:</span>
+                    <span className="fw-bold text-danger" style={{ fontSize: '1.15rem' }}>
+                      ₱{parseFloat(activeBill.summary.balance).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

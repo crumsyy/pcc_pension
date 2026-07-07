@@ -22,7 +22,7 @@ export async function GET(request) {
   const params = [archived ? 1 : 0];
 
   if (search) {
-    sql += " AND (p.name LIKE ? OR pc.name LIKE ?)";
+    sql += " AND (LOWER(p.name) LIKE LOWER(?) OR LOWER(pc.name) LIKE LOWER(?))";
     const like = `%${search}%`;
     params.push(like, like);
   }
