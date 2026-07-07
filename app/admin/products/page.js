@@ -21,8 +21,10 @@ export default function AdminProducts() {
     name: '',
     productCategoryID: '',
     price: 0,
-    quantity: 0,
     minStock: 5,
+    itemType: 'Consumable',
+    unit: 'pcs',
+    description: '',
   });
 
   // Custom Modal dialog state
@@ -106,10 +108,6 @@ export default function AdminProducts() {
       showAlert('error', 'Validation Error', 'Price cannot be negative.');
       return;
     }
-    if (parseInt(formData.quantity) < 0) {
-      showAlert('error', 'Validation Error', 'Quantity cannot be negative.');
-      return;
-    }
 
     showConfirm('Create Product', 'Are you sure you want to create this product?', async () => {
       try {
@@ -143,10 +141,6 @@ export default function AdminProducts() {
     }
     if (parseFloat(formData.price) < 0) {
       showAlert('error', 'Validation Error', 'Price cannot be negative.');
-      return;
-    }
-    if (parseInt(formData.quantity) < 0) {
-      showAlert('error', 'Validation Error', 'Quantity cannot be negative.');
       return;
     }
 
@@ -251,8 +245,10 @@ export default function AdminProducts() {
       name: '',
       productCategoryID: categories[0]?.productCategoryID || '',
       price: 0.00,
-      quantity: 0,
       minStock: 5,
+      itemType: 'Consumable',
+      unit: 'pcs',
+      description: '',
     });
     setActiveModal('create');
   };
@@ -263,8 +259,10 @@ export default function AdminProducts() {
       name: product.name,
       productCategoryID: product.productCategoryID,
       price: product.price,
-      quantity: product.quantity,
       minStock: product.minStock !== undefined ? product.minStock : 5,
+      itemType: product.itemType || 'Consumable',
+      unit: product.unit || 'pcs',
+      description: product.description || '',
     });
     setActiveModal('edit');
   };
@@ -364,8 +362,9 @@ export default function AdminProducts() {
                   <th>Name</th>
                   <th>Category</th>
                   <th>Price</th>
-                  <th>Stock</th>
-                  <th>Alert</th>
+                  <th>Item Type</th>
+                  <th>Unit</th>
+                  <th>Description</th>
                   <th>Daily Availability</th>
                   <th>Actions</th>
                 </tr>
@@ -373,26 +372,27 @@ export default function AdminProducts() {
               <tbody>
                 {products.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="text-center text-muted py-4">
+                    <td colSpan="9" className="text-center text-muted py-4">
                       No products found.
                     </td>
                   </tr>
                 ) : (
                   products.map((p, index) => (
-                    <tr key={p.productID} className={p.quantity <= (p.minStock !== undefined ? p.minStock : 5) && !showArchived ? 'table-warning' : ''}>
+                    <tr key={p.productID}>
                       <td>{index + 1}</td>
                       <td>
                         <strong>{p.name}</strong>
                       </td>
                       <td>{p.catName}</td>
                       <td>₱{parseFloat(p.price).toFixed(2)}</td>
-                      <td>{p.quantity}</td>
                       <td>
-                        {p.quantity <= (p.minStock !== undefined ? p.minStock : 5) ? (
-                          <span className="badge text-bg-warning">Low Stock ({p.quantity}/{p.minStock !== undefined ? p.minStock : 5})</span>
-                        ) : (
-                          <span className="badge text-bg-success">OK ({p.quantity}/{p.minStock !== undefined ? p.minStock : 5})</span>
-                        )}
+                        <span className={`badge ${p.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
+                          {p.itemType}
+                        </span>
+                      </td>
+                      <td>{p.unit}</td>
+                      <td className="text-truncate" style={{ maxWidth: '150px' }} title={p.description}>
+                        {p.description || '—'}
                       </td>
                       <td>
                         {p.productCategoryID === 3 ? (
@@ -414,13 +414,13 @@ export default function AdminProducts() {
                           <span className="badge text-bg-light border text-muted">Always Available</span>
                         )}
                       </td>
-                        <td>
-                          <ActionButtons
-                            onEdit={!showArchived ? () => openEditModal(p) : null}
-                            onDelete={!showArchived ? () => handleArchive(p.productID) : null}
-                            onRestore={showArchived ? () => handleRestore(p.productID) : null}
-                          />
-                        </td>
+                      <td>
+                        <ActionButtons
+                          onEdit={!showArchived ? () => openEditModal(p) : null}
+                          onDelete={!showArchived ? () => handleArchive(p.productID) : null}
+                          onRestore={showArchived ? () => handleRestore(p.productID) : null}
+                        />
+                      </td>
                     </tr>
                   ))
                 )}
@@ -471,8 +471,43 @@ export default function AdminProducts() {
                       ))}
                     </select>
                   </div>
+                  <div className="mb-3">
+                    <label className="form-label">Item Type *</label>
+                    <select
+                      name="itemType"
+                      className="form-select"
+                      required
+                      value={formData.itemType}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Consumable">Consumable</option>
+                      <option value="Non-Consumable">Non-Consumable</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Unit *</label>
+                    <input
+                      type="text"
+                      name="unit"
+                      className="form-control"
+                      placeholder="e.g. pcs, pairs, bottles"
+                      required
+                      value={formData.unit}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      rows="2"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                   <div className="row g-2">
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                       <label className="form-label">Price (₱) *</label>
                       <input
                         type="number"
@@ -484,18 +519,7 @@ export default function AdminProducts() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Initial Stock *</label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        className="form-control"
-                        required
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                       <label className="form-label">Min Stock Level *</label>
                       <input
                         type="number"
@@ -555,8 +579,43 @@ export default function AdminProducts() {
                       ))}
                     </select>
                   </div>
+                  <div className="mb-3">
+                    <label className="form-label">Item Type *</label>
+                    <select
+                      name="itemType"
+                      className="form-select"
+                      required
+                      value={formData.itemType}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Consumable">Consumable</option>
+                      <option value="Non-Consumable">Non-Consumable</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Unit *</label>
+                    <input
+                      type="text"
+                      name="unit"
+                      className="form-control"
+                      placeholder="e.g. pcs, pairs, bottles"
+                      required
+                      value={formData.unit}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      rows="2"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                   <div className="row g-2">
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                       <label className="form-label">Price (₱) *</label>
                       <input
                         type="number"
@@ -568,18 +627,7 @@ export default function AdminProducts() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Stock Qty *</label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        className="form-control"
-                        required
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                       <label className="form-label">Min Stock Level *</label>
                       <input
                         type="number"

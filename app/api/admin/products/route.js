@@ -56,13 +56,15 @@ export async function POST(request) {
     if (action === 'create') {
       const name = body.name.trim();
       const price = parseFloat(body.price);
-      const quantity = parseInt(body.quantity);
       const productCategoryID = parseInt(body.productCategoryID);
       const minStock = parseInt(body.minStock) || 5;
+      const itemType = body.itemType || 'Consumable';
+      const unit = body.unit ? body.unit.trim() : 'pcs';
+      const description = body.description ? body.description.trim() : null;
 
       await dbQuery(
-        "INSERT INTO products(name,price,quantity,productCategoryID,minStock) VALUES(?,?,?,?,?)",
-        [name, price, quantity, productCategoryID, minStock]
+        "INSERT INTO products(name, price, quantity, productCategoryID, minStock, itemType, unit, description) VALUES(?, ?, 0, ?, ?, ?, ?, ?)",
+        [name, price, productCategoryID, minStock, itemType, unit, description]
       );
       return NextResponse.json({ success: true, message: 'Product created successfully.' });
     }
@@ -71,13 +73,15 @@ export async function POST(request) {
       const productID = parseInt(body.productID);
       const name = body.name.trim();
       const price = parseFloat(body.price);
-      const quantity = parseInt(body.quantity);
       const productCategoryID = parseInt(body.productCategoryID);
       const minStock = parseInt(body.minStock) || 5;
+      const itemType = body.itemType || 'Consumable';
+      const unit = body.unit ? body.unit.trim() : 'pcs';
+      const description = body.description ? body.description.trim() : null;
 
       await dbQuery(
-        "UPDATE products SET name=?, price=?, quantity=?, productCategoryID=?, minStock=? WHERE productID=?",
-        [name, price, quantity, productCategoryID, minStock, productID]
+        "UPDATE products SET name=?, price=?, productCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE productID=?",
+        [name, price, productCategoryID, minStock, itemType, unit, description, productID]
       );
       return NextResponse.json({ success: true, message: 'Product updated successfully.' });
     }

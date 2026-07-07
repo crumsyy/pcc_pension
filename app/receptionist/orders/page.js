@@ -88,6 +88,24 @@ export default function ReceptionistOrders() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const bootstrap = window.bootstrap;
+    if (!bootstrap) return;
+
+    const tooltipElements = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    const tooltipInstances = Array.from(tooltipElements).map(el => {
+      return new bootstrap.Tooltip(el, {
+        trigger: 'hover',
+        boundary: 'viewport'
+      });
+    });
+
+    return () => {
+      tooltipInstances.forEach(instance => instance.dispose());
+    };
+  }, [orders, loading, search, statusFilter]);
+
   // Reset modal state
   useEffect(() => {
     if (!activeModal) {
@@ -274,9 +292,7 @@ export default function ReceptionistOrders() {
                   style={{ borderRadius: '20px' }}
                 >
                   <option value="">All Statuses</option>
-                  <option value="Pending">Pending</option>
                   <option value="Preparing">Preparing</option>
-                  <option value="Served">Served</option>
                   <option value="Completed">Completed</option>
                   <option value="Canceled">Canceled</option>
                 </select>
@@ -294,7 +310,7 @@ export default function ReceptionistOrders() {
                     <th>Items Ordered</th>
                     <th>Total Amount</th>
                     <th>Status</th>
-                    <th className="text-end px-4">Actions</th>
+                    <th className="text-end px-4" style={{ width: '120px', minWidth: '120px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -342,26 +358,32 @@ export default function ReceptionistOrders() {
                               {o.orderStatus}
                             </span>
                           </td>
-                          <td className="text-end px-4">
-                            <div className="d-flex justify-content-end gap-1">
-                              {o.orderStatus === 'Pending' && (
-                                <button className="btn btn-sm btn-info text-white" onClick={() => handleUpdateOrderStatus(o.orderID, 'Preparing')}>
-                                  Prepare
-                                </button>
-                              )}
-                              {o.orderStatus === 'Preparing' && (
-                                <button className="btn btn-sm btn-primary text-white" onClick={() => handleUpdateOrderStatus(o.orderID, 'Served')}>
-                                  Serve
-                                </button>
-                              )}
-                              {o.orderStatus === 'Served' && (
-                                <button className="btn btn-sm btn-success text-white" onClick={() => handleUpdateOrderStatus(o.orderID, 'Completed')}>
-                                  Complete
+                          <td className="text-end px-4" style={{ width: '120px', minWidth: '120px' }}>
+                            <div className="actions-wrapper justify-content-end gap-1">
+                              {['Pending', 'Preparing', 'Served'].includes(o.orderStatus) && (
+                                <button 
+                                  type="button"
+                                  className="action-btn action-btn-activate" 
+                                  onClick={() => handleUpdateOrderStatus(o.orderID, 'Completed')}
+                                  data-bs-toggle="tooltip"
+                                  data-bs-placement="top"
+                                  title="Complete"
+                                  aria-label="Complete"
+                                >
+                                  <i className="bi bi-check-circle"></i>
                                 </button>
                               )}
                               {['Pending', 'Preparing', 'Served'].includes(o.orderStatus) && (
-                                <button className="btn btn-sm btn-outline-danger" onClick={() => handleUpdateOrderStatus(o.orderID, 'Canceled')}>
-                                  Cancel
+                                <button 
+                                  type="button"
+                                  className="action-btn action-btn-suspend" 
+                                  onClick={() => handleUpdateOrderStatus(o.orderID, 'Canceled')}
+                                  data-bs-toggle="tooltip"
+                                  data-bs-placement="top"
+                                  title="Cancel"
+                                  aria-label="Cancel"
+                                >
+                                  <i className="bi bi-x-circle"></i>
                                 </button>
                               )}
                             </div>

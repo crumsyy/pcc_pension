@@ -182,7 +182,8 @@ export async function POST(request) {
     }
 
     if (action === 'stock_in') {
-      const { poID, received, remarks } = body; // received: object of { [orderItemID]: quantity }, remarks: string
+      const { poID, received, remarks, supplier } = body;
+      // received: { [orderItemID]: { qty, expirationDate, manufacturingDate, supplierReference, unitCost } }
       
       const conn = await pool.getConnection();
 
@@ -195,72 +196,122 @@ export async function POST(request) {
           [parseInt(poID)]
         );
 
-        // Validation: Ensure received quantity does not exceed ordered quantity (Module I - REQ061)
+        // Validation: Ensure received quantity does not exceed remaining ordered quantity
         for (const item of poItems) {
-          const qty = parseInt(received[item.orderItemID] || 0);
-          if (qty > item.quantity) {
-            return NextResponse.json({ error: `Received quantity for item "${item.itemName}" cannot exceed the ordered quantity of ${item.quantity}.` }, { status: 400 });
+          const itemData = received[item.orderItemID];
+          if (!itemData) continue;
+          const newQty = parseInt(itemData.qty || 0);
+          if (newQty <= 0) continue;
+
+          const totalReceivedSoFar = parseInt(item.quantityReceived || 0);
+          if (totalReceivedSoFar + newQty > item.quantity) {
+            return NextResponse.json({ 
+              error: `Received quantity for "${item.itemName}" (${totalReceivedSoFar + newQty}) cannot exceed the ordered quantity of ${item.quantity}.` 
+            }, { status: 400 });
           }
         }
 
         for (const item of poItems) {
-          const qty = parseInt(received[item.orderItemID] || 0);
-          if (qty <= 0) continue;
+          const itemData = received[item.orderItemID];
+          if (!itemData) continue;
+          const newQty = parseInt(itemData.qty || 0);
+          if (newQty <= 0) continue;
 
-          // Record quantityReceived on item (Module I - REQ057)
-          await conn.execute(
-            "UPDATE purchase_order_items SET quantityReceived = ? WHERE orderItemID = ?",
-            [qty, item.orderItemID]
-          );
-
-          // Find correct ID by name match (Self-healing bug fix)
+          // Resolve itemID and itemType
+          let itemID = null;
           if (item.itemType === 'Amenity') {
-            const [amenityRes] = await conn.execute(
-              "SELECT amenityID FROM amenities WHERE name = ?",
-              [item.itemName]
-            );
+            const [amenityRes] = await conn.execute("SELECT amenityID FROM amenities WHERE name = ?", [item.itemName]);
             if (amenityRes.length > 0) {
-              const amenityID = amenityRes[0].amenityID;
-              // Add to inventory movement
-              await conn.execute(
-                "INSERT INTO inventory(stockInDate, quantityReceived, purchaseOrderID, amenityID, productID) VALUES(NOW(), ?, ?, ?, NULL)",
-                [qty, parseInt(poID), amenityID]
-              );
-              // Update amenities stock
-              await conn.execute(
-                "UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?",
-                [qty, amenityID]
-              );
+              itemID = amenityRes[0].amenityID;
             }
           } else {
-            const [productRes] = await conn.execute(
-              "SELECT productID FROM products WHERE name = ?",
-              [item.itemName]
-            );
+            const [productRes] = await conn.execute("SELECT productID FROM products WHERE name = ?", [item.itemName]);
             if (productRes.length > 0) {
-              const productID = productRes[0].productID;
-              // Add to inventory movement
-              await conn.execute(
-                "INSERT INTO inventory(stockInDate, quantityReceived, purchaseOrderID, amenityID, productID) VALUES(NOW(), ?, ?, NULL, ?)",
-                [qty, parseInt(poID), productID]
-              );
-              // Update products stock
-              await conn.execute(
-                "UPDATE products SET quantity = quantity + ? WHERE productID = ?",
-                [qty, productID]
-              );
+              itemID = productRes[0].productID;
             }
+          }
+
+          if (!itemID) {
+            return NextResponse.json({ error: `Could not link item "${item.itemName}" to the product/amenities catalog.` }, { status: 400 });
+          }
+
+          // Generate a unique batch number
+          const batchNumber = `BAT-PO${poID}-I${itemID}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+          // Create inventory batch
+          const expirationDate = itemData.expirationDate || null;
+          const manufacturingDate = itemData.manufacturingDate || null;
+          const supplierReference = itemData.supplierReference || null;
+          const unitCost = parseFloat(itemData.unitCost || item.unitPrice || 0);
+
+          const [batchResult] = await conn.execute(
+            `INSERT INTO inventory_batch (batchNumber, itemType, itemID, supplier, purchaseOrderID, quantity, remainingQuantity, dateReceived, manufacturingDate, expirationDate, unitCost, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, 'Active')`,
+            [
+              batchNumber,
+              item.itemType,
+              itemID,
+              supplier || 'Unknown Supplier',
+              parseInt(poID),
+              newQty,
+              newQty,
+              manufacturingDate,
+              expirationDate,
+              unitCost
+            ]
+          );
+          const batchID = batchResult.insertId;
+
+          // Record delivery log
+          await conn.execute(
+            `INSERT INTO purchase_order_delivery (purchaseOrderID, orderItemID, quantityReceived, dateReceived, supplierReference, expirationDate, batchID)
+             VALUES (?, ?, ?, CURDATE(), ?, ?, ?)`,
+            [parseInt(poID), item.orderItemID, newQty, supplierReference, expirationDate, batchID]
+          );
+
+          // Update purchase order item quantityReceived
+          await conn.execute(
+            "UPDATE purchase_order_items SET quantityReceived = quantityReceived + ? WHERE orderItemID = ?",
+            [newQty, item.orderItemID]
+          );
+
+          // Insert into inventory_movement
+          await conn.execute(
+            `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+             VALUES (?, ?, ?, ?, 'Stock In', ?, ?, ?)`,
+            [
+              item.itemType,
+              itemID,
+              newQty,
+              session.userID,
+              `PO-${poID}`,
+              remarks || `Stock-in from Purchase Order #${poID}`,
+              batchID
+            ]
+          );
+
+          // Update legacy quantity in product/amenities table as a fallback
+          if (item.itemType === 'Amenity') {
+            await conn.execute("UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?", [newQty, itemID]);
+          } else {
+            await conn.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [newQty, itemID]);
           }
         }
 
-        // Set status to Completed and save remarks (Module I - REQ060)
+        // Check if PO is now fully completed
+        const [updatedPoItems] = await conn.execute(
+          "SELECT quantity, quantityReceived FROM purchase_order_items WHERE purchaseOrderID = ?",
+          [parseInt(poID)]
+        );
+        const isCompleted = updatedPoItems.every(i => parseInt(i.quantityReceived) >= parseInt(i.quantity));
+
         await conn.execute(
-          "UPDATE purchase_order SET status = 'Completed', remarks = ? WHERE purchaseOrderID = ?",
-          [remarks || '', parseInt(poID)]
+          "UPDATE purchase_order SET status = ?, remarks = ? WHERE purchaseOrderID = ?",
+          [isCompleted ? 'Completed' : 'Approved', remarks || '', parseInt(poID)]
         );
 
         await conn.commit();
-        return NextResponse.json({ success: true, message: 'Stock-in recorded and inventory updated successfully.' });
+        return NextResponse.json({ success: true, message: isCompleted ? 'Purchase order fully received and completed!' : 'Partial delivery received successfully.' });
       } catch (e) {
         await conn.rollback();
         throw e;

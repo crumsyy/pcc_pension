@@ -9,19 +9,17 @@ export async function GET(request) {
   }
 
   try {
-    // 1. Fetch orders with guest and room info
+    // 1. Fetch all orders with guest information
     const ordersRaw = await dbQuery(`
-      SELECT o.orderID, o.orderStatus, o.orderDateTime, o.guestID,
-             g.firstName, g.lastName, g.contact,
-             rm.roomNumber
+      SELECT o.*, g.firstName, g.lastName, r.roomNumber 
       FROM orders o
       JOIN guest g ON g.guestID = o.guestID
       LEFT JOIN booking b ON b.guestID = g.guestID AND b.status = 'Checked In'
-      LEFT JOIN room rm ON rm.roomID = b.roomID
+      LEFT JOIN room r ON r.roomID = b.roomID
       ORDER BY o.orderDateTime DESC
     `);
 
-    // 2. Fetch order items for each order
+    // 2. Fetch order items (products and amenities)
     const [orderProducts, orderAmenities] = await Promise.all([
       dbQuery(`
         SELECT op.orderID, op.quantity, p.productID as itemID, p.name, p.price, 'Product' as type
@@ -45,9 +43,24 @@ export async function GET(request) {
     });
 
     // 3. Fetch products, amenities and active bookings for dropdowns
+    // Dynamic stock quantities resolved directly from active inventory batches
     const [products, amenities, activeBookings] = await Promise.all([
-      dbQuery("SELECT productID, name, price, quantity FROM products WHERE isArchived = 0 AND isAvailable = 1 ORDER BY name"),
-      dbQuery("SELECT amenityID, name, price, quantity FROM amenities WHERE isArchived = 0 ORDER BY name"),
+      dbQuery(`
+        SELECT p.productID, p.name, p.price, COALESCE(SUM(ib.remainingQuantity), 0) as quantity 
+        FROM products p 
+        LEFT JOIN inventory_batch ib ON ib.itemType = 'Product' AND ib.itemID = p.productID AND ib.status IN ('Active', 'Low Stock', 'Expired')
+        WHERE p.isArchived = 0 AND p.isAvailable = 1
+        GROUP BY p.productID
+        ORDER BY p.name
+      `),
+      dbQuery(`
+        SELECT a.amenityID, a.name, a.price, COALESCE(SUM(ib.remainingQuantity), 0) as quantity 
+        FROM amenities a 
+        LEFT JOIN inventory_batch ib ON ib.itemType = 'Amenity' AND ib.itemID = a.amenityID AND ib.status IN ('Active', 'Low Stock', 'Expired')
+        WHERE a.isArchived = 0
+        GROUP BY a.amenityID
+        ORDER BY a.name
+      `),
       dbQuery(`
         SELECT b.bookingID, b.guestID, g.firstName, g.lastName, rm.roomNumber 
         FROM booking b
@@ -90,37 +103,60 @@ export async function POST(request) {
 
         // 1. Create order record
         const [orderResult] = await connection.execute(
-          "INSERT INTO orders (orderStatus, orderDateTime, guestID) VALUES ('Pending', NOW(), ?)",
+          "INSERT INTO orders (orderStatus, orderDateTime, guestID) VALUES ('Preparing', NOW(), ?)",
           [guestID]
         );
         const orderID = orderResult.insertId;
 
-        // 2. Insert items and update stock
+        // 2. Insert items and update stock using FIFO batches
         for (const item of items) {
           const itemID = parseInt(item.itemID);
           const quantity = parseInt(item.quantity);
           if (!itemID || quantity <= 0) continue;
 
+          // Fetch active batches for this item (ordered by FIFO: expiration date first, then received date)
+          const [batches] = await connection.execute(
+            `SELECT * FROM inventory_batch 
+             WHERE itemType = ? AND itemID = ? AND remainingQuantity > 0 
+             ORDER BY COALESCE(expirationDate, '9999-12-31') ASC, dateReceived ASC`,
+            [item.type, itemID]
+          );
+
+          const totalAvailable = batches.reduce((sum, b) => sum + b.remainingQuantity, 0);
+          if (totalAvailable < quantity) {
+            throw new Error(`Insufficient stock for ${item.type === 'Product' ? 'product' : 'amenity'}: ID ${itemID}`);
+          }
+
+          // FIFO batch deduction
+          let needed = quantity;
+          for (const batch of batches) {
+            if (needed <= 0) break;
+            const take = Math.min(batch.remainingQuantity, needed);
+            
+            await connection.execute(
+              "UPDATE inventory_batch SET remainingQuantity = remainingQuantity - ? WHERE batchID = ?",
+              [take, batch.batchID]
+            );
+
+            // Log movement for this batch
+            await connection.execute(
+              `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+               VALUES (?, ?, ?, ?, 'Stock Out', ?, 'Guest Order placed', ?)`,
+              [item.type, itemID, -take, session.userID, `ORD-${orderID}`, batch.batchID]
+            );
+
+            needed -= take;
+          }
+
+          // Insert order item record
           if (item.type === 'Product') {
-            // Check stock first
-            const [prodRes] = await connection.execute("SELECT quantity, name FROM products WHERE productID = ?", [itemID]);
-            if (prodRes.length === 0 || prodRes[0].quantity < quantity) {
-              throw new Error(`Insufficient stock for product: ${prodRes[0]?.name || 'Unknown'}`);
-            }
-            // Insert
             await connection.execute("INSERT INTO order_product(quantity, orderID, productID) VALUES(?, ?, ?)", [quantity, orderID, itemID]);
-            // Decrement stock
-            await connection.execute("UPDATE products SET quantity = quantity - ? WHERE productID = ?", [quantity, itemID]);
-          } else if (item.type === 'Amenity') {
-            // Check stock first
-            const [amenRes] = await connection.execute("SELECT quantity, name FROM amenities WHERE amenityID = ?", [itemID]);
-            if (amenRes.length === 0 || amenRes[0].quantity < quantity) {
-              throw new Error(`Insufficient stock for amenity: ${amenRes[0]?.name || 'Unknown'}`);
-            }
-            // Insert
+            // Legacy fallback update
+            await connection.execute("UPDATE products SET quantity = GREATEST(0, quantity - ?) WHERE productID = ?", [quantity, itemID]);
+          } else {
             await connection.execute("INSERT INTO order_amenities(quantity, orderID, amenityID) VALUES(?, ?, ?)", [quantity, orderID, itemID]);
-            // Decrement stock
-            await connection.execute("UPDATE amenities SET quantity = quantity - ? WHERE amenityID = ?", [quantity, itemID]);
+            // Legacy fallback update
+            await connection.execute("UPDATE amenities SET quantity = GREATEST(0, quantity - ?) WHERE amenityID = ?", [quantity, itemID]);
           }
         }
 
@@ -154,11 +190,55 @@ export async function POST(request) {
             // Restore products stock
             const [prodItems] = await connection.execute("SELECT productID, quantity FROM order_product WHERE orderID = ?", [orderID]);
             for (const item of prodItems) {
+              // Find latest batch to refund stock to
+              const [batches] = await connection.execute(
+                "SELECT batchID FROM inventory_batch WHERE itemType = 'Product' AND itemID = ? ORDER BY dateReceived DESC LIMIT 1",
+                [item.productID]
+              );
+              let batchID = null;
+              if (batches.length > 0) {
+                batchID = batches[0].batchID;
+                await connection.execute(
+                  "UPDATE inventory_batch SET remainingQuantity = remainingQuantity + ? WHERE batchID = ?",
+                  [item.quantity, batchID]
+                );
+              }
+
+              // Log return movement
+              await connection.execute(
+                `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+                 VALUES ('Product', ?, ?, ?, 'Return', ?, 'Order canceled - Stock refunded', ?)`,
+                [item.productID, item.quantity, session.userID, `ORD-${orderID}`, batchID]
+              );
+
+              // Legacy fallback update
               await connection.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [item.quantity, item.productID]);
             }
+
             // Restore amenities stock
             const [amenItems] = await connection.execute("SELECT amenityID, quantity FROM order_amenities WHERE orderID = ?", [orderID]);
             for (const item of amenItems) {
+              const [batches] = await connection.execute(
+                "SELECT batchID FROM inventory_batch WHERE itemType = 'Amenity' AND itemID = ? ORDER BY dateReceived DESC LIMIT 1",
+                [item.amenityID]
+              );
+              let batchID = null;
+              if (batches.length > 0) {
+                batchID = batches[0].batchID;
+                await connection.execute(
+                  "UPDATE inventory_batch SET remainingQuantity = remainingQuantity + ? WHERE batchID = ?",
+                  [item.quantity, batchID]
+                );
+              }
+
+              // Log return movement
+              await connection.execute(
+                `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+                 VALUES ('Amenity', ?, ?, ?, 'Return', ?, 'Order canceled - Stock refunded', ?)`,
+                [item.amenityID, item.quantity, session.userID, `ORD-${orderID}`, batchID]
+              );
+
+              // Legacy fallback update
               await connection.execute("UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?", [item.quantity, item.amenityID]);
             }
           }

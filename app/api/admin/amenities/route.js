@@ -56,13 +56,15 @@ export async function POST(request) {
     if (action === 'create') {
       const name = body.name.trim();
       const price = parseFloat(body.price);
-      const quantity = parseInt(body.quantity);
       const amenityCategoryID = parseInt(body.amenityCategoryID);
       const minStock = parseInt(body.minStock) || 5;
+      const itemType = body.itemType || 'Consumable';
+      const unit = body.unit ? body.unit.trim() : 'pcs';
+      const description = body.description ? body.description.trim() : null;
 
       await dbQuery(
-        "INSERT INTO amenities(name,price,quantity,amenityCategoryID,minStock) VALUES(?,?,?,?,?)",
-        [name, price, quantity, amenityCategoryID, minStock]
+        "INSERT INTO amenities(name, price, quantity, amenityCategoryID, minStock, itemType, unit, description) VALUES(?, ?, 0, ?, ?, ?, ?, ?)",
+        [name, price, amenityCategoryID, minStock, itemType, unit, description]
       );
       return NextResponse.json({ success: true, message: 'Amenity created successfully.' });
     }
@@ -71,13 +73,15 @@ export async function POST(request) {
       const amenityID = parseInt(body.amenityID);
       const name = body.name.trim();
       const price = parseFloat(body.price);
-      const quantity = parseInt(body.quantity);
       const amenityCategoryID = parseInt(body.amenityCategoryID);
       const minStock = parseInt(body.minStock) || 5;
+      const itemType = body.itemType || 'Consumable';
+      const unit = body.unit ? body.unit.trim() : 'pcs';
+      const description = body.description ? body.description.trim() : null;
 
       await dbQuery(
-        "UPDATE amenities SET name=?, price=?, quantity=?, amenityCategoryID=?, minStock=? WHERE amenityID=?",
-        [name, price, quantity, amenityCategoryID, minStock, amenityID]
+        "UPDATE amenities SET name=?, price=?, amenityCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE amenityID=?",
+        [name, price, amenityCategoryID, minStock, itemType, unit, description, amenityID]
       );
       return NextResponse.json({ success: true, message: 'Amenity updated successfully.' });
     }

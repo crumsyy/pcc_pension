@@ -148,8 +148,112 @@ async function run() {
         CONSTRAINT \`fk_bg_discount\` FOREIGN KEY (\`discountID\`) REFERENCES \`discounts\` (\`discountID\`) ON DELETE SET NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
+    console.log("Altering products and amenities for catalog and inventory redesign...");
+    await ensureColumn(connection, 'products', 'itemType', "ENUM('Consumable', 'Non-Consumable') NOT NULL DEFAULT 'Consumable'");
+    await ensureColumn(connection, 'amenities', 'itemType', "ENUM('Consumable', 'Non-Consumable') NOT NULL DEFAULT 'Consumable'");
+    await ensureColumn(connection, 'products', 'unit', "VARCHAR(20) DEFAULT 'pcs'");
+    await ensureColumn(connection, 'amenities', 'unit', "VARCHAR(20) DEFAULT 'pcs'");
+    await ensureColumn(connection, 'products', 'description', "TEXT DEFAULT NULL");
+    await ensureColumn(connection, 'amenities', 'description', "TEXT DEFAULT NULL");
 
+    // Change quantity default in MySQL-compatible schema
+    await connection.execute("ALTER TABLE `products` MODIFY COLUMN `quantity` int(11) NOT NULL DEFAULT 0");
+    await connection.execute("ALTER TABLE `amenities` MODIFY COLUMN `quantity` int(11) NOT NULL DEFAULT 0");
 
+    console.log("Checking and ensuring inventory_batch table exists...");
+    await ensureTable(connection, 'inventory_batch', `
+      CREATE TABLE \`inventory_batch\` (
+        \`batchID\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`batchNumber\` VARCHAR(50) NOT NULL UNIQUE,
+        \`itemType\` ENUM('Amenity', 'Product') NOT NULL,
+        \`itemID\` INT NOT NULL,
+        \`supplier\` VARCHAR(100) DEFAULT NULL,
+        \`purchaseOrderID\` INT DEFAULT NULL,
+        \`quantity\` INT NOT NULL,
+        \`remainingQuantity\` INT NOT NULL,
+        \`dateReceived\` DATE NOT NULL,
+        \`manufacturingDate\` DATE DEFAULT NULL,
+        \`expirationDate\` DATE DEFAULT NULL,
+        \`unitCost\` DECIMAL(10,2) NOT NULL,
+        \`status\` ENUM('Active', 'Low Stock', 'Expired', 'Fully Consumed', 'Disposed') NOT NULL DEFAULT 'Active',
+        CONSTRAINT \`fk_ib_po\` FOREIGN KEY (\`purchaseOrderID\`) REFERENCES \`purchase_order\` (\`purchaseOrderID\`) ON DELETE SET NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    console.log("Checking and ensuring inventory_movement table exists...");
+    await ensureTable(connection, 'inventory_movement', `
+      CREATE TABLE \`inventory_movement\` (
+        \`movementID\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`movementDateTime\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`itemType\` ENUM('Amenity', 'Product') NOT NULL,
+        \`itemID\` INT NOT NULL,
+        \`quantity\` INT NOT NULL,
+        \`userID\` INT NOT NULL,
+        \`movementType\` ENUM('Stock In', 'Stock Out', 'Borrow', 'Return', 'Adjustment', 'Disposal', 'Loss', 'Damage') NOT NULL,
+        \`referenceNumber\` VARCHAR(100) DEFAULT NULL,
+        \`remarks\` TEXT DEFAULT NULL,
+        \`batchID\` INT DEFAULT NULL,
+        CONSTRAINT \`fk_im_batch\` FOREIGN KEY (\`batchID\`) REFERENCES \`inventory_batch\` (\`batchID\`) ON DELETE SET NULL,
+        CONSTRAINT \`fk_im_user\` FOREIGN KEY (\`userID\`) REFERENCES \`user\` (\`userID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    console.log("Checking and ensuring inventory_disposal table exists...");
+    await ensureTable(connection, 'inventory_disposal', `
+      CREATE TABLE \`inventory_disposal\` (
+        \`disposalID\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`disposalDateTime\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`batchID\` INT DEFAULT NULL,
+        \`itemType\` ENUM('Amenity', 'Product') NOT NULL,
+        \`itemID\` INT NOT NULL,
+        \`quantity\` INT NOT NULL,
+        \`reason\` ENUM('Expired', 'Spoiled', 'Damaged', 'Contaminated', 'Lost', 'Returned to Supplier', 'Other') NOT NULL,
+        \`remarks\` TEXT DEFAULT NULL,
+        \`userID\` INT NOT NULL,
+        CONSTRAINT \`fk_id_batch\` FOREIGN KEY (\`batchID\`) REFERENCES \`inventory_batch\` (\`batchID\`) ON DELETE SET NULL,
+        CONSTRAINT \`fk_id_user\` FOREIGN KEY (\`userID\`) REFERENCES \`user\` (\`userID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    console.log("Checking and ensuring borrow_transaction table exists...");
+    await ensureTable(connection, 'borrow_transaction', `
+      CREATE TABLE \`borrow_transaction\` (
+        \`borrowID\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`borrowDateTime\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`itemType\` ENUM('Amenity', 'Product') NOT NULL,
+        \`itemID\` INT NOT NULL,
+        \`quantity\` INT NOT NULL,
+        \`borrowedBy\` VARCHAR(100) NOT NULL,
+        \`bookingID\` INT DEFAULT NULL,
+        \`roomID\` INT DEFAULT NULL,
+        \`expectedReturnDate\` DATE DEFAULT NULL,
+        \`actualReturnDate\` DATETIME DEFAULT NULL,
+        \`status\` ENUM('Borrowed', 'Returned', 'Damaged', 'Lost', 'Partially Returned') NOT NULL DEFAULT 'Borrowed',
+        \`conditionUponReturn\` VARCHAR(255) DEFAULT NULL,
+        \`remarks\` TEXT DEFAULT NULL,
+        \`userID\` INT NOT NULL,
+        CONSTRAINT \`fk_bt_booking\` FOREIGN KEY (\`bookingID\`) REFERENCES \`booking\` (\`bookingID\`) ON DELETE SET NULL,
+        CONSTRAINT \`fk_bt_room\` FOREIGN KEY (\`roomID\`) REFERENCES \`room\` (\`roomID\`) ON DELETE SET NULL,
+        CONSTRAINT \`fk_bt_user\` FOREIGN KEY (\`userID\`) REFERENCES \`user\` (\`userID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    console.log("Checking and ensuring purchase_order_delivery table exists...");
+    await ensureTable(connection, 'purchase_order_delivery', `
+      CREATE TABLE \`purchase_order_delivery\` (
+        \`deliveryID\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`purchaseOrderID\` INT NOT NULL,
+        \`orderItemID\` INT NOT NULL,
+        \`quantityReceived\` INT NOT NULL,
+        \`dateReceived\` DATE NOT NULL,
+        \`supplierReference\` VARCHAR(100) DEFAULT NULL,
+        \`expirationDate\` DATE DEFAULT NULL,
+        \`batchID\` INT DEFAULT NULL,
+        CONSTRAINT \`fk_pod_po\` FOREIGN KEY (\`purchaseOrderID\`) REFERENCES \`purchase_order\` (\`purchaseOrderID\`) ON DELETE CASCADE,
+        CONSTRAINT \`fk_pod_item\` FOREIGN KEY (\`orderItemID\`) REFERENCES \`purchase_order_items\` (\`orderItemID\`) ON DELETE CASCADE,
+        CONSTRAINT \`fk_pod_batch\` FOREIGN KEY (\`batchID\`) REFERENCES \`inventory_batch\` (\`batchID\`) ON DELETE SET NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
 
     console.log("Renaming Breakfast/Silog Meals to Cooked Meals...");
     await connection.execute("UPDATE product_category SET name = 'Cooked Meals' WHERE name = 'Breakfast/Silog Meals'");

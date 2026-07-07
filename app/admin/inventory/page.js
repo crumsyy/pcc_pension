@@ -3,17 +3,105 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import ActionButtons from '../../components/ActionButtons';
+import ModalDialog from '../../components/ModalDialog';
 
 export default function AdminInventory() {
   const router = useRouter();
+  
+  // Data states
   const [items, setItems] = useState([]);
-  const [stockHistory, setStockHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState('stocks'); // 'stocks' | 'history'
+  const [batches, setBatches] = useState([]);
+  const [borrowLogs, setBorrowLogs] = useState([]);
+  const [disposalLogs, setDisposalLogs] = useState([]);
+  const [movements, setMovements] = useState([]);
+  const [stats, setStats] = useState({
+    totalConsumables: 0,
+    totalNonConsumables: 0,
+    lowStockCount: 0,
+    expiredCount: 0,
+    totalDisposed: 0,
+    totalBorrowed: 0,
+    totalDamaged: 0,
+    totalLost: 0,
+    nearExpirationCount: 0
+  });
+
+  // UI state
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'stocks' | 'batches' | 'borrow' | 'logs'
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState(''); // 'Amenity' | 'Product'
+  const [itemTypeFilter, setItemTypeFilter] = useState(''); // 'Consumable' | 'Non-Consumable'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Modals state
+  const [activeModal, setActiveModal] = useState(null); // 'dispose' | 'borrow' | 'return' | null
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedBatch, setSelectedBatch] = useState(null);
+  const [selectedBorrow, setSelectedBorrow] = useState(null);
+
+  // Form states
+  const [disposeForm, setDisposeForm] = useState({
+    quantity: 1,
+    reason: 'Expired',
+    remarks: ''
+  });
+
+  const [borrowForm, setBorrowForm] = useState({
+    quantity: 1,
+    borrowedBy: '',
+    bookingID: '',
+    roomID: '',
+    expectedReturnDate: '',
+    remarks: ''
+  });
+
+  const [returnForm, setReturnForm] = useState({
+    quantityReturned: 1,
+    conditionUponReturn: 'Good',
+    status: 'Returned', // 'Returned' | 'Damaged' | 'Lost'
+    remarks: ''
+  });
+
+  // Custom Modal dialog state
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  });
+
+  const showAlert = (type, title, message) => {
+    setModalConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+      confirmText: 'OK',
+      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+      onCancel: null
+    });
+  };
+
+  const showConfirm = (title, message, onConfirmCallback) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'confirm',
+      title,
+      message,
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        onConfirmCallback();
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -21,7 +109,7 @@ export default function AdminInventory() {
     try {
       const query = new URLSearchParams({
         search,
-        type: typeFilter,
+        type: typeFilter
       }).toString();
 
       const res = await fetch(`/api/admin/inventory?${query}`);
@@ -29,7 +117,21 @@ export default function AdminInventory() {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch inventory');
 
       setItems(data.items || []);
-      setStockHistory(data.stockHistory || []);
+      setBatches(data.batches || []);
+      setBorrowLogs(data.borrowLogs || []);
+      setDisposalLogs(data.disposalLogs || []);
+      setMovements(data.movements || []);
+      setStats(data.stats || {
+        totalConsumables: 0,
+        totalNonConsumables: 0,
+        lowStockCount: 0,
+        expiredCount: 0,
+        totalDisposed: 0,
+        totalBorrowed: 0,
+        totalDamaged: 0,
+        totalLost: 0,
+        nearExpirationCount: 0
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,10 +143,157 @@ export default function AdminInventory() {
     fetchInventory();
   }, [search, typeFilter]);
 
-  const lowStockItems = items.filter(item => item.quantity <= (item.minStock !== undefined ? item.minStock : 5));
+  const handleDisposeSubmit = async (e) => {
+    e.preventDefault();
+    if (disposeForm.quantity <= 0) {
+      showAlert('error', 'Validation Error', 'Quantity must be greater than zero.');
+      return;
+    }
+
+    showConfirm('Confirm Disposal', 'Are you sure you want to dispose of these items? This action is permanent.', async () => {
+      try {
+        const res = await fetch('/api/admin/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'dispose',
+            batchID: selectedBatch?.batchID || null,
+            itemType: selectedItem?.sourceTable,
+            itemID: selectedItem?.itemID,
+            ...disposeForm
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Disposal failed');
+
+        showAlert('success', 'Disposal Successful', data.message || 'Disposal recorded successfully.');
+        setActiveModal(null);
+        fetchInventory();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleBorrowSubmit = async (e) => {
+    e.preventDefault();
+    if (!borrowForm.borrowedBy.trim()) {
+      showAlert('error', 'Validation Error', 'Borrower name is required.');
+      return;
+    }
+    if (borrowForm.quantity <= 0) {
+      showAlert('error', 'Validation Error', 'Quantity must be greater than zero.');
+      return;
+    }
+
+    showConfirm('Confirm Borrowing', 'Are you sure you want to register this borrow transaction?', async () => {
+      try {
+        const res = await fetch('/api/admin/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'borrow',
+            itemType: selectedItem?.sourceTable,
+            itemID: selectedItem?.itemID,
+            ...borrowForm
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Borrow transaction failed');
+
+        showAlert('success', 'Success', data.message || 'Borrow registered successfully.');
+        setActiveModal(null);
+        fetchInventory();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleReturnSubmit = async (e) => {
+    e.preventDefault();
+    if (returnForm.quantityReturned <= 0) {
+      showAlert('error', 'Validation Error', 'Return quantity must be greater than zero.');
+      return;
+    }
+
+    showConfirm('Confirm Return', 'Are you sure you want to process this return?', async () => {
+      try {
+        const res = await fetch('/api/admin/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'return',
+            borrowID: selectedBorrow?.borrowID,
+            ...returnForm
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Return failed');
+
+        showAlert('success', 'Success', data.message || 'Return registered successfully.');
+        setActiveModal(null);
+        fetchInventory();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const openDisposeModal = (item, batch = null) => {
+    setSelectedItem(item);
+    setSelectedBatch(batch);
+    setDisposeForm({
+      quantity: 1,
+      reason: 'Expired',
+      remarks: ''
+    });
+    setActiveModal('dispose');
+  };
+
+  const openBorrowModal = (item) => {
+    setSelectedItem(item);
+    setBorrowForm({
+      quantity: 1,
+      borrowedBy: '',
+      bookingID: '',
+      roomID: '',
+      expectedReturnDate: '',
+      remarks: ''
+    });
+    setActiveModal('borrow');
+  };
+
+  const openReturnModal = (log) => {
+    setSelectedBorrow(log);
+    setReturnForm({
+      quantityReturned: log.quantity,
+      conditionUponReturn: 'Good',
+      status: 'Returned',
+      remarks: ''
+    });
+    setActiveModal('return');
+  };
+
+  const lowStockItems = items.filter(item => item.availableQty <= item.minStock);
 
   return (
     <div>
+      {/* Custom Modal Dialog */}
+      <ModalDialog
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={modalConfig.onCancel}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
+
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Admin</div>
@@ -66,246 +315,643 @@ export default function AdminInventory() {
       {!loading && lowStockItems.length > 0 && (
         <div className="alert alert-warning d-flex align-items-center gap-2 mb-3 shadow-sm" role="alert">
           <span>
-            <strong>⚠ Low Stock Alert:</strong> {lowStockItems.length} item(s) are at or below danger thresholds.
+            <strong>⚠ Low Stock Alert:</strong> {lowStockItems.length} item(s) are at or below safety levels.
           </span>
-          <a href="#low-stock-section" className="ms-auto btn btn-sm btn-warning">
+          <button className="ms-auto btn btn-sm btn-warning" onClick={() => setActiveTab('stocks')}>
             View Items
-          </a>
+          </button>
         </div>
       )}
 
-      {/* Search & Filter */}
-      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        <div className="row g-2 align-items-end">
-          <div className="col-md-5">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search by name or category..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="col-md-4">
-            <select
-              className="form-select"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="Amenity">Amenities</option>
-              <option value="Product">Products</option>
-              <option value="Cooked Meals">Cooked Meals</option>
-            </select>
-          </div>
-          <div className="col-md-3 d-flex gap-2">
-            <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setTypeFilter(''); }}>
-              Clear
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
+      {/* Navigation Tabs */}
       <ul className="nav nav-tabs mb-4 d-print-none">
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${activeTab === 'dashboard' ? 'active text-blue' : 'text-secondary'}`}
+            style={{ borderBottom: activeTab === 'dashboard' ? '3px solid var(--pcc-blue)' : '' }}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            📊 Dashboard
+          </button>
+        </li>
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${activeTab === 'stocks' ? 'active text-blue' : 'text-secondary'}`}
             style={{ borderBottom: activeTab === 'stocks' ? '3px solid var(--pcc-blue)' : '' }}
             onClick={() => setActiveTab('stocks')}
           >
-            📋 Current Stock Levels
+            📋 Current Stocks
           </button>
         </li>
         <li className="nav-item">
           <button
-            className={`nav-link fw-semibold ${activeTab === 'history' ? 'active text-blue' : 'text-secondary'}`}
-            style={{ borderBottom: activeTab === 'history' ? '3px solid var(--pcc-blue)' : '' }}
-            onClick={() => setActiveTab('history')}
+            className={`nav-link fw-semibold ${activeTab === 'batches' ? 'active text-blue' : 'text-secondary'}`}
+            style={{ borderBottom: activeTab === 'batches' ? '3px solid var(--pcc-blue)' : '' }}
+            onClick={() => setActiveTab('batches')}
           >
-            🚚 Stock-In History &amp; Movement Log
+            📦 Batch Tracker
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${activeTab === 'borrow' ? 'active text-blue' : 'text-secondary'}`}
+            style={{ borderBottom: activeTab === 'borrow' ? '3px solid var(--pcc-blue)' : '' }}
+            onClick={() => setActiveTab('borrow')}
+          >
+            🤝 Borrowing System
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${activeTab === 'logs' ? 'active text-blue' : 'text-secondary'}`}
+            style={{ borderBottom: activeTab === 'logs' ? '3px solid var(--pcc-blue)' : '' }}
+            onClick={() => setActiveTab('logs')}
+          >
+            📜 Movement Logs
           </button>
         </li>
       </ul>
 
-      {activeTab === 'stocks' ? (
-        <>
-          {/* Stock Levels Table */}
-          <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-            <h4 className="mb-3 text-blue">Stock Levels</h4>
-            {loading ? (
-              <div className="text-center py-4">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-              </div>
-            ) : (
-              <div className="table-responsive">
-                <table className="table align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Name</th>
-                      <th>Category</th>
-                      <th>Price</th>
-                      <th>Stock Qty</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.length === 0 ? (
-                      <tr>
-                        <td colSpan="6" className="text-center text-muted py-4">
-                          No inventory items found.
-                        </td>
-                      </tr>
-                    ) : (
-                      items.map((item) => (
-                        <tr
-                          key={`${item.itemType}-${item.itemID}`}
-                          className={
-                            item.quantity <= (item.minStock !== undefined ? item.minStock : 5)
-                              ? 'table-warning'
-                              : item.quantity <= (item.minStock !== undefined ? item.minStock : 5) + 5
-                              ? 'table-light'
-                              : ''
-                          }
-                        >
-                          <td>
-                            <span className="badge text-bg-secondary">{item.itemType}</span>
-                          </td>
-                          <td>
-                            <strong>{item.name}</strong>
-                          </td>
-                          <td>{item.category}</td>
-                          <td>₱{parseFloat(item.price).toFixed(2)}</td>
-                          <td>
-                            <span
-                              className="fw-bold"
-                              style={{
-                                color:
-                                  item.quantity <= (item.minStock !== undefined ? item.minStock : 5)
-                                    ? '#dc3545'
-                                    : item.quantity <= (item.minStock !== undefined ? item.minStock : 5) + 5
-                                    ? '#f0a500'
-                                    : '#1e6e34',
-                              }}
-                            >
-                              {item.quantity} {item.minStock !== undefined && <span className="text-muted small">/{item.minStock}</span>}
-                            </span>
-                          </td>
-                          <td>
-                            {item.quantity <= (item.minStock !== undefined ? item.minStock : 5) ? (
-                              <span className="badge text-bg-danger">⚠ Low Stock</span>
-                            ) : item.quantity <= (item.minStock !== undefined ? item.minStock : 5) + 5 ? (
-                              <span className="badge text-bg-warning">Moderate</span>
-                            ) : (
-                              <span className="badge text-bg-success">Sufficient</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+      {/* DASHBOARD TAB */}
+      {activeTab === 'dashboard' && (
+        <div className="row g-3 mb-4">
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">TOTAL CONSUMABLES</span>
+              <h2 className="fw-bold text-primary mb-0 mt-1">{stats.totalConsumables}</h2>
+            </div>
+          </div>
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">TOTAL ASSETS (NON-CONS.)</span>
+              <h2 className="fw-bold text-success mb-0 mt-1">{stats.totalNonConsumables}</h2>
+            </div>
+          </div>
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">LOW STOCK ALERTS</span>
+              <h2 className="fw-bold text-danger mb-0 mt-1">{stats.lowStockCount}</h2>
+            </div>
+          </div>
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">EXPIRED BATCHES</span>
+              <h2 className="fw-bold text-dark mb-0 mt-1">{stats.expiredCount}</h2>
+            </div>
           </div>
 
-          {/* Low Stock Items Section */}
-          {!loading && lowStockItems.length > 0 && (
-            <div
-              id="low-stock-section"
-              className="card-module border-danger"
-              style={{
-                backgroundColor: "#fff",
-                padding: "1.25rem",
-                borderRadius: "8px",
-                border: "1px solid #dc3545",
-              }}
-            >
-              <h4 className="mb-3 text-danger">⚠ Low Stock Items (Reorder Recommended)</h4>
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">BORROWED ASSETS</span>
+              <h2 className="fw-bold text-warning mb-0 mt-1">{stats.totalBorrowed}</h2>
+            </div>
+          </div>
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">DISPOSED QUANTITY</span>
+              <h2 className="fw-bold text-secondary mb-0 mt-1">{stats.totalDisposed}</h2>
+            </div>
+          </div>
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">DAMAGED ITEMS</span>
+              <h2 className="fw-bold text-danger mb-0 mt-1">{stats.totalDamaged}</h2>
+            </div>
+          </div>
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">NEAR EXPIRATION (30D)</span>
+              <h2 className="fw-bold text-info mb-0 mt-1">{stats.nearExpirationCount}</h2>
+            </div>
+          </div>
+
+          {/* Recent movements overview */}
+          <div className="col-12 mt-4">
+            <div className="card shadow-sm border-0 bg-white p-3">
+              <h5 className="text-blue mb-3">Recent Stock Movements</h5>
               <div className="table-responsive">
-                <table className="table table-danger table-striped align-middle mb-0">
+                <table className="table table-hover align-middle table-sm" style={{ fontSize: '0.85rem' }}>
                   <thead>
                     <tr>
-                      <th>Type</th>
-                      <th>Name</th>
-                      <th>Category</th>
-                      <th>Remaining Stock</th>
-                      <th>Action</th>
+                      <th>Date</th>
+                      <th>Item</th>
+                      <th>Movement Type</th>
+                      <th>Quantity</th>
+                      <th>Reference</th>
+                      <th>Staff</th>
+                      <th>Remarks</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {lowStockItems.map((item) => (
-                      <tr key={`low-${item.itemType}-${item.itemID}`}>
+                    {movements.slice(0, 8).map((m) => (
+                      <tr key={m.movementID}>
+                        <td>{new Date(m.movementDateTime).toLocaleString()}</td>
+                        <td><strong>{m.itemName}</strong></td>
                         <td>
-                          <span className="badge text-bg-secondary">{item.itemType}</span>
+                          <span className={`badge ${
+                            m.movementType === 'Stock In' ? 'text-bg-success' :
+                            m.movementType === 'Stock Out' ? 'text-bg-dark' :
+                            m.movementType === 'Borrow' ? 'text-bg-warning' :
+                            m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
+                          }`}>
+                            {m.movementType}
+                          </span>
                         </td>
-                        <td>
-                          <strong>{item.name}</strong>
+                        <td className={m.quantity > 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
+                          {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
                         </td>
-                        <td>{item.category}</td>
-                        <td className="fw-bold text-danger">{item.quantity} units</td>
-                        <td>
-                          <ActionButtons
-                            onCreatePO={() => router.push('/admin/purchase-orders')}
-                          />
-                        </td>
+                        <td>{m.referenceNumber || '—'}</td>
+                        <td>{m.userEmail || 'System'}</td>
+                        <td>{m.remarks || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
-        </>
-      ) : (
-        /* Tab 2: Stock History (Module G & I - REQ044/REQ062) */
-        <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-          <h4 className="mb-3 text-blue">Stock Movement History (Logs)</h4>
-          {loading ? (
-            <div className="text-center py-4">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      )}
+
+      {/* SEARCH AND FILTERS CARD FOR TABS */}
+      {activeTab !== 'dashboard' && (
+        <div className="card-module mb-3 bg-white p-3 rounded border">
+          <div className="row g-2 align-items-end">
+            <div className="col-md-4">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search catalog items..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <select className="form-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                <option value="">All Categories (Amenity/Product)</option>
+                <option value="Amenity">Amenities</option>
+                <option value="Product">Products</option>
+              </select>
+            </div>
+            <div className="col-md-3">
+              <select className="form-select" value={itemTypeFilter} onChange={(e) => setItemTypeFilter(e.target.value)}>
+                <option value="">All Item Types (Consumable/Asset)</option>
+                <option value="Consumable">Consumable</option>
+                <option value="Non-Consumable">Non-Consumable</option>
+              </select>
+            </div>
+            <div className="col-md-2">
+              <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); }}>
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CURRENT STOCKS TAB */}
+      {activeTab === 'stocks' && (
+        <div className="card-module bg-white p-3 rounded border">
+          <div className="table-responsive">
+            <table className="table align-middle table-hover">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Item Type</th>
+                  <th>Dynamic Stock</th>
+                  <th>Unit</th>
+                  <th>Price</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items
+                  .filter(item => !itemTypeFilter || item.itemType === itemTypeFilter)
+                  .map((item) => {
+                    const isLow = item.availableQty <= item.minStock;
+                    return (
+                      <tr key={`${item.sourceTable}-${item.itemID}`} className={isLow ? 'table-warning' : ''}>
+                        <td><span className="badge text-bg-light border text-muted">{item.sourceTable}</span></td>
+                        <td><strong>{item.name}</strong></td>
+                        <td>{item.category}</td>
+                        <td>
+                          <span className={`badge ${item.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
+                            {item.itemType}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="d-flex align-items-center gap-2">
+                            <span className={`fw-bold ${isLow ? 'text-danger' : 'text-success'}`}>
+                              {item.availableQty} {item.itemType === 'Non-Consumable' && `(Borrowed: ${item.borrowedQty})`}
+                            </span>
+                            <span className="text-muted small">/ min {item.minStock}</span>
+                          </div>
+                        </td>
+                        <td>{item.unit}</td>
+                        <td>₱{parseFloat(item.price).toFixed(2)}</td>
+                        <td>
+                          <div className="d-flex gap-1">
+                            {item.itemType === 'Non-Consumable' ? (
+                              <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => openBorrowModal(item)}>
+                                🤝 Borrow Item
+                              </button>
+                            ) : (
+                              <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
+                                🗑 Dispose
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* BATCH TRACKER TAB */}
+      {activeTab === 'batches' && (
+        <div className="card-module bg-white p-3 rounded border">
+          <div className="table-responsive">
+            <table className="table align-middle table-hover">
+              <thead>
+                <tr>
+                  <th>Batch Number</th>
+                  <th>Item Name</th>
+                  <th>Item Type</th>
+                  <th>Supplier</th>
+                  <th>Qty Received</th>
+                  <th>Remaining</th>
+                  <th>Cost/Unit</th>
+                  <th>Exp. Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batches
+                  .filter(b => {
+                    const item = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
+                    return !itemTypeFilter || (item && item.itemType === itemTypeFilter);
+                  })
+                  .map((b) => {
+                    const isExpired = b.expirationDate && new Date(b.expirationDate) < new Date();
+                    return (
+                      <tr key={b.batchID} className={isExpired ? 'table-danger' : ''}>
+                        <td><code>{b.batchNumber}</code></td>
+                        <td><strong>{b.itemName}</strong></td>
+                        <td><span className="badge text-bg-light border text-muted">{b.itemType}</span></td>
+                        <td>{b.supplier || '—'}</td>
+                        <td>{b.quantity}</td>
+                        <td>
+                          <span className={`fw-bold ${b.remainingQuantity === 0 ? 'text-muted text-decoration-line-through' : b.remainingQuantity <= 5 ? 'text-warning' : 'text-success'}`}>
+                            {b.remainingQuantity}
+                          </span>
+                        </td>
+                        <td>₱{parseFloat(b.unitCost).toFixed(2)}</td>
+                        <td>{b.expirationDate ? new Date(b.expirationDate).toLocaleDateString() : 'Non-Expiring'}</td>
+                        <td>
+                          <span className={`badge ${
+                            b.remainingQuantity === 0 ? 'text-bg-secondary' :
+                            isExpired ? 'text-bg-danger' : 'text-bg-success'
+                          }`}>
+                            {b.remainingQuantity === 0 ? 'Consumed' : isExpired ? 'Expired' : 'Active'}
+                          </span>
+                        </td>
+                        <td>
+                          {b.remainingQuantity > 0 && (
+                            <button className="btn btn-sm btn-danger text-white" onClick={() => {
+                              const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
+                              openDisposeModal(matchItem, b);
+                            }}>
+                              🗑 Dispose
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* BORROWING SYSTEM TAB */}
+      {activeTab === 'borrow' && (
+        <div className="card-module bg-white p-3 rounded border">
+          <h5 className="text-blue mb-3">Asset Borrow Transactions</h5>
+          <div className="table-responsive">
+            <table className="table align-middle table-hover">
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>Asset Item</th>
+                  <th>Quantity</th>
+                  <th>Borrowed By</th>
+                  <th>Borrow Date</th>
+                  <th>Expected Return</th>
+                  <th>Actual Return</th>
+                  <th>Status</th>
+                  <th>Condition</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {borrowLogs.map((log) => (
+                  <tr key={log.borrowID}>
+                    <td><code>BOR-{log.borrowID}</code></td>
+                    <td><strong>{log.itemName}</strong></td>
+                    <td>{log.quantity}</td>
+                    <td>{log.borrowedBy}</td>
+                    <td>{new Date(log.borrowDateTime).toLocaleDateString()}</td>
+                    <td>{log.expectedReturnDate ? new Date(log.expectedReturnDate).toLocaleDateString() : '—'}</td>
+                    <td>{log.actualReturnDate ? new Date(log.actualReturnDate).toLocaleDateString() : '—'}</td>
+                    <td>
+                      <span className={`badge ${
+                        log.status === 'Borrowed' ? 'text-bg-warning' :
+                        log.status === 'Returned' ? 'text-bg-success' :
+                        log.status === 'Damaged' ? 'text-bg-danger' : 'text-bg-dark'
+                      }`}>
+                        {log.status}
+                      </span>
+                    </td>
+                    <td>{log.conditionUponReturn || '—'}</td>
+                    <td>
+                      {log.status === 'Borrowed' && (
+                        <button className="btn btn-sm btn-success text-white" onClick={() => openReturnModal(log)}>
+                          ↩ Return / Close
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* LOGS TAB */}
+      {activeTab === 'logs' && (
+        <div className="row g-3">
+          <div className="col-12 col-lg-6">
+            <div className="card bg-white p-3 border">
+              <h5 className="text-blue mb-3">Disposed Inventory Logs</h5>
+              <div className="table-responsive">
+                <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Item</th>
+                      <th>Qty</th>
+                      <th>Reason</th>
+                      <th>Remarks</th>
+                      <th>By User</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {disposalLogs.map((d) => (
+                      <tr key={d.disposalID}>
+                        <td>{new Date(d.disposalDateTime).toLocaleDateString()}</td>
+                        <td><strong>{d.itemName}</strong></td>
+                        <td className="text-danger fw-bold">{d.quantity}</td>
+                        <td><span className="badge text-bg-warning">{d.reason}</span></td>
+                        <td>{d.remarks || '—'}</td>
+                        <td>{d.userEmail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>Date &amp; Time Received</th>
-                    <th>Item Name</th>
-                    <th>Item Type</th>
-                    <th>Source Purchase Order</th>
-                    <th>Quantity Received</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockHistory.length === 0 ? (
+          </div>
+
+          <div className="col-12 col-lg-6">
+            <div className="card bg-white p-3 border">
+              <h5 className="text-blue mb-3">All Stock Movements Audit History</h5>
+              <div className="table-responsive">
+                <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
+                  <thead>
                     <tr>
-                      <td colSpan="5" className="text-center text-muted py-4">
-                        No stock receipt transactions logged.
-                      </td>
+                      <th>Date</th>
+                      <th>Item</th>
+                      <th>Type</th>
+                      <th>Qty</th>
+                      <th>User</th>
                     </tr>
-                  ) : (
-                    stockHistory.map((history) => (
-                      <tr key={history.inventoryID}>
-                        <td>{new Date(history.stockInDate.replace(' ', 'T')).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                        <td><strong>{history.itemName}</strong></td>
-                        <td><span className="badge text-bg-secondary">{history.itemType}</span></td>
-                        <td>
-                          <span className="fw-semibold">PO #{history.purchaseOrderID}</span>
+                  </thead>
+                  <tbody>
+                    {movements.map((m) => (
+                      <tr key={m.movementID}>
+                        <td>{new Date(m.movementDateTime).toLocaleString()}</td>
+                        <td><strong>{m.itemName}</strong></td>
+                        <td><span className="badge text-bg-light border text-muted">{m.movementType}</span></td>
+                        <td className={m.quantity > 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
+                          {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
                         </td>
-                        <td className="fw-bold text-success">+{history.quantityReceived} units</td>
+                        <td>{m.userEmail || 'System'}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
+
+      {/* DISPOSE MODAL */}
+      {activeModal === 'dispose' && selectedItem && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Dispose Inventory — {selectedItem.name}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleDisposeSubmit}>
+                <div className="modal-body">
+                  {selectedBatch && (
+                    <div className="alert alert-info py-2" style={{ fontSize: '0.85rem' }}>
+                      <strong>Batch Selected:</strong> <code>{selectedBatch.batchNumber}</code> ({selectedBatch.remainingQuantity} units remaining)
+                    </div>
+                  )}
+                  <div className="mb-3">
+                    <label className="form-label">Quantity to Dispose *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="1"
+                      max={selectedBatch ? selectedBatch.remainingQuantity : undefined}
+                      required
+                      value={disposeForm.quantity}
+                      onChange={(e) => setDisposeForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Reason *</label>
+                    <select
+                      className="form-select"
+                      required
+                      value={disposeForm.reason}
+                      onChange={(e) => setDisposeForm(prev => ({ ...prev, reason: e.target.value }))}
+                    >
+                      <option value="Expired">Expired</option>
+                      <option value="Spoiled">Spoiled</option>
+                      <option value="Damaged">Damaged</option>
+                      <option value="Contaminated">Contaminated</option>
+                      <option value="Lost">Lost</option>
+                      <option value="Returned to Supplier">Returned to Supplier</option>
+                      <option value="Other">Other (Specify in Remarks)</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Remarks/Details</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      value={disposeForm.remarks}
+                      onChange={(e) => setDisposeForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-danger text-white">Record Disposal</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BORROW MODAL */}
+      {activeModal === 'borrow' && selectedItem && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Borrow Asset — {selectedItem.name}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleBorrowSubmit}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label">Quantity to Borrow *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="1"
+                      max={selectedItem.availableQty}
+                      required
+                      value={borrowForm.quantity}
+                      onChange={(e) => setBorrowForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                    />
+                    <div className="form-text small text-muted">Available stock: {selectedItem.availableQty}</div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Borrowed By *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Guest Full Name or Staff Member"
+                      required
+                      value={borrowForm.borrowedBy}
+                      onChange={(e) => setBorrowForm(prev => ({ ...prev, borrowedBy: e.target.value }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Expected Return Date</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={borrowForm.expectedReturnDate}
+                      onChange={(e) => setBorrowForm(prev => ({ ...prev, expectedReturnDate: e.target.value }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Remarks</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      value={borrowForm.remarks}
+                      onChange={(e) => setBorrowForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-pcc-primary">Confirm Borrow</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RETURN MODAL */}
+      {activeModal === 'return' && selectedBorrow && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Return Asset — {selectedBorrow.itemName}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleReturnSubmit}>
+                <div className="modal-body">
+                  <div className="alert alert-info py-2" style={{ fontSize: '0.85rem' }}>
+                    <strong>Borrower:</strong> {selectedBorrow.borrowedBy}<br />
+                    <strong>Quantity borrowed:</strong> {selectedBorrow.quantity} units
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Quantity Returned *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="1"
+                      max={selectedBorrow.quantity}
+                      required
+                      value={returnForm.quantityReturned}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, quantityReturned: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Return Status / Condition *</label>
+                    <select
+                      className="form-select"
+                      required
+                      value={returnForm.status}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, status: e.target.value }))}
+                    >
+                      <option value="Returned">Returned (Good Condition)</option>
+                      <option value="Damaged">Damaged (Disposed permanently)</option>
+                      <option value="Lost">Lost (Disposed permanently)</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Condition Notes / Remarks</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      placeholder="e.g. Scratched legs, minor dent..."
+                      value={returnForm.remarks}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-pcc-primary">Record Return</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       )}
     </div>

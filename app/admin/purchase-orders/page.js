@@ -19,9 +19,10 @@ export default function AdminPurchaseOrders() {
   const [poItems, setPoItems] = useState([
     { itemName: '', itemType: 'Amenity', quantity: 1, unitPrice: 0.00 }
   ]);
-  const [receivedQtys, setReceivedQtys] = useState({}); // { [orderItemID]: quantity }
+  const [receivedQtys, setReceivedQtys] = useState({});
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [supplierName, setSupplierName] = useState('');
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
@@ -143,7 +144,8 @@ export default function AdminPurchaseOrders() {
             action: 'stock_in',
             poID: selectedOrder.purchaseOrderID,
             received: receivedQtys,
-            remarks
+            remarks,
+            supplier: supplierName
           }),
         });
         const data = await res.json();
@@ -194,12 +196,20 @@ export default function AdminPurchaseOrders() {
 
   const openStockInModal = (po) => {
     setSelectedOrder(po);
+    setSupplierName('');
+    setRemarks('');
     const initialQtys = {};
     po.items.forEach(item => {
-      initialQtys[item.orderItemID] = item.quantity;
+      const remaining = item.quantity - (item.quantityReceived || 0);
+      initialQtys[item.orderItemID] = {
+        qty: remaining > 0 ? remaining : 0,
+        expirationDate: '',
+        manufacturingDate: '',
+        supplierReference: '',
+        unitCost: item.unitPrice || 0
+      };
     });
     setReceivedQtys(initialQtys);
-    setRemarks('');
     setActiveModal('stock_in');
   };
 
@@ -215,10 +225,13 @@ export default function AdminPurchaseOrders() {
     });
   };
 
-  const handleReceivedQtyChange = (orderItemID, val) => {
+  const handleReceivedQtyChange = (orderItemID, field, val) => {
     setReceivedQtys(prev => ({
       ...prev,
-      [orderItemID]: val
+      [orderItemID]: {
+        ...prev[orderItemID],
+        [field]: val
+      }
     }));
   };
 
@@ -496,14 +509,10 @@ export default function AdminPurchaseOrders() {
                           <td>{item.itemName}</td>
                           <td>{item.itemType}</td>
                           <td>{item.quantity}</td>
-                          <td>{selectedOrder.status === 'Completed' ? item.quantityReceived : '—'}</td>
+                          <td>{item.quantityReceived || 0}</td>
                           <td>₱{parseFloat(item.unitPrice).toFixed(2)}</td>
                           <td>
-                            ₱{parseFloat(
-                              (selectedOrder.status === 'Completed'
-                                ? (item.quantityReceived ?? item.quantity)
-                                : item.quantity) * item.unitPrice
-                            ).toFixed(2)}
+                            ₱{parseFloat(item.quantity * item.unitPrice).toFixed(2)}
                           </td>
                         </tr>
                       ))}
@@ -544,44 +553,91 @@ export default function AdminPurchaseOrders() {
               </div>
               <form onSubmit={handleStockInSubmit}>
                 <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Supplier *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Procter & Gamble, local supplier..."
+                      required
+                      value={supplierName}
+                      onChange={(e) => setSupplierName(e.target.value)}
+                    />
+                  </div>
                   <div className="table-responsive mb-3">
-                    <table className="table table-sm">
+                    <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
                       <thead>
                         <tr>
                           <th>Item</th>
                           <th>Type</th>
                           <th>Ordered</th>
-                          <th>Qty Received *</th>
+                          <th>Rec'd So Far</th>
+                          <th style={{ width: '90px' }}>Rec'd Now *</th>
+                          <th>Exp. Date</th>
+                          <th>Supplier Ref (DR)</th>
+                          <th style={{ width: '100px' }}>Unit Cost *</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedOrder.items.map((item) => (
-                          <tr key={item.orderItemID}>
-                            <td>{item.itemName}</td>
-                            <td>{item.itemType}</td>
-                            <td>{item.quantity}</td>
-                            <td>
-                              <input
-                                type="number"
-                                className="form-control form-control-sm"
-                                min="0"
-                                max={item.quantity}
-                                required
-                                value={receivedQtys[item.orderItemID] || 0}
-                                onChange={(e) => handleReceivedQtyChange(item.orderItemID, parseInt(e.target.value) || 0)}
-                              />
-                            </td>
-                          </tr>
-                        ))}
+                        {selectedOrder.items.map((item) => {
+                          const val = receivedQtys[item.orderItemID] || { qty: 0, expirationDate: '', manufacturingDate: '', supplierReference: '', unitCost: item.unitPrice };
+                          const remaining = item.quantity - (item.quantityReceived || 0);
+                          return (
+                            <tr key={item.orderItemID}>
+                              <td><strong>{item.itemName}</strong></td>
+                              <td><span className="badge text-bg-light border text-muted">{item.itemType}</span></td>
+                              <td>{item.quantity}</td>
+                              <td>{item.quantityReceived || 0}</td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="form-control form-control-sm"
+                                  min="0"
+                                  max={remaining}
+                                  required
+                                  value={val.qty}
+                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'qty', parseInt(e.target.value) || 0)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="date"
+                                  className="form-control form-control-sm"
+                                  value={val.expirationDate || ''}
+                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'expirationDate', e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm"
+                                  placeholder="e.g. DR-1234"
+                                  value={val.supplierReference || ''}
+                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'supplierReference', e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="form-control form-control-sm"
+                                  required
+                                  value={val.unitCost}
+                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'unitCost', parseFloat(e.target.value) || 0)}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label small fw-bold">Delivery Remarks (Remarks/Comments)</label>
+                    <label className="form-label small fw-bold">Delivery Remarks</label>
                     <textarea
                       className="form-control"
                       rows="2"
-                      placeholder="e.g. Received in good condition, missing 2 units due to supplier shortage..."
+                      placeholder="e.g. Received partial batch..."
                       value={remarks}
                       onChange={(e) => setRemarks(e.target.value)}
                     ></textarea>

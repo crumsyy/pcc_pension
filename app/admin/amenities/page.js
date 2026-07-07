@@ -21,8 +21,10 @@ export default function AdminAmenities() {
     name: '',
     amenityCategoryID: '',
     price: 0,
-    quantity: 0,
     minStock: 5,
+    itemType: 'Consumable',
+    unit: 'pcs',
+    description: '',
   });
 
   // Custom Modal dialog state
@@ -106,10 +108,6 @@ export default function AdminAmenities() {
       showAlert('error', 'Validation Error', 'Price cannot be negative.');
       return;
     }
-    if (parseInt(formData.quantity) < 0) {
-      showAlert('error', 'Validation Error', 'Quantity cannot be negative.');
-      return;
-    }
 
     showConfirm('Create Amenity', 'Are you sure you want to create this amenity?', async () => {
       try {
@@ -143,10 +141,6 @@ export default function AdminAmenities() {
     }
     if (parseFloat(formData.price) < 0) {
       showAlert('error', 'Validation Error', 'Price cannot be negative.');
-      return;
-    }
-    if (parseInt(formData.quantity) < 0) {
-      showAlert('error', 'Validation Error', 'Quantity cannot be negative.');
       return;
     }
 
@@ -226,8 +220,10 @@ export default function AdminAmenities() {
       name: '',
       amenityCategoryID: categories[0]?.amenityCategoryID || '',
       price: 0.00,
-      quantity: 0,
       minStock: 5,
+      itemType: 'Consumable',
+      unit: 'pcs',
+      description: '',
     });
     setActiveModal('create');
   };
@@ -238,8 +234,10 @@ export default function AdminAmenities() {
       name: item.name,
       amenityCategoryID: item.amenityCategoryID,
       price: item.price,
-      quantity: item.quantity,
       minStock: item.minStock !== undefined ? item.minStock : 5,
+      itemType: item.itemType || 'Consumable',
+      unit: item.unit || 'pcs',
+      description: item.description || '',
     });
     setActiveModal('edit');
   };
@@ -339,42 +337,44 @@ export default function AdminAmenities() {
                   <th>Name</th>
                   <th>Category</th>
                   <th>Price</th>
-                  <th>Stock</th>
-                  <th>Stock Alert</th>
+                  <th>Item Type</th>
+                  <th>Unit</th>
+                  <th>Description</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="text-center text-muted py-4">
+                    <td colSpan="8" className="text-center text-muted py-4">
                       No amenities found.
                     </td>
                   </tr>
                 ) : (
                   items.map((item, index) => (
-                    <tr key={item.amenityID} className={item.quantity <= (item.minStock !== undefined ? item.minStock : 5) && !showArchived ? 'table-warning' : ''}>
+                    <tr key={item.amenityID}>
                       <td>{index + 1}</td>
                       <td>
                         <strong>{item.name}</strong>
                       </td>
                       <td>{item.catName}</td>
                       <td>₱{parseFloat(item.price).toFixed(2)}</td>
-                      <td>{item.quantity}</td>
                       <td>
-                        {item.quantity <= (item.minStock !== undefined ? item.minStock : 5) ? (
-                          <span className="badge text-bg-warning">Low Stock ({item.quantity}/{item.minStock !== undefined ? item.minStock : 5})</span>
-                        ) : (
-                          <span className="badge text-bg-success">OK ({item.quantity}/{item.minStock !== undefined ? item.minStock : 5})</span>
-                        )}
+                        <span className={`badge ${item.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
+                          {item.itemType}
+                        </span>
                       </td>
-                        <td>
-                          <ActionButtons
-                            onEdit={!showArchived ? () => openEditModal(item) : null}
-                            onDelete={!showArchived ? () => handleArchive(item.amenityID) : null}
-                            onRestore={showArchived ? () => handleRestore(item.amenityID) : null}
-                          />
-                        </td>
+                      <td>{item.unit}</td>
+                      <td className="text-truncate" style={{ maxWidth: '200px' }} title={item.description}>
+                        {item.description || '—'}
+                      </td>
+                      <td>
+                        <ActionButtons
+                          onEdit={!showArchived ? () => openEditModal(item) : null}
+                          onDelete={!showArchived ? () => handleArchive(item.amenityID) : null}
+                          onRestore={showArchived ? () => handleRestore(item.amenityID) : null}
+                        />
+                      </td>
                     </tr>
                   ))
                 )}
@@ -425,8 +425,43 @@ export default function AdminAmenities() {
                       ))}
                     </select>
                   </div>
+                  <div className="mb-3">
+                    <label className="form-label">Item Type *</label>
+                    <select
+                      name="itemType"
+                      className="form-select"
+                      required
+                      value={formData.itemType}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Consumable">Consumable</option>
+                      <option value="Non-Consumable">Non-Consumable</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Unit *</label>
+                    <input
+                      type="text"
+                      name="unit"
+                      className="form-control"
+                      placeholder="e.g. pcs, pairs, bottles"
+                      required
+                      value={formData.unit}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      rows="2"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                   <div className="row g-2">
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                       <label className="form-label">Price (₱) *</label>
                       <input
                         type="number"
@@ -438,18 +473,7 @@ export default function AdminAmenities() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Initial Stock *</label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        className="form-control"
-                        required
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                       <label className="form-label">Min Stock Level *</label>
                       <input
                         type="number"
@@ -509,8 +533,43 @@ export default function AdminAmenities() {
                       ))}
                     </select>
                   </div>
+                  <div className="mb-3">
+                    <label className="form-label">Item Type *</label>
+                    <select
+                      name="itemType"
+                      className="form-select"
+                      required
+                      value={formData.itemType}
+                      onChange={handleInputChange}
+                    >
+                      <option value="Consumable">Consumable</option>
+                      <option value="Non-Consumable">Non-Consumable</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Unit *</label>
+                    <input
+                      type="text"
+                      name="unit"
+                      className="form-control"
+                      placeholder="e.g. pcs, pairs, bottles"
+                      required
+                      value={formData.unit}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      rows="2"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                   <div className="row g-2">
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                       <label className="form-label">Price (₱) *</label>
                       <input
                         type="number"
@@ -522,18 +581,7 @@ export default function AdminAmenities() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Stock Qty *</label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        className="form-control"
-                        required
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                       <label className="form-label">Min Stock Level *</label>
                       <input
                         type="number"
