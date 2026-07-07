@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -413,31 +414,13 @@ export default function AdminProducts() {
                           <span className="badge text-bg-light border text-muted">Always Available</span>
                         )}
                       </td>
-                      <td>
-                        <div className="d-flex gap-1">
-                          <button
-                            className="btn btn-sm btn-warning text-white"
-                            onClick={() => openEditModal(p)}
-                          >
-                            Update
-                          </button>
-                          {showArchived ? (
-                            <button
-                              className="btn btn-sm btn-success text-white"
-                              onClick={() => handleRestore(p.productID)}
-                            >
-                              Restore
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-sm btn-danger text-white"
-                              onClick={() => handleArchive(p.productID)}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                        <td>
+                          <ActionButtons
+                            onEdit={!showArchived ? () => openEditModal(p) : null}
+                            onDelete={!showArchived ? () => handleArchive(p.productID) : null}
+                            onRestore={showArchived ? () => handleRestore(p.productID) : null}
+                          />
+                        </td>
                     </tr>
                   ))
                 )}

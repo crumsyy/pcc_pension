@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function RoomsClient() {
   const [rooms, setRooms] = useState([]);
@@ -448,34 +449,13 @@ export default function RoomsClient() {
                           </span>
                         </td>
                         <td>
-                          <div className="d-flex gap-1">
-                            {!showArchived ? (
-                              <>
-                                <button
-                                  className="btn btn-sm btn-warning text-white"
-                                  onClick={() => openEditModal(rm)}
-                                  disabled={isOccupied}
-                                  title={isOccupied ? "Occupied rooms cannot be edited." : ""}
-                                  style={{ opacity: isOccupied ? 0.6 : 1 }}
-                                >
-                                  Update
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-danger text-white"
-                                  onClick={() => handleArchive(rm)}
-                                >
-                                  Delete
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                className="btn btn-sm btn-success text-white"
-                                onClick={() => handleRestore(rm)}
-                              >
-                                Restore
-                              </button>
-                            )}
-                          </div>
+                          <ActionButtons
+                            onEdit={!showArchived ? () => openEditModal(rm) : null}
+                            onDelete={!showArchived ? () => handleArchive(rm) : null}
+                            onRestore={showArchived ? () => handleRestore(rm) : null}
+                            disabledEdit={isOccupied}
+                            editTooltip="Occupied rooms cannot be edited."
+                          />
                         </td>
                       </tr>
                     );

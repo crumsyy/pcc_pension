@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function AdminDiscounts() {
   const [discounts, setDiscounts] = useState([]);
@@ -519,29 +520,11 @@ export default function AdminDiscounts() {
                         </td>
                         <td>{d.requiredBookings > 0 ? `${d.requiredBookings} stays` : '—'}</td>
                         <td>
-                          <div className="d-flex gap-1">
-                            <button
-                              className="btn btn-sm btn-warning text-white"
-                              onClick={() => openEditDiscModal(d)}
-                            >
-                              Update
-                            </button>
-                            {showArchived ? (
-                              <button
-                                className="btn btn-sm btn-success text-white"
-                                onClick={() => handleRestoreDisc(d.discountID)}
-                              >
-                                Restore
-                              </button>
-                            ) : (
-                              <button
-                                className="btn btn-sm btn-danger text-white"
-                                onClick={() => handleArchiveDisc(d.discountID)}
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </div>
+                          <ActionButtons
+                            onEdit={!showArchived ? () => openEditDiscModal(d) : null}
+                            onDelete={!showArchived ? () => handleArchiveDisc(d.discountID) : null}
+                            onRestore={showArchived ? () => handleRestoreDisc(d.discountID) : null}
+                          />
                         </td>
                       </tr>
                     ))
@@ -610,29 +593,11 @@ export default function AdminDiscounts() {
                             )}
                           </td>
                           <td>
-                            <div className="d-flex gap-1">
-                              <button
-                                className="btn btn-sm btn-warning text-white"
-                                onClick={() => openEditPromoModal(p)}
-                              >
-                                Update
-                              </button>
-                              {showArchived ? (
-                                <button
-                                  className="btn btn-sm btn-success text-white"
-                                  onClick={() => handleRestorePromo(p.promotionID)}
-                                >
-                                  Restore
-                                </button>
-                              ) : (
-                                <button
-                                  className="btn btn-sm btn-danger text-white"
-                                  onClick={() => handleArchivePromo(p.promotionID)}
-                                >
-                                  Delete
-                                </button>
-                              )}
-                            </div>
+                            <ActionButtons
+                              onEdit={!showArchived ? () => openEditPromoModal(p) : null}
+                              onDelete={!showArchived ? () => handleArchivePromo(p.promotionID) : null}
+                              onRestore={showArchived ? () => handleRestorePromo(p.promotionID) : null}
+                            />
                           </td>
                         </tr>
                       );

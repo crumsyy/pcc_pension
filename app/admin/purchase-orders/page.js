@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function AdminPurchaseOrders() {
   const [orders, setOrders] = useState([]);
@@ -349,52 +350,14 @@ export default function AdminPurchaseOrders() {
                           {po.status}
                         </span>
                       </td>
-                      <td>
-                        <div className="d-flex gap-1 flex-wrap">
-                          <button
-                            className="btn btn-sm btn-primary text-white"
-                            onClick={() => openViewModal(po)}
-                          >
-                            View
-                          </button>
-                          {po.status === 'Pending' && (
-                            <>
-                              <button
-                                className="btn btn-sm btn-success text-white"
-                                onClick={() =>
-                                  handleStatusChange(
-                                    po.purchaseOrderID,
-                                    'Approved',
-                                    'Approve this Purchase Order?'
-                                  )
-                                }
-                              >
-                                Approve
-                              </button>
-                              <button
-                                className="btn btn-sm btn-danger text-white"
-                                onClick={() =>
-                                  handleStatusChange(
-                                    po.purchaseOrderID,
-                                    'Canceled',
-                                    'Cancel this Purchase Order?'
-                                  )
-                                }
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          )}
-                          {po.status === 'Approved' && (
-                            <button
-                              className="btn btn-sm btn-warning text-white"
-                              onClick={() => openStockInModal(po)}
-                            >
-                              Stock In
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                        <td>
+                          <ActionButtons
+                            onView={() => openViewModal(po)}
+                            onApprove={po.status === 'Pending' ? () => handleStatusChange(po.purchaseOrderID, 'Approved', 'Approve this Purchase Order?') : null}
+                            onCancel={po.status === 'Pending' ? () => handleStatusChange(po.purchaseOrderID, 'Canceled', 'Cancel this Purchase Order?') : null}
+                            onStockIn={po.status === 'Approved' ? () => openStockInModal(po) : null}
+                          />
+                        </td>
                     </tr>
                   ))
                 )}

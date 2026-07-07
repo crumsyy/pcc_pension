@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function UsersClient() {
   const [users, setUsers] = useState([]);
@@ -482,45 +483,15 @@ export default function UsersClient() {
                           })}
                         </td>
                         <td>
-                          <div className="d-flex gap-1 flex-wrap">
-                            <button
-                              className="btn btn-sm btn-primary text-white"
-                              onClick={() => openViewModal(u)}
-                            >
-                              View
-                            </button>
-                            <button
-                              className="btn btn-sm btn-warning text-white"
-                              onClick={() => openEditModal(u)}
-                            >
-                              Update
-                            </button>
-                            <button
-                              className="btn btn-sm text-white"
-                              onClick={() => openSuspendModal(u)}
-                              disabled={isSelf || u.status === 'Suspended'}
-                              style={{ 
-                                backgroundColor: '#fd7e14', 
-                                borderColor: '#fd7e14', 
-                                opacity: isSelf || u.status === 'Suspended' ? 0.6 : 1 
-                              }}
-                            >
-                              Suspend
-                            </button>
-                            <button
-                              className={`btn btn-sm text-white ${
-                                u.status === 'Active' ? 'btn-danger' : 'btn-success'
-                              }`}
-                              onClick={() => handleToggleStatus(u)}
-                              disabled={isSelf}
-                              style={{ 
-                                width: '95px', 
-                                opacity: isSelf ? 0.6 : 1 
-                              }}
-                            >
-                              {u.status === 'Active' ? 'Deactivate' : 'Activate'}
-                            </button>
-                          </div>
+                          <ActionButtons
+                            onView={() => openViewModal(u)}
+                            onEdit={() => openEditModal(u)}
+                            onSuspend={() => openSuspendModal(u)}
+                            onDeactivate={u.status === 'Active' ? () => handleToggleStatus(u) : null}
+                            onActivate={u.status !== 'Active' ? () => handleToggleStatus(u) : null}
+                            status={u.status}
+                            isSelf={isSelf}
+                          />
                         </td>
                       </tr>
                     );

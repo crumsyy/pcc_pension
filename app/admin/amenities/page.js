@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function AdminAmenities() {
   const [items, setItems] = useState([]);
@@ -367,31 +368,13 @@ export default function AdminAmenities() {
                           <span className="badge text-bg-success">OK ({item.quantity}/{item.minStock !== undefined ? item.minStock : 5})</span>
                         )}
                       </td>
-                      <td>
-                        <div className="d-flex gap-1">
-                          <button
-                            className="btn btn-sm btn-warning text-white"
-                            onClick={() => openEditModal(item)}
-                          >
-                            Update
-                          </button>
-                          {showArchived ? (
-                            <button
-                              className="btn btn-sm btn-success text-white"
-                              onClick={() => handleRestore(item.amenityID)}
-                            >
-                              Restore
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-sm btn-danger text-white"
-                              onClick={() => handleArchive(item.amenityID)}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                        <td>
+                          <ActionButtons
+                            onEdit={!showArchived ? () => openEditModal(item) : null}
+                            onDelete={!showArchived ? () => handleArchive(item.amenityID) : null}
+                            onRestore={showArchived ? () => handleRestore(item.amenityID) : null}
+                          />
+                        </td>
                     </tr>
                   ))
                 )}

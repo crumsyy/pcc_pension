@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import ActionButtons from '../../components/ActionButtons';
 
 export default function AdminInventory() {
+  const router = useRouter();
   const [items, setItems] = useState([]);
   const [stockHistory, setStockHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('stocks'); // 'stocks' | 'history'
@@ -245,9 +248,9 @@ export default function AdminInventory() {
                         <td>{item.category}</td>
                         <td className="fw-bold text-danger">{item.quantity} units</td>
                         <td>
-                          <Link href="/admin/purchase-orders" className="btn btn-sm btn-pcc-primary">
-                            Create PO
-                          </Link>
+                          <ActionButtons
+                            onCreatePO={() => router.push('/admin/purchase-orders')}
+                          />
                         </td>
                       </tr>
                     ))}
