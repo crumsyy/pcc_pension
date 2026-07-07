@@ -13,7 +13,7 @@ export default function ReceptionistBookings() {
   const [statusFilter, setStatusFilter] = useState('');
 
   // Modals
-  const [activeModal, setActiveModal] = useState(null); // 'create' | 'cancel_reason' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create' | 'cancel_reason' | 'manage_guests' | null
   const [cancellingBookingID, setCancellingBookingID] = useState(null);
   const [cancelRemarks, setCancelRemarks] = useState('');
 
@@ -36,6 +36,10 @@ export default function ReceptionistBookings() {
   });
 
   const [selectedRoomType, setSelectedRoomType] = useState('');
+  const [availableDiscounts, setAvailableDiscounts] = useState([]);
+  const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+  const [managingBooking, setManagingBooking] = useState(null);
+  const [managingGuests, setManagingGuests] = useState([]);
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
@@ -87,6 +91,7 @@ export default function ReceptionistBookings() {
       setBookings(data.bookings || []);
       setGuests(data.guests || []);
       setRooms(data.rooms || []);
+      setAvailableDiscounts(data.discounts || []);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -117,6 +122,7 @@ export default function ReceptionistBookings() {
         checkOutDateTime: localTomorrow,
         status: 'Confirmed'
       });
+      setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
     } else if (!activeModal) {
       setFormData({
         guestID: '',
@@ -134,16 +140,166 @@ export default function ReceptionistBookings() {
         gender: 'Male'
       });
       setSelectedRoomType('');
+      setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+      setManagingBooking(null);
+      setManagingGuests([]);
     }
   }, [activeModal]);
+
+  // Synchronize the first guest's name with the selected primary guest or walk-in input details
+  useEffect(() => {
+    if (activeModal === 'create') {
+      let name = '';
+      if (isWalkIn) {
+        name = `${walkInForm.firstName} ${walkInForm.lastName}`.trim();
+      } else if (formData.guestID) {
+        const selected = guests.find(g => g.guestID === parseInt(formData.guestID));
+        if (selected) {
+          name = `${selected.firstName} ${selected.lastName}`;
+        }
+      }
+      setRoomGuests(prev => {
+        const copy = [...prev];
+        if (copy.length > 0) {
+          copy[0] = { ...copy[0], fullName: name };
+        } else {
+          copy.push({ fullName: name, age: '', discountID: '', discountIdNumber: '' });
+        }
+        return copy;
+      });
+    }
+  }, [isWalkIn, walkInForm.firstName, walkInForm.lastName, formData.guestID, guests, activeModal]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAddGuest = () => {
+    setRoomGuests(prev => [...prev, { fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+  };
+
+  const handleRemoveGuest = (index) => {
+    setRoomGuests(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleGuestChange = (index, field, value) => {
+    setRoomGuests(prev => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      if (field === 'discountID' && !value) {
+        copy[index].discountIdNumber = '';
+      }
+      return copy;
+    });
+  };
+
+  const handleAddManagingGuest = () => {
+    setManagingGuests(prev => [...prev, { fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+  };
+
+  const handleRemoveManagingGuest = (index) => {
+    setManagingGuests(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleManagingGuestChange = (index, field, value) => {
+    setManagingGuests(prev => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      if (field === 'discountID' && !value) {
+        copy[index].discountIdNumber = '';
+      }
+      return copy;
+    });
+  };
+
+  const handleUpdateGuestsSubmit = async (e) => {
+    e.preventDefault();
+    for (const g of managingGuests) {
+      if (!g.fullName.trim()) {
+        showAlert('error', 'Validation Error', 'All registered guests must have a name.');
+        return;
+      }
+      const age = parseInt(g.age);
+      if (isNaN(age) || age <= 0) {
+        showAlert('error', 'Validation Error', `Please enter a valid age for ${g.fullName}.`);
+        return;
+      }
+      if (g.discountID) {
+        if (!g.discountIdNumber || !g.discountIdNumber.trim()) {
+          showAlert('error', 'Validation Error', `Discount card ID number is required for ${g.fullName}.`);
+          return;
+        }
+        const disc = availableDiscounts.find(d => d.discountID === parseInt(g.discountID));
+        if (disc) {
+          const discName = disc.name.toLowerCase();
+          if (discName.includes('senior') && age < 60) {
+            showAlert('error', 'Validation Error', `Guest ${g.fullName} must be at least 60 years old to qualify for the Senior Citizen discount.`);
+            return;
+          }
+        }
+      }
+    }
+
+    showConfirm('Update Guest List', 'Save changes to this booking\'s guest list?', async () => {
+      try {
+        const res = await fetch('/api/receptionist/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_guests',
+            bookingID: managingBooking.bookingID,
+            guests: managingGuests.map(g => ({
+              fullName: g.fullName,
+              age: parseInt(g.age),
+              discountID: g.discountID ? parseInt(g.discountID) : null,
+              discountIdNumber: g.discountIdNumber || null
+            }))
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update guests');
+
+        showAlert('success', 'Success', 'Registered guests updated successfully.');
+        setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate guests list
+    for (const g of roomGuests) {
+      if (!g.fullName.trim()) {
+        showAlert('error', 'Validation Error', 'All registered guests must have a name.');
+        return;
+      }
+      const age = parseInt(g.age);
+      if (isNaN(age) || age <= 0) {
+        showAlert('error', 'Validation Error', `Please enter a valid age for ${g.fullName}.`);
+        return;
+      }
+      if (g.discountID) {
+        if (!g.discountIdNumber || !g.discountIdNumber.trim()) {
+          showAlert('error', 'Validation Error', `Discount ID number is required for ${g.fullName}.`);
+          return;
+        }
+        const disc = availableDiscounts.find(d => d.discountID === parseInt(g.discountID));
+        if (disc) {
+          const discName = disc.name.toLowerCase();
+          if (discName.includes('senior') && age < 60) {
+            showAlert('error', 'Validation Error', `Guest ${g.fullName} must be at least 60 years old to qualify for the Senior Citizen discount.`);
+            return;
+          }
+        }
+      }
+    }
+
     showConfirm('Create Booking', 'Are you sure you want to create this booking?', async () => {
       try {
         const res = await fetch('/api/receptionist/bookings', {
@@ -156,7 +312,13 @@ export default function ReceptionistBookings() {
             roomID: formData.roomID,
             checkInDateTime: formData.checkInDateTime.replace('T', ' ') + ':00',
             checkOutDateTime: formData.checkOutDateTime.replace('T', ' ') + ':00',
-            status: formData.status
+            status: formData.status,
+            guests: roomGuests.map(g => ({
+              fullName: g.fullName,
+              age: parseInt(g.age),
+              discountID: g.discountID ? parseInt(g.discountID) : null,
+              discountIdNumber: g.discountIdNumber || null
+            }))
           })
         });
         const data = await res.json();
@@ -390,7 +552,22 @@ export default function ReceptionistBookings() {
                       <div className="fw-semibold text-dark">
                         {b.middleName ? `${b.firstName} ${b.middleName.charAt(0).toUpperCase()}. ${b.lastName}` : `${b.firstName} ${b.lastName}`}
                       </div>
-                      <small className="text-muted">{b.contact}</small>
+                      <div className="d-flex flex-wrap gap-1 mt-1 align-items-center">
+                        <small className="text-muted mr-1">{b.contact}</small>
+                        <span className="badge bg-secondary text-white" style={{ fontSize: '0.7rem' }}>
+                          Pax: {b.registeredGuests?.length || 1}
+                        </span>
+                        {b.registeredGuests?.some(g => g.discountName?.toLowerCase().includes('senior')) && (
+                          <span className="badge bg-warning text-dark" style={{ fontSize: '0.7rem' }}>
+                            Senior
+                          </span>
+                        )}
+                        {b.registeredGuests?.some(g => g.discountName?.toLowerCase().includes('pwd')) && (
+                          <span className="badge bg-info text-white" style={{ fontSize: '0.7rem' }}>
+                            PWD
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <div className="fw-semibold text-dark">Room {b.roomNumber}</div>
@@ -414,6 +591,15 @@ export default function ReceptionistBookings() {
                     </td>
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
+                        {b.status !== 'Canceled' && b.status !== 'Checked Out' && (
+                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            setManagingBooking(b);
+                            setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
+                            setActiveModal('manage_guests');
+                          }}>
+                            Guests
+                          </button>
+                        )}
                         {b.status === 'Confirmed' && (
                           <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => handleCheckIn(b.bookingID)}>
                             Check In
@@ -535,6 +721,74 @@ export default function ReceptionistBookings() {
                     </div>
                   )}
 
+                  <div className="p-3 mb-3 border rounded bg-white" style={{ border: '1px solid var(--pcc-mist)' }}>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <h6 className="mb-0 text-pcc-primary fw-bold">Registered Guests (Pax)</h6>
+                      <button type="button" className="btn btn-sm btn-pcc-outline" onClick={handleAddGuest}>
+                        + Add Guest
+                      </button>
+                    </div>
+                    {roomGuests.map((g, idx) => (
+                      <div key={idx} className="p-2 mb-2 rounded bg-light border position-relative">
+                        <div className="d-flex justify-content-between mb-2">
+                          <span className="small text-muted fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary)"}</span>
+                          {idx > 0 && (
+                            <button type="button" className="btn-close" style={{ fontSize: '0.75rem' }} onClick={() => handleRemoveGuest(idx)}></button>
+                          )}
+                        </div>
+                        <div className="row g-2">
+                          <div className="col-12 mb-2">
+                            <label className="form-label small mb-1">Full Name *</label>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              required
+                              value={g.fullName}
+                              onChange={(e) => handleGuestChange(idx, 'fullName', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-4 mb-2">
+                            <label className="form-label small mb-1">Age *</label>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              required
+                              min="1"
+                              value={g.age}
+                              onChange={(e) => handleGuestChange(idx, 'age', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-8 mb-2">
+                            <label className="form-label small mb-1">Discount Type</label>
+                            <select
+                              className="form-select form-select-sm"
+                              value={g.discountID || ''}
+                              onChange={(e) => handleGuestChange(idx, 'discountID', e.target.value)}
+                            >
+                              <option value="">None (Standard)</option>
+                              {availableDiscounts.map(d => (
+                                <option key={d.discountID} value={d.discountID}>{d.name} ({d.percentage}%)</option>
+                              ))}
+                            </select>
+                          </div>
+                          {g.discountID && (
+                            <div className="col-12 mb-1">
+                              <label className="form-label small mb-1">Discount Card ID Number *</label>
+                              <input
+                                type="text"
+                                className="form-control form-control-sm"
+                                required
+                                placeholder="e.g. OSCA/PWD ID Number"
+                                value={g.discountIdNumber || ''}
+                                onChange={(e) => handleGuestChange(idx, 'discountIdNumber', e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                   {/* Room Type and Room filtering */}
                   <div className="mb-3">
                     <label className="form-label">Room Type *</label>
@@ -651,6 +905,98 @@ export default function ReceptionistBookings() {
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-danger text-white fw-semibold">Confirm Cancel</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Close</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MANAGE GUESTS MODAL */}
+      {activeModal === 'manage_guests' && managingBooking && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered modal-md">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Registered Room Guests — Room {managingBooking.roomNumber}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleUpdateGuestsSubmit}>
+                <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                  <div className="alert alert-info py-2 px-3 small mb-3">
+                    Specify all registered guests staying in this room. Room rent charges are divided equally among all registered guests, and 20% discounts are applied to qualified Senior and PWD shares.
+                  </div>
+                  
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <span className="fw-semibold small text-secondary">Guests List ({managingGuests.length} Pax)</span>
+                    <button type="button" className="btn btn-sm btn-pcc-outline" onClick={handleAddManagingGuest}>
+                      + Add Guest
+                    </button>
+                  </div>
+
+                  {managingGuests.map((g, idx) => (
+                    <div key={idx} className="p-3 mb-2 rounded bg-light border position-relative">
+                      <div className="d-flex justify-content-between mb-2 align-items-center">
+                        <span className="small text-dark fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary)"}</span>
+                        {idx > 0 && (
+                          <button type="button" className="btn-close" style={{ fontSize: '0.7rem' }} onClick={() => handleRemoveManagingGuest(idx)}></button>
+                        )}
+                      </div>
+                      <div className="row g-2">
+                        <div className="col-12 mb-2">
+                          <label className="form-label small mb-1">Full Name *</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            required
+                            value={g.fullName}
+                            onChange={(e) => handleManagingGuestChange(idx, 'fullName', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-4 mb-2">
+                          <label className="form-label small mb-1">Age *</label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            required
+                            min="1"
+                            value={g.age}
+                            onChange={(e) => handleManagingGuestChange(idx, 'age', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-8 mb-2">
+                          <label className="form-label small mb-1">Discount Type</label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={g.discountID || ''}
+                            onChange={(e) => handleManagingGuestChange(idx, 'discountID', e.target.value)}
+                          >
+                            <option value="">None (Standard)</option>
+                            {availableDiscounts.map(d => (
+                              <option key={d.discountID} value={d.discountID}>{d.name} ({d.percentage}%)</option>
+                            ))}
+                          </select>
+                        </div>
+                        {g.discountID && (
+                          <div className="col-12 mb-1">
+                            <label className="form-label small mb-1">Discount Card ID Number *</label>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              required
+                              placeholder="e.g. OSCA/PWD ID Number"
+                              value={g.discountIdNumber || ''}
+                              onChange={(e) => handleManagingGuestChange(idx, 'discountIdNumber', e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-pcc-primary text-white">Save Changes</button>
+                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
             </div>

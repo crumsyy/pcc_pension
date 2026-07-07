@@ -156,7 +156,7 @@ export default function ReceptionistBilling() {
 
                   {/* Room rent */}
                   <h6 className="fw-bold text-dark mb-3 border-bottom pb-2">Room Rent Charges</h6>
-                  <div className="table-responsive mb-4">
+                  <div className="table-responsive mb-3">
                     <table className="table table-sm mb-0">
                       <thead>
                         <tr className="table-light">
@@ -171,8 +171,33 @@ export default function ReceptionistBilling() {
                           <td>{billDetails.booking.roomType} (Room {billDetails.booking.roomNumber})</td>
                           <td>₱{parseFloat(billDetails.booking.rate).toFixed(2)}</td>
                           <td>{billDetails.booking.nights}</td>
-                          <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.booking.roomCharge).toFixed(2)}</td>
+                          <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.originalRoomCharge || billDetails.booking.originalRoomCharge || billDetails.booking.roomCharge).toFixed(2)}</td>
                         </tr>
+                        {billDetails.chargesSummary.totalDiscount > 0 && (
+                          <tr className="table-warning small">
+                            <td colSpan="3" className="ps-3 text-warning-dark">
+                              <div>
+                                <strong>Discount Apportionment (R.A. 9994 / R.A. 10754):</strong>
+                                <ul className="mb-0 mt-1" style={{ listStyleType: 'square' }}>
+                                  <li>Total Registered Guests: <strong>{billDetails.chargesSummary.totalGuests} Pax</strong></li>
+                                  <li>Individual Guest Share: <strong>₱{parseFloat(billDetails.chargesSummary.sharePerGuest).toFixed(2)}</strong></li>
+                                  <li>
+                                    Seniors/PWDs: <strong>{billDetails.guestsList.filter(g => g.discountID).length} Guest(s)</strong> (VAT exempt + 20% discount applied to their individual share)
+                                  </li>
+                                </ul>
+                              </div>
+                            </td>
+                            <td className="text-end fw-bold text-success align-bottom">
+                              -₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}
+                            </td>
+                          </tr>
+                        )}
+                        {billDetails.chargesSummary.totalDiscount > 0 && (
+                          <tr className="table-light">
+                            <td colSpan="3" className="fw-semibold">Final Room Charge Due</td>
+                            <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</td>
+                          </tr>
+                        )}
                         {billDetails.chargesSummary.earlyCheckIn > 0 && (
                           <tr>
                             <td colSpan="3">Early Check-In Fee (₱50/hr before 2:00 PM)</td>
@@ -188,6 +213,43 @@ export default function ReceptionistBilling() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Registered Guests Pax breakdown list */}
+                  {billDetails.guestsList && billDetails.guestsList.length > 0 && (
+                    <div className="mb-4 bg-light p-3 rounded border animate__animated animate__fadeIn" style={{ fontSize: '0.82rem' }}>
+                      <div className="fw-bold mb-2 text-dark d-flex justify-content-between align-items-center">
+                        <span>👥 Registered Room Guests ({billDetails.guestsList.length} Pax)</span>
+                        <span className="small text-muted font-monospace">Room Rent split equally</span>
+                      </div>
+                      <div className="row g-2">
+                        {billDetails.guestsList.map((g, index) => (
+                          <div key={index} className="col-md-6">
+                            <div className="p-2 border rounded bg-white h-100 d-flex justify-content-between align-items-center shadow-sm">
+                              <div>
+                                <span className="fw-semibold text-dark">{g.fullName}</span> 
+                                <span className="text-muted"> ({g.age} yrs)</span>
+                                {g.discountName && (
+                                  <div className="text-success fw-semibold" style={{ fontSize: '0.75rem', marginTop: '2px' }}>
+                                    ✓ {g.discountName} {g.discountIdNumber ? `(${g.discountIdNumber})` : ''}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-end font-monospace ms-2">
+                                {g.discount > 0 ? (
+                                  <>
+                                    <div className="text-decoration-line-through text-muted" style={{ fontSize: '0.72rem' }}>₱{parseFloat(g.share).toFixed(2)}</div>
+                                    <div className="text-success fw-bold">₱{parseFloat(g.netShare).toFixed(2)}</div>
+                                  </>
+                                ) : (
+                                  <div className="text-dark fw-semibold">₱{parseFloat(g.share).toFixed(2)}</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Extra product orders */}
                   <h6 className="fw-bold text-dark mb-3 border-bottom pb-2">Product Charges (Drinks/Snacks/Meals)</h6>

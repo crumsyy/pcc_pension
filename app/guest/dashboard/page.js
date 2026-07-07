@@ -138,7 +138,47 @@ export default async function GuestDashboard() {
 
       const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
       const amenityTotal = amenityCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-      const totalCharges = roomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal;
+
+      // Fetch registered guest list for this booking
+      const guestsList = await dbQuery(`
+        SELECT bg.*, d.name as discountName, d.percentage as discountPercentage
+        FROM booking_guest_details bg
+        LEFT JOIN discounts d ON d.discountID = bg.discountID
+        WHERE bg.bookingID = ?
+      `, [booking.bookingID]);
+
+      let finalGuestsList = [...guestsList];
+      if (finalGuestsList.length === 0) {
+        finalGuestsList = [{
+          bookingGuestID: 0,
+          bookingID: booking.bookingID,
+          fullName: `${booking.firstName} ${booking.lastName}`,
+          age: 30,
+          discountID: null,
+          discountIdNumber: null,
+          discountName: null,
+          discountPercentage: 0
+        }];
+      }
+
+      // Apportionment math: divide room charge equally and apply discount to senior/PWD shares
+      const totalGuestsCount = finalGuestsList.length;
+      const sharePerGuest = roomCharge / totalGuestsCount;
+      
+      finalGuestsList = finalGuestsList.map(g => {
+        const discountPercentage = g.discountPercentage ? parseInt(g.discountPercentage) : 0;
+        const discountAmount = sharePerGuest * (discountPercentage / 100);
+        return {
+          ...g,
+          share: sharePerGuest,
+          discount: discountAmount,
+          netShare: sharePerGuest - discountAmount
+        };
+      });
+
+      const totalDiscount = finalGuestsList.reduce((sum, g) => sum + g.discount, 0);
+      const finalRoomCharge = roomCharge - totalDiscount;
+      const totalCharges = finalRoomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal;
 
       // 5. Fetch payments
       const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ?", [bookingID]);
@@ -151,11 +191,22 @@ export default async function GuestDashboard() {
       const balance = totalCharges - paidTotal;
 
       activeBill = {
-        booking: { ...booking, nights, rate, roomCharge },
+        booking: { 
+          ...booking, 
+          nights, 
+          rate, 
+          originalRoomCharge: roomCharge,
+          roomCharge: finalRoomCharge 
+        },
         productCharges,
         amenityCharges,
+        guestsList: finalGuestsList,
         summary: {
-          room: roomCharge,
+          room: finalRoomCharge,
+          originalRoomCharge: roomCharge,
+          totalDiscount,
+          sharePerGuest,
+          totalGuests: totalGuestsCount,
           earlyCheckIn: earlyCheckInFee,
           lateCheckOut: lateCheckOutFee,
           products: productTotal,
@@ -370,7 +421,7 @@ export default async function GuestDashboard() {
                 
                 <div className="mb-4">
                   <div className="fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>Room Rent Charges</div>
-                  <table className="table table-sm align-middle" style={{ fontSize: "0.85rem" }}>
+                  <table className="table table-sm align-middle mb-3" style={{ fontSize: "0.85rem" }}>
                     <thead>
                       <tr className="table-light">
                         <th>Description</th>
@@ -384,8 +435,33 @@ export default async function GuestDashboard() {
                         <td>{activeBill.booking.roomType} (Room {activeBill.booking.roomNumber})</td>
                         <td>₱{parseFloat(activeBill.booking.rate).toFixed(2)}</td>
                         <td>{activeBill.booking.nights}</td>
-                        <td className="text-end fw-bold text-dark">₱{parseFloat(activeBill.booking.roomCharge).toFixed(2)}</td>
+                        <td className="text-end fw-bold text-dark">₱{parseFloat(activeBill.summary.originalRoomCharge || activeBill.booking.originalRoomCharge || activeBill.booking.roomCharge).toFixed(2)}</td>
                       </tr>
+                      {activeBill.summary.totalDiscount > 0 && (
+                        <tr className="table-warning small">
+                          <td colSpan="3" className="ps-3 text-warning-dark">
+                            <div>
+                              <strong>Discount Apportionment (R.A. 9994 / R.A. 10754):</strong>
+                              <ul className="mb-0 mt-1" style={{ listStyleType: 'square' }}>
+                                <li>Total Registered Guests: <strong>{activeBill.summary.totalGuests} Pax</strong></li>
+                                <li>Individual Guest Share: <strong>₱{parseFloat(activeBill.summary.sharePerGuest).toFixed(2)}</strong></li>
+                                <li>
+                                  Seniors/PWDs: <strong>{activeBill.guestsList.filter(g => g.discountID).length} Guest(s)</strong> (VAT exempt + 20% discount applied to their individual share)
+                                </li>
+                              </ul>
+                            </div>
+                          </td>
+                          <td className="text-end fw-bold text-success align-bottom">
+                            -₱{parseFloat(activeBill.summary.totalDiscount).toFixed(2)}
+                          </td>
+                        </tr>
+                      )}
+                      {activeBill.summary.totalDiscount > 0 && (
+                        <tr className="table-light">
+                          <td colSpan="3" className="fw-semibold">Final Room Charge Due</td>
+                          <td className="text-end fw-bold text-dark">₱{parseFloat(activeBill.summary.room).toFixed(2)}</td>
+                        </tr>
+                      )}
                       {activeBill.summary.earlyCheckIn > 0 && (
                         <tr>
                           <td colSpan="3" className="text-muted">Early Check-In Fee (₱50/hr before 2:00 PM)</td>
@@ -400,6 +476,43 @@ export default async function GuestDashboard() {
                       )}
                     </tbody>
                   </table>
+
+                  {/* Registered Guests Pax breakdown list */}
+                  {activeBill.guestsList && activeBill.guestsList.length > 0 && (
+                    <div className="p-3 rounded border bg-light" style={{ fontSize: '0.82rem' }}>
+                      <div className="fw-bold mb-2 text-dark d-flex justify-content-between align-items-center">
+                        <span>👥 Registered Room Guests ({activeBill.guestsList.length} Pax)</span>
+                        <span className="small text-muted font-monospace">Room Rent split equally</span>
+                      </div>
+                      <div className="row g-2">
+                        {activeBill.guestsList.map((g, index) => (
+                          <div key={index} className="col-md-6">
+                            <div className="p-2 border rounded bg-white h-100 d-flex justify-content-between align-items-center shadow-sm">
+                              <div>
+                                <span className="fw-semibold text-dark">{g.fullName}</span> 
+                                <span className="text-muted"> ({g.age} yrs)</span>
+                                {g.discountName && (
+                                  <div className="text-success fw-semibold" style={{ fontSize: '0.75rem', marginTop: '2px' }}>
+                                    ✓ {g.discountName} {g.discountIdNumber ? `(${g.discountIdNumber})` : ''}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-end font-monospace ms-2">
+                                {g.discount > 0 ? (
+                                  <>
+                                    <div className="text-decoration-line-through text-muted" style={{ fontSize: '0.72rem' }}>₱{parseFloat(g.share).toFixed(2)}</div>
+                                    <div className="text-success fw-bold">₱{parseFloat(g.netShare).toFixed(2)}</div>
+                                  </>
+                                ) : (
+                                  <div className="text-dark fw-semibold">₱{parseFloat(g.share).toFixed(2)}</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-4">

@@ -268,7 +268,7 @@ function PaymentsClient() {
                       style={{ borderRadius: '6px' }}
                     >
                       <option value="">No Discount</option>
-                      {discounts.map(d => (
+                      {discounts.filter(d => d.eligibilityTypeID !== 1).map(d => (
                         <option key={d.discountID} value={d.discountID}>
                           {d.name} ({d.percentage}%)
                         </option>

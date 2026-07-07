@@ -125,9 +125,18 @@ export async function POST(request) {
       const { guestID, roomID } = res[0];
 
       // Create Booking
-      await dbQuery(
+      const insertBookingRes = await dbQuery(
         "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, ?, ?, ?, ?)",
         [checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID]
+      );
+      const bookingID = insertBookingRes.insertId;
+
+      // Seed default guest details
+      const guestInfo = await dbQuery("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
+      const defaultName = guestInfo.length > 0 ? `${guestInfo[0].firstName} ${guestInfo[0].lastName}` : 'Primary Guest';
+      await dbQuery(
+        "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, NULL, NULL)",
+        [bookingID, defaultName]
       );
 
       // Update Reservation

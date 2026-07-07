@@ -23,7 +23,7 @@ export async function GET(request) {
     `);
 
     // Fetch discounts
-    const discounts = await dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0");
+    const discounts = await dbQuery("SELECT discountID, name, percentage, eligibilityTypeID FROM discounts WHERE isArchived = 0");
 
     // Fetch payment methods
     const paymentMethods = await dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method");

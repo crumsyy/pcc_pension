@@ -59,6 +59,46 @@ export async function GET(request) {
     const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
     const roomCharge = rate * nights;
 
+    // Fetch registered guest list for this booking
+    const guestsList = await dbQuery(`
+      SELECT bg.*, d.name as discountName, d.percentage as discountPercentage
+      FROM booking_guest_details bg
+      LEFT JOIN discounts d ON d.discountID = bg.discountID
+      WHERE bg.bookingID = ?
+    `, [bookingID]);
+
+    let finalGuestsList = [...guestsList];
+    if (finalGuestsList.length === 0) {
+      finalGuestsList = [{
+        bookingGuestID: 0,
+        bookingID: bookingID,
+        fullName: `${booking.firstName} ${booking.lastName}`,
+        age: 30,
+        discountID: null,
+        discountIdNumber: null,
+        discountName: null,
+        discountPercentage: 0
+      }];
+    }
+
+    // Apportionment math: divide room charge equally and apply discount to senior/PWD shares
+    const totalGuestsCount = finalGuestsList.length;
+    const sharePerGuest = roomCharge / totalGuestsCount;
+    
+    finalGuestsList = finalGuestsList.map(g => {
+      const discountPercentage = g.discountPercentage ? parseInt(g.discountPercentage) : 0;
+      const discountAmount = sharePerGuest * (discountPercentage / 100);
+      return {
+        ...g,
+        share: sharePerGuest,
+        discount: discountAmount,
+        netShare: sharePerGuest - discountAmount
+      };
+    });
+
+    const totalDiscount = finalGuestsList.reduce((sum, g) => sum + g.discount, 0);
+    const finalRoomCharge = roomCharge - totalDiscount;
+
     // Early check-in fee (₱50 per hour early before 2:00 PM)
     let earlyCheckInFee = 0;
     const standardCheckInTime = new Date(checkIn);
@@ -101,7 +141,7 @@ export async function GET(request) {
 
     const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
     const amenityTotal = amenityCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-    const subtotalCharges = roomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal;
+    const subtotalCharges = finalRoomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal;
 
     // 5. Fetch existing billing record if any
     const billingRes = await dbQuery(
@@ -128,12 +168,17 @@ export async function GET(request) {
         ...booking,
         nights,
         rate,
-        roomCharge
+        originalRoomCharge: roomCharge,
+        roomCharge: finalRoomCharge
       },
       productCharges,
       amenityCharges,
       chargesSummary: {
-        room: roomCharge,
+        room: finalRoomCharge,
+        originalRoomCharge: roomCharge,
+        totalDiscount: totalDiscount,
+        sharePerGuest: sharePerGuest,
+        totalGuests: totalGuestsCount,
         earlyCheckIn: earlyCheckInFee,
         lateCheckOut: lateCheckOutFee,
         products: productTotal,
@@ -142,6 +187,7 @@ export async function GET(request) {
         paid: paidTotal,
         balance: balance
       },
+      guestsList: finalGuestsList,
       billingID
     });
 
