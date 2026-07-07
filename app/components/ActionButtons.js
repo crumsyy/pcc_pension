@@ -81,8 +81,8 @@ export default function ActionButtons({
           disabled={disabledEdit}
           data-bs-toggle="tooltip"
           data-bs-placement="top"
-          title={disabledEdit ? (editTooltip || "Cannot be edited") : "Edit / Update"}
-          aria-label="Edit / Update"
+          title={disabledEdit ? (editTooltip || "Cannot be edited") : "Update"}
+          aria-label="Update"
           style={{ opacity: disabledEdit ? 0.5 : 1 }}
         >
           <i className="bi bi-pencil-square"></i>
@@ -133,7 +133,7 @@ export default function ActionButtons({
           aria-label="Deactivate"
           style={{ opacity: isSelf ? 0.5 : 1 }}
         >
-          <i className="bi bi-toggle-off"></i>
+          <i className="bi bi-x-circle"></i>
         </button>
       )}
 
@@ -200,8 +200,8 @@ export default function ActionButtons({
           onClick={onDelete}
           data-bs-toggle="tooltip"
           data-bs-placement="top"
-          title="Delete / Archive"
-          aria-label="Delete / Archive"
+          title="Delete"
+          aria-label="Delete"
         >
           <i className="bi bi-trash"></i>
         </button>
