@@ -121,8 +121,22 @@ export default function UsersClient() {
       showAlert('error', 'Validation Error', 'First Name and Last Name are required.');
       return;
     }
-    if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) {
-      showAlert('error', 'Validation Error', 'A valid Email Address is required.');
+    const nameRegex = /^[A-Za-z\s.\-]+$/;
+    if (!nameRegex.test(formData.firstName.trim())) {
+      showAlert('error', 'Validation Error', 'First Name cannot contain numbers or special characters.');
+      return;
+    }
+    if (!nameRegex.test(formData.lastName.trim())) {
+      showAlert('error', 'Validation Error', 'Last Name cannot contain numbers or special characters.');
+      return;
+    }
+    if (formData.middleName.trim() && !nameRegex.test(formData.middleName.trim())) {
+      showAlert('error', 'Validation Error', 'Middle Name cannot contain numbers or special characters.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim() || !emailRegex.test(formData.email.trim())) {
+      showAlert('error', 'Validation Error', 'A valid, real Email Address is required.');
       return;
     }
     if (!/^\d{11}$/.test(formData.contact)) {
@@ -165,6 +179,19 @@ export default function UsersClient() {
     e.preventDefault();
     if (!formData.firstName.trim() || !formData.lastName.trim()) {
       showAlert('error', 'Validation Error', 'First Name and Last Name are required.');
+      return;
+    }
+    const nameRegex = /^[A-Za-z\s.\-]+$/;
+    if (!nameRegex.test(formData.firstName.trim())) {
+      showAlert('error', 'Validation Error', 'First Name cannot contain numbers or special characters.');
+      return;
+    }
+    if (!nameRegex.test(formData.lastName.trim())) {
+      showAlert('error', 'Validation Error', 'Last Name cannot contain numbers or special characters.');
+      return;
+    }
+    if (formData.middleName.trim() && !nameRegex.test(formData.middleName.trim())) {
+      showAlert('error', 'Validation Error', 'Middle Name cannot contain numbers or special characters.');
       return;
     }
     if (!/^\d{11}$/.test(formData.contact)) {

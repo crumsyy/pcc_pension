@@ -95,6 +95,9 @@ async function run() {
     await ensureColumn(connection, 'purchase_order', 'remarks', 'VARCHAR(255) DEFAULT NULL');
     await ensureColumn(connection, 'purchase_order_items', 'quantityReceived', 'INT NOT NULL DEFAULT 0');
 
+    console.log("Altering booking table reservationID column to support nullability for walk-ins (booking without reservation)...");
+    await connection.execute("ALTER TABLE booking MODIFY COLUMN reservationID INT(11) NULL");
+
     console.log("Altering guest table columns to support nullability for walk-ins...");
     await connection.execute("ALTER TABLE guest MODIFY COLUMN userID INT(11) DEFAULT NULL");
     await connection.execute("ALTER TABLE guest MODIFY COLUMN gender ENUM('Male','Female') DEFAULT NULL");

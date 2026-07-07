@@ -101,6 +101,25 @@ export async function POST(request) {
       const province = body.province.trim();
       const contact = body.contact.trim();
       const passwordVal = body.password;
+      const nameRegex = /^[A-Za-z\s.\-]+$/;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const contactRegex = /^\d{11}$/;
+
+      if (!nameRegex.test(fname)) {
+        return NextResponse.json({ error: 'First Name cannot contain numbers or special characters.' }, { status: 400 });
+      }
+      if (!nameRegex.test(lname)) {
+        return NextResponse.json({ error: 'Last Name cannot contain numbers or special characters.' }, { status: 400 });
+      }
+      if (mname && !nameRegex.test(mname)) {
+        return NextResponse.json({ error: 'Middle Name cannot contain numbers or special characters.' }, { status: 400 });
+      }
+      if (!emailRegex.test(email)) {
+        return NextResponse.json({ error: 'Please enter a valid, real email address.' }, { status: 400 });
+      }
+      if (!contactRegex.test(contact)) {
+        return NextResponse.json({ error: 'Contact number must be exactly 11 digits.' }, { status: 400 });
+      }
 
       // Check if email exists
       const existing = await dbQuery("SELECT userID FROM user WHERE email = ?", [email]);
@@ -149,6 +168,22 @@ export async function POST(request) {
       const contact = body.contact.trim();
       const roleID = parseInt(body.roleID);
       const status = body.status;
+
+      const nameRegex = /^[A-Za-z\s.\-]+$/;
+      const contactRegex = /^\d{11}$/;
+
+      if (!nameRegex.test(fname)) {
+        return NextResponse.json({ error: 'First Name cannot contain numbers or special characters.' }, { status: 400 });
+      }
+      if (!nameRegex.test(lname)) {
+        return NextResponse.json({ error: 'Last Name cannot contain numbers or special characters.' }, { status: 400 });
+      }
+      if (mname && !nameRegex.test(mname)) {
+        return NextResponse.json({ error: 'Middle Name cannot contain numbers or special characters.' }, { status: 400 });
+      }
+      if (!contactRegex.test(contact)) {
+        return NextResponse.json({ error: 'Contact number must be exactly 11 digits.' }, { status: 400 });
+      }
 
       const conn = await pool.getConnection();
 
