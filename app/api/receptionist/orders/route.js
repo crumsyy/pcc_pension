@@ -44,7 +44,7 @@ export async function GET(request) {
 
     // 3. Fetch products, amenities and active bookings for dropdowns
     // Dynamic stock quantities resolved directly from active inventory batches
-    const [products, amenities, activeBookings] = await Promise.all([
+    const [products, amenities, activeBookings, borrowLogs] = await Promise.all([
       dbQuery(`
         SELECT p.productID, p.name, p.price, COALESCE(SUM(ib.remainingQuantity), 0) as quantity 
         FROM products p 

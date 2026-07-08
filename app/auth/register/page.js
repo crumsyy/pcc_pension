@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -13,6 +13,11 @@ export default function RegisterPage() {
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState("");
   const [dob, setDob] = useState("");
+  const [maxDate, setMaxDate] = useState("");
+
+  useEffect(() => {
+    setMaxDate(new Date().toISOString().split('T')[0]);
+  }, []);
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
   const [contact, setContact] = useState("");
@@ -204,8 +209,17 @@ export default function RegisterPage() {
                       type="date"
                       className={`form-control ${fieldErrors.dob ? "is-invalid" : ""}`}
                       value={dob}
+                      max={maxDate}
                       onChange={(e) => {
-                        setDob(e.target.value);
+                        let val = e.target.value;
+                        if (val) {
+                          const parts = val.split('-');
+                          if (parts[0] && parts[0].length > 4) {
+                            parts[0] = parts[0].substring(0, 4);
+                            val = parts.join('-');
+                          }
+                        }
+                        setDob(val);
                         setFieldErrors((prev) => ({ ...prev, dob: false }));
                       }}
                       required

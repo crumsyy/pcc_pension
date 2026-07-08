@@ -134,10 +134,8 @@ function PaymentsClient() {
   // Calculations
   const subtotal = billData ? parseFloat(billData.chargesSummary.total) : 0;
   const balance = billData ? parseFloat(billData.chargesSummary.balance) : 0;
-  const selectedDiscount = discounts.find(d => d.discountID === parseInt(paymentForm.discountID));
-  const discountPercentage = selectedDiscount ? parseInt(selectedDiscount.percentage) : 0;
-  const discountAmount = subtotal * (discountPercentage / 100);
-  const payableAmount = balance - discountAmount > 0 ? balance - discountAmount : 0;
+  const discountAmount = billData ? parseFloat(billData.chargesSummary.totalDiscount) : 0;
+  const payableAmount = balance > 0 ? balance : 0;
 
   const cash = parseFloat(paymentForm.cashReceived) || 0;
   const change = cash - payableAmount > 0 ? cash - payableAmount : 0;
@@ -167,7 +165,7 @@ function PaymentsClient() {
             cashReceived: paymentForm.paymentMethodID === '1' ? cash : payableAmount,
             change: paymentForm.paymentMethodID === '1' ? change : 0,
             paymentMethodID: paymentForm.paymentMethodID,
-            discountID: paymentForm.discountID || null,
+            discountID: null,
             shouldCheckout: true
           })
         });
@@ -185,7 +183,7 @@ function PaymentsClient() {
           subtotal,
           earlyCheckIn: billData.chargesSummary.earlyCheckIn,
           lateCheckOut: billData.chargesSummary.lateCheckOut,
-          discountName: selectedDiscount ? selectedDiscount.name : null,
+          discountName: discountAmount > 0 ? 'Senior / PWD Apportioned Discount' : null,
           discountAmount,
           payableAmount,
           cashReceived: paymentForm.paymentMethodID === '1' ? cash : payableAmount,
@@ -258,23 +256,7 @@ function PaymentsClient() {
                     )}
                   </div>
 
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Apply Discount</label>
-                    <select
-                      className="form-select"
-                      name="discountID"
-                      value={paymentForm.discountID}
-                      onChange={handleInputChange}
-                      style={{ borderRadius: '6px' }}
-                    >
-                      <option value="">No Discount</option>
-                      {discounts.filter(d => d.eligibilityTypeID !== 1).map(d => (
-                        <option key={d.discountID} value={d.discountID}>
-                          {d.name} ({d.percentage}%)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+
 
                   <div className="mb-3">
                     <label className="form-label fw-semibold">Payment Method *</label>
@@ -348,15 +330,17 @@ function PaymentsClient() {
                   <div>
                     <h6 className="fw-bold text-dark mb-3">Room {billData.booking.roomNumber} - {billData.booking.lastName}, {billData.booking.firstName}</h6>
                     <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Total Accrued Charges:</span>
-                      <span className="fw-semibold text-dark">₱{subtotal.toFixed(2)}</span>
+                      <span className="text-muted">Room Rent (Original):</span>
+                      <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.originalRoomCharge).toFixed(2)}</span>
                     </div>
+                    {discountAmount > 0 && (
+                      <div className="d-flex justify-content-between mb-2 text-danger">
+                        <span>Senior/PWD Discounts:</span>
+                        <span className="fw-semibold">-₱{discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Amount Paid:</span>
-                      <span className="fw-semibold text-success">₱{parseFloat(billData.chargesSummary.paid).toFixed(2)}</span>
-                    </div>
-                    <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Room Rent:</span>
+                      <span className="text-muted">Room Rent (Net):</span>
                       <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.room).toFixed(2)}</span>
                     </div>
                     {billData.chargesSummary.earlyCheckIn > 0 && (
@@ -372,15 +356,22 @@ function PaymentsClient() {
                       </div>
                     )}
                     <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Outstanding Balance:</span>
-                      <span className="fw-bold text-dark">₱{balance.toFixed(2)}</span>
+                      <span className="text-muted">Product Orders Total:</span>
+                      <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.products).toFixed(2)}</span>
                     </div>
-                    {selectedDiscount && (
-                      <div className="d-flex justify-content-between mb-2 text-danger">
-                        <span>Discount ({selectedDiscount.name}):</span>
-                        <span>-₱{discountAmount.toFixed(2)}</span>
-                      </div>
-                    )}
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Amenity Orders Total:</span>
+                      <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.amenities).toFixed(2)}</span>
+                    </div>
+                    <hr className="my-2" />
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Total Accrued Charges:</span>
+                      <span className="fw-semibold text-dark">₱{subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Paid to date:</span>
+                      <span className="fw-semibold text-success">₱{parseFloat(billData.chargesSummary.paid).toFixed(2)}</span>
+                    </div>
                     
                     <hr />
 
