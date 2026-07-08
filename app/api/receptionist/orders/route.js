@@ -67,10 +67,18 @@ export async function GET(request) {
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
         WHERE b.status = 'Checked In'
+      `),
+      dbQuery(`
+        SELECT bt.*, COALESCE(a.name, p.name) as itemName, r.roomNumber
+        FROM borrow_transaction bt
+        LEFT JOIN amenities a ON bt.itemType = 'Amenity' AND a.amenityID = bt.itemID
+        LEFT JOIN products p ON bt.itemType = 'Product' AND p.productID = bt.itemID
+        LEFT JOIN room r ON r.roomID = bt.roomID
+        ORDER BY bt.borrowDateTime DESC
       `)
     ]);
 
-    return NextResponse.json({ success: true, orders, products, amenities, activeBookings });
+    return NextResponse.json({ success: true, orders, products, amenities, activeBookings, borrowLogs });
   } catch (error) {
     console.error("Failed to fetch orders data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -321,6 +329,118 @@ export async function POST(request) {
       } catch (err) {
         await connection.rollback();
         throw err;
+      } finally {
+        connection.release();
+      }
+    }
+
+    if (action === 'return_borrow') {
+      const { borrowID, quantityReturned, status, remarks } = body;
+      const qtyRet = parseInt(quantityReturned);
+
+      const [borrowRes] = await dbQuery("SELECT * FROM borrow_transaction WHERE borrowID = ?", [parseInt(borrowID)]);
+      if (borrowRes.length === 0) {
+        return NextResponse.json({ error: 'Borrow transaction not found.' }, { status: 404 });
+      }
+      const borrow = borrowRes[0];
+      if (borrow.status !== 'Borrowed') {
+        return NextResponse.json({ error: 'This item has already been processed.' }, { status: 400 });
+      }
+      if (qtyRet <= 0 || qtyRet > borrow.quantity) {
+        return NextResponse.json({ error: 'Invalid quantity returned.' }, { status: 400 });
+      }
+
+      const connection = await db.getConnection();
+      try {
+        await connection.beginTransaction();
+
+        const isPartial = qtyRet < borrow.quantity;
+        const newStatus = isPartial ? 'Borrowed' : status; 
+        const updatedRemarks = isPartial 
+          ? `${borrow.remarks || ''} (Partially returned ${qtyRet} units)` 
+          : remarks || borrow.remarks;
+
+        if (isPartial) {
+          await connection.execute(
+            `UPDATE borrow_transaction 
+             SET quantity = quantity - ?, remarks = ? 
+             WHERE borrowID = ?`,
+            [qtyRet, updatedRemarks, borrow.borrowID]
+          );
+          
+          await connection.execute(
+            `INSERT INTO borrow_transaction (itemType, itemID, quantity, borrowedBy, bookingID, roomID, status, conditionUponReturn, actualReturnDate, userID, remarks)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+            [borrow.itemType, borrow.itemID, qtyRet, borrow.borrowedBy, borrow.bookingID, borrow.roomID, status, status === 'Returned' ? 'Good' : status, session.userID, `Partial Return - ${updatedRemarks}`]
+          );
+        } else {
+          await connection.execute(
+            `UPDATE borrow_transaction 
+             SET status = ?, conditionUponReturn = ?, actualReturnDate = NOW(), remarks = ? 
+             WHERE borrowID = ?`,
+            [status, status === 'Returned' ? 'Good' : status, updatedRemarks, borrow.borrowID]
+          );
+        }
+
+        if (status === 'Returned') {
+          const [batches] = await connection.execute(
+            "SELECT batchID FROM inventory_batch WHERE itemType = ? AND itemID = ? ORDER BY dateReceived DESC LIMIT 1",
+            [borrow.itemType, borrow.itemID]
+          );
+          let batchID = null;
+          if (batches.length > 0) {
+            batchID = batches[0].batchID;
+            await connection.execute(
+              "UPDATE inventory_batch SET remainingQuantity = remainingQuantity + ? WHERE batchID = ?",
+              [qtyRet, batchID]
+            );
+          }
+
+          await connection.execute(
+            `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+             VALUES (?, ?, ?, ?, 'Return', ?, ?, ?)`,
+            [borrow.itemType, borrow.itemID, qtyRet, session.userID, `BOR-${borrow.borrowID}`, `Returned to stock`, batchID]
+          );
+
+          if (borrow.itemType === 'Amenity') {
+            await connection.execute("UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?", [qtyRet, borrow.itemID]);
+          } else {
+            await connection.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [qtyRet, borrow.itemID]);
+          }
+        } else {
+          await connection.execute(
+            `INSERT INTO inventory_disposal (batchID, itemType, itemID, quantity, reason, remarks, userID)
+             VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
+            [
+              borrow.itemType,
+              borrow.itemID,
+              qtyRet,
+              status === 'Damaged' ? 'Damaged' : 'Lost',
+              remarks || `From Borrow Transaction BOR-${borrow.borrowID}`,
+              session.userID
+            ]
+          );
+
+          await connection.execute(
+            `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              borrow.itemType,
+              borrow.itemID,
+              -qtyRet,
+              session.userID,
+              status === 'Damaged' ? 'Damage' : 'Loss',
+              `BOR-${borrow.borrowID}`,
+              remarks || `From Borrow Transaction BOR-${borrow.borrowID}`
+            ]
+          );
+        }
+
+        await connection.commit();
+        return NextResponse.json({ success: true, message: 'Return recorded successfully.' });
+      } catch (e) {
+        await connection.rollback();
+        throw e;
       } finally {
         connection.release();
       }

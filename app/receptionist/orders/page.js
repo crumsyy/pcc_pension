@@ -8,12 +8,20 @@ export default function ReceptionistOrders() {
   const [products, setProducts] = useState([]);
   const [amenities, setAmenities] = useState([]);
   const [activeBookings, setActiveBookings] = useState([]);
+  const [borrowLogs, setBorrowLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'borrow'
 
   // Modals
-  const [activeModal, setActiveModal] = useState(null); // 'create' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create' | 'return' | null
+  const [selectedBorrow, setSelectedBorrow] = useState(null);
+  const [returnForm, setReturnForm] = useState({
+    quantityReturned: 1,
+    status: 'Returned',
+    remarks: ''
+  });
   
   // New Order Form state
   const [newOrderForm, setNewOrderForm] = useState({
@@ -77,6 +85,7 @@ export default function ReceptionistOrders() {
       setProducts(data.products || []);
       setAmenities(data.amenities || []);
       setActiveBookings(data.activeBookings || []);
+      setBorrowLogs(data.borrowLogs || []);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -238,6 +247,44 @@ export default function ReceptionistOrders() {
     });
   };
 
+  const openReturnModal = (log) => {
+    setSelectedBorrow(log);
+    setReturnForm({
+      quantityReturned: log.quantity,
+      status: 'Returned',
+      remarks: ''
+    });
+    setActiveModal('return');
+  };
+
+  const handleReturnSubmit = async (e) => {
+    e.preventDefault();
+    showConfirm('Record Return', 'Are you sure you want to record this return transaction?', async () => {
+      try {
+        const res = await fetch('/api/receptionist/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'return_borrow',
+            borrowID: selectedBorrow.borrowID,
+            quantityReturned: returnForm.quantityReturned,
+            status: returnForm.status,
+            remarks: returnForm.remarks
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to record return');
+
+        showAlert('success', 'Success', data.message || 'Return recorded successfully.');
+        setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Pending': return 'bg-warning text-dark';
@@ -258,18 +305,69 @@ export default function ReceptionistOrders() {
     return matchesSearch && matchesStatus;
   });
 
+  const filteredBorrows = borrowLogs.filter(b => {
+    const matchesSearch = 
+      b.itemName.toLowerCase().includes(search.toLowerCase()) ||
+      b.borrowedBy.toLowerCase().includes(search.toLowerCase()) ||
+      (b.roomNumber || '').toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === '' || b.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <>
       <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '85vh' }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Guest Orders</h2>
-            <p className="text-muted mb-0">Record and track orders for beverages, meals, and guest amenities.</p>
+            <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>
+              {activeTab === 'orders' ? 'Guest Orders' : 'Borrowed Assets'}
+            </h2>
+            <p className="text-muted mb-0">
+              {activeTab === 'orders' 
+                ? 'Record and track orders for beverages, meals, and guest amenities.' 
+                : 'Track and return non-consumable assets (e.g. extra chairs, pillows) borrowed by guests.'}
+            </p>
           </div>
-          <button className="btn btn-pcc-primary text-white" onClick={() => setActiveModal('create')}>
-            + New Order
-          </button>
+          {activeTab === 'orders' && (
+            <button className="btn btn-pcc-primary text-white" onClick={() => setActiveModal('create')}>
+              + New Order
+            </button>
+          )}
         </div>
+
+        {/* Tab Switcher */}
+        <ul className="nav nav-tabs mb-4 px-1" style={{ borderBottom: '2px solid var(--pcc-mist)' }}>
+          <li className="nav-item">
+            <button
+              type="button"
+              className={`nav-link fw-semibold ${activeTab === 'orders' ? 'active' : 'text-secondary'}`}
+              style={{ 
+                border: 'none', 
+                borderBottom: activeTab === 'orders' ? '3px solid var(--pcc-blue)' : 'none',
+                borderRadius: 0,
+                color: activeTab === 'orders' ? 'var(--pcc-blue)' : ''
+              }}
+              onClick={() => { setActiveTab('orders'); setSearch(''); setStatusFilter(''); }}
+            >
+              📋 Guest Orders
+            </button>
+          </li>
+          <li className="nav-item">
+            <button
+              type="button"
+              className={`nav-link fw-semibold ${activeTab === 'borrow' ? 'active' : 'text-secondary'}`}
+              style={{ 
+                border: 'none', 
+                borderBottom: activeTab === 'borrow' ? '3px solid var(--pcc-blue)' : 'none',
+                borderRadius: 0,
+                color: activeTab === 'borrow' ? 'var(--pcc-blue)' : ''
+              }}
+              onClick={() => { setActiveTab('borrow'); setSearch(''); setStatusFilter(''); }}
+            >
+              🤝 Borrowed Assets
+            </button>
+          </li>
+        </ul>
 
         <div className="card shadow-sm border-0 mb-4" style={{ borderRadius: '8px' }}>
           <div className="card-header bg-white py-3 border-0">
@@ -278,122 +376,204 @@ export default function ReceptionistOrders() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Search by guest or room number..."
+                  placeholder={activeTab === 'orders' ? "Search by guest or room number..." : "Search by guest, room, or asset..."}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{ borderRadius: '20px', paddingLeft: '15px' }}
                 />
               </div>
               <div className="col-md-3">
-                <select
-                  className="form-select"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  style={{ borderRadius: '20px' }}
-                >
-                  <option value="">All Statuses</option>
-                  <option value="Preparing">Preparing</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Canceled">Canceled</option>
-                </select>
+                {activeTab === 'orders' ? (
+                  <select
+                    className="form-select"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{ borderRadius: '20px' }}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="Preparing">Preparing</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Canceled">Canceled</option>
+                  </select>
+                ) : (
+                  <select
+                    className="form-select"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{ borderRadius: '20px' }}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="Borrowed">Borrowed</option>
+                    <option value="Returned">Returned</option>
+                    <option value="Damaged">Damaged</option>
+                    <option value="Lost">Lost</option>
+                  </select>
+                )}
               </div>
             </div>
           </div>
           <div className="card-body p-0">
             <div className="table-responsive">
-              <table className="table align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th className="px-4">Order ID</th>
-                    <th>Room</th>
-                    <th>Guest</th>
-                    <th>Items Ordered</th>
-                    <th>Total Amount</th>
-                    <th>Status</th>
-                    <th className="text-end px-4" style={{ width: '120px', minWidth: '120px' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
+              {activeTab === 'orders' ? (
+                <table className="table align-middle mb-0">
+                  <thead className="table-light">
                     <tr>
-                      <td colSpan="7" className="text-center py-5">
-                        <div className="spinner-border text-pcc-primary" role="status">
-                          <span className="visually-hidden">Loading...</span>
-                        </div>
-                      </td>
+                      <th className="px-4">Order ID</th>
+                      <th>Room</th>
+                      <th>Guest</th>
+                      <th>Items Ordered</th>
+                      <th>Total Amount</th>
+                      <th>Status</th>
+                      <th className="text-end px-4" style={{ width: '120px', minWidth: '120px' }}>Actions</th>
                     </tr>
-                  ) : filteredOrders.length === 0 ? (
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="7" className="text-center py-5">
+                          <div className="spinner-border text-pcc-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filteredOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="text-center py-5 text-muted">
+                          No orders recorded.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredOrders.map(o => {
+                        const totalAmt = o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                        return (
+                          <tr key={o.orderID}>
+                            <td className="px-4 text-muted">#{o.orderID}</td>
+                            <td>
+                              <strong>Room {o.roomNumber || 'N/A'}</strong>
+                            </td>
+                            <td className="fw-semibold text-dark">
+                              {o.firstName} {o.lastName}
+                            </td>
+                            <td>
+                              <div className="d-flex flex-column gap-1">
+                                {o.items.map((item, idx) => (
+                                  <div key={idx} style={{ fontSize: '0.85rem' }}>
+                                    <span className="text-muted">{item.quantity}x</span> {item.name} 
+                                    <span className="text-muted ms-1">({item.type === 'Product' ? '🛍️' : '🛏️'} ₱{item.price})</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="fw-bold text-pcc-primary">
+                              ₱{totalAmt.toFixed(2)}
+                            </td>
+                            <td>
+                              <span className={`badge px-2 py-1 rounded-pill ${getStatusBadge(o.orderStatus)}`}>
+                                {o.orderStatus}
+                              </span>
+                            </td>
+                            <td className="text-end px-4" style={{ width: '120px', minWidth: '120px' }}>
+                              <div className="actions-wrapper justify-content-end gap-1">
+                                {['Pending', 'Preparing', 'Served'].includes(o.orderStatus) && (
+                                  <button 
+                                    type="button"
+                                    className="action-btn action-btn-activate" 
+                                    onClick={() => handleUpdateOrderStatus(o.orderID, 'Completed')}
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top"
+                                    title="Complete"
+                                    aria-label="Complete"
+                                  >
+                                    <i className="bi bi-check-circle"></i>
+                                  </button>
+                                )}
+                                {['Pending', 'Preparing', 'Served'].includes(o.orderStatus) && (
+                                  <button 
+                                    type="button"
+                                    className="action-btn action-btn-suspend" 
+                                    onClick={() => handleUpdateOrderStatus(o.orderID, 'Canceled')}
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top"
+                                    title="Cancel"
+                                    aria-label="Cancel"
+                                  >
+                                    <i className="bi bi-x-circle"></i>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="table align-middle mb-0">
+                  <thead className="table-light">
                     <tr>
-                      <td colSpan="7" className="text-center py-5 text-muted">
-                        No orders recorded.
-                      </td>
+                      <th className="px-4">Transaction ID</th>
+                      <th>Room</th>
+                      <th>Guest / Borrower</th>
+                      <th>Asset Item</th>
+                      <th>Qty Borrowed</th>
+                      <th>Borrow Date</th>
+                      <th>Expected Return</th>
+                      <th>Status</th>
+                      <th className="text-end px-4">Actions</th>
                     </tr>
-                  ) : (
-                    filteredOrders.map(o => {
-                      const totalAmt = o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                      return (
-                        <tr key={o.orderID}>
-                          <td className="px-4 text-muted">#{o.orderID}</td>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="9" className="text-center py-5">
+                          <div className="spinner-border text-pcc-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filteredBorrows.length === 0 ? (
+                      <tr>
+                        <td colSpan="9" className="text-center py-5 text-muted">
+                          No borrow logs recorded.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredBorrows.map(log => (
+                        <tr key={log.borrowID}>
+                          <td className="px-4 text-muted">BOR-{log.borrowID}</td>
+                          <td><strong>Room {log.roomNumber || 'N/A'}</strong></td>
+                          <td className="fw-semibold text-dark">{log.borrowedBy}</td>
+                          <td><strong>{log.itemName}</strong> <span className="badge text-bg-light border text-muted small">{log.itemType}</span></td>
+                          <td>{log.quantity}</td>
+                          <td>{new Date(log.borrowDateTime).toLocaleDateString()}</td>
+                          <td>{log.expectedReturnDate ? new Date(log.expectedReturnDate).toLocaleDateString() : '—'}</td>
                           <td>
-                            <strong>Room {o.roomNumber || 'N/A'}</strong>
-                          </td>
-                          <td className="fw-semibold text-dark">
-                            {o.firstName} {o.lastName}
-                          </td>
-                          <td>
-                            <div className="d-flex flex-column gap-1">
-                              {o.items.map((item, idx) => (
-                                <div key={idx} style={{ fontSize: '0.85rem' }}>
-                                  <span className="text-muted">{item.quantity}x</span> {item.name} 
-                                  <span className="text-muted ms-1">({item.type === 'Product' ? '🛍️' : '🛏️'} ₱{item.price})</span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="fw-bold text-pcc-primary">
-                            ₱{totalAmt.toFixed(2)}
-                          </td>
-                          <td>
-                            <span className={`badge px-2 py-1 rounded-pill ${getStatusBadge(o.orderStatus)}`}>
-                              {o.orderStatus}
+                            <span className={`badge ${
+                              log.status === 'Borrowed' ? 'text-bg-warning' :
+                              log.status === 'Returned' ? 'text-bg-success' :
+                              log.status === 'Damaged' ? 'text-bg-danger' : 'text-bg-dark'
+                            }`}>
+                              {log.status}
                             </span>
                           </td>
-                          <td className="text-end px-4" style={{ width: '120px', minWidth: '120px' }}>
-                            <div className="actions-wrapper justify-content-end gap-1">
-                              {['Pending', 'Preparing', 'Served'].includes(o.orderStatus) && (
-                                <button 
-                                  type="button"
-                                  className="action-btn action-btn-activate" 
-                                  onClick={() => handleUpdateOrderStatus(o.orderID, 'Completed')}
-                                  data-bs-toggle="tooltip"
-                                  data-bs-placement="top"
-                                  title="Complete"
-                                  aria-label="Complete"
-                                >
-                                  <i className="bi bi-check-circle"></i>
-                                </button>
-                              )}
-                              {['Pending', 'Preparing', 'Served'].includes(o.orderStatus) && (
-                                <button 
-                                  type="button"
-                                  className="action-btn action-btn-suspend" 
-                                  onClick={() => handleUpdateOrderStatus(o.orderID, 'Canceled')}
-                                  data-bs-toggle="tooltip"
-                                  data-bs-placement="top"
-                                  title="Cancel"
-                                  aria-label="Cancel"
-                                >
-                                  <i className="bi bi-x-circle"></i>
-                                </button>
-                              )}
-                            </div>
+                          <td className="text-end px-4">
+                            {log.status === 'Borrowed' && (
+                              <button 
+                                className="btn btn-sm btn-pcc-primary text-white" 
+                                onClick={() => openReturnModal(log)}
+                                style={{ borderRadius: '20px' }}
+                              >
+                                ↩ Return / Close
+                              </button>
+                            )}
                           </td>
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
@@ -517,6 +697,68 @@ export default function ReceptionistOrders() {
                 </div>
                 <div className="modal-footer border-top-0">
                   <button type="submit" className="btn btn-pcc-primary text-white px-4">Place Order</button>
+                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RETURN MODAL */}
+      {activeModal === 'return' && selectedBorrow && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Return Asset — {selectedBorrow.itemName}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleReturnSubmit}>
+                <div className="modal-body">
+                  <div className="alert alert-info py-2" style={{ fontSize: '0.85rem' }}>
+                    <strong>Room:</strong> Room {selectedBorrow.roomNumber || 'N/A'}<br />
+                    <strong>Borrower:</strong> {selectedBorrow.borrowedBy}<br />
+                    <strong>Quantity borrowed:</strong> {selectedBorrow.quantity} units
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Quantity Returned *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="1"
+                      max={selectedBorrow.quantity}
+                      required
+                      value={returnForm.quantityReturned}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, quantityReturned: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Return Status / Condition *</label>
+                    <select
+                      className="form-select"
+                      required
+                      value={returnForm.status}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, status: e.target.value }))}
+                    >
+                      <option value="Returned">Returned (Good Condition)</option>
+                      <option value="Damaged">Damaged (Disposed permanently)</option>
+                      <option value="Lost">Lost (Disposed permanently)</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Condition Notes / Remarks</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      placeholder="e.g. Scratched legs, minor dent..."
+                      value={returnForm.remarks}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer border-top-0">
+                  <button type="submit" className="btn btn-pcc-primary text-white">Record Return</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
