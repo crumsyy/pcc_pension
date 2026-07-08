@@ -737,7 +737,7 @@ export default function ReceptionistBookings() {
                           )}
                         </div>
                         <div className="row g-2">
-                          <div className="col-12 mb-2">
+                          <div className="col-8 mb-2">
                             <label className="form-label small mb-1">Full Name *</label>
                             <input
                               type="text"
@@ -758,32 +758,6 @@ export default function ReceptionistBookings() {
                               onChange={(e) => handleGuestChange(idx, 'age', e.target.value)}
                             />
                           </div>
-                          <div className="col-8 mb-2">
-                            <label className="form-label small mb-1">Discount Type</label>
-                            <select
-                              className="form-select form-select-sm"
-                              value={g.discountID || ''}
-                              onChange={(e) => handleGuestChange(idx, 'discountID', e.target.value)}
-                            >
-                              <option value="">None (Standard)</option>
-                              {availableDiscounts.map(d => (
-                                <option key={d.discountID} value={d.discountID}>{d.name} ({d.percentage}%)</option>
-                              ))}
-                            </select>
-                          </div>
-                          {g.discountID && (
-                            <div className="col-12 mb-1">
-                              <label className="form-label small mb-1">Discount Card ID Number *</label>
-                              <input
-                                type="text"
-                                className="form-control form-control-sm"
-                                required
-                                placeholder="e.g. OSCA/PWD ID Number"
-                                value={g.discountIdNumber || ''}
-                                onChange={(e) => handleGuestChange(idx, 'discountIdNumber', e.target.value)}
-                              />
-                            </div>
-                          )}
                         </div>
                       </div>
                     ))}
@@ -943,7 +917,7 @@ export default function ReceptionistBookings() {
                         )}
                       </div>
                       <div className="row g-2">
-                        <div className="col-12 mb-2">
+                        <div className="col-8 mb-2">
                           <label className="form-label small mb-1">Full Name *</label>
                           <input
                             type="text"
@@ -964,32 +938,6 @@ export default function ReceptionistBookings() {
                             onChange={(e) => handleManagingGuestChange(idx, 'age', e.target.value)}
                           />
                         </div>
-                        <div className="col-8 mb-2">
-                          <label className="form-label small mb-1">Discount Type</label>
-                          <select
-                            className="form-select form-select-sm"
-                            value={g.discountID || ''}
-                            onChange={(e) => handleManagingGuestChange(idx, 'discountID', e.target.value)}
-                          >
-                            <option value="">None (Standard)</option>
-                            {availableDiscounts.map(d => (
-                              <option key={d.discountID} value={d.discountID}>{d.name} ({d.percentage}%)</option>
-                            ))}
-                          </select>
-                        </div>
-                        {g.discountID && (
-                          <div className="col-12 mb-1">
-                            <label className="form-label small mb-1">Discount Card ID Number *</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              required
-                              placeholder="e.g. OSCA/PWD ID Number"
-                              value={g.discountIdNumber || ''}
-                              onChange={(e) => handleManagingGuestChange(idx, 'discountIdNumber', e.target.value)}
-                            />
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}

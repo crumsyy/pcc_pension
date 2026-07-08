@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, getDbConnection } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -162,6 +162,8 @@ export async function GET(request) {
 
     const balance = subtotalCharges - paidTotal;
 
+    const discounts = await dbQuery("SELECT discountID, name, percentage FROM discounts WHERE eligibilityTypeID = 1 AND isArchived = 0");
+
     return NextResponse.json({
       success: true,
       booking: {
@@ -188,11 +190,73 @@ export async function GET(request) {
         balance: balance
       },
       guestsList: finalGuestsList,
-      billingID
+      billingID,
+      discounts
     });
 
   } catch (error) {
     console.error("Failed to calculate billing:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request) {
+  const session = await getSession();
+  if (!session || (session.role !== 'Receptionist' && session.role !== 'Administrator')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { bookingID, guests } = await request.json();
+    if (!bookingID || !Array.isArray(guests)) {
+      return NextResponse.json({ error: 'Missing booking ID or guests list.' }, { status: 400 });
+    }
+
+    const pool = await getDbConnection();
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      for (const g of guests) {
+        const discountID = g.discountID ? parseInt(g.discountID) : null;
+        const discountIdNumber = g.discountIdNumber ? g.discountIdNumber.trim() : null;
+
+        if (discountID) {
+          if (!discountIdNumber) {
+            return NextResponse.json({ error: `ID card number is required for guest: ${g.fullName || 'selected guest'}.` }, { status: 400 });
+          }
+          const [details] = await conn.execute("SELECT fullName, age FROM booking_guest_details WHERE bookingGuestID = ?", [g.bookingGuestID]);
+          if (details.length > 0) {
+            const guest = details[0];
+            const [disc] = await conn.execute("SELECT name FROM discounts WHERE discountID = ?", [discountID]);
+            if (disc.length > 0) {
+              const discName = disc[0].name.toLowerCase();
+              if (discName.includes('senior') && parseInt(guest.age) < 60) {
+                return NextResponse.json({ error: `Guest ${guest.fullName} must be at least 60 years old to qualify for the Senior Citizen discount.` }, { status: 400 });
+              }
+            }
+          }
+        }
+
+        await conn.execute(
+          `UPDATE booking_guest_details 
+           SET discountID = ?, discountIdNumber = ? 
+           WHERE bookingGuestID = ? AND bookingID = ?`,
+          [discountID, discountIdNumber, g.bookingGuestID, bookingID]
+        );
+      }
+
+      await conn.commit();
+      return NextResponse.json({ success: true, message: 'Discounts updated successfully.' });
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+  } catch (error) {
+    console.error("Failed to update guest discounts:", error);
+    return NextResponse.json({ error: 'Operation failed: ' + error.message }, { status: 500 });
   }
 }

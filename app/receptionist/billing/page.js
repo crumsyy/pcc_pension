@@ -9,6 +9,8 @@ export default function ReceptionistBilling() {
   const [billDetails, setBillDetails] = useState(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingBill, setLoadingBill] = useState(false);
+  const [isEditingDiscounts, setIsEditingDiscounts] = useState(false);
+  const [guestDiscountsForm, setGuestDiscountsForm] = useState([]);
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
@@ -65,6 +67,41 @@ export default function ReceptionistBilling() {
       showAlert('error', 'Error', err.message);
     } finally {
       setLoadingBill(false);
+    }
+  };
+  const openEditDiscountsModal = () => {
+    if (!billDetails) return;
+    const form = billDetails.guestsList.map(g => ({
+      bookingGuestID: g.bookingGuestID,
+      fullName: g.fullName,
+      age: g.age,
+      discountID: g.discountID || '',
+      discountIdNumber: g.discountIdNumber || ''
+    }));
+    setGuestDiscountsForm(form);
+    setIsEditingDiscounts(true);
+  };
+
+  const handleSaveDiscountsSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/receptionist/billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingID: selectedBookingID,
+          guests: guestDiscountsForm
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update guest discounts');
+
+      showAlert('success', 'Success', 'Guest discounts updated successfully.');
+      setIsEditingDiscounts(false);
+      fetchBillingDetails(selectedBookingID);
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
     }
   };
 
@@ -219,7 +256,14 @@ export default function ReceptionistBilling() {
                     <div className="mb-4 bg-light p-3 rounded border animate__animated animate__fadeIn" style={{ fontSize: '0.82rem' }}>
                       <div className="fw-bold mb-2 text-dark d-flex justify-content-between align-items-center">
                         <span>👥 Registered Room Guests ({billDetails.guestsList.length} Pax)</span>
-                        <span className="small text-muted font-monospace">Room Rent split equally</span>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary"
+                          style={{ fontSize: '0.78rem', padding: '2px 10px', borderRadius: '15px' }}
+                          onClick={openEditDiscountsModal}
+                        >
+                          ✏️ Apply/Edit Discounts
+                        </button>
                       </div>
                       <div className="row g-2">
                         {billDetails.guestsList.map((g, index) => (
@@ -395,6 +439,81 @@ export default function ReceptionistBilling() {
           </div>
         )}
       </div>
+
+      {/* EDIT DISCOUNTS MODAL */}
+      {isEditingDiscounts && billDetails && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content border-0">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Apply Guest Discounts — Room {billDetails.booking.roomNumber}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setIsEditingDiscounts(false)}></button>
+              </div>
+              <form onSubmit={handleSaveDiscountsSubmit}>
+                <div className="modal-body">
+                  <p className="text-muted small">Specify Senior Citizen, PWD, or other applicable discounts for each registered guest below.</p>
+                  
+                  <div className="d-flex flex-column gap-3">
+                    {guestDiscountsForm.map((g, idx) => (
+                      <div key={g.bookingGuestID} className="p-3 border rounded bg-light">
+                        <div className="row align-items-center g-2">
+                          <div className="col-md-4">
+                            <label className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>{g.fullName}</label>
+                            <div className="text-muted small">Age: {g.age} years</div>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label small mb-1 fw-semibold">Select Discount</label>
+                            <select
+                              className="form-select form-select-sm"
+                              value={g.discountID}
+                              onChange={(e) => {
+                                const newID = e.target.value;
+                                const updated = [...guestDiscountsForm];
+                                updated[idx].discountID = newID;
+                                if (!newID) {
+                                  updated[idx].discountIdNumber = '';
+                                }
+                                setGuestDiscountsForm(updated);
+                              }}
+                            >
+                              <option value="">No Discount</option>
+                              {billDetails.discounts.map(d => (
+                                <option key={d.discountID} value={d.discountID}>
+                                  {d.name} ({d.percentage}%)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label small mb-1 fw-semibold">Discount ID Card Number</label>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              required={!!g.discountID}
+                              disabled={!g.discountID}
+                              placeholder="e.g. OSCA-XXXXX"
+                              value={g.discountIdNumber}
+                              onChange={(e) => {
+                                const updated = [...guestDiscountsForm];
+                                updated[idx].discountIdNumber = e.target.value;
+                                setGuestDiscountsForm(updated);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="modal-footer border-top-0">
+                  <button type="submit" className="btn btn-pcc-primary text-white">Save & Recalculate Bill</button>
+                  <button type="button" className="btn btn-secondary text-white" onClick={() => setIsEditingDiscounts(false)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ModalDialog
         isOpen={modalConfig.isOpen}
