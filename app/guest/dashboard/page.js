@@ -232,7 +232,7 @@ export default async function GuestDashboard() {
               Hi, <strong className="text-blue">{guest.firstName}</strong>
             </span>
             <NotificationBell />
-            <Link href="/api/auth/logout" className="btn btn-pcc-outline btn-sm">Log Out</Link>
+            <a href="/api/auth/logout" className="btn btn-pcc-outline btn-sm">Log Out</a>
           </div>
         </div>
       </nav>
