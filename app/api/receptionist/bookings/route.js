@@ -23,7 +23,7 @@ export async function GET(request) {
       `),
       dbQuery("SELECT guestID, firstName, lastName, contact FROM guest ORDER BY lastName, firstName"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType 
+        SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, rt.type as roomType 
         FROM room r 
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
         WHERE r.isArchived = 0 

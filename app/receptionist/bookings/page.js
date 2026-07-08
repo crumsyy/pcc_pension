@@ -176,6 +176,17 @@ export default function ReceptionistBookings() {
   };
 
   const handleAddGuest = () => {
+    if (!formData.roomID) {
+      showAlert('warning', 'Warning', 'Please select a room first.');
+      return;
+    }
+    const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
+    const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
+
+    if (roomGuests.length >= limit) {
+      showAlert('warning', 'Warning', `This room has a maximum occupancy limit of ${limit} guest(s).`);
+      return;
+    }
     setRoomGuests(prev => [...prev, { fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
   };
 
@@ -195,6 +206,15 @@ export default function ReceptionistBookings() {
   };
 
   const handleAddManagingGuest = () => {
+    if (managingBooking) {
+      const selectedRoom = rooms.find(r => r.roomID === managingBooking.roomID);
+      const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
+
+      if (managingGuests.length >= limit) {
+        showAlert('warning', 'Warning', `This room has a maximum occupancy limit of ${limit} guest(s).`);
+        return;
+      }
+    }
     setManagingGuests(prev => [...prev, { fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
   };
 
@@ -215,6 +235,14 @@ export default function ReceptionistBookings() {
 
   const handleUpdateGuestsSubmit = async (e) => {
     e.preventDefault();
+    if (managingBooking) {
+      const selectedRoom = rooms.find(r => r.roomID === managingBooking.roomID);
+      const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
+      if (managingGuests.length > limit) {
+        showAlert('error', 'Validation Error', `This room exceeds the occupancy limit. Maximum allowed guests: ${limit}.`);
+        return;
+      }
+    }
     for (const g of managingGuests) {
       if (!g.fullName.trim()) {
         showAlert('error', 'Validation Error', 'All registered guests must have a name.');
@@ -272,6 +300,13 @@ export default function ReceptionistBookings() {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
+
+    const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
+    const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
+    if (roomGuests.length > limit) {
+      showAlert('error', 'Validation Error', `This room exceeds the occupancy limit. Maximum allowed guests: ${limit}.`);
+      return;
+    }
 
     // Validate guests list
     for (const g of roomGuests) {
