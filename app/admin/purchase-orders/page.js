@@ -32,10 +32,7 @@ function Combobox({ options, value, onChange, placeholder, disabled, onAddNew })
             onChange(null, e.target.value);
           }}
           onFocus={() => setIsOpen(true)}
-          onBlur={() => {
-            // Delay slightly so click registers before dropdown closes
-            setTimeout(() => setIsOpen(false), 250);
-          }}
+          onBlur={() => setIsOpen(false)}
         />
         <button
           className="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split px-2"
@@ -51,7 +48,8 @@ function Combobox({ options, value, onChange, placeholder, disabled, onAddNew })
               <button
                 type="button"
                 className="dropdown-item btn-sm text-start py-1"
-                onClick={() => {
+                onMouseDown={(e) => {
+                  e.preventDefault();
                   setInputValue(opt.name);
                   setIsOpen(false);
                   onChange(opt, opt.name);
@@ -74,7 +72,8 @@ function Combobox({ options, value, onChange, placeholder, disabled, onAddNew })
             <button
               type="button"
               className="dropdown-item btn-sm text-start py-2 text-primary fw-bold"
-              onClick={() => {
+              onMouseDown={(e) => {
+                e.preventDefault();
                 setIsOpen(false);
                 onAddNew(inputValue);
               }}
@@ -198,12 +197,14 @@ export default function AdminPurchaseOrders() {
       const prodData = await prodRes.json();
       const amenData = await amenRes.json();
       
-      const formattedProducts = (prodData.products || []).map(p => ({
-        id: p.productID,
-        name: p.name,
-        type: 'Product',
-        price: parseFloat(p.price || 0)
-      }));
+      const formattedProducts = (prodData.products || [])
+        .filter(p => p.catName !== 'Cooked Meals')
+        .map(p => ({
+          id: p.productID,
+          name: p.name,
+          type: 'Product',
+          price: parseFloat(p.price || 0)
+        }));
 
       const formattedAmenities = (amenData.items || []).map(a => ({
         id: a.amenityID,
@@ -650,6 +651,7 @@ export default function AdminPurchaseOrders() {
                           <select
                             className="form-select form-select-sm"
                             value={item.itemType}
+                            disabled={catalogItems.some(c => c.name.toLowerCase() === (item.itemName || '').trim().toLowerCase())}
                             onChange={(e) => handlePORowChange(idx, 'itemType', e.target.value)}
                           >
                             <option value="Amenity">Amenity</option>
