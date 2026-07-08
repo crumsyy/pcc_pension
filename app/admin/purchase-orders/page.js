@@ -4,6 +4,90 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 
+// Searchable Combobox Component (defined outside to prevent unmounting/focus issues)
+function Combobox({ options, value, onChange, placeholder, disabled, onAddNew }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value || '');
+
+  useEffect(() => {
+    setInputValue(value || '');
+  }, [value]);
+
+  const filtered = options.filter(opt =>
+    opt.name.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
+  return (
+    <div className="position-relative w-100">
+      <div className="input-group input-group-sm">
+        <input
+          type="text"
+          className="form-control form-control-sm"
+          placeholder={placeholder}
+          value={inputValue}
+          disabled={disabled}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            setIsOpen(true);
+            onChange(null, e.target.value);
+          }}
+          onFocus={() => setIsOpen(true)}
+          onBlur={() => {
+            // Delay slightly so click registers before dropdown closes
+            setTimeout(() => setIsOpen(false), 250);
+          }}
+        />
+        <button
+          className="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split px-2"
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={disabled}
+        />
+      </div>
+      {isOpen && (
+        <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
+          {filtered.map(opt => (
+            <li key={`${opt.type}-${opt.id}`}>
+              <button
+                type="button"
+                className="dropdown-item btn-sm text-start py-1"
+                onClick={() => {
+                  setInputValue(opt.name);
+                  setIsOpen(false);
+                  onChange(opt, opt.name);
+                }}
+              >
+                <div className="d-flex justify-content-between align-items-center">
+                  <span><strong>{opt.name}</strong></span>
+                  <span className="badge text-bg-light border text-muted small">{opt.type}</span>
+                </div>
+              </button>
+            </li>
+          ))}
+          {filtered.length === 0 && (
+            <li className="p-2 text-center text-muted small">
+              No matching catalog items found.
+            </li>
+          )}
+          <hr className="dropdown-divider my-1" />
+          <li>
+            <button
+              type="button"
+              className="dropdown-item btn-sm text-start py-2 text-primary fw-bold"
+              onClick={() => {
+                setIsOpen(false);
+                onAddNew(inputValue);
+              }}
+            >
+              <i className="bi bi-plus-circle me-1"></i> Register New Catalog Item
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPurchaseOrders() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
@@ -231,88 +315,7 @@ export default function AdminPurchaseOrders() {
     }
   };
 
-  // Internal Combobox Component helper
-  function Combobox({ options, value, onChange, placeholder, disabled, onAddNew }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [inputValue, setInputValue] = useState(value || '');
 
-    useEffect(() => {
-      setInputValue(value || '');
-    }, [value]);
-
-    const filtered = options.filter(opt =>
-      opt.name.toLowerCase().includes(inputValue.toLowerCase())
-    );
-
-    return (
-      <div className="position-relative w-100">
-        <div className="input-group input-group-sm">
-          <input
-            type="text"
-            className="form-control form-control-sm"
-            placeholder={placeholder}
-            value={inputValue}
-            disabled={disabled}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              setIsOpen(true);
-              onChange(null, e.target.value);
-            }}
-            onFocus={() => setIsOpen(true)}
-            onBlur={() => {
-              setTimeout(() => setIsOpen(false), 250);
-            }}
-          />
-          <button
-            className="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split px-2"
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            disabled={disabled}
-          />
-        </div>
-        {isOpen && (
-          <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
-            {filtered.map(opt => (
-              <li key={`${opt.type}-${opt.id}`}>
-                <button
-                  type="button"
-                  className="dropdown-item btn-sm text-start py-1"
-                  onClick={() => {
-                    setInputValue(opt.name);
-                    setIsOpen(false);
-                    onChange(opt, opt.name);
-                  }}
-                >
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span><strong>{opt.name}</strong></span>
-                    <span className="badge text-bg-light border text-muted small">{opt.type}</span>
-                  </div>
-                </button>
-              </li>
-            ))}
-            {filtered.length === 0 && (
-              <li className="p-2 text-center text-muted small">
-                No matching catalog items found.
-              </li>
-            )}
-            <hr className="dropdown-divider my-1" />
-            <li>
-              <button
-                type="button"
-                className="dropdown-item btn-sm text-start py-2 text-primary fw-bold"
-                onClick={() => {
-                  setIsOpen(false);
-                  onAddNew(inputValue);
-                }}
-              >
-                <i className="bi bi-plus-circle me-1"></i> Register New Catalog Item
-              </button>
-            </li>
-          </ul>
-        )}
-      </div>
-    );
-  }
 
   const handleStatusChange = (poID, status, msg) => {
     showConfirm('Update Status', msg || `Are you sure you want to update status to ${status}?`, async () => {
