@@ -9,6 +9,7 @@ export default function AdminAmenities() {
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -73,6 +74,7 @@ export default function AdminAmenities() {
       const query = new URLSearchParams({
         search,
         catID: catFilter,
+        itemType: typeFilter,
         archived: showArchived ? 'true' : 'false',
       }).toString();
 
@@ -91,7 +93,7 @@ export default function AdminAmenities() {
 
   useEffect(() => {
     fetchAmenities();
-  }, [search, catFilter, showArchived]);
+  }, [search, catFilter, typeFilter, showArchived]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -289,7 +291,7 @@ export default function AdminAmenities() {
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
-          <div className="col-md-5">
+          <div className="col-md-4">
             <input
               type="text"
               className="form-control"
@@ -298,7 +300,7 @@ export default function AdminAmenities() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="col-md-4">
+          <div className="col-md-3">
             <select
               className="form-select"
               value={catFilter}
@@ -312,8 +314,19 @@ export default function AdminAmenities() {
               ))}
             </select>
           </div>
-          <div className="col-md-3 d-flex gap-2">
-            <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setCatFilter(''); }}>
+          <div className="col-md-3">
+            <select
+              className="form-select"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="">All Types</option>
+              <option value="Consumable">Consumable</option>
+              <option value="Non-Consumable">Non-Consumable</option>
+            </select>
+          </div>
+          <div className="col-md-2 d-flex gap-2">
+            <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setCatFilter(''); setTypeFilter(''); }}>
               Clear
             </button>
           </div>

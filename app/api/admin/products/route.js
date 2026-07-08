@@ -12,6 +12,7 @@ export async function GET(request) {
   const search = searchParams.get('search') || '';
   const catF = searchParams.get('catID') || '';
   const archived = searchParams.get('archived') === 'true';
+  const itemType = searchParams.get('itemType') || '';
 
   let sql = `
     SELECT p.*, pc.name as catName
@@ -29,6 +30,10 @@ export async function GET(request) {
   if (catF) {
     sql += " AND p.productCategoryID = ?";
     params.push(parseInt(catF));
+  }
+  if (itemType) {
+    sql += " AND p.itemType = ?";
+    params.push(itemType);
   }
 
   sql += " ORDER BY pc.name, p.name";

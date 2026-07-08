@@ -39,6 +39,7 @@ export default function AdminInventory() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [selectedBorrow, setSelectedBorrow] = useState(null);
+  const [editExpiryDate, setEditExpiryDate] = useState('');
 
   // Form states
   const [disposeForm, setDisposeForm] = useState({
@@ -103,8 +104,8 @@ export default function AdminInventory() {
     });
   };
 
-  const fetchInventory = async () => {
-    setLoading(true);
+  const fetchInventory = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError('');
     try {
       const query = new URLSearchParams({
@@ -135,13 +136,50 @@ export default function AdminInventory() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchInventory();
+    fetchInventory(); // Initial full load
+
+    const interval = setInterval(() => {
+      fetchInventory(true); // Background poll
+    }, 4000); // Poll every 4 seconds
+
+    return () => clearInterval(interval);
   }, [search, typeFilter]);
+
+  const openEditExpiryModal = (batch) => {
+    setSelectedBatch(batch);
+    setEditExpiryDate(batch.expirationDate ? batch.expirationDate.substring(0, 10) : '');
+    setActiveModal('edit_expiry');
+  };
+
+  const handleEditExpirySubmit = async (e) => {
+    e.preventDefault();
+    showConfirm('Update Expiration Date', 'Are you sure you want to update the expiration date for this batch?', async () => {
+      try {
+        const res = await fetch('/api/admin/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_expiry',
+            batchID: selectedBatch.batchID,
+            expirationDate: editExpiryDate || null
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update expiration date');
+
+        showAlert('success', 'Success', data.message || 'Batch expiration date updated successfully.');
+        setActiveModal(null);
+        fetchInventory(true);
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
 
   const handleDisposeSubmit = async (e) => {
     e.preventDefault();
@@ -553,15 +591,9 @@ export default function AdminInventory() {
                         <td>₱{parseFloat(item.price).toFixed(2)}</td>
                         <td>
                           <div className="d-flex gap-1">
-                            {item.itemType === 'Non-Consumable' ? (
-                              <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => openBorrowModal(item)}>
-                                🤝 Borrow Item
-                              </button>
-                            ) : (
-                              <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
-                                🗑 Dispose
-                              </button>
-                            )}
+                            <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
+                              🗑 Dispose
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -623,14 +655,19 @@ export default function AdminInventory() {
                           </span>
                         </td>
                         <td>
-                          {b.remainingQuantity > 0 && (
-                            <button className="btn btn-sm btn-danger text-white" onClick={() => {
-                              const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
-                              openDisposeModal(matchItem, b);
-                            }}>
-                              🗑 Dispose
+                          <div className="d-flex gap-1">
+                            <button className="btn btn-sm btn-pcc-outline" onClick={() => openEditExpiryModal(b)}>
+                              ✏ Expiry
                             </button>
-                          )}
+                            {b.remainingQuantity > 0 && (
+                              <button className="btn btn-sm btn-danger text-white" onClick={() => {
+                                const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
+                                openDisposeModal(matchItem, b);
+                              }}>
+                                🗑 Dispose
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -947,6 +984,48 @@ export default function AdminInventory() {
                 </div>
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary">Record Return</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT EXPIRY MODAL */}
+      {activeModal === 'edit_expiry' && selectedBatch && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Edit Batch Expiry Date</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleEditExpirySubmit}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Batch Number</label>
+                    <input type="text" className="form-control bg-light" value={selectedBatch.batchNumber} disabled />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Item Name</label>
+                    <input type="text" className="form-control bg-light" value={selectedBatch.itemName} disabled />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Expiration Date</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={editExpiryDate}
+                      onChange={(e) => setEditExpiryDate(e.target.value)}
+                    />
+                    <div className="form-text text-muted">
+                      Leave empty if the item does not expire.
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>

@@ -421,6 +421,32 @@ export async function POST(request) {
       }
     }
 
+    if (action === 'update_expiry') {
+      const { batchID, expirationDate } = body;
+      const cleanDate = expirationDate ? expirationDate : null;
+
+      await dbQuery(
+        "UPDATE inventory_batch SET expirationDate = ? WHERE batchID = ?",
+        [cleanDate, parseInt(batchID)]
+      );
+
+      if (cleanDate) {
+        const isExpired = new Date(cleanDate) < new Date();
+        const newStatus = isExpired ? 'Expired' : 'Active';
+        await dbQuery(
+          "UPDATE inventory_batch SET status = ? WHERE batchID = ? AND remainingQuantity > 0 AND status != 'Disposed'",
+          [newStatus, parseInt(batchID)]
+        );
+      } else {
+        await dbQuery(
+          "UPDATE inventory_batch SET status = 'Active' WHERE batchID = ? AND remainingQuantity > 0 AND status != 'Disposed'",
+          [parseInt(batchID)]
+        );
+      }
+
+      return NextResponse.json({ success: true, message: 'Batch expiration date updated successfully.' });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error("Failed to process inventory action:", error);

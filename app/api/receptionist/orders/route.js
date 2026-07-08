@@ -127,6 +127,16 @@ export async function POST(request) {
             throw new Error(`Insufficient stock for ${item.type === 'Product' ? 'product' : 'amenity'}: ID ${itemID}`);
           }
 
+          // Check if item is Consumable or Non-Consumable
+          let itemClassType = 'Consumable';
+          if (item.type === 'Product') {
+            const [pRes] = await connection.execute("SELECT itemType FROM products WHERE productID = ?", [itemID]);
+            if (pRes.length > 0) itemClassType = pRes[0].itemType;
+          } else {
+            const [aRes] = await connection.execute("SELECT itemType FROM amenities WHERE amenityID = ?", [itemID]);
+            if (aRes.length > 0) itemClassType = aRes[0].itemType;
+          }
+
           // FIFO batch deduction
           let needed = quantity;
           for (const batch of batches) {
@@ -138,14 +148,58 @@ export async function POST(request) {
               [take, batch.batchID]
             );
 
-            // Log movement for this batch
+            // Log movement for this batch (movement type is Borrow for Non-Consumables)
+            const mType = itemClassType === 'Non-Consumable' ? 'Borrow' : 'Stock Out';
             await connection.execute(
               `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
-               VALUES (?, ?, ?, ?, 'Stock Out', ?, 'Guest Order placed', ?)`,
-              [item.type, itemID, -take, session.userID, `ORD-${orderID}`, batch.batchID]
+               VALUES (?, ?, ?, ?, ?, ?, 'Guest Order placed', ?)`,
+              [item.type, itemID, -take, session.userID, mType, `ORD-${orderID}`, batch.batchID]
             );
 
             needed -= take;
+          }
+
+          // Register borrow transaction if it's a Non-Consumable item
+          if (itemClassType === 'Non-Consumable') {
+            // Find active booking for the guest to link bookingID/roomID
+            const [bookingRes] = await connection.execute(
+              `SELECT b.bookingID, b.roomID, g.firstName, g.lastName 
+               FROM booking b 
+               JOIN guest g ON g.guestID = b.guestID 
+               WHERE g.guestID = ? AND b.status = 'Checked In' 
+               LIMIT 1`,
+              [guestID]
+            );
+
+            let bookingID = null;
+            let roomID = null;
+            let borrowedBy = 'Walk-in Guest';
+            
+            if (bookingRes.length > 0) {
+              bookingID = bookingRes[0].bookingID;
+              roomID = bookingRes[0].roomID;
+              borrowedBy = `${bookingRes[0].firstName} ${bookingRes[0].lastName}`.trim();
+            } else {
+              const [guestRes] = await connection.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
+              if (guestRes.length > 0) {
+                borrowedBy = `${guestRes[0].firstName} ${guestRes[0].lastName}`.trim();
+              }
+            }
+
+            await connection.execute(
+              `INSERT INTO borrow_transaction (itemType, itemID, quantity, borrowedBy, bookingID, roomID, status, userID, remarks)
+               VALUES (?, ?, ?, ?, ?, ?, 'Borrowed', ?, ?)`,
+              [
+                item.type,
+                itemID,
+                quantity,
+                borrowedBy,
+                bookingID,
+                roomID,
+                session.userID,
+                `Borrowed via Guest Order ORD-${orderID}`
+              ]
+            );
           }
 
           // Insert order item record
@@ -211,6 +265,14 @@ export async function POST(request) {
                 [item.productID, item.quantity, session.userID, `ORD-${orderID}`, batchID]
               );
 
+              // Auto-return borrow transaction if non-consumable
+              await connection.execute(
+                `UPDATE borrow_transaction 
+                 SET status = 'Returned', actualReturnDate = NOW(), remarks = 'Order canceled - Auto-returned' 
+                 WHERE itemType = 'Product' AND itemID = ? AND remarks LIKE ? AND status = 'Borrowed'`,
+                [item.productID, `%ORD-${orderID}%`]
+              );
+
               // Legacy fallback update
               await connection.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [item.quantity, item.productID]);
             }
@@ -236,6 +298,14 @@ export async function POST(request) {
                 `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
                  VALUES ('Amenity', ?, ?, ?, 'Return', ?, 'Order canceled - Stock refunded', ?)`,
                 [item.amenityID, item.quantity, session.userID, `ORD-${orderID}`, batchID]
+              );
+
+              // Auto-return borrow transaction if non-consumable
+              await connection.execute(
+                `UPDATE borrow_transaction 
+                 SET status = 'Returned', actualReturnDate = NOW(), remarks = 'Order canceled - Auto-returned' 
+                 WHERE itemType = 'Amenity' AND itemID = ? AND remarks LIKE ? AND status = 'Borrowed'`,
+                [item.amenityID, `%ORD-${orderID}%`]
               );
 
               // Legacy fallback update
