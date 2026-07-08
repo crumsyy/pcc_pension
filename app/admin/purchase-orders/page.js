@@ -15,6 +15,23 @@ export default function AdminPurchaseOrders() {
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'stock_in' | null
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Catalog integration states
+  const [catalogItems, setCatalogItems] = useState([]); // [{ id, name, type, price }]
+  const [productCategories, setProductCategories] = useState([]);
+  const [amenityCategories, setAmenityCategories] = useState([]);
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [quickAddTargetRowIndex, setQuickAddTargetRowIndex] = useState(-1);
+  const [quickAddForm, setQuickAddForm] = useState({
+    name: '',
+    price: 0,
+    type: 'Product', // 'Product' | 'Amenity'
+    categoryID: '',
+    minStock: 5,
+    itemType: 'Consumable',
+    unit: 'pcs',
+    description: ''
+  });
+
   // Form states
   const [poItems, setPoItems] = useState([
     { itemName: '', itemType: 'Amenity', quantity: 1, unitPrice: 0.00 }
@@ -87,6 +104,215 @@ export default function AdminPurchaseOrders() {
   useEffect(() => {
     fetchOrders();
   }, [statusFilter, searchVal, dateFilter]);
+
+  const fetchCatalog = async () => {
+    try {
+      const [prodRes, amenRes] = await Promise.all([
+        fetch('/api/admin/products'),
+        fetch('/api/admin/amenities')
+      ]);
+      const prodData = await prodRes.json();
+      const amenData = await amenRes.json();
+      
+      const formattedProducts = (prodData.products || []).map(p => ({
+        id: p.productID,
+        name: p.name,
+        type: 'Product',
+        price: parseFloat(p.price || 0)
+      }));
+
+      const formattedAmenities = (amenData.items || []).map(a => ({
+        id: a.amenityID,
+        name: a.name,
+        type: 'Amenity',
+        price: parseFloat(a.price || 0)
+      }));
+
+      setCatalogItems([...formattedProducts, ...formattedAmenities]);
+      setProductCategories(prodData.categories || []);
+      setAmenityCategories(amenData.categories || []);
+    } catch (e) {
+      console.error("Failed to fetch catalog:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchCatalog();
+  }, []);
+
+  const handlePORowChangeSelect = (index, selectedItem, rawName) => {
+    setPoItems(prev => {
+      const newItems = [...prev];
+      if (selectedItem) {
+        newItems[index] = {
+          ...newItems[index],
+          itemName: selectedItem.name,
+          itemType: selectedItem.type,
+          unitPrice: selectedItem.price
+        };
+      } else {
+        newItems[index] = {
+          ...newItems[index],
+          itemName: rawName
+        };
+      }
+      return newItems;
+    });
+  };
+
+  const handleQuickAddClick = (rowIndex, typedName) => {
+    setQuickAddTargetRowIndex(rowIndex);
+    setQuickAddForm({
+      name: typedName || '',
+      price: 0,
+      type: poItems[rowIndex]?.itemType || 'Product',
+      categoryID: '',
+      minStock: 5,
+      itemType: 'Consumable',
+      unit: 'pcs',
+      description: ''
+    });
+    setShowQuickAddModal(true);
+  };
+
+  const handleQuickAddSubmit = async (e) => {
+    e.preventDefault();
+    if (!quickAddForm.categoryID) {
+      showAlert('error', 'Validation Error', 'Please select a Category.');
+      return;
+    }
+    try {
+      const isProduct = quickAddForm.type === 'Product';
+      const endpoint = isProduct ? '/api/admin/products' : '/api/admin/amenities';
+      const payload = {
+        action: 'create',
+        name: quickAddForm.name,
+        price: parseFloat(quickAddForm.price),
+        minStock: parseInt(quickAddForm.minStock),
+        itemType: quickAddForm.itemType,
+        unit: quickAddForm.unit,
+        description: quickAddForm.description
+      };
+      if (isProduct) {
+        payload.productCategoryID = parseInt(quickAddForm.categoryID);
+      } else {
+        payload.amenityCategoryID = parseInt(quickAddForm.categoryID);
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create item');
+
+      // Refresh catalog list
+      await fetchCatalog();
+
+      // Automatically select the new item in the target PO row
+      setPoItems(prev => {
+        const newItems = [...prev];
+        if (newItems[quickAddTargetRowIndex]) {
+          newItems[quickAddTargetRowIndex] = {
+            itemName: quickAddForm.name,
+            itemType: quickAddForm.type,
+            quantity: newItems[quickAddTargetRowIndex].quantity,
+            unitPrice: parseFloat(quickAddForm.price)
+          };
+        }
+        return newItems;
+      });
+
+      setShowQuickAddModal(false);
+      showAlert('success', 'Success', `${quickAddForm.type} "${quickAddForm.name}" registered and added to PO row.`);
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
+  };
+
+  // Internal Combobox Component helper
+  function Combobox({ options, value, onChange, placeholder, disabled, onAddNew }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [inputValue, setInputValue] = useState(value || '');
+
+    useEffect(() => {
+      setInputValue(value || '');
+    }, [value]);
+
+    const filtered = options.filter(opt =>
+      opt.name.toLowerCase().includes(inputValue.toLowerCase())
+    );
+
+    return (
+      <div className="position-relative w-100">
+        <div className="input-group input-group-sm">
+          <input
+            type="text"
+            className="form-control form-control-sm"
+            placeholder={placeholder}
+            value={inputValue}
+            disabled={disabled}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              setIsOpen(true);
+              onChange(null, e.target.value);
+            }}
+            onFocus={() => setIsOpen(true)}
+            onBlur={() => {
+              setTimeout(() => setIsOpen(false), 250);
+            }}
+          />
+          <button
+            className="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split px-2"
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            disabled={disabled}
+          />
+        </div>
+        {isOpen && (
+          <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
+            {filtered.map(opt => (
+              <li key={`${opt.type}-${opt.id}`}>
+                <button
+                  type="button"
+                  className="dropdown-item btn-sm text-start py-1"
+                  onClick={() => {
+                    setInputValue(opt.name);
+                    setIsOpen(false);
+                    onChange(opt, opt.name);
+                  }}
+                >
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span><strong>{opt.name}</strong></span>
+                    <span className="badge text-bg-light border text-muted small">{opt.type}</span>
+                  </div>
+                </button>
+              </li>
+            ))}
+            {filtered.length === 0 && (
+              <li className="p-2 text-center text-muted small">
+                No matching catalog items found.
+              </li>
+            )}
+            <hr className="dropdown-divider my-1" />
+            <li>
+              <button
+                type="button"
+                className="dropdown-item btn-sm text-start py-2 text-primary fw-bold"
+                onClick={() => {
+                  setIsOpen(false);
+                  onAddNew(inputValue);
+                }}
+              >
+                <i className="bi bi-plus-circle me-1"></i> Register New Catalog Item
+              </button>
+            </li>
+          </ul>
+        )}
+      </div>
+    );
+  }
 
   const handleStatusChange = (poID, status, msg) => {
     showConfirm('Update Status', msg || `Are you sure you want to update status to ${status}?`, async () => {
@@ -409,13 +635,12 @@ export default function AdminPurchaseOrders() {
                     {poItems.map((item, idx) => (
                       <div className="row g-2 mb-2 align-items-center" key={idx}>
                         <div className="col-md-4">
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="Item name"
-                            required
+                          <Combobox
+                            options={catalogItems}
                             value={item.itemName}
-                            onChange={(e) => handlePORowChange(idx, 'itemName', e.target.value)}
+                            placeholder="Search catalog items..."
+                            onChange={(selected, rawVal) => handlePORowChangeSelect(idx, selected, rawVal)}
+                            onAddNew={(typedVal) => handleQuickAddClick(idx, typedVal)}
                           />
                         </div>
                         <div className="col-md-3">
@@ -646,6 +871,126 @@ export default function AdminPurchaseOrders() {
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary">Confirm Stock-In</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK ADD CATALOG ITEM SUBMODAL */}
+      {showQuickAddModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1070 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header" style={{ background: '#343a40', color: '#fff' }}>
+                <h5 className="modal-title">Register New Catalog Item</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowQuickAddModal(false)}></button>
+              </div>
+              <form onSubmit={handleQuickAddSubmit}>
+                <div className="modal-body">
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-bold">Item Type Category *</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={quickAddForm.type}
+                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, type: e.target.value, categoryID: '' }))}
+                      >
+                        <option value="Product">Product</option>
+                        <option value="Amenity">Amenity</option>
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-bold">Select Category *</label>
+                      <select
+                        className="form-select form-select-sm"
+                        required
+                        value={quickAddForm.categoryID}
+                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, categoryID: e.target.value }))}
+                      >
+                        <option value="">-- Choose Category --</option>
+                        {quickAddForm.type === 'Product' 
+                          ? productCategories.map(c => <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>)
+                          : amenityCategories.map(c => <option key={c.amenityCategoryID} value={c.amenityCategoryID}>{c.name}</option>)
+                        }
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label small fw-bold">Item Name *</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      required
+                      placeholder="e.g. Toothpaste, Monoblock Chair..."
+                      value={quickAddForm.name}
+                      onChange={(e) => setQuickAddForm(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-4">
+                      <label className="form-label small fw-bold">Unit *</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        required
+                        placeholder="e.g. pcs, pack, box"
+                        value={quickAddForm.unit}
+                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, unit: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-bold">Base Price (₱) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="form-control form-control-sm"
+                        required
+                        value={quickAddForm.price}
+                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, price: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-bold">Min Stock Alert *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="form-control form-control-sm"
+                        required
+                        value={quickAddForm.minStock}
+                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, minStock: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-bold">Consumable Type *</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={quickAddForm.itemType}
+                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, itemType: e.target.value }))}
+                      >
+                        <option value="Consumable">Consumable (e.g. soap, snacks)</option>
+                        <option value="Non-Consumable">Non-Consumable (e.g. chairs, pillows)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label small fw-bold">Description (Optional)</label>
+                    <textarea
+                      className="form-control form-control-sm"
+                      rows="2"
+                      placeholder="Add brief details about this item..."
+                      value={quickAddForm.description}
+                      onChange={(e) => setQuickAddForm(prev => ({ ...prev, description: e.target.value }))}
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="modal-footer py-2">
+                  <button type="submit" className="btn btn-sm btn-dark">Register &amp; Add</button>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowQuickAddModal(false)}>Cancel</button>
                 </div>
               </form>
             </div>
