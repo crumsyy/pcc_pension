@@ -24,6 +24,7 @@ export async function GET(request) {
       JOIN floor fl ON fl.floorID = r.floorID
       JOIN room_rate rr ON rr.roomTypeID = rt.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ?
       WHERE r.isArchived = 0
+        AND r.status != 'Under Maintenance'
         AND r.roomID NOT IN (
           SELECT DISTINCT b.roomID
           FROM booking b

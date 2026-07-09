@@ -16,6 +16,7 @@ export default function ReceptionistBookings() {
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'cancel_reason' | 'manage_guests' | null
   const [cancellingBookingID, setCancellingBookingID] = useState(null);
   const [cancelRemarks, setCancelRemarks] = useState('');
+  const [minDateTime, setMinDateTime] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({
@@ -106,17 +107,17 @@ export default function ReceptionistBookings() {
   useEffect(() => {
     if (activeModal === 'create') {
       const today = new Date();
-      today.setHours(14, 0, 0, 0);
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(12, 0, 0, 0);
 
-      const offset = today.getTimezoneOffset();
-      const localToday = new Date(today.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 16);
-      const localTomorrow = new Date(tomorrow.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 16);
+      const pad = (num) => String(num).padStart(2, '0');
+      const localToday = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}T${pad(today.getHours())}:${pad(today.getMinutes())}`;
+      const localTomorrow = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T12:00`;
+
+      setMinDateTime(localToday);
 
       setFormData({
-        guestID: '',
+        guestID: guests[0]?.guestID || '',
         roomID: '',
         checkInDateTime: localToday,
         checkOutDateTime: localTomorrow,
@@ -300,6 +301,31 @@ export default function ReceptionistBookings() {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
+
+    const checkIn = new Date(formData.checkInDateTime);
+    const checkOut = new Date(formData.checkOutDateTime);
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - 5);
+
+    if (checkIn < now) {
+      showAlert('error', 'Validation Error', 'Check-in date and time cannot be in the past.');
+      return;
+    }
+    if (checkOut <= checkIn) {
+      showAlert('error', 'Validation Error', 'Check-out date and time must be after the check-in date and time.');
+      return;
+    }
+
+    if (isWalkIn) {
+      if (!walkInForm.firstName.trim() || !walkInForm.lastName.trim()) {
+        showAlert('error', 'Validation Error', 'First name and Last name are required.');
+        return;
+      }
+      if (!walkInForm.contact || walkInForm.contact.length !== 11) {
+        showAlert('error', 'Validation Error', 'Contact number must be exactly 11 digits.');
+        return;
+      }
+    }
 
     const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
     const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
@@ -509,25 +535,7 @@ export default function ReceptionistBookings() {
           <div className="section-eyebrow">Receptionist</div>
           <h2 className="section-title mb-0">Bookings & Lodging Log</h2>
         </div>
-        <button className="btn btn-pcc-primary text-white" onClick={() => {
-          const today = new Date();
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-
-          const formatDateTimeLocal = (date, hour) => {
-            const pad = (num) => String(num).padStart(2, '0');
-            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${hour}`;
-          };
-
-          setFormData({
-            guestID: guests[0]?.guestID || '',
-            roomID: rooms[0]?.roomID || '',
-            checkInDateTime: formatDateTimeLocal(today, '14:00'),
-            checkOutDateTime: formatDateTimeLocal(tomorrow, '12:00'),
-            status: 'Confirmed'
-          });
-          setActiveModal('create');
-        }}>
+        <button className="btn btn-pcc-primary text-white" onClick={() => setActiveModal('create')}>
           + Create Booking
         </button>
       </div>
@@ -730,7 +738,10 @@ export default function ReceptionistBookings() {
                           type="text"
                           className="form-control"
                           value={walkInForm.contact}
-                          onChange={(e) => setWalkInForm(prev => ({ ...prev, contact: e.target.value }))}
+                          onChange={(e) => {
+                            const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
+                            setWalkInForm(prev => ({ ...prev, contact: sanitized }));
+                          }}
                         />
                       </div>
                       <div className="mb-2">
@@ -845,6 +856,7 @@ export default function ReceptionistBookings() {
                       name="checkInDateTime"
                       className="form-control"
                       required
+                      min={minDateTime}
                       value={formData.checkInDateTime}
                       onChange={handleInputChange}
                     />
@@ -856,6 +868,7 @@ export default function ReceptionistBookings() {
                       name="checkOutDateTime"
                       className="form-control"
                       required
+                      min={formData.checkInDateTime || minDateTime}
                       value={formData.checkOutDateTime}
                       onChange={handleInputChange}
                     />

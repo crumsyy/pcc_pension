@@ -3,6 +3,75 @@
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 
+function Combobox({ options, value, onChange, placeholder, disabled }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
+  useEffect(() => {
+    const selected = options.find(o => o.idAndType === value);
+    setInputValue(selected ? selected.displayName : '');
+  }, [value, options]);
+
+  const filtered = options.filter(opt =>
+    opt.displayName.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
+  return (
+    <div className="position-relative w-100">
+      <input
+        type="text"
+        className="form-control"
+        placeholder={placeholder}
+        value={inputValue}
+        disabled={disabled}
+        onChange={(e) => {
+          setInputValue(e.target.value);
+          setIsOpen(true);
+          const match = options.find(o => o.displayName.toLowerCase() === e.target.value.toLowerCase());
+          if (match) {
+            onChange(match);
+          } else {
+            onChange(null);
+          }
+        }}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+      />
+      {isOpen && (
+        <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
+          {filtered.map(opt => (
+            <li key={opt.idAndType}>
+              <button
+                type="button"
+                className="dropdown-item btn-sm text-start py-1"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setInputValue(opt.displayName);
+                  setIsOpen(false);
+                  onChange(opt);
+                }}
+              >
+                <div className="d-flex justify-content-between align-items-center">
+                  <span><strong>{opt.displayName}</strong></span>
+                  <span className="badge text-bg-light border text-muted small">{opt.type}</span>
+                </div>
+                <div className="small text-muted" style={{ fontSize: '0.72rem' }}>
+                  Price: ₱{opt.price} | Stock: {opt.quantity} left
+                </div>
+              </button>
+            </li>
+          ))}
+          {filtered.length === 0 && (
+            <li className="p-2 text-center text-muted small">
+              No matching items found.
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function ReceptionistOrders() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
@@ -314,6 +383,25 @@ export default function ReceptionistOrders() {
     return matchesSearch && matchesStatus;
   });
 
+  const comboboxOptions = [
+    ...products.map(p => ({
+      idAndType: `${p.productID}-Product`,
+      displayName: p.name,
+      name: `${p.name} - ₱${p.price} (${p.quantity} left)`,
+      type: 'Product',
+      price: p.price,
+      quantity: p.quantity
+    })),
+    ...amenities.map(a => ({
+      idAndType: `${a.amenityID}-Amenity`,
+      displayName: a.name,
+      name: `${a.name} - ₱${a.price} (${a.quantity} left)`,
+      type: 'Amenity',
+      price: a.price,
+      quantity: a.quantity
+    }))
+  ];
+
   return (
     <>
       <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '85vh' }}>
@@ -610,27 +698,12 @@ export default function ReceptionistOrders() {
                   <div className="row g-2 mb-3 bg-light p-3 border rounded">
                     <div className="col-md-7">
                       <label className="form-label fw-semibold">Select Item to Add</label>
-                      <select
-                        className="form-select"
+                      <Combobox
+                        options={comboboxOptions}
                         value={selectedItemToAdd.idAndType}
-                        onChange={(e) => setSelectedItemToAdd(prev => ({ ...prev, idAndType: e.target.value }))}
-                      >
-                        <option value="">Select Product or Amenity</option>
-                        <optgroup label="🛍️ Products (Stock)">
-                          {products.map(p => (
-                            <option key={`prod-${p.productID}`} value={`${p.productID}-Product`}>
-                              {p.name} - ₱{p.price} ({p.quantity} left)
-                            </option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="🛏️ Amenities (Stock)">
-                          {amenities.map(a => (
-                            <option key={`amen-${a.amenityID}`} value={`${a.amenityID}-Amenity`}>
-                              {a.name} - ₱{a.price} ({a.quantity} left)
-                            </option>
-                          ))}
-                        </optgroup>
-                      </select>
+                        placeholder="Type to search product or amenity..."
+                        onChange={(opt) => setSelectedItemToAdd(prev => ({ ...prev, idAndType: opt ? opt.idAndType : '' }))}
+                      />
                     </div>
                     <div className="col-md-3">
                       <label className="form-label fw-semibold">Quantity</label>

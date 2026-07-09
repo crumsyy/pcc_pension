@@ -54,6 +54,10 @@ export async function POST(request) {
       email = body.email?.trim() || email;
     }
 
+    const localNow = new Date();
+    const pad = (num) => String(num).padStart(2, '0');
+    const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
     // Check if there is an existing inquiry for this guest's email
     const lastInq = await dbQuery("SELECT * FROM inquiry WHERE email = ? ORDER BY createdAt DESC LIMIT 1", [email]);
 
@@ -67,14 +71,14 @@ export async function POST(request) {
       updatedMessage += "\n\nGuest: " + message;
 
       await dbQuery(
-        "UPDATE inquiry SET message = ?, status = 'Pending', response = NULL, createdAt = NOW(), isChatbotForwarded = 1 WHERE inquiryID = ?",
-        [updatedMessage, existingInq.inquiryID]
+        "UPDATE inquiry SET message = ?, status = 'Pending', response = NULL, createdAt = ?, isChatbotForwarded = 1 WHERE inquiryID = ?",
+        [updatedMessage, nowStr, existingInq.inquiryID]
       );
     } else {
       // Insert new inquiry
       await dbQuery(
-        "INSERT INTO inquiry(name, email, message, status, isChatbotForwarded) VALUES(?, ?, ?, 'Pending', 1)",
-        [name, email, message]
+        "INSERT INTO inquiry(name, email, message, status, isChatbotForwarded, createdAt) VALUES(?, ?, ?, 'Pending', 1, ?)",
+        [name, email, message, nowStr]
       );
     }
 

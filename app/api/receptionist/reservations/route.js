@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, getDbConnection } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -86,16 +86,59 @@ export async function POST(request) {
 
     if (action === 'confirm') {
       const reservationID = parseInt(body.reservationID);
-      const res = await dbQuery("SELECT roomID FROM reservation WHERE reservationID = ?", [reservationID]);
+      const res = await dbQuery("SELECT * FROM reservation WHERE reservationID = ?", [reservationID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       }
-      const roomID = res[0].roomID;
+      const { guestID, roomID, reservationDateTime } = res[0];
 
-      await dbQuery("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [reservationID]);
-      await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+      const pool = await getDbConnection();
+      const conn = await pool.getConnection();
 
-      return NextResponse.json({ success: true, message: 'Reservation confirmed.' });
+      try {
+        await conn.beginTransaction();
+
+        // 1. Update reservation status to Confirmed
+        await conn.execute("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [reservationID]);
+
+        // 2. Insert booking
+        // Default stay check-in/out:
+        // checkInDateTime = reservationDateTime
+        // checkOutDateTime = reservationDateTime + 1 day, at 12:00:00
+        const checkInDate = new Date(reservationDateTime);
+        const checkOutDate = new Date(checkInDate);
+        checkOutDate.setDate(checkOutDate.getDate() + 1);
+        checkOutDate.setHours(12, 0, 0, 0);
+
+        const pad = (num) => String(num).padStart(2, '0');
+        const checkInStr = `${checkInDate.getFullYear()}-${pad(checkInDate.getMonth() + 1)}-${pad(checkInDate.getDate())} ${pad(checkInDate.getHours())}:${pad(checkInDate.getMinutes())}:${pad(checkInDate.getSeconds())}`;
+        const checkOutStr = `${checkOutDate.getFullYear()}-${pad(checkOutDate.getMonth() + 1)}-${pad(checkOutDate.getDate())} 12:00:00`;
+
+        const [insertBookingRes] = await conn.execute(
+          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, 'Confirmed', ?, ?, ?)",
+          [checkInStr, checkOutStr, reservationID, guestID, roomID]
+        );
+        const bookingID = insertBookingRes.insertId;
+
+        // 3. Seed default guest details
+        const [guestInfo] = await conn.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
+        const defaultName = guestInfo.length > 0 ? `${guestInfo[0].firstName} ${guestInfo[0].lastName}` : 'Primary Guest';
+        await conn.execute(
+          "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, NULL, NULL)",
+          [bookingID, defaultName]
+        );
+
+        // 4. Update Room status
+        await conn.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+
+        await conn.commit();
+        return NextResponse.json({ success: true, message: 'Reservation confirmed and auto-converted to a confirmed booking.' });
+      } catch (e) {
+        await conn.rollback();
+        throw e;
+      } finally {
+        conn.release();
+      }
     }
 
     if (action === 'cancel') {

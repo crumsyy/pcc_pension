@@ -238,7 +238,8 @@ export async function GET(request) {
           return checkIn <= day && checkOut >= day;
         }).length;
 
-        const rate = totalRooms > 0 ? (occupiedCount / totalRooms) * 100 : 0;
+        const activeTotalRooms = totalRooms - maintenanceNow;
+        const rate = activeTotalRooms > 0 ? (occupiedCount / activeTotalRooms) * 100 : 0;
         return {
           date: day,
           occupied: occupiedCount,
@@ -290,7 +291,7 @@ export async function GET(request) {
       data.occupiedNow = occupiedNow;
       data.availableNow = availableNow;
       data.maintenanceNow = maintenanceNow;
-      data.occupancyPercentage = totalRooms > 0 ? ((occupiedNow / totalRooms) * 100) : 0;
+      data.occupancyPercentage = (totalRooms - maintenanceNow) > 0 ? ((occupiedNow / (totalRooms - maintenanceNow)) * 100) : 0;
       
       data.checkInsCount = checkInsRes[0]?.count || 0;
       data.checkOutsCount = checkOutsRes[0]?.count || 0;

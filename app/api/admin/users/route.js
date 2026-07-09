@@ -279,9 +279,13 @@ export async function POST(request) {
         return NextResponse.json({ error: 'You cannot suspend your own account.' }, { status: 400 });
       }
 
+      const localNow = new Date();
+      const pad = (num) => String(num).padStart(2, '0');
+      const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
       await dbQuery(
-        "UPDATE user SET status = 'Suspended', suspendedUntil = DATE_ADD(NOW(), INTERVAL ? DAY), suspensionRemarks = ? WHERE userID = ?",
-        [days, remarks, uid]
+        "UPDATE user SET status = 'Suspended', suspendedUntil = DATE_ADD(?, INTERVAL ? DAY), suspensionRemarks = ? WHERE userID = ?",
+        [nowStr, days, remarks, uid]
       );
       return NextResponse.json({ success: true, message: `Account suspended successfully for ${days} days.` });
     }

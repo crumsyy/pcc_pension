@@ -91,6 +91,10 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const localNow = new Date();
+  const pad = (num) => String(num).padStart(2, '0');
+  const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
   try {
     const body = await request.json();
     const { action } = body;
@@ -111,8 +115,8 @@ export async function POST(request) {
 
         // 1. Create order record
         const [orderResult] = await connection.execute(
-          "INSERT INTO orders (orderStatus, orderDateTime, guestID) VALUES ('Preparing', NOW(), ?)",
-          [guestID]
+          "INSERT INTO orders (orderStatus, orderDateTime, guestID) VALUES ('Preparing', ?, ?)",
+          [nowStr, guestID]
         );
         const orderID = orderResult.insertId;
 
@@ -276,9 +280,9 @@ export async function POST(request) {
               // Auto-return borrow transaction if non-consumable
               await connection.execute(
                 `UPDATE borrow_transaction 
-                 SET status = 'Returned', actualReturnDate = NOW(), remarks = 'Order canceled - Auto-returned' 
+                 SET status = 'Returned', actualReturnDate = ?, remarks = 'Order canceled - Auto-returned' 
                  WHERE itemType = 'Product' AND itemID = ? AND remarks LIKE ? AND status = 'Borrowed'`,
-                [item.productID, `%ORD-${orderID}%`]
+                [nowStr, item.productID, `%ORD-${orderID}%`]
               );
 
               // Legacy fallback update
@@ -311,9 +315,9 @@ export async function POST(request) {
               // Auto-return borrow transaction if non-consumable
               await connection.execute(
                 `UPDATE borrow_transaction 
-                 SET status = 'Returned', actualReturnDate = NOW(), remarks = 'Order canceled - Auto-returned' 
+                 SET status = 'Returned', actualReturnDate = ?, remarks = 'Order canceled - Auto-returned' 
                  WHERE itemType = 'Amenity' AND itemID = ? AND remarks LIKE ? AND status = 'Borrowed'`,
-                [item.amenityID, `%ORD-${orderID}%`]
+                [nowStr, item.amenityID, `%ORD-${orderID}%`]
               );
 
               // Legacy fallback update
@@ -370,15 +374,15 @@ export async function POST(request) {
           
           await connection.execute(
             `INSERT INTO borrow_transaction (itemType, itemID, quantity, borrowedBy, bookingID, roomID, status, conditionUponReturn, actualReturnDate, userID, remarks)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
-            [borrow.itemType, borrow.itemID, qtyRet, borrow.borrowedBy, borrow.bookingID, borrow.roomID, status, status === 'Returned' ? 'Good' : status, session.userID, `Partial Return - ${updatedRemarks}`]
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [borrow.itemType, borrow.itemID, qtyRet, borrow.borrowedBy, borrow.bookingID, borrow.roomID, status, status === 'Returned' ? 'Good' : status, nowStr, session.userID, `Partial Return - ${updatedRemarks}`]
           );
         } else {
           await connection.execute(
             `UPDATE borrow_transaction 
-             SET status = ?, conditionUponReturn = ?, actualReturnDate = NOW(), remarks = ? 
+             SET status = ?, conditionUponReturn = ?, actualReturnDate = ?, remarks = ? 
              WHERE borrowID = ?`,
-            [status, status === 'Returned' ? 'Good' : status, updatedRemarks, borrow.borrowID]
+            [status, status === 'Returned' ? 'Good' : status, nowStr, updatedRemarks, borrow.borrowID]
           );
         }
 

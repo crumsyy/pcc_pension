@@ -56,6 +56,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
     }
 
+    const localNow = new Date();
+    const pad = (num) => String(num).padStart(2, '0');
+    const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
     // 1. Fetch staffID from staff table using userID
     const staffRes = await dbQuery("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
     const staffID = staffRes[0]?.staffID || null;
@@ -74,8 +78,8 @@ export async function POST(request) {
         billingID = billingCheck[0].billingID;
       } else {
         const [billingInsert] = await connection.execute(
-          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (NOW(), ?, ?, NULL)",
-          [guestID, bookingID]
+          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (?, ?, ?, NULL)",
+          [nowStr, guestID, bookingID]
         );
         billingID = billingInsert.insertId;
       }
@@ -90,8 +94,8 @@ export async function POST(request) {
 
       // 4. Insert transaction log
       await connection.execute(
-        "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (NOW(), ?, ?)",
-        [billingID, paymentID]
+        "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+        [nowStr, billingID, paymentID]
       );
 
       // 5. If checkout requested, update booking and room statuses
@@ -99,7 +103,7 @@ export async function POST(request) {
         const [bookingRes] = await connection.execute("SELECT roomID FROM booking WHERE bookingID = ?", [bookingID]);
         if (bookingRes.length > 0) {
           const roomID = bookingRes[0].roomID;
-          await connection.execute("UPDATE booking SET status = 'Checked Out', checkOutDateTime = NOW() WHERE bookingID = ?", [bookingID]);
+          await connection.execute("UPDATE booking SET status = 'Checked Out', checkOutDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
           await connection.execute("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
         }
       }

@@ -222,7 +222,11 @@ export async function POST(request) {
       }
       const roomID = res[0].roomID;
 
-      await dbQuery("UPDATE booking SET status = 'Checked In', checkInDateTime = NOW() WHERE bookingID = ?", [bookingID]);
+      const localNow = new Date();
+      const pad = (num) => String(num).padStart(2, '0');
+      const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
+      await dbQuery("UPDATE booking SET status = 'Checked In', checkInDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
       await dbQuery("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
 
       return NextResponse.json({ success: true, message: 'Guest checked in successfully.' });
@@ -237,7 +241,11 @@ export async function POST(request) {
       }
       const roomID = res[0].roomID;
 
-      await dbQuery("UPDATE booking SET status = 'Checked Out', checkOutDateTime = NOW() WHERE bookingID = ?", [bookingID]);
+      const localNow = new Date();
+      const pad = (num) => String(num).padStart(2, '0');
+      const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
+      await dbQuery("UPDATE booking SET status = 'Checked Out', checkOutDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
       await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
 
       return NextResponse.json({ success: true, message: 'Guest checked out successfully.' });

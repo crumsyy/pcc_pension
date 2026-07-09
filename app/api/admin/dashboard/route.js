@@ -41,7 +41,7 @@ export async function GET() {
         SELECT COUNT(*) as count 
         FROM booking 
         WHERE DATE(checkInDateTime) = CURDATE() 
-          AND status IN ('Confirmed', 'Pending')
+          AND status IN ('Confirmed', 'Pending', 'Checked In')
       `),
       dbQuery(`
         SELECT COUNT(*) as count 

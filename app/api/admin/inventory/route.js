@@ -341,11 +341,15 @@ export async function POST(request) {
         const isFullReturn = qtyRet === borrow.quantity;
         const newStatus = isFullReturn ? status : 'Partially Returned';
         
+        const localNow = new Date();
+        const pad = (num) => String(num).padStart(2, '0');
+        const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
         await conn.execute(
           `UPDATE borrow_transaction 
-           SET actualReturnDate = NOW(), status = ?, conditionUponReturn = ?, remarks = CONCAT(remarks, '\\n', ?)
+           SET actualReturnDate = ?, status = ?, conditionUponReturn = ?, remarks = CONCAT(remarks, '\\n', ?)
            WHERE borrowID = ?`,
-          [newStatus, conditionUponReturn || '', remarks || '', borrow.borrowID]
+          [nowStr, newStatus, conditionUponReturn || '', remarks || '', borrow.borrowID]
         );
 
         // Log return movement

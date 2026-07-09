@@ -15,6 +15,7 @@ export default function ReceptionistReservations() {
   // Modals
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'convert' | null
   const [selectedRes, setSelectedRes] = useState(null);
+  const [minDateTime, setMinDateTime] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({
@@ -104,12 +105,13 @@ export default function ReceptionistReservations() {
   useEffect(() => {
     if (activeModal === 'create') {
       const today = new Date();
-      today.setHours(14, 0, 0, 0);
-      const offset = today.getTimezoneOffset();
-      const localToday = new Date(today.getTime() - (offset * 60 * 1000)).toISOString().slice(0, 16);
+      const pad = (num) => String(num).padStart(2, '0');
+      const localToday = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}T${pad(today.getHours())}:${pad(today.getMinutes())}`;
+
+      setMinDateTime(localToday);
 
       setFormData({
-        guestID: '',
+        guestID: guests[0]?.guestID || '',
         roomID: '',
         reservationDateTime: localToday,
       });
@@ -129,7 +131,7 @@ export default function ReceptionistReservations() {
       });
       setSelectedRoomType('');
     }
-  }, [activeModal]);
+  }, [activeModal, guests]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -143,6 +145,27 @@ export default function ReceptionistReservations() {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
+
+    const resDate = new Date(formData.reservationDateTime);
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - 5);
+
+    if (resDate < now) {
+      showAlert('error', 'Validation Error', 'Reservation date and time cannot be in the past.');
+      return;
+    }
+
+    if (isWalkIn) {
+      if (!walkInForm.firstName.trim() || !walkInForm.lastName.trim()) {
+        showAlert('error', 'Validation Error', 'First name and Last name are required.');
+        return;
+      }
+      if (!walkInForm.contact || walkInForm.contact.length !== 11) {
+        showAlert('error', 'Validation Error', 'Contact number must be exactly 11 digits.');
+        return;
+      }
+    }
+
     showConfirm('Create Reservation', 'Are you sure you want to create this reservation?', async () => {
       try {
         const res = await fetch('/api/receptionist/reservations', {
@@ -464,7 +487,10 @@ export default function ReceptionistReservations() {
                           type="text"
                           className="form-control"
                           value={walkInForm.contact}
-                          onChange={(e) => setWalkInForm(prev => ({ ...prev, contact: e.target.value }))}
+                          onChange={(e) => {
+                            const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
+                            setWalkInForm(prev => ({ ...prev, contact: sanitized }));
+                          }}
                         />
                       </div>
                       <div className="mb-2">
@@ -536,6 +562,7 @@ export default function ReceptionistReservations() {
                       name="reservationDateTime"
                       className="form-control"
                       required
+                      min={minDateTime}
                       value={formData.reservationDateTime}
                       onChange={handleInputChange}
                     />
