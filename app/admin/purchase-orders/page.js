@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
+import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 
 // Searchable Combobox Component (defined outside to prevent unmounting/focus issues)
 function Combobox({ options, value, onChange, placeholder, disabled, onAddNew }) {
@@ -167,10 +168,11 @@ export default function AdminPurchaseOrders() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      const dateVal = dateFilter && isValidDate(dateFilter) ? toDbDate(dateFilter) : '';
       const query = new URLSearchParams({ 
         status: statusFilter,
         search: searchVal,
-        date: dateFilter
+        date: dateVal
       }).toString();
       const res = await fetch(`/api/admin/purchase-orders?${query}`);
       const data = await res.json();
@@ -339,6 +341,10 @@ export default function AdminPurchaseOrders() {
 
   const handleCreatePOSubmit = async (e) => {
     e.preventDefault();
+    if (expectedDeliveryDate && !isValidDate(expectedDeliveryDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Expected Delivery Date (MM/DD/YYYY).');
+      return;
+    }
     if (poItems.some(item => !item.itemName.trim())) {
       showAlert('error', 'Validation Error', 'Item Name is required for all rows.');
       return;
@@ -349,7 +355,7 @@ export default function AdminPurchaseOrders() {
         const res = await fetch('/api/admin/purchase-orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'create_po', items: poItems, expectedDeliveryDate }),
+          body: JSON.stringify({ action: 'create_po', items: poItems, expectedDeliveryDate: toDbDate(expectedDeliveryDate) }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create PO');
@@ -365,6 +371,24 @@ export default function AdminPurchaseOrders() {
 
   const handleStockInSubmit = async (e) => {
     e.preventDefault();
+
+    for (const itemID in receivedQtys) {
+      const val = receivedQtys[itemID];
+      if (val.expirationDate && !isValidDate(val.expirationDate)) {
+        showAlert('error', 'Validation Error', 'Please enter a valid Expiration Date (MM/DD/YYYY) for received items.');
+        return;
+      }
+    }
+
+    const receivedFormatted = {};
+    for (const itemID in receivedQtys) {
+      const val = receivedQtys[itemID];
+      receivedFormatted[itemID] = {
+        ...val,
+        expirationDate: val.expirationDate ? toDbDate(val.expirationDate) : null
+      };
+    }
+
     showConfirm('Process Stock In', 'Are you sure you want to process this stock in? This will update the inventory stock levels.', async () => {
       try {
         const res = await fetch('/api/admin/purchase-orders', {
@@ -373,7 +397,7 @@ export default function AdminPurchaseOrders() {
           body: JSON.stringify({
             action: 'stock_in',
             poID: selectedOrder.purchaseOrderID,
-            received: receivedQtys,
+            received: receivedFormatted,
             remarks,
             supplier: supplierName
           }),
@@ -520,9 +544,7 @@ export default function AdminPurchaseOrders() {
           </div>
           <div className="col-md-3">
             <label className="form-label small fw-bold mb-1">Order Date</label>
-            <input
-              type="date"
-              className="form-control"
+            <DateInput
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
             />
@@ -627,8 +649,7 @@ export default function AdminPurchaseOrders() {
                 <div className="modal-body">
                   <div className="mb-3">
                     <label className="form-label small fw-bold">Expected Delivery Date (Optional)</label>
-                    <input
-                      type="date"
+                    <DateInput
                       className="form-control form-control-sm"
                       value={expectedDeliveryDate}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
@@ -830,8 +851,7 @@ export default function AdminPurchaseOrders() {
                                 />
                               </td>
                               <td>
-                                <input
-                                  type="date"
+                                <DateInput
                                   className="form-control form-control-sm"
                                   value={val.expirationDate || ''}
                                   onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'expirationDate', e.target.value)}

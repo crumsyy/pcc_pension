@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { dbQuery } from "@/lib/db";
+import { dbQuery, syncRoomStatuses } from "@/lib/db";
 import { requireSessionRole } from "@/lib/session";
+import AutoRefresh from "@/app/components/AutoRefresh";
 
 export default async function ReceptionistDashboard() {
   const auth = await requireSessionRole("Receptionist");
+  await syncRoomStatuses();
   const userName = auth.session?.fullName || "Receptionist";
   // 1. Fetch statistics, check-ins, reservations, and room status board in parallel
   const [
-    checkInsTodayRes,
-    checkOutsTodayRes,
+    totalCheckInsRes,
+    totalCheckOutsRes,
     occupiedRoomsRes,
     availableRoomsRes,
     pendingResRes,
@@ -17,8 +19,8 @@ export default async function ReceptionistDashboard() {
     pendingResList,
     rooms
   ] = await Promise.all([
-    dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkInDateTime) = CURDATE() AND status IN ('Confirmed','Pending','Checked In')"),
-    dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked In'"),
+    dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Checked Out')"),
+    dbQuery("SELECT COUNT(*) as count FROM booking WHERE status = 'Checked Out'"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'"),
@@ -56,8 +58,8 @@ export default async function ReceptionistDashboard() {
     `)
   ]);
 
-  const checkInsToday = checkInsTodayRes[0]?.count || 0;
-  const checkOutsToday = checkOutsTodayRes[0]?.count || 0;
+  const totalCheckIns = totalCheckInsRes[0]?.count || 0;
+  const totalCheckOuts = totalCheckOutsRes[0]?.count || 0;
   const occupiedRooms = occupiedRoomsRes[0]?.count || 0;
   const availableRooms = availableRoomsRes[0]?.count || 0;
   const pendingRes = pendingResRes[0]?.count || 0;
@@ -104,8 +106,8 @@ export default async function ReceptionistDashboard() {
   };
 
   const stats = [
-    ["Check-Ins Today", checkInsToday, "#2155B5"],
-    ["Check-Outs Today", checkOutsToday, "#3FA34D"],
+    ["Total Check-ins", totalCheckIns, "#2155B5"],
+    ["Total Check-outs", totalCheckOuts, "#3FA34D"],
     ["Rooms Occupied", occupiedRooms, "#e05c2a"],
     ["Rooms Available", availableRooms, "#3FA34D"],
     ["Pending Reserv.", pendingRes, "#f0a500"],
@@ -114,6 +116,7 @@ export default async function ReceptionistDashboard() {
 
   return (
     <>
+      <AutoRefresh />
       <div className="section-eyebrow">Receptionist</div>
       <h2 className="section-title mb-1">Welcome, {userName}!</h2>
       <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>

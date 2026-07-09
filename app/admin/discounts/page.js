@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
+import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 
 export default function AdminDiscounts() {
   const [discounts, setDiscounts] = useState([]);
@@ -245,7 +246,15 @@ export default function AdminDiscounts() {
       showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
       return;
     }
-    if (promoFormData.startDate && promoFormData.endDate && promoFormData.endDate < promoFormData.startDate) {
+    if (!promoFormData.startDate || !isValidDate(promoFormData.startDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Start Date (MM/DD/YYYY).');
+      return;
+    }
+    if (!promoFormData.endDate || !isValidDate(promoFormData.endDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid End Date (MM/DD/YYYY).');
+      return;
+    }
+    if (toDbDate(promoFormData.endDate) < toDbDate(promoFormData.startDate)) {
       showAlert('error', 'Validation Error', 'End Date cannot be earlier than Start Date.');
       return;
     }
@@ -258,6 +267,8 @@ export default function AdminDiscounts() {
           body: JSON.stringify({
             action: 'create_promo',
             ...promoFormData,
+            startDate: toDbDate(promoFormData.startDate),
+            endDate: toDbDate(promoFormData.endDate),
             name: promoFormData.name.trim()
           }),
         });
@@ -283,7 +294,15 @@ export default function AdminDiscounts() {
       showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
       return;
     }
-    if (promoFormData.startDate && promoFormData.endDate && promoFormData.endDate < promoFormData.startDate) {
+    if (!promoFormData.startDate || !isValidDate(promoFormData.startDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Start Date (MM/DD/YYYY).');
+      return;
+    }
+    if (!promoFormData.endDate || !isValidDate(promoFormData.endDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid End Date (MM/DD/YYYY).');
+      return;
+    }
+    if (toDbDate(promoFormData.endDate) < toDbDate(promoFormData.startDate)) {
       showAlert('error', 'Validation Error', 'End Date cannot be earlier than Start Date.');
       return;
     }
@@ -297,6 +316,8 @@ export default function AdminDiscounts() {
             action: 'update_promo',
             promotionID: selectedPromo.promotionID,
             ...promoFormData,
+            startDate: toDbDate(promoFormData.startDate),
+            endDate: toDbDate(promoFormData.endDate),
             name: promoFormData.name.trim()
           }),
         });
@@ -393,8 +414,8 @@ export default function AdminDiscounts() {
       percentage: p.percentage,
       roomID: p.roomID || '',
       roomTypeID: p.roomTypeID || '',
-      startDate: p.startDate ? p.startDate.substring(0, 10) : '',
-      endDate: p.endDate ? p.endDate.substring(0, 10) : '',
+      startDate: p.startDate ? toUiDate(p.startDate) : '',
+      endDate: p.endDate ? toUiDate(p.endDate) : '',
     });
     setActiveModal('edit_promo');
   };
@@ -906,8 +927,7 @@ export default function AdminDiscounts() {
                   <div className="row g-2">
                     <div className="col">
                       <label className="form-label">Start Date *</label>
-                      <input
-                        type="date"
+                      <DateInput
                         name="startDate"
                         className="form-control"
                         required
@@ -917,8 +937,7 @@ export default function AdminDiscounts() {
                     </div>
                     <div className="col">
                       <label className="form-label">End Date *</label>
-                      <input
-                        type="date"
+                      <DateInput
                         name="endDate"
                         className="form-control"
                         required
@@ -1026,8 +1045,7 @@ export default function AdminDiscounts() {
                   <div className="row g-2">
                     <div className="col">
                       <label className="form-label">Start Date *</label>
-                      <input
-                        type="date"
+                      <DateInput
                         name="startDate"
                         className="form-control"
                         required
@@ -1037,8 +1055,7 @@ export default function AdminDiscounts() {
                     </div>
                     <div className="col">
                       <label className="form-label">End Date *</label>
-                      <input
-                        type="date"
+                      <DateInput
                         name="endDate"
                         className="form-control"
                         required

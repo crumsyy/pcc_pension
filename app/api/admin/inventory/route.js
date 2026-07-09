@@ -94,12 +94,22 @@ export async function GET(request) {
       LIMIT 100
     `);
 
+    // Compute local PHT todayStr
+    const localNow = new Date();
+    const offset = 8 * 60; // PHT offset is +480 minutes
+    const localTime = new Date(localNow.getTime() + (offset + localNow.getTimezoneOffset()) * 60 * 1000);
+    const todayStr = localTime.toISOString().substring(0, 10);
+
     // 6. Compute dynamic stock quantities per catalog item
     const itemsWithStock = allCatalog.map(item => {
       // Find batches for this item
       const itemBatches = batches.filter(b => b.itemType === item.sourceTable && b.itemID === item.itemID);
       const totalQuantity = itemBatches.reduce((sum, b) => sum + b.quantity, 0);
-      const remainingQuantity = itemBatches.reduce((sum, b) => sum + b.remainingQuantity, 0);
+      
+      // EXCLUDE expired batches from available (usable) stock
+      const usableQuantity = itemBatches
+        .filter(b => !b.expirationDate || b.expirationDate >= todayStr)
+        .reduce((sum, b) => sum + b.remainingQuantity, 0);
 
       // Borrowed quantity
       const itemBorrows = borrowLogs.filter(b => b.itemType === item.sourceTable && b.itemID === item.itemID && b.status === 'Borrowed');
@@ -113,7 +123,7 @@ export async function GET(request) {
       return {
         ...item,
         totalQty: totalQuantity,
-        availableQty: remainingQuantity,
+        availableQty: usableQuantity,
         borrowedQty: item.itemType === 'Non-Consumable' ? borrowedQty : 0,
         disposedQty,
         batches: itemBatches
@@ -121,12 +131,16 @@ export async function GET(request) {
     });
 
     // 7. Compute overall Dashboard KPIs
-    const totalConsumables = itemsWithStock.filter(i => i.itemType === 'Consumable').length;
-    const totalNonConsumables = itemsWithStock.filter(i => i.itemType === 'Non-Consumable').length;
+    const totalConsumables = itemsWithStock
+      .filter(i => i.itemType === 'Consumable')
+      .reduce((sum, i) => sum + i.availableQty, 0);
+    const totalNonConsumables = itemsWithStock
+      .filter(i => i.itemType === 'Non-Consumable')
+      .reduce((sum, i) => sum + i.availableQty, 0);
+    const totalStock = itemsWithStock.reduce((sum, i) => sum + i.availableQty, 0);
 
     const lowStockCount = itemsWithStock.filter(i => i.availableQty <= i.minStock).length;
 
-    const todayStr = new Date().toISOString().substring(0, 10);
     const expiredCount = batches.filter(b => b.expirationDate && b.expirationDate < todayStr && b.remainingQuantity > 0).length;
 
     const totalDisposed = disposalLogs.reduce((sum, d) => sum + d.quantity, 0);
@@ -135,7 +149,7 @@ export async function GET(request) {
     const totalLost = disposalLogs.filter(d => d.reason === 'Lost').reduce((sum, d) => sum + d.quantity, 0);
 
     // Near expiration (within 30 days)
-    const thirtyDaysLater = new Date();
+    const thirtyDaysLater = new Date(localTime);
     thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
     const thirtyDaysLaterStr = thirtyDaysLater.toISOString().substring(0, 10);
     const nearExpirationCount = batches.filter(b => b.expirationDate && b.expirationDate >= todayStr && b.expirationDate <= thirtyDaysLaterStr && b.remainingQuantity > 0).length;
@@ -143,6 +157,7 @@ export async function GET(request) {
     const stats = {
       totalConsumables,
       totalNonConsumables,
+      totalStock,
       lowStockCount,
       expiredCount,
       totalDisposed,

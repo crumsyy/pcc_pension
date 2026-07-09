@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, syncRoomStatuses } from '@/lib/db';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -11,6 +11,8 @@ export async function GET(request) {
   if (!checkIn || !checkOut) {
     return NextResponse.json({ error: 'Check-in and Check-out dates are required.' }, { status: 400 });
   }
+
+  await syncRoomStatuses();
 
   try {
     const checkInDateTime = `${checkIn} 14:00:00`;

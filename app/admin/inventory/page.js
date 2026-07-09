@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
+import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 
 export default function AdminInventory() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function AdminInventory() {
   const [stats, setStats] = useState({
     totalConsumables: 0,
     totalNonConsumables: 0,
+    totalStock: 0,
     lowStockCount: 0,
     expiredCount: 0,
     totalDisposed: 0,
@@ -125,6 +127,7 @@ export default function AdminInventory() {
       setStats(data.stats || {
         totalConsumables: 0,
         totalNonConsumables: 0,
+        totalStock: 0,
         lowStockCount: 0,
         expiredCount: 0,
         totalDisposed: 0,
@@ -152,12 +155,16 @@ export default function AdminInventory() {
 
   const openEditExpiryModal = (batch) => {
     setSelectedBatch(batch);
-    setEditExpiryDate(batch.expirationDate ? batch.expirationDate.substring(0, 10) : '');
+    setEditExpiryDate(batch.expirationDate ? toUiDate(batch.expirationDate) : '');
     setActiveModal('edit_expiry');
   };
 
   const handleEditExpirySubmit = async (e) => {
     e.preventDefault();
+    if (editExpiryDate && !isValidDate(editExpiryDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Expiration Date (MM/DD/YYYY).');
+      return;
+    }
     showConfirm('Update Expiration Date', 'Are you sure you want to update the expiration date for this batch?', async () => {
       try {
         const res = await fetch('/api/admin/inventory', {
@@ -166,7 +173,7 @@ export default function AdminInventory() {
           body: JSON.stringify({
             action: 'update_expiry',
             batchID: selectedBatch.batchID,
-            expirationDate: editExpiryDate || null
+            expirationDate: editExpiryDate ? toDbDate(editExpiryDate) : null
           })
         });
         const data = await res.json();
@@ -224,6 +231,10 @@ export default function AdminInventory() {
       showAlert('error', 'Validation Error', 'Quantity must be greater than zero.');
       return;
     }
+    if (borrowForm.expectedReturnDate && !isValidDate(borrowForm.expectedReturnDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Expected Return Date (MM/DD/YYYY).');
+      return;
+    }
 
     showConfirm('Confirm Borrowing', 'Are you sure you want to register this borrow transaction?', async () => {
       try {
@@ -234,7 +245,8 @@ export default function AdminInventory() {
             action: 'borrow',
             itemType: selectedItem?.sourceTable,
             itemID: selectedItem?.itemID,
-            ...borrowForm
+            ...borrowForm,
+            expectedReturnDate: borrowForm.expectedReturnDate ? toDbDate(borrowForm.expectedReturnDate) : null
           })
         });
 
@@ -413,6 +425,12 @@ export default function AdminInventory() {
       {/* DASHBOARD TAB */}
       {activeTab === 'dashboard' && (
         <div className="row g-3 mb-4">
+          <div className="col-6 col-md-3">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">TOTAL STOCK UNITS</span>
+              <h2 className="fw-bold text-info mb-0 mt-1">{stats.totalStock}</h2>
+            </div>
+          </div>
           <div className="col-6 col-md-3">
             <div className="card shadow-sm border-0 p-3 h-100 bg-white">
               <span className="text-muted small fw-bold">TOTAL CONSUMABLES</span>
@@ -631,7 +649,12 @@ export default function AdminInventory() {
                     return !itemTypeFilter || (item && item.itemType === itemTypeFilter);
                   })
                   .map((b) => {
-                    const isExpired = b.expirationDate && new Date(b.expirationDate) < new Date();
+                    const todayStr = (() => {
+                      const today = new Date();
+                      const pad = (n) => String(n).padStart(2, '0');
+                      return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+                    })();
+                    const isExpired = b.expirationDate && b.expirationDate < todayStr;
                     return (
                       <tr key={b.batchID} className={isExpired ? 'table-danger' : ''}>
                         <td><code>{b.batchNumber}</code></td>
@@ -904,8 +927,7 @@ export default function AdminInventory() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Expected Return Date</label>
-                    <input
-                      type="date"
+                    <DateInput
                       className="form-control"
                       value={borrowForm.expectedReturnDate}
                       onChange={(e) => setBorrowForm(prev => ({ ...prev, expectedReturnDate: e.target.value }))}
@@ -1013,8 +1035,7 @@ export default function AdminInventory() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label fw-bold">Expiration Date</label>
-                    <input
-                      type="date"
+                    <DateInput
                       className="form-control"
                       value={editExpiryDate}
                       onChange={(e) => setEditExpiryDate(e.target.value)}

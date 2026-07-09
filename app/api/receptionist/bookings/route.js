@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
   if (!session || (session.role !== 'Receptionist' && session.role !== 'Administrator')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await syncRoomStatuses();
 
   try {
     const [bookings, guests, rooms, guestsDetails, discounts] = await Promise.all([

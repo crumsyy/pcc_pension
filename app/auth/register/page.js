@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import DateInput, { isValidDate, toDbDate } from "@/app/components/DateInput";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -70,6 +71,10 @@ export default function RegisterPage() {
     if (!/^[0-9]{11}$/.test(contact)) errors.contact = true;
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) errors.email = true;
 
+    if (!dob || !isValidDate(dob)) {
+      errors.dob = true;
+    }
+
     // REQ190: Password strength check
     const strongPw = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
     if (!strongPw.test(password)) {
@@ -98,7 +103,7 @@ export default function RegisterPage() {
           middleName,
           lastName,
           gender,
-          dob,
+          dob: toDbDate(dob),
           city,
           province,
           contact,
@@ -205,26 +210,16 @@ export default function RegisterPage() {
                   </div>
                   <div className="col-md-6">
                     <label className="form-label">Date of Birth <span className="text-danger">*</span></label>
-                    <input
-                      type="date"
+                    <DateInput
                       className={`form-control ${fieldErrors.dob ? "is-invalid" : ""}`}
                       value={dob}
-                      max={maxDate}
                       onChange={(e) => {
-                        let val = e.target.value;
-                        if (val) {
-                          const parts = val.split('-');
-                          if (parts[0] && parts[0].length > 4) {
-                            parts[0] = parts[0].substring(0, 4);
-                            val = parts.join('-');
-                          }
-                        }
-                        setDob(val);
+                        setDob(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, dob: false }));
                       }}
                       required
                     />
-                    <div className="invalid-feedback">Please enter your date of birth.</div>
+                    <div className="invalid-feedback">Please enter a valid date of birth (MM/DD/YYYY).</div>
                   </div>
                   <div className="col-md-6">
                     <label className="form-label">City <span className="text-danger">*</span></label>

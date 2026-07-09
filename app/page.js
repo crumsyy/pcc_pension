@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import GuestChatBubble from "./components/GuestChatBubble";
+import DateInput, { isValidDate, toDbDate } from "./components/DateInput";
 
 export default function Home() {
   // Search state
@@ -40,14 +41,25 @@ export default function Home() {
       }
     }
     checkSession();
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const pad = (num) => String(num).padStart(2, '0');
+    setCheckIn(`${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`);
+    setCheckOut(`${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`);
   }, []);
 
   const handleSearchSubmit = async (e) => {
     e.preventDefault();
+    if (!isValidDate(checkIn) || !isValidDate(checkOut)) {
+      alert("Please enter valid dates in MM/DD/YYYY format.");
+      return;
+    }
     setSearching(true);
     setSearchTriggered(true);
     try {
-      const res = await fetch(`/api/rooms/availability?checkIn=${checkIn}&checkOut=${checkOut}&roomType=${encodeURIComponent(roomType)}&breakfast=${encodeURIComponent(breakfast)}`);
+      const res = await fetch(`/api/rooms/availability?checkIn=${toDbDate(checkIn)}&checkOut=${toDbDate(checkOut)}&roomType=${encodeURIComponent(roomType)}&breakfast=${encodeURIComponent(breakfast)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch room availability');
       setAvailableRooms(data.rooms || []);
@@ -61,7 +73,7 @@ export default function Home() {
 
   const handleBookNow = async (roomID) => {
     if (!currentUser || currentUser.role !== 'Guest') {
-      window.location.href = `/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${roomID}&breakfast=${breakfast}`;
+      window.location.href = `/auth/register?check_in=${toDbDate(checkIn)}&check_out=${toDbDate(checkOut)}&room_id=${roomID}&breakfast=${breakfast}`;
       return;
     }
 
@@ -70,7 +82,7 @@ export default function Home() {
       const res = await fetch('/api/guest/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomID, checkInDate: checkIn })
+        body: JSON.stringify({ roomID, checkInDate: toDbDate(checkIn) })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit reservation request');
@@ -138,9 +150,7 @@ export default function Home() {
                   </div>
                   <div className="col-md-6">
                     <label className="form-label d-block mb-1">Check-in</label>
-                    <input
-                      type="date"
-                      className="form-control"
+                    <DateInput
                       value={checkIn}
                       onChange={(e) => setCheckIn(e.target.value)}
                       required
@@ -148,9 +158,7 @@ export default function Home() {
                   </div>
                   <div className="col-md-6">
                     <label className="form-label d-block mb-1">Check-out</label>
-                    <input
-                      type="date"
-                      className="form-control"
+                    <DateInput
                       value={checkOut}
                       onChange={(e) => setCheckOut(e.target.value)}
                       required

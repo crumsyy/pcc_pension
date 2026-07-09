@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
+import DateInput, { isValidDate, toDbDate } from '../../components/DateInput';
 
 export default function ReceptionistBookings() {
   const [bookings, setBookings] = useState([]);
@@ -18,7 +19,6 @@ export default function ReceptionistBookings() {
   const [cancelRemarks, setCancelRemarks] = useState('');
   const [minDateTime, setMinDateTime] = useState('');
 
-  // Form states
   const [formData, setFormData] = useState({
     guestID: '',
     roomID: '',
@@ -26,6 +26,11 @@ export default function ReceptionistBookings() {
     checkOutDateTime: '',
     status: 'Confirmed'
   });
+
+  const [checkInDate, setCheckInDate] = useState('');
+  const [checkInTime, setCheckInTime] = useState('');
+  const [checkOutDate, setCheckOutDate] = useState('');
+  const [checkOutTime, setCheckOutTime] = useState('12:00');
 
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [walkInForm, setWalkInForm] = useState({
@@ -111,25 +116,29 @@ export default function ReceptionistBookings() {
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       const pad = (num) => String(num).padStart(2, '0');
-      const localToday = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}T${pad(today.getHours())}:${pad(today.getMinutes())}`;
-      const localTomorrow = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T12:00`;
+      const todayDateStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
+      const tomorrowDateStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
+      const timeStr = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
 
-      setMinDateTime(localToday);
+      setCheckInDate(todayDateStr);
+      setCheckInTime(timeStr);
+      setCheckOutDate(tomorrowDateStr);
+      setCheckOutTime("12:00");
 
       setFormData({
         guestID: guests[0]?.guestID || '',
         roomID: '',
-        checkInDateTime: localToday,
-        checkOutDateTime: localTomorrow,
         status: 'Confirmed'
       });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
     } else if (!activeModal) {
+      setCheckInDate('');
+      setCheckInTime('');
+      setCheckOutDate('');
+      setCheckOutTime('12:00');
       setFormData({
         guestID: '',
         roomID: '',
-        checkInDateTime: '',
-        checkOutDateTime: '',
         status: 'Confirmed'
       });
       setIsWalkIn(false);
@@ -302,8 +311,27 @@ export default function ReceptionistBookings() {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
 
-    const checkIn = new Date(formData.checkInDateTime);
-    const checkOut = new Date(formData.checkOutDateTime);
+    if (!isValidDate(checkInDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Check-In Date (MM/DD/YYYY).');
+      return;
+    }
+    if (!isValidDate(checkOutDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Check-Out Date (MM/DD/YYYY).');
+      return;
+    }
+    if (!checkInTime) {
+      showAlert('error', 'Validation Error', 'Please select a Check-In Time.');
+      return;
+    }
+    if (!checkOutTime) {
+      showAlert('error', 'Validation Error', 'Please select a Check-Out Time.');
+      return;
+    }
+
+    const checkInStr = toDbDate(checkInDate) + 'T' + checkInTime;
+    const checkOutStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
+    const checkIn = new Date(checkInStr);
+    const checkOut = new Date(checkOutStr);
     const now = new Date();
     now.setMinutes(now.getMinutes() - 5);
 
@@ -371,8 +399,8 @@ export default function ReceptionistBookings() {
             isWalkIn,
             ...(isWalkIn ? walkInForm : { guestID: formData.guestID }),
             roomID: formData.roomID,
-            checkInDateTime: formData.checkInDateTime.replace('T', ' ') + ':00',
-            checkOutDateTime: formData.checkOutDateTime.replace('T', ' ') + ':00',
+            checkInDateTime: toDbDate(checkInDate) + ' ' + checkInTime + ':00',
+            checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
             status: formData.status,
             guests: roomGuests.map(g => ({
               fullName: g.fullName,
@@ -850,27 +878,39 @@ export default function ReceptionistBookings() {
                     </select>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Check-In DateTime *</label>
-                    <input
-                      type="datetime-local"
-                      name="checkInDateTime"
-                      className="form-control"
+                    <label className="form-label">Check-In Date *</label>
+                    <DateInput
+                      value={checkInDate}
+                      onChange={(e) => setCheckInDate(e.target.value)}
                       required
-                      min={minDateTime}
-                      value={formData.checkInDateTime}
-                      onChange={handleInputChange}
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Check-Out DateTime *</label>
+                    <label className="form-label">Check-In Time *</label>
                     <input
-                      type="datetime-local"
-                      name="checkOutDateTime"
+                      type="time"
                       className="form-control"
+                      value={checkInTime}
+                      onChange={(e) => setCheckInTime(e.target.value)}
                       required
-                      min={formData.checkInDateTime || minDateTime}
-                      value={formData.checkOutDateTime}
-                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Check-Out Date *</label>
+                    <DateInput
+                      value={checkOutDate}
+                      onChange={(e) => setCheckOutDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Check-Out Time *</label>
+                    <input
+                      type="time"
+                      className="form-control"
+                      value={checkOutTime}
+                      onChange={(e) => setCheckOutTime(e.target.value)}
+                      required
                     />
                   </div>
                   <div className="mb-3">

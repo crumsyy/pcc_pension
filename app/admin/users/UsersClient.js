@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
+import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 
 export default function UsersClient() {
   const [users, setUsers] = useState([]);
@@ -144,6 +145,10 @@ export default function UsersClient() {
       showAlert('error', 'Validation Error', 'Contact Number must be exactly 11 digits.');
       return;
     }
+    if (!formData.dob || !isValidDate(formData.dob)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Date of Birth (MM/DD/YYYY).');
+      return;
+    }
     if (formData.password.length < 8) {
       showAlert('error', 'Validation Error', 'Password must be at least 8 characters long.');
       return;
@@ -157,6 +162,7 @@ export default function UsersClient() {
           body: JSON.stringify({
             action: 'create',
             ...formData,
+            dob: toDbDate(formData.dob),
             firstName: formData.firstName.trim(),
             middleName: formData.middleName.trim(),
             lastName: formData.lastName.trim(),
@@ -199,6 +205,10 @@ export default function UsersClient() {
       showAlert('error', 'Validation Error', 'Contact Number must be exactly 11 digits.');
       return;
     }
+    if (!formData.dob || !isValidDate(formData.dob)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Date of Birth (MM/DD/YYYY).');
+      return;
+    }
     if (formData.newPassword && formData.newPassword.length < 8) {
       showAlert('error', 'Validation Error', 'New password must be at least 8 characters long.');
       return;
@@ -215,6 +225,7 @@ export default function UsersClient() {
             staffID: selectedUser.staffID,
             guestID: selectedUser.guestID,
             ...formData,
+            dob: toDbDate(formData.dob),
             firstName: formData.firstName.trim(),
             middleName: formData.middleName.trim(),
             lastName: formData.lastName.trim()
@@ -336,7 +347,7 @@ export default function UsersClient() {
       middleName: user.middleName || '',
       lastName: user.lastName || '',
       gender: user.gender || 'Male',
-      dob: user.dateOfBirth ? user.dateOfBirth.substring(0, 10) : '',
+      dob: user.dateOfBirth ? toUiDate(user.dateOfBirth) : '',
       city: user.city || '',
       province: user.province || '',
       contact: user.contact || '',
@@ -541,7 +552,7 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Date of Birth *</label>
-                      <input type="date" name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} />
+                      <DateInput name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">City *</label>
@@ -718,7 +729,7 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Date of Birth *</label>
-                      <input type="date" name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} />
+                      <DateInput name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">City *</label>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { LineChart, BarChart, DoughnutChart } from '../../components/ReportsCharts';
+import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 
 export default function AdminReports() {
   const [report, setReport] = useState('sales'); // 'sales' | 'occupancy' | 'inventory' | 'guests'
@@ -63,8 +64,8 @@ export default function AdminReports() {
         break;
     }
 
-    setDateFrom(start.toISOString().substring(0, 10));
-    setDateTo(end.toISOString().substring(0, 10));
+    setDateFrom(toUiDate(start.toISOString().substring(0, 10)));
+    setDateTo(toUiDate(end.toISOString().substring(0, 10)));
   };
 
   useEffect(() => {
@@ -73,13 +74,17 @@ export default function AdminReports() {
 
   const fetchReport = async () => {
     if (!dateFrom || !dateTo) return;
+    if (!isValidDate(dateFrom) || !isValidDate(dateTo)) {
+      setError('Please enter valid From and To dates in MM/DD/YYYY format.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
       const query = new URLSearchParams({
         report,
-        from: dateFrom,
-        to: dateTo,
+        from: toDbDate(dateFrom),
+        to: toDbDate(dateTo),
         grouping
       }).toString();
 
@@ -332,9 +337,7 @@ export default function AdminReports() {
           </div>
           <div className="col-md-3">
             <label className="form-label small fw-bold">From</label>
-            <input
-              type="date"
-              className="form-control"
+            <DateInput
               value={dateFrom}
               disabled={datePreset !== 'Custom Range'}
               onChange={(e) => setDateFrom(e.target.value)}
@@ -342,9 +345,7 @@ export default function AdminReports() {
           </div>
           <div className="col-md-3">
             <label className="form-label small fw-bold">To</label>
-            <input
-              type="date"
-              className="form-control"
+            <DateInput
               value={dateTo}
               disabled={datePreset !== 'Custom Range'}
               onChange={(e) => setDateTo(e.target.value)}

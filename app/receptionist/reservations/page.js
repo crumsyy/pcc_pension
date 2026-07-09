@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
+import DateInput, { isValidDate, toDbDate } from '../../components/DateInput';
 
 export default function ReceptionistReservations() {
   const [reservations, setReservations] = useState([]);
@@ -24,6 +25,9 @@ export default function ReceptionistReservations() {
     reservationDateTime: '',
   });
 
+  const [resDate, setResDate] = useState('');
+  const [resTime, setResTime] = useState('');
+
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [walkInForm, setWalkInForm] = useState({
     firstName: '',
@@ -40,6 +44,11 @@ export default function ReceptionistReservations() {
     checkOutDateTime: '',
     status: 'Checked In'
   });
+
+  const [convInDate, setConvInDate] = useState('');
+  const [convInTime, setConvInTime] = useState('');
+  const [convOutDate, setConvOutDate] = useState('');
+  const [convOutTime, setConvOutTime] = useState('12:00');
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
@@ -106,20 +115,22 @@ export default function ReceptionistReservations() {
     if (activeModal === 'create') {
       const today = new Date();
       const pad = (num) => String(num).padStart(2, '0');
-      const localToday = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}T${pad(today.getHours())}:${pad(today.getMinutes())}`;
+      const todayDateStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
+      const timeStr = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
 
-      setMinDateTime(localToday);
+      setResDate(todayDateStr);
+      setResTime(timeStr);
 
       setFormData({
         guestID: guests[0]?.guestID || '',
         roomID: '',
-        reservationDateTime: localToday,
       });
     } else if (!activeModal) {
+      setResDate('');
+      setResTime('');
       setFormData({
         guestID: '',
         roomID: '',
-        reservationDateTime: '',
       });
       setIsWalkIn(false);
       setWalkInForm({
@@ -146,11 +157,21 @@ export default function ReceptionistReservations() {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
 
-    const resDate = new Date(formData.reservationDateTime);
+    if (!isValidDate(resDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Reservation Date (MM/DD/YYYY).');
+      return;
+    }
+    if (!resTime) {
+      showAlert('error', 'Validation Error', 'Please select a Reservation Time.');
+      return;
+    }
+
+    const resDateTimeStr = toDbDate(resDate) + 'T' + resTime;
+    const resDateObj = new Date(resDateTimeStr);
     const now = new Date();
     now.setMinutes(now.getMinutes() - 5);
 
-    if (resDate < now) {
+    if (resDateObj < now) {
       showAlert('error', 'Validation Error', 'Reservation date and time cannot be in the past.');
       return;
     }
@@ -176,7 +197,7 @@ export default function ReceptionistReservations() {
             isWalkIn,
             ...(isWalkIn ? walkInForm : { guestID: formData.guestID }),
             roomID: formData.roomID,
-            reservationDateTime: formData.reservationDateTime
+            reservationDateTime: toDbDate(resDate) + ' ' + resTime + ':00'
           })
         });
         const data = await res.json();
@@ -237,24 +258,20 @@ export default function ReceptionistReservations() {
 
   const openConvertModal = (res) => {
     setSelectedRes(res);
-    // Default dates: checkin today, checkout tomorrow
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const formatDateTimeLocal = (date) => {
-      const pad = (num) => String(num).padStart(2, '0');
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T14:00`;
-    };
+    const pad = (num) => String(num).padStart(2, '0');
+    const todayStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
+    const tomorrowStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
 
-    const formatDateTimeLocalOut = (date) => {
-      const pad = (num) => String(num).padStart(2, '0');
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T12:00`;
-    };
+    setConvInDate(todayStr);
+    setConvInTime("14:00");
+    setConvOutDate(tomorrowStr);
+    setConvOutTime("12:00");
 
     setConvertData({
-      checkInDateTime: formatDateTimeLocal(today),
-      checkOutDateTime: formatDateTimeLocalOut(tomorrow),
       status: 'Checked In'
     });
     setActiveModal('convert');
@@ -262,6 +279,34 @@ export default function ReceptionistReservations() {
 
   const handleConvertSubmit = async (e) => {
     e.preventDefault();
+
+    if (!isValidDate(convInDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Check-In Date (MM/DD/YYYY).');
+      return;
+    }
+    if (!isValidDate(convOutDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Check-Out Date (MM/DD/YYYY).');
+      return;
+    }
+    if (!convInTime) {
+      showAlert('error', 'Validation Error', 'Please select a Check-In Time.');
+      return;
+    }
+    if (!convOutTime) {
+      showAlert('error', 'Validation Error', 'Please select a Check-Out Time.');
+      return;
+    }
+
+    const checkInStr = toDbDate(convInDate) + 'T' + convInTime;
+    const checkOutStr = toDbDate(convOutDate) + 'T' + convOutTime;
+    const checkIn = new Date(checkInStr);
+    const checkOut = new Date(checkOutStr);
+
+    if (checkOut <= checkIn) {
+      showAlert('error', 'Validation Error', 'Check-out date and time must be after check-in date and time.');
+      return;
+    }
+
     showConfirm('Convert to Booking', 'Convert this reservation into an active booking?', async () => {
       try {
         const res = await fetch('/api/receptionist/reservations', {
@@ -270,8 +315,8 @@ export default function ReceptionistReservations() {
           body: JSON.stringify({
             action: 'convert_to_booking',
             reservationID: selectedRes.reservationID,
-            checkInDateTime: convertData.checkInDateTime.replace('T', ' ') + ':00',
-            checkOutDateTime: convertData.checkOutDateTime.replace('T', ' ') + ':00',
+            checkInDateTime: toDbDate(convInDate) + ' ' + convInTime + ':00',
+            checkOutDateTime: toDbDate(convOutDate) + ' ' + convOutTime + ':00',
             status: convertData.status
           })
         });
@@ -556,15 +601,21 @@ export default function ReceptionistReservations() {
                     </select>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Reservation Date & Time *</label>
-                    <input
-                      type="datetime-local"
-                      name="reservationDateTime"
-                      className="form-control"
+                    <label className="form-label">Reservation Date *</label>
+                    <DateInput
+                      value={resDate}
+                      onChange={(e) => setResDate(e.target.value)}
                       required
-                      min={minDateTime}
-                      value={formData.reservationDateTime}
-                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Reservation Time *</label>
+                    <input
+                      type="time"
+                      className="form-control"
+                      value={resTime}
+                      onChange={(e) => setResTime(e.target.value)}
+                      required
                     />
                   </div>
                 </div>
@@ -593,25 +644,39 @@ export default function ReceptionistReservations() {
                     Converting reservation for <strong>{selectedRes.firstName} {selectedRes.lastName}</strong> in <strong>Room {selectedRes.roomNumber}</strong>.
                   </p>
                   <div className="mb-3">
-                    <label className="form-label">Check-In Date & Time *</label>
-                    <input
-                      type="datetime-local"
-                      name="checkInDateTime"
-                      className="form-control"
+                    <label className="form-label">Check-In Date *</label>
+                    <DateInput
+                      value={convInDate}
+                      onChange={(e) => setConvInDate(e.target.value)}
                       required
-                      value={convertData.checkInDateTime}
-                      onChange={handleConvertChange}
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Check-Out Date & Time *</label>
+                    <label className="form-label">Check-In Time *</label>
                     <input
-                      type="datetime-local"
-                      name="checkOutDateTime"
+                      type="time"
                       className="form-control"
+                      value={convInTime}
+                      onChange={(e) => setConvInTime(e.target.value)}
                       required
-                      value={convertData.checkOutDateTime}
-                      onChange={handleConvertChange}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Check-Out Date *</label>
+                    <DateInput
+                      value={convOutDate}
+                      onChange={(e) => setConvOutDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Check-Out Time *</label>
+                    <input
+                      type="time"
+                      className="form-control"
+                      value={convOutTime}
+                      onChange={(e) => setConvOutTime(e.target.value)}
+                      required
                     />
                   </div>
                   <div className="mb-3">
