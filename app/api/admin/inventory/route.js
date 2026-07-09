@@ -20,12 +20,6 @@ export async function GET(request) {
       JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
       WHERE a.isArchived = 0
     `;
-    const paramsA = [];
-    if (search) {
-      sqlA += " AND (LOWER(a.name) LIKE LOWER(?) OR LOWER(ac.name) LIKE LOWER(?))";
-      const like = `%${search}%`;
-      paramsA.push(like, like);
-    }
 
     let sqlP = `
       SELECT 'Product' as sourceTable, p.productID as itemID, p.name, p.price, pc.name as category, p.minStock, p.itemType, p.unit, p.description
@@ -33,21 +27,10 @@ export async function GET(request) {
       JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
       WHERE p.isArchived = 0
     `;
-    const paramsP = [];
-    if (search) {
-      sqlP += " AND (LOWER(p.name) LIKE LOWER(?) OR LOWER(pc.name) LIKE LOWER(?))";
-      const like = `%${search}%`;
-      paramsP.push(like, like);
-    }
 
-    const amenities = await dbQuery(sqlA, paramsA);
-    const products = await dbQuery(sqlP, paramsP);
+    const amenities = await dbQuery(sqlA);
+    const products = await dbQuery(sqlP);
     let allCatalog = [...amenities, ...products];
-
-    // Filter by type if specified
-    if (typeF) {
-      allCatalog = allCatalog.filter(item => item.itemType === typeF);
-    }
 
     // Sort by name
     allCatalog.sort((a, b) => a.name.localeCompare(b.name));
@@ -130,14 +113,10 @@ export async function GET(request) {
       };
     });
 
-    // 7. Compute overall Dashboard KPIs
-    const totalConsumables = itemsWithStock
-      .filter(i => i.itemType === 'Consumable')
-      .reduce((sum, i) => sum + i.availableQty, 0);
-    const totalNonConsumables = itemsWithStock
-      .filter(i => i.itemType === 'Non-Consumable')
-      .reduce((sum, i) => sum + i.availableQty, 0);
-    const totalStock = itemsWithStock.reduce((sum, i) => sum + i.availableQty, 0);
+    // 7. Compute overall Dashboard KPIs (count per item, not per unit, for items with stock available)
+    const totalConsumables = itemsWithStock.filter(i => i.itemType === 'Consumable' && i.availableQty > 0).length;
+    const totalNonConsumables = itemsWithStock.filter(i => i.itemType === 'Non-Consumable' && i.availableQty > 0).length;
+    const totalStock = itemsWithStock.filter(i => i.availableQty > 0).length;
 
     const lowStockCount = itemsWithStock.filter(i => i.availableQty <= i.minStock).length;
 
@@ -250,6 +229,91 @@ export async function POST(request) {
 
         await conn.commit();
         return NextResponse.json({ success: true, message: 'Inventory disposal recorded successfully.' });
+      } catch (e) {
+        await conn.rollback();
+        throw e;
+      } finally {
+        conn.release();
+      }
+    }
+
+    if (action === 'stock_out') {
+      const { batchID, itemType, itemID, quantity, reason, remarks } = body;
+      const qty = parseInt(quantity);
+      if (qty <= 0) {
+        return NextResponse.json({ error: 'Quantity must be greater than zero.' }, { status: 400 });
+      }
+
+      const conn = await pool.getConnection();
+
+      try {
+        await conn.beginTransaction();
+
+        if (batchID) {
+          const [batchRes] = await conn.execute("SELECT * FROM inventory_batch WHERE batchID = ?", [parseInt(batchID)]);
+          if (batchRes.length === 0) {
+            return NextResponse.json({ error: 'Batch not found' }, { status: 404 });
+          }
+          const batch = batchRes[0];
+          if (batch.remainingQuantity < qty) {
+            return NextResponse.json({ error: `Insufficient stock in batch. Available: ${batch.remainingQuantity}, Requested: ${qty}` }, { status: 400 });
+          }
+
+          const newRemaining = batch.remainingQuantity - qty;
+          const newStatus = newRemaining === 0 ? 'Consumed' : batch.status;
+          await conn.execute(
+            "UPDATE inventory_batch SET remainingQuantity = ?, status = ? WHERE batchID = ?",
+            [newRemaining, newStatus, batch.batchID]
+          );
+
+          await conn.execute(
+            `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+             VALUES (?, ?, ?, ?, 'Stock Out', 'MANUAL', ?, ?)`,
+            [itemType, parseInt(itemID), -qty, session.userID, remarks || `Manual Stock Out: ${reason}`, batch.batchID]
+          );
+        } else {
+          const [batches] = await conn.execute(
+            `SELECT * FROM inventory_batch 
+             WHERE itemType = ? AND itemID = ? AND remainingQuantity > 0 
+             ORDER BY COALESCE(expirationDate, '9999-12-31') ASC, dateReceived ASC`,
+            [itemType, parseInt(itemID)]
+          );
+
+          const totalAvailable = batches.reduce((sum, b) => sum + b.remainingQuantity, 0);
+          if (totalAvailable < qty) {
+            return NextResponse.json({ error: `Insufficient stock available. Available: ${totalAvailable}, Requested: ${qty}` }, { status: 400 });
+          }
+
+          let needed = qty;
+          for (const batch of batches) {
+            if (needed <= 0) break;
+            const take = Math.min(batch.remainingQuantity, needed);
+            
+            const newRemaining = batch.remainingQuantity - take;
+            const newStatus = newRemaining === 0 ? 'Consumed' : batch.status;
+            await conn.execute(
+              "UPDATE inventory_batch SET remainingQuantity = ?, status = ? WHERE batchID = ?",
+              [newRemaining, newStatus, batch.batchID]
+            );
+
+            await conn.execute(
+              `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+               VALUES (?, ?, ?, ?, 'Stock Out', 'MANUAL', ?, ?)`,
+              [itemType, parseInt(itemID), -take, session.userID, remarks || `Manual Stock Out: ${reason}`, batch.batchID]
+            );
+
+            needed -= take;
+          }
+        }
+
+        if (itemType === 'Amenity') {
+          await conn.execute("UPDATE amenities SET quantity = GREATEST(0, quantity - ?) WHERE amenityID = ?", [qty, parseInt(itemID)]);
+        } else {
+          await conn.execute("UPDATE products SET quantity = GREATEST(0, quantity - ?) WHERE productID = ?", [qty, parseInt(itemID)]);
+        }
+
+        await conn.commit();
+        return NextResponse.json({ success: true, message: 'Stock out movement recorded successfully.' });
       } catch (e) {
         await conn.rollback();
         throw e;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
@@ -66,6 +66,12 @@ export default function AdminInventory() {
     remarks: ''
   });
 
+  const [stockOutForm, setStockOutForm] = useState({
+    quantity: 1,
+    reason: 'Internal Use',
+    remarks: ''
+  });
+
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -77,6 +83,60 @@ export default function AdminInventory() {
     confirmText: 'OK',
     cancelText: 'Cancel'
   });
+
+  // Client-side synchronized filters
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      const matchesSearch = !search.trim() || 
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.category.toLowerCase().includes(search.toLowerCase());
+      const matchesType = !typeFilter || item.sourceTable === typeFilter;
+      const matchesItemType = !itemTypeFilter || item.itemType === itemTypeFilter;
+      return matchesSearch && matchesType && matchesItemType;
+    });
+  }, [items, search, typeFilter, itemTypeFilter]);
+
+  const filteredBatches = useMemo(() => {
+    return batches.filter(b => {
+      const item = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
+      const matchesSearch = !search.trim() || 
+        b.itemName.toLowerCase().includes(search.toLowerCase()) ||
+        b.batchNumber.toLowerCase().includes(search.toLowerCase()) ||
+        (item && item.category.toLowerCase().includes(search.toLowerCase()));
+      const matchesType = !typeFilter || b.itemType === typeFilter;
+      const matchesItemType = !itemTypeFilter || (item && item.itemType === itemTypeFilter);
+      return matchesSearch && matchesType && matchesItemType;
+    });
+  }, [batches, items, search, typeFilter, itemTypeFilter]);
+
+  const filteredBorrowLogs = useMemo(() => {
+    return borrowLogs.filter(b => {
+      const item = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
+      const matchesSearch = !search.trim() || 
+        b.itemName.toLowerCase().includes(search.toLowerCase()) ||
+        b.borrowedBy.toLowerCase().includes(search.toLowerCase()) ||
+        (b.roomNumber && String(b.roomNumber).includes(search)) ||
+        (item && item.category.toLowerCase().includes(search.toLowerCase()));
+      const matchesType = !typeFilter || b.itemType === typeFilter;
+      const matchesItemType = !itemTypeFilter || (item && item.itemType === itemTypeFilter);
+      return matchesSearch && matchesType && matchesItemType;
+    });
+  }, [borrowLogs, items, search, typeFilter, itemTypeFilter]);
+
+  const filteredMovements = useMemo(() => {
+    return movements.filter(m => {
+      const item = items.find(i => i.sourceTable === m.itemType && i.itemID === m.itemID);
+      const matchesSearch = !search.trim() || 
+        m.itemName.toLowerCase().includes(search.toLowerCase()) ||
+        (m.referenceNumber && m.referenceNumber.toLowerCase().includes(search.toLowerCase())) ||
+        (m.remarks && m.remarks.toLowerCase().includes(search.toLowerCase())) ||
+        (m.userEmail && m.userEmail.toLowerCase().includes(search.toLowerCase())) ||
+        (item && item.category.toLowerCase().includes(search.toLowerCase()));
+      const matchesType = !typeFilter || m.itemType === typeFilter;
+      const matchesItemType = !itemTypeFilter || (item && item.itemType === itemTypeFilter);
+      return matchesSearch && matchesType && matchesItemType;
+    });
+  }, [movements, items, search, typeFilter, itemTypeFilter]);
 
   const showAlert = (type, title, message) => {
     setModalConfig({
@@ -110,12 +170,7 @@ export default function AdminInventory() {
     if (!isSilent) setLoading(true);
     setError('');
     try {
-      const query = new URLSearchParams({
-        search,
-        type: typeFilter
-      }).toString();
-
-      const res = await fetch(`/api/admin/inventory?${query}`);
+      const res = await fetch('/api/admin/inventory');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch inventory');
 
@@ -151,7 +206,7 @@ export default function AdminInventory() {
     }, 4000); // Poll every 4 seconds
 
     return () => clearInterval(interval);
-  }, [search, typeFilter]);
+  }, []);
 
   const openEditExpiryModal = (batch) => {
     setSelectedBatch(batch);
@@ -219,6 +274,50 @@ export default function AdminInventory() {
         showAlert('error', 'Error', err.message);
       }
     });
+  };
+
+  const handleStockOutSubmit = async (e) => {
+    e.preventDefault();
+    if (stockOutForm.quantity <= 0) {
+      showAlert('error', 'Validation Error', 'Quantity must be greater than zero.');
+      return;
+    }
+
+    showConfirm('Confirm Stock Out', 'Are you sure you want to record this stock out movement? This will update the inventory levels.', async () => {
+      try {
+        const res = await fetch('/api/admin/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'stock_out',
+            batchID: selectedBatch?.batchID || null,
+            itemType: selectedItem?.sourceTable,
+            itemID: selectedItem?.itemID,
+            ...stockOutForm
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Stock out failed');
+
+        showAlert('success', 'Stock Out Successful', data.message || 'Stock out recorded successfully.');
+        setActiveModal(null);
+        fetchInventory();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const openStockOutModal = (item, batch = null) => {
+    setSelectedItem(item);
+    setSelectedBatch(batch);
+    setStockOutForm({
+      quantity: 1,
+      reason: 'Internal Use',
+      remarks: ''
+    });
+    setActiveModal('stock_out');
   };
 
   const handleBorrowSubmit = async (e) => {
@@ -583,9 +682,7 @@ export default function AdminInventory() {
                 </tr>
               </thead>
               <tbody>
-                {items
-                  .filter(item => !itemTypeFilter || item.itemType === itemTypeFilter)
-                  .map((item) => {
+                {filteredItems.map((item) => {
                     const isLow = item.availableQty <= item.minStock;
                     return (
                       <tr key={`${item.sourceTable}-${item.itemID}`} className={isLow ? 'table-warning' : ''}>
@@ -612,6 +709,16 @@ export default function AdminInventory() {
                             <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
                               🗑 Dispose
                             </button>
+                            {item.itemType === 'Consumable' && item.availableQty > 0 && (
+                              <button className="btn btn-sm btn-dark text-white" onClick={() => openStockOutModal(item)}>
+                                📤 Stock Out
+                              </button>
+                            )}
+                            {item.itemType === 'Non-Consumable' && item.availableQty > 0 && (
+                              <button className="btn btn-sm btn-warning text-dark" onClick={() => openBorrowModal(item)}>
+                                🤝 Borrow
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -643,12 +750,7 @@ export default function AdminInventory() {
                 </tr>
               </thead>
               <tbody>
-                {batches
-                  .filter(b => {
-                    const item = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
-                    return !itemTypeFilter || (item && item.itemType === itemTypeFilter);
-                  })
-                  .map((b) => {
+                {filteredBatches.map((b) => {
                     const todayStr = (() => {
                       const today = new Date();
                       const pad = (n) => String(n).padStart(2, '0');
@@ -683,12 +785,31 @@ export default function AdminInventory() {
                               ✏ Expiry
                             </button>
                             {b.remainingQuantity > 0 && (
-                              <button className="btn btn-sm btn-danger text-white" onClick={() => {
-                                const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
-                                openDisposeModal(matchItem, b);
-                              }}>
-                                🗑 Dispose
-                              </button>
+                              <>
+                                <button className="btn btn-sm btn-danger text-white" onClick={() => {
+                                  const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
+                                  openDisposeModal(matchItem, b);
+                                }}>
+                                  🗑 Dispose
+                                </button>
+                                {(() => {
+                                  const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
+                                  if (matchItem?.itemType === 'Consumable') {
+                                    return (
+                                      <button className="btn btn-sm btn-dark text-white" onClick={() => openStockOutModal(matchItem, b)}>
+                                        📤 Stock Out
+                                      </button>
+                                    );
+                                  } else if (matchItem?.itemType === 'Non-Consumable') {
+                                    return (
+                                      <button className="btn btn-sm btn-warning text-dark" onClick={() => openBorrowModal(matchItem)}>
+                                        🤝 Borrow
+                                      </button>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </>
                             )}
                           </div>
                         </td>
@@ -722,7 +843,7 @@ export default function AdminInventory() {
                 </tr>
               </thead>
               <tbody>
-                {borrowLogs.map((log) => (
+                {filteredBorrowLogs.map((log) => (
                   <tr key={log.borrowID}>
                     <td><code>BOR-{log.borrowID}</code></td>
                     <td><strong>{log.itemName}</strong></td>
@@ -806,11 +927,20 @@ export default function AdminInventory() {
                     </tr>
                   </thead>
                   <tbody>
-                    {movements.map((m) => (
+                    {filteredMovements.map((m) => (
                       <tr key={m.movementID}>
                         <td>{new Date(m.movementDateTime).toLocaleString()}</td>
                         <td><strong>{m.itemName}</strong></td>
-                        <td><span className="badge text-bg-light border text-muted">{m.movementType}</span></td>
+                        <td>
+                          <span className={`badge ${
+                            m.movementType === 'Stock In' ? 'text-bg-success' :
+                            m.movementType === 'Stock Out' ? 'text-bg-dark' :
+                            m.movementType === 'Borrow' ? 'text-bg-warning' :
+                            m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
+                          }`}>
+                            {m.movementType}
+                          </span>
+                        </td>
                         <td className={m.quantity > 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
                           {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
                         </td>
@@ -882,6 +1012,70 @@ export default function AdminInventory() {
                 </div>
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-danger text-white">Record Disposal</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STOCK OUT MODAL */}
+      {activeModal === 'stock_out' && selectedItem && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Stock Out — {selectedItem.name}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleStockOutSubmit}>
+                <div className="modal-body">
+                  {selectedBatch && (
+                    <div className="alert alert-info py-2" style={{ fontSize: '0.85rem' }}>
+                      <strong>Batch Selected:</strong> <code>{selectedBatch.batchNumber}</code> ({selectedBatch.remainingQuantity} units remaining)
+                    </div>
+                  )}
+                  <div className="mb-3">
+                    <label className="form-label">Quantity to Stock Out *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="1"
+                      max={selectedBatch ? selectedBatch.remainingQuantity : undefined}
+                      required
+                      value={stockOutForm.quantity}
+                      onChange={(e) => setStockOutForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Reason *</label>
+                    <select
+                      className="form-select"
+                      required
+                      value={stockOutForm.reason}
+                      onChange={(e) => setStockOutForm(prev => ({ ...prev, reason: e.target.value }))}
+                    >
+                      <option value="Internal Use">Internal Use</option>
+                      <option value="Room Setup">Room Setup</option>
+                      <option value="Staff Consumption">Staff Consumption</option>
+                      <option value="Complimentary Guest Amenity">Complimentary Guest Amenity</option>
+                      <option value="Inventory Correction">Inventory Correction</option>
+                      <option value="Other">Other (Specify in Remarks)</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Remarks/Details</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      value={stockOutForm.remarks}
+                      onChange={(e) => setStockOutForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-dark text-white">Record Stock Out</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
