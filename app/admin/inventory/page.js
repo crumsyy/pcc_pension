@@ -42,6 +42,7 @@ export default function AdminInventory() {
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [selectedBorrow, setSelectedBorrow] = useState(null);
   const [editExpiryDate, setEditExpiryDate] = useState('');
+  const [editMinStock, setEditMinStock] = useState('');
 
   // Form states
   const [disposeForm, setDisposeForm] = useState({
@@ -235,6 +236,45 @@ export default function AdminInventory() {
         if (!res.ok) throw new Error(data.error || 'Failed to update expiration date');
 
         showAlert('success', 'Success', data.message || 'Batch expiration date updated successfully.');
+        setActiveModal(null);
+        fetchInventory(true);
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const openMinStockModal = (item) => {
+    setSelectedItem(item);
+    setEditMinStock(item.minStock || 0);
+    setActiveModal('min_stock');
+  };
+
+  const handleMinStockSubmit = async (e) => {
+    e.preventDefault();
+    const minVal = parseInt(editMinStock);
+    if (isNaN(minVal) || minVal < 0) {
+      showAlert('error', 'Validation Error', 'Minimum Stock Level must be a non-negative number.');
+      return;
+    }
+
+    showConfirm('Update Threshold', `Are you sure you want to change the minimum stock level for "${selectedItem?.name}" to ${minVal}?`, async () => {
+      try {
+        const res = await fetch('/api/admin/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_min_stock',
+            itemType: selectedItem?.sourceTable,
+            itemID: selectedItem?.itemID,
+            minStock: minVal
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update minimum stock level');
+
+        showAlert('success', 'Success', data.message || 'Minimum stock level updated successfully.');
         setActiveModal(null);
         fetchInventory(true);
       } catch (err) {
@@ -706,7 +746,18 @@ export default function AdminInventory() {
                             <span className={`fw-bold ${isLow ? 'text-danger' : 'text-success'}`}>
                               {item.availableQty} {item.itemType === 'Non-Consumable' && `(Borrowed: ${item.borrowedQty})`}
                             </span>
-                            <span className="text-muted small">/ min {item.minStock}</span>
+                            <span className="text-muted small d-inline-flex align-items-center gap-1">
+                              / min {item.minStock}
+                              <button 
+                                type="button"
+                                className="btn btn-link p-0 ms-1 text-decoration-none" 
+                                style={{ fontSize: '0.8rem', cursor: 'pointer' }}
+                                title="Edit Minimum Stock Level"
+                                onClick={() => openMinStockModal(item)}
+                              >
+                                ✏️
+                              </button>
+                            </span>
                           </div>
                         </td>
                         <td>{item.unit}</td>
@@ -1251,6 +1302,50 @@ export default function AdminInventory() {
                     />
                     <div className="form-text text-muted">
                       Leave empty if the item does not expire.
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MIN STOCK MODAL */}
+      {activeModal === 'min_stock' && selectedItem && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Edit Minimum Stock Threshold</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleMinStockSubmit}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Item Name</label>
+                    <input type="text" className="form-control bg-light" value={selectedItem.name} disabled />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Category</label>
+                    <input type="text" className="form-control bg-light" value={selectedItem.sourceTable} disabled />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Minimum Stock Level *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="0"
+                      required
+                      value={editMinStock}
+                      onChange={(e) => setEditMinStock(e.target.value)}
+                    />
+                    <div className="form-text text-muted">
+                      Alert badge will be shown when the stock level falls to or below this amount.
                     </div>
                   </div>
                 </div>

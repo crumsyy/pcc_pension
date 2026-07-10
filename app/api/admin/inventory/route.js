@@ -530,6 +530,24 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Batch expiration date updated successfully.' });
     }
 
+    if (action === 'update_min_stock') {
+      const { itemType, itemID, minStock } = body;
+      const cleanMinStock = parseInt(minStock);
+      if (isNaN(cleanMinStock) || cleanMinStock < 0) {
+        return NextResponse.json({ error: 'Minimum Stock Level must be a non-negative number.' }, { status: 400 });
+      }
+
+      if (itemType === 'Product') {
+        await dbQuery("UPDATE products SET minStock = ? WHERE productID = ?", [cleanMinStock, parseInt(itemID)]);
+      } else if (itemType === 'Amenity') {
+        await dbQuery("UPDATE amenities SET minStock = ? WHERE amenityID = ?", [cleanMinStock, parseInt(itemID)]);
+      } else {
+        return NextResponse.json({ error: 'Invalid item category.' }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: 'Minimum stock level updated successfully.' });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error("Failed to process inventory action:", error);
