@@ -56,7 +56,7 @@ function Combobox({ options, value, onChange, placeholder, disabled }) {
                   <span className="badge text-bg-light border text-muted small">{opt.type}</span>
                 </div>
                 <div className="small text-muted" style={{ fontSize: '0.72rem' }}>
-                  Price: ₱{opt.price} | Stock: {opt.quantity} left
+                  Price: ₱{opt.price} | {opt.productCategoryID === 3 ? 'Prepared on Order' : `Stock: ${opt.quantity} left`}
                 </div>
               </button>
             </li>
@@ -222,7 +222,7 @@ export default function ReceptionistOrders() {
 
     // Check stock
     const currentQtyInForm = existsIndex >= 0 ? newOrderForm.items[existsIndex].quantity : 0;
-    if (details.quantity < currentQtyInForm + qty) {
+    if (details.productCategoryID !== 3 && details.quantity < currentQtyInForm + qty) {
       showAlert('warning', 'Warning', `Only ${details.quantity} units available in inventory for: ${details.name}`);
       return;
     }
@@ -387,10 +387,11 @@ export default function ReceptionistOrders() {
     ...products.map(p => ({
       idAndType: `${p.productID}-Product`,
       displayName: p.name,
-      name: `${p.name} - ₱${p.price} (${p.quantity} left)`,
+      name: p.productCategoryID === 3 ? `${p.name} - ₱${p.price} (Prepared on Order)` : `${p.name} - ₱${p.price} (${p.quantity} left)`,
       type: 'Product',
       price: p.price,
-      quantity: p.quantity
+      quantity: p.quantity,
+      productCategoryID: p.productCategoryID
     })),
     ...amenities.map(a => ({
       idAndType: `${a.amenityID}-Amenity`,

@@ -767,16 +767,6 @@ export default function AdminInventory() {
                             <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
                               🗑 Dispose
                             </button>
-                            {item.itemType === 'Consumable' && item.availableQty > 0 && (
-                              <button className="btn btn-sm btn-dark text-white" onClick={() => openStockOutModal(item)}>
-                                📤 Stock Out
-                              </button>
-                            )}
-                            {item.itemType === 'Non-Consumable' && item.availableQty > 0 && (
-                              <button className="btn btn-sm btn-warning text-dark" onClick={() => openBorrowModal(item)}>
-                                🤝 Borrow
-                              </button>
-                            )}
                             {isLow && (
                               <button 
                                 className="btn btn-sm btn-pcc-primary text-white" 
@@ -858,23 +848,6 @@ export default function AdminInventory() {
                                 }}>
                                   🗑 Dispose
                                 </button>
-                                {(() => {
-                                  const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
-                                  if (matchItem?.itemType === 'Consumable') {
-                                    return (
-                                      <button className="btn btn-sm btn-dark text-white" onClick={() => openStockOutModal(matchItem, b)}>
-                                        📤 Stock Out
-                                      </button>
-                                    );
-                                  } else if (matchItem?.itemType === 'Non-Consumable') {
-                                    return (
-                                      <button className="btn btn-sm btn-warning text-dark" onClick={() => openBorrowModal(matchItem)}>
-                                        🤝 Borrow
-                                      </button>
-                                    );
-                                  }
-                                  return null;
-                                })()}
                               </>
                             )}
                           </div>
@@ -905,7 +878,6 @@ export default function AdminInventory() {
                   <th>Actual Return</th>
                   <th>Status</th>
                   <th>Condition</th>
-                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -928,13 +900,6 @@ export default function AdminInventory() {
                       </span>
                     </td>
                     <td>{log.conditionUponReturn || '—'}</td>
-                    <td>
-                      {log.status === 'Borrowed' && (
-                        <button className="btn btn-sm btn-success text-white" onClick={() => openReturnModal(log)}>
-                          ↩ Return / Close
-                        </button>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>

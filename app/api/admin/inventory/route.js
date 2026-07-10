@@ -25,7 +25,7 @@ export async function GET(request) {
       SELECT 'Product' as sourceTable, p.productID as itemID, p.name, p.price, pc.name as category, p.minStock, p.itemType, p.unit, p.description
       FROM products p 
       JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
-      WHERE p.isArchived = 0
+      WHERE p.isArchived = 0 AND pc.name != 'Cooked Meals'
     `;
 
     const amenities = await dbQuery(sqlA);

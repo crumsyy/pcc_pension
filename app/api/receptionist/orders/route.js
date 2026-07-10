@@ -43,10 +43,11 @@ export async function GET(request) {
     });
 
     // 3. Fetch products, amenities and active bookings for dropdowns
-    // Dynamic stock quantities resolved directly from active inventory batches
     const [products, amenities, activeBookings, borrowLogs] = await Promise.all([
       dbQuery(`
-        SELECT p.productID, p.name, p.price, COALESCE(SUM(ib.remainingQuantity), 0) as quantity 
+        SELECT p.productID, p.name, p.price, 
+               CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(SUM(ib.remainingQuantity), 0) END as quantity,
+               p.productCategoryID
         FROM products p 
         LEFT JOIN inventory_batch ib ON ib.itemType = 'Product' AND ib.itemID = p.productID AND ib.status IN ('Active', 'Low Stock', 'Expired')
         WHERE p.isArchived = 0 AND p.isAvailable = 1
@@ -125,6 +126,27 @@ export async function POST(request) {
           const itemID = parseInt(item.itemID);
           const quantity = parseInt(item.quantity);
           if (!itemID || quantity <= 0) continue;
+
+          // Check if item is a cooked meal
+          let isCookedMeal = false;
+          if (item.type === 'Product') {
+            const [pRes] = await connection.execute(
+              "SELECT productCategoryID FROM products WHERE productID = ?",
+              [itemID]
+            );
+            if (pRes.length > 0 && pRes[0].productCategoryID === 3) {
+              isCookedMeal = true;
+            }
+          }
+
+          if (isCookedMeal) {
+            // For cooked meals, just insert order item record and skip all inventory logic
+            await connection.execute(
+              "INSERT INTO order_product(quantity, orderID, productID) VALUES(?, ?, ?)",
+              [quantity, orderID, itemID]
+            );
+            continue;
+          }
 
           // Fetch active batches for this item (ordered by FIFO: expiration date first, then received date)
           const [batches] = await connection.execute(
@@ -256,6 +278,16 @@ export async function POST(request) {
             // Restore products stock
             const [prodItems] = await connection.execute("SELECT productID, quantity FROM order_product WHERE orderID = ?", [orderID]);
             for (const item of prodItems) {
+              // Check if item is a cooked meal
+              const [pRes] = await connection.execute(
+                "SELECT productCategoryID FROM products WHERE productID = ?",
+                [item.productID]
+              );
+              if (pRes.length > 0 && pRes[0].productCategoryID === 3) {
+                // Skip cooked meals refund logic
+                continue;
+              }
+
               // Find latest batch to refund stock to
               const [batches] = await connection.execute(
                 "SELECT batchID FROM inventory_batch WHERE itemType = 'Product' AND itemID = ? ORDER BY dateReceived DESC LIMIT 1",

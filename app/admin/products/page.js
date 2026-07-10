@@ -10,7 +10,7 @@ export default function AdminProducts() {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
+  const [activeTab, setActiveTab] = useState('products'); // 'products' | 'meals' | 'archived'
   const [loading, setLoading] = useState(true);
 
   // Modals state
@@ -72,11 +72,12 @@ export default function AdminProducts() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
+      const isArchivedQuery = activeTab === 'archived';
       const query = new URLSearchParams({
         search,
-        catID: catFilter,
-        itemType: typeFilter,
-        archived: showArchived ? 'true' : 'false',
+        catID: activeTab === 'meals' ? '3' : catFilter,
+        itemType: activeTab === 'meals' ? 'Consumable' : typeFilter,
+        archived: isArchivedQuery ? 'true' : 'false',
       }).toString();
 
       const res = await fetch(`/api/admin/products?${query}`);
@@ -94,7 +95,7 @@ export default function AdminProducts() {
 
   useEffect(() => {
     fetchProducts();
-  }, [search, catFilter, typeFilter, showArchived]);
+  }, [search, catFilter, typeFilter, activeTab]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -262,12 +263,12 @@ export default function AdminProducts() {
   const openCreateModal = () => {
     setFormData({
       name: '',
-      productCategoryID: categories[0]?.productCategoryID || '',
+      productCategoryID: activeTab === 'meals' ? '3' : (categories.find(c => c.productCategoryID !== 3)?.productCategoryID || ''),
       basePrice: 0.00,
       sellingPrice: 0.00,
-      minStock: 5,
+      minStock: activeTab === 'meals' ? 0 : 5,
       itemType: 'Consumable',
-      unit: 'pcs',
+      unit: activeTab === 'meals' ? 'serving' : 'pcs',
       description: '',
     });
     setActiveModal('create');
@@ -275,14 +276,15 @@ export default function AdminProducts() {
 
   const openEditModal = (product) => {
     setSelectedProduct(product);
+    const isMeal = product.productCategoryID === 3;
     setFormData({
       name: product.name,
       productCategoryID: product.productCategoryID,
       basePrice: product.basePrice !== undefined ? product.basePrice : product.price,
       sellingPrice: product.sellingPrice !== undefined ? product.sellingPrice : product.price,
-      minStock: product.minStock !== undefined ? product.minStock : 5,
-      itemType: product.itemType || 'Consumable',
-      unit: product.unit || 'pcs',
+      minStock: isMeal ? 0 : (product.minStock !== undefined ? product.minStock : 5),
+      itemType: isMeal ? 'Consumable' : (product.itemType || 'Consumable'),
+      unit: product.unit || (isMeal ? 'serving' : 'pcs'),
       description: product.description || '',
     });
     setActiveModal('edit');
@@ -312,22 +314,39 @@ export default function AdminProducts() {
         </button>
       </div>
 
-      {/* Tabs for Active vs Archived */}
+      {/* Tabs for Products, Cooked Meals, and Archived */}
       <ul className="nav nav-tabs mb-3">
         <li className="nav-item">
           <button
-            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(false)}
+            className={`nav-link fw-semibold ${activeTab === 'products' ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => {
+              setActiveTab('products');
+              setCatFilter('');
+            }}
           >
-            🍔 Active Products
+            📦 Active Products
           </button>
         </li>
         <li className="nav-item">
           <button
-            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(true)}
+            className={`nav-link fw-semibold ${activeTab === 'meals' ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => {
+              setActiveTab('meals');
+              setCatFilter('3');
+            }}
           >
-            📦 Archived Products
+            🍳 Cooked Meals
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${activeTab === 'archived' ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => {
+              setActiveTab('archived');
+              setCatFilter('');
+            }}
+          >
+            🗑️ Archived Items
           </button>
         </li>
       </ul>
@@ -335,42 +354,48 @@ export default function AdminProducts() {
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
-          <div className="col-md-4">
+          <div className={activeTab === 'meals' ? 'col-md-10' : 'col-md-4'}>
             <input
               type="text"
               className="form-control"
-              placeholder="Search product name or category..."
+              placeholder={activeTab === 'meals' ? "Search cooked meals..." : "Search product name or category..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="col-md-3">
-            <select
-              className="form-select"
-              value={catFilter}
-              onChange={(e) => setCatFilter(e.target.value)}
-            >
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.productCategoryID} value={c.productCategoryID}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-md-3">
-            <select
-              className="form-select"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="Consumable">Consumable</option>
-              <option value="Non-Consumable">Non-Consumable</option>
-            </select>
-          </div>
+          {activeTab !== 'meals' && (
+            <>
+              <div className="col-md-3">
+                <select
+                  className="form-select"
+                  value={catFilter}
+                  onChange={(e) => setCatFilter(e.target.value)}
+                >
+                  <option value="">All Categories</option>
+                  {categories
+                    .filter(c => activeTab !== 'products' || c.productCategoryID !== 3)
+                    .map((c) => (
+                      <option key={c.productCategoryID} value={c.productCategoryID}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="col-md-3">
+                <select
+                  className="form-select"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                >
+                  <option value="">All Types</option>
+                  <option value="Consumable">Consumable</option>
+                  <option value="Non-Consumable">Non-Consumable</option>
+                </select>
+              </div>
+            </>
+          )}
           <div className="col-md-2 d-flex gap-2">
-            <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setCatFilter(''); setTypeFilter(''); }}>
+            <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setCatFilter(activeTab === 'meals' ? '3' : ''); setTypeFilter(''); }}>
               Clear
             </button>
           </div>
@@ -402,14 +427,24 @@ export default function AdminProducts() {
                 </tr>
               </thead>
               <tbody>
-                {products.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="text-center text-muted py-4">
-                      No products found.
-                    </td>
-                  </tr>
-                ) : (
-                  products.map((p, index) => (
+                {(() => {
+                  const filteredProducts = products.filter(p => {
+                    if (activeTab === 'products') return p.productCategoryID !== 3;
+                    if (activeTab === 'meals') return p.productCategoryID === 3;
+                    return true;
+                  });
+
+                  if (filteredProducts.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan="9" className="text-center text-muted py-4">
+                          No items found.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filteredProducts.map((p, index) => (
                     <tr key={p.productID}>
                       <td>{index + 1}</td>
                       <td>
@@ -438,7 +473,7 @@ export default function AdminProducts() {
                               role="switch"
                               id={`avail-switch-${p.productID}`}
                               checked={!!p.isAvailable}
-                              disabled={showArchived}
+                              disabled={activeTab === 'archived'}
                               onChange={() => handleToggleAvailability(p.productID, !!p.isAvailable)}
                             />
                             <label className="form-check-label small text-muted ms-1" htmlFor={`avail-switch-${p.productID}`}>
@@ -451,14 +486,14 @@ export default function AdminProducts() {
                       </td>
                       <td>
                         <ActionButtons
-                          onEdit={!showArchived ? () => openEditModal(p) : null}
-                          onDelete={!showArchived ? () => handleArchive(p.productID) : null}
-                          onRestore={showArchived ? () => handleRestore(p.productID) : null}
+                          onEdit={activeTab !== 'archived' ? () => openEditModal(p) : null}
+                          onDelete={activeTab !== 'archived' ? () => handleArchive(p.productID) : null}
+                          onRestore={activeTab === 'archived' ? () => handleRestore(p.productID) : null}
                         />
                       </td>
                     </tr>
                   ))
-                )}
+                })()}
               </tbody>
             </table>
           </div>
@@ -475,7 +510,7 @@ export default function AdminProducts() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Create Product</h5>
+                <h5 className="modal-title">{activeTab === 'meals' ? 'Create Cooked Meal' : 'Create Product'}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
@@ -491,34 +526,38 @@ export default function AdminProducts() {
                       onChange={handleInputChange}
                     />
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Category *</label>
-                    <select
-                      name="productCategoryID"
-                      className="form-select"
-                      required
-                      value={formData.productCategoryID}
-                      onChange={handleInputChange}
-                    >
-                      <option value="" disabled>Select category</option>
-                      {categories.map(c => (
-                        <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Item Type *</label>
-                    <select
-                      name="itemType"
-                      className="form-select"
-                      required
-                      value={formData.itemType}
-                      onChange={handleInputChange}
-                    >
-                      <option value="Consumable">Consumable</option>
-                      <option value="Non-Consumable">Non-Consumable</option>
-                    </select>
-                  </div>
+                  {activeTab !== 'meals' && (
+                    <>
+                      <div className="mb-3">
+                        <label className="form-label">Category *</label>
+                        <select
+                          name="productCategoryID"
+                          className="form-select"
+                          required
+                          value={formData.productCategoryID}
+                          onChange={handleInputChange}
+                        >
+                          <option value="" disabled>Select category</option>
+                          {categories.filter(c => c.productCategoryID !== 3).map(c => (
+                            <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">Item Type *</label>
+                        <select
+                          name="itemType"
+                          className="form-select"
+                          required
+                          value={formData.itemType}
+                          onChange={handleInputChange}
+                        >
+                          <option value="Consumable">Consumable</option>
+                          <option value="Non-Consumable">Non-Consumable</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
                   <div className="mb-3">
                     <label className="form-label">Unit *</label>
                     <input
@@ -542,7 +581,7 @@ export default function AdminProducts() {
                     />
                   </div>
                   <div className="row g-2">
-                    <div className="col-md-4">
+                    <div className={activeTab === 'meals' ? 'col-md-6' : 'col-md-4'}>
                       <label className="form-label">Base Price (₱) *</label>
                       <input
                         type="number"
@@ -554,7 +593,7 @@ export default function AdminProducts() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-4">
+                    <div className={activeTab === 'meals' ? 'col-md-6' : 'col-md-4'}>
                       <label className="form-label">Selling Price (₱) *</label>
                       <input
                         type="number"
@@ -566,22 +605,24 @@ export default function AdminProducts() {
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Min Stock Level *</label>
-                      <input
-                        type="number"
-                        name="minStock"
-                        className="form-control"
-                        required
-                        min="1"
-                        value={formData.minStock}
-                        onChange={handleInputChange}
-                      />
-                    </div>
+                    {activeTab !== 'meals' && (
+                      <div className="col-md-4">
+                        <label className="form-label">Min Stock Level *</label>
+                        <input
+                          type="number"
+                          name="minStock"
+                          className="form-control"
+                          required
+                          min="1"
+                          value={formData.minStock}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Create Product</button>
+                  <button type="submit" className="btn btn-pcc-primary">{activeTab === 'meals' ? 'Create Cooked Meal' : 'Create Product'}</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
@@ -589,126 +630,134 @@ export default function AdminProducts() {
           </div>
         </div>
       )}
-
       {/* EDIT MODAL */}
-      {activeModal === 'edit' && selectedProduct && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Update Product</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+      {activeModal === 'edit' && selectedProduct && (() => {
+        const isMeal = selectedProduct.productCategoryID === 3;
+        return (
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                  <h5 className="modal-title">{isMeal ? 'Update Cooked Meal' : 'Update Product'}</h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+                </div>
+                <form onSubmit={handleEditSubmit}>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label className="form-label">Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-control"
+                        required
+                        value={formData.name}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    {!isMeal && (
+                      <>
+                        <div className="mb-3">
+                          <label className="form-label">Category *</label>
+                          <select
+                            name="productCategoryID"
+                            className="form-select"
+                            required
+                            value={formData.productCategoryID}
+                            onChange={handleInputChange}
+                          >
+                            {categories.filter(c => c.productCategoryID !== 3).map(c => (
+                              <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="mb-3">
+                          <label className="form-label">Item Type *</label>
+                          <select
+                            name="itemType"
+                            className="form-select"
+                            required
+                            value={formData.itemType}
+                            onChange={handleInputChange}
+                          >
+                            <option value="Consumable">Consumable</option>
+                            <option value="Non-Consumable">Non-Consumable</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
+                    <div className="mb-3">
+                      <label className="form-label">Unit *</label>
+                      <input
+                        type="text"
+                        name="unit"
+                        className="form-control"
+                        placeholder="e.g. pcs, pairs, bottles"
+                        required
+                        value={formData.unit}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Description</label>
+                      <textarea
+                        name="description"
+                        className="form-control"
+                        rows="2"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="row g-2">
+                      <div className={isMeal ? 'col-md-6' : 'col-md-4'}>
+                        <label className="form-label">Base Price (₱) *</label>
+                        <input
+                          type="number"
+                          name="basePrice"
+                          step="0.01"
+                          className="form-control"
+                          required
+                          value={formData.basePrice}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className={isMeal ? 'col-md-6' : 'col-md-4'}>
+                        <label className="form-label">Selling Price (₱) *</label>
+                        <input
+                          type="number"
+                          name="sellingPrice"
+                          step="0.01"
+                          className="form-control"
+                          required
+                          value={formData.sellingPrice}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      {!isMeal && (
+                        <div className="col-md-4">
+                          <label className="form-label">Min Stock Level *</label>
+                          <input
+                            type="number"
+                            name="minStock"
+                            className="form-control"
+                            required
+                            min="1"
+                            value={formData.minStock}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="submit" className="btn btn-pcc-primary">{isMeal ? 'Update Cooked Meal' : 'Update Product'}</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                  </div>
+                </form>
               </div>
-              <form onSubmit={handleEditSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-control"
-                      required
-                      value={formData.name}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Category *</label>
-                    <select
-                      name="productCategoryID"
-                      className="form-select"
-                      required
-                      value={formData.productCategoryID}
-                      onChange={handleInputChange}
-                    >
-                      {categories.map(c => (
-                        <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Item Type *</label>
-                    <select
-                      name="itemType"
-                      className="form-select"
-                      required
-                      value={formData.itemType}
-                      onChange={handleInputChange}
-                    >
-                      <option value="Consumable">Consumable</option>
-                      <option value="Non-Consumable">Non-Consumable</option>
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Unit *</label>
-                    <input
-                      type="text"
-                      name="unit"
-                      className="form-control"
-                      placeholder="e.g. pcs, pairs, bottles"
-                      required
-                      value={formData.unit}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-control"
-                      rows="2"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="row g-2">
-                    <div className="col-md-4">
-                      <label className="form-label">Base Price (₱) *</label>
-                      <input
-                        type="number"
-                        name="basePrice"
-                        step="0.01"
-                        className="form-control"
-                        required
-                        value={formData.basePrice}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Selling Price (₱) *</label>
-                      <input
-                        type="number"
-                        name="sellingPrice"
-                        step="0.01"
-                        className="form-control"
-                        required
-                        value={formData.sellingPrice}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Min Stock Level *</label>
-                      <input
-                        type="number"
-                        name="minStock"
-                        className="form-control"
-                        required
-                        min="1"
-                        value={formData.minStock}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Update Product</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
-              </form>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
