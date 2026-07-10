@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -30,21 +30,18 @@ export async function GET(request) {
       params.push(dateF);
     }
     if (searchVal) {
-      let numericId = null;
       const match = searchVal.match(/po-(\d+)/i);
-      if (match) {
-        numericId = parseInt(match[1]);
-      } else if (/^\d+$/.test(searchVal)) {
-        numericId = parseInt(searchVal);
-      }
-
-      if (numericId !== null) {
-        sql += " AND (po.purchaseOrderID = ? OR poi.itemName LIKE ? OR po.remarks LIKE ?)";
-        params.push(numericId, `%${searchVal}%`, `%${searchVal}%`);
-      } else {
-        sql += " AND (poi.itemName LIKE ? OR po.remarks LIKE ?)";
-        params.push(`%${searchVal}%`, `%${searchVal}%`);
-      }
+      const cleanSearch = match ? match[1] : searchVal;
+      const searchPattern = `%${cleanSearch}%`;
+      
+      sql += ` AND (
+        CAST(po.purchaseOrderID AS CHAR) LIKE ? OR 
+        poi.itemName LIKE ? OR 
+        poi.itemType LIKE ? OR 
+        po.status LIKE ? OR 
+        po.remarks LIKE ?
+      )`;
+      params.push(searchPattern, `%${searchVal}%`, `%${searchVal}%`, `%${searchVal}%`, `%${searchVal}%`);
     }
     sql += " GROUP BY po.purchaseOrderID ORDER BY po.orderDate DESC";
 
@@ -313,6 +310,7 @@ export async function POST(request) {
         );
 
         await conn.commit();
+        await syncInventoryStock();
         return NextResponse.json({ success: true, message: isCompleted ? 'Purchase order fully received and completed!' : 'Partial delivery received successfully.' });
       } catch (e) {
         await conn.rollback();

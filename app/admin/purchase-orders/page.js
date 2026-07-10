@@ -94,6 +94,7 @@ export default function AdminPurchaseOrders() {
 
   // Catalog integration states
   const [catalogItems, setCatalogItems] = useState([]); // [{ id, name, type, itemType, basePrice }]
+  const [inventoryItems, setInventoryItems] = useState([]);
   const [productCategories, setProductCategories] = useState([]);
   const [amenityCategories, setAmenityCategories] = useState([]);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
@@ -179,8 +180,21 @@ export default function AdminPurchaseOrders() {
     }
   };
 
+  const fetchInventory = async () => {
+    try {
+      const res = await fetch('/api/admin/inventory');
+      const data = await res.json();
+      if (res.ok) {
+        setInventoryItems(data.items || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch inventory for restock panel:", e);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
+    fetchInventory();
   }, [statusFilter, searchVal, dateFilter]);
 
   const fetchCatalog = async () => {
@@ -414,6 +428,20 @@ export default function AdminPurchaseOrders() {
     setActiveModal('create');
   };
 
+  const handleQuickPO = (recommendedItem) => {
+    setPoItems([
+      {
+        itemName: recommendedItem.name,
+        itemType: recommendedItem.sourceTable,
+        itemClassType: recommendedItem.itemType,
+        unitPrice: parseFloat(recommendedItem.basePrice || recommendedItem.price || 0),
+        quantity: Math.max(1, (recommendedItem.minStock || 5) - (recommendedItem.availableQty || 0))
+      }
+    ]);
+    setExpectedDeliveryDate('');
+    setActiveModal('create');
+  };
+
   const openViewModal = (po) => {
     setSelectedOrder(po);
     setActiveModal('view');
@@ -460,6 +488,14 @@ export default function AdminPurchaseOrders() {
     }));
   };
 
+  const poGrandTotal = poItems.reduce((sum, item) => {
+    const qty = parseInt(item.quantity || 0);
+    const price = parseFloat(item.unitPrice || 0);
+    return sum + (qty * price);
+  }, 0);
+
+  const recommendedItems = inventoryItems.filter(item => item.availableQty <= item.minStock);
+
   return (
     <div>
       {/* Custom Modal Dialog */}
@@ -486,120 +522,169 @@ export default function AdminPurchaseOrders() {
 
 
 
-      {/* Filter */}
-      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        <div className="row g-2 align-items-end">
-          <div className="col-md-4">
-            <label className="form-label small fw-bold mb-1">Search</label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search PO #, item, remarks..."
-              value={searchVal}
-              onChange={(e) => setSearchVal(e.target.value)}
-            />
-          </div>
-          <div className="col-md-3">
-            <label className="form-label small fw-bold mb-1">Status</label>
-            <select
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Partially Received">Partially Received</option>
-              <option value="Received">Received</option>
-              <option value="Canceled">Canceled</option>
-            </select>
-          </div>
-          <div className="col-md-3">
-            <label className="form-label small fw-bold mb-1">Order Date</label>
-            <DateInput
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-            />
-          </div>
-          <div className="col-md-2">
-            <button className="btn btn-pcc-outline w-100" onClick={() => { setStatusFilter(''); setSearchVal(''); setDateFilter(''); }}>
-              Clear
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Purchase Orders Table */}
-      <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        {loading ? (
-          <div className="text-center py-4">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
+      <div className="row g-3">
+        <div className="col-lg-8">
+          {/* Filter */}
+          <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <div className="row g-2 align-items-end">
+              <div className="col-md-4">
+                <label className="form-label small fw-bold mb-1">Search</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search PO #, item, remarks..."
+                  value={searchVal}
+                  onChange={(e) => setSearchVal(e.target.value)}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label small fw-bold mb-1">Status</label>
+                <select
+                  className="form-select"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Partially Received">Partially Received</option>
+                  <option value="Received">Received</option>
+                  <option value="Canceled">Canceled</option>
+                </select>
+              </div>
+              <div className="col-md-3">
+                <label className="form-label small fw-bold mb-1">Order Date</label>
+                <DateInput
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                />
+              </div>
+              <div className="col-md-2">
+                <button className="btn btn-pcc-outline w-100" onClick={() => { setStatusFilter(''); setSearchVal(''); setDateFilter(''); }}>
+                  Clear
+                </button>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>PO #</th>
-                  <th>Date</th>
-                  <th>Items count</th>
-                  <th>Total Cost</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="text-center text-muted py-4">
-                      No purchase orders found.
-                    </td>
-                  </tr>
-                ) : (
-                  orders.map((po) => (
-                    <tr key={po.purchaseOrderID}>
-                      <td>
-                        <strong>PO-{String(po.purchaseOrderID).padStart(4, '0')}</strong>
-                      </td>
-                      <td>
-                        {new Date(po.orderDate).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </td>
-                      <td>{po.itemCount} item(s)</td>
-                      <td>₱{parseFloat(po.total || 0).toFixed(2)}</td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            po.status === 'Received'
-                              ? 'text-bg-success'
-                              : po.status === 'Partially Received'
-                              ? 'text-bg-primary'
-                              : po.status === 'Canceled'
-                              ? 'text-bg-danger'
-                              : 'text-bg-warning'
-                          }`}
-                        >
-                          {po.status}
-                        </span>
-                      </td>
-                      <td>
-                        <ActionButtons
-                          onView={() => openViewModal(po)}
-                          onCancel={po.status === 'Pending' || po.status === 'Partially Received' ? () => handleStatusChange(po.purchaseOrderID, 'Canceled', 'Cancel this Purchase Order?') : null}
-                          onStockIn={po.status === 'Pending' || po.status === 'Partially Received' ? () => openStockInModal(po) : null}
-                        />
-                      </td>
+
+          {/* Purchase Orders Table */}
+          <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>PO #</th>
+                      <th>Date</th>
+                      <th>Items count</th>
+                      <th>Total Cost</th>
+                      <th>Status</th>
+                      <th>Actions</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {orders.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="text-center text-muted py-4">
+                          No purchase orders found.
+                        </td>
+                      </tr>
+                    ) : (
+                      orders.map((po) => (
+                        <tr key={po.purchaseOrderID}>
+                          <td>
+                            <strong>PO-{String(po.purchaseOrderID).padStart(4, '0')}</strong>
+                          </td>
+                          <td>
+                            {new Date(po.orderDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </td>
+                          <td>{po.itemCount} item(s)</td>
+                          <td>₱{parseFloat(po.total || 0).toFixed(2)}</td>
+                          <td>
+                            <span
+                              className={`badge ${
+                                po.status === 'Received'
+                                  ? 'text-bg-success'
+                                  : po.status === 'Partially Received'
+                                  ? 'text-bg-primary'
+                                  : po.status === 'Canceled'
+                                  ? 'text-bg-danger'
+                                  : 'text-bg-warning'
+                              }`}
+                            >
+                              {po.status}
+                            </span>
+                          </td>
+                          <td>
+                            <ActionButtons
+                              onView={() => openViewModal(po)}
+                              onCancel={po.status === 'Pending' || po.status === 'Partially Received' ? () => handleStatusChange(po.purchaseOrderID, 'Canceled', 'Cancel this Purchase Order?') : null}
+                              onStockIn={po.status === 'Pending' || po.status === 'Partially Received' ? () => openStockInModal(po) : null}
+                            />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        <div className="col-lg-4">
+          {/* Recommended Restock Panel */}
+          <div className="card-module h-100" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column' }}>
+            <h4 className="fw-bold mb-3 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.25rem' }}>
+              ⚠️ Recommended for Restock
+            </h4>
+            <div className="flex-grow-1 overflow-auto" style={{ maxHeight: '600px' }}>
+              {recommendedItems.length === 0 ? (
+                <div className="text-center text-muted py-5 small">
+                  All items are well stocked.
+                </div>
+              ) : (
+                <div className="list-group list-group-flush">
+                  {recommendedItems.map((item, idx) => (
+                    <div key={idx} className="list-group-item px-0 py-2 border-bottom">
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div>
+                          <strong style={{ fontSize: '0.9rem' }}>{item.name}</strong>
+                          <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                            Category: {item.category} | Min Threshold: {item.minStock}
+                          </div>
+                          <div className="fw-semibold text-danger small mt-1" style={{ fontSize: '0.8rem' }}>
+                            Current Stock: {item.availableQty} {item.unit}
+                          </div>
+                          <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                            Base Price: ₱{parseFloat(item.basePrice || item.price || 0).toFixed(2)}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-pcc-primary text-white py-1 px-2 mt-1"
+                          style={{ fontSize: '0.75rem' }}
+                          onClick={() => handleQuickPO(item)}
+                        >
+                          + PO
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ==========================================
@@ -698,10 +783,15 @@ export default function AdminPurchaseOrders() {
                     + Add Item
                   </button>
                 </div>
-                <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Create Purchase Order</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
+                 <div className="modal-footer d-flex justify-content-between align-items-center">
+                   <div className="fw-bold text-pcc-blue" style={{ fontSize: '1.1rem' }}>
+                     Grand Total: ₱{poGrandTotal.toFixed(2)}
+                   </div>
+                   <div className="d-flex gap-2">
+                     <button type="submit" className="btn btn-pcc-primary">Create Purchase Order</button>
+                     <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                   </div>
+                 </div>
               </form>
             </div>
           </div>
@@ -802,7 +892,7 @@ export default function AdminPurchaseOrders() {
                           <th>Category</th>
                           <th>Item Type</th>
                           <th>Ordered</th>
-                          <th style={{ width: '100px' }}>Rec'd Now *</th>
+                          <th style={{ width: '100px' }}>Received</th>
                           <th>Exp. Date</th>
                           <th style={{ width: '110px' }}>Unit Cost *</th>
                         </tr>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -12,17 +12,19 @@ export async function GET(request) {
   const search = searchParams.get('search') || '';
   const typeF = searchParams.get('type') || ''; // 'Consumable' | 'Non-Consumable'
 
+  await syncInventoryStock();
+
   try {
     // 1. Fetch amenities and products catalog
     let sqlA = `
-      SELECT 'Amenity' as sourceTable, a.amenityID as itemID, a.name, a.price, ac.name as category, a.minStock, a.itemType, a.unit, a.description
+      SELECT 'Amenity' as sourceTable, a.amenityID as itemID, a.name, a.price, a.basePrice, a.sellingPrice, ac.name as category, a.minStock, a.itemType, a.unit, a.description
       FROM amenities a 
       JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
       WHERE a.isArchived = 0
     `;
 
     let sqlP = `
-      SELECT 'Product' as sourceTable, p.productID as itemID, p.name, p.price, pc.name as category, p.minStock, p.itemType, p.unit, p.description
+      SELECT 'Product' as sourceTable, p.productID as itemID, p.name, p.price, p.basePrice, p.sellingPrice, pc.name as category, p.minStock, p.itemType, p.unit, p.description
       FROM products p 
       JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
       WHERE p.isArchived = 0 AND pc.name != 'Cooked Meals'
@@ -228,6 +230,7 @@ export async function POST(request) {
         }
 
         await conn.commit();
+        await syncInventoryStock();
         return NextResponse.json({ success: true, message: 'Inventory disposal recorded successfully.' });
       } catch (e) {
         await conn.rollback();
@@ -545,6 +548,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Invalid item category.' }, { status: 400 });
       }
 
+      await syncInventoryStock();
       return NextResponse.json({ success: true, message: 'Minimum stock level updated successfully.' });
     }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -249,6 +249,7 @@ export async function POST(request) {
         }
 
         await connection.commit();
+        await syncInventoryStock();
         return NextResponse.json({ success: true, message: 'Order created successfully.', orderID });
       } catch (err) {
         await connection.rollback();
@@ -361,6 +362,7 @@ export async function POST(request) {
         await connection.execute("UPDATE orders SET orderStatus = ? WHERE orderID = ?", [newStatus, orderID]);
 
         await connection.commit();
+        await syncInventoryStock();
         return NextResponse.json({ success: true, message: `Order status updated to ${newStatus}.` });
       } catch (err) {
         await connection.rollback();
@@ -473,6 +475,7 @@ export async function POST(request) {
         }
 
         await connection.commit();
+        await syncInventoryStock();
         return NextResponse.json({ success: true, message: 'Return recorded successfully.' });
       } catch (e) {
         await connection.rollback();

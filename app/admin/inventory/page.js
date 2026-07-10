@@ -258,7 +258,7 @@ export default function AdminInventory() {
       return;
     }
 
-    showConfirm('Update Threshold', `Are you sure you want to change the minimum stock level for "${selectedItem?.name}" to ${minVal}?`, async () => {
+    showConfirm('Confirm Update', 'Are you sure you want to change the minimum stock level?', async () => {
       try {
         const res = await fetch('/api/admin/inventory', {
           method: 'POST',
@@ -715,7 +715,7 @@ export default function AdminInventory() {
                   <th>Name</th>
                   <th>Category</th>
                   <th>Item Type</th>
-                  <th>Dynamic Stock</th>
+                  <th>Stock</th>
                   <th>Unit</th>
                   <th>Price</th>
                   <th>Actions</th>
@@ -744,21 +744,23 @@ export default function AdminInventory() {
                         <td>
                           <div className="d-flex align-items-center gap-2">
                             <span className={`fw-bold ${isLow ? 'text-danger' : 'text-success'}`}>
-                              {item.availableQty} {item.itemType === 'Non-Consumable' && `(Borrowed: ${item.borrowedQty})`}
+                              {item.availableQty} / {item.minStock}
                             </span>
-                            <span className="text-muted small d-inline-flex align-items-center gap-1">
-                              / min {item.minStock}
-                              <button 
-                                type="button"
-                                className="btn btn-link p-0 ms-1 text-decoration-none" 
-                                style={{ fontSize: '0.8rem', cursor: 'pointer' }}
-                                title="Edit Minimum Stock Level"
-                                onClick={() => openMinStockModal(item)}
-                              >
-                                ✏️
-                              </button>
-                            </span>
+                            <button 
+                              type="button"
+                              className="btn btn-link p-0 text-decoration-none border-0 bg-transparent ms-1" 
+                              style={{ cursor: 'pointer' }}
+                              title="Edit Minimum Stock Level"
+                              onClick={() => openMinStockModal(item)}
+                            >
+                              <i className="fa-solid fa-pen-to-square text-primary"></i>
+                            </button>
                           </div>
+                          {item.itemType === 'Non-Consumable' && item.borrowedQty > 0 && (
+                            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                              (Borrowed: {item.borrowedQty})
+                            </div>
+                          )}
                         </td>
                         <td>{item.unit}</td>
                         <td>₱{parseFloat(item.price).toFixed(2)}</td>

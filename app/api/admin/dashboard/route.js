@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, syncRoomStatuses } from '@/lib/db';
+import { dbQuery, syncRoomStatuses, syncInventoryStock } from '@/lib/db';
 
 export async function GET() {
   const session = await getSession();
@@ -9,6 +9,7 @@ export async function GET() {
   }
 
   await syncRoomStatuses();
+  await syncInventoryStock();
 
   try {
     const [
@@ -53,9 +54,9 @@ export async function GET() {
       `),
       dbQuery(`
         SELECT COUNT(*) as count FROM (
-          SELECT amenityID FROM amenities WHERE quantity <= 5
+          SELECT amenityID FROM amenities WHERE quantity <= minStock
           UNION ALL
-          SELECT productID FROM products WHERE quantity <= 5
+          SELECT productID FROM products WHERE quantity <= minStock AND productCategoryID != 3
         ) low
       `),
       dbQuery("SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'"),
