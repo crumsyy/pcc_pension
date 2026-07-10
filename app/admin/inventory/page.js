@@ -687,7 +687,14 @@ export default function AdminInventory() {
                     return (
                       <tr key={`${item.sourceTable}-${item.itemID}`} className={isLow ? 'table-warning' : ''}>
                         <td><span className="badge text-bg-light border text-muted">{item.sourceTable}</span></td>
-                        <td><strong>{item.name}</strong></td>
+                        <td>
+                          <strong>{item.name}</strong>
+                          {isLow && (
+                            <span className="badge text-bg-warning ms-2" style={{ fontSize: '0.7rem' }}>
+                              ⚠️ Recommended for Restock
+                            </span>
+                          )}
+                        </td>
                         <td>{item.category}</td>
                         <td>
                           <span className={`badge ${item.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
@@ -717,6 +724,14 @@ export default function AdminInventory() {
                             {item.itemType === 'Non-Consumable' && item.availableQty > 0 && (
                               <button className="btn btn-sm btn-warning text-dark" onClick={() => openBorrowModal(item)}>
                                 🤝 Borrow
+                              </button>
+                            )}
+                            {isLow && (
+                              <button 
+                                className="btn btn-sm btn-pcc-primary text-white" 
+                                onClick={() => router.push(`/admin/purchase-orders?prefillName=${encodeURIComponent(item.name)}&prefillType=${item.sourceTable}`)}
+                              >
+                                🛒 Restock
                               </button>
                             )}
                           </div>

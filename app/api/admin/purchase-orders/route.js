@@ -57,7 +57,7 @@ export async function GET(request) {
     const ordersWithItems = orders.map(po => {
       const items = allItems.filter(item => item.purchaseOrderID === po.purchaseOrderID);
       const total = items.reduce((sum, item) => {
-        const qty = po.status === 'Completed' ? (item.quantityReceived ?? item.quantity) : item.quantity;
+        const qty = po.status === 'Received' ? (item.quantityReceived ?? item.quantity) : item.quantity;
         return sum + (parseFloat(item.unitPrice) * parseInt(qty));
       }, 0);
       return {
@@ -182,8 +182,7 @@ export async function POST(request) {
     }
 
     if (action === 'stock_in') {
-      const { poID, received, remarks, supplier } = body;
-      // received: { [orderItemID]: { qty, expirationDate, manufacturingDate, supplierReference, unitCost } }
+      const { poID, received, remarks } = body;
       
       const conn = await pool.getConnection();
 
@@ -217,17 +216,20 @@ export async function POST(request) {
           const newQty = parseInt(itemData.qty || 0);
           if (newQty <= 0) continue;
 
-          // Resolve itemID and itemType
+          // Resolve itemID, itemType, and isConsumable
           let itemID = null;
+          let isConsumable = true;
           if (item.itemType === 'Amenity') {
-            const [amenityRes] = await conn.execute("SELECT amenityID FROM amenities WHERE name = ?", [item.itemName]);
+            const [amenityRes] = await conn.execute("SELECT amenityID, itemType FROM amenities WHERE name = ?", [item.itemName]);
             if (amenityRes.length > 0) {
               itemID = amenityRes[0].amenityID;
+              isConsumable = amenityRes[0].itemType === 'Consumable';
             }
           } else {
-            const [productRes] = await conn.execute("SELECT productID FROM products WHERE name = ?", [item.itemName]);
+            const [productRes] = await conn.execute("SELECT productID, itemType FROM products WHERE name = ?", [item.itemName]);
             if (productRes.length > 0) {
               itemID = productRes[0].productID;
+              isConsumable = productRes[0].itemType === 'Consumable';
             }
           }
 
@@ -239,23 +241,20 @@ export async function POST(request) {
           const batchNumber = `BAT-PO${poID}-I${itemID}-${Math.floor(1000 + Math.random() * 9000)}`;
 
           // Create inventory batch
-          const expirationDate = itemData.expirationDate || null;
-          const manufacturingDate = itemData.manufacturingDate || null;
-          const supplierReference = itemData.supplierReference || null;
+          const expirationDate = isConsumable ? (itemData.expirationDate || null) : null;
           const unitCost = parseFloat(itemData.unitCost || item.unitPrice || 0);
 
           const [batchResult] = await conn.execute(
             `INSERT INTO inventory_batch (batchNumber, itemType, itemID, supplier, purchaseOrderID, quantity, remainingQuantity, dateReceived, manufacturingDate, expirationDate, unitCost, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, 'Active')`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), NULL, ?, ?, 'Active')`,
             [
               batchNumber,
               item.itemType,
               itemID,
-              supplier || 'Unknown Supplier',
+              'N/A',
               parseInt(poID),
               newQty,
               newQty,
-              manufacturingDate,
               expirationDate,
               unitCost
             ]
@@ -265,8 +264,8 @@ export async function POST(request) {
           // Record delivery log
           await conn.execute(
             `INSERT INTO purchase_order_delivery (purchaseOrderID, orderItemID, quantityReceived, dateReceived, supplierReference, expirationDate, batchID)
-             VALUES (?, ?, ?, CURDATE(), ?, ?, ?)`,
-            [parseInt(poID), item.orderItemID, newQty, supplierReference, expirationDate, batchID]
+             VALUES (?, ?, ?, CURDATE(), NULL, ?, ?)`,
+            [parseInt(poID), item.orderItemID, newQty, expirationDate, batchID]
           );
 
           // Update purchase order item quantityReceived
@@ -298,16 +297,19 @@ export async function POST(request) {
           }
         }
 
-        // Check if PO is now fully completed
+        // Check if PO is now fully completed or partially received
         const [updatedPoItems] = await conn.execute(
           "SELECT quantity, quantityReceived FROM purchase_order_items WHERE purchaseOrderID = ?",
           [parseInt(poID)]
         );
         const isCompleted = updatedPoItems.every(i => parseInt(i.quantityReceived) >= parseInt(i.quantity));
+        const hasSomeReceived = updatedPoItems.some(i => parseInt(i.quantityReceived) > 0);
+
+        const newStatus = isCompleted ? 'Received' : (hasSomeReceived ? 'Partially Received' : 'Pending');
 
         await conn.execute(
           "UPDATE purchase_order SET status = ?, remarks = ? WHERE purchaseOrderID = ?",
-          [isCompleted ? 'Completed' : 'Approved', remarks || '', parseInt(poID)]
+          [newStatus, remarks || '', parseInt(poID)]
         );
 
         await conn.commit();

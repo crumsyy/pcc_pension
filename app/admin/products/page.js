@@ -21,7 +21,8 @@ export default function AdminProducts() {
   const [formData, setFormData] = useState({
     name: '',
     productCategoryID: '',
-    price: 0,
+    basePrice: 0,
+    sellingPrice: 0,
     minStock: 5,
     itemType: 'Consumable',
     unit: 'pcs',
@@ -106,8 +107,16 @@ export default function AdminProducts() {
       showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
       return;
     }
-    if (parseFloat(formData.price) < 0) {
-      showAlert('error', 'Validation Error', 'Price cannot be negative.');
+    if (parseFloat(formData.basePrice) < 0) {
+      showAlert('error', 'Validation Error', 'Base Price cannot be negative.');
+      return;
+    }
+    if (parseFloat(formData.sellingPrice) < 0) {
+      showAlert('error', 'Validation Error', 'Selling Price cannot be negative.');
+      return;
+    }
+    if (parseFloat(formData.sellingPrice) < parseFloat(formData.basePrice)) {
+      showAlert('error', 'Validation Error', 'Selling Price must be greater than or equal to Base Price.');
       return;
     }
 
@@ -141,8 +150,16 @@ export default function AdminProducts() {
       showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
       return;
     }
-    if (parseFloat(formData.price) < 0) {
-      showAlert('error', 'Validation Error', 'Price cannot be negative.');
+    if (parseFloat(formData.basePrice) < 0) {
+      showAlert('error', 'Validation Error', 'Base Price cannot be negative.');
+      return;
+    }
+    if (parseFloat(formData.sellingPrice) < 0) {
+      showAlert('error', 'Validation Error', 'Selling Price cannot be negative.');
+      return;
+    }
+    if (parseFloat(formData.sellingPrice) < parseFloat(formData.basePrice)) {
+      showAlert('error', 'Validation Error', 'Selling Price must be greater than or equal to Base Price.');
       return;
     }
 
@@ -246,7 +263,8 @@ export default function AdminProducts() {
     setFormData({
       name: '',
       productCategoryID: categories[0]?.productCategoryID || '',
-      price: 0.00,
+      basePrice: 0.00,
+      sellingPrice: 0.00,
       minStock: 5,
       itemType: 'Consumable',
       unit: 'pcs',
@@ -260,7 +278,8 @@ export default function AdminProducts() {
     setFormData({
       name: product.name,
       productCategoryID: product.productCategoryID,
-      price: product.price,
+      basePrice: product.basePrice !== undefined ? product.basePrice : product.price,
+      sellingPrice: product.sellingPrice !== undefined ? product.sellingPrice : product.price,
       minStock: product.minStock !== undefined ? product.minStock : 5,
       itemType: product.itemType || 'Consumable',
       unit: product.unit || 'pcs',
@@ -374,7 +393,7 @@ export default function AdminProducts() {
                   <th>#</th>
                   <th>Name</th>
                   <th>Category</th>
-                  <th>Price</th>
+                  <th>Pricing</th>
                   <th>Item Type</th>
                   <th>Unit</th>
                   <th>Description</th>
@@ -397,7 +416,10 @@ export default function AdminProducts() {
                         <strong>{p.name}</strong>
                       </td>
                       <td>{p.catName}</td>
-                      <td>₱{parseFloat(p.price).toFixed(2)}</td>
+                      <td>
+                        <div className="small"><strong>Base:</strong> ₱{parseFloat(p.basePrice || p.price || 0).toFixed(2)}</div>
+                        <div className="small text-muted"><strong>Sell:</strong> ₱{parseFloat(p.sellingPrice || p.price || 0).toFixed(2)}</div>
+                      </td>
                       <td>
                         <span className={`badge ${p.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
                           {p.itemType}
@@ -520,19 +542,31 @@ export default function AdminProducts() {
                     />
                   </div>
                   <div className="row g-2">
-                    <div className="col-md-6">
-                      <label className="form-label">Price (₱) *</label>
+                    <div className="col-md-4">
+                      <label className="form-label">Base Price (₱) *</label>
                       <input
                         type="number"
-                        name="price"
+                        name="basePrice"
                         step="0.01"
                         className="form-control"
                         required
-                        value={formData.price}
+                        value={formData.basePrice}
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-4">
+                      <label className="form-label">Selling Price (₱) *</label>
+                      <input
+                        type="number"
+                        name="sellingPrice"
+                        step="0.01"
+                        className="form-control"
+                        required
+                        value={formData.sellingPrice}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
                       <label className="form-label">Min Stock Level *</label>
                       <input
                         type="number"
@@ -628,19 +662,31 @@ export default function AdminProducts() {
                     />
                   </div>
                   <div className="row g-2">
-                    <div className="col-md-6">
-                      <label className="form-label">Price (₱) *</label>
+                    <div className="col-md-4">
+                      <label className="form-label">Base Price (₱) *</label>
                       <input
                         type="number"
-                        name="price"
+                        name="basePrice"
                         step="0.01"
                         className="form-control"
                         required
-                        value={formData.price}
+                        value={formData.basePrice}
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-4">
+                      <label className="form-label">Selling Price (₱) *</label>
+                      <input
+                        type="number"
+                        name="sellingPrice"
+                        step="0.01"
+                        className="form-control"
+                        required
+                        value={formData.sellingPrice}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
                       <label className="form-label">Min Stock Level *</label>
                       <input
                         type="number"

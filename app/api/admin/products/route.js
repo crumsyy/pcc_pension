@@ -60,7 +60,9 @@ export async function POST(request) {
 
     if (action === 'create') {
       const name = body.name.trim();
-      const price = parseFloat(body.price);
+      const basePrice = parseFloat(body.basePrice || 0);
+      const sellingPrice = parseFloat(body.sellingPrice || 0);
+      const price = sellingPrice;
       const productCategoryID = parseInt(body.productCategoryID);
       const minStock = parseInt(body.minStock) || 5;
       const itemType = body.itemType || 'Consumable';
@@ -68,8 +70,8 @@ export async function POST(request) {
       const description = body.description ? body.description.trim() : null;
 
       await dbQuery(
-        "INSERT INTO products(name, price, quantity, productCategoryID, minStock, itemType, unit, description) VALUES(?, ?, 0, ?, ?, ?, ?, ?)",
-        [name, price, productCategoryID, minStock, itemType, unit, description]
+        "INSERT INTO products(name, price, basePrice, sellingPrice, quantity, productCategoryID, minStock, itemType, unit, description) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
+        [name, price, basePrice, sellingPrice, productCategoryID, minStock, itemType, unit, description]
       );
       return NextResponse.json({ success: true, message: 'Product created successfully.' });
     }
@@ -77,7 +79,9 @@ export async function POST(request) {
     if (action === 'update') {
       const productID = parseInt(body.productID);
       const name = body.name.trim();
-      const price = parseFloat(body.price);
+      const basePrice = parseFloat(body.basePrice || 0);
+      const sellingPrice = parseFloat(body.sellingPrice || 0);
+      const price = sellingPrice;
       const productCategoryID = parseInt(body.productCategoryID);
       const minStock = parseInt(body.minStock) || 5;
       const itemType = body.itemType || 'Consumable';
@@ -85,8 +89,8 @@ export async function POST(request) {
       const description = body.description ? body.description.trim() : null;
 
       await dbQuery(
-        "UPDATE products SET name=?, price=?, productCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE productID=?",
-        [name, price, productCategoryID, minStock, itemType, unit, description, productID]
+        "UPDATE products SET name=?, price=?, basePrice=?, sellingPrice=?, productCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE productID=?",
+        [name, price, basePrice, sellingPrice, productCategoryID, minStock, itemType, unit, description, productID]
       );
       return NextResponse.json({ success: true, message: 'Product updated successfully.' });
     }

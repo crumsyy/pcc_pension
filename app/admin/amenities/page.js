@@ -21,7 +21,8 @@ export default function AdminAmenities() {
   const [formData, setFormData] = useState({
     name: '',
     amenityCategoryID: '',
-    price: 0,
+    basePrice: 0,
+    sellingPrice: 0,
     minStock: 5,
     itemType: 'Consumable',
     unit: 'pcs',
@@ -106,8 +107,16 @@ export default function AdminAmenities() {
       showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
       return;
     }
-    if (parseFloat(formData.price) < 0) {
-      showAlert('error', 'Validation Error', 'Price cannot be negative.');
+    if (parseFloat(formData.basePrice) < 0) {
+      showAlert('error', 'Validation Error', 'Base Price cannot be negative.');
+      return;
+    }
+    if (parseFloat(formData.sellingPrice) < 0) {
+      showAlert('error', 'Validation Error', 'Selling Price cannot be negative.');
+      return;
+    }
+    if (parseFloat(formData.sellingPrice) < parseFloat(formData.basePrice)) {
+      showAlert('error', 'Validation Error', 'Selling Price must be greater than or equal to Base Price.');
       return;
     }
 
@@ -141,8 +150,16 @@ export default function AdminAmenities() {
       showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
       return;
     }
-    if (parseFloat(formData.price) < 0) {
-      showAlert('error', 'Validation Error', 'Price cannot be negative.');
+    if (parseFloat(formData.basePrice) < 0) {
+      showAlert('error', 'Validation Error', 'Base Price cannot be negative.');
+      return;
+    }
+    if (parseFloat(formData.sellingPrice) < 0) {
+      showAlert('error', 'Validation Error', 'Selling Price cannot be negative.');
+      return;
+    }
+    if (parseFloat(formData.sellingPrice) < parseFloat(formData.basePrice)) {
+      showAlert('error', 'Validation Error', 'Selling Price must be greater than or equal to Base Price.');
       return;
     }
 
@@ -221,7 +238,8 @@ export default function AdminAmenities() {
     setFormData({
       name: '',
       amenityCategoryID: categories[0]?.amenityCategoryID || '',
-      price: 0.00,
+      basePrice: 0.00,
+      sellingPrice: 0.00,
       minStock: 5,
       itemType: 'Consumable',
       unit: 'pcs',
@@ -235,7 +253,8 @@ export default function AdminAmenities() {
     setFormData({
       name: item.name,
       amenityCategoryID: item.amenityCategoryID,
-      price: item.price,
+      basePrice: item.basePrice !== undefined ? item.basePrice : item.price,
+      sellingPrice: item.sellingPrice !== undefined ? item.sellingPrice : item.price,
       minStock: item.minStock !== undefined ? item.minStock : 5,
       itemType: item.itemType || 'Consumable',
       unit: item.unit || 'pcs',
@@ -349,7 +368,7 @@ export default function AdminAmenities() {
                   <th>#</th>
                   <th>Name</th>
                   <th>Category</th>
-                  <th>Price</th>
+                  <th>Pricing</th>
                   <th>Item Type</th>
                   <th>Unit</th>
                   <th>Description</th>
@@ -371,7 +390,10 @@ export default function AdminAmenities() {
                         <strong>{item.name}</strong>
                       </td>
                       <td>{item.catName}</td>
-                      <td>₱{parseFloat(item.price).toFixed(2)}</td>
+                      <td>
+                        <div className="small"><strong>Base:</strong> ₱{parseFloat(item.basePrice || item.price || 0).toFixed(2)}</div>
+                        <div className="small text-muted"><strong>Sell:</strong> ₱{parseFloat(item.sellingPrice || item.price || 0).toFixed(2)}</div>
+                      </td>
                       <td>
                         <span className={`badge ${item.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
                           {item.itemType}
@@ -474,19 +496,31 @@ export default function AdminAmenities() {
                     />
                   </div>
                   <div className="row g-2">
-                    <div className="col-md-6">
-                      <label className="form-label">Price (₱) *</label>
+                    <div className="col-md-4">
+                      <label className="form-label">Base Price (₱) *</label>
                       <input
                         type="number"
-                        name="price"
+                        name="basePrice"
                         step="0.01"
                         className="form-control"
                         required
-                        value={formData.price}
+                        value={formData.basePrice}
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-4">
+                      <label className="form-label">Selling Price (₱) *</label>
+                      <input
+                        type="number"
+                        name="sellingPrice"
+                        step="0.01"
+                        className="form-control"
+                        required
+                        value={formData.sellingPrice}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
                       <label className="form-label">Min Stock Level *</label>
                       <input
                         type="number"
@@ -582,19 +616,31 @@ export default function AdminAmenities() {
                     />
                   </div>
                   <div className="row g-2">
-                    <div className="col-md-6">
-                      <label className="form-label">Price (₱) *</label>
+                    <div className="col-md-4">
+                      <label className="form-label">Base Price (₱) *</label>
                       <input
                         type="number"
-                        name="price"
+                        name="basePrice"
                         step="0.01"
                         className="form-control"
                         required
-                        value={formData.price}
+                        value={formData.basePrice}
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-4">
+                      <label className="form-label">Selling Price (₱) *</label>
+                      <input
+                        type="number"
+                        name="sellingPrice"
+                        step="0.01"
+                        className="form-control"
+                        required
+                        value={formData.sellingPrice}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-4">
                       <label className="form-label">Min Stock Level *</label>
                       <input
                         type="number"

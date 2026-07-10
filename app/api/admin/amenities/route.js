@@ -60,7 +60,9 @@ export async function POST(request) {
 
     if (action === 'create') {
       const name = body.name.trim();
-      const price = parseFloat(body.price);
+      const basePrice = parseFloat(body.basePrice || 0);
+      const sellingPrice = parseFloat(body.sellingPrice || 0);
+      const price = sellingPrice;
       const amenityCategoryID = parseInt(body.amenityCategoryID);
       const minStock = parseInt(body.minStock) || 5;
       const itemType = body.itemType || 'Consumable';
@@ -68,8 +70,8 @@ export async function POST(request) {
       const description = body.description ? body.description.trim() : null;
 
       await dbQuery(
-        "INSERT INTO amenities(name, price, quantity, amenityCategoryID, minStock, itemType, unit, description) VALUES(?, ?, 0, ?, ?, ?, ?, ?)",
-        [name, price, amenityCategoryID, minStock, itemType, unit, description]
+        "INSERT INTO amenities(name, price, basePrice, sellingPrice, quantity, amenityCategoryID, minStock, itemType, unit, description) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
+        [name, price, basePrice, sellingPrice, amenityCategoryID, minStock, itemType, unit, description]
       );
       return NextResponse.json({ success: true, message: 'Amenity created successfully.' });
     }
@@ -77,7 +79,9 @@ export async function POST(request) {
     if (action === 'update') {
       const amenityID = parseInt(body.amenityID);
       const name = body.name.trim();
-      const price = parseFloat(body.price);
+      const basePrice = parseFloat(body.basePrice || 0);
+      const sellingPrice = parseFloat(body.sellingPrice || 0);
+      const price = sellingPrice;
       const amenityCategoryID = parseInt(body.amenityCategoryID);
       const minStock = parseInt(body.minStock) || 5;
       const itemType = body.itemType || 'Consumable';
@@ -85,8 +89,8 @@ export async function POST(request) {
       const description = body.description ? body.description.trim() : null;
 
       await dbQuery(
-        "UPDATE amenities SET name=?, price=?, amenityCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE amenityID=?",
-        [name, price, amenityCategoryID, minStock, itemType, unit, description, amenityID]
+        "UPDATE amenities SET name=?, price=?, basePrice=?, sellingPrice=?, amenityCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE amenityID=?",
+        [name, price, basePrice, sellingPrice, amenityCategoryID, minStock, itemType, unit, description, amenityID]
       );
       return NextResponse.json({ success: true, message: 'Amenity updated successfully.' });
     }

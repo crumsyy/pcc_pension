@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 
 // Searchable Combobox Component (defined outside to prevent unmounting/focus issues)
-function Combobox({ options, value, onChange, placeholder, disabled, onAddNew }) {
+function Combobox({ options, value, onChange, placeholder, disabled }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value || '');
 
@@ -30,7 +32,9 @@ function Combobox({ options, value, onChange, placeholder, disabled, onAddNew })
           onChange={(e) => {
             setInputValue(e.target.value);
             setIsOpen(true);
-            onChange(null, e.target.value);
+            if (e.target.value === '') {
+              onChange(null);
+            }
           }}
           onFocus={() => setIsOpen(true)}
           onBlur={() => setIsOpen(false)}
@@ -53,7 +57,7 @@ function Combobox({ options, value, onChange, placeholder, disabled, onAddNew })
                   e.preventDefault();
                   setInputValue(opt.name);
                   setIsOpen(false);
-                  onChange(opt, opt.name);
+                  onChange(opt);
                 }}
               >
                 <div className="d-flex justify-content-between align-items-center">
@@ -68,20 +72,6 @@ function Combobox({ options, value, onChange, placeholder, disabled, onAddNew })
               No matching catalog items found.
             </li>
           )}
-          <hr className="dropdown-divider my-1" />
-          <li>
-            <button
-              type="button"
-              className="dropdown-item btn-sm text-start py-2 text-primary fw-bold"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setIsOpen(false);
-                onAddNew(inputValue);
-              }}
-            >
-              <i className="bi bi-plus-circle me-1"></i> Register New Catalog Item
-            </button>
-          </li>
         </ul>
       )}
     </div>
@@ -89,6 +79,9 @@ function Combobox({ options, value, onChange, placeholder, disabled, onAddNew })
 }
 
 export default function AdminPurchaseOrders() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [searchVal, setSearchVal] = useState('');
@@ -100,7 +93,7 @@ export default function AdminPurchaseOrders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   // Catalog integration states
-  const [catalogItems, setCatalogItems] = useState([]); // [{ id, name, type, price }]
+  const [catalogItems, setCatalogItems] = useState([]); // [{ id, name, type, itemType, basePrice }]
   const [productCategories, setProductCategories] = useState([]);
   const [amenityCategories, setAmenityCategories] = useState([]);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
@@ -118,7 +111,7 @@ export default function AdminPurchaseOrders() {
 
   // Form states
   const [poItems, setPoItems] = useState([
-    { itemName: '', itemType: 'Amenity', quantity: 1, unitPrice: 0.00 }
+    { itemName: '', itemType: 'Product', itemClassType: 'Consumable', quantity: 1, unitPrice: 0.00 }
   ]);
   const [receivedQtys, setReceivedQtys] = useState({});
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
@@ -205,14 +198,16 @@ export default function AdminPurchaseOrders() {
           id: p.productID,
           name: p.name,
           type: 'Product',
-          price: parseFloat(p.price || 0)
+          itemType: p.itemType,
+          basePrice: parseFloat(p.basePrice || 0)
         }));
 
       const formattedAmenities = (amenData.items || []).map(a => ({
         id: a.amenityID,
         name: a.name,
         type: 'Amenity',
-        price: parseFloat(a.price || 0)
+        itemType: a.itemType,
+        basePrice: parseFloat(a.basePrice || 0)
       }));
 
       setCatalogItems([...formattedProducts, ...formattedAmenities]);
@@ -227,7 +222,33 @@ export default function AdminPurchaseOrders() {
     fetchCatalog();
   }, []);
 
-  const handlePORowChangeSelect = (index, selectedItem, rawName) => {
+  useEffect(() => {
+    if (catalogItems.length > 0) {
+      const prefillName = searchParams.get('prefillName');
+      const prefillType = searchParams.get('prefillType');
+      if (prefillName && prefillType) {
+        const found = catalogItems.find(
+          c => c.name.toLowerCase() === prefillName.toLowerCase() && c.type.toLowerCase() === prefillType.toLowerCase()
+        );
+        if (found) {
+          setPoItems([
+            {
+              itemName: found.name,
+              itemType: found.type,
+              itemClassType: found.itemType,
+              unitPrice: found.basePrice,
+              quantity: 10
+            }
+          ]);
+          setExpectedDeliveryDate('');
+          setActiveModal('create');
+          router.replace('/admin/purchase-orders');
+        }
+      }
+    }
+  }, [catalogItems, searchParams, router]);
+
+  const handlePORowChangeSelect = (index, selectedItem) => {
     setPoItems(prev => {
       const newItems = [...prev];
       if (selectedItem) {
@@ -235,87 +256,20 @@ export default function AdminPurchaseOrders() {
           ...newItems[index],
           itemName: selectedItem.name,
           itemType: selectedItem.type,
-          unitPrice: selectedItem.price
+          itemClassType: selectedItem.itemType,
+          unitPrice: selectedItem.basePrice
         };
       } else {
         newItems[index] = {
-          ...newItems[index],
-          itemName: rawName
+          itemName: '',
+          itemType: 'Product',
+          itemClassType: 'Consumable',
+          unitPrice: 0.00,
+          quantity: newItems[index].quantity || 1
         };
       }
       return newItems;
     });
-  };
-
-  const handleQuickAddClick = (rowIndex, typedName) => {
-    setQuickAddTargetRowIndex(rowIndex);
-    setQuickAddForm({
-      name: typedName || '',
-      price: 0,
-      type: poItems[rowIndex]?.itemType || 'Product',
-      categoryID: '',
-      minStock: 5,
-      itemType: 'Consumable',
-      unit: 'pcs',
-      description: ''
-    });
-    setShowQuickAddModal(true);
-  };
-
-  const handleQuickAddSubmit = async (e) => {
-    e.preventDefault();
-    if (!quickAddForm.categoryID) {
-      showAlert('error', 'Validation Error', 'Please select a Category.');
-      return;
-    }
-    try {
-      const isProduct = quickAddForm.type === 'Product';
-      const endpoint = isProduct ? '/api/admin/products' : '/api/admin/amenities';
-      const payload = {
-        action: 'create',
-        name: quickAddForm.name,
-        price: parseFloat(quickAddForm.price),
-        minStock: parseInt(quickAddForm.minStock),
-        itemType: quickAddForm.itemType,
-        unit: quickAddForm.unit,
-        description: quickAddForm.description
-      };
-      if (isProduct) {
-        payload.productCategoryID = parseInt(quickAddForm.categoryID);
-      } else {
-        payload.amenityCategoryID = parseInt(quickAddForm.categoryID);
-      }
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create item');
-
-      // Refresh catalog list
-      await fetchCatalog();
-
-      // Automatically select the new item in the target PO row
-      setPoItems(prev => {
-        const newItems = [...prev];
-        if (newItems[quickAddTargetRowIndex]) {
-          newItems[quickAddTargetRowIndex] = {
-            itemName: quickAddForm.name,
-            itemType: quickAddForm.type,
-            quantity: newItems[quickAddTargetRowIndex].quantity,
-            unitPrice: parseFloat(quickAddForm.price)
-          };
-        }
-        return newItems;
-      });
-
-      setShowQuickAddModal(false);
-      showAlert('success', 'Success', `${quickAddForm.type} "${quickAddForm.name}" registered and added to PO row.`);
-    } catch (err) {
-      showAlert('error', 'Error', err.message);
-    }
   };
 
 
@@ -374,18 +328,35 @@ export default function AdminPurchaseOrders() {
 
     for (const itemID in receivedQtys) {
       const val = receivedQtys[itemID];
-      if (val.expirationDate && !isValidDate(val.expirationDate)) {
-        showAlert('error', 'Validation Error', 'Please enter a valid Expiration Date (MM/DD/YYYY) for received items.');
-        return;
+      const item = selectedOrder.items.find(i => String(i.orderItemID) === String(itemID));
+      if (item && parseInt(val.qty || 0) > 0) {
+        const matchItem = catalogItems.find(c => c.name === item.itemName && c.type === item.itemType);
+        const isConsumable = matchItem ? matchItem.itemType === 'Consumable' : true;
+
+        if (isConsumable) {
+          if (!val.expirationDate) {
+            showAlert('error', 'Validation Error', `Expiration Date is required for consumable item "${item.itemName}".`);
+            return;
+          }
+          if (!isValidDate(val.expirationDate)) {
+            showAlert('error', 'Validation Error', `Please enter a valid Expiration Date (MM/DD/YYYY) for consumable item "${item.itemName}".`);
+            return;
+          }
+        }
       }
     }
 
     const receivedFormatted = {};
     for (const itemID in receivedQtys) {
       const val = receivedQtys[itemID];
+      const item = selectedOrder.items.find(i => String(i.orderItemID) === String(itemID));
+      const matchItem = catalogItems.find(c => c.name === item?.itemName && c.type === item?.itemType);
+      const isConsumable = matchItem ? matchItem.itemType === 'Consumable' : true;
+
       receivedFormatted[itemID] = {
-        ...val,
-        expirationDate: val.expirationDate ? toDbDate(val.expirationDate) : null
+        qty: parseInt(val.qty || 0),
+        unitCost: parseFloat(val.unitCost || 0),
+        expirationDate: (isConsumable && val.expirationDate) ? toDbDate(val.expirationDate) : null
       };
     }
 
@@ -438,7 +409,7 @@ export default function AdminPurchaseOrders() {
   };
 
   const openCreateModal = () => {
-    setPoItems([{ itemName: '', itemType: 'Amenity', quantity: 1, unitPrice: 0.00 }]);
+    setPoItems([{ itemName: '', itemType: 'Product', itemClassType: 'Consumable', quantity: 1, unitPrice: 0.00 }]);
     setExpectedDeliveryDate('');
     setActiveModal('create');
   };
@@ -468,7 +439,7 @@ export default function AdminPurchaseOrders() {
   };
 
   const addPORow = () => {
-    setPoItems(prev => [...prev, { itemName: '', itemType: 'Amenity', quantity: 1, unitPrice: 0.00 }]);
+    setPoItems(prev => [...prev, { itemName: '', itemType: 'Product', itemClassType: 'Consumable', quantity: 1, unitPrice: 0.00 }]);
   };
 
   const handlePORowChange = (index, field, value) => {
@@ -537,8 +508,8 @@ export default function AdminPurchaseOrders() {
             >
               <option value="">All Status</option>
               <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Completed">Completed</option>
+              <option value="Partially Received">Partially Received</option>
+              <option value="Received">Received</option>
               <option value="Canceled">Canceled</option>
             </select>
           </div>
@@ -603,9 +574,9 @@ export default function AdminPurchaseOrders() {
                       <td>
                         <span
                           className={`badge ${
-                            po.status === 'Completed'
+                            po.status === 'Received'
                               ? 'text-bg-success'
-                              : po.status === 'Approved'
+                              : po.status === 'Partially Received'
                               ? 'text-bg-primary'
                               : po.status === 'Canceled'
                               ? 'text-bg-danger'
@@ -615,14 +586,13 @@ export default function AdminPurchaseOrders() {
                           {po.status}
                         </span>
                       </td>
-                        <td>
-                          <ActionButtons
-                            onView={() => openViewModal(po)}
-                            onApprove={po.status === 'Pending' ? () => handleStatusChange(po.purchaseOrderID, 'Approved', 'Approve this Purchase Order?') : null}
-                            onCancel={po.status === 'Pending' ? () => handleStatusChange(po.purchaseOrderID, 'Canceled', 'Cancel this Purchase Order?') : null}
-                            onStockIn={po.status === 'Approved' ? () => openStockInModal(po) : null}
-                          />
-                        </td>
+                      <td>
+                        <ActionButtons
+                          onView={() => openViewModal(po)}
+                          onCancel={po.status === 'Pending' || po.status === 'Partially Received' ? () => handleStatusChange(po.purchaseOrderID, 'Canceled', 'Cancel this Purchase Order?') : null}
+                          onStockIn={po.status === 'Pending' || po.status === 'Partially Received' ? () => openStockInModal(po) : null}
+                        />
+                      </td>
                     </tr>
                   ))
                 )}
@@ -656,28 +626,48 @@ export default function AdminPurchaseOrders() {
                     />
                   </div>
                   <hr />
-                  <div id="poItemsList">
+                  <div className="row g-2 mb-1 small fw-bold text-muted border-bottom pb-1">
+                    <div className="col-md-3">Item Name *</div>
+                    <div className="col-md-2">Category</div>
+                    <div className="col-md-2">Type</div>
+                    <div className="col-md-2">Base Price</div>
+                    <div className="col-md-2">Qty Ordered *</div>
+                    <div className="col-md-1 text-center">Remove</div>
+                  </div>
+                  <div id="poItemsList" className="mt-2">
                     {poItems.map((item, idx) => (
                       <div className="row g-2 mb-2 align-items-center" key={idx}>
-                        <div className="col-md-4">
+                        <div className="col-md-3">
                           <Combobox
                             options={catalogItems}
                             value={item.itemName}
-                            placeholder="Search catalog items..."
-                            onChange={(selected, rawVal) => handlePORowChangeSelect(idx, selected, rawVal)}
-                            onAddNew={(typedVal) => handleQuickAddClick(idx, typedVal)}
+                            placeholder="Search catalog..."
+                            onChange={(selected) => handlePORowChangeSelect(idx, selected)}
                           />
                         </div>
-                        <div className="col-md-3">
-                          <select
-                            className="form-select form-select-sm"
+                        <div className="col-md-2">
+                          <input
+                            type="text"
+                            className="form-control form-control-sm bg-light"
+                            disabled
                             value={item.itemType}
-                            disabled={catalogItems.some(c => c.name.toLowerCase() === (item.itemName || '').trim().toLowerCase())}
-                            onChange={(e) => handlePORowChange(idx, 'itemType', e.target.value)}
-                          >
-                            <option value="Amenity">Amenity</option>
-                            <option value="Product">Product</option>
-                          </select>
+                          />
+                        </div>
+                        <div className="col-md-2">
+                          <input
+                            type="text"
+                            className="form-control form-control-sm bg-light"
+                            disabled
+                            value={item.itemClassType || 'Consumable'}
+                          />
+                        </div>
+                        <div className="col-md-2">
+                          <input
+                            type="text"
+                            className="form-control form-control-sm bg-light"
+                            disabled
+                            value={item.unitPrice ? `₱${parseFloat(item.unitPrice).toFixed(2)}` : '₱0.00'}
+                          />
                         </div>
                         <div className="col-md-2">
                           <input
@@ -687,19 +677,19 @@ export default function AdminPurchaseOrders() {
                             min="1"
                             required
                             value={item.quantity}
-                            onChange={(e) => handlePORowChange(idx, 'quantity', e.target.value)}
+                            onChange={(e) => handlePORowChange(idx, 'quantity', parseInt(e.target.value) || 0)}
                           />
                         </div>
-                        <div className="col-md-3">
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="form-control form-control-sm"
-                            placeholder="Unit Price ₱"
-                            required
-                            value={item.unitPrice}
-                            onChange={(e) => handlePORowChange(idx, 'unitPrice', e.target.value)}
-                          />
+                        <div className="col-md-1 text-center">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger px-2"
+                            style={{ padding: '0.15rem 0.5rem' }}
+                            disabled={poItems.length <= 1}
+                            onClick={() => setPoItems(prev => prev.filter((_, i) => i !== idx))}
+                          >
+                            ✕
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -804,41 +794,35 @@ export default function AdminPurchaseOrders() {
               </div>
               <form onSubmit={handleStockInSubmit}>
                 <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label small fw-bold">Supplier *</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. Procter & Gamble, local supplier..."
-                      required
-                      value={supplierName}
-                      onChange={(e) => setSupplierName(e.target.value)}
-                    />
-                  </div>
                   <div className="table-responsive mb-3">
                     <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
                       <thead>
                         <tr>
                           <th>Item</th>
-                          <th>Type</th>
+                          <th>Category</th>
+                          <th>Item Type</th>
                           <th>Ordered</th>
-                          <th>Rec'd So Far</th>
-                          <th style={{ width: '90px' }}>Rec'd Now *</th>
+                          <th style={{ width: '100px' }}>Rec'd Now *</th>
                           <th>Exp. Date</th>
-                          <th>Supplier Ref (DR)</th>
-                          <th style={{ width: '100px' }}>Unit Cost *</th>
+                          <th style={{ width: '110px' }}>Unit Cost *</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedOrder.items.map((item) => {
-                          const val = receivedQtys[item.orderItemID] || { qty: 0, expirationDate: '', manufacturingDate: '', supplierReference: '', unitCost: item.unitPrice };
+                          const val = receivedQtys[item.orderItemID] || { qty: 0, expirationDate: '', unitCost: item.unitPrice };
                           const remaining = item.quantity - (item.quantityReceived || 0);
+                          const matchItem = catalogItems.find(c => c.name === item.itemName && c.type === item.itemType);
+                          const itemClassType = matchItem ? matchItem.itemType : 'Consumable';
                           return (
                             <tr key={item.orderItemID}>
                               <td><strong>{item.itemName}</strong></td>
                               <td><span className="badge text-bg-light border text-muted">{item.itemType}</span></td>
+                              <td>
+                                <span className={`badge ${itemClassType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
+                                  {itemClassType}
+                                </span>
+                              </td>
                               <td>{item.quantity}</td>
-                              <td>{item.quantityReceived || 0}</td>
                               <td>
                                 <input
                                   type="number"
@@ -851,20 +835,15 @@ export default function AdminPurchaseOrders() {
                                 />
                               </td>
                               <td>
-                                <DateInput
-                                  className="form-control form-control-sm"
-                                  value={val.expirationDate || ''}
-                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'expirationDate', e.target.value)}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm"
-                                  placeholder="e.g. DR-1234"
-                                  value={val.supplierReference || ''}
-                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'supplierReference', e.target.value)}
-                                />
+                                {itemClassType === 'Consumable' ? (
+                                  <DateInput
+                                    className="form-control form-control-sm"
+                                    value={val.expirationDate || ''}
+                                    onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'expirationDate', e.target.value)}
+                                  />
+                                ) : (
+                                  <span className="text-muted small">N/A</span>
+                                )}
                               </td>
                               <td>
                                 <input
@@ -896,126 +875,6 @@ export default function AdminPurchaseOrders() {
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary">Confirm Stock-In</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* QUICK ADD CATALOG ITEM SUBMODAL */}
-      {showQuickAddModal && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1070 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0">
-              <div className="modal-header" style={{ background: '#343a40', color: '#fff' }}>
-                <h5 className="modal-title">Register New Catalog Item</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowQuickAddModal(false)}></button>
-              </div>
-              <form onSubmit={handleQuickAddSubmit}>
-                <div className="modal-body">
-                  <div className="row g-2 mb-2">
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold">Item Type Category *</label>
-                      <select
-                        className="form-select form-select-sm"
-                        value={quickAddForm.type}
-                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, type: e.target.value, categoryID: '' }))}
-                      >
-                        <option value="Product">Product</option>
-                        <option value="Amenity">Amenity</option>
-                      </select>
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold">Select Category *</label>
-                      <select
-                        className="form-select form-select-sm"
-                        required
-                        value={quickAddForm.categoryID}
-                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, categoryID: e.target.value }))}
-                      >
-                        <option value="">-- Choose Category --</option>
-                        {quickAddForm.type === 'Product' 
-                          ? productCategories.map(c => <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>)
-                          : amenityCategories.map(c => <option key={c.amenityCategoryID} value={c.amenityCategoryID}>{c.name}</option>)
-                        }
-                      </select>
-                    </div>
-                  </div>
-                  <div className="mb-2">
-                    <label className="form-label small fw-bold">Item Name *</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      required
-                      placeholder="e.g. Toothpaste, Monoblock Chair..."
-                      value={quickAddForm.name}
-                      onChange={(e) => setQuickAddForm(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-                  <div className="row g-2 mb-2">
-                    <div className="col-md-4">
-                      <label className="form-label small fw-bold">Unit *</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        required
-                        placeholder="e.g. pcs, pack, box"
-                        value={quickAddForm.unit}
-                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, unit: e.target.value }))}
-                      />
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label small fw-bold">Base Price (₱) *</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="form-control form-control-sm"
-                        required
-                        value={quickAddForm.price}
-                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, price: e.target.value }))}
-                      />
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label small fw-bold">Min Stock Alert *</label>
-                      <input
-                        type="number"
-                        min="1"
-                        className="form-control form-control-sm"
-                        required
-                        value={quickAddForm.minStock}
-                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, minStock: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="row g-2 mb-2">
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold">Consumable Type *</label>
-                      <select
-                        className="form-select form-select-sm"
-                        value={quickAddForm.itemType}
-                        onChange={(e) => setQuickAddForm(prev => ({ ...prev, itemType: e.target.value }))}
-                      >
-                        <option value="Consumable">Consumable (e.g. soap, snacks)</option>
-                        <option value="Non-Consumable">Non-Consumable (e.g. chairs, pillows)</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="mb-2">
-                    <label className="form-label small fw-bold">Description (Optional)</label>
-                    <textarea
-                      className="form-control form-control-sm"
-                      rows="2"
-                      placeholder="Add brief details about this item..."
-                      value={quickAddForm.description}
-                      onChange={(e) => setQuickAddForm(prev => ({ ...prev, description: e.target.value }))}
-                    ></textarea>
-                  </div>
-                </div>
-                <div className="modal-footer py-2">
-                  <button type="submit" className="btn btn-sm btn-dark">Register &amp; Add</button>
-                  <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowQuickAddModal(false)}>Cancel</button>
                 </div>
               </form>
             </div>
