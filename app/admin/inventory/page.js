@@ -683,14 +683,14 @@ export default function AdminInventory() {
             </div>
             <div className="col-md-3">
               <select className="form-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                <option value="">All Categories (Amenity/Product)</option>
+                <option value="">All Categories</option>
                 <option value="Amenity">Amenities</option>
                 <option value="Product">Products</option>
               </select>
             </div>
             <div className="col-md-3">
               <select className="form-select" value={itemTypeFilter} onChange={(e) => setItemTypeFilter(e.target.value)}>
-                <option value="">All Item Types (Consumable/Asset)</option>
+                <option value="">All Item Types</option>
                 <option value="Consumable">Consumable</option>
                 <option value="Non-Consumable">Non-Consumable</option>
               </select>
