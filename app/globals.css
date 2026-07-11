@@ -104,6 +104,12 @@ h1, h2, h3, h4, .display-font {
   color: var(--pcc-cream) !important;
 }
 
+.btn-pcc-primary.btn-sm,
+.btn-pcc-outline.btn-sm {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.825rem;
+}
+
 /* ---------------------------------------------------------------
    Hero
    --------------------------------------------------------------- */

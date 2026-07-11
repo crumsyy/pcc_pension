@@ -659,14 +659,14 @@ export default function AdminPurchaseOrders() {
           {/* Recommended Restock Panel */}
           <div className="card-module h-100" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column' }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h4 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.25rem' }}>
+              <h4 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
                 ⚠️ Recommended for Restock
               </h4>
               {recommendedItems.length > 0 && (
                 <button
                   type="button"
-                  className="btn btn-sm btn-pcc-primary text-white"
-                  style={{ fontSize: '0.8rem' }}
+                  className="btn btn-sm btn-pcc-primary text-white py-1 px-2"
+                  style={{ fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}
                   onClick={handleOrderAll}
                 >
                   Order All
