@@ -730,9 +730,17 @@ export default function AdminInventory() {
                         <td>
                           <strong>{item.name}</strong>
                           {isLow && (
-                            <span className="badge text-bg-warning ms-2" style={{ fontSize: '0.7rem' }}>
+                            <button
+                              type="button"
+                              className="badge text-bg-warning ms-2 border-0"
+                              style={{ fontSize: '0.7rem', cursor: 'pointer', transition: 'transform 0.1s ease' }}
+                              title="Click to Restock this item"
+                              onClick={() => router.push(`/admin/purchase-orders?prefillName=${encodeURIComponent(item.name)}&prefillType=${item.sourceTable}`)}
+                              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
                               ⚠️ Recommended for Restock
-                            </span>
+                            </button>
                           )}
                         </td>
                         <td>{item.category}</td>
@@ -769,14 +777,6 @@ export default function AdminInventory() {
                             <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
                               🗑 Dispose
                             </button>
-                            {isLow && (
-                              <button 
-                                className="btn btn-sm btn-pcc-primary text-white" 
-                                onClick={() => router.push(`/admin/purchase-orders?prefillName=${encodeURIComponent(item.name)}&prefillType=${item.sourceTable}`)}
-                              >
-                                🛒 Restock
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>

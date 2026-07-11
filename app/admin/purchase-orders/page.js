@@ -442,6 +442,20 @@ export default function AdminPurchaseOrders() {
     setActiveModal('create');
   };
 
+  const handleOrderAll = () => {
+    if (recommendedItems.length === 0) return;
+    const prefilledRows = recommendedItems.map(item => ({
+      itemName: item.name,
+      itemType: item.sourceTable,
+      itemClassType: item.itemType,
+      unitPrice: parseFloat(item.basePrice || item.price || 0),
+      quantity: Math.max(1, (item.minStock || 5) - (item.availableQty || 0))
+    }));
+    setPoItems(prefilledRows);
+    setExpectedDeliveryDate('');
+    setActiveModal('create');
+  };
+
   const openViewModal = (po) => {
     setSelectedOrder(po);
     setActiveModal('view');
@@ -644,9 +658,21 @@ export default function AdminPurchaseOrders() {
         <div className="col-lg-4">
           {/* Recommended Restock Panel */}
           <div className="card-module h-100" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column' }}>
-            <h4 className="fw-bold mb-3 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.25rem' }}>
-              ⚠️ Recommended for Restock
-            </h4>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h4 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.25rem' }}>
+                ⚠️ Recommended for Restock
+              </h4>
+              {recommendedItems.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-pcc-primary text-white"
+                  style={{ fontSize: '0.8rem' }}
+                  onClick={handleOrderAll}
+                >
+                  Order All
+                </button>
+              )}
+            </div>
             <div className="flex-grow-1 overflow-auto" style={{ maxHeight: '600px' }}>
               {recommendedItems.length === 0 ? (
                 <div className="text-center text-muted py-5 small">
