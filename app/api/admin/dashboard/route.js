@@ -9,7 +9,6 @@ export async function GET() {
   }
 
   await syncRoomStatuses();
-  await syncInventoryStock();
 
   try {
     const [

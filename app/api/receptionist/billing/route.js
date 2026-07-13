@@ -61,9 +61,12 @@ export async function GET(request) {
 
     // Fetch registered guest list for this booking
     const guestsList = await dbQuery(`
-      SELECT bg.*, d.name as discountName, d.percentage as discountPercentage
+      SELECT bg.*, 
+             COALESCE(d.name, p.name) as discountName, 
+             COALESCE(d.percentage, p.percentage) as discountPercentage
       FROM booking_guest_details bg
       LEFT JOIN discounts d ON d.discountID = bg.discountID
+      LEFT JOIN promotions p ON p.promotionID = bg.promotionID
       WHERE bg.bookingID = ?
     `, [bookingID]);
 
@@ -75,6 +78,7 @@ export async function GET(request) {
         fullName: `${booking.firstName} ${booking.lastName}`,
         age: 30,
         discountID: null,
+        promotionID: null,
         discountIdNumber: null,
         discountName: null,
         discountPercentage: 0
@@ -90,6 +94,7 @@ export async function GET(request) {
       const discountAmount = sharePerGuest * (discountPercentage / 100);
       return {
         ...g,
+        discountID: g.discountID ? `disc-${g.discountID}` : (g.promotionID ? `promo-${g.promotionID}` : ''),
         share: sharePerGuest,
         discount: discountAmount,
         netShare: sharePerGuest - discountAmount
@@ -162,7 +167,21 @@ export async function GET(request) {
 
     const balance = subtotalCharges - paidTotal;
 
-    const discounts = await dbQuery("SELECT discountID, name, percentage FROM discounts WHERE eligibilityTypeID = 1 AND isArchived = 0");
+    const activeDiscounts = await dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name");
+    const activePromos = await dbQuery("SELECT promotionID, name, percentage FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name");
+
+    const discounts = [
+      ...activeDiscounts.map(d => ({
+        discountID: `disc-${d.discountID}`,
+        name: `[Discount] ${d.name}`,
+        percentage: d.percentage
+      })),
+      ...activePromos.map(p => ({
+        discountID: `promo-${p.promotionID}`,
+        name: `[Promo] ${p.name}`,
+        percentage: p.percentage
+      }))
+    ];
 
     return NextResponse.json({
       success: true,
@@ -219,17 +238,26 @@ export async function POST(request) {
       await conn.beginTransaction();
 
       for (const g of guests) {
-        const discountID = g.discountID ? parseInt(g.discountID) : null;
+        let dbDiscountID = null;
+        let dbPromotionID = null;
+        const rawDiscountID = g.discountID ? String(g.discountID) : '';
+
+        if (rawDiscountID.startsWith('disc-')) {
+          dbDiscountID = parseInt(rawDiscountID.replace('disc-', ''));
+        } else if (rawDiscountID.startsWith('promo-')) {
+          dbPromotionID = parseInt(rawDiscountID.replace('promo-', ''));
+        }
+
         const discountIdNumber = g.discountIdNumber ? g.discountIdNumber.trim() : null;
 
-        if (discountID) {
+        if (dbDiscountID) {
           if (!discountIdNumber) {
             return NextResponse.json({ error: `ID card number is required for guest: ${g.fullName || 'selected guest'}.` }, { status: 400 });
           }
           const [details] = await conn.execute("SELECT fullName, age FROM booking_guest_details WHERE bookingGuestID = ?", [g.bookingGuestID]);
           if (details.length > 0) {
             const guest = details[0];
-            const [disc] = await conn.execute("SELECT name FROM discounts WHERE discountID = ?", [discountID]);
+            const [disc] = await conn.execute("SELECT name FROM discounts WHERE discountID = ?", [dbDiscountID]);
             if (disc.length > 0) {
               const discName = disc[0].name.toLowerCase();
               if (discName.includes('senior') && parseInt(guest.age) < 60) {
@@ -237,13 +265,17 @@ export async function POST(request) {
               }
             }
           }
+        } else if (dbPromotionID) {
+          if (!discountIdNumber) {
+            return NextResponse.json({ error: `ID card number or code is required for guest: ${g.fullName || 'selected guest'} to apply this promotion.` }, { status: 400 });
+          }
         }
 
         await conn.execute(
           `UPDATE booking_guest_details 
-           SET discountID = ?, discountIdNumber = ? 
+           SET discountID = ?, promotionID = ?, discountIdNumber = ? 
            WHERE bookingGuestID = ? AND bookingID = ?`,
-          [discountID, discountIdNumber, g.bookingGuestID, bookingID]
+          [dbDiscountID, dbPromotionID, discountIdNumber, g.bookingGuestID, bookingID]
         );
       }
 

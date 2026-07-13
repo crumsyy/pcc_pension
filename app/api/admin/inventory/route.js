@@ -12,7 +12,6 @@ export async function GET(request) {
   const search = searchParams.get('search') || '';
   const typeF = searchParams.get('type') || ''; // 'Consumable' | 'Non-Consumable'
 
-  await syncInventoryStock();
 
   try {
     // 1. Fetch amenities and products catalog
@@ -316,6 +315,7 @@ export async function POST(request) {
         }
 
         await conn.commit();
+        await syncInventoryStock();
         return NextResponse.json({ success: true, message: 'Stock out movement recorded successfully.' });
       } catch (e) {
         await conn.rollback();
@@ -392,6 +392,7 @@ export async function POST(request) {
         }
 
         await conn.commit();
+        await syncInventoryStock();
         return NextResponse.json({ success: true, message: `Borrow transaction registered as BOR-${borrowID}.` });
       } catch (e) {
         await conn.rollback();
@@ -498,6 +499,7 @@ export async function POST(request) {
         }
 
         await conn.commit();
+        await syncInventoryStock();
         return NextResponse.json({ success: true, message: 'Return recorded successfully.' });
       } catch (e) {
         await conn.rollback();
@@ -530,6 +532,7 @@ export async function POST(request) {
         );
       }
 
+      await syncInventoryStock();
       return NextResponse.json({ success: true, message: 'Batch expiration date updated successfully.' });
     }
 

@@ -446,7 +446,7 @@ export default async function GuestDashboard() {
                                 <li>Total Registered Guests: <strong>{activeBill.summary.totalGuests} Pax</strong></li>
                                 <li>Individual Guest Share: <strong>₱{parseFloat(activeBill.summary.sharePerGuest).toFixed(2)}</strong></li>
                                 <li>
-                                  Seniors/PWDs: <strong>{activeBill.guestsList.filter(g => g.discountID).length} Guest(s)</strong> (VAT exempt + 20% discount applied to their individual share)
+                                  Applied Discounts/Promotions: <strong>{activeBill.guestsList.filter(g => g.discountID).length} Guest(s)</strong> (configured discount percentage applied to their individual share)
                                 </li>
                               </ul>
                             </div>

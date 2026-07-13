@@ -82,12 +82,13 @@ export default function AdminDiscounts() {
     });
   };
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isSilent = false, isInitial = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const query = new URLSearchParams({
         search,
-        archived: showArchived ? 'true' : 'false'
+        archived: showArchived ? 'true' : 'false',
+        lookups: isInitial ? 'true' : 'false'
       }).toString();
       const res = await fetch(`/api/admin/discounts?${query}`);
       const data = await res.json();
@@ -95,19 +96,28 @@ export default function AdminDiscounts() {
 
       setDiscounts(data.discounts || []);
       setPromotions(data.promotions || []);
-      setDiscountTypes(data.discountTypes || []);
-      setEligibilityTypes(data.eligibilityTypes || []);
-      setRooms(data.rooms || []);
-      setRoomTypes(data.roomTypes || []);
+      if (isInitial) {
+        setDiscountTypes(data.discountTypes || []);
+        setEligibilityTypes(data.eligibilityTypes || []);
+        setRooms(data.rooms || []);
+        setRoomTypes(data.roomTypes || []);
+      }
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isSilent) showAlert('error', 'Error', err.message);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(false, true);
+  }, [search, showArchived]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData(true, false);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [search, showArchived]);
 
   const handleDiscInputChange = (e) => {

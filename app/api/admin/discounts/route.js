@@ -11,6 +11,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
   const archived = searchParams.get('archived') === 'true';
+  const fetchLookups = searchParams.get('lookups') === 'true';
 
   try {
     const [discounts, promotions, discountTypes, eligibilityTypes, rooms, roomTypes] = await Promise.all([
@@ -30,10 +31,10 @@ export async function GET(request) {
         WHERE p.isArchived = ?
         ORDER BY p.startDate DESC
       `, [archived ? 1 : 0]),
-      dbQuery("SELECT * FROM discount_type"),
-      dbQuery("SELECT * FROM eligibility_type"),
-      dbQuery("SELECT roomID, roomNumber FROM room WHERE isArchived = 0 ORDER BY roomNumber"),
-      dbQuery("SELECT roomTypeID, type FROM room_type ORDER BY type")
+      fetchLookups ? dbQuery("SELECT * FROM discount_type") : Promise.resolve([]),
+      fetchLookups ? dbQuery("SELECT * FROM eligibility_type") : Promise.resolve([]),
+      fetchLookups ? dbQuery("SELECT roomID, roomNumber FROM room WHERE isArchived = 0 ORDER BY roomNumber") : Promise.resolve([]),
+      fetchLookups ? dbQuery("SELECT roomTypeID, type FROM room_type ORDER BY type") : Promise.resolve([])
     ]);
 
     let filteredDiscounts = discounts;

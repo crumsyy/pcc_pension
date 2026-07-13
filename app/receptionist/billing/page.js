@@ -219,7 +219,7 @@ export default function ReceptionistBilling() {
                                   <li>Total Registered Guests: <strong>{billDetails.chargesSummary.totalGuests} Pax</strong></li>
                                   <li>Individual Guest Share: <strong>₱{parseFloat(billDetails.chargesSummary.sharePerGuest).toFixed(2)}</strong></li>
                                   <li>
-                                    Seniors/PWDs: <strong>{billDetails.guestsList.filter(g => g.discountID).length} Guest(s)</strong> (VAT exempt + 20% discount applied to their individual share)
+                                  Applied Discounts/Promotions: <strong>{billDetails.guestsList.filter(g => g.discountID).length} Guest(s)</strong> (configured discount percentage applied to their individual share)
                                   </li>
                                 </ul>
                               </div>

@@ -182,7 +182,7 @@ export default function AdminPurchaseOrders() {
 
   const fetchInventory = async () => {
     try {
-      const res = await fetch('/api/admin/inventory');
+      const res = await fetch('/api/admin/inventory/low-stock');
       const data = await res.json();
       if (res.ok) {
         setInventoryItems(data.items || []);
@@ -194,8 +194,13 @@ export default function AdminPurchaseOrders() {
 
   useEffect(() => {
     fetchOrders();
-    fetchInventory();
   }, [statusFilter, searchVal, dateFilter]);
+
+  useEffect(() => {
+    fetchInventory();
+    const interval = setInterval(fetchInventory, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchCatalog = async () => {
     try {
@@ -508,7 +513,7 @@ export default function AdminPurchaseOrders() {
     return sum + (qty * price);
   }, 0);
 
-  const recommendedItems = inventoryItems.filter(item => item.availableQty <= item.minStock);
+  const recommendedItems = inventoryItems;
 
   return (
     <div>
