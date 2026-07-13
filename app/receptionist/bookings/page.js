@@ -24,8 +24,12 @@ export default function ReceptionistBookings() {
     roomID: '',
     checkInDateTime: '',
     checkOutDateTime: '',
-    status: 'Confirmed'
+    status: 'Pending Check-in'
   });
+
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [downPayment, setDownPayment] = useState('');
+  const [paymentMethodID, setPaymentMethodID] = useState('1');
 
   const [checkInDate, setCheckInDate] = useState('');
   const [checkInTime, setCheckInTime] = useState('');
@@ -98,6 +102,7 @@ export default function ReceptionistBookings() {
       setGuests(data.guests || []);
       setRooms(data.rooms || []);
       setAvailableDiscounts(data.discounts || []);
+      setPaymentMethods(data.paymentMethods || []);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -128,9 +133,11 @@ export default function ReceptionistBookings() {
       setFormData({
         guestID: guests[0]?.guestID || '',
         roomID: '',
-        status: 'Confirmed'
+        status: 'Pending Check-in'
       });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+      setDownPayment('');
+      setPaymentMethodID('1');
     } else if (!activeModal) {
       setCheckInDate('');
       setCheckInTime('');
@@ -139,7 +146,7 @@ export default function ReceptionistBookings() {
       setFormData({
         guestID: '',
         roomID: '',
-        status: 'Confirmed'
+        status: 'Pending Check-in'
       });
       setIsWalkIn(false);
       setWalkInForm({
@@ -389,6 +396,12 @@ export default function ReceptionistBookings() {
       }
     }
 
+    const dpAmount = parseFloat(downPayment);
+    if (isNaN(dpAmount) || dpAmount <= 0) {
+      showAlert('error', 'Validation Error', 'Please enter a valid down payment amount.');
+      return;
+    }
+
     showConfirm('Create Booking', 'Are you sure you want to create this booking?', async () => {
       try {
         const res = await fetch('/api/receptionist/bookings', {
@@ -402,6 +415,8 @@ export default function ReceptionistBookings() {
             checkInDateTime: toDbDate(checkInDate) + ' ' + checkInTime + ':00',
             checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
             status: formData.status,
+            downPaymentAmount: dpAmount,
+            paymentMethodID: parseInt(paymentMethodID),
             guests: roomGuests.map(g => ({
               fullName: g.fullName,
               age: parseInt(g.age),
@@ -415,6 +430,48 @@ export default function ReceptionistBookings() {
 
         showAlert('success', 'Success', 'Booking created successfully.');
         setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (activeModal === 'create') {
+      const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
+      const rate = selectedRoom ? parseFloat(selectedRoom.rate || 0) : 0;
+      let nights = 0;
+      if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
+        const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
+        const outStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
+        const inD = new Date(inStr);
+        const outD = new Date(outStr);
+        if (outD > inD) {
+          const diff = Math.abs(outD - inD);
+          nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        }
+      }
+      const totalRoomCharge = rate * nights;
+      setDownPayment((totalRoomCharge * 0.5).toFixed(2));
+    }
+  }, [formData.roomID, checkInDate, checkOutDate, checkInTime, checkOutTime, rooms, activeModal]);
+
+  const handleNoShow = (id) => {
+    showConfirm('Mark as No Show', 'Are you sure you want to mark this booking as No Show? The room will be released.', async () => {
+      try {
+        const res = await fetch('/api/receptionist/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'noshow',
+            bookingID: id
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to mark as No Show');
+
+        showAlert('success', 'Success', 'Booking marked as No Show.');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -538,12 +595,12 @@ export default function ReceptionistBookings() {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Checked In': return 'text-bg-primary';
-      case 'Checked Out': return 'text-bg-success';
-      case 'Confirmed': return 'text-bg-info';
-      case 'Canceled': return 'text-bg-danger';
-      case 'Pending': return 'text-bg-warning';
-      default: return 'text-bg-secondary';
+      case 'Checked In': return 'text-bg-success';
+      case 'Checked Out': return 'text-bg-secondary';
+      case 'Pending Check-in': return 'text-bg-info';
+      case 'Cancelled': return 'text-bg-danger';
+      case 'No Show': return 'text-bg-warning';
+      default: return 'text-bg-dark';
     }
   };
 
@@ -583,10 +640,11 @@ export default function ReceptionistBookings() {
           <div className="col-md-4">
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
-              <option value="Confirmed">Confirmed</option>
+              <option value="Pending Check-in">Pending Check-in</option>
               <option value="Checked In">Checked In</option>
               <option value="Checked Out">Checked Out</option>
-              <option value="Canceled">Canceled</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="No Show">No Show</option>
             </select>
           </div>
           <div className="col-md-2">
@@ -662,7 +720,7 @@ export default function ReceptionistBookings() {
                     </td>
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
-                        {b.status !== 'Canceled' && b.status !== 'Checked Out' && (
+                        {b.status !== 'Cancelled' && b.status !== 'Checked Out' && b.status !== 'No Show' && (
                           <button className="btn btn-sm btn-outline-secondary" onClick={() => {
                             setManagingBooking(b);
                             setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
@@ -671,7 +729,7 @@ export default function ReceptionistBookings() {
                             Guests
                           </button>
                         )}
-                        {b.status === 'Confirmed' && (
+                        {b.status === 'Pending Check-in' && (
                           <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => handleCheckIn(b.bookingID)}>
                             Check In
                           </button>
@@ -681,12 +739,17 @@ export default function ReceptionistBookings() {
                             Check Out
                           </button>
                         )}
-                        {(b.status === 'Confirmed' || b.status === 'Pending') && (
-                          <button className="btn btn-sm btn-outline-danger" onClick={() => openCancelModal(b.bookingID)}>
-                            Cancel
-                          </button>
+                        {b.status === 'Pending Check-in' && (
+                          <>
+                            <button className="btn btn-sm btn-outline-danger" onClick={() => openCancelModal(b.bookingID)}>
+                              Cancel
+                            </button>
+                            <button className="btn btn-sm btn-outline-warning" onClick={() => handleNoShow(b.bookingID)}>
+                              No Show
+                            </button>
+                          </>
                         )}
-                        {b.status === 'Canceled' && (
+                        {b.status === 'Cancelled' && (
                           <button className="btn btn-sm btn-pcc-outline d-flex align-items-center gap-1" onClick={() => handleRebook(b)}>
                             <span>🔄</span> Rebook
                           </button>
@@ -913,13 +976,84 @@ export default function ReceptionistBookings() {
                       required
                     />
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Status *</label>
-                    <select name="status" className="form-select" required value={formData.status} onChange={handleInputChange}>
-                      <option value="Confirmed">Confirmed (Booked / In later)</option>
-                      <option value="Checked In">Checked In (Arrived / Check-in now)</option>
-                    </select>
-                  </div>
+                  {(() => {
+                    const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
+                    const rate = selectedRoom ? parseFloat(selectedRoom.rate || 0) : 0;
+                    let nights = 0;
+                    if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
+                      const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
+                      const outStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
+                      const inD = new Date(inStr);
+                      const outD = new Date(outStr);
+                      if (outD > inD) {
+                        const diff = Math.abs(outD - inD);
+                        nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                      }
+                    }
+                    const totalRoomCharge = rate * nights;
+                    const requiredDownPayment = totalRoomCharge * 0.5;
+
+                    return (
+                      <>
+                        {rate > 0 && (
+                          <div className="p-3 bg-light rounded border mb-3">
+                            <div className="d-flex justify-content-between mb-1">
+                              <span className="small text-muted">Room Base Rate:</span>
+                              <span className="small fw-semibold">₱{rate.toFixed(2)}/night</span>
+                            </div>
+                            <div className="d-flex justify-content-between mb-1">
+                              <span className="small text-muted">Stay Nights:</span>
+                              <span className="small fw-semibold">{nights} Night(s)</span>
+                            </div>
+                            <div className="d-flex justify-content-between border-top pt-1 mb-1">
+                              <span className="small fw-bold">Total Room Rent:</span>
+                              <span className="small fw-bold">₱{totalRoomCharge.toFixed(2)}</span>
+                            </div>
+                            <div className="d-flex justify-content-between text-success">
+                              <span className="small fw-bold">Required Down Payment (50%):</span>
+                              <span className="small fw-bold">₱{requiredDownPayment.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mb-3">
+                          <label className="form-label">Payment Method *</label>
+                          <select
+                            className="form-select"
+                            required
+                            value={paymentMethodID}
+                            onChange={(e) => setPaymentMethodID(e.target.value)}
+                          >
+                            {paymentMethods.map(pm => (
+                              <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
+                                {pm.paymentMethod}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="form-label">Down Payment Received (₱) *</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="form-control fw-bold text-success"
+                            required
+                            value={downPayment}
+                            onChange={(e) => setDownPayment(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="form-label">Status *</label>
+                          <select name="status" className="form-select" required value={formData.status} onChange={handleInputChange}>
+                            <option value="Pending Check-in">Pending Check-in (Booked / In later)</option>
+                            <option value="Checked In">Checked In (Arrived / Check-in now)</option>
+                          </select>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary text-white">Save Booking</button>

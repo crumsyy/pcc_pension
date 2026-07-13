@@ -146,7 +146,24 @@ export async function GET(request) {
 
     const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
     const amenityTotal = amenityCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-    const subtotalCharges = finalRoomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal;
+
+    // Fetch incidental charges
+    const incidentalCharges = await dbQuery(
+      "SELECT chargeID, description, amount, createdAt FROM incidental_charge WHERE bookingID = ?",
+      [bookingID]
+    );
+    const incidentalTotal = incidentalCharges.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+
+    // Fetch borrow transaction items
+    const borrowItems = await dbQuery(`
+      SELECT bt.*, COALESCE(a.name, p.name) as itemName
+      FROM borrow_transaction bt
+      LEFT JOIN amenities a ON bt.itemType = 'Amenity' AND a.amenityID = bt.itemID
+      LEFT JOIN products p ON bt.itemType = 'Product' AND p.productID = bt.itemID
+      WHERE bt.bookingID = ?
+    `, [bookingID]);
+
+    const subtotalCharges = finalRoomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal + incidentalTotal;
 
     // 5. Fetch existing billing record if any
     const billingRes = await dbQuery(
@@ -194,6 +211,8 @@ export async function GET(request) {
       },
       productCharges,
       amenityCharges,
+      incidentalCharges,
+      borrowItems,
       chargesSummary: {
         room: finalRoomCharge,
         originalRoomCharge: roomCharge,
@@ -204,6 +223,7 @@ export async function GET(request) {
         lateCheckOut: lateCheckOutFee,
         products: productTotal,
         amenities: amenityTotal,
+        incidentals: incidentalTotal,
         total: subtotalCharges,
         paid: paidTotal,
         balance: balance
@@ -226,7 +246,38 @@ export async function POST(request) {
   }
 
   try {
-    const { bookingID, guests } = await request.json();
+    const body = await request.json();
+    const { action } = body;
+
+    if (action === 'add_incidental') {
+      const bookingID = parseInt(body.bookingID);
+      const description = body.description?.trim();
+      const amount = parseFloat(body.amount || 0);
+
+      if (!bookingID || !description || isNaN(amount) || amount <= 0) {
+        return NextResponse.json({ error: 'Missing or invalid fields for incidental charge.' }, { status: 400 });
+      }
+
+      await dbQuery(
+        "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+        [bookingID, description, amount]
+      );
+      return NextResponse.json({ success: true, message: 'Incidental charge added successfully.' });
+    }
+
+    if (action === 'delete_incidental') {
+      const chargeID = parseInt(body.chargeID);
+      if (!chargeID) {
+        return NextResponse.json({ error: 'Missing charge ID.' }, { status: 400 });
+      }
+
+      await dbQuery("DELETE FROM incidental_charge WHERE chargeID = ?", [chargeID]);
+      return NextResponse.json({ success: true, message: 'Incidental charge deleted successfully.' });
+    }
+
+    // Default: Update Guest Discounts
+    const bookingID = parseInt(body.bookingID);
+    const guests = body.guests;
     if (!bookingID || !Array.isArray(guests)) {
       return NextResponse.json({ error: 'Missing booking ID or guests list.' }, { status: 400 });
     }
@@ -288,7 +339,7 @@ export async function POST(request) {
       conn.release();
     }
   } catch (error) {
-    console.error("Failed to update guest discounts:", error);
+    console.error("Failed to process billing POST request:", error);
     return NextResponse.json({ error: 'Operation failed: ' + error.message }, { status: 500 });
   }
 }

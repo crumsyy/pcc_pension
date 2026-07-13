@@ -45,6 +45,10 @@ export default function ReceptionistReservations() {
     status: 'Checked In'
   });
 
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [downPayment, setDownPayment] = useState('');
+  const [paymentMethodID, setPaymentMethodID] = useState('1');
+
   const [convInDate, setConvInDate] = useState('');
   const [convInTime, setConvInTime] = useState('');
   const [convOutDate, setConvOutDate] = useState('');
@@ -100,6 +104,7 @@ export default function ReceptionistReservations() {
       setReservations(data.reservations || []);
       setGuests(data.guests || []);
       setRooms(data.rooms || []);
+      setPaymentMethods(data.paymentMethods || []);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -271,8 +276,12 @@ export default function ReceptionistReservations() {
     setConvOutDate(tomorrowStr);
     setConvOutTime("12:00");
 
+    const rate = parseFloat(res.rate || 0);
+    setDownPayment((rate * 0.5).toFixed(2));
+    setPaymentMethodID('1');
+
     setConvertData({
-      status: 'Checked In'
+      status: 'Pending Check-in'
     });
     setActiveModal('convert');
   };
@@ -307,23 +316,30 @@ export default function ReceptionistReservations() {
       return;
     }
 
-    showConfirm('Convert to Booking', 'Convert this reservation into an active booking?', async () => {
+    const dpAmount = parseFloat(downPayment);
+    if (isNaN(dpAmount) || dpAmount <= 0) {
+      showAlert('error', 'Validation Error', 'Please enter a valid down payment amount.');
+      return;
+    }
+
+    showConfirm('Confirm Reservation & Create Booking', 'Confirm this reservation and record down payment?', async () => {
       try {
         const res = await fetch('/api/receptionist/reservations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'convert_to_booking',
+            action: 'confirm',
             reservationID: selectedRes.reservationID,
             checkInDateTime: toDbDate(convInDate) + ' ' + convInTime + ':00',
             checkOutDateTime: toDbDate(convOutDate) + ' ' + convOutTime + ':00',
-            status: convertData.status
+            downPaymentAmount: dpAmount,
+            paymentMethodID: parseInt(paymentMethodID)
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to convert reservation');
+        if (!res.ok) throw new Error(data.error || 'Failed to confirm reservation');
 
-        showAlert('success', 'Success', 'Reservation successfully converted to Booking.');
+        showAlert('success', 'Success', 'Reservation confirmed and booking created with down payment.');
         setActiveModal(null);
         fetchData();
       } catch (err) {
@@ -336,7 +352,8 @@ export default function ReceptionistReservations() {
     switch (status) {
       case 'Confirmed': return 'text-bg-success';
       case 'Pending': return 'text-bg-warning';
-      case 'Canceled': return 'text-bg-danger';
+      case 'Cancelled': return 'text-bg-danger';
+      case 'Expired': return 'text-bg-secondary';
       default: return 'text-bg-secondary';
     }
   };
@@ -386,7 +403,8 @@ export default function ReceptionistReservations() {
               <option value="">All Statuses</option>
               <option value="Pending">Pending</option>
               <option value="Confirmed">Confirmed</option>
-              <option value="Canceled">Canceled</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Expired">Expired</option>
             </select>
           </div>
           <div className="col-md-2">
@@ -440,16 +458,11 @@ export default function ReceptionistReservations() {
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
                         {!r.bookingID && r.status === 'Pending' && (
-                          <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => handleConfirm(r.reservationID)}>
-                            Confirm
+                          <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => openConvertModal(r)}>
+                            Confirm & Book
                           </button>
                         )}
-                        {!r.bookingID && r.status === 'Confirmed' && (
-                          <button className="btn btn-sm btn-success text-white" onClick={() => openConvertModal(r)}>
-                            Convert to Booking
-                          </button>
-                        )}
-                        {!r.bookingID && r.status !== 'Canceled' && (
+                        {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && (
                           <button className="btn btn-sm btn-outline-danger" onClick={() => handleCancel(r.reservationID)}>
                             Cancel
                           </button>
@@ -630,72 +643,133 @@ export default function ReceptionistReservations() {
       )}
 
       {/* CONVERT MODAL */}
-      {activeModal === 'convert' && selectedRes && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Convert Reservation to Booking</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+      {activeModal === 'convert' && selectedRes && (() => {
+        const rate = parseFloat(selectedRes.rate || 0);
+        let nights = 0;
+        if (convInDate && convOutDate && convInTime && convOutTime) {
+          const checkInStr = toDbDate(convInDate) + 'T' + convInTime;
+          const checkOutStr = toDbDate(convOutDate) + 'T' + convOutTime;
+          const inDate = new Date(checkInStr);
+          const outDate = new Date(checkOutStr);
+          if (outDate > inDate) {
+            const diffTime = Math.abs(outDate - inDate);
+            nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          }
+        }
+        const totalRoomCharge = rate * nights;
+        const requiredDownPayment = totalRoomCharge * 0.5;
+
+        return (
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered modal-md">
+              <div className="modal-content">
+                <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                  <h5 className="modal-title">Confirm Reservation & Book</h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+                </div>
+                <form onSubmit={handleConvertSubmit}>
+                  <div className="modal-body">
+                    <p className="small text-muted mb-3">
+                      Confirming reservation for <strong>{selectedRes.firstName} {selectedRes.lastName}</strong> in <strong>Room {selectedRes.roomNumber}</strong>.
+                    </p>
+                    <div className="row g-2 mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label small fw-bold">Check-In Date *</label>
+                        <DateInput
+                          value={convInDate}
+                          onChange={(e) => setConvInDate(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label small fw-bold">Check-In Time *</label>
+                        <input
+                          type="time"
+                          className="form-control form-control-sm"
+                          value={convInTime}
+                          onChange={(e) => setConvInTime(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="row g-2 mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label small fw-bold">Check-Out Date *</label>
+                        <DateInput
+                          value={convOutDate}
+                          onChange={(e) => setConvOutDate(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label small fw-bold">Check-Out Time *</label>
+                        <input
+                          type="time"
+                          className="form-control form-control-sm"
+                          value={convOutTime}
+                          onChange={(e) => setConvOutTime(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-light rounded border mb-3">
+                      <div className="d-flex justify-content-between mb-1">
+                        <span className="small text-muted">Room Base Rate:</span>
+                        <span className="small fw-semibold">₱{rate.toFixed(2)}/night</span>
+                      </div>
+                      <div className="d-flex justify-content-between mb-1">
+                        <span className="small text-muted">Stay Nights:</span>
+                        <span className="small fw-semibold">{nights} Night(s)</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-top pt-1 mb-1">
+                        <span className="small fw-bold">Total Room Rent:</span>
+                        <span className="small fw-bold">₱{totalRoomCharge.toFixed(2)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between text-success">
+                        <span className="small fw-bold">Required Down Payment (50%):</span>
+                        <span className="small fw-bold">₱{requiredDownPayment.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label small fw-bold">Payment Method *</label>
+                      <select
+                        className="form-select form-select-sm"
+                        required
+                        value={paymentMethodID}
+                        onChange={(e) => setPaymentMethodID(e.target.value)}
+                      >
+                        {paymentMethods.map(pm => (
+                          <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
+                            {pm.paymentMethod}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label small fw-bold">Down Payment Received (₱) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-control form-control-sm fw-bold text-success"
+                        required
+                        value={downPayment}
+                        onChange={(e) => setDownPayment(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="submit" className="btn btn-pcc-primary text-white">Process Booking</button>
+                    <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
+                  </div>
+                </form>
               </div>
-              <form onSubmit={handleConvertSubmit}>
-                <div className="modal-body">
-                  <p className="small text-muted mb-3">
-                    Converting reservation for <strong>{selectedRes.firstName} {selectedRes.lastName}</strong> in <strong>Room {selectedRes.roomNumber}</strong>.
-                  </p>
-                  <div className="mb-3">
-                    <label className="form-label">Check-In Date *</label>
-                    <DateInput
-                      value={convInDate}
-                      onChange={(e) => setConvInDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Check-In Time *</label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      value={convInTime}
-                      onChange={(e) => setConvInTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Check-Out Date *</label>
-                    <DateInput
-                      value={convOutDate}
-                      onChange={(e) => setConvOutDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Check-Out Time *</label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      value={convOutTime}
-                      onChange={(e) => setConvOutTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Initial Booking Status *</label>
-                    <select name="status" className="form-select" required value={convertData.status} onChange={handleConvertChange}>
-                      <option value="Checked In">Checked In (Arrived / Check-in now)</option>
-                      <option value="Confirmed">Confirmed (Booked / Check-in later)</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary text-white">Process Booking</button>
-                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
-              </form>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Confirmation & Alert dialog */}
       <ModalDialog

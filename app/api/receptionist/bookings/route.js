@@ -25,9 +25,10 @@ export async function GET(request) {
       `),
       dbQuery("SELECT guestID, firstName, lastName, contact FROM guest ORDER BY lastName, firstName"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, rt.type as roomType 
+        SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, rt.type as roomType, rr.rate
         FROM room r 
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
+        LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
         WHERE r.isArchived = 0 
         ORDER BY r.roomNumber
       `),
@@ -36,7 +37,8 @@ export async function GET(request) {
         FROM booking_guest_details bg
         LEFT JOIN discounts d ON d.discountID = bg.discountID
       `),
-      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE eligibilityTypeID = 1 AND isArchived = 0")
+      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE eligibilityTypeID = 1 AND isArchived = 0"),
+      dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method")
     ]);
 
     const bookingsWithGuests = bookings.map(b => {
@@ -46,7 +48,7 @@ export async function GET(request) {
       };
     });
 
-    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts });
+    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods });
   } catch (error) {
     console.error("Failed to fetch bookings data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -112,10 +114,12 @@ export async function POST(request) {
         const roomID = parseInt(body.roomID);
         const checkInDateTime = body.checkInDateTime;
         const checkOutDateTime = body.checkOutDateTime;
-        const status = body.status || 'Confirmed';
+        const status = body.status || 'Pending Check-in';
+        const downPaymentAmount = parseFloat(body.downPaymentAmount || 0);
+        const paymentMethodID = parseInt(body.paymentMethodID || 1);
 
-        if (!guestID || !roomID || !checkInDateTime || !checkOutDateTime) {
-          return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+        if (!guestID || !roomID || !checkInDateTime || !checkOutDateTime || isNaN(downPaymentAmount) || downPaymentAmount <= 0) {
+          return NextResponse.json({ error: 'Missing required fields or down payment details.' }, { status: 400 });
         }
 
         // Insert booking
@@ -147,8 +151,36 @@ export async function POST(request) {
           );
         }
 
+        // Create Billing Record
+        const localNow = new Date();
+        const pad = (num) => String(num).padStart(2, '0');
+        const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+        const [billingInsert] = await conn.execute(
+          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (?, ?, ?, NULL)",
+          [nowStr, guestID, bookingID]
+        );
+        const billingID = billingInsert.insertId;
+
+        // Get staffID using session userID
+        const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
+        const staffID = staffRes[0]?.staffID || null;
+
+        // Record Down Payment
+        const [paymentInsert] = await conn.execute(
+          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID) 
+           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL)`,
+          [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID]
+        );
+        const paymentID = paymentInsert.insertId;
+
+        // Insert Transaction log
+        await conn.execute(
+          "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+          [nowStr, billingID, paymentID]
+        );
+
         await conn.commit();
-        return NextResponse.json({ success: true, message: 'Booking created successfully.' });
+        return NextResponse.json({ success: true, message: 'Booking created successfully with down payment.' });
       } catch (e) {
         await conn.rollback();
         throw e;
@@ -266,10 +298,24 @@ export async function POST(request) {
       }
       const roomID = res[0].roomID;
 
-      await dbQuery("UPDATE booking SET status = 'Canceled', cancelRemarks = ? WHERE bookingID = ?", [cancelRemarks, bookingID]);
+      await dbQuery("UPDATE booking SET status = 'Cancelled', cancelRemarks = ? WHERE bookingID = ?", [cancelRemarks, bookingID]);
       await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
 
       return NextResponse.json({ success: true, message: 'Booking canceled successfully.' });
+    }
+
+    if (action === 'noshow') {
+      const bookingID = parseInt(body.bookingID);
+      const res = await dbQuery("SELECT roomID FROM booking WHERE bookingID = ?", [bookingID]);
+      if (res.length === 0) {
+        return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      }
+      const roomID = res[0].roomID;
+
+      await dbQuery("UPDATE booking SET status = 'No Show' WHERE bookingID = ?", [bookingID]);
+      await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
+
+      return NextResponse.json({ success: true, message: 'Booking marked as No Show.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

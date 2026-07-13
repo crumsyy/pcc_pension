@@ -25,15 +25,17 @@ export async function GET(request) {
       `),
       dbQuery("SELECT guestID, firstName, lastName, contact FROM guest ORDER BY lastName, firstName"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType 
+        SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, rr.rate
         FROM room r 
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
+        LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
         WHERE r.isArchived = 0 
         ORDER BY r.roomNumber
-      `)
+      `),
+      dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method")
     ]);
 
-    return NextResponse.json({ reservations, guests, rooms });
+    return NextResponse.json({ reservations, guests, rooms, paymentMethods });
   } catch (error) {
     console.error("Failed to fetch reservations data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -78,19 +80,26 @@ export async function POST(request) {
         "INSERT INTO reservation(reservationDateTime, status, guestID, roomID) VALUES(?, 'Pending', ?, ?)",
         [reservationDateTime, guestID, roomID]
       );
-      // Update room status
-      await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
 
       return NextResponse.json({ success: true, message: 'Reservation created successfully.' });
     }
 
     if (action === 'confirm') {
       const reservationID = parseInt(body.reservationID);
+      const checkInDateTime = body.checkInDateTime;
+      const checkOutDateTime = body.checkOutDateTime;
+      const downPaymentAmount = parseFloat(body.downPaymentAmount || 0);
+      const paymentMethodID = parseInt(body.paymentMethodID || 1);
+
+      if (!checkInDateTime || !checkOutDateTime || isNaN(downPaymentAmount) || downPaymentAmount <= 0) {
+        return NextResponse.json({ error: 'Valid stay dates and down payment are required to confirm booking.' }, { status: 400 });
+      }
+
       const res = await dbQuery("SELECT * FROM reservation WHERE reservationID = ?", [reservationID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       }
-      const { guestID, roomID, reservationDateTime } = res[0];
+      const { guestID, roomID } = res[0];
 
       const pool = await getDbConnection();
       const conn = await pool.getConnection();
@@ -101,22 +110,10 @@ export async function POST(request) {
         // 1. Update reservation status to Confirmed
         await conn.execute("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [reservationID]);
 
-        // 2. Insert booking
-        // Default stay check-in/out:
-        // checkInDateTime = reservationDateTime
-        // checkOutDateTime = reservationDateTime + 1 day, at 12:00:00
-        const checkInDate = new Date(reservationDateTime);
-        const checkOutDate = new Date(checkInDate);
-        checkOutDate.setDate(checkOutDate.getDate() + 1);
-        checkOutDate.setHours(12, 0, 0, 0);
-
-        const pad = (num) => String(num).padStart(2, '0');
-        const checkInStr = `${checkInDate.getFullYear()}-${pad(checkInDate.getMonth() + 1)}-${pad(checkInDate.getDate())} ${pad(checkInDate.getHours())}:${pad(checkInDate.getMinutes())}:${pad(checkInDate.getSeconds())}`;
-        const checkOutStr = `${checkOutDate.getFullYear()}-${pad(checkOutDate.getMonth() + 1)}-${pad(checkOutDate.getDate())} 12:00:00`;
-
+        // 2. Insert booking with Pending Check-in status
         const [insertBookingRes] = await conn.execute(
-          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, 'Confirmed', ?, ?, ?)",
-          [checkInStr, checkOutStr, reservationID, guestID, roomID]
+          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, 'Pending Check-in', ?, ?, ?)",
+          [checkInDateTime, checkOutDateTime, reservationID, guestID, roomID]
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -128,11 +125,39 @@ export async function POST(request) {
           [bookingID, defaultName]
         );
 
-        // 4. Update Room status
+        // 4. Create Billing Record
+        const localNow = new Date();
+        const pad = (num) => String(num).padStart(2, '0');
+        const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+        const [billingInsert] = await conn.execute(
+          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (?, ?, ?, NULL)",
+          [nowStr, guestID, bookingID]
+        );
+        const billingID = billingInsert.insertId;
+
+        // 5. Get staffID using session userID
+        const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
+        const staffID = staffRes[0]?.staffID || null;
+
+        // 6. Record Down Payment
+        const [paymentInsert] = await conn.execute(
+          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID) 
+           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL)`,
+          [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID]
+        );
+        const paymentID = paymentInsert.insertId;
+
+        // 7. Insert Transaction log
+        await conn.execute(
+          "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+          [nowStr, billingID, paymentID]
+        );
+
+        // 8. Update Room status to Reserved
         await conn.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
 
         await conn.commit();
-        return NextResponse.json({ success: true, message: 'Reservation confirmed and auto-converted to a confirmed booking.' });
+        return NextResponse.json({ success: true, message: 'Reservation confirmed, down payment received, and booking created.' });
       } catch (e) {
         await conn.rollback();
         throw e;
@@ -143,14 +168,12 @@ export async function POST(request) {
 
     if (action === 'cancel') {
       const reservationID = parseInt(body.reservationID);
-      const res = await dbQuery("SELECT roomID FROM reservation WHERE reservationID = ?", [reservationID]);
+      const res = await dbQuery("SELECT * FROM reservation WHERE reservationID = ?", [reservationID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       }
-      const roomID = res[0].roomID;
 
-      await dbQuery("UPDATE reservation SET status = 'Canceled' WHERE reservationID = ?", [reservationID]);
-      await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
+      await dbQuery("UPDATE reservation SET status = 'Cancelled' WHERE reservationID = ?", [reservationID]);
 
       return NextResponse.json({ success: true, message: 'Reservation canceled.' });
     }
@@ -159,7 +182,12 @@ export async function POST(request) {
       const reservationID = parseInt(body.reservationID);
       const checkInDateTime = body.checkInDateTime;
       const checkOutDateTime = body.checkOutDateTime;
-      const status = body.status || 'Confirmed';
+      const downPaymentAmount = parseFloat(body.downPaymentAmount || 0);
+      const paymentMethodID = parseInt(body.paymentMethodID || 1);
+
+      if (!checkInDateTime || !checkOutDateTime || isNaN(downPaymentAmount) || downPaymentAmount <= 0) {
+        return NextResponse.json({ error: 'Valid stay dates and down payment are required to convert reservation.' }, { status: 400 });
+      }
 
       const res = await dbQuery("SELECT * FROM reservation WHERE reservationID = ?", [reservationID]);
       if (res.length === 0) {
@@ -167,29 +195,69 @@ export async function POST(request) {
       }
       const { guestID, roomID } = res[0];
 
-      // Create Booking
-      const insertBookingRes = await dbQuery(
-        "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, ?, ?, ?, ?)",
-        [checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID]
-      );
-      const bookingID = insertBookingRes.insertId;
+      const pool = await getDbConnection();
+      const conn = await pool.getConnection();
 
-      // Seed default guest details
-      const guestInfo = await dbQuery("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
-      const defaultName = guestInfo.length > 0 ? `${guestInfo[0].firstName} ${guestInfo[0].lastName}` : 'Primary Guest';
-      await dbQuery(
-        "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, NULL, NULL)",
-        [bookingID, defaultName]
-      );
+      try {
+        await conn.beginTransaction();
 
-      // Update Reservation
-      await dbQuery("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [reservationID]);
+        // 1. Update reservation status to Confirmed
+        await conn.execute("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [reservationID]);
 
-      // Update Room
-      const roomStatus = status === 'Checked In' ? 'Occupied' : 'Reserved';
-      await dbQuery("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
+        // 2. Insert booking with Pending Check-in status
+        const [insertBookingRes] = await conn.execute(
+          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, 'Pending Check-in', ?, ?, ?)",
+          [checkInDateTime, checkOutDateTime, reservationID, guestID, roomID]
+        );
+        const bookingID = insertBookingRes.insertId;
 
-      return NextResponse.json({ success: true, message: 'Reservation converted to booking successfully.' });
+        // 3. Seed default guest details
+        const [guestInfo] = await conn.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
+        const defaultName = guestInfo.length > 0 ? `${guestInfo[0].firstName} ${guestInfo[0].lastName}` : 'Primary Guest';
+        await conn.execute(
+          "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, NULL, NULL)",
+          [bookingID, defaultName]
+        );
+
+        // 4. Create Billing Record
+        const localNow = new Date();
+        const pad = (num) => String(num).padStart(2, '0');
+        const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+        const [billingInsert] = await conn.execute(
+          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (?, ?, ?, NULL)",
+          [nowStr, guestID, bookingID]
+        );
+        const billingID = billingInsert.insertId;
+
+        // 5. Get staffID using session userID
+        const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
+        const staffID = staffRes[0]?.staffID || null;
+
+        // 6. Record Down Payment
+        const [paymentInsert] = await conn.execute(
+          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID) 
+           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL)`,
+          [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID]
+        );
+        const paymentID = paymentInsert.insertId;
+
+        // 7. Insert Transaction log
+        await conn.execute(
+          "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+          [nowStr, billingID, paymentID]
+        );
+
+        // 8. Update Room status to Reserved
+        await conn.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+
+        await conn.commit();
+        return NextResponse.json({ success: true, message: 'Reservation successfully converted to Booking.' });
+      } catch (e) {
+        await conn.rollback();
+        throw e;
+      } finally {
+        conn.release();
+      }
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

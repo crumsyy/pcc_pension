@@ -12,6 +12,13 @@ export default function ReceptionistBilling() {
   const [isEditingDiscounts, setIsEditingDiscounts] = useState(false);
   const [guestDiscountsForm, setGuestDiscountsForm] = useState([]);
 
+  const [isAddingIncidental, setIsAddingIncidental] = useState(false);
+  const [incidentalForm, setIncidentalForm] = useState({ description: '', amount: '' });
+
+  const [isReportingDamage, setIsReportingDamage] = useState(false);
+  const [selectedBorrowItem, setSelectedBorrowItem] = useState(null);
+  const [damageForm, setDamageForm] = useState({ status: 'Lost', amount: '', remarks: '' });
+
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -105,8 +112,132 @@ export default function ReceptionistBilling() {
     }
   };
 
+  const handleDeleteIncidentalSubmit = async (chargeID) => {
+    showConfirm('Delete Incidental Charge', 'Are you sure you want to remove this charge?', async () => {
+      try {
+        const res = await fetch('/api/receptionist/billing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete_incidental',
+            chargeID
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete incidental charge');
+
+        showAlert('success', 'Success', 'Incidental charge deleted.');
+        fetchBillingDetails(selectedBookingID);
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleAddIncidentalSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/receptionist/billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_incidental',
+          bookingID: selectedBookingID,
+          description: incidentalForm.description,
+          amount: parseFloat(incidentalForm.amount)
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add incidental charge');
+
+      showAlert('success', 'Success', 'Incidental charge added.');
+      setIsAddingIncidental(false);
+      fetchBillingDetails(selectedBookingID);
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
+  };
+
+  const handleReturnBorrowedItem = async (item) => {
+    showConfirm('Return Borrowed Item', `Mark ${item.itemName} (Qty: ${item.quantity}) as returned in good condition?`, async () => {
+      try {
+        const res = await fetch('/api/receptionist/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'return_borrow',
+            borrowID: item.borrowID,
+            quantityReturned: item.quantity,
+            status: 'Returned',
+            remarks: 'Returned in good condition'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to return borrowed item');
+
+        showAlert('success', 'Success', 'Borrowed item returned successfully.');
+        fetchBillingDetails(selectedBookingID);
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const openReportDamageModal = (item) => {
+    setSelectedBorrowItem(item);
+    setDamageForm({ status: 'Lost', amount: '', remarks: '' });
+    setIsReportingDamage(true);
+  };
+
+  const handleReportDamageSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const resOrder = await fetch('/api/receptionist/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'return_borrow',
+          borrowID: selectedBorrowItem.borrowID,
+          quantityReturned: selectedBorrowItem.quantity,
+          status: damageForm.status,
+          remarks: damageForm.remarks || `Reported as ${damageForm.status}`
+        })
+      });
+      const dataOrder = await resOrder.json();
+      if (!resOrder.ok) throw new Error(dataOrder.error || 'Failed to update borrow transaction');
+
+      const fee = parseFloat(damageForm.amount || 0);
+      if (fee > 0) {
+        const resBill = await fetch('/api/receptionist/billing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'add_incidental',
+            bookingID: selectedBookingID,
+            description: `${damageForm.status} Room Item: ${selectedBorrowItem.itemName} (${damageForm.remarks || 'No remarks'})`,
+            amount: fee
+          })
+        });
+        const dataBill = await resBill.json();
+        if (!resBill.ok) throw new Error(dataBill.error || 'Failed to add fee to billing');
+      }
+
+      showAlert('success', 'Success', `Item marked as ${damageForm.status} successfully.${fee > 0 ? ' Damage fee charged to guest.' : ''}`);
+      setIsReportingDamage(false);
+      fetchBillingDetails(selectedBookingID);
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
+  };
+
   useEffect(() => {
     fetchActiveBookings();
+    const params = new URLSearchParams(window.location.search);
+    const bID = params.get('bookingID');
+    if (bID) {
+      setSelectedBookingID(bID);
+      fetchBillingDetails(bID);
+    }
   }, []);
 
   const handleBookingChange = (e) => {
@@ -356,6 +487,118 @@ export default function ReceptionistBilling() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Incidental Charges */}
+                  <div className="d-flex justify-content-between align-items-center mb-3 mt-4 border-bottom pb-2">
+                    <h6 className="fw-bold text-dark mb-0">Incidental & Damage Charges</h6>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => {
+                        setIncidentalForm({ description: '', amount: '' });
+                        setIsAddingIncidental(true);
+                      }}
+                    >
+                      + Add Incidental Charge
+                    </button>
+                  </div>
+                  <div className="table-responsive mb-4">
+                    <table className="table table-sm mb-0">
+                      <thead>
+                        <tr className="table-light">
+                          <th>Description</th>
+                          <th>Date Added</th>
+                          <th className="text-end">Amount</th>
+                          <th className="text-end">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {billDetails.incidentalCharges.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="text-center py-3 text-muted small">No incidental charges recorded.</td>
+                          </tr>
+                        ) : (
+                          billDetails.incidentalCharges.map((item) => (
+                            <tr key={item.chargeID}>
+                              <td>{item.description}</td>
+                              <td>{new Date(item.createdAt).toLocaleDateString()}</td>
+                              <td className="text-end fw-semibold text-danger">₱{parseFloat(item.amount).toFixed(2)}</td>
+                              <td className="text-end">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger py-0 px-2"
+                                  onClick={() => handleDeleteIncidentalSubmit(item.chargeID)}
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Borrowed items list */}
+                  <h6 className="fw-bold text-dark mb-3 border-bottom pb-2 mt-4">Borrowed Room Items & Amenities</h6>
+                  <div className="table-responsive">
+                    <table className="table table-sm mb-0">
+                      <thead>
+                        <tr className="table-light">
+                          <th>Item Name</th>
+                          <th>Qty</th>
+                          <th>Borrow Date</th>
+                          <th>Status</th>
+                          <th>Condition / Remarks</th>
+                          <th className="text-end">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {billDetails.borrowItems.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="text-center py-3 text-muted small">No borrowed items recorded for this stay.</td>
+                          </tr>
+                        ) : (
+                          billDetails.borrowItems.map((item) => (
+                            <tr key={item.borrowID}>
+                              <td>{item.itemName}</td>
+                              <td>{item.quantity}</td>
+                              <td>{new Date(item.borrowDateTime).toLocaleDateString()}</td>
+                              <td>
+                                <span className={`badge ${
+                                  item.status === 'Borrowed' ? 'bg-warning text-dark' : 
+                                  item.status === 'Returned' ? 'bg-success' : 'bg-danger'
+                                }`}>
+                                  {item.status}
+                                </span>
+                              </td>
+                              <td>{item.remarks || item.conditionUponReturn || '—'}</td>
+                              <td className="text-end">
+                                {item.status === 'Borrowed' && (
+                                  <div className="d-flex justify-content-end gap-1">
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-success py-0 px-2"
+                                      onClick={() => handleReturnBorrowedItem(item)}
+                                    >
+                                      Return
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-danger py-0 px-2"
+                                      onClick={() => openReportDamageModal(item)}
+                                    >
+                                      Lost/Damaged
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -387,10 +630,16 @@ export default function ReceptionistBilling() {
                     <span className="text-muted">Product charges:</span>
                     <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.products).toFixed(2)}</span>
                   </div>
-                  <div className="d-flex justify-content-between mb-3">
+                  <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Amenity charges:</span>
                     <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.amenities).toFixed(2)}</span>
                   </div>
+                  {parseFloat(billDetails.chargesSummary.incidentals || 0) > 0 && (
+                    <div className="d-flex justify-content-between mb-3 text-danger">
+                      <span>Incidental charges:</span>
+                      <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.incidentals).toFixed(2)}</span>
+                    </div>
+                  )}
                   
                   <hr className="mt-0" />
                   
@@ -508,6 +757,108 @@ export default function ReceptionistBilling() {
                 <div className="modal-footer border-top-0">
                   <button type="submit" className="btn btn-pcc-primary text-white">Save & Recalculate Bill</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setIsEditingDiscounts(false)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD INCIDENTAL MODAL */}
+      {isAddingIncidental && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered modal-md">
+            <div className="modal-content border-0">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Add Incidental Charge</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setIsAddingIncidental(false)}></button>
+              </div>
+              <form onSubmit={handleAddIncidentalSubmit}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Description of Lost/Damaged/Special Item *</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      required
+                      placeholder="e.g. Broken glass, lost towel, extra pillow laundry fee"
+                      value={incidentalForm.description}
+                      onChange={(e) => setIncidentalForm(prev => ({ ...prev, description: e.target.value }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Charge Fee Amount (₱) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control form-control-sm fw-bold text-danger"
+                      required
+                      value={incidentalForm.amount}
+                      onChange={(e) => setIncidentalForm(prev => ({ ...prev, amount: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer border-top-0">
+                  <button type="submit" className="btn btn-danger text-white">Add Charge</button>
+                  <button type="button" className="btn btn-secondary text-white" onClick={() => setIsAddingIncidental(false)}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REPORT DAMAGE MODAL */}
+      {isReportingDamage && selectedBorrowItem && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered modal-md">
+            <div className="modal-content border-0">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Report Lost or Damaged Item</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setIsReportingDamage(false)}></button>
+              </div>
+              <form onSubmit={handleReportDamageSubmit}>
+                <div className="modal-body">
+                  <p className="small text-muted mb-3">
+                    Reporting issue with borrowed item: <strong>{selectedBorrowItem.itemName}</strong> (Qty: {selectedBorrowItem.quantity}).
+                  </p>
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Reported Status *</label>
+                    <select
+                      className="form-select form-select-sm"
+                      required
+                      value={damageForm.status}
+                      onChange={(e) => setDamageForm(prev => ({ ...prev, status: e.target.value }))}
+                    >
+                      <option value="Lost">Lost Item</option>
+                      <option value="Damaged">Damaged Item</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Remarks / Explanations *</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      required
+                      placeholder="e.g. Guest broke the pillow cover, guest lost the towel"
+                      value={damageForm.remarks}
+                      onChange={(e) => setDamageForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-bold">Charge Fee Amount (₱) - Leave 0 for no fee</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control form-control-sm fw-bold text-danger"
+                      value={damageForm.amount}
+                      onChange={(e) => setDamageForm(prev => ({ ...prev, amount: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer border-top-0">
+                  <button type="submit" className="btn btn-danger text-white">Process Report</button>
+                  <button type="button" className="btn btn-secondary text-white" onClick={() => setIsReportingDamage(false)}>Cancel</button>
                 </div>
               </form>
             </div>

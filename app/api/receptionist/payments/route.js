@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -18,7 +18,7 @@ export async function GET(request) {
       JOIN guest g ON g.guestID = b.guestID
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      WHERE b.status IN ('Checked In', 'Confirmed')
+      WHERE b.status IN ('Checked In', 'Pending Check-in')
       ORDER BY rm.roomNumber
     `);
 
@@ -105,11 +105,55 @@ export async function POST(request) {
           const roomID = bookingRes[0].roomID;
           await connection.execute("UPDATE booking SET status = 'Checked Out', checkOutDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
           await connection.execute("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
+
+          // 6. Auto-return all borrowed amenities that are still outstanding
+          const [borrows] = await connection.execute(
+            "SELECT * FROM borrow_transaction WHERE bookingID = ? AND status = 'Borrowed'",
+            [bookingID]
+          );
+          for (const borrow of borrows) {
+            // Update status of borrow log
+            await connection.execute(
+              `UPDATE borrow_transaction 
+               SET status = 'Returned', conditionUponReturn = 'Good', actualReturnDate = ?, remarks = 'Auto-returned upon perfect check-out' 
+               WHERE borrowID = ?`,
+              [nowStr, borrow.borrowID]
+            );
+
+            // Fetch last batchID for this item
+            const [batches] = await connection.execute(
+              "SELECT batchID FROM inventory_batch WHERE itemType = ? AND itemID = ? ORDER BY dateReceived DESC LIMIT 1",
+              [borrow.itemType, borrow.itemID]
+            );
+            let batchID = null;
+            if (batches.length > 0) {
+              batchID = batches[0].batchID;
+              await connection.execute(
+                "UPDATE inventory_batch SET remainingQuantity = remainingQuantity + ? WHERE batchID = ?",
+                [borrow.quantity, batchID]
+              );
+            }
+
+            // Insert movement log
+            await connection.execute(
+              `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+               VALUES (?, ?, ?, ?, 'Return', ?, 'Auto-returned upon perfect check-out', ?)`,
+              [borrow.itemType, borrow.itemID, borrow.quantity, session.userID || staffID, `BOR-${borrow.borrowID}`, batchID]
+            );
+
+            // Update item quantity
+            if (borrow.itemType === 'Amenity') {
+              await connection.execute("UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?", [borrow.quantity, borrow.itemID]);
+            } else {
+              await connection.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [borrow.quantity, borrow.itemID]);
+            }
+          }
         }
       }
 
       await connection.commit();
-      return NextResponse.json({ success: true, message: 'Payment recorded successfully.', billingID, paymentID });
+      await syncInventoryStock();
+      return NextResponse.json({ success: true, message: 'Payment recorded and checkout completed successfully.', billingID, paymentID });
     } catch (err) {
       await connection.rollback();
       throw err;

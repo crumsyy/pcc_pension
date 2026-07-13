@@ -75,7 +75,7 @@ function CheckInClient() {
     if (!loading && targetBookingID && bookings.length > 0) {
       const target = bookings.find(b => b.bookingID === parseInt(targetBookingID));
       if (target) {
-        if (target.status === 'Confirmed') {
+        if (target.status === 'Pending Check-in') {
           handleCheckIn(target.bookingID, target.firstName + ' ' + target.lastName);
         } else if (target.status === 'Checked In') {
           handleCheckOut(target.bookingID, target.firstName + ' ' + target.lastName);
@@ -106,29 +106,46 @@ function CheckInClient() {
     });
   };
 
-  const handleCheckOut = (id, guestName) => {
-    showConfirm('Process Check-Out', `Check out ${guestName} and release the room?`, async () => {
-      try {
-        const res = await fetch('/api/receptionist/bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'checkout',
-            bookingID: id
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to check out');
-
-        showAlert('success', 'Success', `${guestName} checked out successfully.`);
-        fetchBookings();
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
+  const handleCheckOut = async (id, guestName) => {
+    try {
+      const resBill = await fetch(`/api/receptionist/billing?bookingID=${id}`);
+      const dataBill = await resBill.json();
+      if (!resBill.ok) throw new Error(dataBill.error || 'Failed to fetch guest billing details');
+      
+      const balance = parseFloat(dataBill.chargesSummary?.balance || 0);
+      if (balance > 0) {
+        showAlert('warning', 'Outstanding Balance Found', `Guest ${guestName} has an unpaid balance of ₱${balance.toFixed(2)}. Redirecting to the Payments page to settle the bill before check-out.`);
+        setTimeout(() => {
+          window.location.href = `/receptionist/payments?bookingID=${id}`;
+        }, 3000);
+        return;
       }
-    });
+
+      showConfirm('Process Check-Out', `Check out ${guestName} and release the room?`, async () => {
+        try {
+          const res = await fetch('/api/receptionist/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'checkout',
+              bookingID: id
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to check out');
+
+          showAlert('success', 'Success', `${guestName} checked out successfully.`);
+          fetchBookings();
+        } catch (err) {
+          showAlert('error', 'Error', err.message);
+        }
+      });
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
   };
 
-  const arrivals = bookings.filter(b => b.status === 'Confirmed' || b.status === 'Pending');
+  const arrivals = bookings.filter(b => b.status === 'Pending Check-in');
   const departures = bookings.filter(b => b.status === 'Checked In');
 
   const filterList = (list) => {
