@@ -115,12 +115,17 @@ export async function GET(request) {
       }
     }
 
-    // Late check-out fee (₱150 per hour extended after 12:00 PM)
+    // Late check-out fee (₱150 per hour extended after 12:00 PM of the check-out day)
     let lateCheckOutFee = 0;
     const standardCheckOutTime = new Date(checkOut);
     standardCheckOutTime.setHours(12, 0, 0, 0);
-    if (checkOut > standardCheckOutTime && checkOut.toDateString() === standardCheckOutTime.toDateString()) {
-      const lateHours = Math.ceil((checkOut - standardCheckOutTime) / (1000 * 60 * 60));
+
+    // If guest is currently Checked In, evaluate against current time.
+    // If guest is Checked Out, evaluate against the actual checkout time recorded.
+    const endCheckoutTime = booking.status === 'Checked In' ? new Date() : new Date(booking.checkOutDateTime);
+
+    if (endCheckoutTime > standardCheckOutTime) {
+      const lateHours = Math.ceil((endCheckoutTime - standardCheckOutTime) / (1000 * 60 * 60));
       if (lateHours > 0) {
         lateCheckOutFee = lateHours * 150;
       }

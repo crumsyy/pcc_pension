@@ -578,13 +578,6 @@ export default function ReceptionistBilling() {
                                   <div className="d-flex justify-content-end gap-1">
                                     <button
                                       type="button"
-                                      className="btn btn-sm btn-outline-success py-0 px-2"
-                                      onClick={() => handleReturnBorrowedItem(item)}
-                                    >
-                                      Return
-                                    </button>
-                                    <button
-                                      type="button"
                                       className="btn btn-sm btn-outline-danger py-0 px-2"
                                       onClick={() => openReportDamageModal(item)}
                                     >
