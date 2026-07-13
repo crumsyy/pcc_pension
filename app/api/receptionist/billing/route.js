@@ -132,7 +132,10 @@ export async function GET(request) {
       FROM order_product op
       JOIN products p ON p.productID = op.productID
       JOIN orders o ON o.orderID = op.orderID
-      WHERE o.guestID = ? AND o.orderDateTime >= ? AND o.orderStatus != 'Canceled'
+      WHERE o.guestID = ? 
+        AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
+        AND o.orderStatus != 'Canceled'
+        AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
     `, [booking.guestID, booking.checkInDateTime]);
 
     // 4. Fetch amenity orders for this stay
@@ -141,7 +144,10 @@ export async function GET(request) {
       FROM order_amenities oa
       JOIN amenities a ON a.amenityID = oa.amenityID
       JOIN orders o ON o.orderID = oa.orderID
-      WHERE o.guestID = ? AND o.orderDateTime >= ? AND o.orderStatus != 'Canceled'
+      WHERE o.guestID = ? 
+        AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
+        AND o.orderStatus != 'Canceled'
+        AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
     `, [booking.guestID, booking.checkInDateTime]);
 
     const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
@@ -304,17 +310,6 @@ export async function POST(request) {
         if (dbDiscountID) {
           if (!discountIdNumber) {
             return NextResponse.json({ error: `ID card number is required for guest: ${g.fullName || 'selected guest'}.` }, { status: 400 });
-          }
-          const [details] = await conn.execute("SELECT fullName, age FROM booking_guest_details WHERE bookingGuestID = ?", [g.bookingGuestID]);
-          if (details.length > 0) {
-            const guest = details[0];
-            const [disc] = await conn.execute("SELECT name FROM discounts WHERE discountID = ?", [dbDiscountID]);
-            if (disc.length > 0) {
-              const discName = disc[0].name.toLowerCase();
-              if (discName.includes('senior') && parseInt(guest.age) < 60) {
-                return NextResponse.json({ error: `Guest ${guest.fullName} must be at least 60 years old to qualify for the Senior Citizen discount.` }, { status: 400 });
-              }
-            }
           }
         } else if (dbPromotionID) {
           if (!discountIdNumber) {

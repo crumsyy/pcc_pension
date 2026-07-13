@@ -441,7 +441,7 @@ export default async function GuestDashboard() {
                         <tr className="table-warning small">
                           <td colSpan="3" className="ps-3 text-warning-dark">
                             <div>
-                              <strong>Discount Apportionment (R.A. 9994 / R.A. 10754):</strong>
+                              <strong>Discount Apportionment:</strong>
                               <ul className="mb-0 mt-1" style={{ listStyleType: 'square' }}>
                                 <li>Total Registered Guests: <strong>{activeBill.summary.totalGuests} Pax</strong></li>
                                 <li>Individual Guest Share: <strong>₱{parseFloat(activeBill.summary.sharePerGuest).toFixed(2)}</strong></li>

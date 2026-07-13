@@ -204,7 +204,7 @@ export default function ReceptionistBookings() {
       showAlert('warning', 'Warning', `This room has a maximum occupancy limit of ${limit} guest(s).`);
       return;
     }
-    setRoomGuests(prev => [...prev, { fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+    setRoomGuests(prev => [...prev, { fullName: '', age: 30, discountID: '', discountIdNumber: '' }]);
   };
 
   const handleRemoveGuest = (index) => {
@@ -232,7 +232,7 @@ export default function ReceptionistBookings() {
         return;
       }
     }
-    setManagingGuests(prev => [...prev, { fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+    setManagingGuests(prev => [...prev, { fullName: '', age: 30, discountID: '', discountIdNumber: '' }]);
   };
 
   const handleRemoveManagingGuest = (index) => {
@@ -265,23 +265,10 @@ export default function ReceptionistBookings() {
         showAlert('error', 'Validation Error', 'All registered guests must have a name.');
         return;
       }
-      const age = parseInt(g.age);
-      if (isNaN(age) || age <= 0) {
-        showAlert('error', 'Validation Error', `Please enter a valid age for ${g.fullName}.`);
-        return;
-      }
       if (g.discountID) {
         if (!g.discountIdNumber || !g.discountIdNumber.trim()) {
           showAlert('error', 'Validation Error', `Discount card ID number is required for ${g.fullName}.`);
           return;
-        }
-        const disc = availableDiscounts.find(d => d.discountID === parseInt(g.discountID));
-        if (disc) {
-          const discName = disc.name.toLowerCase();
-          if (discName.includes('senior') && age < 60) {
-            showAlert('error', 'Validation Error', `Guest ${g.fullName} must be at least 60 years old to qualify for the Senior Citizen discount.`);
-            return;
-          }
         }
       }
     }
@@ -296,7 +283,7 @@ export default function ReceptionistBookings() {
             bookingID: managingBooking.bookingID,
             guests: managingGuests.map(g => ({
               fullName: g.fullName,
-              age: parseInt(g.age),
+              age: parseInt(g.age) || 30,
               discountID: g.discountID ? parseInt(g.discountID) : null,
               discountIdNumber: g.discountIdNumber || null
             }))
@@ -375,23 +362,10 @@ export default function ReceptionistBookings() {
         showAlert('error', 'Validation Error', 'All registered guests must have a name.');
         return;
       }
-      const age = parseInt(g.age);
-      if (isNaN(age) || age <= 0) {
-        showAlert('error', 'Validation Error', `Please enter a valid age for ${g.fullName}.`);
-        return;
-      }
       if (g.discountID) {
         if (!g.discountIdNumber || !g.discountIdNumber.trim()) {
           showAlert('error', 'Validation Error', `Discount ID number is required for ${g.fullName}.`);
           return;
-        }
-        const disc = availableDiscounts.find(d => d.discountID === parseInt(g.discountID));
-        if (disc) {
-          const discName = disc.name.toLowerCase();
-          if (discName.includes('senior') && age < 60) {
-            showAlert('error', 'Validation Error', `Guest ${g.fullName} must be at least 60 years old to qualify for the Senior Citizen discount.`);
-            return;
-          }
         }
       }
     }
@@ -874,7 +848,7 @@ export default function ReceptionistBookings() {
                           )}
                         </div>
                         <div className="row g-2">
-                          <div className="col-8 mb-2">
+                          <div className="col-12 mb-2">
                             <label className="form-label small mb-1">Full Name *</label>
                             <input
                               type="text"
@@ -882,17 +856,6 @@ export default function ReceptionistBookings() {
                               required
                               value={g.fullName}
                               onChange={(e) => handleGuestChange(idx, 'fullName', e.target.value)}
-                            />
-                          </div>
-                          <div className="col-4 mb-2">
-                            <label className="form-label small mb-1">Age *</label>
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              required
-                              min="1"
-                              value={g.age}
-                              onChange={(e) => handleGuestChange(idx, 'age', e.target.value)}
                             />
                           </div>
                         </div>
@@ -1139,7 +1102,7 @@ export default function ReceptionistBookings() {
                         )}
                       </div>
                       <div className="row g-2">
-                        <div className="col-8 mb-2">
+                        <div className="col-12 mb-2">
                           <label className="form-label small mb-1">Full Name *</label>
                           <input
                             type="text"
@@ -1147,17 +1110,6 @@ export default function ReceptionistBookings() {
                             required
                             value={g.fullName}
                             onChange={(e) => handleManagingGuestChange(idx, 'fullName', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-4 mb-2">
-                          <label className="form-label small mb-1">Age *</label>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            required
-                            min="1"
-                            value={g.age}
-                            onChange={(e) => handleManagingGuestChange(idx, 'age', e.target.value)}
                           />
                         </div>
                       </div>
