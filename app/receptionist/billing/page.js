@@ -249,7 +249,7 @@ export default function ReceptionistBilling() {
 
   return (
     <>
-      <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '85vh' }}>
+      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Guest Billing</h2>
@@ -290,17 +290,17 @@ export default function ReceptionistBilling() {
             </div>
           </div>
         ) : billDetails ? (
-          <div className="row g-4">
+          <div className="row g-4 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '15px' }}>
             {/* Statement details */}
-            <div className="col-lg-8">
-              <div className="card shadow-sm border-0 mb-4" style={{ borderRadius: '8px' }}>
+            <div className="col-lg-8 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+              <div className="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '8px', minHeight: 0 }}>
                 <div className="card-header bg-white border-0 py-3 border-bottom d-flex justify-content-between align-items-center">
                   <h5 className="fw-bold mb-0 text-dark">Statement of Account</h5>
                   <span className="badge bg-light text-pcc-primary border border-pcc-primary px-3 py-2 rounded">
                     Room {billDetails.booking.roomNumber}
                   </span>
                 </div>
-                <div className="card-body p-4" style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+                <div className="card-body p-4 flex-grow-1" style={{ overflowY: 'auto', minHeight: 0 }}>
                   {/* Guest and stay details */}
                   <div className="row mb-4 bg-light p-3 rounded g-2" style={{ fontSize: '0.9rem' }}>
                     <div className="col-md-6">
@@ -601,12 +601,12 @@ export default function ReceptionistBilling() {
             </div>
 
             {/* Bill Summary Panel */}
-            <div className="col-lg-4">
-              <div className="card shadow-sm border-0 mb-4 bg-white" style={{ borderRadius: '8px' }}>
+            <div className="col-lg-4 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+              <div className="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden h-100 bg-white" style={{ borderRadius: '8px', minHeight: 0 }}>
                 <div className="card-header bg-white border-0 py-3 border-bottom">
                   <h5 className="fw-bold mb-0 text-dark">Payment Summary</h5>
                 </div>
-                <div className="card-body p-4" style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+                <div className="card-body p-4 flex-grow-1" style={{ overflowY: 'auto', minHeight: 0 }}>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Room Rent:</span>
                     <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</span>

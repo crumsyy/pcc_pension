@@ -264,7 +264,7 @@ export default function ReceptionistOrders() {
 
   return (
     <>
-      <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '85vh' }}>
+      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>
@@ -279,7 +279,7 @@ export default function ReceptionistOrders() {
           </button>
         </div>
 
-        <div className="card shadow-sm border-0 mb-4" style={{ borderRadius: '8px' }}>
+        <div className="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden mb-3" style={{ borderRadius: '8px', minHeight: 0 }}>
           <div className="card-header bg-white py-3 border-0">
             <div className="row g-2 align-items-center">
               <div className="col-md-4">
@@ -307,8 +307,8 @@ export default function ReceptionistOrders() {
               </div>
             </div>
           </div>
-          <div className="card-body p-0">
-            <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
+          <div className="card-body p-0 d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
+            <div className="table-responsive flex-grow-1" style={{ overflowY: 'auto', minHeight: 0 }}>
               <table className="table align-middle mb-0">
                 <thead className="table-light">
                   <tr>
