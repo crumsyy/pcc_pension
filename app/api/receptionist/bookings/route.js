@@ -11,7 +11,7 @@ export async function GET(request) {
   await syncRoomStatuses();
 
   try {
-    const [bookings, guests, rooms, guestsDetails, discounts] = await Promise.all([
+    const [bookings, guests, rooms, guestsDetails, discounts, paymentMethods] = await Promise.all([
       dbQuery(`
         SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status, b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender,
