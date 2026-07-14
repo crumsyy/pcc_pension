@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -41,12 +41,14 @@ export async function GET(request) {
       dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method")
     ]);
 
-    const bookingsWithGuests = bookings.map(b => {
+    const bookingsWithGuests = await Promise.all(bookings.map(async b => {
+      const remainingBalance = await getBookingBalance(b.bookingID);
       return {
         ...b,
+        remainingBalance,
         registeredGuests: guestsDetails.filter(gd => gd.bookingID === b.bookingID)
       };
-    });
+    }));
 
     return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods });
   } catch (error) {

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate } from '../../components/DateInput';
 
-export default function ReceptionistBookings() {
+function BookingsClient() {
+  const searchParams = useSearchParams();
   const [bookings, setBookings] = useState([]);
   const [guests, setGuests] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -113,6 +115,54 @@ export default function ReceptionistBookings() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!loading && searchParams.get('action') === 'new') {
+      const qCheckIn = searchParams.get('checkIn');
+      const qCheckOut = searchParams.get('checkOut');
+      const qRoomID = searchParams.get('roomID');
+      const qFirstName = searchParams.get('firstName');
+      const qLastName = searchParams.get('lastName');
+      const qEmail = searchParams.get('email');
+      const qContact = searchParams.get('contact');
+      const qDiscountID = searchParams.get('discountID');
+
+      if (qCheckIn && qCheckOut) {
+        const formatParamDate = (dStr) => {
+          const MathParts = dStr.split('-');
+          if (MathParts.length === 3) {
+            return `${MathParts[1]}/${MathParts[2]}/${MathParts[0]}`;
+          }
+          return '';
+        };
+
+        setCheckInDate(formatParamDate(qCheckIn));
+        setCheckInTime("14:00");
+        setCheckOutDate(formatParamDate(qCheckOut));
+        setCheckOutTime("12:00");
+        setIsWalkIn(true);
+        setWalkInForm({
+          firstName: qFirstName || '',
+          lastName: qLastName || '',
+          email: qEmail || '',
+          contact: qContact || '',
+          gender: 'Male'
+        });
+        setFormData({
+          guestID: '',
+          roomID: qRoomID || '',
+          status: 'Pending Check-in'
+        });
+        setRoomGuests([{
+          fullName: `${qFirstName || ''} ${qLastName || ''}`.trim(),
+          age: 30,
+          discountID: qDiscountID || '',
+          discountIdNumber: ''
+        }]);
+        setActiveModal('create');
+      }
+    }
+  }, [loading, searchParams]);
 
   useEffect(() => {
     if (activeModal === 'create') {
@@ -1138,5 +1188,18 @@ export default function ReceptionistBookings() {
         onCancel={modalConfig.onCancel}
       />
     </>
+  );
+}
+
+export default function ReceptionistBookings() {
+  return (
+    <Suspense fallback={
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary" role="status"></div>
+        <p className="text-muted mt-2">Loading bookings...</p>
+      </div>
+    }>
+      <BookingsClient />
+    </Suspense>
   );
 }

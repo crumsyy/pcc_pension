@@ -114,10 +114,26 @@ export async function POST(request) {
       try {
         await connection.beginTransaction();
 
+        // Check active checked-in booking for this guest
+        const [bookingCheck] = await connection.execute(
+          `SELECT b.bookingID, b.roomID, g.firstName, g.lastName 
+           FROM booking b 
+           JOIN guest g ON g.guestID = b.guestID 
+           WHERE g.guestID = ? AND b.status = 'Checked In' 
+           LIMIT 1`,
+          [guestID]
+        );
+        if (bookingCheck.length === 0) {
+          return NextResponse.json({ error: 'Only checked-in guests are allowed to place orders.' }, { status: 400 });
+        }
+        const activeBookingID = bookingCheck[0].bookingID;
+        const activeRoomID = bookingCheck[0].roomID;
+        const activeBorrowedBy = `${bookingCheck[0].firstName} ${bookingCheck[0].lastName}`.trim();
+
         // 1. Create order record
         const [orderResult] = await connection.execute(
-          "INSERT INTO orders (orderStatus, orderDateTime, guestID) VALUES ('Preparing', ?, ?)",
-          [nowStr, guestID]
+          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID) VALUES ('Preparing', ?, ?, ?)",
+          [nowStr, guestID, activeBookingID]
         );
         const orderID = orderResult.insertId;
 
@@ -195,31 +211,6 @@ export async function POST(request) {
 
           // Register borrow transaction if it's a Non-Consumable item
           if (itemClassType === 'Non-Consumable') {
-            // Find active booking for the guest to link bookingID/roomID
-            const [bookingRes] = await connection.execute(
-              `SELECT b.bookingID, b.roomID, g.firstName, g.lastName 
-               FROM booking b 
-               JOIN guest g ON g.guestID = b.guestID 
-               WHERE g.guestID = ? AND b.status = 'Checked In' 
-               LIMIT 1`,
-              [guestID]
-            );
-
-            let bookingID = null;
-            let roomID = null;
-            let borrowedBy = 'Walk-in Guest';
-            
-            if (bookingRes.length > 0) {
-              bookingID = bookingRes[0].bookingID;
-              roomID = bookingRes[0].roomID;
-              borrowedBy = `${bookingRes[0].firstName} ${bookingRes[0].lastName}`.trim();
-            } else {
-              const [guestRes] = await connection.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
-              if (guestRes.length > 0) {
-                borrowedBy = `${guestRes[0].firstName} ${guestRes[0].lastName}`.trim();
-              }
-            }
-
             await connection.execute(
               `INSERT INTO borrow_transaction (itemType, itemID, quantity, borrowedBy, bookingID, roomID, status, userID, remarks)
                VALUES (?, ?, ?, ?, ?, ?, 'Borrowed', ?, ?)`,
@@ -227,9 +218,9 @@ export async function POST(request) {
                 item.type,
                 itemID,
                 quantity,
-                borrowedBy,
-                bookingID,
-                roomID,
+                activeBorrowedBy,
+                activeBookingID,
+                activeRoomID,
                 session.userID,
                 `Borrowed via Guest Order ORD-${orderID}`
               ]

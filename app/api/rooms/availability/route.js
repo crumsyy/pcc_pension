@@ -30,20 +30,13 @@ export async function GET(request) {
         AND r.roomID NOT IN (
           SELECT DISTINCT b.roomID
           FROM booking b
-          WHERE b.status NOT IN ('Canceled', 'Checked Out')
+          WHERE b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
             AND b.checkInDateTime < ?
             AND b.checkOutDateTime > ?
         )
-        AND r.roomID NOT IN (
-          SELECT DISTINCT res.roomID
-          FROM reservation res
-          WHERE res.status NOT IN ('Canceled')
-            AND DATE(res.reservationDateTime) >= DATE(?)
-            AND DATE(res.reservationDateTime) <= DATE(?)
-        )
     `;
 
-    const params = [breakfastID, checkOutDateTime, checkInDateTime, checkIn, checkOut];
+    const params = [breakfastID, checkOutDateTime, checkInDateTime];
 
     if (roomType !== 'Any room type') {
       query += " AND rt.type = ?";

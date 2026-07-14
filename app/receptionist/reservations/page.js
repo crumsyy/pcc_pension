@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate } from '../../components/DateInput';
 
-export default function ReceptionistReservations() {
+function ReservationsClient() {
+  const searchParams = useSearchParams();
   const [reservations, setReservations] = useState([]);
   const [guests, setGuests] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -115,6 +117,43 @@ export default function ReceptionistReservations() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!loading && searchParams.get('action') === 'new') {
+      const qCheckIn = searchParams.get('checkIn');
+      const qRoomID = searchParams.get('roomID');
+      const qFirstName = searchParams.get('firstName');
+      const qLastName = searchParams.get('lastName');
+      const qEmail = searchParams.get('email');
+      const qContact = searchParams.get('contact');
+
+      if (qCheckIn) {
+        const formatParamDate = (dStr) => {
+          const parts = dStr.split('-');
+          if (parts.length === 3) {
+            return `${parts[1]}/${parts[2]}/${parts[0]}`;
+          }
+          return '';
+        };
+
+        setResDate(formatParamDate(qCheckIn));
+        setResTime("14:00");
+        setIsWalkIn(true);
+        setWalkInForm({
+          firstName: qFirstName || '',
+          lastName: qLastName || '',
+          email: qEmail || '',
+          contact: qContact || '',
+          gender: 'Male'
+        });
+        setFormData({
+          guestID: '',
+          roomID: qRoomID || ''
+        });
+        setActiveModal('create');
+      }
+    }
+  }, [loading, searchParams]);
 
   useEffect(() => {
     if (activeModal === 'create') {
@@ -783,5 +822,18 @@ export default function ReceptionistReservations() {
         onCancel={modalConfig.onCancel}
       />
     </>
+  );
+}
+
+export default function ReceptionistReservations() {
+  return (
+    <Suspense fallback={
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary" role="status"></div>
+        <p className="text-muted mt-2">Loading reservations...</p>
+      </div>
+    }>
+      <ReservationsClient />
+    </Suspense>
   );
 }

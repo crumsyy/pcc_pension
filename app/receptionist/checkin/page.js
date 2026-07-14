@@ -151,9 +151,10 @@ function CheckInClient() {
   const filterList = (list) => {
     return list.filter(b => {
       const fullName = `${b.firstName} ${b.lastName}`.toLowerCase();
-      const room = b.roomNumber.toLowerCase();
+      const room = String(b.roomNumber).toLowerCase();
+      const bookingNum = String(b.bookingID).toLowerCase();
       const query = search.toLowerCase();
-      return fullName.includes(query) || room.includes(query);
+      return fullName.includes(query) || room.includes(query) || bookingNum.includes(query);
     });
   };
 
@@ -161,7 +162,7 @@ function CheckInClient() {
     <>
       <div className="mb-4">
         <div className="section-eyebrow">Receptionist</div>
-        <h2 className="section-title mb-0">Check-In / Out Desk</h2>
+        <h2 className="section-title mb-0">Front Desk (Check-In & Check-Out)</h2>
       </div>
 
       <div className="card-module p-4 mb-4" style={{ backgroundColor: "#fff", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -223,13 +224,21 @@ function CheckInClient() {
                   {filterList(departures).map(b => (
                     <div key={b.bookingID} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3 mb-2 border rounded">
                       <div>
-                        <div className="fw-bold text-dark">{b.firstName} {b.lastName}</div>
+                        <div className="fw-bold text-dark">{b.firstName} {b.lastName} (Stay #{b.bookingID})</div>
                         <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType})</small>
                         <small className="text-muted d-block">Check-out Schedule: {new Date(b.checkOutDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</small>
+                        <small className="d-block mt-1">
+                          Remaining Balance: <strong className={b.remainingBalance > 0 ? "text-danger" : "text-success"}>₱{parseFloat(b.remainingBalance || 0).toFixed(2)}</strong>
+                        </small>
                       </div>
-                      <button className="btn btn-sm btn-success text-white" onClick={() => handleCheckOut(b.bookingID, b.firstName + ' ' + b.lastName)}>
-                        Check Out
-                      </button>
+                      <div className="d-flex gap-2">
+                        <a href={`/receptionist/billing?bookingID=${b.bookingID}`} className="btn btn-sm btn-outline-primary py-1 px-3">
+                          View Billing
+                        </a>
+                        <button className="btn btn-sm btn-success text-white py-1 px-3" onClick={() => handleCheckOut(b.bookingID, b.firstName + ' ' + b.lastName)}>
+                          Check Out
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
