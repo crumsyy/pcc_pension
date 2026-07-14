@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
+import SearchableSelect from '../../components/SearchableSelect';
 
 function PaymentsClient() {
   const searchParams = useSearchParams();
@@ -189,7 +190,7 @@ function PaymentsClient() {
           cashReceived: paymentForm.paymentMethodID === '1' ? cash : payableAmount,
           change: paymentForm.paymentMethodID === '1' ? change : 0,
           paymentMethodName: paymentMethods.find(m => m.paymentMethodID === parseInt(paymentForm.paymentMethodID))?.paymentMethod || 'Cash',
-          checkoutChecked: true,
+          checkoutChecked: data.checkoutChecked,
           date: new Date().toLocaleString()
         });
 
@@ -239,20 +240,15 @@ function PaymentsClient() {
                     {loading ? (
                       <div>Loading guest records...</div>
                     ) : (
-                      <select
-                        className="form-select"
-                        required
+                      <SearchableSelect
+                        options={activeBookings.map(b => ({
+                          value: String(b.bookingID),
+                          label: `Room ${b.roomNumber} (${b.roomType}) — ${b.lastName}, ${b.firstName}`
+                        }))}
                         value={selectedBookingID}
                         onChange={handleBookingChange}
-                        style={{ borderRadius: '6px' }}
-                      >
-                        <option value="">-- Select Room / Guest --</option>
-                        {activeBookings.map(b => (
-                          <option key={b.bookingID} value={b.bookingID}>
-                            Room {b.roomNumber} — {b.lastName}, {b.firstName}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Type to search guest or room..."
+                      />
                     )}
                   </div>
 
@@ -328,7 +324,7 @@ function PaymentsClient() {
                   </div>
                 ) : billData ? (
                   <div>
-                    <h6 className="fw-bold text-dark mb-3">Room {billData.booking.roomNumber} - {billData.booking.lastName}, {billData.booking.firstName}</h6>
+                    <h6 className="fw-bold text-dark mb-3">Room {billData.booking.roomNumber} ({billData.booking.roomType}) - {billData.booking.lastName}, {billData.booking.firstName}</h6>
                     <div className="d-flex justify-content-between mb-2">
                       <span className="text-muted">Room Rent (Original):</span>
                       <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.originalRoomCharge).toFixed(2)}</span>

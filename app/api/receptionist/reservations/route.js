@@ -9,7 +9,7 @@ export async function GET(request) {
   }
 
   try {
-    const [reservations, guests, rooms] = await Promise.all([
+    const [reservations, guests, rooms, paymentMethods] = await Promise.all([
       dbQuery(`
         SELECT r.reservationID, r.reservationDateTime, r.status, r.guestID, r.roomID,
                g.firstName, g.lastName, g.contact,

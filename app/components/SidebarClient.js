@@ -7,6 +7,7 @@ import NotificationBell from './NotificationBell';
 
 export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
+  const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // SVG Icons
@@ -85,7 +86,7 @@ export default function SidebarClient({ session, role, children }) {
         className="d-flex d-lg-none justify-content-between align-items-center p-3 text-white sticky-top" 
         style={{ backgroundColor: 'var(--pcc-blue)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', zIndex: 1030, position: 'sticky', top: 0 }}
       >
-        <Link href="/" className="d-flex align-items-center gap-2 text-decoration-none">
+        <Link href={dashboardUrl} className="d-flex align-items-center gap-2 text-decoration-none">
           <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ height: '36px', borderRadius: '4px' }} />
           <span className="fw-bold text-white" style={{ fontSize: '0.95rem' }}>{labelText}</span>
         </Link>
@@ -155,7 +156,7 @@ export default function SidebarClient({ session, role, children }) {
         className="d-none d-lg-flex flex-column p-3 pcc-fixed-sidebar"
       >
         <div className="mb-4 text-center">
-          <Link href="/">
+          <Link href={dashboardUrl}>
             <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ maxWidth: '140px', borderRadius: '6px' }} />
           </Link>
         </div>

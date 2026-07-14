@@ -235,9 +235,6 @@ function CheckInClient() {
                         <a href={`/receptionist/billing?bookingID=${b.bookingID}`} className="btn btn-sm btn-outline-primary py-1 px-3">
                           View Billing
                         </a>
-                        <button className="btn btn-sm btn-success text-white py-1 px-3" onClick={() => handleCheckOut(b.bookingID, b.firstName + ' ' + b.lastName)}>
-                          Check Out
-                        </button>
                       </div>
                     </div>
                   ))}

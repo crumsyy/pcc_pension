@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate } from '../../components/DateInput';
+import SearchableSelect from '../../components/SearchableSelect';
 
 function ReservationsClient() {
   const searchParams = useSearchParams();
@@ -546,12 +547,16 @@ function ReservationsClient() {
                   {!isWalkIn ? (
                     <div className="mb-3">
                       <label className="form-label">Guest *</label>
-                      <select name="guestID" className="form-select" required={!isWalkIn} value={formData.guestID} onChange={handleInputChange}>
-                        <option value="" disabled>Select Guest</option>
-                        {guests.map(g => (
-                          <option key={g.guestID} value={g.guestID}>{g.lastName}, {g.firstName} ({g.contact})</option>
-                        ))}
-                      </select>
+                      <SearchableSelect
+                        options={guests.map(g => ({
+                          value: String(g.guestID),
+                          label: `${g.lastName}, ${g.firstName} (${g.contact})`
+                        }))}
+                        value={formData.guestID}
+                        onChange={(val) => setFormData(prev => ({ ...prev, guestID: val }))}
+                        placeholder="Type to search guest..."
+                        disabled={isWalkIn}
+                      />
                     </div>
                   ) : (
                     <div className="p-3 mb-3 border rounded bg-light">
@@ -633,24 +638,19 @@ function ReservationsClient() {
 
                   <div className="mb-3">
                     <label className="form-label">Room *</label>
-                    <select 
-                      name="roomID" 
-                      className="form-select" 
-                      required 
-                      disabled={!selectedRoomType}
-                      value={formData.roomID} 
-                      onChange={handleInputChange}
-                    >
-                      <option value="" disabled>
-                        {selectedRoomType ? "Select Room" : "Choose Room Type first"}
-                      </option>
-                      {rooms
+                    <SearchableSelect
+                      options={rooms
                         .filter(rm => rm.roomType === selectedRoomType && rm.status === 'Available')
-                        .map(rm => (
-                          <option key={rm.roomID} value={rm.roomID}>Room {rm.roomNumber}</option>
-                        ))
+                        .map(rm => ({
+                          value: String(rm.roomID),
+                          label: `Room ${rm.roomNumber}`
+                        }))
                       }
-                    </select>
+                      value={formData.roomID}
+                      onChange={(val) => setFormData(prev => ({ ...prev, roomID: val }))}
+                      placeholder={selectedRoomType ? "Type to search room..." : "Choose Room Type first"}
+                      disabled={!selectedRoomType}
+                    />
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Reservation Date *</label>

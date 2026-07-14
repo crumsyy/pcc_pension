@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -50,7 +50,15 @@ export async function POST(request) {
     const change = parseFloat(body.change || 0);
     const paymentMethodID = parseInt(body.paymentMethodID);
     const discountID = body.discountID ? parseInt(body.discountID) : null;
-    const shouldCheckout = true; // Always automatically check out upon payment
+    const [bookingDetails] = await dbQuery("SELECT status, roomID FROM booking WHERE bookingID = ?", [bookingID]);
+    if (bookingDetails.length === 0) {
+      return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+    }
+    const bookingStatus = bookingDetails[0].status;
+
+    const currentBalance = await getBookingBalance(bookingID);
+    const isFullyPaid = (currentBalance - amount) <= 0.05;
+    const shouldCheckout = isFullyPaid && bookingStatus === 'Checked In';
 
     if (!bookingID || !guestID || isNaN(amount) || !paymentMethodID) {
       return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
@@ -153,7 +161,7 @@ export async function POST(request) {
 
       await connection.commit();
       await syncInventoryStock();
-      return NextResponse.json({ success: true, message: 'Payment recorded and checkout completed successfully.', billingID, paymentID });
+      return NextResponse.json({ success: true, message: 'Payment recorded and checkout completed successfully.', billingID, paymentID, checkoutChecked: shouldCheckout });
     } catch (err) {
       await connection.rollback();
       throw err;

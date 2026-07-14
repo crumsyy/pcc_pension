@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import SearchableSelect from '../../components/SearchableSelect';
 
 export default function ReceptionistBilling() {
   const [activeBookings, setActiveBookings] = useState([]);
@@ -264,19 +265,18 @@ export default function ReceptionistBilling() {
                 {loadingList ? (
                   <div>Loading guests list...</div>
                 ) : (
-                  <select
-                    className="form-select form-select-lg"
+                  <SearchableSelect
+                    options={activeBookings.map(b => ({
+                      value: String(b.bookingID),
+                      label: `Room ${b.roomNumber} (${b.roomType}) — ${b.lastName}, ${b.firstName} (${b.status})`
+                    }))}
                     value={selectedBookingID}
-                    onChange={handleBookingChange}
-                    style={{ borderRadius: '6px' }}
-                  >
-                    <option value="">-- Choose Checked-In Guest --</option>
-                    {activeBookings.map(b => (
-                      <option key={b.bookingID} value={b.bookingID}>
-                        Room {b.roomNumber} — {b.lastName}, {b.firstName} ({b.status})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => {
+                      setSelectedBookingID(val);
+                      fetchBillingDetails(val);
+                    }}
+                    placeholder="Type to search guest or room..."
+                  />
                 )}
               </div>
             </div>
@@ -306,6 +306,10 @@ export default function ReceptionistBilling() {
                     <div className="col-md-6">
                       <div className="text-muted">Guest Name</div>
                       <div className="fw-bold text-dark">{billDetails.booking.firstName} {billDetails.booking.lastName}</div>
+                      <div className="text-muted mt-2">Room / Accommodation</div>
+                      <div className="fw-semibold text-dark">
+                        Room {billDetails.booking.roomNumber} ({billDetails.booking.roomType})
+                      </div>
                       <div className="text-muted mt-2">Contact Info</div>
                       <div>{billDetails.booking.contact} {billDetails.booking.email ? `| ${billDetails.booking.email}` : ''}</div>
                     </div>
