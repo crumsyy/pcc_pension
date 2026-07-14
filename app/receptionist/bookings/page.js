@@ -620,8 +620,8 @@ function BookingsClient() {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Checked In': return 'text-bg-success';
-      case 'Checked Out': return 'text-bg-secondary';
+      case 'Checked In': return 'text-bg-primary';
+      case 'Checked Out': return 'text-bg-success';
       case 'Pending Check-in': return 'text-bg-info';
       case 'Cancelled': return 'text-bg-danger';
       case 'No Show': return 'text-bg-warning';
@@ -688,7 +688,7 @@ function BookingsClient() {
         ) : filteredBookings.length === 0 ? (
           <div className="text-center py-5 text-muted">No bookings found matching the filters.</div>
         ) : (
-          <div className="table-responsive">
+          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.9rem" }}>
               <thead>
                 <tr className="table-light">

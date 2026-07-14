@@ -308,7 +308,7 @@ export default function ReceptionistOrders() {
             </div>
           </div>
           <div className="card-body p-0">
-            <div className="table-responsive">
+            <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
               <table className="table align-middle mb-0">
                 <thead className="table-light">
                   <tr>
@@ -378,7 +378,7 @@ export default function ReceptionistOrders() {
                                     ✓ Serve
                                   </button>
                                   <button 
-                                    className="btn btn-sm btn-outline-danger" 
+                                    className="btn btn-sm btn-danger text-white" 
                                     onClick={() => handleUpdateOrderStatus(o.orderID, 'Canceled')}
                                     style={{ borderRadius: '20px' }}
                                   >
@@ -429,7 +429,7 @@ export default function ReceptionistOrders() {
                       <SearchableSelect
                         options={comboboxOptions.map(opt => ({
                           value: opt.idAndType,
-                          label: `${opt.displayName} (₱${opt.price} | ${opt.productCategoryID === 3 ? 'Prepared' : `Stock: ${opt.quantity}`})`
+                          label: `${opt.displayName} (₱${opt.price} | ${opt.productCategoryID === 3 ? (opt.quantity > 0 ? 'Available' : 'Not Available') : `Stock: ${opt.quantity}`})`
                         }))}
                         value={selectedItemToAdd.idAndType}
                         onChange={(val) => setSelectedItemToAdd(prev => ({ ...prev, idAndType: val }))}
