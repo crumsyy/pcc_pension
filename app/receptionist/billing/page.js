@@ -294,15 +294,15 @@ export default function ReceptionistBilling() {
             {/* Statement details */}
             <div className="col-lg-8 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
               <div className="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '8px', minHeight: 0 }}>
-                <div className="card-header bg-white border-0 py-3 border-bottom d-flex justify-content-between align-items-center">
-                  <h5 className="fw-bold mb-0 text-dark">Statement of Account</h5>
-                  <span className="badge bg-light text-pcc-primary border border-pcc-primary px-3 py-2 rounded">
+                <div className="card-header bg-white border-0 py-2 border-bottom d-flex justify-content-between align-items-center">
+                  <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>Statement of Account</h5>
+                  <span className="badge text-white px-3 py-2 rounded" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)', fontSize: '0.8rem' }}>
                     Room {billDetails.booking.roomNumber}
                   </span>
                 </div>
                 <div className="card-body p-4 flex-grow-1" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto', minHeight: 0 }}>
                   {/* Guest and stay details */}
-                  <div className="row mb-4 bg-light p-3 rounded g-2" style={{ fontSize: '0.9rem' }}>
+                  <div className="row mb-2 bg-light p-2 rounded g-2" style={{ fontSize: '0.78rem' }}>
                     <div className="col-md-6">
                       <div className="text-muted">Guest Name</div>
                       <div className="fw-bold text-dark">{billDetails.booking.firstName} {billDetails.booking.lastName}</div>
@@ -327,9 +327,9 @@ export default function ReceptionistBilling() {
                   </div>
 
                   {/* Room rent */}
-                  <h6 className="fw-bold text-dark mb-3 border-bottom pb-2">Room Rent Charges</h6>
+                  <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Room Rent Charges</h6>
                   <div className="table-responsive mb-3">
-                    <table className="table table-sm mb-0">
+                    <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
                       <thead>
                         <tr className="table-light">
                           <th>Description</th>
@@ -388,13 +388,13 @@ export default function ReceptionistBilling() {
 
                   {/* Registered Guests Pax breakdown list */}
                   {billDetails.guestsList && billDetails.guestsList.length > 0 && (
-                    <div className="mb-4 bg-light p-3 rounded border animate__animated animate__fadeIn" style={{ fontSize: '0.82rem' }}>
-                      <div className="fw-bold mb-2 text-dark d-flex justify-content-between align-items-center">
+                    <div className="mb-2 bg-light p-2 rounded border animate__animated animate__fadeIn" style={{ fontSize: '0.75rem' }}>
+                      <div className="fw-bold mb-1 text-dark d-flex justify-content-between align-items-center">
                         <span>👥 Registered Room Guests ({billDetails.guestsList.length} Pax)</span>
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-primary"
-                          style={{ fontSize: '0.78rem', padding: '2px 10px', borderRadius: '15px' }}
+                          style={{ fontSize: '0.72rem', padding: '1px 8px', borderRadius: '15px' }}
                           onClick={openEditDiscountsModal}
                         >
                           ✏️ Apply/Edit Discounts
@@ -431,9 +431,9 @@ export default function ReceptionistBilling() {
                   )}
 
                   {/* Extra product orders */}
-                  <h6 className="fw-bold text-dark mb-3 border-bottom pb-2">Product Charges (Drinks/Snacks/Meals)</h6>
-                  <div className="table-responsive mb-4">
-                    <table className="table table-sm mb-0">
+                  <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Product Charges (Drinks/Snacks/Meals)</h6>
+                  <div className="table-responsive mb-2">
+                    <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
                       <thead>
                         <tr className="table-light">
                           <th>Product Name</th>
@@ -462,9 +462,9 @@ export default function ReceptionistBilling() {
                   </div>
 
                   {/* Extra amenity orders */}
-                  <h6 className="fw-bold text-dark mb-3 border-bottom pb-2">Amenity Charges (Extra Foam/Linen/Toiletries)</h6>
-                  <div className="table-responsive">
-                    <table className="table table-sm mb-0">
+                  <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Amenity Charges (Extra Foam/Linen/Toiletries)</h6>
+                  <div className="table-responsive mb-2">
+                    <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
                       <thead>
                         <tr className="table-light">
                           <th>Amenity Name</th>
@@ -493,11 +493,12 @@ export default function ReceptionistBilling() {
                   </div>
 
                   {/* Incidental Charges */}
-                  <div className="d-flex justify-content-between align-items-center mb-3 mt-4 border-bottom pb-2">
-                    <h6 className="fw-bold text-dark mb-0">Incidental & Damage Charges</h6>
+                  <div className="d-flex justify-content-between align-items-center mb-1 mt-3 border-bottom pb-1">
+                    <h6 className="fw-bold text-dark mb-0" style={{ fontSize: '0.82rem' }}>Incidental & Damage Charges</h6>
                     <button
                       type="button"
                       className="btn btn-sm btn-outline-danger"
+                      style={{ fontSize: '0.72rem', padding: '1px 8px' }}
                       onClick={() => {
                         setIncidentalForm({ description: '', amount: '' });
                         setIsAddingIncidental(true);
@@ -506,8 +507,8 @@ export default function ReceptionistBilling() {
                       + Add Incidental Charge
                     </button>
                   </div>
-                  <div className="table-responsive mb-4">
-                    <table className="table table-sm mb-0">
+                  <div className="table-responsive mb-2">
+                    <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
                       <thead>
                         <tr className="table-light">
                           <th>Description</th>
@@ -603,10 +604,10 @@ export default function ReceptionistBilling() {
             {/* Bill Summary Panel */}
             <div className="col-lg-4 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
               <div className="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden h-100 bg-white" style={{ borderRadius: '8px', minHeight: 0 }}>
-                <div className="card-header bg-white border-0 py-3 border-bottom">
-                  <h5 className="fw-bold mb-0 text-dark">Payment Summary</h5>
+                <div className="card-header bg-white border-0 py-2 border-bottom">
+                  <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>Payment Summary</h5>
                 </div>
-                <div className="card-body p-4 flex-grow-1" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto', minHeight: 0 }}>
+                <div className="card-body p-4 flex-grow-1" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto', minHeight: 0, fontSize: '0.78rem' }}>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Room Rent:</span>
                     <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</span>

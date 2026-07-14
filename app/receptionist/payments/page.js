@@ -220,20 +220,20 @@ function PaymentsClient() {
       <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Checkout POS Terminal</h2>
+            <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Payment POS Terminal</h2>
             <p className="text-muted mb-0">Record payments, calculate change, apply PWD/Senior discounts, and issue guest receipts.</p>
           </div>
         </div>
 
         <div className="row g-4 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '15px' }}>
-          {/* Left Checkout form */}
-          <div className="col-lg-6 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
-            <div className="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '8px', minHeight: 0 }}>
+          {/* Left Payment form */}
+          <div className="col-lg-6">
+            <div className="card shadow-sm border-0 bg-white" style={{ borderRadius: '8px' }}>
               <div className="card-header bg-white border-0 py-3 border-bottom">
-                <h5 className="fw-bold mb-0 text-dark">Checkout Terminal</h5>
+                <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>Payment Terminal</h5>
               </div>
-              <form onSubmit={handleProcessPayment} className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
-                <div className="card-body p-4 flex-grow-1" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', minHeight: 0 }}>
+              <form onSubmit={handleProcessPayment}>
+                <div className="card-body p-4">
                   <div className="mb-3">
                     <label className="form-label fw-semibold">Select Checked-In Guest *</label>
                     {loading ? (
@@ -314,7 +314,7 @@ function PaymentsClient() {
               <div className="card-header bg-white border-0 py-3 border-bottom">
                 <h5 className="fw-bold mb-0 text-dark">Checkout Calculations</h5>
               </div>
-              <div className="card-body p-4 d-flex flex-column justify-content-between flex-grow-1" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', minHeight: 0 }}>
+              <div className="card-body p-4 d-flex flex-column justify-content-between flex-grow-1" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', minHeight: 0, fontSize: '0.78rem' }}>
                 {loadingBill ? (
                   <div className="text-center py-5">
                     <div className="spinner-border text-pcc-primary" role="status">
@@ -405,6 +405,22 @@ function PaymentsClient() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0">
               <div className="modal-body p-4" id="print-area">
+                <style>{`
+                  @media print {
+                    body * {
+                      visibility: hidden;
+                    }
+                    #print-area, #print-area * {
+                      visibility: visible;
+                    }
+                    #print-area {
+                      position: absolute;
+                      left: 0;
+                      top: 0;
+                      width: 100%;
+                    }
+                  }
+                `}</style>
                 {/* Print receipt design */}
                 <div className="text-center mb-4">
                   <h4 className="fw-bold text-pcc-blue mb-1" style={{ color: 'var(--pcc-blue)' }}>PCC Home Suite Home</h4>
