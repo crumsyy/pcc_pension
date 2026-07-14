@@ -217,7 +217,7 @@ function PaymentsClient() {
 
   return (
     <>
-      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
+      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Checkout POS Terminal</h2>
@@ -233,7 +233,7 @@ function PaymentsClient() {
                 <h5 className="fw-bold mb-0 text-dark">Checkout Terminal</h5>
               </div>
               <form onSubmit={handleProcessPayment} className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
-                <div className="card-body p-4 flex-grow-1" style={{ overflowY: 'auto', minHeight: 0 }}>
+                <div className="card-body p-4 flex-grow-1" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', minHeight: 0 }}>
                   <div className="mb-3">
                     <label className="form-label fw-semibold">Select Checked-In Guest *</label>
                     {loading ? (
@@ -314,7 +314,7 @@ function PaymentsClient() {
               <div className="card-header bg-white border-0 py-3 border-bottom">
                 <h5 className="fw-bold mb-0 text-dark">Checkout Calculations</h5>
               </div>
-              <div className="card-body p-4 d-flex flex-column justify-content-between flex-grow-1" style={{ overflowY: 'auto', minHeight: 0 }}>
+              <div className="card-body p-4 d-flex flex-column justify-content-between flex-grow-1" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', minHeight: 0 }}>
                 {loadingBill ? (
                   <div className="text-center py-5">
                     <div className="spinner-border text-pcc-primary" role="status">

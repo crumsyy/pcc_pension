@@ -264,7 +264,7 @@ export default function ReceptionistOrders() {
 
   return (
     <>
-      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
+      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>
@@ -307,8 +307,8 @@ export default function ReceptionistOrders() {
               </div>
             </div>
           </div>
-          <div className="card-body p-0 d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
-            <div className="table-responsive flex-grow-1" style={{ overflowY: 'auto', minHeight: 0 }}>
+          <div className="card-body p-0 d-flex flex-column flex-grow-1 overflow-hidden">
+            <div className="table-responsive flex-grow-1" style={{ maxHeight: 'calc(100vh - 350px)', overflowY: 'auto' }}>
               <table className="table align-middle mb-0">
                 <thead className="table-light">
                   <tr>

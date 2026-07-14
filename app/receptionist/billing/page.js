@@ -249,7 +249,7 @@ export default function ReceptionistBilling() {
 
   return (
     <>
-      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
+      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Guest Billing</h2>
@@ -300,7 +300,7 @@ export default function ReceptionistBilling() {
                     Room {billDetails.booking.roomNumber}
                   </span>
                 </div>
-                <div className="card-body p-4 flex-grow-1" style={{ overflowY: 'auto', minHeight: 0 }}>
+                <div className="card-body p-4 flex-grow-1" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto', minHeight: 0 }}>
                   {/* Guest and stay details */}
                   <div className="row mb-4 bg-light p-3 rounded g-2" style={{ fontSize: '0.9rem' }}>
                     <div className="col-md-6">
@@ -606,7 +606,7 @@ export default function ReceptionistBilling() {
                 <div className="card-header bg-white border-0 py-3 border-bottom">
                   <h5 className="fw-bold mb-0 text-dark">Payment Summary</h5>
                 </div>
-                <div className="card-body p-4 flex-grow-1" style={{ overflowY: 'auto', minHeight: 0 }}>
+                <div className="card-body p-4 flex-grow-1" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto', minHeight: 0 }}>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Room Rent:</span>
                     <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</span>
