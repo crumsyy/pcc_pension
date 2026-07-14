@@ -707,7 +707,7 @@ export default function AdminInventory() {
       {/* CURRENT STOCKS TAB */}
       {activeTab === 'stocks' && (
         <div className="card-module bg-white p-3 rounded border">
-          <div className="table-responsive">
+          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">
               <thead>
                 <tr>
@@ -791,7 +791,7 @@ export default function AdminInventory() {
       {/* BATCH TRACKER TAB */}
       {activeTab === 'batches' && (
         <div className="card-module bg-white p-3 rounded border">
-          <div className="table-responsive">
+          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">
               <thead>
                 <tr>
@@ -867,7 +867,7 @@ export default function AdminInventory() {
       {activeTab === 'borrow' && (
         <div className="card-module bg-white p-3 rounded border">
           <h5 className="text-blue mb-3">Asset Borrow Transactions</h5>
-          <div className="table-responsive">
+          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">
               <thead>
                 <tr>

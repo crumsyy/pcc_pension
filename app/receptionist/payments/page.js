@@ -226,7 +226,7 @@ function PaymentsClient() {
           </div>
         </div>
 
-        <div className="row g-4">
+        <div className="row g-4" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
           {/* Left Checkout form */}
           <div className="col-lg-6">
             <div className="card shadow-sm border-0" style={{ borderRadius: '8px' }}>

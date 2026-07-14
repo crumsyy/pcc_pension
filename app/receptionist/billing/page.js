@@ -290,7 +290,7 @@ export default function ReceptionistBilling() {
             </div>
           </div>
         ) : billDetails ? (
-          <div className="row g-4">
+          <div className="row g-4" style={{ maxHeight: 'calc(100vh - 350px)', overflowY: 'auto' }}>
             {/* Statement details */}
             <div className="col-lg-8">
               <div className="card shadow-sm border-0 mb-4" style={{ borderRadius: '8px' }}>

@@ -14,7 +14,7 @@ export default function AdminDiscounts() {
   const [roomTypes, setRoomTypes] = useState([]);
 
   const [search, setSearch] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
+  const [activeTab, setActiveTab] = useState('active_discounts');
   const [loading, setLoading] = useState(true);
 
   // Modals state
@@ -87,7 +87,7 @@ export default function AdminDiscounts() {
     try {
       const query = new URLSearchParams({
         search,
-        archived: showArchived ? 'true' : 'false',
+        archived: activeTab === 'archived' ? 'true' : 'false',
         lookups: isInitial ? 'true' : 'false'
       }).toString();
       const res = await fetch(`/api/admin/discounts?${query}`);
@@ -111,14 +111,14 @@ export default function AdminDiscounts() {
 
   useEffect(() => {
     fetchData(false, true);
-  }, [search, showArchived]);
+  }, [search, activeTab]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData(true, false);
     }, 5000);
     return () => clearInterval(interval);
-  }, [search, showArchived]);
+  }, [search, activeTab]);
 
   const handleDiscInputChange = (e) => {
     const { name, value } = e.target;
@@ -470,16 +470,24 @@ export default function AdminDiscounts() {
       <ul className="nav nav-tabs mb-3">
         <li className="nav-item">
           <button
-            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(false)}
+            className={`nav-link fw-semibold ${activeTab === 'active_discounts' ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setActiveTab('active_discounts')}
           >
-            🏷️ Active Discounts &amp; Promos
+            🏷️ Active Discounts
           </button>
         </li>
         <li className="nav-item">
           <button
-            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(true)}
+            className={`nav-link fw-semibold ${activeTab === 'active_promos' ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setActiveTab('active_promos')}
+          >
+            🔥 Active Promos
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link fw-semibold ${activeTab === 'archived' ? 'active text-blue' : 'text-muted'}`}
+            onClick={() => setActiveTab('archived')}
           >
             📦 Archived Discounts &amp; Promos
           </button>
@@ -515,129 +523,133 @@ export default function AdminDiscounts() {
       ) : (
         <>
           {/* Discounts Section */}
-          <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-            <h4 className="mb-3 text-blue">🏷 Discounts</h4>
-            <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <table className="table align-middle">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Eligibility</th>
-                    <th>%</th>
-                    <th>Req. Bookings</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {discounts.length === 0 ? (
+          {(activeTab === 'active_discounts' || activeTab === 'archived') && (
+            <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Discounts' : '🏷 Active Discounts'}</h4>
+              <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <table className="table align-middle">
+                  <thead>
                     <tr>
-                      <td colSpan="6" className="text-center text-muted py-3">
-                        No discounts configured.
-                      </td>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Eligibility</th>
+                      <th>%</th>
+                      <th>Req. Bookings</th>
+                      <th>Actions</th>
                     </tr>
-                  ) : (
-                    discounts.map((d) => (
-                      <tr key={d.discountID}>
-                        <td>
-                          <strong>{d.name}</strong>
-                          <br />
-                          <small className="text-muted">{d.description}</small>
-                        </td>
-                        <td>{d.discType}</td>
-                        <td>{d.eligibility}</td>
-                        <td>
-                          <span className="badge text-bg-success">{d.percentage}%</span>
-                        </td>
-                        <td>{d.requiredBookings > 0 ? `${d.requiredBookings} stays` : '—'}</td>
-                        <td>
-                          <ActionButtons
-                            onEdit={!showArchived ? () => openEditDiscModal(d) : null}
-                            onDelete={!showArchived ? () => handleArchiveDisc(d.discountID) : null}
-                            onRestore={showArchived ? () => handleRestoreDisc(d.discountID) : null}
-                          />
+                  </thead>
+                  <tbody>
+                    {discounts.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="text-center text-muted py-3">
+                          No discounts found.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Promotions Section */}
-          <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-            <h4 className="mb-3 text-blue">🔥 Promotions</h4>
-            <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <table className="table align-middle">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>%</th>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Applicability</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {promotions.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="text-center text-muted py-3">
-                        No promotions configured.
-                      </td>
-                    </tr>
-                  ) : (
-                    promotions.map((p) => {
-                      const active = isPromoActive(p.startDate, p.endDate);
-                      return (
-                        <tr key={p.promotionID}>
+                    ) : (
+                      discounts.map((d) => (
+                        <tr key={d.discountID}>
                           <td>
-                            <strong>{p.name}</strong>
+                            <strong>{d.name}</strong>
                             <br />
-                            <small className="text-muted">{p.description}</small>
+                            <small className="text-muted">{d.description}</small>
                           </td>
+                          <td>{d.discType}</td>
+                          <td>{d.eligibility}</td>
                           <td>
-                            <span className="badge text-bg-success">{p.percentage}%</span>
+                            <span className="badge text-bg-success">{d.percentage}%</span>
                           </td>
-                          <td>
-                            {new Date(p.startDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </td>
-                          <td>
-                            {new Date(p.endDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </td>
-                          <td>{p.roomNumber ? `Room ${p.roomNumber}` : p.roomTypeName ? `Room Type: ${p.roomTypeName}` : 'All Rooms'}</td>
-                          <td>
-                            {active ? (
-                              <span className="badge text-bg-success">Active</span>
-                            ) : (
-                              <span className="badge text-bg-secondary">Inactive</span>
-                            )}
-                          </td>
+                          <td>{d.requiredBookings > 0 ? `${d.requiredBookings} stays` : '—'}</td>
                           <td>
                             <ActionButtons
-                              onEdit={!showArchived ? () => openEditPromoModal(p) : null}
-                              onDelete={!showArchived ? () => handleArchivePromo(p.promotionID) : null}
-                              onRestore={showArchived ? () => handleRestorePromo(p.promotionID) : null}
+                              onEdit={activeTab !== 'archived' ? () => openEditDiscModal(d) : null}
+                              onDelete={activeTab !== 'archived' ? () => handleArchiveDisc(d.discountID) : null}
+                              onRestore={activeTab === 'archived' ? () => handleRestoreDisc(d.discountID) : null}
                             />
                           </td>
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Promotions Section */}
+          {(activeTab === 'active_promos' || activeTab === 'archived') && (
+            <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Promos' : '🔥 Active Promotions'}</h4>
+              <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <table className="table align-middle">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>%</th>
+                      <th>Start</th>
+                      <th>End</th>
+                      <th>Applicability</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {promotions.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="text-center text-muted py-3">
+                          No promotions found.
+                        </td>
+                      </tr>
+                    ) : (
+                      promotions.map((p) => {
+                        const active = isPromoActive(p.startDate, p.endDate);
+                        return (
+                          <tr key={p.promotionID}>
+                            <td>
+                              <strong>{p.name}</strong>
+                              <br />
+                              <small className="text-muted">{p.description}</small>
+                            </td>
+                            <td>
+                              <span className="badge text-bg-success">{p.percentage}%</span>
+                            </td>
+                            <td>
+                              {new Date(p.startDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </td>
+                            <td>
+                              {new Date(p.endDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </td>
+                            <td>{p.roomNumber ? `Room ${p.roomNumber}` : p.roomTypeName ? `Room Type: ${p.roomTypeName}` : 'All Rooms'}</td>
+                            <td>
+                              {active ? (
+                                <span className="badge text-bg-success">Active</span>
+                              ) : (
+                                <span className="badge text-bg-secondary">Inactive</span>
+                              )}
+                            </td>
+                            <td>
+                              <ActionButtons
+                                onEdit={activeTab !== 'archived' ? () => openEditPromoModal(p) : null}
+                                onDelete={activeTab !== 'archived' ? () => handleArchivePromo(p.promotionID) : null}
+                                onRestore={activeTab === 'archived' ? () => handleRestorePromo(p.promotionID) : null}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
 
