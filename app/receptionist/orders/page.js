@@ -308,7 +308,7 @@ export default function ReceptionistOrders() {
             </div>
           </div>
           <div className="card-body p-0">
-            <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+            <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
               <table className="table align-middle mb-0">
                 <thead className="table-light">
                   <tr>

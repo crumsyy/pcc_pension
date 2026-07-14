@@ -290,7 +290,7 @@ export default function ReceptionistBilling() {
             </div>
           </div>
         ) : billDetails ? (
-          <div className="row g-4" style={{ maxHeight: 'calc(100vh - 350px)', overflowY: 'auto' }}>
+          <div className="row g-4">
             {/* Statement details */}
             <div className="col-lg-8">
               <div className="card shadow-sm border-0 mb-4" style={{ borderRadius: '8px' }}>
@@ -300,7 +300,7 @@ export default function ReceptionistBilling() {
                     Room {billDetails.booking.roomNumber}
                   </span>
                 </div>
-                <div className="card-body p-4">
+                <div className="card-body p-4" style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
                   {/* Guest and stay details */}
                   <div className="row mb-4 bg-light p-3 rounded g-2" style={{ fontSize: '0.9rem' }}>
                     <div className="col-md-6">
@@ -606,7 +606,7 @@ export default function ReceptionistBilling() {
                 <div className="card-header bg-white border-0 py-3 border-bottom">
                   <h5 className="fw-bold mb-0 text-dark">Payment Summary</h5>
                 </div>
-                <div className="card-body p-4">
+                <div className="card-body p-4" style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Room Rent:</span>
                     <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</span>

@@ -113,8 +113,7 @@ function PaymentsClient() {
     fetchInitialData();
   }, []);
 
-  const handleBookingChange = (e) => {
-    const bID = e.target.value;
+  const handleBookingChange = (bID) => {
     setSelectedBookingID(bID);
     setPaymentForm(prev => ({
       ...prev,
@@ -226,7 +225,7 @@ function PaymentsClient() {
           </div>
         </div>
 
-        <div className="row g-4" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+        <div className="row g-4">
           {/* Left Checkout form */}
           <div className="col-lg-6">
             <div className="card shadow-sm border-0" style={{ borderRadius: '8px' }}>
@@ -234,7 +233,7 @@ function PaymentsClient() {
                 <h5 className="fw-bold mb-0 text-dark">Checkout Terminal</h5>
               </div>
               <form onSubmit={handleProcessPayment}>
-                <div className="card-body p-4">
+                <div className="card-body p-4" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
                   <div className="mb-3">
                     <label className="form-label fw-semibold">Select Checked-In Guest *</label>
                     {loading ? (
@@ -315,7 +314,7 @@ function PaymentsClient() {
               <div className="card-header bg-white border-0 py-3 border-bottom">
                 <h5 className="fw-bold mb-0 text-dark">Checkout Calculations</h5>
               </div>
-              <div className="card-body p-4 d-flex flex-column justify-content-between">
+              <div className="card-body p-4 d-flex flex-column justify-content-between" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
                 {loadingBill ? (
                   <div className="text-center py-5">
                     <div className="spinner-border text-pcc-primary" role="status">
