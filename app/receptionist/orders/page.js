@@ -4,74 +4,6 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
 
-function Combobox({ options, value, onChange, placeholder, disabled }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-
-  useEffect(() => {
-    const selected = options.find(o => o.idAndType === value);
-    setInputValue(selected ? selected.displayName : '');
-  }, [value, options]);
-
-  const filtered = options.filter(opt =>
-    opt.displayName.toLowerCase().includes(inputValue.toLowerCase())
-  );
-
-  return (
-    <div className="position-relative w-100">
-      <input
-        type="text"
-        className="form-control"
-        placeholder={placeholder}
-        value={inputValue}
-        disabled={disabled}
-        onChange={(e) => {
-          setInputValue(e.target.value);
-          setIsOpen(true);
-          const match = options.find(o => o.displayName.toLowerCase() === e.target.value.toLowerCase());
-          if (match) {
-            onChange(match);
-          } else {
-            onChange(null);
-          }
-        }}
-        onFocus={() => setIsOpen(true)}
-        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-      />
-      {isOpen && (
-        <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
-          {filtered.map(opt => (
-            <li key={opt.idAndType}>
-              <button
-                type="button"
-                className="dropdown-item btn-sm text-start py-1"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setInputValue(opt.displayName);
-                  setIsOpen(false);
-                  onChange(opt);
-                }}
-              >
-                <div className="d-flex justify-content-between align-items-center">
-                  <span><strong>{opt.displayName}</strong></span>
-                  <span className="badge text-bg-light border text-muted small">{opt.type}</span>
-                </div>
-                <div className="small text-muted" style={{ fontSize: '0.72rem' }}>
-                  Price: ₱{opt.price} | {opt.productCategoryID === 3 ? 'Prepared on Order' : `Stock: ${opt.quantity} left`}
-                </div>
-              </button>
-            </li>
-          ))}
-          {filtered.length === 0 && (
-            <li className="p-2 text-center text-muted small">
-              No matching items found.
-            </li>
-          )}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 export default function ReceptionistOrders() {
   const [orders, setOrders] = useState([]);
@@ -494,11 +426,14 @@ export default function ReceptionistOrders() {
                   <div className="row g-2 mb-3 bg-light p-3 border rounded">
                     <div className="col-md-7">
                       <label className="form-label fw-semibold">Select Item to Add</label>
-                      <Combobox
-                        options={comboboxOptions}
+                      <SearchableSelect
+                        options={comboboxOptions.map(opt => ({
+                          value: opt.idAndType,
+                          label: `${opt.displayName} (₱${opt.price} | ${opt.productCategoryID === 3 ? 'Prepared' : `Stock: ${opt.quantity}`})`
+                        }))}
                         value={selectedItemToAdd.idAndType}
+                        onChange={(val) => setSelectedItemToAdd(prev => ({ ...prev, idAndType: val }))}
                         placeholder="Type to search product or amenity..."
-                        onChange={(opt) => setSelectedItemToAdd(prev => ({ ...prev, idAndType: opt ? opt.idAndType : '' }))}
                       />
                     </div>
                     <div className="col-md-3">

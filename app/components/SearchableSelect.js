@@ -4,32 +4,40 @@ import { useState, useEffect, useRef } from 'react';
 
 export default function SearchableSelect({ options, value, onChange, placeholder, disabled, emptyLabel = "No matches found" }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef(null);
 
+  // Find currently selected option
+  const selectedOption = options.find(o => String(o.value) === String(value));
+
+  // Determine display value
+  const displayValue = isOpen ? searchTerm : (selectedOption ? selectedOption.label : '');
+
+  // Keep search term synced with value updates
   useEffect(() => {
-    const selected = options.find(o => String(o.value) === String(value));
-    setInputValue(selected ? selected.label : '');
+    if (selectedOption) {
+      setSearchTerm(selectedOption.label);
+    } else {
+      setSearchTerm('');
+    }
   }, [value, options]);
 
-  // Close dropdown when clicking outside
+  // Click outside to close
   useEffect(() => {
     function handleClickOutside(event) {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         setIsOpen(false);
-        // Reset input value to match the selected option
-        const selected = options.find(o => String(o.value) === String(value));
-        setInputValue(selected ? selected.label : '');
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [value, options]);
+  }, []);
 
+  // Filter based on typed searchTerm
   const filtered = options.filter(opt =>
-    opt.label.toLowerCase().includes(inputValue.toLowerCase())
+    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -38,19 +46,20 @@ export default function SearchableSelect({ options, value, onChange, placeholder
         type="text"
         className="form-control"
         placeholder={placeholder}
-        value={inputValue}
+        value={displayValue}
         disabled={disabled}
         onChange={(e) => {
-          setInputValue(e.target.value);
+          setSearchTerm(e.target.value);
           setIsOpen(true);
           const match = options.find(o => o.label.toLowerCase() === e.target.value.toLowerCase());
           if (match) {
             onChange(match.value);
-          } else {
-            onChange('');
           }
         }}
-        onFocus={() => setIsOpen(true)}
+        onFocus={() => {
+          setSearchTerm(selectedOption ? selectedOption.label : '');
+          setIsOpen(true);
+        }}
         style={{ borderRadius: '6px' }}
       />
       {isOpen && (
@@ -62,9 +71,9 @@ export default function SearchableSelect({ options, value, onChange, placeholder
                 className={`dropdown-item btn-sm text-start py-2 ${String(opt.value) === String(value) ? 'active bg-primary text-white' : ''}`}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  setInputValue(opt.label);
-                  setIsOpen(false);
                   onChange(opt.value);
+                  setSearchTerm(opt.label);
+                  setIsOpen(false);
                 }}
               >
                 {opt.label}

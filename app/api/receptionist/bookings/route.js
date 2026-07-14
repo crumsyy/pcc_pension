@@ -8,6 +8,16 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('discountsOnly') === 'true') {
+    try {
+      const discounts = await dbQuery("SELECT discountID, name, percentage FROM discounts WHERE eligibilityTypeID = 1 AND isArchived = 0");
+      return NextResponse.json({ discounts });
+    } catch (error) {
+      return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
+    }
+  }
+
   await syncRoomStatuses();
 
   try {

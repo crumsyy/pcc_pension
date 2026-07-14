@@ -746,7 +746,7 @@ function BookingsClient() {
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
                         {b.status !== 'Cancelled' && b.status !== 'Checked Out' && b.status !== 'No Show' && (
-                          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                          <button className="btn btn-sm btn-secondary text-white" onClick={() => {
                             setManagingBooking(b);
                             setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
                             setActiveModal('manage_guests');
@@ -755,7 +755,7 @@ function BookingsClient() {
                           </button>
                         )}
                         {b.status === 'Pending Check-in' && (
-                          <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => handleCheckIn(b.bookingID)}>
+                          <button className="btn btn-sm btn-primary text-white" onClick={() => handleCheckIn(b.bookingID)}>
                             Check In
                           </button>
                         )}
@@ -766,16 +766,16 @@ function BookingsClient() {
                         )}
                         {b.status === 'Pending Check-in' && (
                           <>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => openCancelModal(b.bookingID)}>
+                            <button className="btn btn-sm btn-danger text-white" onClick={() => openCancelModal(b.bookingID)}>
                               Cancel
                             </button>
-                            <button className="btn btn-sm btn-outline-warning" onClick={() => handleNoShow(b.bookingID)}>
+                            <button className="btn btn-sm btn-warning text-dark" onClick={() => handleNoShow(b.bookingID)}>
                               No Show
                             </button>
                           </>
                         )}
                         {b.status === 'Cancelled' && (
-                          <button className="btn btn-sm btn-pcc-outline d-flex align-items-center gap-1" onClick={() => handleRebook(b)}>
+                          <button className="btn btn-sm btn-info text-white d-flex align-items-center gap-1" onClick={() => handleRebook(b)}>
                             <span>🔄</span> Rebook
                           </button>
                         )}

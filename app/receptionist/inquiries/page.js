@@ -78,7 +78,8 @@ export default function ReceptionistInquiries() {
 
   const fetchDiscounts = async () => {
     try {
-      const res = await fetch('/api/receptionist/bookings');
+      // Use lightweight endpoint to prevent slow load times
+      const res = await fetch('/api/receptionist/bookings?discountsOnly=true');
       const data = await res.json();
       if (data.discounts) {
         setDiscounts(data.discounts);
@@ -148,44 +149,99 @@ export default function ReceptionistInquiries() {
     }
   };
 
-  const filteredInquiries = inquiries.filter(inq => 
-    inq.name.toLowerCase().includes(search.toLowerCase()) ||
-    inq.email.toLowerCase().includes(search.toLowerCase()) ||
-    inq.message.toLowerCase().includes(search.toLowerCase())
-  );
-
-  // Quotation calculation details
-  const selectedRoom = availRooms.find(r => r.roomID === parseInt(quoteGuest.roomID));
-  const nights = Math.ceil((new Date(availForm.checkOut) - new Date(availForm.checkIn)) / (1000 * 60 * 60 * 24)) || 1;
-  const rate = selectedRoom ? parseFloat(selectedRoom.rate || 0) : 0;
-  const originalRoomCharge = rate * nights;
-
-  const selectedDisc = discounts.find(d => d.discountID === parseInt(quoteGuest.discountID));
-  const discountPercentage = selectedDisc ? parseFloat(selectedDisc.percentage) : 0;
-  
-  // Down payment 50%
-  const individualShare = originalRoomCharge / parseInt(quoteGuest.numGuests || 1);
-  const discountVal = individualShare * (discountPercentage / 100);
-  const totalDiscount = discountVal; // only applying to 1 guest share in quote preview
-  const netRoomCharge = originalRoomCharge - totalDiscount;
-  const downPaymentRequired = netRoomCharge * 0.50;
-
   const handleCreateBookingRedirect = () => {
-    if (!quoteGuest.roomID) return;
-    const url = `/receptionist/bookings?action=new&checkIn=${availForm.checkIn}&checkOut=${availForm.checkOut}&roomID=${quoteGuest.roomID}&firstName=${encodeURIComponent(quoteGuest.firstName)}&lastName=${encodeURIComponent(quoteGuest.lastName)}&email=${encodeURIComponent(quoteGuest.email)}&contact=${encodeURIComponent(quoteGuest.contact)}&discountID=${quoteGuest.discountID}&breakfast=${encodeURIComponent(availForm.breakfast)}`;
-    window.location.href = url;
+    const selectedRoom = availRooms.find(r => String(r.roomID) === quoteGuest.roomID);
+    if (!selectedRoom) return;
+
+    const query = new URLSearchParams({
+      firstName: quoteGuest.firstName,
+      lastName: quoteGuest.lastName,
+      email: quoteGuest.email,
+      contact: quoteGuest.contact,
+      roomID: quoteGuest.roomID,
+      roomType: selectedRoom.roomType,
+      discountID: quoteGuest.discountID,
+      checkIn: availForm.checkIn,
+      checkOut: availForm.checkOut
+    }).toString();
+
+    window.location.href = `/receptionist/bookings?${query}`;
   };
 
   const handleCreateReservationRedirect = () => {
-    if (!quoteGuest.roomID) return;
-    const url = `/receptionist/reservations?action=new&checkIn=${availForm.checkIn}&checkOut=${availForm.checkOut}&roomID=${quoteGuest.roomID}&firstName=${encodeURIComponent(quoteGuest.firstName)}&lastName=${encodeURIComponent(quoteGuest.lastName)}&email=${encodeURIComponent(quoteGuest.email)}&contact=${encodeURIComponent(quoteGuest.contact)}&discountID=${quoteGuest.discountID}&breakfast=${encodeURIComponent(availForm.breakfast)}`;
-    window.location.href = url;
+    const selectedRoom = availRooms.find(r => String(r.roomID) === quoteGuest.roomID);
+    if (!selectedRoom) return;
+
+    const query = new URLSearchParams({
+      firstName: quoteGuest.firstName,
+      lastName: quoteGuest.lastName,
+      email: quoteGuest.email,
+      contact: quoteGuest.contact,
+      roomID: quoteGuest.roomID,
+      roomType: selectedRoom.roomType,
+      checkIn: availForm.checkIn,
+      checkOut: availForm.checkOut
+    }).toString();
+
+    window.location.href = `/receptionist/reservations?${query}`;
   };
+
+  // Messenger avatar helper functions
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  };
+
+  const getAvatarColor = (name) => {
+    const colors = ['#0d6efd', '#198754', '#dc3545', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14'];
+    if (!name) return colors[0];
+    let sum = 0;
+    for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
+    return colors[sum % colors.length];
+  };
+
+  // Calculations for quotation preview
+  const selectedRoom = availRooms.find(r => String(r.roomID) === quoteGuest.roomID);
+  let nights = 0;
+  let rate = 0;
+  let originalRoomCharge = 0;
+  let totalDiscount = 0;
+  let netRoomCharge = 0;
+  let downPaymentRequired = 0;
+
+  if (selectedRoom) {
+    const cIn = new Date(availForm.checkIn);
+    const cOut = new Date(availForm.checkOut);
+    const diffTime = Math.abs(cOut - cIn);
+    nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+    rate = parseFloat(selectedRoom.rate);
+    originalRoomCharge = rate * nights;
+
+    const selectedDiscount = discounts.find(d => String(d.discountID) === quoteGuest.discountID);
+    if (selectedDiscount) {
+      totalDiscount = originalRoomCharge * (parseFloat(selectedDiscount.percentage) / 100);
+    }
+    netRoomCharge = originalRoomCharge - totalDiscount;
+    downPaymentRequired = netRoomCharge * 0.5; // 50% downpayment quote
+  }
+
+  // Filter inquiries
+  const filteredInquiries = inquiries.filter(inq => {
+    const matchesSearch = 
+      (inq.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (inq.email || '').toLowerCase().includes(search.toLowerCase()) ||
+      (inq.message || '').toLowerCase().includes(search.toLowerCase());
+    return matchesSearch;
+  });
 
   return (
     <>
       <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '85vh' }}>
-        <div className="d-flex justify-content-between align-items-center mb-3">
+        <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Guest Inquiries & Quotation Desk</h2>
             <p className="text-muted mb-0">Respond to message submissions or calculate stay quotations and schedule bookings.</p>
@@ -217,9 +273,10 @@ export default function ReceptionistInquiries() {
         {activeTab === 'inbox' ? (
           <div className="row g-4 animate__animated animate__fadeIn">
             {/* List Sidebar */}
-            <div className="col-md-5 col-lg-4">
-              <div className="card shadow-sm border-0" style={{ borderRadius: '8px', height: '650px', display: 'flex', flexDirection: 'column' }}>
-                <div className="card-header bg-white py-3 border-0">
+            <div className="col-md-4">
+              <div className="card shadow-sm border-0" style={{ borderRadius: '8px', height: '650px', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
+                <div className="card-header bg-white py-3 border-0 border-bottom">
+                  <h5 className="fw-bold mb-3 text-dark">Conversations</h5>
                   <input
                     type="text"
                     className="form-control"
@@ -229,129 +286,190 @@ export default function ReceptionistInquiries() {
                     style={{ borderRadius: '20px', paddingLeft: '15px' }}
                   />
                 </div>
-                <div className="card-body p-0 overflow-auto" style={{ flex: 1 }}>
+                <div className="card-body p-0 overflow-auto flex-grow-1" style={{ maxHeight: '550px' }}>
                   {loading ? (
                     <div className="text-center py-5">
-                      <div className="spinner-border text-pcc-primary" role="status">
+                      <div className="spinner-border text-primary" role="status">
                         <span className="visually-hidden">Loading...</span>
                       </div>
                     </div>
                   ) : filteredInquiries.length === 0 ? (
                     <div className="text-center py-5 text-muted">
-                      <p className="mb-0">No inquiries found.</p>
+                      <p className="mb-0">No conversations found.</p>
                     </div>
                   ) : (
                     <div className="list-group list-group-flush">
-                      {filteredInquiries.map(inq => (
-                        <button
-                          key={inq.inquiryID}
-                          onClick={() => {
-                            setSelectedInquiry(inq);
-                            setReplyText('');
-                          }}
-                          className={`list-group-item list-group-item-action p-3 text-start border-0 border-bottom ${selectedInquiry?.inquiryID === inq.inquiryID ? 'bg-light border-start border-primary border-4' : ''}`}
-                          style={{ transition: 'all 0.2s' }}
-                        >
-                          <div className="d-flex justify-content-between align-items-center mb-1">
-                            <span className="fw-bold text-dark">{inq.name}</span>
-                            <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                              {new Date(inq.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            </span>
-                          </div>
-                          <div className="mb-2 text-truncate text-muted" style={{ fontSize: '0.85rem' }}>
-                            {inq.message}
-                          </div>
-                          <div className="d-flex gap-1 flex-wrap">
-                            <span className={`badge px-2 py-1 rounded-pill ${inq.status === 'Responded' ? 'bg-success text-white' : 'bg-warning text-dark'}`} style={{ fontSize: '0.7rem' }}>
-                              {inq.status}
-                            </span>
-                            {inq.isChatbotForwarded === 1 && (
-                              <span className="badge bg-info text-white px-2 py-1 rounded-pill" style={{ fontSize: '0.7rem' }}>
-                                🤖 Chatbot
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                      {filteredInquiries.map(inq => {
+                        const initials = getInitials(inq.name);
+                        const avatarColor = getAvatarColor(inq.name);
+                        const isSelected = selectedInquiry?.inquiryID === inq.inquiryID;
+                        return (
+                          <button
+                            key={inq.inquiryID}
+                            onClick={() => {
+                              setSelectedInquiry(inq);
+                              setReplyText('');
+                            }}
+                            className={`list-group-item list-group-item-action d-flex align-items-center gap-3 p-3 border-0 border-bottom ${isSelected ? 'bg-light border-start border-primary border-4' : ''}`}
+                            style={{ transition: 'all 0.2s', borderLeft: isSelected ? '4px solid #0d6efd !important' : 'none' }}
+                          >
+                            <div 
+                              className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
+                              style={{ width: '42px', height: '42px', backgroundColor: avatarColor, minWidth: '42px', fontSize: '0.9rem' }}
+                            >
+                              {initials}
+                            </div>
+                            <div className="flex-grow-1 min-w-0">
+                              <div className="d-flex justify-content-between align-items-baseline">
+                                <h6 className={`mb-1 text-truncate ${inq.status === 'Pending' ? 'fw-bold text-dark' : 'text-secondary'}`} style={{ fontSize: '0.9rem' }}>
+                                  {inq.name}
+                                </h6>
+                                <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                  {new Date(inq.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                </small>
+                              </div>
+                              <div className="text-truncate text-muted small" style={{ fontSize: '0.78rem' }}>
+                                {inq.message}
+                              </div>
+                              <div className="d-flex gap-1 mt-1">
+                                <span className={`badge rounded-pill ${inq.status === 'Responded' ? 'bg-success text-white' : 'bg-warning text-dark'}`} style={{ fontSize: '0.65rem' }}>
+                                  {inq.status}
+                                </span>
+                                {inq.isChatbotForwarded === 1 && (
+                                  <span className="badge bg-info text-white rounded-pill" style={{ fontSize: '0.65rem' }}>
+                                    🤖 Chatbot
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Details Panel */}
-            <div className="col-md-7 col-lg-8">
-              <div className="card shadow-sm border-0 h-100" style={{ borderRadius: '8px', minHeight: '650px', display: 'flex', flexDirection: 'column' }}>
+            {/* Details Panel / Messenger Chat Box */}
+            <div className="col-md-8">
+              <div className="card shadow-sm border-0" style={{ borderRadius: '8px', height: '650px', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
                 {selectedInquiry ? (
                   <>
-                    <div className="card-header bg-white border-0 py-3 px-4 border-bottom">
-                      <div className="d-flex justify-content-between align-items-center">
+                    {/* Chat Header */}
+                    <div className="card-header bg-white border-0 py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+                      <div className="d-flex align-items-center gap-3">
+                        <div 
+                          className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
+                          style={{ width: '48px', height: '48px', backgroundColor: getAvatarColor(selectedInquiry.name), fontSize: '1rem' }}
+                        >
+                          {getInitials(selectedInquiry.name)}
+                        </div>
                         <div>
-                          <h4 className="fw-bold mb-0 text-dark">{selectedInquiry.name}</h4>
-                          <span className="text-muted" style={{ fontSize: '0.88rem' }}>{selectedInquiry.email}</span>
+                          <h5 className="fw-bold mb-1 text-dark">{selectedInquiry.name}</h5>
+                          <div className="text-muted small" style={{ fontSize: '0.8rem' }}>
+                            {selectedInquiry.email} {selectedInquiry.contact ? `• ${selectedInquiry.contact}` : ''}
+                          </div>
                         </div>
-                        <div className="d-flex gap-2">
-                          {selectedInquiry.isChatbotForwarded === 1 && (
-                            <span className="badge bg-light text-info border border-info px-3 py-2 rounded">
-                              Forwarded by Chatbot
-                            </span>
-                          )}
-                          <span className={`badge px-3 py-2 rounded ${selectedInquiry.status === 'Responded' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}`} style={{ border: '1px solid currentColor' }}>
-                            {selectedInquiry.status}
-                          </span>
-                        </div>
+                      </div>
+                      <div className="d-flex gap-2">
+                        {/* Pre-fill booking link */}
+                        <a 
+                          href={`/receptionist/bookings?firstName=${encodeURIComponent(selectedInquiry.name.split(' ')[0] || '')}&lastName=${encodeURIComponent(selectedInquiry.name.split(' ').slice(1).join(' ') || '')}&email=${encodeURIComponent(selectedInquiry.email || '')}&contact=${encodeURIComponent(selectedInquiry.contact || '')}`}
+                          className="btn btn-primary text-white px-3 py-2 fw-semibold"
+                        >
+                          💸 Book Stay
+                        </a>
+                        <a 
+                          href={`/receptionist/reservations?firstName=${encodeURIComponent(selectedInquiry.name.split(' ')[0] || '')}&lastName=${encodeURIComponent(selectedInquiry.name.split(' ').slice(1).join(' ') || '')}&email=${encodeURIComponent(selectedInquiry.email || '')}&contact=${encodeURIComponent(selectedInquiry.contact || '')}`}
+                          className="btn btn-success text-white px-3 py-2 fw-semibold"
+                        >
+                          📅 Reserve Stay
+                        </a>
                       </div>
                     </div>
 
-                    <div className="card-body p-4 overflow-auto" style={{ flex: 1 }}>
-                      <div className="p-3 mb-4 rounded border-0 bg-light" style={{ borderLeft: '4px solid var(--pcc-blue)', background: '#f1f3f5' }}>
-                        <h6 className="fw-bold mb-2">Message:</h6>
-                        <p className="mb-0 text-dark" style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>
-                          {selectedInquiry.message}
-                        </p>
-                        <div className="text-end text-muted mt-2" style={{ fontSize: '0.78rem' }}>
-                          Received: {new Date(selectedInquiry.createdAt).toLocaleString()}
+                    {/* Chat Message History Thread */}
+                    <div className="card-body p-4 overflow-auto flex-grow-1 d-flex flex-column gap-3 bg-light" style={{ maxHeight: '420px' }}>
+                      
+                      {/* Date Separator */}
+                      <div className="text-center my-2">
+                        <span className="badge bg-secondary-subtle text-secondary px-3 py-1 rounded-pill" style={{ fontSize: '0.72rem' }}>
+                          Inquiry Received on {new Date(selectedInquiry.createdAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
+                        </span>
+                      </div>
+
+                      {/* Guest Inquiry Message bubble (Left side) */}
+                      <div className="d-flex align-items-start gap-2 max-w-75 align-self-start">
+                        <div 
+                          className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
+                          style={{ width: '32px', height: '32px', backgroundColor: getAvatarColor(selectedInquiry.name), minWidth: '32px', fontSize: '0.75rem' }}
+                        >
+                          {getInitials(selectedInquiry.name)}
+                        </div>
+                        <div>
+                          <div className="p-3 bg-white text-dark shadow-xs border" style={{ borderRadius: '4px 18px 18px 18px', maxWidth: '100%', wordBreak: 'break-word' }}>
+                            <p className="mb-0" style={{ whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                              {selectedInquiry.message}
+                            </p>
+                          </div>
+                          <small className="text-muted ms-2 mt-1 d-block" style={{ fontSize: '0.7rem' }}>
+                            {new Date(selectedInquiry.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                          </small>
                         </div>
                       </div>
 
-                      {selectedInquiry.response && (
-                        <div className="p-3 mb-4 rounded bg-success-subtle text-success border border-success-subtle">
-                          <h6 className="fw-bold mb-2">Submitted Response:</h6>
-                          <p className="mb-0 text-dark" style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>
-                            {selectedInquiry.response}
-                          </p>
+                      {/* Forwarded by Chatbot notice */}
+                      {selectedInquiry.isChatbotForwarded === 1 && (
+                        <div className="text-center my-1 align-self-center">
+                          <span className="badge bg-info-subtle text-info border border-info-subtle px-3 py-1 rounded">
+                            🤖 Forwarded from PCC Virtual Chatbot Assistant
+                          </span>
                         </div>
                       )}
 
-                      <form onSubmit={handleReplySubmit}>
-                        <div className="mb-3">
-                          <label className="form-label fw-bold text-dark">
-                            {selectedInquiry.status === 'Responded' ? 'Send Another Response:' : 'Reply Response:'}
-                          </label>
-                          <textarea
-                            className="form-control"
-                            rows="6"
-                            placeholder="Type your response to the guest..."
-                            required
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            style={{ borderRadius: '6px' }}
-                          ></textarea>
+                      {/* Receptionist Response message bubble (Right side) */}
+                      {selectedInquiry.response && (
+                        <div className="d-flex align-items-end gap-2 max-w-75 align-self-end text-end">
+                          <div>
+                            <div className="p-3 bg-primary text-white shadow-xs" style={{ borderRadius: '18px 4px 18px 18px', textAlign: 'left', wordBreak: 'break-word' }}>
+                              <p className="mb-0" style={{ whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                {selectedInquiry.response}
+                              </p>
+                            </div>
+                            <small className="text-muted me-2 mt-1 d-block" style={{ fontSize: '0.7rem' }}>
+                              ✓✓ Sent • {selectedInquiry.responseCreatedAt ? new Date(selectedInquiry.responseCreatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : 'Responded'}
+                            </small>
+                          </div>
                         </div>
-                        <div className="text-end">
-                          <button type="submit" className="btn btn-pcc-primary text-white px-4">
-                            Send Response
-                          </button>
-                        </div>
+                      )}
+
+                    </div>
+
+                    {/* Chat Input Footer Form */}
+                    <div className="card-footer bg-white border-0 p-3 border-top">
+                      <form onSubmit={handleReplySubmit} className="d-flex gap-2">
+                        <textarea
+                          className="form-control flex-grow-1"
+                          rows="2"
+                          placeholder={selectedInquiry.status === 'Responded' ? "Type another response to the guest..." : "Type your response to reply..."}
+                          required
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          style={{ borderRadius: '12px', resize: 'none', padding: '10px 15px' }}
+                        ></textarea>
+                        <button type="submit" className="btn btn-primary text-white px-4 d-flex align-items-center justify-content-center fw-bold" style={{ borderRadius: '12px', minWidth: '120px' }}>
+                          Send ✉
+                        </button>
                       </form>
                     </div>
                   </>
                 ) : (
                   <div className="card-body d-flex align-items-center justify-content-center text-muted">
                     <div className="text-center">
-                      <span style={{ fontSize: '3rem' }}>💬</span>
-                      <h5 className="mt-3">No inquiry selected</h5>
-                      <p className="small">Select an inquiry from the inbox sidebar list to view details.</p>
+                      <span style={{ fontSize: '3.5rem' }}>💬</span>
+                      <h5 className="mt-3 fw-bold">No conversation selected</h5>
+                      <p className="small">Select a guest from the left sidebar to view message history and send replies.</p>
                     </div>
                   </div>
                 )}
@@ -413,7 +531,7 @@ export default function ReceptionistInquiries() {
                     </select>
                   </div>
 
-                  <button type="submit" className="btn btn-pcc-primary text-white w-100 py-2 fw-bold" disabled={checkingAvail}>
+                  <button type="submit" className="btn btn-primary text-white w-100 py-2 fw-bold" disabled={checkingAvail}>
                     {checkingAvail ? (
                       <span className="spinner-border spinner-border-sm me-2" role="status"></span>
                     ) : '🔍 Check Vacancy'}
@@ -558,7 +676,7 @@ export default function ReceptionistInquiries() {
                       <div className="mt-4 pt-3 border-top">
                         <button
                           type="button"
-                          className="btn btn-pcc-primary text-white w-100 mb-2 py-2 fw-bold"
+                          className="btn btn-primary text-white w-100 mb-2 py-2 fw-bold"
                           disabled={!quoteGuest.firstName || !quoteGuest.lastName}
                           onClick={handleCreateBookingRedirect}
                         >
@@ -566,7 +684,7 @@ export default function ReceptionistInquiries() {
                         </button>
                         <button
                           type="button"
-                          className="btn btn-outline-secondary w-100 py-2 fw-bold"
+                          className="btn btn-success text-white w-100 py-2 fw-bold"
                           disabled={!quoteGuest.firstName || !quoteGuest.lastName}
                           onClick={handleCreateReservationRedirect}
                         >

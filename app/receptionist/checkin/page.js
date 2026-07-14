@@ -201,7 +201,7 @@ function CheckInClient() {
                         <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType})</small>
                         <small className="text-muted d-block">Schedule: {new Date(b.checkInDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</small>
                       </div>
-                      <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => handleCheckIn(b.bookingID, b.firstName + ' ' + b.lastName)}>
+                      <button className="btn btn-sm btn-primary text-white py-1 px-3" onClick={() => handleCheckIn(b.bookingID, b.firstName + ' ' + b.lastName)}>
                         Check In
                       </button>
                     </div>
@@ -232,7 +232,7 @@ function CheckInClient() {
                         </small>
                       </div>
                       <div className="d-flex gap-2">
-                        <a href={`/receptionist/billing?bookingID=${b.bookingID}`} className="btn btn-sm btn-outline-primary py-1 px-3">
+                        <a href={`/receptionist/billing?bookingID=${b.bookingID}`} className="btn btn-sm btn-primary text-white py-1 px-3">
                           View Billing
                         </a>
                       </div>

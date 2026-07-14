@@ -367,11 +367,10 @@ export async function POST(request) {
       const { borrowID, quantityReturned, status, remarks } = body;
       const qtyRet = parseInt(quantityReturned);
 
-      const [borrowRes] = await dbQuery("SELECT * FROM borrow_transaction WHERE borrowID = ?", [parseInt(borrowID)]);
-      if (borrowRes.length === 0) {
+      const [borrow] = await dbQuery("SELECT * FROM borrow_transaction WHERE borrowID = ?", [parseInt(borrowID)]);
+      if (!borrow) {
         return NextResponse.json({ error: 'Borrow transaction not found.' }, { status: 404 });
       }
-      const borrow = borrowRes[0];
       if (borrow.status !== 'Borrowed') {
         return NextResponse.json({ error: 'This item has already been processed.' }, { status: 400 });
       }
