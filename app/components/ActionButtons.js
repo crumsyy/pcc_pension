@@ -69,7 +69,7 @@ export default function ActionButtons({
           title="View Details"
           aria-label="View Details"
         >
-          <i className="bi bi-eye"></i>
+          <i className="fa-solid fa-eye"></i>
         </button>
       )}
 
@@ -85,7 +85,7 @@ export default function ActionButtons({
           aria-label="Update"
           style={{ opacity: disabledEdit ? 0.5 : 1 }}
         >
-          <i className="bi bi-pencil-square"></i>
+          <i className="fa-solid fa-pen"></i>
         </button>
       )}
 
@@ -101,7 +101,7 @@ export default function ActionButtons({
           aria-label="Suspend Account"
           style={{ opacity: isSelf || status === 'Suspended' ? 0.5 : 1 }}
         >
-          <i className="bi bi-ban"></i>
+          <i className="fa-solid fa-user-slash"></i>
         </button>
       )}
 
@@ -117,7 +117,7 @@ export default function ActionButtons({
           aria-label="Activate"
           style={{ opacity: isSelf ? 0.5 : 1 }}
         >
-          <i className="bi bi-check-circle"></i>
+          <i className="fa-solid fa-circle-check"></i>
         </button>
       )}
 
@@ -133,7 +133,7 @@ export default function ActionButtons({
           aria-label="Deactivate"
           style={{ opacity: isSelf ? 0.5 : 1 }}
         >
-          <i className="bi bi-x-circle"></i>
+          <i className="fa-solid fa-circle-xmark"></i>
         </button>
       )}
 
@@ -147,7 +147,7 @@ export default function ActionButtons({
           title="Approve Purchase Order"
           aria-label="Approve Purchase Order"
         >
-          <i className="bi bi-check-circle"></i>
+          <i className="fa-solid fa-circle-check"></i>
         </button>
       )}
 
@@ -161,7 +161,7 @@ export default function ActionButtons({
           title="Cancel Purchase Order"
           aria-label="Cancel Purchase Order"
         >
-          <i className="bi bi-ban"></i>
+          <i className="fa-solid fa-ban"></i>
         </button>
       )}
 
@@ -175,7 +175,7 @@ export default function ActionButtons({
           title="Receive Stock In"
           aria-label="Receive Stock In"
         >
-          <i className="bi bi-box-seam"></i>
+          <i className="fa-solid fa-box-archive"></i>
         </button>
       )}
 
@@ -189,7 +189,7 @@ export default function ActionButtons({
           title="Create Purchase Order"
           aria-label="Create Purchase Order"
         >
-          <i className="bi bi-file-earmark-plus"></i>
+          <i className="fa-solid fa-file-circle-plus"></i>
         </button>
       )}
 
@@ -203,7 +203,7 @@ export default function ActionButtons({
           title="Delete"
           aria-label="Delete"
         >
-          <i className="bi bi-trash"></i>
+          <i className="fa-solid fa-trash"></i>
         </button>
       )}
 
@@ -217,7 +217,7 @@ export default function ActionButtons({
           title="Restore from Archive"
           aria-label="Restore from Archive"
         >
-          <i className="bi bi-arrow-counterclockwise"></i>
+          <i className="fa-solid fa-rotate-left"></i>
         </button>
       )}
     </div>

@@ -765,63 +765,63 @@ h4,
   outline-offset: 2px;
 }
 
-/* Colors with soft background glassmorphism styling */
+/* Solid color-filled button styling matching receptionist buttons */
 .action-btn-view {
-  background-color: rgba(33, 85, 181, 0.1);
-  color: #2155B5;
+  background-color: var(--pcc-blue, #2155B5);
+  color: #fff;
 }
 
 .action-btn-view:hover {
-  background-color: #2155B5;
+  background-color: #1a4494;
   color: #fff;
 }
 
 .action-btn-edit {
-  background-color: rgba(255, 193, 7, 0.15);
-  color: #d39e00;
-}
-
-.action-btn-edit:hover {
   background-color: #ffc107;
   color: #000;
 }
 
+.action-btn-edit:hover {
+  background-color: #e0a800;
+  color: #000;
+}
+
 .action-btn-activate {
-  background-color: rgba(63, 163, 77, 0.1);
-  color: #3fa34d;
+  background-color: #198754;
+  color: #fff;
 }
 
 .action-btn-activate:hover {
-  background-color: #3fa34d;
+  background-color: #157347;
   color: #fff;
 }
 
 .action-btn-suspend {
-  background-color: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
-}
-
-.action-btn-suspend:hover {
   background-color: #dc3545;
   color: #fff;
 }
 
-.action-btn-delete {
-  background-color: rgba(186, 26, 26, 0.1);
-  color: #ba1a1a;
+.action-btn-suspend:hover {
+  background-color: #bb2d3b;
+  color: #fff;
 }
 
-.action-btn-delete:hover {
+.action-btn-delete {
   background-color: #ba1a1a;
   color: #fff;
 }
 
+.action-btn-delete:hover {
+  background-color: #931414;
+  color: #fff;
+}
+
 .action-btn-restore {
-  background-color: rgba(13, 202, 240, 0.15);
-  color: #0b93ad;
+  background-color: #0dcaf0;
+  color: #000;
 }
 
 .action-btn-restore:hover {
-  background-color: #0dcaf0;
+  background-color: #31d2f2;
   color: #000;
 }
