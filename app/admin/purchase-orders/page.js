@@ -173,6 +173,7 @@ export default function AdminPurchaseOrders() {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch purchase orders');
 
       setOrders(data.orders || []);
+      fetchInventory();
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
