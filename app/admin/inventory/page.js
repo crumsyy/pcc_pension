@@ -8,7 +8,7 @@ import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/Dat
 
 export default function AdminInventory() {
   const router = useRouter();
-  
+
   // Data states
   const [items, setItems] = useState([]);
   const [batches, setBatches] = useState([]);
@@ -88,7 +88,7 @@ export default function AdminInventory() {
   // Client-side synchronized filters
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      const matchesSearch = !search.trim() || 
+      const matchesSearch = !search.trim() ||
         item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.category.toLowerCase().includes(search.toLowerCase());
       const matchesType = !typeFilter || item.sourceTable === typeFilter;
@@ -100,7 +100,7 @@ export default function AdminInventory() {
   const filteredBatches = useMemo(() => {
     return batches.filter(b => {
       const item = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
-      const matchesSearch = !search.trim() || 
+      const matchesSearch = !search.trim() ||
         b.itemName.toLowerCase().includes(search.toLowerCase()) ||
         b.batchNumber.toLowerCase().includes(search.toLowerCase()) ||
         (item && item.category.toLowerCase().includes(search.toLowerCase()));
@@ -113,7 +113,7 @@ export default function AdminInventory() {
   const filteredBorrowLogs = useMemo(() => {
     return borrowLogs.filter(b => {
       const item = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
-      const matchesSearch = !search.trim() || 
+      const matchesSearch = !search.trim() ||
         b.itemName.toLowerCase().includes(search.toLowerCase()) ||
         b.borrowedBy.toLowerCase().includes(search.toLowerCase()) ||
         (b.roomNumber && String(b.roomNumber).includes(search)) ||
@@ -127,7 +127,7 @@ export default function AdminInventory() {
   const filteredMovements = useMemo(() => {
     return movements.filter(m => {
       const item = items.find(i => i.sourceTable === m.itemType && i.itemID === m.itemID);
-      const matchesSearch = !search.trim() || 
+      const matchesSearch = !search.trim() ||
         m.itemName.toLowerCase().includes(search.toLowerCase()) ||
         (m.referenceNumber && m.referenceNumber.toLowerCase().includes(search.toLowerCase())) ||
         (m.remarks && m.remarks.toLowerCase().includes(search.toLowerCase())) ||
@@ -643,12 +643,11 @@ export default function AdminInventory() {
                         <td>{new Date(m.movementDateTime).toLocaleString()}</td>
                         <td><strong>{m.itemName}</strong></td>
                         <td>
-                          <span className={`badge ${
-                            m.movementType === 'Stock In' ? 'text-bg-success' :
-                            m.movementType === 'Stock Out' ? 'text-bg-dark' :
-                            m.movementType === 'Borrow' ? 'text-bg-warning' :
-                            m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
-                          }`}>
+                          <span className={`badge ${m.movementType === 'Stock In' ? 'text-bg-success' :
+                              m.movementType === 'Stock Out' ? 'text-bg-dark' :
+                                m.movementType === 'Borrow' ? 'text-bg-warning' :
+                                  m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
+                            }`}>
                             {m.movementType}
                           </span>
                         </td>
@@ -723,65 +722,65 @@ export default function AdminInventory() {
               </thead>
               <tbody>
                 {filteredItems.map((item) => {
-                    const isLow = item.availableQty <= item.minStock;
-                    return (
-                      <tr key={`${item.sourceTable}-${item.itemID}`} className={isLow ? 'table-warning' : ''}>
-                        <td><span className="badge text-bg-light border text-muted">{item.sourceTable}</span></td>
-                        <td>
-                          <strong>{item.name}</strong>
-                          {isLow && (
-                            <button
-                              type="button"
-                              className="badge text-bg-warning ms-2 border-0"
-                              style={{ fontSize: '0.7rem', cursor: 'pointer', transition: 'transform 0.1s ease' }}
-                              title="Click to Restock this item"
-                              onClick={() => router.push(`/admin/purchase-orders?prefillName=${encodeURIComponent(item.name)}&prefillType=${item.sourceTable}`)}
-                              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                            >
-                              ⚠️ Recommended for Restock
-                            </button>
-                          )}
-                        </td>
-                        <td>{item.category}</td>
-                        <td>
-                          <span className={`badge ${item.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
-                            {item.itemType}
+                  const isLow = item.availableQty <= item.minStock;
+                  return (
+                    <tr key={`${item.sourceTable}-${item.itemID}`} className={isLow ? 'table-warning' : ''}>
+                      <td><span className="badge text-bg-light border text-muted">{item.sourceTable}</span></td>
+                      <td>
+                        <strong>{item.name}</strong>
+                        {isLow && (
+                          <button
+                            type="button"
+                            className="badge text-bg-warning ms-2 border-0"
+                            style={{ fontSize: '0.7rem', cursor: 'pointer', transition: 'transform 0.1s ease' }}
+                            title="Click to Restock this item"
+                            onClick={() => router.push(`/admin/purchase-orders?prefillName=${encodeURIComponent(item.name)}&prefillType=${item.sourceTable}`)}
+                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                          >
+                            ⚠️ Recommended for Restock
+                          </button>
+                        )}
+                      </td>
+                      <td>{item.category}</td>
+                      <td>
+                        <span className={`badge ${item.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
+                          {item.itemType}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="d-flex align-items-center gap-2">
+                          <span className={`fw-bold ${isLow ? 'text-danger' : 'text-success'}`}>
+                            {item.availableQty} / {item.minStock}
                           </span>
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center gap-2">
-                            <span className={`fw-bold ${isLow ? 'text-danger' : 'text-success'}`}>
-                              {item.availableQty} / {item.minStock}
-                            </span>
-                            <button 
-                              type="button"
-                              className="btn btn-link p-0 text-decoration-none border-0 bg-transparent ms-1" 
-                              style={{ cursor: 'pointer' }}
-                              title="Edit Minimum Stock Level"
-                              onClick={() => openMinStockModal(item)}
-                            >
-                              <i className="fa-solid fa-pen-to-square text-primary"></i>
-                            </button>
+                          <button
+                            type="button"
+                            className="btn btn-link p-0 text-decoration-none border-0 bg-transparent ms-1"
+                            style={{ cursor: 'pointer' }}
+                            title="Edit Minimum Stock Level"
+                            onClick={() => openMinStockModal(item)}
+                          >
+                            <i className="fa-solid fa-pen-to-square text-primary"></i>
+                          </button>
+                        </div>
+                        {item.itemType === 'Non-Consumable' && item.borrowedQty > 0 && (
+                          <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
+                            (Borrowed: {item.borrowedQty})
                           </div>
-                          {item.itemType === 'Non-Consumable' && item.borrowedQty > 0 && (
-                            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
-                              (Borrowed: {item.borrowedQty})
-                            </div>
-                          )}
-                        </td>
-                        <td>{item.unit}</td>
-                        <td>₱{parseFloat(item.price).toFixed(2)}</td>
-                        <td>
-                          <div className="d-flex gap-1">
-                            <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
-                              🗑 Dispose
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                        )}
+                      </td>
+                      <td>{item.unit}</td>
+                      <td>₱{parseFloat(item.price).toFixed(2)}</td>
+                      <td>
+                        <div className="d-flex gap-1">
+                          <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
+                            🗑 Dispose
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -809,54 +808,53 @@ export default function AdminInventory() {
               </thead>
               <tbody>
                 {filteredBatches.map((b) => {
-                    const todayStr = (() => {
-                      const today = new Date();
-                      const pad = (n) => String(n).padStart(2, '0');
-                      return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-                    })();
-                    const isExpired = b.expirationDate && b.expirationDate < todayStr;
-                    return (
-                      <tr key={b.batchID} className={isExpired ? 'table-danger' : ''}>
-                        <td><code>{b.batchNumber}</code></td>
-                        <td><strong>{b.itemName}</strong></td>
-                        <td><span className="badge text-bg-light border text-muted">{b.itemType}</span></td>
-                        <td>{b.supplier || '—'}</td>
-                        <td>{b.quantity}</td>
-                        <td>
-                          <span className={`fw-bold ${b.remainingQuantity === 0 ? 'text-muted text-decoration-line-through' : b.remainingQuantity <= 5 ? 'text-warning' : 'text-success'}`}>
-                            {b.remainingQuantity}
-                          </span>
-                        </td>
-                        <td>₱{parseFloat(b.unitCost).toFixed(2)}</td>
-                        <td>{b.expirationDate ? new Date(b.expirationDate).toLocaleDateString() : 'Non-Expiring'}</td>
-                        <td>
-                          <span className={`badge ${
-                            b.remainingQuantity === 0 ? 'text-bg-secondary' :
+                  const todayStr = (() => {
+                    const today = new Date();
+                    const pad = (n) => String(n).padStart(2, '0');
+                    return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+                  })();
+                  const isExpired = b.expirationDate && b.expirationDate < todayStr;
+                  return (
+                    <tr key={b.batchID} className={isExpired ? 'table-danger' : ''}>
+                      <td><code>{b.batchNumber}</code></td>
+                      <td><strong>{b.itemName}</strong></td>
+                      <td><span className="badge text-bg-light border text-muted">{b.itemType}</span></td>
+                      <td>{b.supplier || '—'}</td>
+                      <td>{b.quantity}</td>
+                      <td>
+                        <span className={`fw-bold ${b.remainingQuantity === 0 ? 'text-muted text-decoration-line-through' : b.remainingQuantity <= 5 ? 'text-warning' : 'text-success'}`}>
+                          {b.remainingQuantity}
+                        </span>
+                      </td>
+                      <td>₱{parseFloat(b.unitCost).toFixed(2)}</td>
+                      <td>{b.expirationDate ? new Date(b.expirationDate).toLocaleDateString() : 'Non-Expiring'}</td>
+                      <td>
+                        <span className={`badge ${b.remainingQuantity === 0 ? 'text-bg-secondary' :
                             isExpired ? 'text-bg-danger' : 'text-bg-success'
                           }`}>
-                            {b.remainingQuantity === 0 ? 'Consumed' : isExpired ? 'Expired' : 'Active'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="d-flex gap-1">
-                            <button className="btn btn-sm btn-pcc-outline" onClick={() => openEditExpiryModal(b)}>
-                              ✏ Expiry
-                            </button>
-                            {b.remainingQuantity > 0 && (
-                              <>
-                                <button className="btn btn-sm btn-danger text-white" onClick={() => {
-                                  const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
-                                  openDisposeModal(matchItem, b);
-                                }}>
-                                  🗑 Dispose
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          {b.remainingQuantity === 0 ? 'Consumed' : isExpired ? 'Expired' : 'Active'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="d-flex gap-1">
+                          <button className="btn btn-sm btn-pcc-outline" onClick={() => openEditExpiryModal(b)}>
+                            ✏ Expiry
+                          </button>
+                          {b.remainingQuantity > 0 && (
+                            <>
+                              <button className="btn btn-sm btn-danger text-white" onClick={() => {
+                                const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
+                                openDisposeModal(matchItem, b);
+                              }}>
+                                🗑 Dispose
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -893,11 +891,10 @@ export default function AdminInventory() {
                     <td>{log.expectedReturnDate ? new Date(log.expectedReturnDate).toLocaleDateString() : '—'}</td>
                     <td>{log.actualReturnDate ? new Date(log.actualReturnDate).toLocaleDateString() : '—'}</td>
                     <td>
-                      <span className={`badge ${
-                        log.status === 'Borrowed' ? 'text-bg-warning' :
-                        log.status === 'Returned' ? 'text-bg-success' :
-                        log.status === 'Damaged' ? 'text-bg-danger' : 'text-bg-dark'
-                      }`}>
+                      <span className={`badge ${log.status === 'Borrowed' ? 'text-bg-warning' :
+                          log.status === 'Returned' ? 'text-bg-success' :
+                            log.status === 'Damaged' ? 'text-bg-danger' : 'text-bg-dark'
+                        }`}>
                         {log.status}
                       </span>
                     </td>
@@ -965,12 +962,11 @@ export default function AdminInventory() {
                         <td>{new Date(m.movementDateTime).toLocaleString()}</td>
                         <td><strong>{m.itemName}</strong></td>
                         <td>
-                          <span className={`badge ${
-                            m.movementType === 'Stock In' ? 'text-bg-success' :
-                            m.movementType === 'Stock Out' ? 'text-bg-dark' :
-                            m.movementType === 'Borrow' ? 'text-bg-warning' :
-                            m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
-                          }`}>
+                          <span className={`badge ${m.movementType === 'Stock In' ? 'text-bg-success' :
+                              m.movementType === 'Stock Out' ? 'text-bg-dark' :
+                                m.movementType === 'Borrow' ? 'text-bg-warning' :
+                                  m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
+                            }`}>
                             {m.movementType}
                           </span>
                         </td>

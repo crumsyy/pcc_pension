@@ -138,7 +138,7 @@ export default function RegisterPage() {
           <Link href="/" className="navbar-brand">
             <img src="/assets/images/logo.jpg" height="42" alt="PCC Logo" style={{ borderRadius: "4px" }} />
           </Link>
-          <Link href="/" className="btn btn-pcc-outline btn-sm">Back to Home</Link>
+          <Link href="/" className="btn btn-pcc-primary btn-sm">Back to Home</Link>
         </div>
       </nav>
 

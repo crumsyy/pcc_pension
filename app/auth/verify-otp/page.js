@@ -107,7 +107,7 @@ function VerifyOtpContent() {
           <Link href="/" className="navbar-brand d-flex align-items-center gap-2">
             <img src="/assets/images/logo.jpg" alt="PCC Home Suite Home logo" height="42" style={{ borderRadius: "4px" }} />
           </Link>
-          <Link href="/" className="btn btn-pcc-outline btn-sm">Back to Home</Link>
+          <Link href="/" className="btn btn-pcc-primary btn-sm">Back to Home</Link>
         </div>
       </nav>
 

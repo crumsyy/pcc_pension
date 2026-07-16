@@ -24,7 +24,7 @@ export async function GET(request) {
     const [bookings, guests, rooms, guestsDetails, discounts, paymentMethods] = await Promise.all([
       dbQuery(`
         SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status, b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
-               g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender,
+               g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
                rm.roomNumber, rt.type as roomType
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
@@ -33,7 +33,7 @@ export async function GET(request) {
         WHERE rm.isArchived = 0
         ORDER BY b.checkInDateTime DESC
       `),
-      dbQuery("SELECT guestID, firstName, lastName, contact FROM guest ORDER BY lastName, firstName"),
+      dbQuery("SELECT guestID, firstName, lastName, contact, dateOfBirth FROM guest ORDER BY lastName, firstName"),
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, rt.type as roomType, rr.rate
         FROM room r 
@@ -110,13 +110,13 @@ export async function POST(request) {
 
         let guestID;
         if (body.isWalkIn) {
-          const { firstName, lastName, contact, email, gender } = body;
+          const { firstName, lastName, contact, email, gender, dateOfBirth } = body;
           if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
             return NextResponse.json({ error: 'First name and Last name are required for walk-in guests.' }, { status: 400 });
           }
           const [insertGuestRes] = await conn.execute(
-            "INSERT INTO guest (firstName, lastName, contact, email, gender, userID) VALUES (?, ?, ?, ?, ?, NULL)",
-            [firstName.trim(), lastName.trim(), (contact || '').trim(), (email || '').trim() || null, gender || null]
+            "INSERT INTO guest (firstName, lastName, contact, email, gender, dateOfBirth, userID) VALUES (?, ?, ?, ?, ?, ?, NULL)",
+            [firstName.trim(), lastName.trim(), (contact || '').trim(), (email || '').trim() || null, gender || null, dateOfBirth || null]
           );
           guestID = insertGuestRes.insertId;
         } else {

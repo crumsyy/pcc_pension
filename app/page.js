@@ -114,7 +114,7 @@ export default function Home() {
               <li className="nav-item"><a className="nav-link" href="#amenities">Amenities</a></li>
               <li className="nav-item"><a className="nav-link" href="#contact">Contact</a></li>
               <li className="nav-item mt-2 mt-lg-0">
-                <Link href="/auth/login" className="btn btn-pcc-outline btn-sm me-2">Log In</Link>
+                <Link href="/auth/login" className="btn btn-pcc-primary btn-sm me-2">Log In</Link>
               </li>
               <li className="nav-item mt-2 mt-lg-0">
                 <Link href="/auth/register" className="btn btn-pcc-primary btn-sm">Book Now</Link>

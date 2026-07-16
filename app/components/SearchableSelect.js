@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 export default function SearchableSelect({ options, value, onChange, placeholder, disabled, emptyLabel = "No matches found" }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const containerRef = useRef(null);
 
   // Find currently selected option
@@ -20,6 +21,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
     } else {
       setSearchTerm('');
     }
+    setIsTyping(false);
   }, [value, options]);
 
   // Click outside to close
@@ -36,9 +38,10 @@ export default function SearchableSelect({ options, value, onChange, placeholder
   }, []);
 
   // Filter based on typed searchTerm
-  const filtered = options.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = options.filter(opt => {
+    if (!isTyping) return true;
+    return opt.label.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div ref={containerRef} className="position-relative w-100">
@@ -50,6 +53,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
         disabled={disabled}
         onChange={(e) => {
           setSearchTerm(e.target.value);
+          setIsTyping(true);
           setIsOpen(true);
           const match = options.find(o => o.label.toLowerCase() === e.target.value.toLowerCase());
           if (match) {
@@ -58,6 +62,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
         }}
         onFocus={() => {
           setSearchTerm(selectedOption ? selectedOption.label : '');
+          setIsTyping(false);
           setIsOpen(true);
         }}
         style={{ borderRadius: '6px' }}

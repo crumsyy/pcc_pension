@@ -4,8 +4,42 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
-import DateInput, { isValidDate, toDbDate } from '../../components/DateInput';
+import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import SearchableSelect from '../../components/SearchableSelect';
+
+function calculateAgeFromUiDate(uiDateStr) {
+  if (!isValidDate(uiDateStr)) return '';
+  const parts = uiDateStr.split('/');
+  const birthMonth = parseInt(parts[0], 10) - 1;
+  const birthDay = parseInt(parts[1], 10);
+  const birthYear = parseInt(parts[2], 10);
+  
+  const today = new Date();
+  let age = today.getFullYear() - birthYear;
+  const m = today.getMonth() - birthMonth;
+  if (m < 0 || (m === 0 && today.getDate() < birthDay)) {
+    age--;
+  }
+  return age;
+}
+
+function calculateAgeFromDbDate(dbDateStr) {
+  if (!dbDateStr) return '';
+  const dateOnly = dbDateStr.substring(0, 10);
+  const parts = dateOnly.split('-');
+  if (parts.length !== 3) return '';
+  const birthYear = parseInt(parts[0], 10);
+  const birthMonth = parseInt(parts[1], 10) - 1;
+  const birthDay = parseInt(parts[2], 10);
+  
+  const today = new Date();
+  let age = today.getFullYear() - birthYear;
+  const m = today.getMonth() - birthMonth;
+  if (m < 0 || (m === 0 && today.getDate() < birthDay)) {
+    age--;
+  }
+  return age;
+}
 
 function BookingsClient() {
   const searchParams = useSearchParams();
@@ -45,7 +79,8 @@ function BookingsClient() {
     lastName: '',
     contact: '',
     email: '',
-    gender: 'Male'
+    gender: 'Male',
+    dateOfBirth: ''
   });
 
   const [selectedRoomType, setSelectedRoomType] = useState('');
@@ -147,7 +182,8 @@ function BookingsClient() {
           lastName: qLastName || '',
           email: qEmail || '',
           contact: qContact || '',
-          gender: 'Male'
+          gender: 'Male',
+          dateOfBirth: ''
         });
         setFormData({
           guestID: '',
@@ -205,7 +241,8 @@ function BookingsClient() {
         lastName: '',
         contact: '',
         email: '',
-        gender: 'Male'
+        gender: 'Male',
+        dateOfBirth: ''
       });
       setSelectedRoomType('');
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
@@ -214,29 +251,36 @@ function BookingsClient() {
     }
   }, [activeModal]);
 
-  // Synchronize the first guest's name with the selected primary guest or walk-in input details
+  // Synchronize the first guest's name and age with the selected primary guest or walk-in input details
   useEffect(() => {
     if (activeModal === 'create') {
       let name = '';
+      let calculatedAge = '';
       if (isWalkIn) {
         name = `${walkInForm.firstName} ${walkInForm.lastName}`.trim();
+        if (walkInForm.dateOfBirth) {
+          calculatedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
+        }
       } else if (formData.guestID) {
         const selected = guests.find(g => g.guestID === parseInt(formData.guestID));
         if (selected) {
           name = `${selected.firstName} ${selected.lastName}`;
+          if (selected.dateOfBirth) {
+            calculatedAge = calculateAgeFromDbDate(selected.dateOfBirth);
+          }
         }
       }
       setRoomGuests(prev => {
         const copy = [...prev];
         if (copy.length > 0) {
-          copy[0] = { ...copy[0], fullName: name };
+          copy[0] = { ...copy[0], fullName: name, age: calculatedAge };
         } else {
-          copy.push({ fullName: name, age: '', discountID: '', discountIdNumber: '' });
+          copy.push({ fullName: name, age: calculatedAge, discountID: '', discountIdNumber: '' });
         }
         return copy;
       });
     }
-  }, [isWalkIn, walkInForm.firstName, walkInForm.lastName, formData.guestID, guests, activeModal]);
+  }, [isWalkIn, walkInForm.firstName, walkInForm.lastName, walkInForm.dateOfBirth, formData.guestID, guests, activeModal]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -398,6 +442,14 @@ function BookingsClient() {
         showAlert('error', 'Validation Error', 'Contact number must be exactly 11 digits.');
         return;
       }
+      if (!walkInForm.dateOfBirth) {
+        showAlert('error', 'Validation Error', 'Birthdate is required for walk-in guests.');
+        return;
+      }
+      if (!isValidDate(walkInForm.dateOfBirth)) {
+        showAlert('error', 'Validation Error', 'Please enter a valid Birthdate (MM/DD/YYYY).');
+        return;
+      }
     }
 
     const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
@@ -435,7 +487,7 @@ function BookingsClient() {
           body: JSON.stringify({
             action: 'create',
             isWalkIn,
-            ...(isWalkIn ? walkInForm : { guestID: formData.guestID }),
+            ...(isWalkIn ? { ...walkInForm, dateOfBirth: walkInForm.dateOfBirth ? toDbDate(walkInForm.dateOfBirth) : null } : { guestID: formData.guestID }),
             roomID: formData.roomID,
             checkInDateTime: toDbDate(checkInDate) + ' ' + checkInTime + ':00',
             checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
@@ -612,7 +664,8 @@ function BookingsClient() {
         lastName: b.lastName || '',
         contact: b.contact || '',
         email: b.email || '',
-        gender: b.gender || 'Male'
+        gender: b.gender || 'Male',
+        dateOfBirth: b.dateOfBirth ? toUiDate(b.dateOfBirth) : ''
       });
     }
     setActiveModal('create');
@@ -871,6 +924,14 @@ function BookingsClient() {
                           className="form-control"
                           value={walkInForm.email}
                           onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label">Birthdate *</label>
+                        <DateInput
+                          value={walkInForm.dateOfBirth}
+                          onChange={(e) => setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                          required={isWalkIn}
                         />
                       </div>
                       <div className="mb-2">

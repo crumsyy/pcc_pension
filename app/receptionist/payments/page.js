@@ -227,15 +227,15 @@ function PaymentsClient() {
 
         <div className="row g-4 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '15px' }}>
           {/* Left Payment form */}
-          <div className="col-lg-6">
-            <div className="card shadow-sm border-0 bg-white" style={{ borderRadius: '8px' }}>
+          <div className="col-lg-6 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+            <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '8px', minHeight: 0 }}>
               <div className="card-header bg-white border-0 py-3 border-bottom">
                 <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>Payment Terminal</h5>
               </div>
-              <form onSubmit={handleProcessPayment}>
-                <div className="card-body p-4">
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Select Checked-In Guest *</label>
+              <form onSubmit={handleProcessPayment} className="d-flex flex-column overflow-hidden flex-grow-1">
+                <div className="card-body p-3 overflow-y-auto flex-grow-1">
+                  <div className="mb-2">
+                    <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Select Checked-In Guest *</label>
                     {loading ? (
                       <div>Loading guest records...</div>
                     ) : (
@@ -251,12 +251,10 @@ function PaymentsClient() {
                     )}
                   </div>
 
-
-
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Payment Method *</label>
+                  <div className="mb-2">
+                    <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Payment Method *</label>
                     <select
-                      className="form-select"
+                      className="form-select form-select-sm"
                       name="paymentMethodID"
                       value={paymentForm.paymentMethodID}
                       onChange={handleInputChange}
@@ -271,13 +269,13 @@ function PaymentsClient() {
                   </div>
 
                   {paymentForm.paymentMethodID === '1' && (
-                    <div className="mb-4">
-                      <label className="form-label fw-semibold">Cash Received *</label>
-                      <div className="input-group">
+                    <div className="mb-2">
+                      <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Cash Received *</label>
+                      <div className="input-group input-group-sm">
                         <span className="input-group-text">₱</span>
                         <input
                           type="number"
-                          className="form-control form-control-lg"
+                          className="form-control"
                           name="cashReceived"
                           min="0"
                           step="0.01"
@@ -291,14 +289,14 @@ function PaymentsClient() {
                     </div>
                   )}
 
-                  <div className="alert alert-info py-2 mb-4" style={{ fontSize: '0.85rem' }}>
+                  <div className="alert alert-info py-2 px-3 mb-2 mt-2" style={{ fontSize: '0.78rem' }}>
                     ℹ Guest checkout and room release will occur automatically upon payment.
                   </div>
 
                   <button
                     type="submit"
-                    className="btn btn-pcc-primary text-white w-100 py-3 fw-bold"
-                    style={{ fontSize: '1.05rem' }}
+                    className="btn btn-pcc-primary text-white w-100 py-2 fw-bold"
+                    style={{ fontSize: '0.95rem' }}
                     disabled={!selectedBookingID || loadingBill}
                   >
                     Confirm & Settle Payment
