@@ -294,7 +294,7 @@ export default function AdminAmenities() {
             className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
             onClick={() => setShowArchived(false)}
           >
-            🛎️ Active Amenities
+            Active Amenities
           </button>
         </li>
         <li className="nav-item">
@@ -302,7 +302,7 @@ export default function AdminAmenities() {
             className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
             onClick={() => setShowArchived(true)}
           >
-            📦 Archived Amenities
+            Archived Amenities
           </button>
         </li>
       </ul>

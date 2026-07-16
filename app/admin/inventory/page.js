@@ -520,7 +520,7 @@ export default function AdminInventory() {
             style={{ borderBottom: activeTab === 'dashboard' ? '3px solid var(--pcc-blue)' : '' }}
             onClick={() => setActiveTab('dashboard')}
           >
-            📊 Dashboard
+            Dashboard
           </button>
         </li>
         <li className="nav-item">
@@ -529,7 +529,7 @@ export default function AdminInventory() {
             style={{ borderBottom: activeTab === 'stocks' ? '3px solid var(--pcc-blue)' : '' }}
             onClick={() => setActiveTab('stocks')}
           >
-            📋 Current Stocks
+            Current Stocks
           </button>
         </li>
         <li className="nav-item">
@@ -538,7 +538,7 @@ export default function AdminInventory() {
             style={{ borderBottom: activeTab === 'batches' ? '3px solid var(--pcc-blue)' : '' }}
             onClick={() => setActiveTab('batches')}
           >
-            📦 Batch Tracker
+            Batch Tracker
           </button>
         </li>
         <li className="nav-item">
@@ -547,7 +547,7 @@ export default function AdminInventory() {
             style={{ borderBottom: activeTab === 'borrow' ? '3px solid var(--pcc-blue)' : '' }}
             onClick={() => setActiveTab('borrow')}
           >
-            🤝 Borrowing System
+            Borrowing System
           </button>
         </li>
         <li className="nav-item">

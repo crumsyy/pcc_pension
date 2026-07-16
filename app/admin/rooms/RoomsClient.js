@@ -345,7 +345,7 @@ export default function RoomsClient() {
             className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
             onClick={() => setShowArchived(false)}
           >
-            🛏 Active Rooms
+            Active Rooms
           </button>
         </li>
         <li className="nav-item">
@@ -353,7 +353,7 @@ export default function RoomsClient() {
             className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
             onClick={() => setShowArchived(true)}
           >
-            📦 Archived Rooms
+            Archived Rooms
           </button>
         </li>
       </ul>

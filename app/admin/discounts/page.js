@@ -473,7 +473,7 @@ export default function AdminDiscounts() {
             className={`nav-link fw-semibold ${activeTab === 'active_discounts' ? 'active text-blue' : 'text-muted'}`}
             onClick={() => setActiveTab('active_discounts')}
           >
-            🏷️ Active Discounts
+            Active Discounts
           </button>
         </li>
         <li className="nav-item">
@@ -481,7 +481,7 @@ export default function AdminDiscounts() {
             className={`nav-link fw-semibold ${activeTab === 'active_promos' ? 'active text-blue' : 'text-muted'}`}
             onClick={() => setActiveTab('active_promos')}
           >
-            🔥 Active Promos
+            Active Promos
           </button>
         </li>
         <li className="nav-item">
@@ -489,7 +489,7 @@ export default function AdminDiscounts() {
             className={`nav-link fw-semibold ${activeTab === 'archived' ? 'active text-blue' : 'text-muted'}`}
             onClick={() => setActiveTab('archived')}
           >
-            📦 Archived Discounts &amp; Promos
+            Archived Discounts &amp; Promos
           </button>
         </li>
       </ul>

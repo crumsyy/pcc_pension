@@ -256,7 +256,7 @@ export default function ReceptionistInquiries() {
               onClick={() => setActiveTab('inbox')}
               style={{ borderTopLeftRadius: '6px', borderTopRightRadius: '6px' }}
             >
-              📥 Guest Messages Inbox
+              Guest Messages Inbox
             </button>
           </li>
           <li className="nav-item">
@@ -265,7 +265,7 @@ export default function ReceptionistInquiries() {
               onClick={() => setActiveTab('availability')}
               style={{ borderTopLeftRadius: '6px', borderTopRightRadius: '6px' }}
             >
-              🔍 Room Availability & Quotation Tool
+              Room Availability & Quotation Tool
             </button>
           </li>
         </ul>

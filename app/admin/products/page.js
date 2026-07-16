@@ -324,7 +324,7 @@ export default function AdminProducts() {
               setCatFilter('');
             }}
           >
-            📦 Active Products
+            Active Products
           </button>
         </li>
         <li className="nav-item">
@@ -335,7 +335,7 @@ export default function AdminProducts() {
               setCatFilter('3');
             }}
           >
-            🍳 Cooked Meals
+            Cooked Meals
           </button>
         </li>
         <li className="nav-item">
@@ -346,7 +346,7 @@ export default function AdminProducts() {
               setCatFilter('');
             }}
           >
-            🗑️ Archived Items
+            Archived Items
           </button>
         </li>
       </ul>
