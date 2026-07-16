@@ -11,7 +11,7 @@ export async function GET(request) {
   try {
     // Fetch checked in bookings that need checkout/payment
     const activeBookings = await dbQuery(`
-      SELECT b.bookingID, b.guestID, b.roomID, b.status, b.checkInDateTime, b.checkOutDateTime,
+      SELECT b.bookingID, b.guestID, b.roomID, b.status, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
              g.firstName, g.lastName, g.contact,
              rm.roomNumber, rt.type as roomType
       FROM booking b

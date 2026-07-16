@@ -644,7 +644,7 @@ function BookingsClient() {
     if (b.guestID) {
       setIsWalkIn(false);
       setFormData({
-        guestID: b.guestID,
+        guestID: String(b.guestID),
         roomID: b.roomID || rooms[0]?.roomID || '',
         checkInDateTime: formatDateTimeLocal(today, '14:00'),
         checkOutDateTime: formatDateTimeLocal(tomorrow, '12:00'),
@@ -726,7 +726,7 @@ function BookingsClient() {
             </select>
           </div>
           <div className="col-md-2">
-            <button className="btn btn-secondary w-100 text-white" onClick={() => { setSearch(''); setStatusFilter(''); }}>
+            <button className="btn btn-pcc-primary w-100 text-white" onClick={() => { setSearch(''); setStatusFilter(''); }}>
               Clear
             </button>
           </div>
@@ -799,37 +799,57 @@ function BookingsClient() {
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
                         {b.status !== 'Cancelled' && b.status !== 'Checked Out' && b.status !== 'No Show' && (
-                          <button className="btn btn-sm btn-secondary text-white" onClick={() => {
-                            setManagingBooking(b);
-                            setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
-                            setActiveModal('manage_guests');
-                          }}>
-                            Guests
+                          <button 
+                            className="btn btn-sm btn-pcc-primary text-white d-inline-flex align-items-center justify-content-center" 
+                            title="Manage Guests"
+                            style={{ width: '32px', height: '32px' }}
+                            onClick={() => {
+                              setManagingBooking(b);
+                              setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
+                              setActiveModal('manage_guests');
+                            }}
+                          >
+                            <i className="fa-solid fa-users"></i>
                           </button>
                         )}
                         {b.status === 'Pending Check-in' && (
-                          <button className="btn btn-sm btn-primary text-white" onClick={() => handleCheckIn(b.bookingID)}>
-                            Check In
+                          <button 
+                            className="btn btn-sm btn-success text-white d-inline-flex align-items-center justify-content-center" 
+                            title="Check In"
+                            style={{ width: '32px', height: '32px' }}
+                            onClick={() => handleCheckIn(b.bookingID)}
+                          >
+                            <i className="fa-solid fa-right-to-bracket"></i>
                           </button>
                         )}
                         {b.status === 'Checked In' && (
-                          <button className="btn btn-sm btn-success text-white" onClick={() => handleCheckOut(b.bookingID)}>
-                            Check Out
+                          <button 
+                            className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center" 
+                            title="Check Out"
+                            style={{ width: '32px', height: '32px' }}
+                            onClick={() => handleCheckOut(b.bookingID)}
+                          >
+                            <i className="fa-solid fa-right-from-bracket"></i>
                           </button>
                         )}
                         {b.status === 'Pending Check-in' && (
-                          <>
-                            <button className="btn btn-sm btn-danger text-white" onClick={() => openCancelModal(b.bookingID)}>
-                              Cancel
-                            </button>
-                            <button className="btn btn-sm btn-warning text-dark" onClick={() => handleNoShow(b.bookingID)}>
-                              No Show
-                            </button>
-                          </>
+                          <button 
+                            className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center" 
+                            title="Cancel Booking"
+                            style={{ width: '32px', height: '32px' }}
+                            onClick={() => openCancelModal(b.bookingID)}
+                          >
+                            <i className="fa-solid fa-ban"></i>
+                          </button>
                         )}
                         {b.status === 'Cancelled' && (
-                          <button className="btn btn-sm btn-info text-white d-flex align-items-center gap-1" onClick={() => handleRebook(b)}>
-                            <span>🔄</span> Rebook
+                          <button 
+                            className="btn btn-sm btn-info text-white d-inline-flex align-items-center justify-content-center" 
+                            title="Rebook"
+                            style={{ width: '32px', height: '32px' }}
+                            onClick={() => handleRebook(b)}
+                          >
+                            <i className="fa-solid fa-rotate-right"></i>
                           </button>
                         )}
                       </div>

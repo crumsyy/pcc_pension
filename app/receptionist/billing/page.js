@@ -484,11 +484,11 @@ export default function ReceptionistBilling() {
                                 <span>👥 Registered Room Guests ({billDetails.guestsList.length} Pax)</span>
                                 <button
                                   type="button"
-                                  className="btn btn-sm btn-outline-primary"
-                                  style={{ fontSize: '0.72rem', padding: '1px 8px', borderRadius: '15px' }}
+                                  className="btn btn-sm btn-pcc-primary text-white"
+                                  style={{ fontSize: '0.72rem', padding: '3px 10px', borderRadius: '15px' }}
                                   onClick={openEditDiscountsModal}
                                 >
-                                  ✏️ Apply/Edit Discounts
+                                  <i className="fa-solid fa-percent me-1"></i> Apply/Edit Discounts
                                 </button>
                               </div>
                               <div className="row g-2">
@@ -588,8 +588,8 @@ export default function ReceptionistBilling() {
                             <h6 className="fw-bold text-dark mb-0" style={{ fontSize: '0.82rem' }}>Incidental & Damage Charges</h6>
                             <button
                               type="button"
-                              className="btn btn-sm btn-outline-danger"
-                              style={{ fontSize: '0.72rem', padding: '1px 8px' }}
+                              className="btn btn-sm btn-danger text-white"
+                              style={{ fontSize: '0.72rem', padding: '3px 10px' }}
                               onClick={() => {
                                 setIncidentalForm({ description: '', amount: '' });
                                 setIsAddingIncidental(true);
@@ -622,10 +622,12 @@ export default function ReceptionistBilling() {
                                       <td className="text-end">
                                         <button
                                           type="button"
-                                          className="btn btn-link text-danger p-0 border-0"
+                                          className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center"
+                                          style={{ width: '28px', height: '28px' }}
+                                          title="Delete Incidental"
                                           onClick={() => handleDeleteIncidentalSubmit(item.chargeID)}
                                         >
-                                          Delete
+                                          <i className="fa-solid fa-trash"></i>
                                         </button>
                                       </td>
                                     </tr>

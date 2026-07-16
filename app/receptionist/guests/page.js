@@ -201,10 +201,12 @@ export default function ReceptionistGuests() {
                         </td>
                         <td className="text-end px-4">
                           <button
-                            className="btn btn-sm btn-outline-pcc-primary"
+                            className="btn btn-sm btn-pcc-primary text-white d-inline-flex align-items-center justify-content-center"
+                            style={{ width: '32px', height: '32px' }}
+                            title="Edit Guest Details"
                             onClick={() => handleEditClick(g)}
                           >
-                            Edit
+                            <i className="fa-solid fa-pen"></i>
                           </button>
                         </td>
                       </tr>

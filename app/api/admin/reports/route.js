@@ -31,7 +31,7 @@ export async function GET(request) {
 
       // 2. Fetch all bookings to compute detailed discounts
       const bookings = await dbQuery(`
-        SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status, rt.price as roomPrice
+        SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, rt.price as roomPrice
         FROM booking b
         JOIN room r ON r.roomID = b.roomID
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
@@ -225,7 +225,7 @@ export async function GET(request) {
       }
 
       const activeBookings = await dbQuery(`
-        SELECT checkInDateTime, checkOutDateTime, status 
+        SELECT DATE_FORMAT(checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, status 
         FROM booking 
         WHERE status IN ('Checked In', 'Checked Out') 
           AND DATE(checkInDateTime) <= ? AND DATE(checkOutDateTime) >= ?
@@ -417,7 +417,7 @@ export async function GET(request) {
       // 1. Fetch guest stay logs
       const guests = await dbQuery(`
         SELECT g.guestID, g.firstName, g.lastName, g.email, g.contact,
-               b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status as bookingStatus,
+               b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status as bookingStatus,
                r.roomNumber,
                (SELECT COALESCE(SUM(p.amount), 0) FROM payment p JOIN billing bil ON bil.billingID = p.billingID WHERE bil.bookingID = b.bookingID) as amountPaid
         FROM guest g
@@ -428,7 +428,7 @@ export async function GET(request) {
       `, [from, to]);
 
       // Calculate visits count
-      const allGuestStays = await dbQuery("SELECT guestID, bookingID, checkInDateTime FROM booking");
+      const allGuestStays = await dbQuery("SELECT guestID, bookingID, DATE_FORMAT(checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime FROM booking");
       const guestDetails = await dbQuery(`
         SELECT bg.bookingID, d.name as discountName
         FROM booking_guest_details bg

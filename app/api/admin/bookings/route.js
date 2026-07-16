@@ -15,7 +15,7 @@ export async function GET(request) {
 
   try {
     let sql = `
-      SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
+      SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status,
              g.firstName, g.lastName, g.contact,
              rm.roomNumber, rt.type as roomType, fl.name as floor
       FROM booking b

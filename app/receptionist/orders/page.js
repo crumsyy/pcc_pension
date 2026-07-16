@@ -371,18 +371,20 @@ export default function ReceptionistOrders() {
                               {o.orderStatus === 'Preparing' && (
                                 <>
                                   <button 
-                                    className="btn btn-sm btn-success text-white" 
+                                    className="btn btn-sm btn-success text-white d-inline-flex align-items-center justify-content-center" 
+                                    title="Serve Order"
+                                    style={{ width: '32px', height: '32px' }}
                                     onClick={() => handleUpdateOrderStatus(o.orderID, 'Completed')}
-                                    style={{ borderRadius: '20px' }}
                                   >
-                                    ✓ Serve
+                                    <i className="fa-solid fa-check"></i>
                                   </button>
                                   <button 
-                                    className="btn btn-sm btn-danger text-white" 
+                                    className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center" 
+                                    title="Cancel Order"
+                                    style={{ width: '32px', height: '32px' }}
                                     onClick={() => handleUpdateOrderStatus(o.orderID, 'Canceled')}
-                                    style={{ borderRadius: '20px' }}
                                   >
-                                    Cancel
+                                    <i className="fa-solid fa-ban"></i>
                                   </button>
                                 </>
                               )}
@@ -482,7 +484,7 @@ export default function ReceptionistOrders() {
                               <td>{item.quantity}</td>
                               <td className="fw-bold">₱{(item.price * item.quantity).toFixed(2)}</td>
                               <td className="text-end pe-3">
-                                <button type="button" className="btn btn-sm btn-outline-danger py-0" onClick={() => handleRemoveItemFromOrder(idx)}>
+                                <button type="button" className="btn btn-sm btn-danger text-white py-0 px-2" onClick={() => handleRemoveItemFromOrder(idx)}>
                                   Remove
                                 </button>
                               </td>

@@ -29,7 +29,7 @@ export async function GET(request) {
   try {
     // 1. Fetch booking details
     const bookingRes = await dbQuery(`
-      SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status, b.guestID, b.roomID,
+      SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, b.guestID, b.roomID,
              g.firstName, g.lastName, g.contact, g.email,
              rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID
       FROM booking b

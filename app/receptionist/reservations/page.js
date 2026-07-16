@@ -448,7 +448,7 @@ function ReservationsClient() {
             </select>
           </div>
           <div className="col-md-2">
-            <button className="btn btn-secondary w-100 text-white" onClick={() => { setSearch(''); setStatusFilter(''); }}>
+            <button className="btn btn-pcc-primary w-100 text-white" onClick={() => { setSearch(''); setStatusFilter(''); }}>
               Clear
             </button>
           </div>
@@ -498,13 +498,23 @@ function ReservationsClient() {
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
                         {!r.bookingID && r.status === 'Pending' && (
-                          <button className="btn btn-sm btn-pcc-primary text-white" onClick={() => openConvertModal(r)}>
-                            Confirm & Book
+                          <button 
+                            className="btn btn-sm btn-pcc-primary text-white d-inline-flex align-items-center justify-content-center" 
+                            title="Confirm & Book"
+                            style={{ width: '32px', height: '32px' }}
+                            onClick={() => openConvertModal(r)}
+                          >
+                            <i className="fa-solid fa-hotel"></i>
                           </button>
                         )}
                         {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && (
-                          <button className="btn btn-sm btn-danger text-white" onClick={() => handleCancel(r.reservationID)}>
-                            Cancel
+                          <button 
+                            className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center" 
+                            title="Cancel Reservation"
+                            style={{ width: '32px', height: '32px' }}
+                            onClick={() => handleCancel(r.reservationID)}
+                          >
+                            <i className="fa-solid fa-ban"></i>
                           </button>
                         )}
                         {r.bookingID && (
