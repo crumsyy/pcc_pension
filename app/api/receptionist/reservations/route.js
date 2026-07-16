@@ -23,7 +23,7 @@ export async function GET(request) {
         WHERE rm.isArchived = 0
         ORDER BY r.reservationDateTime DESC
       `),
-      dbQuery("SELECT guestID, firstName, lastName, contact FROM guest ORDER BY lastName, firstName"),
+      dbQuery("SELECT guestID, firstName, lastName, contact FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, rr.rate
         FROM room r 

@@ -50,7 +50,6 @@ export default function SidebarClient({ session, role, children }) {
     ['/receptionist/orders', icons.orders, 'Orders'],
     ['/receptionist/billing', icons.billing, 'Billing'],
     ['/receptionist/payments', icons.payments, 'Payments'],
-    ['/receptionist/guests', icons.guests, 'Guests'],
     ['/receptionist/inquiries', icons.inquiries, 'Inquiries']
   ];
 
