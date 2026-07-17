@@ -5,71 +5,63 @@ import React from 'react';
 export default function DateInput({
   value,
   onChange,
-  placeholder = "MM/DD/YYYY",
   className = "form-control",
   required = false,
   id,
   name,
   disabled = false
 }) {
-  const handleChange = (e) => {
-    let input = e.target.value;
-    
-    // Remove all non-digits
-    let clean = input.replace(/\D/g, '');
-    
-    // Format as MM/DD/YYYY
-    if (clean.length > 8) {
-      clean = clean.substring(0, 8);
-    }
-    
-    let formatted = '';
-    if (clean.length > 0) {
-      formatted += clean.substring(0, 2);
-    }
-    if (clean.length > 2) {
-      formatted += '/' + clean.substring(2, 4);
-    }
-    if (clean.length > 4) {
-      formatted += '/' + clean.substring(4, 8);
-    }
-    
-    onChange({
-      target: {
-        name,
-        value: formatted
+  // Convert incoming value ("MM/DD/YYYY") to HTML5 date format ("YYYY-MM-DD")
+  const uiToInputValue = (val) => {
+    if (!val) return '';
+    const parts = val.split('/');
+    if (parts.length === 3) {
+      const m = parts[0].padStart(2, '0');
+      const d = parts[1].padStart(2, '0');
+      const y = parts[2];
+      if (y.length === 4 && !isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        return `${y}-${m}-${d}`;
       }
-    });
+    }
+    return '';
   };
 
-  const handleKeyDown = (e) => {
-    // If typing digits in year field, check if we already have 4 digits for year
-    if (e.key >= '0' && e.key <= '9') {
-      const parts = value.split('/');
-      if (parts.length === 3 && parts[2].length >= 4) {
-        // Prevent typing more than 4 digits in year
-        const selectionStart = e.target.selectionStart;
-        // If selection is in the year part, prevent default
-        if (selectionStart > 5) {
-          e.preventDefault();
+  // Convert HTML5 date format ("YYYY-MM-DD") back to internal state format ("MM/DD/YYYY")
+  const handleChange = (e) => {
+    const inputVal = e.target.value; // "YYYY-MM-DD"
+    if (!inputVal) {
+      onChange({
+        target: {
+          name,
+          value: ''
         }
-      }
+      });
+      return;
+    }
+    const parts = inputVal.split('-');
+    if (parts.length === 3) {
+      const formatted = `${parts[1]}/${parts[2]}/${parts[0]}`;
+      onChange({
+        target: {
+          name,
+          value: formatted
+        }
+      });
     }
   };
+
+  const inputValue = uiToInputValue(value);
 
   return (
     <input
-      type="text"
+      type="date"
       id={id}
       name={name}
-      placeholder={placeholder}
       className={className}
       required={required}
-      value={value || ''}
+      value={inputValue}
       onChange={handleChange}
-      onKeyDown={handleKeyDown}
       disabled={disabled}
-      maxLength={10}
     />
   );
 }
