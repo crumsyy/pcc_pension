@@ -69,6 +69,11 @@ export async function POST(request) {
       const unit = body.unit ? body.unit.trim() : 'pcs';
       const description = body.description ? body.description.trim() : null;
 
+      const existing = await dbQuery("SELECT productID FROM products WHERE LOWER(TRIM(name)) = LOWER(?)", [name]);
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'A product with this name already exists.' }, { status: 400 });
+      }
+
       await dbQuery(
         "INSERT INTO products(name, price, basePrice, sellingPrice, quantity, productCategoryID, minStock, itemType, unit, description) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
         [name, price, basePrice, sellingPrice, productCategoryID, minStock, itemType, unit, description]
@@ -87,6 +92,11 @@ export async function POST(request) {
       const itemType = body.itemType || 'Consumable';
       const unit = body.unit ? body.unit.trim() : 'pcs';
       const description = body.description ? body.description.trim() : null;
+
+      const existing = await dbQuery("SELECT productID FROM products WHERE LOWER(TRIM(name)) = LOWER(?) AND productID != ?", [name, productID]);
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'A product with this name already exists.' }, { status: 400 });
+      }
 
       await dbQuery(
         "UPDATE products SET name=?, price=?, basePrice=?, sellingPrice=?, productCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE productID=?",

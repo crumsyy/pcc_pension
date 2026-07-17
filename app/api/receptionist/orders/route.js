@@ -79,7 +79,10 @@ export async function GET(request) {
       `)
     ]);
 
-    return NextResponse.json({ success: true, orders, products, amenities, activeBookings, borrowLogs });
+    const activeProducts = products.filter(p => p.productCategoryID !== 3);
+    const cookedMeals = products.filter(p => p.productCategoryID === 3);
+
+    return NextResponse.json({ success: true, orders, products: activeProducts, cookedMeals, amenities, activeBookings, borrowLogs });
   } catch (error) {
     console.error("Failed to fetch orders data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

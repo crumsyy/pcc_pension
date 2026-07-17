@@ -8,6 +8,8 @@ import SearchableSelect from '../../components/SearchableSelect';
 export default function ReceptionistOrders() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
+  const [cookedMeals, setCookedMeals] = useState([]);
+  const [activeItemCategory, setActiveItemCategory] = useState('Product'); // 'Product' | 'Amenity' | 'Meal'
   const [amenities, setAmenities] = useState([]);
   const [activeBookings, setActiveBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,7 @@ export default function ReceptionistOrders() {
 
       setOrders(data.orders || []);
       setProducts(data.products || []);
+      setCookedMeals(data.cookedMeals || []);
       setAmenities(data.amenities || []);
       setActiveBookings(data.activeBookings || []);
     } catch (err) {
@@ -101,6 +104,7 @@ export default function ReceptionistOrders() {
         idAndType: '',
         quantity: 1
       });
+      setActiveItemCategory('Product');
     }
   }, [activeModal]);
 
@@ -119,7 +123,7 @@ export default function ReceptionistOrders() {
 
     let details;
     if (type === 'Product') {
-      details = products.find(p => p.productID === itemID);
+      details = products.find(p => p.productID === itemID) || cookedMeals.find(p => p.productID === itemID);
     } else {
       details = amenities.find(a => a.amenityID === itemID);
     }
@@ -242,25 +246,7 @@ export default function ReceptionistOrders() {
     return matchesSearch && matchesStatus;
   });
 
-  const comboboxOptions = [
-    ...products.map(p => ({
-      idAndType: `${p.productID}-Product`,
-      displayName: p.name,
-      name: p.productCategoryID === 3 ? `${p.name} - ₱${p.price} (Prepared on Order)` : `${p.name} - ₱${p.price} (${p.quantity} left)`,
-      type: 'Product',
-      price: p.price,
-      quantity: p.quantity,
-      productCategoryID: p.productCategoryID
-    })),
-    ...amenities.map(a => ({
-      idAndType: `${a.amenityID}-Amenity`,
-      displayName: a.name,
-      name: `${a.name} - ₱${a.price} (${a.quantity} left)`,
-      type: 'Amenity',
-      price: a.price,
-      quantity: a.quantity
-    }))
-  ];
+
 
   return (
     <>
@@ -426,16 +412,44 @@ export default function ReceptionistOrders() {
                   </div>
 
                   <div className="row g-2 mb-3 bg-light p-3 border rounded">
+                    <div className="col-md-12 mb-2">
+                      <label className="form-label small fw-bold text-muted uppercase tracking-wider mb-1">Item Category *</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={activeItemCategory}
+                        onChange={(e) => {
+                          setActiveItemCategory(e.target.value);
+                          setSelectedItemToAdd({ idAndType: '', quantity: 1 });
+                        }}
+                      >
+                        <option value="Product">Products</option>
+                        <option value="Amenity">Amenities</option>
+                        <option value="Meal">Cooked Meals</option>
+                      </select>
+                    </div>
+
                     <div className="col-md-7">
                       <label className="form-label fw-semibold">Select Item to Add</label>
                       <SearchableSelect
-                        options={comboboxOptions.map(opt => ({
-                          value: opt.idAndType,
-                          label: `${opt.displayName} (₱${opt.price} | ${opt.productCategoryID === 3 ? (opt.quantity > 0 ? 'Available' : 'Not Available') : `Stock: ${opt.quantity}`})`
-                        }))}
+                        options={
+                          activeItemCategory === 'Product'
+                            ? products.map(p => ({
+                                value: `${p.productID}-Product`,
+                                label: `${p.name} (₱${parseFloat(p.price).toFixed(2)} | Stock: ${p.quantity})`
+                              }))
+                            : activeItemCategory === 'Amenity'
+                            ? amenities.map(a => ({
+                                value: `${a.amenityID}-Amenity`,
+                                label: `${a.name} (₱${parseFloat(a.price).toFixed(2)} | Stock: ${a.quantity})`
+                              }))
+                            : cookedMeals.map(m => ({
+                                value: `${m.productID}-Product`,
+                                label: `${m.name} (₱${parseFloat(m.price).toFixed(2)} | Available)`
+                              }))
+                        }
                         value={selectedItemToAdd.idAndType}
                         onChange={(val) => setSelectedItemToAdd(prev => ({ ...prev, idAndType: val }))}
-                        placeholder="Type to search product or amenity..."
+                        placeholder={`Search ${activeItemCategory === 'Product' ? 'products' : activeItemCategory === 'Amenity' ? 'amenities' : 'cooked meals'}...`}
                       />
                     </div>
                     <div className="col-md-3">

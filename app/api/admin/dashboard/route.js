@@ -68,7 +68,7 @@ export async function GET() {
         ORDER BY fl.name, rm.roomNumber
       `),
       dbQuery(`
-        SELECT r.reservationID, r.reservationDateTime, r.status,
+        SELECT r.reservationID, DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime, r.status,
                g.firstName, g.lastName, rm.roomNumber, rt.type
         FROM reservation r
         JOIN guest g ON g.guestID = r.guestID

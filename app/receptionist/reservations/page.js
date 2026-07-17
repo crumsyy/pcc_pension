@@ -50,6 +50,7 @@ function ReservationsClient() {
 
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [downPayment, setDownPayment] = useState('');
+  const [dpPercent, setDpPercent] = useState('50');
   const [paymentMethodID, setPaymentMethodID] = useState('1');
 
   const [convInDate, setConvInDate] = useState('');
@@ -68,6 +69,34 @@ function ReservationsClient() {
     confirmText: 'OK',
     cancelText: 'Cancel'
   });
+
+  // Calculate dynamic stay duration, stay total cost, down payment suggestions, and remaining balance
+  const calculateStayDetails = () => {
+    const rate = parseFloat(selectedRes?.rate || 0);
+    let nights = 0;
+    if (isValidDate(convInDate) && isValidDate(convOutDate)) {
+      const inD = new Date(toDbDate(convInDate) + 'T' + convInTime);
+      const outD = new Date(toDbDate(convOutDate) + 'T' + convOutTime);
+      if (outD > inD) {
+        const diff = outD - inD;
+        nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      }
+    }
+    const totalRoomCharge = rate * nights;
+    const pct = parseFloat(dpPercent || 50) / 100;
+    const computedDpAmount = totalRoomCharge * pct;
+    const remainingBalance = totalRoomCharge - computedDpAmount;
+
+    return {
+      rate,
+      nights,
+      totalRoomCharge,
+      computedDpAmount,
+      remainingBalance
+    };
+  };
+
+  const { rate, nights, totalRoomCharge, computedDpAmount, remainingBalance } = calculateStayDetails();
 
   const showAlert = (type, title, message) => {
     setModalConfig({
@@ -316,8 +345,7 @@ function ReservationsClient() {
     setConvOutDate(tomorrowStr);
     setConvOutTime("12:00");
 
-    const rate = parseFloat(res.rate || 0);
-    setDownPayment((rate * 0.5).toFixed(2));
+    setDpPercent('50');
     setPaymentMethodID('1');
 
     setConvertData({
@@ -356,11 +384,7 @@ function ReservationsClient() {
       return;
     }
 
-    const dpAmount = parseFloat(downPayment);
-    if (isNaN(dpAmount) || dpAmount <= 0) {
-      showAlert('error', 'Validation Error', 'Please enter a valid down payment amount.');
-      return;
-    }
+    const dpAmount = computedDpAmount;
 
     showConfirm('Confirm Reservation & Create Booking', 'Confirm this reservation and record down payment?', async () => {
       try {
@@ -771,13 +795,9 @@ function ReservationsClient() {
                         <span className="small text-muted">Stay Nights:</span>
                         <span className="small fw-semibold">{nights} Night(s)</span>
                       </div>
-                      <div className="d-flex justify-content-between border-top pt-1 mb-1">
-                        <span className="small fw-bold">Total Room Rent:</span>
-                        <span className="small fw-bold">₱{totalRoomCharge.toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between text-success">
-                        <span className="small fw-bold">Required Down Payment (50%):</span>
-                        <span className="small fw-bold">₱{requiredDownPayment.toFixed(2)}</span>
+                      <div className="d-flex justify-content-between border-top pt-1 fw-bold text-dark">
+                        <span>Total Stay Cost:</span>
+                        <span>₱{totalRoomCharge.toFixed(2)}</span>
                       </div>
                     </div>
 
@@ -798,15 +818,38 @@ function ReservationsClient() {
                     </div>
 
                     <div className="mb-3">
-                      <label className="form-label small fw-bold">Down Payment Received (₱) *</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="form-control form-control-sm fw-bold text-success"
+                      <label className="form-label small fw-bold">Down Payment Option *</label>
+                      <select
+                        className="form-select form-select-sm mb-3"
                         required
-                        value={downPayment}
-                        onChange={(e) => setDownPayment(e.target.value)}
-                      />
+                        value={dpPercent}
+                        onChange={(e) => setDpPercent(e.target.value)}
+                      >
+                        <option value="25">25% Down Payment</option>
+                        <option value="50">50% Down Payment</option>
+                        <option value="100">Full Payment (100%)</option>
+                      </select>
+                    </div>
+
+                    <div className="row g-2 mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label small fw-bold">Down Payment Amount (₱)</label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm fw-bold text-success bg-light"
+                          readOnly
+                          value={`₱${computedDpAmount.toFixed(2)}`}
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label small fw-bold">Remaining Balance (₱)</label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm fw-bold text-danger bg-light"
+                          readOnly
+                          value={`₱${remainingBalance.toFixed(2)}`}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="modal-footer">

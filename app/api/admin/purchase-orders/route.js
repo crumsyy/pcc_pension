@@ -22,8 +22,12 @@ export async function GET(request) {
     `;
     const params = [];
     if (statusF) {
-      sql += " AND po.status = ?";
-      params.push(statusF);
+      if (statusF === 'Pending') {
+        sql += " AND po.status IN ('Pending', 'Partially Received')";
+      } else {
+        sql += " AND po.status = ?";
+        params.push(statusF);
+      }
     }
     if (dateF) {
       sql += " AND DATE(po.orderDate) = ?";

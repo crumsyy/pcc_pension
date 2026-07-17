@@ -69,6 +69,11 @@ export async function POST(request) {
       const unit = body.unit ? body.unit.trim() : 'pcs';
       const description = body.description ? body.description.trim() : null;
 
+      const existing = await dbQuery("SELECT amenityID FROM amenities WHERE LOWER(TRIM(name)) = LOWER(?)", [name]);
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'An amenity with this name already exists.' }, { status: 400 });
+      }
+
       await dbQuery(
         "INSERT INTO amenities(name, price, basePrice, sellingPrice, quantity, amenityCategoryID, minStock, itemType, unit, description) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
         [name, price, basePrice, sellingPrice, amenityCategoryID, minStock, itemType, unit, description]
@@ -87,6 +92,11 @@ export async function POST(request) {
       const itemType = body.itemType || 'Consumable';
       const unit = body.unit ? body.unit.trim() : 'pcs';
       const description = body.description ? body.description.trim() : null;
+
+      const existing = await dbQuery("SELECT amenityID FROM amenities WHERE LOWER(TRIM(name)) = LOWER(?) AND amenityID != ?", [name, amenityID]);
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'An amenity with this name already exists.' }, { status: 400 });
+      }
 
       await dbQuery(
         "UPDATE amenities SET name=?, price=?, basePrice=?, sellingPrice=?, amenityCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE amenityID=?",

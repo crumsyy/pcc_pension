@@ -350,16 +350,9 @@ export default function AdminPurchaseOrders() {
       const val = receivedQtys[itemID];
       const item = selectedOrder.items.find(i => String(i.orderItemID) === String(itemID));
       if (item && parseInt(val.qty || 0) > 0) {
-        const matchItem = catalogItems.find(c => c.name === item.itemName && c.type === item.itemType);
-        const isConsumable = matchItem ? matchItem.itemType === 'Consumable' : true;
-
-        if (isConsumable) {
-          if (!val.expirationDate) {
-            showAlert('error', 'Validation Error', `Expiration Date is required for consumable item "${item.itemName}".`);
-            return;
-          }
+        if (val.expirationDate && val.expirationDate.trim() !== '') {
           if (!isValidDate(val.expirationDate)) {
-            showAlert('error', 'Validation Error', `Please enter a valid Expiration Date (MM/DD/YYYY) for consumable item "${item.itemName}".`);
+            showAlert('error', 'Validation Error', `Please enter a valid Expiration Date (MM/DD/YYYY) for item "${item.itemName}".`);
             return;
           }
         }
@@ -890,7 +883,7 @@ export default function AdminPurchaseOrders() {
                 </div>
               </div>
               <div className="modal-footer">
-                {selectedOrder.status === 'Completed' && selectedOrder.items.some(it => (it.quantityReceived || 0) < it.quantity) && (
+                {selectedOrder.status === 'Received' && selectedOrder.items.some(it => (it.quantityReceived || 0) < it.quantity) && (
                   <button
                     className="btn btn-warning me-auto text-white"
                     onClick={() => handleGenerateReorder(selectedOrder.purchaseOrderID)}
@@ -923,7 +916,7 @@ export default function AdminPurchaseOrders() {
                           <th>Item</th>
                           <th>Category</th>
                           <th>Item Type</th>
-                          <th>Ordered</th>
+                          <th>Ordered / Remaining</th>
                           <th style={{ width: '100px' }}>Received</th>
                           <th>Exp. Date</th>
                           <th style={{ width: '110px' }}>Unit Cost *</th>
@@ -944,7 +937,14 @@ export default function AdminPurchaseOrders() {
                                   {itemClassType}
                                 </span>
                               </td>
-                              <td>{item.quantity}</td>
+                              <td>
+                                <div>{item.quantity}</div>
+                                {remaining < item.quantity ? (
+                                  <div className="small text-danger fw-bold">{remaining} remaining</div>
+                                ) : (
+                                  <div className="small text-muted">{remaining} remaining</div>
+                                )}
+                              </td>
                               <td>
                                 <input
                                   type="number"

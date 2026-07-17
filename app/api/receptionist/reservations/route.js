@@ -11,7 +11,7 @@ export async function GET(request) {
   try {
     const [reservations, guests, rooms, paymentMethods] = await Promise.all([
       dbQuery(`
-        SELECT r.reservationID, r.reservationDateTime, r.status, r.guestID, r.roomID,
+        SELECT r.reservationID, DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime, r.status, r.guestID, r.roomID,
                g.firstName, g.lastName, g.contact,
                rm.roomNumber, rt.type as roomType,
                b.bookingID, b.status as bookingStatus
