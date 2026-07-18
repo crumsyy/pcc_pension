@@ -103,16 +103,7 @@ export default function DashboardClient({ userName }) {
           </Link>
         </div>
       )}
-      {pendingResCount > 0 && (
-        <div className="alert alert-info d-flex align-items-center gap-2 mb-2 shadow-sm" role="alert">
-          <span>
-            📅 <strong>{pendingResCount} reservation(s)</strong> are awaiting confirmation.
-          </span>
-          <Link href="/admin/bookings?status=Pending" className="ms-auto btn btn-sm btn-primary text-white">
-            View
-          </Link>
-        </div>
-      )}
+
       {todayCheckIn > 0 && (
         <div className="alert alert-success d-flex align-items-center gap-2 mb-2 shadow-sm" role="alert">
           <span>

@@ -526,7 +526,7 @@ export default function AdminDiscounts() {
           {(activeTab === 'active_discounts' || activeTab === 'archived') && (
             <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
               <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Discounts' : '🏷 Active Discounts'}</h4>
-              <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
                 <table className="table align-middle">
                   <thead>
                     <tr>
@@ -579,7 +579,7 @@ export default function AdminDiscounts() {
           {(activeTab === 'active_promos' || activeTab === 'archived') && (
             <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
               <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Promos' : '🔥 Active Promotions'}</h4>
-              <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
                 <table className="table align-middle">
                   <thead>
                     <tr>

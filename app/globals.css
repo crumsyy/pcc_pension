@@ -673,6 +673,17 @@ h4,
 
   .pcc-main-wrapper {
     margin-left: 240px !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .pcc-main-wrapper main {
+    max-height: calc(100vh - 62px) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 }
 

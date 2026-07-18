@@ -33,6 +33,7 @@ export default function AdminInventory() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState(''); // 'Amenity' | 'Product'
   const [itemTypeFilter, setItemTypeFilter] = useState(''); // 'Consumable' | 'Non-Consumable'
+  const [lowStockOnly, setLowStockOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -93,9 +94,10 @@ export default function AdminInventory() {
         item.category.toLowerCase().includes(search.toLowerCase());
       const matchesType = !typeFilter || item.sourceTable === typeFilter;
       const matchesItemType = !itemTypeFilter || item.itemType === itemTypeFilter;
-      return matchesSearch && matchesType && matchesItemType;
+      const matchesLowStock = !lowStockOnly || (item.availableQty <= item.minStock);
+      return matchesSearch && matchesType && matchesItemType && matchesLowStock;
     });
-  }, [items, search, typeFilter, itemTypeFilter]);
+  }, [items, search, typeFilter, itemTypeFilter, lowStockOnly]);
 
   const filteredBatches = useMemo(() => {
     return batches.filter(b => {
@@ -500,17 +502,7 @@ export default function AdminInventory() {
         </div>
       )}
 
-      {/* Low Stock Banner Alert */}
-      {!loading && lowStockItems.length > 0 && (
-        <div className="alert alert-warning d-flex align-items-center gap-2 mb-3 shadow-sm" role="alert">
-          <span>
-            <strong>⚠ Low Stock Alert:</strong> {lowStockItems.length} item(s) are at or below safety levels.
-          </span>
-          <button className="ms-auto btn btn-sm btn-warning" onClick={() => setActiveTab('stocks')}>
-            View Items
-          </button>
-        </div>
-      )}
+
 
       {/* Navigation Tabs */}
       <ul className="nav nav-tabs mb-4 d-print-none">
@@ -670,8 +662,8 @@ export default function AdminInventory() {
       {/* SEARCH AND FILTERS CARD FOR TABS */}
       {activeTab !== 'dashboard' && (
         <div className="card-module mb-3 bg-white p-3 rounded border">
-          <div className="row g-2 align-items-end">
-            <div className="col-md-4">
+          <div className="row g-2 align-items-center">
+            <div className="col-md-3">
               <input
                 type="text"
                 className="form-control"
@@ -680,22 +672,37 @@ export default function AdminInventory() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="col-md-3">
+            <div className="col-md-2">
               <select className="form-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                 <option value="">All Categories</option>
                 <option value="Amenity">Amenities</option>
                 <option value="Product">Products</option>
               </select>
             </div>
-            <div className="col-md-3">
+            <div className="col-md-2">
               <select className="form-select" value={itemTypeFilter} onChange={(e) => setItemTypeFilter(e.target.value)}>
                 <option value="">All Item Types</option>
                 <option value="Consumable">Consumable</option>
                 <option value="Non-Consumable">Non-Consumable</option>
               </select>
             </div>
+            <div className="col-md-3 d-flex align-items-center justify-content-center">
+              <div className="form-check form-switch mb-0">
+                <input 
+                  className="form-check-input" 
+                  type="checkbox" 
+                  role="switch" 
+                  id="lowStockOnlySwitch"
+                  checked={lowStockOnly}
+                  onChange={(e) => setLowStockOnly(e.target.checked)}
+                />
+                <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="lowStockOnlySwitch">
+                  ⚠️ Low Stock Only
+                </label>
+              </div>
+            </div>
             <div className="col-md-2">
-              <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); }}>
+              <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); setLowStockOnly(false); }}>
                 Clear Filters
               </button>
             </div>
