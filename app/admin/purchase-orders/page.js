@@ -323,6 +323,10 @@ export default function AdminPurchaseOrders() {
       showAlert('error', 'Validation Error', 'Item Name is required for all rows.');
       return;
     }
+    if (poItems.some(item => item.quantity === '' || parseInt(item.quantity || 0) <= 0)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid quantity greater than 0 for all items.');
+      return;
+    }
 
     showConfirm('Create Purchase Order', 'Are you sure you want to create this purchase order?', async () => {
       try {
@@ -787,7 +791,7 @@ export default function AdminPurchaseOrders() {
                             min="1"
                             required
                             value={item.quantity}
-                            onChange={(e) => handlePORowChange(idx, 'quantity', parseInt(e.target.value) || 0)}
+                            onChange={(e) => handlePORowChange(idx, 'quantity', e.target.value === '' ? '' : (parseInt(e.target.value) || 0))}
                           />
                         </div>
                         <div className="col-md-1 text-center">
@@ -953,7 +957,7 @@ export default function AdminPurchaseOrders() {
                                   max={remaining}
                                   required
                                   value={val.qty}
-                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'qty', parseInt(e.target.value) || 0)}
+                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'qty', e.target.value === '' ? '' : (parseInt(e.target.value) || 0))}
                                 />
                               </td>
                               <td>
@@ -974,7 +978,7 @@ export default function AdminPurchaseOrders() {
                                   className="form-control form-control-sm"
                                   required
                                   value={val.unitCost}
-                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'unitCost', parseFloat(e.target.value) || 0)}
+                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'unitCost', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
                                 />
                               </td>
                             </tr>

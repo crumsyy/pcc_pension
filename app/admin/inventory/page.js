@@ -1009,7 +1009,7 @@ export default function AdminInventory() {
                       max={selectedBatch ? selectedBatch.remainingQuantity : undefined}
                       required
                       value={disposeForm.quantity}
-                      onChange={(e) => setDisposeForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                      onChange={(e) => setDisposeForm(prev => ({ ...prev, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || 0) }))}
                     />
                   </div>
                   <div className="mb-3">
@@ -1074,7 +1074,7 @@ export default function AdminInventory() {
                       max={selectedBatch ? selectedBatch.remainingQuantity : undefined}
                       required
                       value={stockOutForm.quantity}
-                      onChange={(e) => setStockOutForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                      onChange={(e) => setStockOutForm(prev => ({ ...prev, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || 0) }))}
                     />
                   </div>
                   <div className="mb-3">
@@ -1133,7 +1133,7 @@ export default function AdminInventory() {
                       max={selectedItem.availableQty}
                       required
                       value={borrowForm.quantity}
-                      onChange={(e) => setBorrowForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                      onChange={(e) => setBorrowForm(prev => ({ ...prev, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || 0) }))}
                     />
                     <div className="form-text small text-muted">Available stock: {selectedItem.availableQty}</div>
                   </div>
@@ -1200,7 +1200,7 @@ export default function AdminInventory() {
                       max={selectedBorrow.quantity}
                       required
                       value={returnForm.quantityReturned}
-                      onChange={(e) => setReturnForm(prev => ({ ...prev, quantityReturned: parseInt(e.target.value) || 0 }))}
+                      onChange={(e) => setReturnForm(prev => ({ ...prev, quantityReturned: e.target.value === '' ? '' : (parseInt(e.target.value) || 0) }))}
                     />
                   </div>
                   <div className="mb-3">
