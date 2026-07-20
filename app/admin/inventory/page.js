@@ -472,7 +472,7 @@ export default function AdminInventory() {
   const lowStockItems = items.filter(item => item.availableQty <= item.minStock);
 
   return (
-    <div>
+    <div className="pcc-page-container">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -702,7 +702,7 @@ export default function AdminInventory() {
               </div>
             </div>
             <div className="col-md-2">
-              <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); setLowStockOnly(false); }}>
+              <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); setLowStockOnly(false); }}>
                 Clear Filters
               </button>
             </div>
@@ -712,7 +712,7 @@ export default function AdminInventory() {
 
       {/* CURRENT STOCKS TAB */}
       {activeTab === 'stocks' && (
-        <div className="card-module bg-white p-3 rounded border">
+        <div className="card-module pcc-table-card bg-white p-3 rounded border">
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">
               <thead>
@@ -796,7 +796,7 @@ export default function AdminInventory() {
 
       {/* BATCH TRACKER TAB */}
       {activeTab === 'batches' && (
-        <div className="card-module bg-white p-3 rounded border">
+        <div className="card-module pcc-table-card bg-white p-3 rounded border">
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">
               <thead>
@@ -870,7 +870,7 @@ export default function AdminInventory() {
 
       {/* BORROWING SYSTEM TAB */}
       {activeTab === 'borrow' && (
-        <div className="card-module bg-white p-3 rounded border">
+        <div className="card-module pcc-table-card bg-white p-3 rounded border">
           <h5 className="text-blue mb-3">Asset Borrow Transactions</h5>
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">

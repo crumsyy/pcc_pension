@@ -685,6 +685,35 @@ h4,
     display: flex !important;
     flex-direction: column !important;
   }
+
+  .pcc-page-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .pcc-table-card {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+  }
+
+  .pcc-table-card .table-responsive {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  .pcc-table-card table th,
+  .pcc-table-card table td {
+    padding: 0.45rem 0.55rem !important;
+    font-size: 0.82rem !important;
+    white-space: nowrap !important;
+  }
 }
 
 .guest-fixed-nav {

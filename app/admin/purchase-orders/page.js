@@ -514,7 +514,7 @@ export default function AdminPurchaseOrders() {
   const recommendedItems = inventoryItems;
 
   return (
-    <div>
+    <div className="pcc-page-container">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -576,7 +576,7 @@ export default function AdminPurchaseOrders() {
                 />
               </div>
               <div className="col-md-2">
-                <button className="btn btn-pcc-outline w-100" onClick={() => { setStatusFilter(''); setSearchVal(''); setDateFilter(''); }}>
+                <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setStatusFilter(''); setSearchVal(''); setDateFilter(''); }}>
                   Clear
                 </button>
               </div>
@@ -584,7 +584,7 @@ export default function AdminPurchaseOrders() {
           </div>
 
           {/* Purchase Orders Table */}
-          <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
             {loading ? (
               <div className="text-center py-4">
                 <div className="spinner-border text-primary" role="status">

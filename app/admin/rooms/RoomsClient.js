@@ -315,7 +315,7 @@ export default function RoomsClient() {
   };
 
   return (
-    <div>
+    <div className="pcc-page-container">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -385,7 +385,7 @@ export default function RoomsClient() {
             </select>
           </div>
           <div className="col-md-3 d-flex gap-2">
-            <button className="btn btn-pcc-outline w-100" onClick={() => { setSearch(''); setTypeFilter(''); }}>
+            <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setTypeFilter(''); }}>
               Clear
             </button>
           </div>
@@ -393,7 +393,7 @@ export default function RoomsClient() {
       </div>
 
       {/* Rooms Table */}
-      <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+      <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         {loading ? (
           <div className="text-center py-4">
             <div className="spinner-border text-primary" role="status">

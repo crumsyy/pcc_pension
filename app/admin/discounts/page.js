@@ -438,7 +438,7 @@ export default function AdminDiscounts() {
   };
 
   return (
-    <div>
+    <div className="pcc-page-container">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -507,7 +507,7 @@ export default function AdminDiscounts() {
             />
           </div>
           <div className="col-md-3">
-            <button className="btn btn-pcc-outline w-100" onClick={() => setSearch('')}>
+            <button className="btn btn-pcc-primary text-white w-100" onClick={() => setSearch('')}>
               Clear
             </button>
           </div>
@@ -524,7 +524,7 @@ export default function AdminDiscounts() {
         <>
           {/* Discounts Section */}
           {(activeTab === 'active_discounts' || activeTab === 'archived') && (
-            <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
               <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Discounts' : '🏷 Active Discounts'}</h4>
               <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
                 <table className="table align-middle">
@@ -577,7 +577,7 @@ export default function AdminDiscounts() {
 
           {/* Promotions Section */}
           {(activeTab === 'active_promos' || activeTab === 'archived') && (
-            <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
               <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Promos' : '🔥 Active Promotions'}</h4>
               <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
                 <table className="table align-middle">
