@@ -448,8 +448,8 @@ export default function AdminPurchaseOrders() {
           <div class="header">
             <div class="logo-title">
               <h1>PCC Home Suite Home</h1>
-              <p>Brgy. San Jose, Palo, Leyte, Philippines</p>
-              <p>Contact: info@pcchomesuite.com | +63 53 123 4567</p>
+              <p>Osmeña Street, Zone 1, Koronadal City, South Cotabato, Philippines</p>
+              <p>Contact: info@pccsuite.com | 09000000000</p>
             </div>
             <div class="po-title">
               <h2>PURCHASE ORDER</h2>
