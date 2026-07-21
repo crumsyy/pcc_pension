@@ -34,6 +34,7 @@ export default function AdminInventory() {
   const [typeFilter, setTypeFilter] = useState(''); // 'Amenity' | 'Product'
   const [itemTypeFilter, setItemTypeFilter] = useState(''); // 'Consumable' | 'Non-Consumable'
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [expiredOnly, setExpiredOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -100,6 +101,11 @@ export default function AdminInventory() {
   }, [items, search, typeFilter, itemTypeFilter, lowStockOnly]);
 
   const filteredBatches = useMemo(() => {
+    const localNow = new Date();
+    const offset = 8 * 60;
+    const localTime = new Date(localNow.getTime() + (offset + localNow.getTimezoneOffset()) * 60 * 1000);
+    const todayStr = localTime.toISOString().substring(0, 10);
+
     return batches.filter(b => {
       const item = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
       const matchesSearch = !search.trim() ||
@@ -108,9 +114,14 @@ export default function AdminInventory() {
         (item && item.category.toLowerCase().includes(search.toLowerCase()));
       const matchesType = !typeFilter || b.itemType === typeFilter;
       const matchesItemType = !itemTypeFilter || (item && item.itemType === itemTypeFilter);
-      return matchesSearch && matchesType && matchesItemType;
+      
+      const isExpired = b.expirationDate && (new Date(b.expirationDate).toISOString().substring(0, 10) < todayStr);
+      const matchesExpired = !expiredOnly || isExpired;
+      const isAvailable = b.remainingQuantity > 0;
+
+      return matchesSearch && matchesType && matchesItemType && matchesExpired && isAvailable;
     });
-  }, [batches, items, search, typeFilter, itemTypeFilter]);
+  }, [batches, items, search, typeFilter, itemTypeFilter, expiredOnly]);
 
   const filteredBorrowLogs = useMemo(() => {
     return borrowLogs.filter(b => {
@@ -668,22 +679,39 @@ export default function AdminInventory() {
               </select>
             </div>
             <div className="col-md-3 d-flex align-items-center justify-content-center">
-              <div className="form-check form-switch mb-0">
-                <input 
-                  className="form-check-input" 
-                  type="checkbox" 
-                  role="switch" 
-                  id="lowStockOnlySwitch"
-                  checked={lowStockOnly}
-                  onChange={(e) => setLowStockOnly(e.target.checked)}
-                />
-                <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="lowStockOnlySwitch">
-                  ⚠️ Low Stock Only
-                </label>
-              </div>
+              {activeTab === 'stocks' && (
+                <div className="form-check form-switch mb-0">
+                  <input 
+                    className="form-check-input" 
+                    type="checkbox" 
+                    role="switch" 
+                    id="lowStockOnlySwitch"
+                    checked={lowStockOnly}
+                    onChange={(e) => setLowStockOnly(e.target.checked)}
+                  />
+                  <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="lowStockOnlySwitch">
+                    ⚠️ Low Stock Only
+                  </label>
+                </div>
+              )}
+              {activeTab === 'batches' && (
+                <div className="form-check form-switch mb-0">
+                  <input 
+                    className="form-check-input" 
+                    type="checkbox" 
+                    role="switch" 
+                    id="expiredOnlySwitch"
+                    checked={expiredOnly}
+                    onChange={(e) => setExpiredOnly(e.target.checked)}
+                  />
+                  <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="expiredOnlySwitch">
+                    ⌛ Expired Only
+                  </label>
+                </div>
+              )}
             </div>
             <div className="col-md-2">
-              <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); setLowStockOnly(false); }}>
+              <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); setLowStockOnly(false); setExpiredOnly(false); }}>
                 Clear Filters
               </button>
             </div>
@@ -817,10 +845,19 @@ export default function AdminInventory() {
                       <td>₱{parseFloat(b.unitCost).toFixed(2)}</td>
                       <td>{b.expirationDate ? new Date(b.expirationDate).toLocaleDateString() : 'Non-Expiring'}</td>
                       <td>
-                        <span className={`badge ${b.remainingQuantity === 0 ? 'text-bg-secondary' :
-                            isExpired ? 'text-bg-danger' : 'text-bg-success'
-                          }`}>
-                          {b.remainingQuantity === 0 ? 'Consumed' : isExpired ? 'Expired' : 'Active'}
+                        <span className={`badge ${
+                          b.remainingQuantity === 0
+                            ? 'text-bg-secondary'
+                            : isExpired
+                              ? 'text-bg-danger'
+                              : 'text-bg-success'
+                        }`}>
+                          {b.remainingQuantity === 0
+                            ? (b.status || 'Consumed')
+                            : isExpired
+                              ? 'Expired'
+                              : 'Active'
+                          }
                         </span>
                       </td>
                       <td>

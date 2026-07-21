@@ -200,6 +200,15 @@ export async function POST(request) {
         if (batch.remainingQuantity < qty) {
           return NextResponse.json({ error: `Cannot dispose ${qty} units. Batch only has ${batch.remainingQuantity} remaining.` }, { status: 400 });
         }
+      } else {
+        const totalRes = await dbQuery(
+          "SELECT SUM(remainingQuantity) as total FROM inventory_batch WHERE itemType = ? AND itemID = ? AND remainingQuantity > 0",
+          [itemType, parseInt(itemID)]
+        );
+        const totalAvailable = parseInt(totalRes[0]?.total || 0);
+        if (totalAvailable < qty) {
+          return NextResponse.json({ error: `Cannot dispose ${qty} units. Total available stock is only ${totalAvailable}.` }, { status: 400 });
+        }
       }
 
       const conn = await pool.getConnection();
@@ -214,21 +223,58 @@ export async function POST(request) {
             "UPDATE inventory_batch SET remainingQuantity = ?, status = ? WHERE batchID = ?",
             [newRemaining, newStatus, batch.batchID]
           );
+
+          // Insert disposal log
+          await conn.execute(
+            `INSERT INTO inventory_disposal (batchID, itemType, itemID, quantity, reason, remarks, userID)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [batch.batchID, itemType, parseInt(itemID), qty, reason, remarks || '', session.userID]
+          );
+
+          // Insert movement log
+          await conn.execute(
+            `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+             VALUES (?, ?, ?, ?, 'Disposal', ?, ?, ?)`,
+            [itemType, parseInt(itemID), -qty, session.userID, `BAT-${batch.batchID}`, remarks || `Disposal due to ${reason}`, batch.batchID]
+          );
+        } else {
+          // Deduct from batches using FIFO (expired/near-expiry first)
+          const [itemBatches] = await conn.execute(
+            `SELECT * FROM inventory_batch 
+             WHERE itemType = ? AND itemID = ? AND remainingQuantity > 0 
+             ORDER BY COALESCE(expirationDate, '9999-12-31') ASC, dateReceived ASC`,
+            [itemType, parseInt(itemID)]
+          );
+
+          let needed = qty;
+          for (const b of itemBatches) {
+            if (needed <= 0) break;
+            const take = Math.min(b.remainingQuantity, needed);
+            const newRemaining = b.remainingQuantity - take;
+            const newStatus = newRemaining === 0 ? 'Disposed' : b.status;
+            
+            await conn.execute(
+              "UPDATE inventory_batch SET remainingQuantity = ?, status = ? WHERE batchID = ?",
+              [newRemaining, newStatus, b.batchID]
+            );
+
+            // Insert disposal log for this specific batch
+            await conn.execute(
+              `INSERT INTO inventory_disposal (batchID, itemType, itemID, quantity, reason, remarks, userID)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [b.batchID, itemType, parseInt(itemID), take, reason, remarks || '', session.userID]
+            );
+
+            // Insert movement log for this specific batch
+            await conn.execute(
+              `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+               VALUES (?, ?, ?, ?, 'Disposal', ?, ?, ?)`,
+              [itemType, parseInt(itemID), -take, session.userID, `BAT-${b.batchID}`, remarks || `Disposal due to ${reason}`, b.batchID]
+            );
+
+            needed -= take;
+          }
         }
-
-        // Insert disposal log
-        await conn.execute(
-          `INSERT INTO inventory_disposal (batchID, itemType, itemID, quantity, reason, remarks, userID)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [batchID || null, itemType, parseInt(itemID), qty, reason, remarks || '', session.userID]
-        );
-
-        // Insert movement log
-        await conn.execute(
-          `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
-           VALUES (?, ?, ?, ?, 'Disposal', ?, ?, ?)`,
-          [itemType, parseInt(itemID), -qty, session.userID, batchID ? `BAT-${batchID}` : 'MANUAL', remarks || `Disposal due to ${reason}`, batchID || null]
-        );
 
         // Also update legacy quantity in catalog as a fallback
         if (itemType === 'Amenity') {

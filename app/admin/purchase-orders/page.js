@@ -808,7 +808,7 @@ export default function AdminPurchaseOrders() {
           </div>
 
           {/* Purchase Orders Table */}
-          <div className="card-module pcc-table-card flex-grow-1 overflow-hidden mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
+          <div className="card-module pcc-table-card flex-grow-1 overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
             {loading ? (
               <div className="text-center py-4">
                 <div className="spinner-border text-primary" role="status">
@@ -885,7 +885,7 @@ export default function AdminPurchaseOrders() {
 
         <div className="col-lg-4 h-100 overflow-hidden">
           {/* Recommended Restock Panel */}
-          <div className="card-module h-100" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="card-module h-100 mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h4 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
                 ⚠️ Recommended for Restock
