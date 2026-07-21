@@ -608,7 +608,7 @@ export default function AdminInventory() {
           <div className="col-12 mt-4">
             <div className="card shadow-sm border-0 bg-white p-3">
               <h5 className="text-blue mb-3">Recent Stock Movements</h5>
-              <div className="table-responsive">
+              <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
                 <table className="table table-hover align-middle table-sm" style={{ fontSize: '0.85rem' }}>
                   <thead>
                     <tr>
@@ -622,7 +622,7 @@ export default function AdminInventory() {
                     </tr>
                   </thead>
                   <tbody>
-                    {movements.slice(0, 8).map((m) => (
+                    {movements.map((m) => (
                       <tr key={m.movementID}>
                         <td>{new Date(m.movementDateTime).toLocaleString()}</td>
                         <td><strong>{m.itemName}</strong></td>
@@ -789,8 +789,15 @@ export default function AdminInventory() {
                       <td>₱{parseFloat(item.price).toFixed(2)}</td>
                       <td>
                         <div className="d-flex gap-1">
-                          <button className="btn btn-sm btn-danger text-white" onClick={() => openDisposeModal(item)}>
-                            🗑 Dispose
+                          <button
+                            type="button"
+                            className="action-btn action-btn-delete"
+                            onClick={() => openDisposeModal(item)}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Dispose Item"
+                          >
+                            <i className="fa-solid fa-trash"></i>
                           </button>
                         </div>
                       </td>
@@ -862,18 +869,30 @@ export default function AdminInventory() {
                       </td>
                       <td>
                         <div className="d-flex gap-1">
-                          <button className="btn btn-sm btn-pcc-outline" onClick={() => openEditExpiryModal(b)}>
-                            ✏ Expiry
+                          <button
+                            type="button"
+                            className="action-btn action-btn-edit"
+                            onClick={() => openEditExpiryModal(b)}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Edit Expiry Date"
+                          >
+                            <i className="fa-solid fa-pen"></i>
                           </button>
                           {b.remainingQuantity > 0 && (
-                            <>
-                              <button className="btn btn-sm btn-danger text-white" onClick={() => {
+                            <button
+                              type="button"
+                              className="action-btn action-btn-delete"
+                              onClick={() => {
                                 const matchItem = items.find(i => i.sourceTable === b.itemType && i.itemID === b.itemID);
                                 openDisposeModal(matchItem, b);
-                              }}>
-                                🗑 Dispose
-                              </button>
-                            </>
+                              }}
+                              data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              title="Dispose Batch"
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
                           )}
                         </div>
                       </td>
@@ -938,7 +957,7 @@ export default function AdminInventory() {
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border">
               <h5 className="text-blue mb-3">Disposed Inventory Logs</h5>
-              <div className="table-responsive">
+              <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
                 <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
                   <thead>
                     <tr>
@@ -970,7 +989,7 @@ export default function AdminInventory() {
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border">
               <h5 className="text-blue mb-3">All Stock Movements Audit History</h5>
-              <div className="table-responsive">
+              <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
                 <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
                   <thead>
                     <tr>
