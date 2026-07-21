@@ -104,13 +104,7 @@ export default function DashboardClient({ userName }) {
         </div>
       )}
 
-      {todayCheckIn > 0 && (
-        <div className="alert alert-success d-flex align-items-center gap-2 mb-2 shadow-sm" role="alert">
-          <span>
-            ✅ <strong>{todayCheckIn} guest(s)</strong> are scheduled to check in today.
-          </span>
-        </div>
-      )}
+
 
       {/* Room Status Cards */}
       <div className="row g-3 mb-3">

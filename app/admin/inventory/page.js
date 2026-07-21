@@ -556,59 +556,40 @@ export default function AdminInventory() {
       {/* DASHBOARD TAB */}
       {activeTab === 'dashboard' && (
         <div className="row g-3 mb-4">
-          <div className="col-6 col-md-3">
+                    <div className="col-6 col-md-4 col-xl-2">
             <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-              <span className="text-muted small fw-bold">TOTAL STOCK UNITS</span>
-              <h2 className="fw-bold text-info mb-0 mt-1">{stats.totalStock}</h2>
+              <span className="text-muted small fw-bold">TOTAL ITEMS</span>
+              <h2 className="fw-bold text-info mb-0 mt-1">{items.length}</h2>
             </div>
           </div>
-          <div className="col-6 col-md-3">
+          <div className="col-6 col-md-4 col-xl-2">
             <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-              <span className="text-muted small fw-bold">TOTAL CONSUMABLES</span>
-              <h2 className="fw-bold text-primary mb-0 mt-1">{stats.totalConsumables}</h2>
+              <span className="text-muted small fw-bold">TOTAL QUANTITY</span>
+              <h2 className="fw-bold text-primary mb-0 mt-1">{items.reduce((sum, i) => sum + (i.availableQty || 0), 0)}</h2>
             </div>
           </div>
-          <div className="col-6 col-md-3">
+          <div className="col-6 col-md-4 col-xl-2">
             <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-              <span className="text-muted small fw-bold">TOTAL ASSETS (NON-CONS.)</span>
-              <h2 className="fw-bold text-success mb-0 mt-1">{stats.totalNonConsumables}</h2>
-            </div>
-          </div>
-          <div className="col-6 col-md-3">
-            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-              <span className="text-muted small fw-bold">LOW STOCK ALERTS</span>
+              <span className="text-muted small fw-bold">LOW STOCK</span>
               <h2 className="fw-bold text-danger mb-0 mt-1">{stats.lowStockCount}</h2>
             </div>
           </div>
-          <div className="col-6 col-md-3">
+          <div className="col-6 col-md-4 col-xl-2">
             <div className="card shadow-sm border-0 p-3 h-100 bg-white">
               <span className="text-muted small fw-bold">EXPIRED BATCHES</span>
               <h2 className="fw-bold text-dark mb-0 mt-1">{stats.expiredCount}</h2>
             </div>
           </div>
-
-          <div className="col-6 col-md-3">
+          <div className="col-6 col-md-4 col-xl-2">
             <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-              <span className="text-muted small fw-bold">BORROWED ASSETS</span>
-              <h2 className="fw-bold text-warning mb-0 mt-1">{stats.totalBorrowed}</h2>
-            </div>
-          </div>
-          <div className="col-6 col-md-3">
-            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-              <span className="text-muted small fw-bold">DISPOSED QUANTITY</span>
-              <h2 className="fw-bold text-secondary mb-0 mt-1">{stats.totalDisposed}</h2>
-            </div>
-          </div>
-          <div className="col-6 col-md-3">
-            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-              <span className="text-muted small fw-bold">DAMAGED ITEMS</span>
-              <h2 className="fw-bold text-danger mb-0 mt-1">{stats.totalDamaged}</h2>
-            </div>
-          </div>
-          <div className="col-6 col-md-3">
-            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-              <span className="text-muted small fw-bold">NEAR EXPIRATION (30D)</span>
+              <span className="text-muted small fw-bold">NEAR EXPIRATION</span>
               <h2 className="fw-bold text-info mb-0 mt-1">{stats.nearExpirationCount}</h2>
+            </div>
+          </div>
+          <div className="col-6 col-md-4 col-xl-2">
+            <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+              <span className="text-muted small fw-bold">DISPOSED ITEMS</span>
+              <h2 className="fw-bold text-secondary mb-0 mt-1">{stats.totalDisposed}</h2>
             </div>
           </div>
 
