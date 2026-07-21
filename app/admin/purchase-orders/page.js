@@ -764,7 +764,7 @@ export default function AdminPurchaseOrders() {
 
 
       <div className="row g-3 flex-grow-1 overflow-hidden d-flex" style={{ minHeight: 0 }}>
-        <div className="col-lg-8 d-flex flex-column h-100 overflow-hidden">
+        <div className="col-lg-8 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
           {/* Filter */}
           <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
             <div className="row g-2 align-items-end">
@@ -883,9 +883,9 @@ export default function AdminPurchaseOrders() {
           </div>
         </div>
 
-        <div className="col-lg-4 h-100 overflow-hidden">
+        <div className="col-lg-4 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
           {/* Recommended Restock Panel */}
-          <div className="card-module h-100 mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="card-module flex-grow-1 mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h4 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
                 ⚠️ Recommended for Restock
