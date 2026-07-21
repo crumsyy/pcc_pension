@@ -548,7 +548,7 @@ export default function AdminInventory() {
             style={{ borderBottom: activeTab === 'logs' ? '3px solid var(--pcc-blue)' : '' }}
             onClick={() => setActiveTab('logs')}
           >
-            📜 Movement Logs
+            Movement Logs
           </button>
         </li>
       </ul>

@@ -1214,7 +1214,7 @@ function BookingsClient() {
               <form onSubmit={handleUpdateGuestsSubmit}>
                 <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                   <div className="alert alert-info py-2 px-3 small mb-3">
-                    Specify all registered guests staying in this room. Room rent charges are divided equally among all registered guests, and 20% discounts are applied to qualified Senior and PWD shares.
+                    Specify all registered guests staying in this room. Room rent charges are divided equally among all registered guests, and configured discounts are applied to qualified guest shares.
                   </div>
                   
                   <div className="d-flex justify-content-between align-items-center mb-3">

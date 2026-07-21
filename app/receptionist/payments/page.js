@@ -183,7 +183,7 @@ function PaymentsClient() {
           subtotal,
           earlyCheckIn: billData.chargesSummary.earlyCheckIn,
           lateCheckOut: billData.chargesSummary.lateCheckOut,
-          discountName: discountAmount > 0 ? 'Senior / PWD Apportioned Discount' : null,
+          discountName: discountAmount > 0 ? (billData.guestsList.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
           discountAmount,
           payableAmount,
           cashReceived: paymentForm.paymentMethodID === '1' ? cash : payableAmount,
@@ -328,7 +328,7 @@ function PaymentsClient() {
                     </div>
                     {discountAmount > 0 && (
                       <div className="d-flex justify-content-between mb-2 text-danger">
-                        <span>Senior/PWD Discounts:</span>
+                        <span>Applied Discounts:</span>
                         <span className="fw-semibold">-₱{discountAmount.toFixed(2)}</span>
                       </div>
                     )}

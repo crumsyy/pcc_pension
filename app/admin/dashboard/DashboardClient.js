@@ -490,7 +490,7 @@ export default function DashboardClient({ userName }) {
                 {/* Detailed Housekeeping & Room Status Table */}
                 <div className="mt-4 pt-3 border-top">
                   <h6 className="mb-2 fw-bold text-secondary" style={{ fontSize: '0.85rem' }}>Detailed Status List</h6>
-                  <div className="table-responsive" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                  <div className="table-responsive" style={{ maxHeight: '420px', overflowY: 'auto' }}>
                     <table className="table table-sm table-hover align-middle mb-0" style={{ fontSize: '0.78rem' }}>
                       <thead className="sticky-top bg-white" style={{ zIndex: 1 }}>
                         <tr>

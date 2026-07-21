@@ -695,12 +695,12 @@ h4,
 
   /* Minimized Search Filters, Headers, and Spacing for locked layout */
   .pcc-page-container .section-title {
-    font-size: 1.25rem !important;
-    margin-bottom: 0.15rem !important;
+    font-size: 1.75rem !important;
+    margin-bottom: 0.2rem !important;
   }
 
   .pcc-page-container .section-eyebrow {
-    font-size: 0.65rem !important;
+    font-size: 0.72rem !important;
     margin-bottom: 0.05rem !important;
   }
 
@@ -747,6 +747,11 @@ h4,
   .table-responsive table td {
     padding: 0.45rem 0.55rem !important;
     font-size: 0.82rem !important;
+  }
+
+  /* Only management tables should have nowrap to prevent awkward column line wrapping */
+  .pcc-table-card table th,
+  .pcc-table-card table td {
     white-space: nowrap !important;
   }
 }

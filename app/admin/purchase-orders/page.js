@@ -294,6 +294,230 @@ export default function AdminPurchaseOrders() {
 
 
 
+  const handlePrintPO = (po) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showAlert('error', 'Error', 'Failed to open print window. Please allow popups.');
+      return;
+    }
+    
+    const itemsRows = po.items.map((item, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td style="font-weight: bold; color: #111;">${item.itemName}</td>
+        <td>${item.itemType}</td>
+        <td>${item.itemClassType || 'Consumable'}</td>
+        <td style="text-align: right; font-weight: bold;">${item.quantity}</td>
+        <td style="text-align: right;">₱${parseFloat(item.unitPrice).toFixed(2)}</td>
+        <td style="text-align: right; font-weight: bold; color: #1a3c61;">₱${(parseInt(item.quantity) * parseFloat(item.unitPrice)).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const formattedOrderDate = new Date(po.orderDate).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    const formattedDeliveryDate = po.expectedDeliveryDate ? new Date(po.expectedDeliveryDate).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }) : '—';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Purchase Order PO-${String(po.purchaseOrderID).padStart(4, '0')}</title>
+          <style>
+            body {
+              font-family: 'Segoe UI', Arial, sans-serif;
+              color: #333;
+              padding: 40px;
+              line-height: 1.5;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              border-bottom: 3px solid #1a3c61;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .logo-title h1 {
+              margin: 0;
+              color: #1a3c61;
+              font-size: 26px;
+              font-weight: 800;
+            }
+            .logo-title p {
+              margin: 5px 0 0 0;
+              font-size: 13px;
+              color: #666;
+            }
+            .po-title {
+              text-align: right;
+            }
+            .po-title h2 {
+              margin: 0;
+              color: #1a3c61;
+              font-size: 28px;
+              font-weight: 800;
+            }
+            .po-title p {
+              margin: 5px 0 0 0;
+              font-size: 15px;
+              font-weight: bold;
+            }
+            .details {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 35px;
+              background-color: #f8f9fa;
+              padding: 20px;
+              border-radius: 8px;
+              border: 1px solid #eee;
+            }
+            .details-col {
+              width: 48%;
+            }
+            .details-col h3 {
+              margin: 0 0 10px 0;
+              font-size: 13px;
+              text-transform: uppercase;
+              color: #555;
+              border-bottom: 2px solid #ddd;
+              padding-bottom: 5px;
+            }
+            .details-col p {
+              margin: 6px 0;
+              font-size: 14px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 35px;
+            }
+            th {
+              background-color: #1a3c61;
+              color: #fff;
+              padding: 12px 10px;
+              text-align: left;
+              font-size: 13px;
+              text-transform: uppercase;
+            }
+            td {
+              border-bottom: 1px solid #ddd;
+              padding: 12px 10px;
+              font-size: 14px;
+            }
+            .totals {
+              display: flex;
+              justify-content: flex-end;
+              margin-bottom: 60px;
+            }
+            .totals-table {
+              width: 320px;
+            }
+            .totals-table td {
+              border: none;
+              padding: 6px 10px;
+            }
+            .totals-table tr.grand-total td {
+              border-top: 2px solid #1a3c61;
+              border-bottom: 2px double #1a3c61;
+              font-size: 18px;
+              font-weight: bold;
+              color: #1a3c61;
+            }
+            .footer {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 100px;
+              font-size: 13px;
+            }
+            .signature-block {
+              width: 220px;
+              text-align: center;
+              border-top: 1.5px solid #000;
+              padding-top: 6px;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo-title">
+              <h1>PCC Home Suite Home</h1>
+              <p>Brgy. San Jose, Palo, Leyte, Philippines</p>
+              <p>Contact: info@pcchomesuite.com | +63 53 123 4567</p>
+            </div>
+            <div class="po-title">
+              <h2>PURCHASE ORDER</h2>
+              <p>PO-${String(po.purchaseOrderID).padStart(4, '0')}</p>
+            </div>
+          </div>
+          
+          <div class="details">
+            <div class="details-col">
+              <h3>PO DETAILS</h3>
+              <p><strong>Order Date:</strong> ${formattedOrderDate}</p>
+              <p><strong>Expected Delivery:</strong> ${formattedDeliveryDate}</p>
+              <p><strong>Status:</strong> ${po.status}</p>
+            </div>
+            <div class="details-col">
+              <h3>SUPPLIER / REMARKS</h3>
+              <p><strong>Supplier:</strong> ${po.supplier || 'PCC Selected Supplier'}</p>
+              <p><strong>Remarks:</strong> ${po.remarks || 'No remarks.'}</p>
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 40%;">Item Name</th>
+                <th style="width: 15%;">Category</th>
+                <th style="width: 15%;">Type</th>
+                <th style="width: 10%; text-align: right;">Qty</th>
+                <th style="width: 15%; text-align: right;">Unit Cost</th>
+                <th style="width: 15%; text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+          </table>
+          
+          <div class="totals">
+            <table class="totals-table">
+              <tr class="grand-total">
+                <td><strong>Grand Total:</strong></td>
+                <td style="text-align: right;"><strong>₱${parseFloat(po.total || 0).toFixed(2)}</strong></td>
+              </tr>
+            </table>
+          </div>
+          
+          <div class="footer">
+            <div>
+              <p>Printed on: ${new Date().toLocaleString()}</p>
+            </div>
+            <div class="signature-block">
+              Authorized Signature
+            </div>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const handleStatusChange = (poID, status, msg) => {
     showConfirm('Update Status', msg || `Are you sure you want to update status to ${status}?`, async () => {
       try {
@@ -539,8 +763,8 @@ export default function AdminPurchaseOrders() {
 
 
 
-      <div className="row g-3">
-        <div className="col-lg-8">
+      <div className="row g-3 flex-grow-1 overflow-hidden d-flex" style={{ minHeight: 0 }}>
+        <div className="col-lg-8 d-flex flex-column h-100 overflow-hidden">
           {/* Filter */}
           <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
             <div className="row g-2 align-items-end">
@@ -584,7 +808,7 @@ export default function AdminPurchaseOrders() {
           </div>
 
           {/* Purchase Orders Table */}
-          <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className="card-module pcc-table-card flex-grow-1 overflow-hidden mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
             {loading ? (
               <div className="text-center py-4">
                 <div className="spinner-border text-primary" role="status">
@@ -592,7 +816,7 @@ export default function AdminPurchaseOrders() {
                 </div>
               </div>
             ) : (
-              <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+              <div className="table-responsive">
                 <table className="table align-middle mb-0">
                   <thead>
                     <tr>
@@ -646,6 +870,7 @@ export default function AdminPurchaseOrders() {
                               onView={() => openViewModal(po)}
                               onCancel={po.status === 'Pending' || po.status === 'Partially Received' ? () => handleStatusChange(po.purchaseOrderID, 'Canceled', 'Cancel this Purchase Order?') : null}
                               onStockIn={po.status === 'Pending' || po.status === 'Partially Received' ? () => openStockInModal(po) : null}
+                              onPrint={() => handlePrintPO(po)}
                             />
                           </td>
                         </tr>
@@ -658,9 +883,9 @@ export default function AdminPurchaseOrders() {
           </div>
         </div>
 
-        <div className="col-lg-4">
+        <div className="col-lg-4 h-100 overflow-hidden">
           {/* Recommended Restock Panel */}
-          <div className="card-module h-100" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column' }}>
+          <div className="card-module h-100" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h4 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
                 ⚠️ Recommended for Restock
@@ -676,7 +901,7 @@ export default function AdminPurchaseOrders() {
                 </button>
               )}
             </div>
-            <div className="flex-grow-1 overflow-auto" style={{ maxHeight: '600px' }}>
+            <div className="flex-grow-1 overflow-auto">
               {recommendedItems.length === 0 ? (
                 <div className="text-center text-muted py-5 small">
                   All items are well stocked.
@@ -895,7 +1120,14 @@ export default function AdminPurchaseOrders() {
                     ⚠ Generate Reorder Request
                   </button>
                 )}
-                <button className="btn btn-secondary" onClick={() => setActiveModal(null)}>Close</button>
+                <button
+                  type="button"
+                  className="btn btn-pcc-primary text-white"
+                  onClick={() => handlePrintPO(selectedOrder)}
+                >
+                  🖨️ Print
+                </button>
+                <button className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Close</button>
               </div>
             </div>
           </div>

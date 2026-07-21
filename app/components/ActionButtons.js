@@ -14,6 +14,7 @@ export default function ActionButtons({
   onStockIn,
   onSuspend,
   onCreatePO,
+  onPrint,
   status,
   isSelf,
   disabledEdit,
@@ -52,6 +53,7 @@ export default function ActionButtons({
     onStockIn,
     onSuspend,
     onCreatePO,
+    onPrint,
     status,
     isSelf,
     disabledEdit
@@ -70,6 +72,20 @@ export default function ActionButtons({
           aria-label="View Details"
         >
           <i className="fa-solid fa-eye"></i>
+        </button>
+      )}
+
+      {onPrint && (
+        <button
+          type="button"
+          className="action-btn action-btn-view"
+          onClick={onPrint}
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          title="Print"
+          aria-label="Print"
+        >
+          <i className="fa-solid fa-print"></i>
         </button>
       )}
 
