@@ -39,6 +39,15 @@ export async function GET() {
     const localTime = new Date(localNow.getTime() + (offset + localNow.getTimezoneOffset()) * 60 * 1000);
     const todayStr = localTime.toISOString().substring(0, 10);
 
+    const getFormatDate = (d) => {
+      if (!d) return '';
+      try {
+        return new Date(d).toISOString().substring(0, 10);
+      } catch (e) {
+        return '';
+      }
+    };
+
     // 3. Compute dynamic stock quantities per catalog item and filter by low-stock threshold (quantity <= minStock)
     const lowStockItems = [];
 
@@ -48,7 +57,7 @@ export async function GET() {
       
       // EXCLUDE expired batches from available (usable) stock
       const usableQuantity = itemBatches
-        .filter(b => !b.expirationDate || b.expirationDate >= todayStr)
+        .filter(b => !b.expirationDate || getFormatDate(b.expirationDate) >= todayStr)
         .reduce((sum, b) => sum + b.remainingQuantity, 0);
 
       // Check if usable quantity is at or below the safety threshold

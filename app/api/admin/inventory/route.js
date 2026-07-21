@@ -84,6 +84,15 @@ export async function GET(request) {
     const localTime = new Date(localNow.getTime() + (offset + localNow.getTimezoneOffset()) * 60 * 1000);
     const todayStr = localTime.toISOString().substring(0, 10);
 
+    const getFormatDate = (d) => {
+      if (!d) return '';
+      try {
+        return new Date(d).toISOString().substring(0, 10);
+      } catch (e) {
+        return '';
+      }
+    };
+
     // 6. Compute dynamic stock quantities per catalog item
     const itemsWithStock = allCatalog.map(item => {
       // Find batches for this item
@@ -92,7 +101,7 @@ export async function GET(request) {
       
       // EXCLUDE expired batches from available (usable) stock
       const usableQuantity = itemBatches
-        .filter(b => !b.expirationDate || b.expirationDate >= todayStr)
+        .filter(b => !b.expirationDate || getFormatDate(b.expirationDate) >= todayStr)
         .reduce((sum, b) => sum + b.remainingQuantity, 0);
 
       // Borrowed quantity
@@ -121,7 +130,7 @@ export async function GET(request) {
 
     const lowStockCount = itemsWithStock.filter(i => i.availableQty <= i.minStock).length;
 
-    const expiredCount = batches.filter(b => b.expirationDate && b.expirationDate < todayStr && b.remainingQuantity > 0).length;
+    const expiredCount = batches.filter(b => b.expirationDate && getFormatDate(b.expirationDate) < todayStr && b.remainingQuantity > 0).length;
 
     const totalDisposed = disposalLogs.reduce((sum, d) => sum + d.quantity, 0);
     const totalBorrowed = borrowLogs.filter(b => b.status === 'Borrowed').reduce((sum, b) => sum + b.quantity, 0);
@@ -132,7 +141,7 @@ export async function GET(request) {
     const thirtyDaysLater = new Date(localTime);
     thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
     const thirtyDaysLaterStr = thirtyDaysLater.toISOString().substring(0, 10);
-    const nearExpirationCount = batches.filter(b => b.expirationDate && b.expirationDate >= todayStr && b.expirationDate <= thirtyDaysLaterStr && b.remainingQuantity > 0).length;
+    const nearExpirationCount = batches.filter(b => b.expirationDate && getFormatDate(b.expirationDate) >= todayStr && getFormatDate(b.expirationDate) <= thirtyDaysLaterStr && b.remainingQuantity > 0).length;
 
     const stats = {
       totalConsumables,

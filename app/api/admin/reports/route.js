@@ -345,6 +345,15 @@ export async function GET(request) {
 
       const todayStr = new Date().toISOString().substring(0, 10);
 
+      const getFormatDate = (d) => {
+        if (!d) return '';
+        try {
+          return new Date(d).toISOString().substring(0, 10);
+        } catch (e) {
+          return '';
+        }
+      };
+
       const summaries = catalog.map(item => {
         const itemBatches = batches.filter(b => b.itemType === item.itemClass && b.itemID === item.itemID);
         const itemDisposals = disposals.filter(d => d.itemType === item.itemClass && d.itemID === item.itemID);
@@ -363,7 +372,7 @@ export async function GET(request) {
         const returned = itemBorrows.filter(b => b.status === 'Returned').reduce((sum, b) => sum + b.quantity, 0);
 
         const expired = itemBatches
-          .filter(b => b.expirationDate && b.expirationDate < todayStr)
+          .filter(b => b.expirationDate && getFormatDate(b.expirationDate) < todayStr)
           .reduce((sum, b) => sum + b.remainingQuantity, 0);
 
         return {
