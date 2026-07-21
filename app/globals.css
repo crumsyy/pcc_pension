@@ -689,9 +689,14 @@ h4,
   .pcc-page-container {
     display: flex !important;
     flex-direction: column !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
+    height: calc(100vh - 62px - 3.2rem) !important;
     overflow: hidden !important;
+  }
+
+  @media (max-width: 991.98px) {
+    .pcc-page-container {
+      height: calc(100vh - 56px - 2.2rem) !important;
+    }
   }
 
   /* Minimized Search Filters, Headers, and Spacing for locked layout */
