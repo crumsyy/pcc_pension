@@ -68,6 +68,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [receiptData, setReceiptData] = useState(null);
   const [processing, setProcessing] = useState(false);
 
+  // Pay Remaining Balance Workflow States
+  const [settleBooking, setSettleBooking] = useState(null);
+  const [settleGcashRef, setSettleGcashRef] = useState('');
+  const [settleProcessing, setSettleProcessing] = useState(false);
+
   // Alert Dialog State
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -217,6 +222,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const amountToPayNow = netTotalAmount * (paymentPctNumber / 100);
   const remainingBalanceAfterPay = netTotalAmount - amountToPayNow;
 
+  // Dashboard Metrics
+  const totalStaysCount = bookings.length;
+  const totalNightsCount = bookings.reduce((sum, b) => {
+    const cIn = new Date(b.checkInDate || b.reservationDateTime || Date.now());
+    const cOut = new Date(b.checkOutDate || Date.now());
+    const nights = Math.max(1, Math.ceil(Math.abs(cOut - cIn) / (1000 * 60 * 60 * 24)));
+    return sum + nights;
+  }, 0);
+  const totalActiveBalanceDue = bookings.reduce((sum, b) => sum + (parseFloat(b.remainingBalance) || 0), 0);
+
   // Triggers for Visual Room Selection
   const handleStartReserveFlow = () => {
     setFlowAction('reserve');
@@ -340,6 +355,38 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       showAlert('error', 'Payment Error', err.message);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleConfirmPayBalance = async (e) => {
+    e.preventDefault();
+    if (!settleBooking || !settleGcashRef.trim()) return;
+    setSettleProcessing(true);
+
+    try {
+      const res = await fetch('/api/guest/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingID: settleBooking.bookingID,
+          paymentPercentage: 'Balance Settlement (100%)',
+          referenceNumber: settleGcashRef.trim(),
+          amountToPay: parseFloat(settleBooking.remainingBalance)
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to settle balance');
+
+      setReceiptData(data.receipt);
+      setSettleBooking(null);
+      setSettleGcashRef('');
+      setActiveModal('receipt');
+      fetchRoomsAndStatus();
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    } finally {
+      setSettleProcessing(false);
     }
   };
 
@@ -484,6 +531,51 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       borderLeft: '#fd7e14',
       selectable: false
     };
+  };
+
+  // REQ165a: Interactive Booking Status Timeline Component Helper
+  const renderBookingStatusTimeline = (status) => {
+    const steps = [
+      { id: 'Pending', label: 'Pending' },
+      { id: 'Confirmed', label: 'Confirmed' },
+      { id: 'Checked In', label: 'Checked-in' },
+      { id: 'Completed', label: 'Completed' }
+    ];
+
+    let currentIdx = 0;
+    if (status === 'Confirmed') currentIdx = 1;
+    if (status === 'Checked In') currentIdx = 2;
+    if (status === 'Completed') currentIdx = 3;
+    if (status === 'Cancelled') {
+      return (
+        <div className="alert alert-danger py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
+          ❌ Status: Cancelled
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-100 my-2">
+        <div className="d-flex align-items-center justify-content-between position-relative px-1">
+          {steps.map((step, idx) => {
+            const isDone = idx <= currentIdx;
+            return (
+              <div key={step.id} className="d-flex flex-column align-items-center" style={{ flex: 1, zIndex: 1 }}>
+                <div
+                  className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${isDone ? 'bg-primary text-white shadow-sm' : 'bg-light text-muted border'}`}
+                  style={{ width: '24px', height: '24px', fontSize: '0.68rem' }}
+                >
+                  {isDone ? '✓' : idx + 1}
+                </div>
+                <span className={`mt-1 text-center ${isDone ? 'fw-bold text-primary' : 'text-muted'}`} style={{ fontSize: '0.65rem' }}>
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   // Group rooms by Floor safely
@@ -856,6 +948,28 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
 
+                {/* STAY & LOYALTY METRICS WIDGETS */}
+                <div className="row g-3 mb-4">
+                  <div className="col-4">
+                    <div className="card shadow-sm border-0 p-3 text-center bg-white" style={{ borderRadius: '12px' }}>
+                      <div className="text-pcc-blue fw-bold display-6 mb-0">{totalStaysCount}</div>
+                      <div className="text-muted small fw-semibold">Total Stays</div>
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="card shadow-sm border-0 p-3 text-center bg-white" style={{ borderRadius: '12px' }}>
+                      <div className="text-success fw-bold display-6 mb-0">{totalNightsCount}</div>
+                      <div className="text-muted small fw-semibold">Nights Booked</div>
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="card shadow-sm border-0 p-3 text-center bg-white" style={{ borderRadius: '12px' }}>
+                      <div className="text-danger fw-bold display-6 mb-0">₱{totalActiveBalanceDue.toFixed(0)}</div>
+                      <div className="text-muted small fw-semibold">Balance Due</div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* ACTIVE STAY / STATUS CARDS */}
                 {activeReservation && (
                   <div className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
@@ -863,7 +977,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <div>
                         <span className="badge bg-success text-white mb-1">🟢 Active Reservation Request</span>
                         <h6 className="fw-bold mb-0 text-dark">Room {activeReservation.roomNumber} ({activeReservation.roomType})</h6>
-                        <div className="small text-muted">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
+                        <div className="small text-muted mb-2">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
+                        {renderBookingStatusTimeline(activeReservation.status)}
                       </div>
                       <button className="btn btn-xs btn-outline-danger" onClick={() => handleCancelReservation(activeReservation.reservationID)}>
                         Cancel
@@ -874,15 +989,26 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {activeBookingStay && (
                   <div className="card shadow-sm border-0 border-start border-4 border-primary p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <span className="badge bg-primary text-white mb-1">🔵 Active Stay Booking (#{activeBookingStay.bookingID})</span>
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                      <div className="w-100">
+                        <div className="d-flex justify-content-between align-items-center mb-1">
+                          <span className="badge bg-primary text-white">🔵 Active Stay Booking (#{activeBookingStay.bookingID})</span>
+                          {parseFloat(activeBookingStay.remainingBalance || 0) > 0 && (
+                            <button
+                              className="btn btn-xs btn-success text-white fw-bold px-2 py-1"
+                              onClick={() => setSettleBooking(activeBookingStay)}
+                            >
+                              💳 Pay Remaining Balance (₱{parseFloat(activeBookingStay.remainingBalance).toFixed(2)})
+                            </button>
+                          )}
+                        </div>
                         <h6 className="fw-bold mb-0 text-dark">Room {activeBookingStay.roomNumber} ({activeBookingStay.roomType})</h6>
-                        <div className="small text-muted">Status: <strong>{activeBookingStay.status}</strong></div>
+                        <div className="small text-muted mb-2">
+                          Remaining Balance: <strong className="text-danger">₱{parseFloat(activeBookingStay.remainingBalance || 0).toFixed(2)}</strong>
+                        </div>
+                        {/* REQ165a TIMELINE */}
+                        {renderBookingStatusTimeline(activeBookingStay.status)}
                       </div>
-                      <button className="btn btn-xs btn-outline-primary" onClick={() => setActiveTab('account')}>
-                        View Bill
-                      </button>
                     </div>
                   </div>
                 )}
@@ -1114,41 +1240,41 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {/* MY BOOKINGS HISTORY */}
                 <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                  <h6 className="fw-bold text-dark mb-3">My Bookings History</h6>
+                  <h6 className="fw-bold text-dark mb-3">My Bookings History & Status Timeline</h6>
                   {bookings.length === 0 ? (
                     <p className="text-muted small mb-0">No booking records found.</p>
                   ) : (
-                    <div className="table-responsive">
-                      <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
-                        <thead>
-                          <tr className="table-light">
-                            <th>Booking ID</th>
-                            <th>Room</th>
-                            <th>Status</th>
-                            <th>Balance</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {bookings.map((b) => (
-                            <tr key={b.bookingID}>
-                              <td className="fw-bold">#{b.bookingID}</td>
-                              <td>Room {b.roomNumber}</td>
-                              <td>
-                                <span className={`badge ${b.status === 'Confirmed' ? 'bg-success' : 'bg-primary'}`}>{b.status}</span>
-                              </td>
-                              <td className="fw-bold">₱{parseFloat(b.remainingBalance || 0).toFixed(2)}</td>
-                              <td>
+                    <div className="d-flex flex-column gap-3">
+                      {bookings.map((b) => {
+                        const remBal = parseFloat(b.remainingBalance || 0);
+                        return (
+                          <div key={b.bookingID} className="p-3 border rounded bg-light">
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <div>
+                                <h6 className="fw-bold mb-0 text-dark">Booking #{b.bookingID} — Room {b.roomNumber}</h6>
+                                <span className="small text-muted">Remaining Balance: <strong className={remBal > 0 ? 'text-danger' : 'text-success'}>₱{remBal.toFixed(2)}</strong></span>
+                              </div>
+                              <div className="d-flex gap-1.5 align-items-center">
+                                {remBal > 0 && (b.status === 'Pending' || b.status === 'Confirmed' || b.status === 'Checked In') && (
+                                  <button
+                                    className="btn btn-xs btn-success text-white fw-bold px-2 py-1"
+                                    onClick={() => setSettleBooking(b)}
+                                  >
+                                    💳 Pay Balance
+                                  </button>
+                                )}
                                 {(b.status === 'Pending' || b.status === 'Confirmed') && (
-                                  <button className="btn btn-xs btn-danger text-white py-0 px-2" onClick={() => handleCancelBooking(b.bookingID)}>
+                                  <button className="btn btn-xs btn-outline-danger py-0 px-2" onClick={() => handleCancelBooking(b.bookingID)}>
                                     Cancel
                                   </button>
                                 )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              </div>
+                            </div>
+                            {/* REQ165a TIMELINE */}
+                            {renderBookingStatusTimeline(b.status)}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1187,6 +1313,64 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         hideFloating={activeTab === 'chat'}
         bottomOffset={isDesktop ? '24px' : '85px'}
       />
+
+      {/* SETTLE REMAINING BALANCE MODAL (REQ167c) */}
+      {settleBooking && (
+        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header text-white" style={{ backgroundColor: '#198754' }}>
+                <h5 className="modal-title fw-bold">💳 Settle Remaining Balance — Booking #{settleBooking.bookingID}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setSettleBooking(null)}></button>
+              </div>
+              <form onSubmit={handleConfirmPayBalance}>
+                <div className="modal-body">
+                  <div className="alert alert-success py-2 small mb-3">
+                    ℹ Enter your GCash payment reference number below to settle the remaining balance of <strong>₱{parseFloat(settleBooking.remainingBalance).toFixed(2)}</strong>.
+                  </div>
+
+                  <div className="p-3 bg-light rounded border mb-3">
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Target Booking:</span>
+                      <strong className="text-dark">Booking #{settleBooking.bookingID}</strong>
+                    </div>
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Room Number:</span>
+                      <strong className="text-dark">Room {settleBooking.roomNumber}</strong>
+                    </div>
+                    <div className="d-flex justify-content-between mb-1 text-danger fw-bold fs-6">
+                      <span>Amount Due Now:</span>
+                      <span>₱{parseFloat(settleBooking.remainingBalance).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 border rounded bg-white text-center mb-3">
+                    <div className="fw-bold text-primary mb-1">PCC Home Suite Home GCash Merchant</div>
+                    <div className="small text-muted mb-2">Account No: <strong>0917-123-4567</strong></div>
+                    <div className="mb-2">
+                      <label className="form-label fw-semibold small">GCash Reference Number *</label>
+                      <input
+                        type="text"
+                        className="form-control text-center fw-bold"
+                        placeholder="e.g. 100293847561"
+                        value={settleGcashRef}
+                        onChange={(e) => setSettleGcashRef(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-danger text-white" onClick={() => setSettleBooking(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-success text-white fw-bold" disabled={settleProcessing || !settleGcashRef.trim()}>
+                    {settleProcessing ? 'Processing Payment...' : `Submit Payment (₱${parseFloat(settleBooking.remainingBalance).toFixed(2)}) 🚀`}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL WORKFLOW: ROOM DETAILS MODAL */}
       {activeModal === 'room_details' && selectedRoom && (
