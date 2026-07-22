@@ -885,11 +885,12 @@ function BookingsClient() {
                         </div>
                       </div>
                       <div className="row g-2">
-                        <div className="col-md-6 mb-2">
+                        <div className="col-md-4 mb-2">
                           <label className="form-label small mb-1">Contact Number</label>
                           <input
                             type="text"
                             className="form-control form-control-sm"
+                            placeholder="09XXXXXXXXX"
                             value={walkInForm.contact}
                             onChange={(e) => {
                               const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
@@ -897,11 +898,19 @@ function BookingsClient() {
                             }}
                           />
                         </div>
-                        <div className="col-md-6 mb-2">
-                          <label className="form-label small mb-1">Email Address</label>
+                        <div className="col-md-4 mb-2">
+                          <label className="form-label small mb-1">Birthdate (Calendar) *</label>
+                          <DateInput
+                            value={walkInForm.dateOfBirth}
+                            onChange={(e) => setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                          />
+                        </div>
+                        <div className="col-md-4 mb-2">
+                          <label className="form-label small mb-1">Email Address <span className="text-muted">(Optional)</span></label>
                           <input
                             type="email"
                             className="form-control form-control-sm"
+                            placeholder="Optional email"
                             value={walkInForm.email}
                             onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
                           />
@@ -1010,15 +1019,22 @@ function BookingsClient() {
                     )}
 
                     {roomGuests.map((g, idx) => (
-                      <div key={idx} className="p-2 mb-2 rounded bg-light border position-relative">
-                        <div className="d-flex justify-content-between mb-1">
+                      <div key={idx} className="p-2.5 mb-2 rounded bg-light border position-relative">
+                        <div className="d-flex justify-content-between align-items-center mb-1">
                           <span className="small text-muted fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary)"}</span>
-                          {idx > 0 && (
-                            <button type="button" className="btn-close" style={{ fontSize: '0.75rem' }} onClick={() => handleRemoveGuest(idx)}></button>
-                          )}
+                          <div className="d-flex align-items-center gap-2">
+                            {g.age !== '' && g.age !== null && (
+                              <span className={`badge ${parseInt(g.age) >= 60 ? 'bg-success' : 'bg-primary-subtle text-primary'}`} style={{ fontSize: '0.72rem' }}>
+                                🎂 Age: {g.age} yrs {parseInt(g.age) >= 60 ? '— Senior Citizen Eligible' : ''}
+                              </span>
+                            )}
+                            {idx > 0 && (
+                              <button type="button" className="btn-close" style={{ fontSize: '0.75rem' }} onClick={() => handleRemoveGuest(idx)}></button>
+                            )}
+                          </div>
                         </div>
                         <div className="row g-2">
-                          <div className="col-md-5">
+                          <div className="col-md-4">
                             <input
                               type="text"
                               className="form-control form-control-sm"
@@ -1028,17 +1044,20 @@ function BookingsClient() {
                               onChange={(e) => handleGuestChange(idx, 'fullName', e.target.value)}
                             />
                           </div>
-                          <div className="col-md-2">
-                            <input
-                              type="number"
-                              className="form-control form-control-sm"
-                              placeholder="Age *"
-                              required
-                              value={g.age}
-                              onChange={(e) => handleGuestChange(idx, 'age', e.target.value)}
-                            />
+                          <div className="col-md-4">
+                            <div className="input-group input-group-sm">
+                              <span className="input-group-text bg-white small px-2">🎂 Birthdate</span>
+                              <DateInput
+                                value={g.dateOfBirth || ''}
+                                onChange={(e) => {
+                                  const dateVal = e.target.value;
+                                  const calculatedAge = calculateAgeFromUiDate(dateVal);
+                                  setRoomGuests(prev => prev.map((item, i) => i === idx ? { ...item, dateOfBirth: dateVal, age: calculatedAge } : item));
+                                }}
+                              />
+                            </div>
                           </div>
-                          <div className="col-md-5">
+                          <div className="col-md-4">
                             <select
                               className="form-select form-select-sm"
                               value={g.discountID}
@@ -1364,19 +1383,26 @@ function BookingsClient() {
 
                   {managingGuests.map((g, idx) => (
                     <div key={idx} className="p-3 mb-2 rounded bg-light border position-relative">
-                      <div className="d-flex justify-content-between mb-2">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
                         <span className="small text-muted fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary Guest)"}</span>
-                        {idx > 0 && (
-                          <button
-                            type="button"
-                            className="btn-close"
-                            style={{ fontSize: '0.75rem' }}
-                            onClick={() => setManagingGuests(prev => prev.filter((_, i) => i !== idx))}
-                          ></button>
-                        )}
+                        <div className="d-flex align-items-center gap-2">
+                          {g.age !== '' && g.age !== null && (
+                            <span className={`badge ${parseInt(g.age) >= 60 ? 'bg-success' : 'bg-primary-subtle text-primary'}`} style={{ fontSize: '0.72rem' }}>
+                              🎂 Age: {g.age} yrs {parseInt(g.age) >= 60 ? '— Senior Citizen Eligible' : ''}
+                            </span>
+                          )}
+                          {idx > 0 && (
+                            <button
+                              type="button"
+                              className="btn-close"
+                              style={{ fontSize: '0.75rem' }}
+                              onClick={() => setManagingGuests(prev => prev.filter((_, i) => i !== idx))}
+                            ></button>
+                          )}
+                        </div>
                       </div>
                       <div className="row g-2">
-                        <div className="col-md-5">
+                        <div className="col-md-4">
                           <input
                             type="text"
                             className="form-control form-control-sm"
@@ -1389,20 +1415,20 @@ function BookingsClient() {
                             }}
                           />
                         </div>
-                        <div className="col-md-2">
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            placeholder="Age *"
-                            required
-                            value={g.age}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setManagingGuests(prev => prev.map((item, i) => i === idx ? { ...item, age: val } : item));
-                            }}
-                          />
+                        <div className="col-md-4">
+                          <div className="input-group input-group-sm">
+                            <span className="input-group-text bg-white small px-2">🎂 Birthdate</span>
+                            <DateInput
+                              value={g.dateOfBirth || ''}
+                              onChange={(e) => {
+                                const dateVal = e.target.value;
+                                const calculatedAge = calculateAgeFromUiDate(dateVal);
+                                setManagingGuests(prev => prev.map((item, i) => i === idx ? { ...item, dateOfBirth: dateVal, age: calculatedAge } : item));
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="col-md-5">
+                        <div className="col-md-4">
                           <select
                             className="form-select form-select-sm"
                             value={g.discountID}
