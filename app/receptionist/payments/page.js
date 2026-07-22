@@ -143,8 +143,8 @@ function PaymentsClient() {
   const handleProcessPayment = async (e) => {
     e.preventDefault();
 
-    if (!selectedBookingID) {
-      showAlert('warning', 'Warning', 'Please select a room/guest.');
+    if (!selectedBookingID || !billData || !billData.booking) {
+      showAlert('warning', 'Warning', 'Please select a valid room/guest.');
       return;
     }
 
@@ -152,6 +152,9 @@ function PaymentsClient() {
       showAlert('warning', 'Warning', `Insufficient cash received. Minimum amount needed: ₱${payableAmount.toFixed(2)}`);
       return;
     }
+
+    const effectiveCash = payableAmount > 0 ? (paymentForm.paymentMethodID === '1' ? cash : payableAmount) : 0;
+    const effectiveChange = payableAmount > 0 ? (paymentForm.paymentMethodID === '1' ? change : 0) : 0;
 
     showConfirm('Confirm Payment Process', 'Process payment and finalize checkout details?', async () => {
       try {
@@ -162,8 +165,8 @@ function PaymentsClient() {
             bookingID: selectedBookingID,
             guestID: billData.booking.guestID,
             amount: payableAmount,
-            cashReceived: paymentForm.paymentMethodID === '1' ? cash : payableAmount,
-            change: paymentForm.paymentMethodID === '1' ? change : 0,
+            cashReceived: effectiveCash,
+            change: effectiveChange,
             paymentMethodID: paymentForm.paymentMethodID,
             discountID: null,
             shouldCheckout: true
@@ -279,7 +282,7 @@ function PaymentsClient() {
                           name="cashReceived"
                           min="0"
                           step="0.01"
-                          required={paymentForm.paymentMethodID === '1'}
+                          required={paymentForm.paymentMethodID === '1' && payableAmount > 0}
                           placeholder="0.00"
                           value={paymentForm.cashReceived}
                           onChange={handleInputChange}

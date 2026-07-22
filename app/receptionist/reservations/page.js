@@ -332,17 +332,25 @@ function ReservationsClient() {
 
   const openConvertModal = (res) => {
     setSelectedRes(res);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
     const pad = (num) => String(num).padStart(2, '0');
-    const todayStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
-    const tomorrowStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
+    
+    let inDateObj = new Date();
+    if (res.reservationDateTime) {
+      const parsed = new Date(res.reservationDateTime);
+      if (!isNaN(parsed.getTime())) {
+        inDateObj = parsed;
+      }
+    }
+    const outDateObj = new Date(inDateObj);
+    outDateObj.setDate(outDateObj.getDate() + 1);
 
-    setConvInDate(todayStr);
-    setConvInTime("14:00");
-    setConvOutDate(tomorrowStr);
+    const inDateStr = `${pad(inDateObj.getMonth() + 1)}/${pad(inDateObj.getDate())}/${inDateObj.getFullYear()}`;
+    const inTimeStr = `${pad(inDateObj.getHours())}:${pad(inDateObj.getMinutes())}`;
+    const outDateStr = `${pad(outDateObj.getMonth() + 1)}/${pad(outDateObj.getDate())}/${outDateObj.getFullYear()}`;
+
+    setConvInDate(inDateStr);
+    setConvInTime(inTimeStr !== "00:00" ? inTimeStr : "14:00");
+    setConvOutDate(outDateStr);
     setConvOutTime("12:00");
 
     setDpPercent('50');

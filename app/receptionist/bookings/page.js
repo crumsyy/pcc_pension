@@ -473,9 +473,28 @@ function BookingsClient() {
       }
     }
 
+    const rate = selectedRoom ? parseFloat(selectedRoom.rate || 0) : 0;
+    let nights = 0;
+    if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
+      const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
+      const outStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
+      const inD = new Date(inStr);
+      const outD = new Date(outStr);
+      if (outD > inD) {
+        const diff = Math.abs(outD - inD);
+        nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      }
+    }
+    const totalRoomCharge = rate * nights;
+    const requiredDownpayment = totalRoomCharge * 0.5;
+
     const dpAmount = parseFloat(downPayment);
     if (isNaN(dpAmount) || dpAmount <= 0) {
       showAlert('error', 'Validation Error', 'Please enter a valid down payment amount.');
+      return;
+    }
+    if (dpAmount < requiredDownpayment - 0.01) {
+      showAlert('error', 'Validation Error', `Received down payment (₱${dpAmount.toFixed(2)}) cannot be below the required 50% downpayment of ₱${requiredDownpayment.toFixed(2)}.`);
       return;
     }
 

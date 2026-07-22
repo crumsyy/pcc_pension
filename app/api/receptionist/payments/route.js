@@ -58,9 +58,9 @@ export async function POST(request) {
 
     const currentBalance = await getBookingBalance(bookingID);
     const isFullyPaid = (currentBalance - amount) <= 0.05;
-    const shouldCheckout = isFullyPaid && bookingStatus === 'Checked In';
+    const shouldCheckout = isFullyPaid && (bookingStatus === 'Checked In' || bookingStatus === 'Pending Check-in');
 
-    if (!bookingID || !guestID || isNaN(amount) || !paymentMethodID) {
+    if (!bookingID || !guestID || isNaN(amount) || amount < 0 || !paymentMethodID) {
       return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
     }
 

@@ -134,6 +134,23 @@ export async function POST(request) {
           return NextResponse.json({ error: 'Missing required fields or down payment details.' }, { status: 400 });
         }
 
+        // Calculate minimum required 50% down payment
+        const [roomData] = await conn.execute(
+          "SELECT r.floorID, r.roomTypeID, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
+          [roomID]
+        );
+        const roomRate = roomData.length > 0 ? parseFloat(roomData[0].rate || 0) : 0;
+        const checkInD = new Date(checkInDateTime);
+        const checkOutD = new Date(checkOutDateTime);
+        const diffDays = Math.max(1, Math.ceil(Math.abs(checkOutD - checkInD) / (1000 * 60 * 60 * 24)));
+        const requiredDp = roomRate * diffDays * 0.5;
+
+        if (downPaymentAmount < requiredDp - 0.01) {
+          return NextResponse.json({ 
+            error: `Received down payment amount (₱${downPaymentAmount.toFixed(2)}) cannot be below the required minimum 50% down payment of ₱${requiredDp.toFixed(2)}.` 
+          }, { status: 400 });
+        }
+
         // Insert booking
         const [insertBookingRes] = await conn.execute(
           "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, ?, NULL, ?, ?)",

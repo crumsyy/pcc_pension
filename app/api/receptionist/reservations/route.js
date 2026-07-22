@@ -13,12 +13,13 @@ export async function GET(request) {
       dbQuery(`
         SELECT r.reservationID, DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime, r.status, r.guestID, r.roomID,
                g.firstName, g.lastName, g.contact,
-               rm.roomNumber, rt.type as roomType,
+               rm.roomNumber, rt.type as roomType, rr.rate,
                b.bookingID, b.status as bookingStatus
         FROM reservation r
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1
         LEFT JOIN booking b ON b.reservationID = r.reservationID
         WHERE rm.isArchived = 0
         ORDER BY r.reservationDateTime DESC
