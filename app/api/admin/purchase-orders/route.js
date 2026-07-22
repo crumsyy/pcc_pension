@@ -211,6 +211,13 @@ export async function POST(request) {
           }
         }
 
+        const [[allAmenityItems], [allProductItems]] = await Promise.all([
+          conn.execute("SELECT amenityID, name, itemType FROM amenities WHERE isArchived = 0"),
+          conn.execute("SELECT productID, name, itemType FROM products WHERE isArchived = 0")
+        ]);
+        const amenityMap = new Map(allAmenityItems.map(a => [a.name, a]));
+        const productMap = new Map(allProductItems.map(p => [p.name, p]));
+
         for (const item of poItems) {
           const itemData = received[item.orderItemID];
           if (!itemData) continue;
@@ -221,16 +228,16 @@ export async function POST(request) {
           let itemID = null;
           let isConsumable = true;
           if (item.itemType === 'Amenity') {
-            const [amenityRes] = await conn.execute("SELECT amenityID, itemType FROM amenities WHERE name = ?", [item.itemName]);
-            if (amenityRes.length > 0) {
-              itemID = amenityRes[0].amenityID;
-              isConsumable = amenityRes[0].itemType === 'Consumable';
+            const amenity = amenityMap.get(item.itemName);
+            if (amenity) {
+              itemID = amenity.amenityID;
+              isConsumable = amenity.itemType === 'Consumable';
             }
           } else {
-            const [productRes] = await conn.execute("SELECT productID, itemType FROM products WHERE name = ?", [item.itemName]);
-            if (productRes.length > 0) {
-              itemID = productRes[0].productID;
-              isConsumable = productRes[0].itemType === 'Consumable';
+            const product = productMap.get(item.itemName);
+            if (product) {
+              itemID = product.productID;
+              isConsumable = product.itemType === 'Consumable';
             }
           }
 

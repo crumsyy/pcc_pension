@@ -79,7 +79,7 @@ export default function ModalDialog({
               </button>
             )}
             {onCancel && (
-              <button type="button" className="btn btn-secondary px-4 py-2 ms-2 text-white" onClick={onCancel} style={{ borderRadius: '6px' }}>
+              <button type="button" className="btn btn-danger px-4 py-2 ms-2 text-white" onClick={onCancel} style={{ borderRadius: '6px' }}>
                 {cancelText}
               </button>
             )}

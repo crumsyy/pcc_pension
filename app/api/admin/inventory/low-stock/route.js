@@ -10,28 +10,27 @@ export async function GET() {
 
   try {
     // 1. Fetch active, non-archived products (excluding Cooked Meals) and amenities
-    const products = await dbQuery(`
-      SELECT 'Product' as sourceTable, p.productID as itemID, p.name, p.basePrice, p.price, pc.name as category, p.minStock, p.itemType, p.unit
-      FROM products p
-      JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
-      WHERE p.isArchived = 0 AND pc.name != 'Cooked Meals'
-    `);
-
-    const amenities = await dbQuery(`
-      SELECT 'Amenity' as sourceTable, a.amenityID as itemID, a.name, a.basePrice, a.price, ac.name as category, a.minStock, a.itemType, a.unit
-      FROM amenities a
-      JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
-      WHERE a.isArchived = 0
-    `);
+    const [products, amenities, batches] = await Promise.all([
+      dbQuery(`
+        SELECT 'Product' as sourceTable, p.productID as itemID, p.name, p.basePrice, p.price, pc.name as category, p.minStock, p.itemType, p.unit
+        FROM products p
+        JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
+        WHERE p.isArchived = 0 AND pc.name != 'Cooked Meals'
+      `),
+      dbQuery(`
+        SELECT 'Amenity' as sourceTable, a.amenityID as itemID, a.name, a.basePrice, a.price, ac.name as category, a.minStock, a.itemType, a.unit
+        FROM amenities a
+        JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
+        WHERE a.isArchived = 0
+      `),
+      dbQuery(`
+        SELECT itemType, itemID, remainingQuantity, expirationDate
+        FROM inventory_batch
+        WHERE status = 'Active'
+      `)
+    ]);
 
     const allCatalog = [...products, ...amenities];
-
-    // 2. Fetch all active inventory batches
-    const batches = await dbQuery(`
-      SELECT itemType, itemID, remainingQuantity, expirationDate
-      FROM inventory_batch
-      WHERE status = 'Active'
-    `);
 
     // Compute local PHT todayStr
     const localNow = new Date();

@@ -29,54 +29,49 @@ export async function GET(request) {
       WHERE p.isArchived = 0 AND pc.name != 'Cooked Meals'
     `;
 
-    const amenities = await dbQuery(sqlA);
-    const products = await dbQuery(sqlP);
+    const [amenities, products, batches, borrowLogs, disposalLogs, movements] = await Promise.all([
+      dbQuery(sqlA),
+      dbQuery(sqlP),
+      dbQuery(`
+        SELECT ib.*, COALESCE(a.name, p.name) as itemName
+        FROM inventory_batch ib
+        LEFT JOIN amenities a ON ib.itemType = 'Amenity' AND a.amenityID = ib.itemID
+        LEFT JOIN products p ON ib.itemType = 'Product' AND p.productID = ib.itemID
+        ORDER BY ib.dateReceived DESC, ib.batchID DESC
+      `),
+      dbQuery(`
+        SELECT bt.*, COALESCE(a.name, p.name) as itemName, r.roomNumber
+        FROM borrow_transaction bt
+        LEFT JOIN amenities a ON bt.itemType = 'Amenity' AND a.amenityID = bt.itemID
+        LEFT JOIN products p ON bt.itemType = 'Product' AND p.productID = bt.itemID
+        LEFT JOIN room r ON r.roomID = bt.roomID
+        ORDER BY bt.borrowDateTime DESC
+      `),
+      dbQuery(`
+        SELECT id.*, COALESCE(a.name, p.name) as itemName, ib.batchNumber, u.email as userEmail
+        FROM inventory_disposal id
+        LEFT JOIN amenities a ON id.itemType = 'Amenity' AND a.amenityID = id.itemID
+        LEFT JOIN products p ON id.itemType = 'Product' AND p.productID = id.itemID
+        LEFT JOIN inventory_batch ib ON ib.batchID = id.batchID
+        LEFT JOIN user u ON u.userID = id.userID
+        ORDER BY id.disposalDateTime DESC
+      `),
+      dbQuery(`
+        SELECT im.*, COALESCE(a.name, p.name) as itemName, ib.batchNumber, u.email as userEmail
+        FROM inventory_movement im
+        LEFT JOIN amenities a ON im.itemType = 'Amenity' AND a.amenityID = im.itemID
+        LEFT JOIN products p ON im.itemType = 'Product' AND p.productID = im.itemID
+        LEFT JOIN inventory_batch ib ON ib.batchID = im.batchID
+        LEFT JOIN user u ON u.userID = im.userID
+        ORDER BY im.movementDateTime DESC, im.movementID DESC
+        LIMIT 100
+      `)
+    ]);
+
     let allCatalog = [...amenities, ...products];
 
     // Sort by name
     allCatalog.sort((a, b) => a.name.localeCompare(b.name));
-
-    // 2. Fetch all active inventory batches
-    const batches = await dbQuery(`
-      SELECT ib.*, COALESCE(a.name, p.name) as itemName
-      FROM inventory_batch ib
-      LEFT JOIN amenities a ON ib.itemType = 'Amenity' AND a.amenityID = ib.itemID
-      LEFT JOIN products p ON ib.itemType = 'Product' AND p.productID = ib.itemID
-      ORDER BY ib.dateReceived DESC, ib.batchID DESC
-    `);
-
-    // 3. Fetch active borrow logs
-    const borrowLogs = await dbQuery(`
-      SELECT bt.*, COALESCE(a.name, p.name) as itemName, r.roomNumber
-      FROM borrow_transaction bt
-      LEFT JOIN amenities a ON bt.itemType = 'Amenity' AND a.amenityID = bt.itemID
-      LEFT JOIN products p ON bt.itemType = 'Product' AND p.productID = bt.itemID
-      LEFT JOIN room r ON r.roomID = bt.roomID
-      ORDER BY bt.borrowDateTime DESC
-    `);
-
-    // 4. Fetch disposals list
-    const disposalLogs = await dbQuery(`
-      SELECT id.*, COALESCE(a.name, p.name) as itemName, ib.batchNumber, u.email as userEmail
-      FROM inventory_disposal id
-      LEFT JOIN amenities a ON id.itemType = 'Amenity' AND a.amenityID = id.itemID
-      LEFT JOIN products p ON id.itemType = 'Product' AND p.productID = id.itemID
-      LEFT JOIN inventory_batch ib ON ib.batchID = id.batchID
-      LEFT JOIN user u ON u.userID = id.userID
-      ORDER BY id.disposalDateTime DESC
-    `);
-
-    // 5. Fetch recent stock movements
-    const movements = await dbQuery(`
-      SELECT im.*, COALESCE(a.name, p.name) as itemName, ib.batchNumber, u.email as userEmail
-      FROM inventory_movement im
-      LEFT JOIN amenities a ON im.itemType = 'Amenity' AND a.amenityID = im.itemID
-      LEFT JOIN products p ON im.itemType = 'Product' AND p.productID = im.itemID
-      LEFT JOIN inventory_batch ib ON ib.batchID = im.batchID
-      LEFT JOIN user u ON u.userID = im.userID
-      ORDER BY im.movementDateTime DESC, im.movementID DESC
-      LIMIT 100
-    `);
 
     // Compute local PHT todayStr
     const localNow = new Date();

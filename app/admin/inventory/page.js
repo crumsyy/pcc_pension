@@ -957,9 +957,9 @@ export default function AdminInventory() {
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border">
               <h5 className="text-blue mb-3">Disposed Inventory Logs</h5>
-              <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
                 <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
-                  <thead>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: '#fff' }}>
                     <tr>
                       <th>Date</th>
                       <th>Item</th>
