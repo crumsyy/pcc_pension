@@ -1044,3 +1044,39 @@ h4,
   font-weight: 700;
   border-radius: 10px;
 }
+
+.btn-logout-power {
+  width: 38px;
+  height: 38px;
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: #ffffff !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3) !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.btn-logout-power:hover {
+  background-color: #bb2d3b !important;
+  border-color: #b02a37 !important;
+  transform: scale(1.08) !important;
+}
+
+.skeleton-box {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

@@ -16,6 +16,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [unreadCount, setUnreadCount] = useState(0);
   const [discounts, setDiscounts] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Active Navigation Tab: 'home' | 'rooms' | 'chat' | 'notifications' | 'account'
   const [activeTab, setActiveTab] = useState('home');
@@ -129,7 +130,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     fetchDiscounts();
   }, []);
 
-  // 4-second background auto-polling for reservations, bookings, and notifications
+  // 4-second background auto-polling for reservations, bookings, room availability, and notifications
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -219,6 +220,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const handleOpenRoomDetails = (rm) => {
     setSelectedRoom(rm);
     setActiveModal('room_details');
+  };
+
+  const handleConfirmLogout = () => {
+    window.location.href = '/api/auth/logout';
   };
 
   // Submission Handlers
@@ -410,7 +415,52 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     });
   };
 
-  const activeBookingsCount = bookings.filter(b => b.status === "Checked In").length;
+  // Helper for Status Badge Styling (Exact 4-Color Legend)
+  const getRoomStatusMeta = (status) => {
+    if (status === 'Available') {
+      return {
+        badgeClass: 'bg-success text-white',
+        label: '🟢 Available',
+        bgColor: '#ffffff',
+        borderLeft: '#198754',
+        selectable: true
+      };
+    }
+    if (status === 'Occupied') {
+      return {
+        badgeClass: 'bg-danger text-white',
+        label: '🔴 Occupied',
+        bgColor: '#fff5f5',
+        borderLeft: '#dc3545',
+        selectable: false
+      };
+    }
+    if (status === 'Under Maintenance') {
+      return {
+        badgeClass: 'bg-warning text-dark',
+        label: '🟠 Under Maintenance',
+        bgColor: '#fffdf0',
+        borderLeft: '#ffc107',
+        selectable: false
+      };
+    }
+    if (status === 'Reserved') {
+      return {
+        badgeClass: 'bg-secondary text-white',
+        label: '⚪ Reserved',
+        bgColor: '#f8fafc',
+        borderLeft: '#6c757d',
+        selectable: false
+      };
+    }
+    return {
+      badgeClass: 'bg-secondary text-white',
+      label: `⚪ ${status}`,
+      bgColor: '#f8fafc',
+      borderLeft: '#6c757d',
+      selectable: false
+    };
+  };
 
   // Group rooms by Floor safely
   const groundFloorRooms = allRooms.filter(r => String(r.floorID) === '1' || r.floorName?.toLowerCase().includes('ground') || String(r.roomNumber).startsWith('1'));
@@ -422,7 +472,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   return (
     <>
-      {/* Custom Modal Dialog */}
+      {/* Custom Alert Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
         type={modalConfig.type}
@@ -434,7 +484,33 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         cancelText={modalConfig.cancelText}
       />
 
-      {/* TOP BRANDING BAR */}
+      {/* MODERN CENTERED LOGOUT CONFIRMATION DIALOG */}
+      {showLogoutModal && (
+        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1080 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0 text-center p-3" style={{ borderRadius: '16px' }}>
+              <div className="modal-body py-4">
+                <div className="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '64px', height: '64px', fontSize: '2rem' }}>
+                  <i className="bi bi-power"></i>
+                </div>
+                <h4 className="fw-bold text-dark mb-2">Log Out Confirmation</h4>
+                <p className="text-secondary small mb-4">Are you sure you want to log out of your guest account?</p>
+
+                <div className="d-flex gap-2 justify-content-center">
+                  <button className="btn btn-danger text-white px-4 py-2 fw-semibold" onClick={() => setShowLogoutModal(false)} style={{ borderRadius: '8px' }}>
+                    Cancel
+                  </button>
+                  <button className="btn btn-danger text-white px-4 py-2 fw-bold" onClick={handleConfirmLogout} style={{ borderRadius: '8px' }}>
+                    Logout <i className="bi bi-box-arrow-right ms-1"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOP BRANDING BAR WITH FILLED RED POWER LOGOUT BUTTON */}
       <nav className="navbar navbar-light bg-white border-bottom shadow-sm sticky-top px-3">
         <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
           <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0">
@@ -445,7 +521,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             <span className="badge bg-light text-pcc-blue border fw-bold px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
               👤 {guest.firstName}
             </span>
-            <a href="/api/auth/logout" className="btn btn-outline-danger btn-sm py-1 px-2.5" style={{ fontSize: '0.78rem' }}>Log Out</a>
+            {/* MODERN FILLED RED POWER LOGOUT BUTTON */}
+            <button
+              className="btn btn-logout-power"
+              title="Log Out"
+              onClick={() => setShowLogoutModal(true)}
+            >
+              <i className="bi bi-power fs-5"></i>
+            </button>
           </div>
         </div>
       </nav>
@@ -465,237 +548,258 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               </span>
             </div>
 
-            {/* COLOR CODING LEGEND BAR */}
+            {/* EXACT 4-COLOR STATUS LEGEND BAR */}
             <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
               <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                   <h5 className="fw-bold mb-1 text-dark">
                     {flowAction === 'reserve' ? '🟢 Select Room to Reserve' : '🔵 Select Room to Book'}
                   </h5>
-                  <p className="text-muted mb-0 small">Click any Green (Available) room card to proceed.</p>
+                  <p className="text-muted mb-0 small">Click any Green (Available) room card to proceed with your stay request.</p>
                 </div>
 
+                {/* EXACT 4-COLOR LEGEND */}
                 <div className="d-flex align-items-center gap-2 p-2 bg-light rounded border flex-wrap" style={{ fontSize: '0.78rem' }}>
-                  <span className="fw-bold text-dark">Legend:</span>
+                  <span className="fw-bold text-dark">Status Legend:</span>
                   <div className="d-flex align-items-center gap-1">
                     <span className="badge bg-success p-1"></span>
                     <span className="fw-bold text-success">🟢 Green (Available)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
-                    <span className="badge bg-primary p-1"></span>
-                    <span className="fw-semibold text-primary">🔵 Blue (Occupied)</span>
+                    <span className="badge bg-danger p-1"></span>
+                    <span className="fw-semibold text-danger">🔴 Red (Occupied)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
-                    <span className="badge bg-danger p-1"></span>
-                    <span className="fw-semibold text-danger">🔴 Red (Maintenance)</span>
+                    <span className="badge bg-warning p-1"></span>
+                    <span className="fw-semibold text-warning-emphasis">🟠 Orange (Maintenance)</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-1">
+                    <span className="badge bg-secondary p-1"></span>
+                    <span className="fw-semibold text-secondary">⚪ Gray (Reserved)</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* GROUND FLOOR GRID */}
-            <div className="mb-4">
-              <h6 className="fw-bold text-pcc-blue mb-2.5">Ground Floor Rooms</h6>
+            {loadingRooms ? (
+              /* SKELETON LOADER FOR ROOM CARDS */
               <div className="row g-3">
-                {groundFloorRooms.map((rm) => {
-                  const isAvailable = rm.status === 'Available';
-                  const isOccupied = rm.status === 'Occupied';
-                  const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
-                  const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
-                  const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
-
-                  return (
-                    <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
-                      <div 
-                        className={`card h-100 shadow-sm border-0 p-3 ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
-                        onClick={() => handleSelectRoomCard(rm)}
-                        style={{
-                          borderRadius: '12px',
-                          backgroundColor: cardBgColor,
-                          borderLeft: `5px solid ${borderLeftColor} !important`,
-                          cursor: isAvailable ? 'pointer' : 'not-allowed'
-                        }}
-                      >
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <div>
-                            <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
-                            <div className="text-muted small fw-semibold">{rm.roomType}</div>
-                          </div>
-                          <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
-                            {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
-                          </span>
-                        </div>
-
-                        <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
-                          <div className="d-flex justify-content-between">
-                            <span>Capacity:</span>
-                            <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
-                          </div>
-                          <div className="d-flex justify-content-between">
-                            <span>Rate:</span>
-                            <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
-                          </div>
-                        </div>
-
-                        <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
-                          <button
-                            type="button"
-                            className="btn btn-xs btn-outline-secondary py-1 px-2"
-                            onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                            style={{ fontSize: '0.75rem' }}
-                          >
-                            Details 👁️
-                          </button>
-                          {isAvailable ? (
-                            <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                              {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
-                            </button>
-                          ) : (
-                            <span className="badge bg-secondary text-white">Disabled</span>
-                          )}
-                        </div>
-                      </div>
+                {[1, 2, 3, 4].map(n => (
+                  <div key={n} className="col-12 col-md-6 col-lg-3">
+                    <div className="card p-3 shadow-sm border-0" style={{ borderRadius: '12px' }}>
+                      <div className="skeleton-box mb-2" style={{ height: '24px', width: '60%' }}></div>
+                      <div className="skeleton-box mb-3" style={{ height: '16px', width: '40%' }}></div>
+                      <div className="skeleton-box mb-2" style={{ height: '40px', width: '100%' }}></div>
+                      <div className="skeleton-box" style={{ height: '32px', width: '100%' }}></div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-            </div>
+            ) : allRooms.length === 0 ? (
+              /* FRIENDLY EMPTY STATE DESIGN */
+              <div className="card shadow-sm border-0 p-5 text-center my-4 bg-white" style={{ borderRadius: '16px' }}>
+                <div className="display-3 text-muted mb-3">🏨</div>
+                <h5 className="fw-bold text-dark mb-1">No Rooms Available At The Moment</h5>
+                <p className="text-muted small mb-3">Our rooms are currently being updated by Front Desk. Please check back shortly.</p>
+                <button className="btn btn-outline-pcc-blue btn-sm m-auto" onClick={fetchRoomsAndStatus}>
+                  🔄 Refresh Availability
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* GROUND FLOOR GRID */}
+                <div className="mb-4">
+                  <h6 className="fw-bold text-pcc-blue mb-2.5">Ground Floor Rooms</h6>
+                  <div className="row g-3">
+                    {groundFloorRooms.map((rm) => {
+                      const meta = getRoomStatusMeta(rm.status);
 
-            {/* SECOND FLOOR GRID */}
-            <div className="mb-4">
-              <h6 className="fw-bold text-pcc-blue mb-2.5">Second Floor Rooms</h6>
-              <div className="row g-3">
-                {secondFloorRooms.map((rm) => {
-                  const isAvailable = rm.status === 'Available';
-                  const isOccupied = rm.status === 'Occupied';
-                  const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
-                  const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
-                  const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
-
-                  return (
-                    <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
-                      <div 
-                        className={`card h-100 shadow-sm border-0 p-3 ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
-                        onClick={() => handleSelectRoomCard(rm)}
-                        style={{
-                          borderRadius: '12px',
-                          backgroundColor: cardBgColor,
-                          borderLeft: `5px solid ${borderLeftColor} !important`,
-                          cursor: isAvailable ? 'pointer' : 'not-allowed'
-                        }}
-                      >
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <div>
-                            <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
-                            <div className="text-muted small fw-semibold">{rm.roomType}</div>
-                          </div>
-                          <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
-                            {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
-                          </span>
-                        </div>
-
-                        <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
-                          <div className="d-flex justify-content-between">
-                            <span>Capacity:</span>
-                            <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
-                          </div>
-                          <div className="d-flex justify-content-between">
-                            <span>Rate:</span>
-                            <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
-                          </div>
-                        </div>
-
-                        <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
-                          <button
-                            type="button"
-                            className="btn btn-xs btn-outline-secondary py-1 px-2"
-                            onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                            style={{ fontSize: '0.75rem' }}
+                      return (
+                        <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                          <div 
+                            className={`card h-100 shadow-sm border-0 p-3 ${meta.selectable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
+                            onClick={() => handleSelectRoomCard(rm)}
+                            style={{
+                              borderRadius: '12px',
+                              backgroundColor: meta.bgColor,
+                              borderLeft: `5px solid ${meta.borderLeft} !important`,
+                              cursor: meta.selectable ? 'pointer' : 'not-allowed'
+                            }}
                           >
-                            Details 👁️
-                          </button>
-                          {isAvailable ? (
-                            <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                              {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
-                            </button>
-                          ) : (
-                            <span className="badge bg-secondary text-white">Disabled</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {fallbackRooms.length > 0 && (
-              <div className="mb-4">
-                <h6 className="fw-bold text-pcc-blue mb-2.5">Additional Rooms</h6>
-                <div className="row g-3">
-                  {fallbackRooms.map((rm) => {
-                    const isAvailable = rm.status === 'Available';
-                    const isOccupied = rm.status === 'Occupied';
-                    const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
-                    const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
-                    const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
-
-                    return (
-                      <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
-                        <div 
-                          className={`card h-100 shadow-sm border-0 p-3 ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
-                          onClick={() => handleSelectRoomCard(rm)}
-                          style={{
-                            borderRadius: '12px',
-                            backgroundColor: cardBgColor,
-                            borderLeft: `5px solid ${borderLeftColor} !important`,
-                            cursor: isAvailable ? 'pointer' : 'not-allowed'
-                          }}
-                        >
-                          <div className="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                              <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
-                              <div className="text-muted small fw-semibold">{rm.roomType}</div>
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <div>
+                                <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
+                                <div className="text-muted small fw-semibold">{rm.roomType}</div>
+                              </div>
+                              <span className={`badge ${meta.badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
+                                {meta.label}
+                              </span>
                             </div>
-                            <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
-                              {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
-                            </span>
-                          </div>
 
-                          <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
-                            <div className="d-flex justify-content-between">
-                              <span>Capacity:</span>
-                              <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                            <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
+                              <div className="d-flex justify-content-between">
+                                <span>Capacity:</span>
+                                <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                              </div>
+                              <div className="d-flex justify-content-between">
+                                <span>Rate:</span>
+                                <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                              </div>
                             </div>
-                            <div className="d-flex justify-content-between">
-                              <span>Rate:</span>
-                              <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
-                            </div>
-                          </div>
 
-                          <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
-                            <button
-                              type="button"
-                              className="btn btn-xs btn-outline-secondary py-1 px-2"
-                              onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                              style={{ fontSize: '0.75rem' }}
-                            >
-                              Details 👁️
-                            </button>
-                            {isAvailable ? (
-                              <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                                {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                            <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                              <button
+                                type="button"
+                                className="btn btn-xs btn-outline-secondary py-1 px-2"
+                                onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                                style={{ fontSize: '0.75rem' }}
+                              >
+                                Details 👁️
                               </button>
-                            ) : (
-                              <span className="badge bg-secondary text-white">Disabled</span>
-                            )}
+                              {meta.selectable ? (
+                                <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                                  {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                                </button>
+                              ) : (
+                                <span className="badge bg-secondary text-white">Disabled</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+
+                {/* SECOND FLOOR GRID */}
+                <div className="mb-4">
+                  <h6 className="fw-bold text-pcc-blue mb-2.5">Second Floor Rooms</h6>
+                  <div className="row g-3">
+                    {secondFloorRooms.map((rm) => {
+                      const meta = getRoomStatusMeta(rm.status);
+
+                      return (
+                        <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                          <div 
+                            className={`card h-100 shadow-sm border-0 p-3 ${meta.selectable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
+                            onClick={() => handleSelectRoomCard(rm)}
+                            style={{
+                              borderRadius: '12px',
+                              backgroundColor: meta.bgColor,
+                              borderLeft: `5px solid ${meta.borderLeft} !important`,
+                              cursor: meta.selectable ? 'pointer' : 'not-allowed'
+                            }}
+                          >
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <div>
+                                <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
+                                <div className="text-muted small fw-semibold">{rm.roomType}</div>
+                              </div>
+                              <span className={`badge ${meta.badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
+                                {meta.label}
+                              </span>
+                            </div>
+
+                            <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
+                              <div className="d-flex justify-content-between">
+                                <span>Capacity:</span>
+                                <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                              </div>
+                              <div className="d-flex justify-content-between">
+                                <span>Rate:</span>
+                                <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                              </div>
+                            </div>
+
+                            <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                              <button
+                                type="button"
+                                className="btn btn-xs btn-outline-secondary py-1 px-2"
+                                onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                                style={{ fontSize: '0.75rem' }}
+                              >
+                                Details 👁️
+                              </button>
+                              {meta.selectable ? (
+                                <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                                  {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                                </button>
+                              ) : (
+                                <span className="badge bg-secondary text-white">Disabled</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {fallbackRooms.length > 0 && (
+                  <div className="mb-4">
+                    <h6 className="fw-bold text-pcc-blue mb-2.5">Additional Rooms</h6>
+                    <div className="row g-3">
+                      {fallbackRooms.map((rm) => {
+                        const meta = getRoomStatusMeta(rm.status);
+
+                        return (
+                          <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                            <div 
+                              className={`card h-100 shadow-sm border-0 p-3 ${meta.selectable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
+                              onClick={() => handleSelectRoomCard(rm)}
+                              style={{
+                                borderRadius: '12px',
+                                backgroundColor: meta.bgColor,
+                                borderLeft: `5px solid ${meta.borderLeft} !important`,
+                                cursor: meta.selectable ? 'pointer' : 'not-allowed'
+                              }}
+                            >
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                  <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
+                                  <div className="text-muted small fw-semibold">{rm.roomType}</div>
+                                </div>
+                                <span className={`badge ${meta.badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
+                                  {meta.label}
+                                </span>
+                              </div>
+
+                              <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
+                                <div className="d-flex justify-content-between">
+                                  <span>Capacity:</span>
+                                  <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                                </div>
+                                <div className="d-flex justify-content-between">
+                                  <span>Rate:</span>
+                                  <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                                </div>
+                              </div>
+
+                              <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                                <button
+                                  type="button"
+                                  className="btn btn-xs btn-outline-secondary py-1 px-2"
+                                  onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                                  style={{ fontSize: '0.75rem' }}
+                                >
+                                  Details 👁️
+                                </button>
+                                {meta.selectable ? (
+                                  <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                                    {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                                  </button>
+                                ) : (
+                                  <span className="badge bg-secondary text-white">Disabled</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -937,14 +1041,24 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="animate__animated animate__fadeIn">
                 {/* PROFILE CARD */}
                 <div className="card shadow-sm border-0 p-4 mb-4 bg-white" style={{ borderRadius: '16px' }}>
-                  <div className="d-flex align-items-center gap-3 mb-3">
-                    <div className="rounded-circle bg-pcc-blue text-white d-flex align-items-center justify-content-center fw-bold" style={{ width: '56px', height: '56px', fontSize: '1.5rem' }}>
-                      {guest.firstName ? guest.firstName.charAt(0) : 'G'}
+                  <div className="d-flex align-items-center justify-content-between mb-3">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="rounded-circle bg-pcc-blue text-white d-flex align-items-center justify-content-center fw-bold" style={{ width: '56px', height: '56px', fontSize: '1.5rem' }}>
+                        {guest.firstName ? guest.firstName.charAt(0) : 'G'}
+                      </div>
+                      <div>
+                        <h5 className="fw-bold mb-0 text-dark">{guest.firstName} {guest.lastName}</h5>
+                        <span className="text-muted small">{guest.email}</span>
+                      </div>
                     </div>
-                    <div>
-                      <h5 className="fw-bold mb-0 text-dark">{guest.firstName} {guest.lastName}</h5>
-                      <span className="text-muted small">{guest.email}</span>
-                    </div>
+                    {/* RED POWER LOGOUT BUTTON */}
+                    <button
+                      className="btn btn-logout-power"
+                      title="Log Out"
+                      onClick={() => setShowLogoutModal(true)}
+                    >
+                      <i className="bi bi-power fs-5"></i>
+                    </button>
                   </div>
 
                   <table className="table table-sm table-borderless mb-0" style={{ fontSize: '0.88rem' }}>
@@ -969,7 +1083,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </table>
                 </div>
 
-                {/* MY BOOKINGS & BILL STATEMENT */}
+                {/* MY BOOKINGS HISTORY */}
                 <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                   <h6 className="fw-bold text-dark mb-3">My Bookings History</h6>
                   {bookings.length === 0 ? (
@@ -1016,10 +1130,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span>⚙️ Edit Profile Settings</span>
                     <i className="bi bi-chevron-right"></i>
                   </Link>
-                  <a href="/api/auth/logout" className="btn btn-danger text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center" style={{ borderRadius: '10px' }}>
-                    <span>🚪 Log Out</span>
+                  <button onClick={() => setShowLogoutModal(true)} className="btn btn-danger text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center" style={{ borderRadius: '10px' }}>
+                    <span><i className="bi bi-power me-2"></i> Log Out</span>
                     <i className="bi bi-box-arrow-right"></i>
-                  </a>
+                  </button>
                 </div>
               </div>
             )}

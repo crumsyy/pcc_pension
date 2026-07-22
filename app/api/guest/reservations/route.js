@@ -34,10 +34,12 @@ export async function GET(request) {
     // Fetch ALL active rooms in pension house for visual room selection grid
     const allRooms = await dbQuery(`
       SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit, r.isAircon, r.hasHotShower,
-             rt.type as roomType, fl.name as floorName, COALESCE(rr.rate, 1500) as rate
+             COALESCE(rt.type, 'Standard Room') as roomType,
+             COALESCE(fl.name, 'Ground Floor') as floorName,
+             COALESCE(rr.rate, 1500) as rate
       FROM room r
-      JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
-      JOIN floor fl ON fl.floorID = r.floorID
+      LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
+      LEFT JOIN floor fl ON fl.floorID = r.floorID
       LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
       WHERE r.isArchived = 0
       ORDER BY r.floorID ASC, r.roomNumber ASC
