@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import NotificationBell from '../../components/NotificationBell';
 import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
+import GuestBottomNav from './GuestBottomNav';
 
 export default function GuestDashboardClient({ initialGuest, initialReservations, initialBookings, initialActiveBill, initialAllRooms }) {
   const [guest, setGuest] = useState(initialGuest);
@@ -12,14 +12,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [bookings, setBookings] = useState(initialBookings || []);
   const [activeBill, setActiveBill] = useState(initialActiveBill);
   const [allRooms, setAllRooms] = useState(initialAllRooms || []);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [discounts, setDiscounts] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
-  // Workflow Mode: 'dashboard' | 'select_room'
-  const [viewMode, setViewMode] = useState('dashboard');
+  // Active Navigation Tab: 'home' | 'rooms' | 'chat' | 'notifications' | 'account'
+  const [activeTab, setActiveTab] = useState('home');
+
+  // Workflow Mode: 'default' | 'select_room'
+  const [viewMode, setViewMode] = useState('default');
   const [flowAction, setFlowAction] = useState('reserve'); // 'reserve' | 'book'
 
-  // Modal Workflow States: 'none' | 'reserve_form' | 'book_form' | 'payment' | 'receipt' | 'reservation_summary'
+  // Modal Workflow States: 'none' | 'room_details' | 'reserve_form' | 'book_form' | 'payment' | 'receipt' | 'reservation_summary'
   const [activeModal, setActiveModal] = useState('none');
   const [selectedRoom, setSelectedRoom] = useState(null);
 
@@ -32,13 +37,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [paymentOption, setPaymentOption] = useState('50'); // '25' | '50' | '100'
   const [gcashRef, setGcashRef] = useState('');
   const [registeredGuests, setRegisteredGuests] = useState([
-    { fullName: `${initialGuest.firstName} ${initialGuest.lastName}`, age: 30, discountID: '', discountIdNumber: '' }
+    { fullName: `${initialGuest.firstName || 'Guest'} ${initialGuest.lastName || ''}`.trim(), age: 30, discountID: '', discountIdNumber: '' }
   ]);
   const [reservationSummaryData, setReservationSummaryData] = useState(null);
   const [receiptData, setReceiptData] = useState(null);
   const [processing, setProcessing] = useState(false);
 
-  // Alert Dialog
+  // Alert Dialog State
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     type: 'success',
@@ -84,13 +89,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       const res = await fetch('/api/guest/reservations');
       const data = await res.json();
       if (res.ok) {
-        setAllRooms(data.allRooms || []);
+        if (data.allRooms) setAllRooms(data.allRooms);
         if (data.reservations) setReservations(data.reservations);
       }
     } catch (err) {
-      console.error("Failed to load room selection layout:", err);
+      console.error("Failed to load room data:", err);
     } finally {
       setLoadingRooms(false);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('/api/notifications');
+      const data = await res.json();
+      if (data.notifications) {
+        setNotifications(data.notifications);
+        const unread = data.notifications.filter(n => !n.isRead).length;
+        setUnreadCount(unread);
+      }
+    } catch (err) {
+      // silent
     }
   };
 
@@ -106,16 +125,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   useEffect(() => {
     fetchRoomsAndStatus();
+    fetchNotifications();
     fetchDiscounts();
   }, []);
 
-  // Near real-time background polling (every 4s) for room availability and status updates
+  // 4-second background auto-polling for reservations, bookings, and notifications
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const [resResp, bookResp] = await Promise.all([
+        const [resResp, bookResp, notifResp] = await Promise.all([
           fetch('/api/guest/reservations'),
-          fetch('/api/guest/bookings')
+          fetch('/api/guest/bookings'),
+          fetch('/api/notifications')
         ]);
         if (resResp.ok) {
           const rData = await resResp.json();
@@ -126,8 +147,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           const bData = await bookResp.json();
           if (bData.bookings) setBookings(bData.bookings);
         }
+        if (notifResp.ok) {
+          const nData = await notifResp.json();
+          if (nData.notifications) {
+            setNotifications(nData.notifications);
+            setUnreadCount(nData.notifications.filter(n => !n.isRead).length);
+          }
+        }
       } catch (err) {
-        // silent polling error
+        // silent polling
       }
     }, 4000);
     return () => clearInterval(interval);
@@ -164,7 +192,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const amountToPayNow = netTotalAmount * (paymentPctNumber / 100);
   const remainingBalanceAfterPay = netTotalAmount - amountToPayNow;
 
-  // Triggers for Visual Room Layout Selection Page
+  // Triggers for Visual Room Selection
   const handleStartReserveFlow = () => {
     setFlowAction('reserve');
     setViewMode('select_room');
@@ -186,6 +214,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     } else {
       setActiveModal('book_form');
     }
+  };
+
+  const handleOpenRoomDetails = (rm) => {
+    setSelectedRoom(rm);
+    setActiveModal('room_details');
   };
 
   // Submission Handlers
@@ -384,6 +417,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const secondFloorRooms = allRooms.filter(r => String(r.floorID) === '2' || r.floorName?.toLowerCase().includes('second') || r.floorName?.toLowerCase().includes('upper') || String(r.roomNumber).startsWith('2'));
   const fallbackRooms = allRooms.filter(r => !groundFloorRooms.some(g => g.roomID === r.roomID) && !secondFloorRooms.some(s => s.roomID === r.roomID));
 
+  const activeReservation = reservations.find(r => r.status === 'Pending' || r.status === 'Confirmed');
+  const activeBookingStay = bookings.find(b => b.status === 'Pending' || b.status === 'Confirmed' || b.status === 'Checked In');
+
   return (
     <>
       {/* Custom Modal Dialog */}
@@ -398,512 +434,572 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         cancelText={modalConfig.cancelText}
       />
 
-      {/* NAVBAR */}
-      <nav className="navbar navbar-expand-lg navbar-pcc guest-fixed-nav">
-        <div className="container-fluid px-4">
-          <Link href="/" className="navbar-brand d-flex align-items-center gap-2">
-            <img src="/assets/images/logo.jpg" height="42" alt="PCC Logo" style={{ borderRadius: "4px" }} />
+      {/* TOP BRANDING BAR */}
+      <nav className="navbar navbar-light bg-white border-bottom shadow-sm sticky-top px-3">
+        <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
+          <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0">
+            <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
+            <span className="fw-bold text-pcc-blue display-font d-none d-sm-inline" style={{ fontSize: '1.05rem' }}>PCC Home Suite</span>
           </Link>
-          <div className="d-flex align-items-center gap-3 ms-auto">
-            <span className="text-muted d-none d-md-inline" style={{ fontSize: "0.9rem" }}>
-              Hi, <strong className="text-blue">{guest.firstName}</strong>
+          <div className="d-flex align-items-center gap-2">
+            <span className="badge bg-light text-pcc-blue border fw-bold px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
+              👤 {guest.firstName}
             </span>
-            <NotificationBell />
-            <a href="/api/auth/logout" className="btn btn-pcc-outline btn-sm">Log Out</a>
+            <a href="/api/auth/logout" className="btn btn-outline-danger btn-sm py-1 px-2.5" style={{ fontSize: '0.78rem' }}>Log Out</a>
           </div>
         </div>
       </nav>
 
-      <div className="container py-4 guest-content-wrapper">
-        {/* TOP HEADER & ACTION BUTTONS */}
-        <div className="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3 p-3 bg-white rounded shadow-sm border">
-          <div>
-            <div className="section-eyebrow">Guest Portal</div>
-            <h2 className="section-title mb-0">Welcome, {guest.firstName} {guest.lastName}!</h2>
-            <p className="text-muted mb-0 small">Select an action below to view our interactive visual room layout and book or reserve stay dates.</p>
-          </div>
-
-          {/* TWO MAIN ACTION BUTTONS */}
-          <div className="d-flex gap-2">
-            <button 
-              className="btn btn-success text-white fw-bold px-3 py-2 shadow-sm d-flex align-items-center gap-2"
-              onClick={handleStartReserveFlow}
-              style={{ backgroundColor: '#198754', borderColor: '#198754', borderRadius: '8px' }}
-            >
-              <span style={{ fontSize: '1.1rem' }}>🟢</span> Reserve a Room
-            </button>
-            <button 
-              className="btn btn-primary text-white fw-bold px-3 py-2 shadow-sm d-flex align-items-center gap-2"
-              onClick={handleStartBookFlow}
-              style={{ backgroundColor: '#0d6efd', borderColor: '#0d6efd', borderRadius: '8px' }}
-            >
-              <span style={{ fontSize: '1.1rem' }}>🔵</span> Book a Room
-            </button>
-            {viewMode === 'select_room' && (
-              <button 
-                className="btn btn-outline-secondary fw-semibold px-3 py-2"
-                onClick={() => setViewMode('dashboard')}
-                style={{ borderRadius: '8px' }}
-              >
-                🏠 Back to Dashboard
-              </button>
-            )}
-          </div>
-        </div>
-
+      {/* MAIN CONTAINER WRAPPER */}
+      <div className="container py-3 guest-mobile-wrapper">
         {viewMode === 'select_room' ? (
-          /* VISUAL ROOM LAYOUT & SELECTION SECTIONS */
+          /* VISUAL ROOM LAYOUT SELECTION WORKSPACE */
           <div className="animate__animated animate__fadeIn">
-            {/* COLOR CODING STATUS LEGEND BAR */}
-            <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+            {/* BACK HEADER */}
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <button className="btn btn-sm btn-outline-secondary fw-semibold d-flex align-items-center gap-1" onClick={() => setViewMode('default')}>
+                <i className="bi bi-arrow-left"></i> Back to Navigation
+              </button>
+              <span className="badge bg-pcc-blue text-white px-3 py-1.5 fw-bold" style={{ fontSize: '0.82rem' }}>
+                {flowAction === 'reserve' ? '🟢 Reservation Mode' : '🔵 Booking Mode'}
+              </span>
+            </div>
+
+            {/* COLOR CODING LEGEND BAR */}
+            <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
               <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                   <h5 className="fw-bold mb-1 text-dark">
                     {flowAction === 'reserve' ? '🟢 Select Room to Reserve' : '🔵 Select Room to Book'}
                   </h5>
-                  <p className="text-muted mb-0 small">Click any Green (Available) room card to proceed with your request.</p>
+                  <p className="text-muted mb-0 small">Click any Green (Available) room card to proceed.</p>
                 </div>
 
-                {/* COLOR LEGEND */}
-                <div className="d-flex align-items-center gap-3 p-2 bg-light rounded border flex-wrap" style={{ fontSize: '0.82rem' }}>
-                  <div className="fw-bold text-dark">Status Legend:</div>
+                <div className="d-flex align-items-center gap-2 p-2 bg-light rounded border flex-wrap" style={{ fontSize: '0.78rem' }}>
+                  <span className="fw-bold text-dark">Legend:</span>
                   <div className="d-flex align-items-center gap-1">
-                    <span className="badge bg-success rounded-circle p-1.5" style={{ width: '12px', height: '12px' }}></span>
-                    <span className="fw-bold text-success">🟢 Green = Available (Selectable)</span>
+                    <span className="badge bg-success p-1"></span>
+                    <span className="fw-bold text-success">🟢 Green (Available)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
-                    <span className="badge bg-primary rounded-circle p-1.5" style={{ width: '12px', height: '12px' }}></span>
-                    <span className="fw-semibold text-primary">🔵 Blue = Occupied</span>
+                    <span className="badge bg-primary p-1"></span>
+                    <span className="fw-semibold text-primary">🔵 Blue (Occupied)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
-                    <span className="badge bg-danger rounded-circle p-1.5" style={{ width: '12px', height: '12px' }}></span>
-                    <span className="fw-semibold text-danger">🔴 Red = Under Maintenance</span>
+                    <span className="badge bg-danger p-1"></span>
+                    <span className="fw-semibold text-danger">🔴 Red (Maintenance)</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {loadingRooms ? (
-              <div className="text-center py-5">
-                <div className="spinner-border text-pcc-primary" role="status">
-                  <span className="visually-hidden">Loading visual room layout...</span>
+            {/* GROUND FLOOR GRID */}
+            <div className="mb-4">
+              <h6 className="fw-bold text-pcc-blue mb-2.5">Ground Floor Rooms</h6>
+              <div className="row g-3">
+                {groundFloorRooms.map((rm) => {
+                  const isAvailable = rm.status === 'Available';
+                  const isOccupied = rm.status === 'Occupied';
+                  const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
+                  const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
+                  const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
+
+                  return (
+                    <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                      <div 
+                        className={`card h-100 shadow-sm border-0 p-3 ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
+                        onClick={() => handleSelectRoomCard(rm)}
+                        style={{
+                          borderRadius: '12px',
+                          backgroundColor: cardBgColor,
+                          borderLeft: `5px solid ${borderLeftColor} !important`,
+                          cursor: isAvailable ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <div>
+                            <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
+                            <div className="text-muted small fw-semibold">{rm.roomType}</div>
+                          </div>
+                          <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
+                            {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
+                          </span>
+                        </div>
+
+                        <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
+                          <div className="d-flex justify-content-between">
+                            <span>Capacity:</span>
+                            <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                          </div>
+                          <div className="d-flex justify-content-between">
+                            <span>Rate:</span>
+                            <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-outline-secondary py-1 px-2"
+                            onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                            style={{ fontSize: '0.75rem' }}
+                          >
+                            Details 👁️
+                          </button>
+                          {isAvailable ? (
+                            <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                              {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                            </button>
+                          ) : (
+                            <span className="badge bg-secondary text-white">Disabled</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SECOND FLOOR GRID */}
+            <div className="mb-4">
+              <h6 className="fw-bold text-pcc-blue mb-2.5">Second Floor Rooms</h6>
+              <div className="row g-3">
+                {secondFloorRooms.map((rm) => {
+                  const isAvailable = rm.status === 'Available';
+                  const isOccupied = rm.status === 'Occupied';
+                  const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
+                  const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
+                  const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
+
+                  return (
+                    <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                      <div 
+                        className={`card h-100 shadow-sm border-0 p-3 ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
+                        onClick={() => handleSelectRoomCard(rm)}
+                        style={{
+                          borderRadius: '12px',
+                          backgroundColor: cardBgColor,
+                          borderLeft: `5px solid ${borderLeftColor} !important`,
+                          cursor: isAvailable ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <div>
+                            <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
+                            <div className="text-muted small fw-semibold">{rm.roomType}</div>
+                          </div>
+                          <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
+                            {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
+                          </span>
+                        </div>
+
+                        <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
+                          <div className="d-flex justify-content-between">
+                            <span>Capacity:</span>
+                            <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                          </div>
+                          <div className="d-flex justify-content-between">
+                            <span>Rate:</span>
+                            <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-outline-secondary py-1 px-2"
+                            onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                            style={{ fontSize: '0.75rem' }}
+                          >
+                            Details 👁️
+                          </button>
+                          {isAvailable ? (
+                            <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                              {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                            </button>
+                          ) : (
+                            <span className="badge bg-secondary text-white">Disabled</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {fallbackRooms.length > 0 && (
+              <div className="mb-4">
+                <h6 className="fw-bold text-pcc-blue mb-2.5">Additional Rooms</h6>
+                <div className="row g-3">
+                  {fallbackRooms.map((rm) => {
+                    const isAvailable = rm.status === 'Available';
+                    const isOccupied = rm.status === 'Occupied';
+                    const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
+                    const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
+                    const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
+
+                    return (
+                      <div key={rm.roomID} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                        <div 
+                          className={`card h-100 shadow-sm border-0 p-3 ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
+                          onClick={() => handleSelectRoomCard(rm)}
+                          style={{
+                            borderRadius: '12px',
+                            backgroundColor: cardBgColor,
+                            borderLeft: `5px solid ${borderLeftColor} !important`,
+                            cursor: isAvailable ? 'pointer' : 'not-allowed'
+                          }}
+                        >
+                          <div className="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                              <h4 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h4>
+                              <div className="text-muted small fw-semibold">{rm.roomType}</div>
+                            </div>
+                            <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
+                              {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
+                            </span>
+                          </div>
+
+                          <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
+                            <div className="d-flex justify-content-between">
+                              <span>Capacity:</span>
+                              <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                            </div>
+                            <div className="d-flex justify-content-between">
+                              <span>Rate:</span>
+                              <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                            </div>
+                          </div>
+
+                          <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-outline-secondary py-1 px-2"
+                              onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                              style={{ fontSize: '0.75rem' }}
+                            >
+                              Details 👁️
+                            </button>
+                            {isAvailable ? (
+                              <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                                {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                              </button>
+                            ) : (
+                              <span className="badge bg-secondary text-white">Disabled</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            ) : (
-              <>
-                {/* GROUND FLOOR GRID */}
-                <div className="mb-4">
-                  <div className="d-flex align-items-center gap-2 mb-3">
-                    <h5 className="fw-bold text-pcc-blue mb-0">Ground Floor Layout</h5>
-                    <span className="badge bg-light text-muted border">Floor 1</span>
-                  </div>
-                  <div className="row g-3">
-                    {groundFloorRooms.map((rm) => {
-                      const isAvailable = rm.status === 'Available';
-                      const isOccupied = rm.status === 'Occupied';
-                      const isMaintenance = rm.status === 'Under Maintenance' || rm.status === 'Reserved' || !isAvailable;
-
-                      const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
-                      const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
-                      const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
-
-                      return (
-                        <div key={rm.roomID} className="col-md-6 col-lg-4 col-xl-3">
-                          <div 
-                            className={`card h-100 shadow-sm border-0 p-3 transition-all ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
-                            onClick={() => handleSelectRoomCard(rm)}
-                            style={{
-                              borderRadius: '12px',
-                              backgroundColor: cardBgColor,
-                              borderLeft: `5px solid ${borderLeftColor} !important`,
-                              cursor: isAvailable ? 'pointer' : 'not-allowed',
-                              transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                            }}
-                          >
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <div>
-                                <h4 className="fw-bold mb-0 text-dark" style={{ fontSize: '1.35rem' }}>Room {rm.roomNumber}</h4>
-                                <div className="text-muted small fw-semibold">{rm.roomType}</div>
-                              </div>
-                              <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
-                                {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
-                              </span>
-                            </div>
-
-                            <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem', color: '#475569' }}>
-                              <div className="d-flex justify-content-between">
-                                <span>Max Capacity:</span>
-                                <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
-                              </div>
-                              <div className="d-flex justify-content-between">
-                                <span>Aircon:</span>
-                                <strong>{rm.isAircon ? 'Yes' : 'Fan Only'}</strong>
-                              </div>
-                              <div className="d-flex justify-content-between">
-                                <span>Hot Shower:</span>
-                                <strong>{rm.hasHotShower ? 'Yes' : 'Standard'}</strong>
-                              </div>
-                            </div>
-
-                            <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
-                              <div>
-                                <span className="text-muted" style={{ fontSize: '0.72rem' }}>Standard Rate:</span>
-                                <div className="fw-bold text-pcc-blue" style={{ fontSize: '1.05rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</div>
-                              </div>
-                              {isAvailable ? (
-                                <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                                  {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
-                                </button>
-                              ) : (
-                                <span className="badge bg-secondary text-white" style={{ fontSize: '0.7rem' }}>Disabled</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* SECOND FLOOR GRID */}
-                <div className="mb-4">
-                  <div className="d-flex align-items-center gap-2 mb-3">
-                    <h5 className="fw-bold text-pcc-blue mb-0">Second Floor Layout</h5>
-                    <span className="badge bg-light text-muted border">Floor 2</span>
-                  </div>
-                  <div className="row g-3">
-                    {secondFloorRooms.map((rm) => {
-                      const isAvailable = rm.status === 'Available';
-                      const isOccupied = rm.status === 'Occupied';
-
-                      const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
-                      const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
-                      const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
-
-                      return (
-                        <div key={rm.roomID} className="col-md-6 col-lg-4 col-xl-3">
-                          <div 
-                            className={`card h-100 shadow-sm border-0 p-3 transition-all ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
-                            onClick={() => handleSelectRoomCard(rm)}
-                            style={{
-                              borderRadius: '12px',
-                              backgroundColor: cardBgColor,
-                              borderLeft: `5px solid ${borderLeftColor} !important`,
-                              cursor: isAvailable ? 'pointer' : 'not-allowed',
-                              transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                            }}
-                          >
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <div>
-                                <h4 className="fw-bold mb-0 text-dark" style={{ fontSize: '1.35rem' }}>Room {rm.roomNumber}</h4>
-                                <div className="text-muted small fw-semibold">{rm.roomType}</div>
-                              </div>
-                              <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
-                                {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
-                              </span>
-                            </div>
-
-                            <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem', color: '#475569' }}>
-                              <div className="d-flex justify-content-between">
-                                <span>Max Capacity:</span>
-                                <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
-                              </div>
-                              <div className="d-flex justify-content-between">
-                                <span>Aircon:</span>
-                                <strong>{rm.isAircon ? 'Yes' : 'Fan Only'}</strong>
-                              </div>
-                              <div className="d-flex justify-content-between">
-                                <span>Hot Shower:</span>
-                                <strong>{rm.hasHotShower ? 'Yes' : 'Standard'}</strong>
-                              </div>
-                            </div>
-
-                            <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
-                              <div>
-                                <span className="text-muted" style={{ fontSize: '0.72rem' }}>Standard Rate:</span>
-                                <div className="fw-bold text-pcc-blue" style={{ fontSize: '1.05rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</div>
-                              </div>
-                              {isAvailable ? (
-                                <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                                  {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
-                                </button>
-                              ) : (
-                                <span className="badge bg-secondary text-white" style={{ fontSize: '0.7rem' }}>Disabled</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {fallbackRooms.length > 0 && (
-                  <div className="mb-4">
-                    <div className="d-flex align-items-center gap-2 mb-3">
-                      <h5 className="fw-bold text-pcc-blue mb-0">Additional Rooms</h5>
-                      <span className="badge bg-light text-muted border">Rooms</span>
-                    </div>
-                    <div className="row g-3">
-                      {fallbackRooms.map((rm) => {
-                        const isAvailable = rm.status === 'Available';
-                        const isOccupied = rm.status === 'Occupied';
-
-                        const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
-                        const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
-                        const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
-
-                        return (
-                          <div key={rm.roomID} className="col-md-6 col-lg-4 col-xl-3">
-                            <div 
-                              className={`card h-100 shadow-sm border-0 p-3 transition-all ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
-                              onClick={() => handleSelectRoomCard(rm)}
-                              style={{
-                                borderRadius: '12px',
-                                backgroundColor: cardBgColor,
-                                borderLeft: `5px solid ${borderLeftColor} !important`,
-                                cursor: isAvailable ? 'pointer' : 'not-allowed',
-                                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                              }}
-                            >
-                              <div className="d-flex justify-content-between align-items-start mb-2">
-                                <div>
-                                  <h4 className="fw-bold mb-0 text-dark" style={{ fontSize: '1.35rem' }}>Room {rm.roomNumber}</h4>
-                                  <div className="text-muted small fw-semibold">{rm.roomType}</div>
-                                </div>
-                                <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
-                                  {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
-                                </span>
-                              </div>
-
-                              <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem', color: '#475569' }}>
-                                <div className="d-flex justify-content-between">
-                                  <span>Max Capacity:</span>
-                                  <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
-                                </div>
-                                <div className="d-flex justify-content-between">
-                                  <span>Aircon:</span>
-                                  <strong>{rm.isAircon ? 'Yes' : 'Fan Only'}</strong>
-                                </div>
-                                <div className="d-flex justify-content-between">
-                                  <span>Hot Shower:</span>
-                                  <strong>{rm.hasHotShower ? 'Yes' : 'Standard'}</strong>
-                                </div>
-                              </div>
-
-                              <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
-                                <div>
-                                  <span className="text-muted" style={{ fontSize: '0.72rem' }}>Standard Rate:</span>
-                                  <div className="fw-bold text-pcc-blue" style={{ fontSize: '1.05rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</div>
-                                </div>
-                                {isAvailable ? (
-                                  <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                                    {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
-                                  </button>
-                                ) : (
-                                  <span className="badge bg-secondary text-white" style={{ fontSize: '0.7rem' }}>Disabled</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </>
             )}
           </div>
         ) : (
-          /* REGULAR DASHBOARD VIEW */
+          /* FIVE TAB MOBILE WORKSPACE */
           <>
-            {/* Quick stats */}
-            <div className="row g-3 mb-4">
-              <div className="col-md-4">
-                <div className="key-tag text-center">
-                  <div style={{ fontSize: "2rem", fontWeight: "700", color: "var(--pcc-blue)" }}>
-                    {reservations.length}
+            {/* TAB 1: HOME TAB */}
+            {activeTab === 'home' && (
+              <div className="animate__animated animate__fadeIn">
+                {/* HERO WELCOME CARD */}
+                <div className="guest-hero-card p-4 mb-4 shadow-sm">
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <span className="badge bg-white text-pcc-blue fw-bold mb-2">Hotel Guest Portal</span>
+                      <h3 className="fw-bold mb-1">Welcome, {guest.firstName}!</h3>
+                      <p className="mb-0 text-white-50 small">Experience comfort and convenience at PCC Home Suite Home.</p>
+                    </div>
                   </div>
-                  <div className="room-meta">Reservations</div>
                 </div>
-              </div>
-              <div className="col-md-4">
-                <div className="key-tag text-center">
-                  <div style={{ fontSize: "2rem", fontWeight: "700", color: "var(--pcc-blue)" }}>
-                    {bookings.length}
-                  </div>
-                  <div className="room-meta">Bookings</div>
-                </div>
-              </div>
-              <div className="col-md-4">
-                <div className="key-tag text-center">
-                  <div style={{ fontSize: "2rem", fontWeight: "700", color: "var(--pcc-green)" }}>
-                    {activeBookingsCount}
-                  </div>
-                  <div className="room-meta">Currently Checked In</div>
-                </div>
-              </div>
-            </div>
 
-            <div className="row g-4">
-              {/* Profile */}
-              <div className="col-lg-4">
-                <div className="key-tag h-100">
-                  <div className="room-type mb-3">My Guest Profile</div>
-                  <table className="table table-sm table-borderless mb-3" style={{ fontSize: "0.9rem" }}>
+                {/* ACTIVE STAY / STATUS CARDS */}
+                {activeReservation && (
+                  <div className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <span className="badge bg-success text-white mb-1">🟢 Active Reservation Request</span>
+                        <h6 className="fw-bold mb-0 text-dark">Room {activeReservation.roomNumber} ({activeReservation.roomType})</h6>
+                        <div className="small text-muted">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
+                      </div>
+                      <button className="btn btn-xs btn-outline-danger" onClick={() => handleCancelReservation(activeReservation.reservationID)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {activeBookingStay && (
+                  <div className="card shadow-sm border-0 border-start border-4 border-primary p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <span className="badge bg-primary text-white mb-1">🔵 Active Stay Booking (#{activeBookingStay.bookingID})</span>
+                        <h6 className="fw-bold mb-0 text-dark">Room {activeBookingStay.roomNumber} ({activeBookingStay.roomType})</h6>
+                        <div className="small text-muted">Status: <strong>{activeBookingStay.status}</strong></div>
+                      </div>
+                      <button className="btn btn-xs btn-outline-primary" onClick={() => setActiveTab('account')}>
+                        View Bill
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* QUICK ACTION BUTTONS */}
+                <h6 className="fw-bold text-dark mb-2.5">Quick Actions</h6>
+                <div className="row g-2 mb-4">
+                  <div className="col-6">
+                    <button
+                      className="btn btn-success text-white w-100 touch-action-btn shadow-sm"
+                      onClick={handleStartReserveFlow}
+                      style={{ backgroundColor: '#198754', borderColor: '#198754' }}
+                    >
+                      <i className="bi bi-calendar-plus me-1.5"></i> Reserve Room
+                    </button>
+                  </div>
+                  <div className="col-6">
+                    <button
+                      className="btn btn-primary text-white w-100 touch-action-btn shadow-sm"
+                      onClick={handleStartBookFlow}
+                      style={{ backgroundColor: '#0d6efd', borderColor: '#0d6efd' }}
+                    >
+                      <i className="bi bi-credit-card me-1.5"></i> Book Room
+                    </button>
+                  </div>
+                  <div className="col-6">
+                    <button
+                      className="btn btn-outline-dark w-100 touch-action-btn"
+                      onClick={() => setActiveTab('account')}
+                    >
+                      <i className="bi bi-journal-text me-1.5"></i> My Bookings
+                    </button>
+                  </div>
+                  <div className="col-6">
+                    <button
+                      className="btn btn-outline-pcc-blue w-100 touch-action-btn"
+                      onClick={() => setActiveTab('notifications')}
+                    >
+                      <i className="bi bi-bell me-1.5"></i> Alerts ({unreadCount})
+                    </button>
+                  </div>
+                </div>
+
+                {/* ACTIVE PROMOTIONS & RECOMMENDED ROOMS */}
+                <h6 className="fw-bold text-dark mb-2.5">Featured Rooms & Offers</h6>
+                <div className="row g-3 mb-4">
+                  {allRooms.slice(0, 4).map((rm) => (
+                    <div key={rm.roomID} className="col-12 col-md-6">
+                      <div className="card shadow-sm border-0 h-100 room-card-hover overflow-hidden" style={{ borderRadius: '12px' }}>
+                        <div style={{ height: '140px', background: '#e2e8f0' }} className="d-flex align-items-center justify-content-center text-muted fw-bold">
+                          🏨 Room {rm.roomNumber} ({rm.roomType})
+                        </div>
+                        <div className="card-body p-3">
+                          <div className="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                              <h6 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h6>
+                              <span className="small text-muted">{rm.floorName}</span>
+                            </div>
+                            <span className="fw-bold text-pcc-blue" style={{ fontSize: '1rem' }}>₱{parseFloat(rm.rate).toFixed(2)}/night</span>
+                          </div>
+                          <p className="small text-muted mb-3">Aircon, Hot Shower, Free Wi-Fi, and 24/7 Front Desk Service.</p>
+                          <div className="d-flex gap-2">
+                            <button className="btn btn-sm btn-outline-secondary w-50" onClick={() => handleOpenRoomDetails(rm)}>Details</button>
+                            <button className="btn btn-sm btn-primary text-white w-50" onClick={handleStartBookFlow}>Book Now</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: ROOMS TAB */}
+            {activeTab === 'rooms' && (
+              <div className="animate__animated animate__fadeIn">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <h4 className="fw-bold text-dark mb-0">Rooms Catalog</h4>
+                    <span className="text-muted small">Explore our comfortable rooms and suites.</span>
+                  </div>
+                  <button className="btn btn-sm btn-primary text-white fw-bold" onClick={handleStartBookFlow}>
+                    + Book Stay
+                  </button>
+                </div>
+
+                <div className="row g-3">
+                  {allRooms.map((rm) => {
+                    const isAvailable = rm.status === 'Available';
+                    return (
+                      <div key={rm.roomID} className="col-12 col-md-6 col-lg-4">
+                        <div className="card shadow-sm border-0 h-100 room-card-hover overflow-hidden" style={{ borderRadius: '12px' }}>
+                          <div style={{ height: '150px', background: '#cbd5e1' }} className="d-flex align-items-center justify-content-center text-secondary fw-bold">
+                            🛌 Room {rm.roomNumber} Image Placeholder
+                          </div>
+                          <div className="card-body p-3 d-flex flex-column">
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <div>
+                                <h5 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h5>
+                                <div className="text-muted small">{rm.roomType} • {rm.floorName}</div>
+                              </div>
+                              <span className={`badge ${isAvailable ? 'bg-success' : 'bg-secondary'}`}>
+                                {isAvailable ? 'Available' : rm.status}
+                              </span>
+                            </div>
+
+                            <div className="my-2 p-2 bg-light rounded small">
+                              <div className="d-flex justify-content-between">
+                                <span>Max Occupancy:</span>
+                                <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                              </div>
+                              <div className="d-flex justify-content-between">
+                                <span>Rate per Night:</span>
+                                <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}</strong>
+                              </div>
+                            </div>
+
+                            <div className="mt-auto pt-2 d-flex gap-2">
+                              <button className="btn btn-sm btn-outline-secondary w-50" onClick={() => handleOpenRoomDetails(rm)}>
+                                View Details 👁️
+                              </button>
+                              {isAvailable ? (
+                                <button className="btn btn-sm btn-primary text-white w-50 fw-bold" onClick={handleStartBookFlow}>
+                                  Book Now 🔵
+                                </button>
+                              ) : (
+                                <button className="btn btn-sm btn-secondary text-white w-50" disabled>Unavailable</button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: CHAT TAB */}
+            {activeTab === 'chat' && (
+              <div className="animate__animated animate__fadeIn">
+                <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                  <h5 className="fw-bold mb-1 text-dark">💬 Inquiry & Live Chat Workspace</h5>
+                  <p className="text-muted mb-0 small">Interact with our AI Chatbot or talk directly to our Front Desk Receptionist.</p>
+                </div>
+
+                <div className="card shadow-sm border-0 p-3" style={{ borderRadius: '12px', minHeight: '400px' }}>
+                  <GuestChatBubble inlineView={true} />
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: NOTIFICATIONS TAB */}
+            {activeTab === 'notifications' && (
+              <div className="animate__animated animate__fadeIn">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <h4 className="fw-bold text-dark mb-0">Notifications</h4>
+                    <span className="text-muted small">Stay updated on your reservations, bookings, and payments.</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="badge bg-danger rounded-pill px-3 py-1.5">{unreadCount} Unread</span>
+                  )}
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div className="card shadow-sm border-0 p-4 text-center text-muted" style={{ borderRadius: '12px' }}>
+                    <i className="bi bi-bell-slash display-4 mb-2"></i>
+                    <p className="mb-0">No notifications yet. Alerts will appear here in real time.</p>
+                  </div>
+                ) : (
+                  <div className="d-flex flex-column gap-2">
+                    {notifications.map((n) => (
+                      <div
+                        key={n.notificationID}
+                        className={`card shadow-sm border-0 p-3 ${!n.isRead ? 'border-start border-4 border-pcc-blue bg-light' : 'bg-white'}`}
+                        style={{ borderRadius: '12px' }}
+                      >
+                        <div className="d-flex justify-content-between align-items-start mb-1">
+                          <h6 className="fw-bold text-dark mb-0">{n.title}</h6>
+                          <span className="text-muted" style={{ fontSize: '0.72rem' }}>{formatDate(n.createdAt)}</span>
+                        </div>
+                        <p className="text-secondary small mb-0">{n.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 5: ACCOUNT TAB */}
+            {activeTab === 'account' && (
+              <div className="animate__animated animate__fadeIn">
+                {/* PROFILE CARD */}
+                <div className="card shadow-sm border-0 p-4 mb-4 bg-white" style={{ borderRadius: '16px' }}>
+                  <div className="d-flex align-items-center gap-3 mb-3">
+                    <div className="rounded-circle bg-pcc-blue text-white d-flex align-items-center justify-content-center fw-bold" style={{ width: '56px', height: '56px', fontSize: '1.5rem' }}>
+                      {guest.firstName ? guest.firstName.charAt(0) : 'G'}
+                    </div>
+                    <div>
+                      <h5 className="fw-bold mb-0 text-dark">{guest.firstName} {guest.lastName}</h5>
+                      <span className="text-muted small">{guest.email}</span>
+                    </div>
+                  </div>
+
+                  <table className="table table-sm table-borderless mb-0" style={{ fontSize: '0.88rem' }}>
                     <tbody>
                       <tr>
-                        <td className="text-muted">Name</td>
-                        <td className="fw-semibold">{guest.firstName} {guest.lastName}</td>
+                        <td className="text-muted">Contact:</td>
+                        <td className="fw-semibold">{guest.contact}</td>
                       </tr>
                       <tr>
-                        <td className="text-muted">Email</td>
-                        <td>{guest.email}</td>
-                      </tr>
-                      <tr>
-                        <td className="text-muted">Contact</td>
-                        <td>{guest.contact}</td>
-                      </tr>
-                      <tr>
-                        <td className="text-muted">Gender</td>
+                        <td className="text-muted">Gender:</td>
                         <td>{guest.gender}</td>
                       </tr>
                       <tr>
-                        <td className="text-muted">City</td>
+                        <td className="text-muted">Address:</td>
                         <td>{guest.city}, {guest.province}</td>
                       </tr>
                       <tr>
-                        <td className="text-muted">Member Since</td>
+                        <td className="text-muted">Member Since:</td>
                         <td>{formatDate(guest.createdAt)}</td>
                       </tr>
                     </tbody>
                   </table>
-                  <Link href="/guest/edit-profile" className="btn btn-pcc-outline btn-sm w-100">
-                    Edit Profile
-                  </Link>
-                </div>
-              </div>
-
-              {/* Reservations & Bookings Lists */}
-              <div className="col-lg-8">
-                {/* Reservations List */}
-                <div className="key-tag mb-4">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div className="room-type">My Reservations History</div>
-                    <button className="btn btn-success btn-sm fw-bold" onClick={handleStartReserveFlow}>
-                      🟢 + Reserve Room
-                    </button>
-                  </div>
-                  {reservations.length === 0 ? (
-                    <p className="text-muted" style={{ fontSize: "0.9rem" }}>
-                      No reservations yet. Click <strong>Reserve Room</strong> above to get started.
-                    </p>
-                  ) : (
-                    <div className="table-responsive">
-                      <table className="table table-sm align-middle" style={{ fontSize: "0.88rem" }}>
-                        <thead>
-                          <tr>
-                            <th>Room</th>
-                            <th>Type</th>
-                            <th>Target Date</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reservations.map((r, index) => (
-                            <tr key={index}>
-                              <td className="fw-bold text-pcc-blue">Room {r.roomNumber}</td>
-                              <td>{r.roomType}</td>
-                              <td>{formatDate(r.reservationDateTime)}</td>
-                              <td>
-                                <span
-                                  className={`badge ${
-                                    r.status === "Confirmed" ? "bg-success text-white" :
-                                    r.status === "Pending" ? "bg-warning text-dark" : "bg-secondary text-white"
-                                  }`}
-                                >
-                                  {r.status}
-                                </span>
-                              </td>
-                              <td>
-                                {r.status === 'Pending' || r.status === 'Confirmed' ? (
-                                  <button
-                                    className="btn btn-xs btn-danger text-white"
-                                    onClick={() => handleCancelReservation(r.reservationID)}
-                                    style={{ fontSize: '0.72rem', padding: '2px 6px' }}
-                                  >
-                                    Cancel
-                                  </button>
-                                ) : (
-                                  <span className="text-muted small">-</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                 </div>
 
-                {/* Bookings List */}
-                <div className="key-tag">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div className="room-type">My Online Bookings History</div>
-                    <button className="btn btn-primary btn-sm fw-bold" onClick={handleStartBookFlow}>
-                      🔵 + Book Room
-                    </button>
-                  </div>
+                {/* MY BOOKINGS & BILL STATEMENT */}
+                <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                  <h6 className="fw-bold text-dark mb-3">My Bookings History</h6>
                   {bookings.length === 0 ? (
-                    <p className="text-muted" style={{ fontSize: "0.9rem" }}>No bookings yet.</p>
+                    <p className="text-muted small mb-0">No booking records found.</p>
                   ) : (
                     <div className="table-responsive">
-                      <table className="table table-sm align-middle" style={{ fontSize: "0.88rem" }}>
+                      <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
                         <thead>
-                          <tr>
+                          <tr className="table-light">
                             <th>Booking ID</th>
                             <th>Room</th>
-                            <th>Check-In</th>
-                            <th>Check-Out</th>
                             <th>Status</th>
                             <th>Balance</th>
                             <th>Action</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {bookings.map((b, index) => (
-                            <tr key={index}>
+                          {bookings.map((b) => (
+                            <tr key={b.bookingID}>
                               <td className="fw-bold">#{b.bookingID}</td>
-                              <td>Room {b.roomNumber} ({b.roomType})</td>
-                              <td>{formatDate(b.checkInDateTime)}</td>
-                              <td>{formatDate(b.checkOutDateTime)}</td>
+                              <td>Room {b.roomNumber}</td>
                               <td>
-                                <span
-                                  className={`badge ${
-                                    b.status === "Confirmed" ? "bg-success text-white" :
-                                    b.status === "Checked In" ? "bg-primary text-white" :
-                                    b.status === "Checked Out" ? "bg-secondary text-white" :
-                                    b.status === "Pending" ? "bg-warning text-dark" : "bg-danger text-white"
-                                  }`}
-                                >
-                                  {b.status}
-                                </span>
+                                <span className={`badge ${b.status === 'Confirmed' ? 'bg-success' : 'bg-primary'}`}>{b.status}</span>
                               </td>
-                              <td className="fw-bold text-dark">
-                                ₱{parseFloat(b.remainingBalance || 0).toFixed(2)}
-                              </td>
+                              <td className="fw-bold">₱{parseFloat(b.remainingBalance || 0).toFixed(2)}</td>
                               <td>
-                                {b.status === 'Pending' || b.status === 'Confirmed' ? (
-                                  <button
-                                    className="btn btn-xs btn-danger text-white"
-                                    onClick={() => handleCancelBooking(b.bookingID)}
-                                    style={{ fontSize: '0.72rem', padding: '2px 6px' }}
-                                  >
+                                {(b.status === 'Pending' || b.status === 'Confirmed') && (
+                                  <button className="btn btn-xs btn-danger text-white py-0 px-2" onClick={() => handleCancelBooking(b.bookingID)}>
                                     Cancel
                                   </button>
-                                ) : (
-                                  <span className="text-muted small">-</span>
                                 )}
                               </td>
                             </tr>
@@ -914,61 +1010,92 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   )}
                 </div>
 
-                {/* Active Stay Statement of Account */}
-                {activeBill && (
-                  <div className="key-tag mt-4">
-                    <div className="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-                      <div className="room-type">Active Stay Statement of Account</div>
-                      <span className="badge text-bg-primary px-3 py-2">
-                        Room {activeBill.booking.roomNumber} ({activeBill.booking.roomType})
-                      </span>
-                    </div>
-                    
-                    <div className="mb-4">
-                      <div className="fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>Room Rent Charges</div>
-                      <table className="table table-sm align-middle mb-3" style={{ fontSize: "0.85rem" }}>
-                        <thead>
-                          <tr className="table-light">
-                            <th>Description</th>
-                            <th>Rate</th>
-                            <th>Nights</th>
-                            <th className="text-end">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td>{activeBill.booking.roomType} (Room {activeBill.booking.roomNumber})</td>
-                            <td>₱{parseFloat(activeBill.booking.rate).toFixed(2)}</td>
-                            <td>{activeBill.booking.nights}</td>
-                            <td className="text-end fw-bold text-dark">₱{parseFloat(activeBill.summary.originalRoomCharge || activeBill.booking.originalRoomCharge || activeBill.booking.roomCharge).toFixed(2)}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="p-3 bg-light rounded" style={{ fontSize: '0.9rem' }}>
-                      <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted">Total Charges:</span>
-                        <span className="fw-semibold text-dark">₱{parseFloat(activeBill.summary.total).toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between mb-1 text-success">
-                        <span>Total Amount Paid:</span>
-                        <span>₱{parseFloat(activeBill.summary.paid).toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between align-items-center pt-2 mt-2 border-top border-secondary-subtle">
-                        <span className="fw-bold text-danger">Outstanding Balance:</span>
-                        <span className="fw-bold text-danger" style={{ fontSize: '1.15rem' }}>
-                          ₱{parseFloat(activeBill.summary.balance).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* ACCOUNT ACTION BUTTONS */}
+                <div className="d-flex flex-column gap-2 mb-4">
+                  <Link href="/guest/edit-profile" className="btn btn-outline-pcc-blue text-start p-3 fw-bold d-flex justify-content-between align-items-center" style={{ borderRadius: '10px' }}>
+                    <span>⚙️ Edit Profile Settings</span>
+                    <i className="bi bi-chevron-right"></i>
+                  </Link>
+                  <a href="/api/auth/logout" className="btn btn-danger text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center" style={{ borderRadius: '10px' }}>
+                    <span>🚪 Log Out</span>
+                    <i className="bi bi-box-arrow-right"></i>
+                  </a>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>
+
+      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      <GuestBottomNav
+        activeTab={activeTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setViewMode('default');
+        }}
+        unreadNotificationsCount={unreadCount}
+      />
+
+      {/* FLOATING AI CHATBOT BUTTON */}
+      {activeTab !== 'chat' && (
+        <GuestChatBubble />
+      )}
+
+      {/* MODAL WORKFLOW: ROOM DETAILS MODAL */}
+      {activeModal === 'room_details' && selectedRoom && (
+        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header text-white" style={{ backgroundColor: '#2155B5' }}>
+                <h5 className="modal-title fw-bold">🏨 Room {selectedRoom.roomNumber} Details</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
+              </div>
+              <div className="modal-body">
+                <div className="p-3 bg-light rounded text-center mb-3">
+                  <h4 className="fw-bold text-pcc-blue mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h4>
+                  <div className="text-muted small">Floor: {selectedRoom.floorName}</div>
+                </div>
+
+                <div className="p-3 border rounded mb-3" style={{ fontSize: '0.88rem' }}>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Standard Rate:</span>
+                    <strong className="text-pcc-blue">₱{parseFloat(selectedRoom.rate).toFixed(2)} / night</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Maximum Occupancy:</span>
+                    <strong className="text-dark">Up to {selectedRoom.occupancyLimit} Pax</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Air Conditioning:</span>
+                    <strong>{selectedRoom.isAircon ? 'Included' : 'Fan Only'}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Hot Shower:</span>
+                    <strong>{selectedRoom.hasHotShower ? 'Available' : 'Standard'}</strong>
+                  </div>
+                </div>
+
+                <h6 className="fw-bold text-dark mb-1">Included Amenities & Policies</h6>
+                <ul className="small text-muted mb-0">
+                  <li>Free High-Speed Wi-Fi connection</li>
+                  <li>Clean towels and basic toiletries included</li>
+                  <li>Check-in: 2:00 PM | Check-out: 12:00 PM</li>
+                  <li>No smoking allowed inside rooms</li>
+                </ul>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal('none')}>Close</button>
+                {selectedRoom.status === 'Available' && (
+                  <button type="button" className="btn btn-primary text-white fw-bold" onClick={() => { setActiveModal('none'); handleStartBookFlow(); }}>
+                    Book Room Now 🔵
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL WORKFLOW: RESERVATION FORM */}
       {activeModal === 'reserve_form' && selectedRoom && (
@@ -984,54 +1111,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="p-3 bg-light rounded border mb-3">
                     <h6 className="fw-bold text-success mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h6>
                     <div className="small text-muted">Floor: {selectedRoom.floorName} • Rate: ₱{parseFloat(selectedRoom.rate).toFixed(2)}/night</div>
-                    <div className="small text-muted">Max Capacity: Up to {selectedRoom.occupancyLimit} Pax</div>
                   </div>
 
                   <div className="row g-2 mb-3">
                     <div className="col-6">
                       <label className="form-label fw-semibold small">Check-In Date *</label>
-                      <input
-                        type="date"
-                        className="form-control form-control-sm"
-                        value={checkInDate}
-                        onChange={(e) => setCheckInDate(e.target.value)}
-                        required
-                      />
+                      <input type="date" className="form-control form-control-sm" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} required />
                     </div>
                     <div className="col-6">
                       <label className="form-label fw-semibold small">Check-Out Date *</label>
-                      <input
-                        type="date"
-                        className="form-control form-control-sm"
-                        value={checkOutDate}
-                        onChange={(e) => setCheckOutDate(e.target.value)}
-                        required
-                      />
+                      <input type="date" className="form-control form-control-sm" value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
                     </div>
                   </div>
 
                   <div className="mb-3">
                     <label className="form-label fw-semibold small">Number of Guests *</label>
-                    <input
-                      type="number"
-                      className="form-control form-control-sm"
-                      min="1"
-                      max={selectedRoom.occupancyLimit}
-                      value={numGuests}
-                      onChange={(e) => setNumGuests(parseInt(e.target.value) || 1)}
-                      required
-                    />
+                    <input type="number" className="form-control form-control-sm" min="1" max={selectedRoom.occupancyLimit} value={numGuests} onChange={(e) => setNumGuests(parseInt(e.target.value) || 1)} required />
                   </div>
 
                   <div className="mb-3">
                     <label className="form-label fw-semibold small">Special Requests (Optional)</label>
-                    <textarea
-                      className="form-control form-control-sm"
-                      rows="2"
-                      placeholder="e.g. Extra pillows, early arrival note, etc."
-                      value={specialRequests}
-                      onChange={(e) => setSpecialRequests(e.target.value)}
-                    ></textarea>
+                    <textarea className="form-control form-control-sm" rows="2" placeholder="e.g. Extra pillows, early arrival note" value={specialRequests} onChange={(e) => setSpecialRequests(e.target.value)}></textarea>
                   </div>
                 </div>
                 <div className="modal-footer">
@@ -1046,7 +1146,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         </div>
       )}
 
-      {/* MODAL WORKFLOW: RESERVATION SUMMARY MODAL */}
+      {/* MODAL WORKFLOW: RESERVATION SUMMARY */}
       {activeModal === 'reservation_summary' && reservationSummaryData && (
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
           <div className="modal-dialog modal-dialog-centered">
@@ -1054,11 +1154,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="modal-body py-3">
                 <div className="text-success display-4 mb-2">🟢</div>
                 <h4 className="fw-bold text-dark">Reservation Request Sent!</h4>
-                <p className="text-muted small mb-3">Your reservation request has been received by Front Desk and is pending confirmation.</p>
+                <p className="text-muted small mb-3">Front Desk will review your reservation request shortly.</p>
 
                 <div className="p-3 bg-light rounded text-start border mb-3" style={{ fontSize: '0.85rem' }}>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Reservation Reference:</span>
+                    <span className="text-muted">Reservation Ref:</span>
                     <span className="fw-bold text-success">#RES-{reservationSummaryData.reservationID}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
@@ -1069,22 +1169,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="text-muted">Check-In Date:</span>
                     <span className="fw-semibold">{reservationSummaryData.checkInDate}</span>
                   </div>
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Check-Out Date:</span>
-                    <span className="fw-semibold">{reservationSummaryData.checkOutDate}</span>
-                  </div>
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Guests Count:</span>
-                    <span className="fw-semibold">{reservationSummaryData.numGuests} Pax</span>
-                  </div>
-                  <div className="d-flex justify-content-between pt-2 border-top">
-                    <span className="text-muted">Status:</span>
-                    <span className="badge bg-warning text-dark">Pending Front Desk Review</span>
-                  </div>
                 </div>
 
-                <button className="btn btn-pcc-primary text-white fw-bold w-100 py-2" onClick={() => { setActiveModal('none'); setViewMode('dashboard'); }}>
-                  Done & Back to Dashboard
+                <button className="btn btn-pcc-primary text-white fw-bold w-100 py-2" onClick={() => { setActiveModal('none'); setViewMode('default'); }}>
+                  Done & Back to Portal
                 </button>
               </div>
             </div>
@@ -1092,7 +1180,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         </div>
       )}
 
-      {/* MODAL WORKFLOW: BOOK ROOM STEP 1 (DETAILS & GUESTS) */}
+      {/* MODAL WORKFLOW: BOOKING FORM & GUESTS */}
       {activeModal === 'book_form' && selectedRoom && (
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -1108,7 +1196,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <div className="p-3 bg-light rounded border h-100">
                         <h6 className="fw-bold text-primary mb-2">Room {selectedRoom.roomNumber} - {selectedRoom.roomType}</h6>
                         <div className="small text-muted mb-1">Floor: <strong>{selectedRoom.floorName}</strong></div>
-                        <div className="small text-muted mb-1">Occupancy Limit: <strong>Up to {selectedRoom.occupancyLimit} Pax</strong></div>
                         <div className="small text-muted">Standard Rate: <strong>₱{parseFloat(selectedRoom.rate).toFixed(2)} / night</strong></div>
                       </div>
                     </div>
@@ -1128,16 +1215,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
-                  {/* Registered Room Guests */}
+                  {/* Registered Guests */}
                   <div className="p-3 bg-white border rounded mb-3">
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <h6 className="fw-bold text-dark mb-0">Registered Room Guests ({registeredGuests.length} Pax)</h6>
                       {registeredGuests.length < selectedRoom.occupancyLimit && (
-                        <button
-                          type="button"
-                          className="btn btn-xs btn-outline-primary"
-                          onClick={() => setRegisteredGuests(prev => [...prev, { fullName: '', age: 25, discountID: '', discountIdNumber: '' }])}
-                        >
+                        <button type="button" className="btn btn-xs btn-outline-primary" onClick={() => setRegisteredGuests(prev => [...prev, { fullName: '', age: 25, discountID: '', discountIdNumber: '' }])}>
                           + Add Guest
                         </button>
                       )}
@@ -1200,11 +1283,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             />
                           )}
                           {registeredGuests.length > 1 && (
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => setRegisteredGuests(prev => prev.filter((_, i) => i !== idx))}
-                            >
+                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setRegisteredGuests(prev => prev.filter((_, i) => i !== idx))}>
                               ✕
                             </button>
                           )}
@@ -1213,7 +1292,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     ))}
                   </div>
 
-                  {/* Summary Breakdown */}
                   <div className="p-3 bg-light rounded border" style={{ fontSize: '0.88rem' }}>
                     <div className="d-flex justify-content-between mb-1">
                       <span className="text-muted">Room Rent Subtotal ({nightsCount} nights):</span>
@@ -1243,7 +1321,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         </div>
       )}
 
-      {/* MODAL WORKFLOW: STEP 2 (GCASH PAYMENT SELECTOR) */}
+      {/* MODAL WORKFLOW: GCASH PAYMENT */}
       {activeModal === 'payment' && selectedRoom && (
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
           <div className="modal-dialog modal-dialog-centered">
@@ -1255,10 +1333,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <form onSubmit={handleConfirmGCashBookingPayment}>
                 <div className="modal-body">
                   <div className="alert alert-info py-2 small mb-3">
-                    ℹ Online payments are processed exclusively via <strong>GCash</strong>. Select your preferred downpayment percentage below.
+                    ℹ Online payments are processed exclusively via <strong>GCash</strong>. Select downpayment percentage below.
                   </div>
 
-                  {/* Payment Downpayment Selector */}
                   <div className="mb-3">
                     <label className="form-label fw-bold">Select Down Payment Percentage *</label>
                     <div className="btn-group w-100" role="group">
@@ -1273,7 +1350,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
-                  {/* Real-time Math Calculation Breakdown */}
                   <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
                     <div className="d-flex justify-content-between mb-1">
                       <span className="text-muted">Total Net Booking Amount:</span>
@@ -1293,7 +1369,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
-                  {/* GCash Merchant QR & Ref Input */}
                   <div className="p-3 border rounded bg-white text-center mb-3">
                     <div className="fw-bold text-primary mb-1">PCC Home Suite Home GCash Merchant</div>
                     <div className="small text-muted mb-2">Account No: <strong>0917-123-4567</strong></div>
@@ -1359,8 +1434,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <button className="btn btn-outline-primary fw-bold" onClick={handlePrintReceipt}>
                     🖨️ Print / Download Receipt
                   </button>
-                  <button className="btn btn-pcc-primary text-white fw-bold" onClick={() => { setActiveModal('none'); setViewMode('dashboard'); }}>
-                    Done & View Dashboard
+                  <button className="btn btn-pcc-primary text-white fw-bold" onClick={() => { setActiveModal('none'); setViewMode('default'); setActiveTab('home'); }}>
+                    Done & View Portal
                   </button>
                 </div>
               </div>
@@ -1368,9 +1443,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           </div>
         </div>
       )}
-
-      {/* CHAT BUBBLE COMPONENT */}
-      <GuestChatBubble />
     </>
   );
 }

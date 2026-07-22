@@ -993,3 +993,54 @@ h4,
   background-color: #31d2f2;
   color: #000;
 }
+
+/* =====================================================================
+   PCC Mobile-First Guest Portal App System
+   ===================================================================== */
+.guest-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1050;
+  height: 64px;
+  background: #ffffff;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.nav-tab-item.active i {
+  transform: translateY(-2px);
+  color: var(--pcc-blue) !important;
+}
+
+.nav-tab-item:active {
+  transform: scale(0.95);
+}
+
+.guest-mobile-wrapper {
+  padding-bottom: 80px !important;
+}
+
+.room-card-hover {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.room-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(33, 85, 181, 0.12) !important;
+}
+
+.guest-hero-card {
+  background: linear-gradient(135deg, #2155B5 0%, #163E82 100%);
+  color: #ffffff;
+  border-radius: 16px;
+}
+
+.touch-action-btn {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border-radius: 10px;
+}
