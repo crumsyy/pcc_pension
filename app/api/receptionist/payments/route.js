@@ -50,7 +50,7 @@ export async function POST(request) {
     const change = parseFloat(body.change || 0);
     const paymentMethodID = parseInt(body.paymentMethodID);
     const discountID = body.discountID ? parseInt(body.discountID) : null;
-    const [bookingDetails] = await dbQuery("SELECT status, roomID FROM booking WHERE bookingID = ?", [bookingID]);
+    const bookingDetails = await dbQuery("SELECT status, roomID FROM booking WHERE bookingID = ?", [bookingID]);
     if (bookingDetails.length === 0) {
       return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
     }

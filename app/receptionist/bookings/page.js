@@ -61,12 +61,16 @@ function BookingsClient() {
     roomID: '',
     checkInDateTime: '',
     checkOutDateTime: '',
-    status: 'Pending Check-in'
+    status: 'Checked In'
   });
 
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [downPayment, setDownPayment] = useState('');
   const [paymentMethodID, setPaymentMethodID] = useState('1');
+
+  // Check-in Scenario & Downpayment Tiers
+  const [checkInScenario, setCheckInScenario] = useState('now'); // 'now' | 'later'
+  const [downPaymentOption, setDownPaymentOption] = useState('25'); // '25' | '50' | '100'
 
   const [checkInDate, setCheckInDate] = useState('');
   const [checkInTime, setCheckInTime] = useState('');
@@ -152,106 +156,76 @@ function BookingsClient() {
     fetchData();
   }, []);
 
+  const openCreateModal = () => {
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+    
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayUiDate = toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+    const tomorrowUiDate = toUiDate(`${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`);
+    const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    
+    setMinDateTime(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${currentTimeStr}`);
+    setCheckInScenario('now');
+    setDownPaymentOption('25');
+    setCheckInDate(todayUiDate);
+    setCheckInTime(currentTimeStr);
+    setCheckOutDate(tomorrowUiDate);
+    setCheckOutTime('12:00');
+    
+    setIsWalkIn(false);
+    setWalkInForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
+    setSelectedRoomType('');
+    setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
+    setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+    setDownPayment('');
+    setActiveModal('create');
+  };
+
+  const handleRebook = (b) => {
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+    
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayUiDate = toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+    const tomorrowUiDate = toUiDate(`${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`);
+    const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    
+    setMinDateTime(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${currentTimeStr}`);
+    setCheckInScenario('now');
+    setDownPaymentOption('25');
+    setCheckInDate(todayUiDate);
+    setCheckInTime(currentTimeStr);
+    setCheckOutDate(tomorrowUiDate);
+    setCheckOutTime('12:00');
+
+    setIsWalkIn(false);
+    setWalkInForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
+    setSelectedRoomType(b.roomType || '');
+    setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
+    setRoomGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(g => ({ ...g, discountID: g.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
+    setDownPayment('');
+    setActiveModal('create');
+  };
+
   useEffect(() => {
-    if (!loading && searchParams.get('action') === 'new') {
-      const qCheckIn = searchParams.get('checkIn');
-      const qCheckOut = searchParams.get('checkOut');
-      const qRoomID = searchParams.get('roomID');
-      const qFirstName = searchParams.get('firstName');
-      const qLastName = searchParams.get('lastName');
-      const qEmail = searchParams.get('email');
-      const qContact = searchParams.get('contact');
-      const qDiscountID = searchParams.get('discountID');
-
-      if (qCheckIn && qCheckOut) {
-        const formatParamDate = (dStr) => {
-          const MathParts = dStr.split('-');
-          if (MathParts.length === 3) {
-            return `${MathParts[1]}/${MathParts[2]}/${MathParts[0]}`;
-          }
-          return '';
-        };
-
-        setCheckInDate(formatParamDate(qCheckIn));
-        setCheckInTime("14:00");
-        setCheckOutDate(formatParamDate(qCheckOut));
-        setCheckOutTime("12:00");
-        setIsWalkIn(true);
-        setWalkInForm({
-          firstName: qFirstName || '',
-          lastName: qLastName || '',
-          email: qEmail || '',
-          contact: qContact || '',
-          gender: 'Male',
-          dateOfBirth: ''
-        });
-        setFormData({
-          guestID: '',
-          roomID: qRoomID || '',
-          status: 'Pending Check-in'
-        });
-        setRoomGuests([{
-          fullName: `${qFirstName || ''} ${qLastName || ''}`.trim(),
-          age: 30,
-          discountID: qDiscountID || '',
-          discountIdNumber: ''
-        }]);
-        setActiveModal('create');
-      }
-    }
-  }, [loading, searchParams]);
-
-  useEffect(() => {
-    if (activeModal === 'create') {
-      const today = new Date();
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const pad = (num) => String(num).padStart(2, '0');
-      const todayDateStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
-      const tomorrowDateStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
-      const timeStr = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
-
-      setCheckInDate(todayDateStr);
-      setCheckInTime(timeStr);
-      setCheckOutDate(tomorrowDateStr);
-      setCheckOutTime("12:00");
-
-      setFormData({
-        guestID: guests[0]?.guestID || '',
-        roomID: '',
-        status: 'Pending Check-in'
-      });
-      setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
-      setDownPayment('');
-      setPaymentMethodID('1');
-    } else if (!activeModal) {
-      setCheckInDate('');
-      setCheckInTime('');
-      setCheckOutDate('');
-      setCheckOutTime('12:00');
-      setFormData({
-        guestID: '',
-        roomID: '',
-        status: 'Pending Check-in'
-      });
+    if (activeModal !== 'create') {
       setIsWalkIn(false);
-      setWalkInForm({
-        firstName: '',
-        lastName: '',
-        contact: '',
-        email: '',
-        gender: 'Male',
-        dateOfBirth: ''
-      });
+      setWalkInForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
       setSelectedRoomType('');
+      setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+    }
+  }, [activeModal]);
+
+  useEffect(() => {
+    if (activeModal !== 'manage_guests') {
       setManagingBooking(null);
       setManagingGuests([]);
     }
   }, [activeModal]);
 
-  // Synchronize the first guest's name and age with the selected primary guest or walk-in input details
+  // Synchronize first guest name
   useEffect(() => {
     if (activeModal === 'create') {
       let name = '';
@@ -287,16 +261,10 @@ function BookingsClient() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Requirement 2: Additional Guests allowed
   const handleAddGuest = () => {
     if (!formData.roomID) {
       showAlert('warning', 'Warning', 'Please select a room first.');
-      return;
-    }
-    const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
-    const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
-
-    if (roomGuests.length >= limit) {
-      showAlert('warning', 'Warning', `This room has a maximum occupancy limit of ${limit} guest(s).`);
       return;
     }
     setRoomGuests(prev => [...prev, { fullName: '', age: 30, discountID: '', discountIdNumber: '' }]);
@@ -317,152 +285,32 @@ function BookingsClient() {
     });
   };
 
-  const handleAddManagingGuest = () => {
-    if (managingBooking) {
-      const selectedRoom = rooms.find(r => r.roomID === managingBooking.roomID);
-      const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
-
-      if (managingGuests.length >= limit) {
-        showAlert('warning', 'Warning', `This room has a maximum occupancy limit of ${limit} guest(s).`);
-        return;
-      }
-    }
-    setManagingGuests(prev => [...prev, { fullName: '', age: 30, discountID: '', discountIdNumber: '' }]);
-  };
-
-  const handleRemoveManagingGuest = (index) => {
-    setManagingGuests(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleManagingGuestChange = (index, field, value) => {
-    setManagingGuests(prev => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: value };
-      if (field === 'discountID' && !value) {
-        copy[index].discountIdNumber = '';
-      }
-      return copy;
-    });
-  };
-
-  const handleUpdateGuestsSubmit = async (e) => {
-    e.preventDefault();
-    if (managingBooking) {
-      const selectedRoom = rooms.find(r => r.roomID === managingBooking.roomID);
-      const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
-      if (managingGuests.length > limit) {
-        showAlert('error', 'Validation Error', `This room exceeds the occupancy limit. Maximum allowed guests: ${limit}.`);
-        return;
-      }
-    }
-    for (const g of managingGuests) {
-      if (!g.fullName.trim()) {
-        showAlert('error', 'Validation Error', 'All registered guests must have a name.');
-        return;
-      }
-      if (g.discountID) {
-        if (!g.discountIdNumber || !g.discountIdNumber.trim()) {
-          showAlert('error', 'Validation Error', `Discount card ID number is required for ${g.fullName}.`);
-          return;
-        }
-      }
-    }
-
-    showConfirm('Update Guest List', 'Save changes to this booking\'s guest list?', async () => {
-      try {
-        const res = await fetch('/api/receptionist/bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'update_guests',
-            bookingID: managingBooking.bookingID,
-            guests: managingGuests.map(g => ({
-              fullName: g.fullName,
-              age: parseInt(g.age) || 30,
-              discountID: g.discountID ? parseInt(g.discountID) : null,
-              discountIdNumber: g.discountIdNumber || null
-            }))
-          })
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to update guests');
-
-        showAlert('success', 'Success', 'Registered guests updated successfully.');
-        setActiveModal(null);
-        fetchData();
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
-      }
-    });
-  };
-
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-
-    if (!isValidDate(checkInDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid Check-In Date (MM/DD/YYYY).');
+    if (!isWalkIn && !formData.guestID) {
+      showAlert('error', 'Validation Error', 'Please select a guest or choose Walk-In.');
       return;
     }
-    if (!isValidDate(checkOutDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid Check-Out Date (MM/DD/YYYY).');
+    if (!formData.roomID) {
+      showAlert('error', 'Validation Error', 'Please select a room.');
       return;
     }
-    if (!checkInTime) {
-      showAlert('error', 'Validation Error', 'Please select a Check-In Time.');
+    if (!isValidDate(checkInDate) || !isValidDate(checkOutDate)) {
+      showAlert('error', 'Validation Error', 'Please enter valid Check-In and Check-Out dates (MM/DD/YYYY).');
       return;
-    }
-    if (!checkOutTime) {
-      showAlert('error', 'Validation Error', 'Please select a Check-Out Time.');
-      return;
-    }
-
-    const checkInStr = toDbDate(checkInDate) + 'T' + checkInTime;
-    const checkOutStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
-    const checkIn = new Date(checkInStr);
-    const checkOut = new Date(checkOutStr);
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - 5);
-
-    if (checkIn < now) {
-      showAlert('error', 'Validation Error', 'Check-in date and time cannot be in the past.');
-      return;
-    }
-    if (checkOut <= checkIn) {
-      showAlert('error', 'Validation Error', 'Check-out date and time must be after the check-in date and time.');
-      return;
-    }
-
-    if (isWalkIn) {
-      if (!walkInForm.firstName.trim() || !walkInForm.lastName.trim()) {
-        showAlert('error', 'Validation Error', 'First name and Last name are required.');
-        return;
-      }
-      if (!walkInForm.contact || walkInForm.contact.length !== 11) {
-        showAlert('error', 'Validation Error', 'Contact number must be exactly 11 digits.');
-        return;
-      }
-      if (!walkInForm.dateOfBirth) {
-        showAlert('error', 'Validation Error', 'Birthdate is required for walk-in guests.');
-        return;
-      }
-      if (!isValidDate(walkInForm.dateOfBirth)) {
-        showAlert('error', 'Validation Error', 'Please enter a valid Birthdate (MM/DD/YYYY).');
-        return;
-      }
     }
 
     const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
-    const limit = selectedRoom ? parseInt(selectedRoom.occupancyLimit) || 4 : 4;
-    if (roomGuests.length > limit) {
-      showAlert('error', 'Validation Error', `This room exceeds the occupancy limit. Maximum allowed guests: ${limit}.`);
-      return;
-    }
+    const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
 
-    // Validate guests list
     for (const g of roomGuests) {
       if (!g.fullName.trim()) {
-        showAlert('error', 'Validation Error', 'All registered guests must have a name.');
+        showAlert('error', 'Validation Error', 'All registered room guests must have a full name.');
+        return;
+      }
+      const ageNum = parseInt(g.age);
+      if (isNaN(ageNum) || ageNum <= 0) {
+        showAlert('error', 'Validation Error', `Please enter a valid age for guest ${g.fullName}.`);
         return;
       }
       if (g.discountID) {
@@ -485,8 +333,27 @@ function BookingsClient() {
         nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
       }
     }
-    const totalRoomCharge = rate * nights;
-    const requiredDownpayment = totalRoomCharge * 0.5;
+
+    const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
+    const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
+    const rawSubtotal = (rate * nights) + extraGuestFee;
+
+    let totalApportionedDiscount = 0;
+    if (roomGuests.length > 0 && selectedRoom) {
+      const sharePerGuest = (rate * nights) / roomGuests.length;
+      roomGuests.forEach(g => {
+        if (g.discountID) {
+          const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+          if (disc) {
+            totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
+          }
+        }
+      });
+    }
+
+    const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+    const dpPctNum = parseInt(downPaymentOption);
+    const requiredDownpayment = netTotalAmount * (dpPctNum / 100);
 
     const dpAmount = parseFloat(downPayment);
     if (isNaN(dpAmount) || dpAmount <= 0) {
@@ -494,8 +361,16 @@ function BookingsClient() {
       return;
     }
     if (dpAmount < requiredDownpayment - 0.01) {
-      showAlert('error', 'Validation Error', `Received down payment (₱${dpAmount.toFixed(2)}) cannot be below the required 50% downpayment of ₱${requiredDownpayment.toFixed(2)}.`);
+      showAlert('error', 'Validation Error', `Received down payment (₱${dpAmount.toFixed(2)}) cannot be below the selected ${dpPctNum}% requirement of ₱${requiredDownpayment.toFixed(2)}.`);
       return;
+    }
+
+    // Format Check-in timestamp cleanly based on Scenario 1 vs Scenario 2
+    let finalCheckInDateTime = toDbDate(checkInDate) + ' ' + checkInTime + ':00';
+    if (checkInScenario === 'now') {
+      const localNow = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
     }
 
     showConfirm('Create Booking', 'Are you sure you want to create this booking?', async () => {
@@ -508,10 +383,11 @@ function BookingsClient() {
             isWalkIn,
             ...(isWalkIn ? { ...walkInForm, dateOfBirth: walkInForm.dateOfBirth ? toDbDate(walkInForm.dateOfBirth) : null } : { guestID: formData.guestID }),
             roomID: formData.roomID,
-            checkInDateTime: toDbDate(checkInDate) + ' ' + checkInTime + ':00',
+            checkInDateTime: finalCheckInDateTime,
             checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
-            status: formData.status,
+            status: checkInScenario === 'now' ? 'Checked In' : 'Pending Check-in',
             downPaymentAmount: dpAmount,
+            downPaymentPercentage: dpPctNum,
             paymentMethodID: parseInt(paymentMethodID),
             guests: roomGuests.map(g => ({
               fullName: g.fullName,
@@ -537,6 +413,8 @@ function BookingsClient() {
     if (activeModal === 'create') {
       const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
       const rate = selectedRoom ? parseFloat(selectedRoom.rate || 0) : 0;
+      const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
+
       let nights = 0;
       if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
         const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
@@ -548,32 +426,29 @@ function BookingsClient() {
           nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
         }
       }
-      const totalRoomCharge = rate * nights;
-      setDownPayment((totalRoomCharge * 0.5).toFixed(2));
-    }
-  }, [formData.roomID, checkInDate, checkOutDate, checkInTime, checkOutTime, rooms, activeModal]);
 
-  const handleNoShow = (id) => {
-    showConfirm('Mark as No Show', 'Are you sure you want to mark this booking as No Show? The room will be released.', async () => {
-      try {
-        const res = await fetch('/api/receptionist/bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'noshow',
-            bookingID: id
-          })
+      const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
+      const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
+      const rawSubtotal = (rate * nights) + extraGuestFee;
+
+      let totalApportionedDiscount = 0;
+      if (roomGuests.length > 0 && selectedRoom) {
+        const sharePerGuest = (rate * nights) / roomGuests.length;
+        roomGuests.forEach(g => {
+          if (g.discountID) {
+            const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+            if (disc) {
+              totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
+            }
+          }
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to mark as No Show');
-
-        showAlert('success', 'Success', 'Booking marked as No Show.');
-        fetchData();
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
       }
-    });
-  };
+
+      const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+      const dpPctNum = parseInt(downPaymentOption || '25');
+      setDownPayment((netTotalAmount * (dpPctNum / 100)).toFixed(2));
+    }
+  }, [formData.roomID, roomGuests, checkInDate, checkOutDate, checkInTime, checkOutTime, downPaymentOption, rooms, availableDiscounts, activeModal]);
 
   const handleCheckIn = (id) => {
     showConfirm('Process Check-In', 'Check in this guest now?', async () => {
@@ -625,178 +500,108 @@ function BookingsClient() {
     setActiveModal('cancel_reason');
   };
 
-  const handleConfirmCancel = async (e) => {
-    e.preventDefault();
-    if (!cancelRemarks.trim()) return;
-
-    try {
-      const res = await fetch('/api/receptionist/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cancel',
-          bookingID: cancellingBookingID,
-          cancelRemarks: cancelRemarks.trim()
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to cancel booking');
-
-      showAlert('success', 'Success', 'Booking canceled and room is now available.');
-      setActiveModal(null);
-      fetchData();
-    } catch (err) {
-      showAlert('error', 'Error', err.message);
-    }
-  };
-
-  const handleRebook = (b) => {
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const formatDateTimeLocal = (date, hour) => {
-      const pad = (num) => String(num).padStart(2, '0');
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${hour}`;
-    };
-
-    if (b.guestID) {
-      setIsWalkIn(false);
-      setFormData({
-        guestID: String(b.guestID),
-        roomID: b.roomID || rooms[0]?.roomID || '',
-        checkInDateTime: formatDateTimeLocal(today, '14:00'),
-        checkOutDateTime: formatDateTimeLocal(tomorrow, '12:00'),
-        status: 'Confirmed'
-      });
-    } else {
-      setIsWalkIn(true);
-      setFormData({
-        guestID: '',
-        roomID: b.roomID || rooms[0]?.roomID || '',
-        checkInDateTime: formatDateTimeLocal(today, '14:00'),
-        checkOutDateTime: formatDateTimeLocal(tomorrow, '12:00'),
-        status: 'Confirmed'
-      });
-      setWalkInForm({
-        firstName: b.firstName || '',
-        lastName: b.lastName || '',
-        contact: b.contact || '',
-        email: b.email || '',
-        gender: b.gender || 'Male',
-        dateOfBirth: b.dateOfBirth ? toUiDate(b.dateOfBirth) : ''
-      });
-    }
-    setActiveModal('create');
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Checked In': return 'text-bg-primary';
-      case 'Checked Out': return 'text-bg-success';
-      case 'Pending Check-in': return 'text-bg-info';
-      case 'Cancelled': return 'text-bg-danger';
-      case 'No Show': return 'text-bg-warning';
-      default: return 'text-bg-dark';
-    }
-  };
-
   const filteredBookings = bookings.filter(b => {
-    const fullName = `${b.firstName} ${b.lastName}`.toLowerCase();
-    const room = b.roomNumber.toLowerCase();
-    const query = search.toLowerCase();
-    const matchesSearch = fullName.includes(query) || room.includes(query);
+    const fullName = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
+    const contact = (b.contact || '').toLowerCase();
+    const roomNum = (b.roomNumber || '').toString().toLowerCase();
+    const matchesSearch = fullName.includes(search.toLowerCase()) || contact.includes(search.toLowerCase()) || roomNum.includes(search.toLowerCase());
     const matchesStatus = statusFilter ? b.status === statusFilter : true;
     return matchesSearch && matchesStatus;
   });
 
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Checked In': return 'bg-success';
+      case 'Checked Out': return 'bg-secondary';
+      case 'Pending Check-in': return 'bg-warning text-dark';
+      case 'Cancelled': return 'bg-danger';
+      default: return 'bg-primary';
+    }
+  };
+
+  const selectedRoomObj = rooms.find(r => r.roomID === parseInt(formData.roomID));
+
   return (
-    <>
-      <div className="d-flex justify-content-between align-items-center mb-4">
+    <div className="container-fluid py-3">
+      <ModalDialog
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={modalConfig.onCancel}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
+
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <div className="section-eyebrow">Receptionist</div>
-          <h2 className="section-title mb-0">Bookings & Lodging Log</h2>
+          <h2 className="section-title mb-0">Booking Management</h2>
+          <span className="section-eyebrow">Front Desk Reservations & Lodging Operations</span>
         </div>
-        <button className="btn btn-pcc-primary text-white" onClick={() => setActiveModal('create')}>
-          + Create Booking
+        <button className="btn btn-pcc-primary text-white shadow-sm fw-bold" onClick={openCreateModal}>
+          + New Booking
         </button>
       </div>
 
-      <div className="card-module p-4 mb-4" style={{ backgroundColor: "#fff", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        {/* Filters */}
-        <div className="row g-3 mb-4">
+      <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+        <div className="row g-2">
           <div className="col-md-6">
             <input
               type="text"
-              placeholder="Search by guest name or room number..."
               className="form-control"
+              placeholder="Search guest name, room number, contact..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="col-md-4">
+          <div className="col-md-6">
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
+              <option value="">All Booking Statuses</option>
               <option value="Pending Check-in">Pending Check-in</option>
               <option value="Checked In">Checked In</option>
               <option value="Checked Out">Checked Out</option>
               <option value="Cancelled">Cancelled</option>
-              <option value="No Show">No Show</option>
             </select>
           </div>
-          <div className="col-md-2">
-            <button className="btn btn-pcc-primary w-100 text-white" onClick={() => { setSearch(''); setStatusFilter(''); }}>
-              Clear
-            </button>
-          </div>
         </div>
+      </div>
 
-        {/* Table */}
+      {/* BOOKINGS TABLE */}
+      <div className="card shadow-sm border-0 p-3 bg-white" style={{ borderRadius: '12px' }}>
         {loading ? (
-          <div className="text-center py-5">
+          <div className="text-center py-4">
             <div className="spinner-border text-primary" role="status"></div>
-            <p className="text-muted mt-2">Loading bookings...</p>
+            <p className="small text-muted mt-2">Loading bookings data...</p>
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div className="text-center py-5 text-muted">No bookings found matching the filters.</div>
+          <div className="text-center py-4 text-muted">
+            <p className="mb-0">No booking records found.</p>
+          </div>
         ) : (
-          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
-            <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.9rem" }}>
+          <div className="table-responsive">
+            <table className="table table-hover align-middle" style={{ fontSize: '0.88rem' }}>
               <thead>
                 <tr className="table-light">
+                  <th>Booking ID</th>
                   <th>Guest Name</th>
                   <th>Room</th>
-                  <th>Check-In / Out Schedule</th>
+                  <th>Schedule</th>
                   <th>Status</th>
                   <th className="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredBookings.map((b) => (
+                {filteredBookings.map(b => (
                   <tr key={b.bookingID}>
+                    <td className="fw-bold">#{b.bookingID}</td>
                     <td>
-                      <div className="fw-semibold text-dark">
-                        {b.middleName ? `${b.firstName} ${b.middleName.charAt(0).toUpperCase()}. ${b.lastName}` : `${b.firstName} ${b.lastName}`}
-                      </div>
-                      <div className="d-flex flex-wrap gap-1 mt-1 align-items-center">
-                        <small className="text-muted mr-1">{b.contact}</small>
-                        <span className="badge bg-secondary text-white" style={{ fontSize: '0.7rem' }}>
-                          Pax: {b.registeredGuests?.length || 1}
-                        </span>
-                        {b.registeredGuests?.some(g => g.discountName?.toLowerCase().includes('senior')) && (
-                          <span className="badge bg-warning text-dark" style={{ fontSize: '0.7rem' }}>
-                            Senior
-                          </span>
-                        )}
-                        {b.registeredGuests?.some(g => g.discountName?.toLowerCase().includes('pwd')) && (
-                          <span className="badge bg-info text-white" style={{ fontSize: '0.7rem' }}>
-                            PWD
-                          </span>
-                        )}
-                      </div>
+                      <div className="fw-bold text-dark">{b.firstName} {b.lastName}</div>
+                      <small className="text-muted">{b.contact || 'No Contact'}</small>
                     </td>
                     <td>
-                      <div className="fw-semibold text-dark">Room {b.roomNumber}</div>
+                      <span className="fw-bold text-pcc-blue">Room {b.roomNumber}</span>
+                      <br />
                       <small className="text-muted">{b.roomType}</small>
                     </td>
                     <td>
@@ -809,66 +614,44 @@ function BookingsClient() {
                     </td>
                     <td>
                       <span className={`badge ${getStatusBadge(b.status)}`}>{b.status}</span>
-                      {b.status === 'Canceled' && b.cancelRemarks && (
-                        <div className="text-danger small mt-1" style={{ fontSize: '0.75rem', maxWidth: '160px', fontStyle: 'italic' }}>
-                          Reason: {b.cancelRemarks}
-                        </div>
-                      )}
                     </td>
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
-                        {b.status !== 'Cancelled' && b.status !== 'Checked Out' && b.status !== 'No Show' && (
+                        {b.status !== 'Cancelled' && b.status !== 'Checked Out' && (
                           <button 
-                            className="btn btn-sm btn-pcc-primary text-white d-inline-flex align-items-center justify-content-center" 
+                            className="btn btn-sm btn-pcc-primary text-white"
                             title="Manage Guests"
-                            style={{ width: '32px', height: '32px' }}
                             onClick={() => {
                               setManagingBooking(b);
                               setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
                               setActiveModal('manage_guests');
                             }}
                           >
-                            <i className="fa-solid fa-users"></i>
+                            <i className="fa-solid fa-users me-1"></i> Guests
                           </button>
                         )}
                         {b.status === 'Pending Check-in' && (
                           <button 
-                            className="btn btn-sm btn-success text-white d-inline-flex align-items-center justify-content-center" 
-                            title="Check In"
-                            style={{ width: '32px', height: '32px' }}
+                            className="btn btn-sm btn-success text-white"
                             onClick={() => handleCheckIn(b.bookingID)}
                           >
-                            <i className="fa-solid fa-right-to-bracket"></i>
+                            Check In 🟢
                           </button>
                         )}
                         {b.status === 'Checked In' && (
                           <button 
-                            className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center" 
-                            title="Check Out"
-                            style={{ width: '32px', height: '32px' }}
+                            className="btn btn-sm btn-danger text-white"
                             onClick={() => handleCheckOut(b.bookingID)}
                           >
-                            <i className="fa-solid fa-right-from-bracket"></i>
+                            Check Out 🔴
                           </button>
                         )}
                         {b.status === 'Pending Check-in' && (
                           <button 
-                            className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center" 
-                            title="Cancel Booking"
-                            style={{ width: '32px', height: '32px' }}
+                            className="btn btn-sm btn-outline-danger"
                             onClick={() => openCancelModal(b.bookingID)}
                           >
-                            <i className="fa-solid fa-ban"></i>
-                          </button>
-                        )}
-                        {b.status === 'Cancelled' && (
-                          <button 
-                            className="btn btn-sm btn-info text-white d-inline-flex align-items-center justify-content-center" 
-                            title="Rebook"
-                            style={{ width: '32px', height: '32px' }}
-                            onClick={() => handleRebook(b)}
-                          >
-                            <i className="fa-solid fa-rotate-right"></i>
+                            Cancel
                           </button>
                         )}
                       </div>
@@ -883,215 +666,292 @@ function BookingsClient() {
 
       {/* CREATE MODAL */}
       {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">New Lodging Booking</h5>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-lg modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header text-white" style={{ background: '#2155B5' }}>
+                <h5 className="modal-title fw-bold">New Lodging Booking Workspace</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
                 <div className="modal-body">
-                  <div className="form-check form-switch mb-3">
+                  <div className="form-check form-switch mb-3 p-2 bg-light rounded border">
                     <input
-                      className="form-check-input"
+                      className="form-check-input ms-0 me-2"
                       type="checkbox"
                       id="walkInToggle"
                       checked={isWalkIn}
                       onChange={(e) => setIsWalkIn(e.target.checked)}
                     />
-                    <label className="form-check-label" htmlFor="walkInToggle">
-                      Walk-In Guest (No Account / Quick Book)
+                    <label className="form-check-label fw-bold text-dark" htmlFor="walkInToggle">
+                      Walk-In Guest (Quick Booking Without Registered Account)
                     </label>
                   </div>
 
                   {!isWalkIn ? (
                     <div className="mb-3">
-                      <label className="form-label">Guest *</label>
+                      <label className="form-label fw-semibold">Select Guest Account *</label>
                       <SearchableSelect
                         options={guests.map(g => ({
                           value: String(g.guestID),
-                          label: `${g.lastName}, ${g.firstName} (${g.contact})`
+                          label: `${g.lastName}, ${g.firstName} (${g.contact || 'No Phone'})`
                         }))}
                         value={formData.guestID}
                         onChange={(val) => setFormData(prev => ({ ...prev, guestID: val }))}
-                        placeholder="Type to search guest..."
+                        placeholder="Type guest name or contact..."
                         disabled={isWalkIn}
                       />
                     </div>
                   ) : (
                     <div className="p-3 mb-3 border rounded bg-light">
-                      <h6 className="mb-3 text-pcc-primary fw-bold">Walk-In Guest Details</h6>
+                      <h6 className="mb-3 text-pcc-primary fw-bold">Walk-In Guest Information</h6>
                       <div className="row g-2">
                         <div className="col-md-6 mb-2">
-                          <label className="form-label">First Name *</label>
+                          <label className="form-label small mb-1">First Name *</label>
                           <input
                             type="text"
-                            className="form-control"
+                            className="form-control form-control-sm"
                             required={isWalkIn}
                             value={walkInForm.firstName}
                             onChange={(e) => setWalkInForm(prev => ({ ...prev, firstName: e.target.value }))}
                           />
                         </div>
                         <div className="col-md-6 mb-2">
-                          <label className="form-label">Last Name *</label>
+                          <label className="form-label small mb-1">Last Name *</label>
                           <input
                             type="text"
-                            className="form-control"
+                            className="form-control form-control-sm"
                             required={isWalkIn}
                             value={walkInForm.lastName}
                             onChange={(e) => setWalkInForm(prev => ({ ...prev, lastName: e.target.value }))}
                           />
                         </div>
                       </div>
-                      <div className="mb-2">
-                        <label className="form-label">Contact Number</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={walkInForm.contact}
-                          onChange={(e) => {
-                            const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
-                            setWalkInForm(prev => ({ ...prev, contact: sanitized }));
-                          }}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label">Email (Optional)</label>
-                        <input
-                          type="email"
-                          className="form-control"
-                          value={walkInForm.email}
-                          onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label">Birthdate *</label>
-                        <DateInput
-                          value={walkInForm.dateOfBirth}
-                          onChange={(e) => setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                          required={isWalkIn}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label">Gender</label>
-                        <select
-                          className="form-select"
-                          value={walkInForm.gender}
-                          onChange={(e) => setWalkInForm(prev => ({ ...prev, gender: e.target.value }))}
-                        >
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                        </select>
+                      <div className="row g-2">
+                        <div className="col-md-6 mb-2">
+                          <label className="form-label small mb-1">Contact Number</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            value={walkInForm.contact}
+                            onChange={(e) => {
+                              const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
+                              setWalkInForm(prev => ({ ...prev, contact: sanitized }));
+                            }}
+                          />
+                        </div>
+                        <div className="col-md-6 mb-2">
+                          <label className="form-label small mb-1">Email Address</label>
+                          <input
+                            type="email"
+                            className="form-control form-control-sm"
+                            value={walkInForm.email}
+                            onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="p-3 mb-3 border rounded bg-white" style={{ border: '1px solid var(--pcc-mist)' }}>
+                  {/* ROOM SELECTION & OCCUPANCY DISPLAY */}
+                  <div className="row g-2 mb-3">
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">Room Type *</label>
+                      <select
+                        className="form-select"
+                        required
+                        value={selectedRoomType}
+                        onChange={(e) => {
+                          setSelectedRoomType(e.target.value);
+                          setFormData(prev => ({ ...prev, roomID: '' }));
+                        }}
+                      >
+                        <option value="" disabled>Select Room Type</option>
+                        {[...new Set(rooms.map(rm => rm.roomType))].map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">Available Room *</label>
+                      <SearchableSelect
+                        options={rooms
+                          .filter(rm => rm.roomType === selectedRoomType && rm.status === 'Available')
+                          .map(rm => ({
+                            value: String(rm.roomID),
+                            label: `Room ${rm.roomNumber}`
+                          }))
+                        }
+                        value={formData.roomID}
+                        onChange={(val) => setFormData(prev => ({ ...prev, roomID: val }))}
+                        placeholder={selectedRoomType ? "Search available room..." : "Choose Room Type first"}
+                        disabled={!selectedRoomType}
+                      />
+                    </div>
+                  </div>
+
+                  {/* REQUIREMENT 1: ROOM OCCUPANCY LABEL */}
+                  {selectedRoomObj && (
+                    <div className="alert alert-info py-2 mb-3 small fw-bold d-flex align-items-center justify-content-between">
+                      <span>ℹ Room Occupancy Capacity:</span>
+                      <span className="badge bg-primary fs-6 px-3 py-1">Maximum Occupancy: {selectedRoomObj.occupancyLimit} Guests</span>
+                    </div>
+                  )}
+
+                  {/* REQUIREMENT 2: REGISTERED GUESTS & EXTRA GUEST DETECTION */}
+                  <div className="p-3 mb-3 border rounded bg-white">
                     <div className="d-flex justify-content-between align-items-center mb-2">
-                      <h6 className="mb-0 text-pcc-primary fw-bold">Registered Guests (Pax)</h6>
-                      <button type="button" className="btn btn-sm btn-pcc-outline" onClick={handleAddGuest}>
+                      <div>
+                        <h6 className="mb-0 text-pcc-primary fw-bold">Registered Room Guests ({roomGuests.length} Pax)</h6>
+                        <span className="small text-muted">Add all guests staying in this room.</span>
+                      </div>
+                      <button type="button" className="btn btn-sm btn-outline-primary fw-bold" onClick={handleAddGuest}>
                         + Add Guest
                       </button>
                     </div>
+
+                    {selectedRoomObj && roomGuests.length > selectedRoomObj.occupancyLimit && (
+                      <div className="alert alert-warning py-2 mb-2 small fw-bold">
+                        ⚠️ Excess Guests Detected: {roomGuests.length - selectedRoomObj.occupancyLimit} Additional Guest(s)
+                        <div className="fw-semibold text-dark">Additional Guest Fee: ₱{(roomGuests.length - selectedRoomObj.occupancyLimit) * 200}/night applied automatically.</div>
+                      </div>
+                    )}
+
                     {roomGuests.map((g, idx) => (
                       <div key={idx} className="p-2 mb-2 rounded bg-light border position-relative">
-                        <div className="d-flex justify-content-between mb-2">
+                        <div className="d-flex justify-content-between mb-1">
                           <span className="small text-muted fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary)"}</span>
                           {idx > 0 && (
                             <button type="button" className="btn-close" style={{ fontSize: '0.75rem' }} onClick={() => handleRemoveGuest(idx)}></button>
                           )}
                         </div>
                         <div className="row g-2">
-                          <div className="col-12 mb-2">
-                            <label className="form-label small mb-1">Full Name *</label>
+                          <div className="col-md-5">
                             <input
                               type="text"
                               className="form-control form-control-sm"
+                              placeholder="Full Name *"
                               required
                               value={g.fullName}
                               onChange={(e) => handleGuestChange(idx, 'fullName', e.target.value)}
                             />
+                          </div>
+                          <div className="col-md-2">
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              placeholder="Age *"
+                              required
+                              value={g.age}
+                              onChange={(e) => handleGuestChange(idx, 'age', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-md-5">
+                            <select
+                              className="form-select form-select-sm"
+                              value={g.discountID}
+                              onChange={(e) => handleGuestChange(idx, 'discountID', e.target.value)}
+                            >
+                              <option value="">No Discount</option>
+                              {availableDiscounts.map(d => (
+                                <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  {/* Room Type and Room filtering */}
+                  {/* REQUIREMENT 3: CHECK-IN SCENARIO SELECTOR */}
                   <div className="mb-3">
-                    <label className="form-label">Room Type *</label>
-                    <select
-                      className="form-select"
-                      required
-                      value={selectedRoomType}
-                      onChange={(e) => {
-                        setSelectedRoomType(e.target.value);
-                        setFormData(prev => ({ ...prev, roomID: '' }));
-                      }}
-                    >
-                      <option value="" disabled>Select Room Type</option>
-                      {[...new Set(rooms.map(rm => rm.roomType))].map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
+                    <label className="form-label fw-bold">Check-In Scenario *</label>
+                    <div className="btn-group w-100" role="group">
+                      <button
+                        type="button"
+                        className={`btn ${checkInScenario === 'now' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
+                        onClick={() => {
+                          setCheckInScenario('now');
+                          const now = new Date();
+                          const pad = (n) => String(n).padStart(2, '0');
+                          setCheckInDate(toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`));
+                          setCheckInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+                          setFormData(prev => ({ ...prev, status: 'Checked In' }));
+                        }}
+                      >
+                        ⚡ Book & Check-In Now (Current System Time)
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${checkInScenario === 'later' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                        onClick={() => {
+                          setCheckInScenario('later');
+                          setFormData(prev => ({ ...prev, status: 'Pending Check-in' }));
+                        }}
+                      >
+                        📅 Book Now, Check-In Later
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="mb-3">
-                    <label className="form-label">Room *</label>
-                    <SearchableSelect
-                      options={rooms
-                        .filter(rm => rm.roomType === selectedRoomType && rm.status === 'Available')
-                        .map(rm => ({
-                          value: String(rm.roomID),
-                          label: `Room ${rm.roomNumber}`
-                        }))
-                      }
-                      value={formData.roomID}
-                      onChange={(val) => setFormData(prev => ({ ...prev, roomID: val }))}
-                      placeholder={selectedRoomType ? "Type to search room..." : "Choose Room Type first"}
-                      disabled={!selectedRoomType}
-                    />
+                  {checkInScenario === 'later' && (
+                    <div className="row g-2 mb-3 p-3 bg-light rounded border">
+                      <div className="col-md-6">
+                        <label className="form-label small fw-semibold">Check-In Date *</label>
+                        <DateInput value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} required />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label small fw-semibold">Check-In Time *</label>
+                        <input type="time" className="form-control form-control-sm" value={checkInTime} onChange={(e) => setCheckInTime(e.target.value)} required />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="row g-2 mb-3">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Check-Out Date *</label>
+                      <DateInput value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Check-Out Time *</label>
+                      <input type="time" className="form-control form-control-sm" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} required />
+                    </div>
                   </div>
+
+                  {/* REQUIREMENT 4: DOWN PAYMENT OPTIONS */}
                   <div className="mb-3">
-                    <label className="form-label">Check-In Date *</label>
-                    <DateInput
-                      value={checkInDate}
-                      onChange={(e) => setCheckInDate(e.target.value)}
-                      required
-                    />
+                    <label className="form-label fw-bold">Required Down Payment Tier *</label>
+                    <div className="btn-group w-100" role="group">
+                      <button
+                        type="button"
+                        className={`btn ${downPaymentOption === '25' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                        onClick={() => setDownPaymentOption('25')}
+                      >
+                        25% Down Payment
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${downPaymentOption === '50' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                        onClick={() => setDownPaymentOption('50')}
+                      >
+                        50% Down Payment
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${downPaymentOption === '100' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                        onClick={() => setDownPaymentOption('100')}
+                      >
+                        Full Payment (100%)
+                      </button>
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Check-In Time *</label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      value={checkInTime}
-                      onChange={(e) => setCheckInTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Check-Out Date *</label>
-                    <DateInput
-                      value={checkOutDate}
-                      onChange={(e) => setCheckOutDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Check-Out Time *</label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      value={checkOutTime}
-                      onChange={(e) => setCheckOutTime(e.target.value)}
-                      required
-                    />
-                  </div>
+
+                  {/* DYNAMIC BREAKDOWN MATH */}
                   {(() => {
-                    const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
-                    const rate = selectedRoom ? parseFloat(selectedRoom.rate || 0) : 0;
+                    const rate = selectedRoomObj ? parseFloat(selectedRoomObj.rate || 0) : 0;
+                    const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
+
                     let nights = 0;
                     if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
                       const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
@@ -1103,202 +963,122 @@ function BookingsClient() {
                         nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
                       }
                     }
-                    const totalRoomCharge = rate * nights;
-                    const requiredDownPayment = totalRoomCharge * 0.5;
+
+                    const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
+                    const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
+                    const rawSubtotal = (rate * nights) + extraGuestFee;
+
+                    let totalApportionedDiscount = 0;
+                    if (roomGuests.length > 0 && selectedRoomObj) {
+                      const sharePerGuest = (rate * nights) / roomGuests.length;
+                      roomGuests.forEach(g => {
+                        if (g.discountID) {
+                          const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+                          if (disc) {
+                            totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
+                          }
+                        }
+                      });
+                    }
+
+                    const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+                    const dpPctNum = parseInt(downPaymentOption);
+                    const requiredDownpayment = netTotalAmount * (dpPctNum / 100);
+                    const remainingBalance = netTotalAmount - requiredDownpayment;
 
                     return (
                       <>
                         {rate > 0 && (
-                          <div className="p-3 bg-light rounded border mb-3">
+                          <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
                             <div className="d-flex justify-content-between mb-1">
-                              <span className="small text-muted">Room Base Rate:</span>
-                              <span className="small fw-semibold">₱{rate.toFixed(2)}/night</span>
+                              <span className="text-muted">Room Base Rate:</span>
+                              <span className="fw-semibold">₱{rate.toFixed(2)}/night</span>
                             </div>
                             <div className="d-flex justify-content-between mb-1">
-                              <span className="small text-muted">Stay Nights:</span>
-                              <span className="small fw-semibold">{nights} Night(s)</span>
+                              <span className="text-muted">Stay Duration:</span>
+                              <span className="fw-semibold">{nights} Night(s)</span>
                             </div>
-                            <div className="d-flex justify-content-between border-top pt-1 mb-1">
-                              <span className="small fw-bold">Total Room Rent:</span>
-                              <span className="small fw-bold">₱{totalRoomCharge.toFixed(2)}</span>
+
+                            {excessGuestsCount > 0 && (
+                              <div className="d-flex justify-content-between mb-1 text-warning-emphasis fw-bold">
+                                <span>Additional Guest Fee ({excessGuestsCount} Extra Pax):</span>
+                                <span>+₱{extraGuestFee.toFixed(2)}</span>
+                              </div>
+                            )}
+
+                            {totalApportionedDiscount > 0 && (
+                              <div className="d-flex justify-content-between mb-1 text-danger">
+                                <span>Applied Discounts:</span>
+                                <span>-₱{totalApportionedDiscount.toFixed(2)}</span>
+                              </div>
+                            )}
+
+                            <div className="d-flex justify-content-between border-top pt-1.5 mb-1 fw-bold text-pcc-blue" style={{ fontSize: '1rem' }}>
+                              <span>Net Total Booking Amount:</span>
+                              <span>₱{netTotalAmount.toFixed(2)}</span>
                             </div>
-                            <div className="d-flex justify-content-between text-success">
-                              <span className="small fw-bold">Required Down Payment (50%):</span>
-                              <span className="small fw-bold">₱{requiredDownPayment.toFixed(2)}</span>
+
+                            <div className="d-flex justify-content-between text-success fw-bold">
+                              <span>Required Down Payment ({dpPctNum}%):</span>
+                              <span>₱{requiredDownpayment.toFixed(2)}</span>
+                            </div>
+
+                            <div className="d-flex justify-content-between text-muted small">
+                              <span>Remaining Balance at Check-in:</span>
+                              <span>₱{remainingBalance.toFixed(2)}</span>
                             </div>
                           </div>
                         )}
 
-                        <div className="mb-3">
-                          <label className="form-label">Payment Method *</label>
-                          <select
-                            className="form-select"
-                            required
-                            value={paymentMethodID}
-                            onChange={(e) => setPaymentMethodID(e.target.value)}
-                          >
-                            {paymentMethods.map(pm => (
-                              <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
-                                {pm.paymentMethod}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <div className="row g-2 mb-3">
+                          <div className="col-md-6">
+                            <label className="form-label small fw-semibold">Payment Method *</label>
+                            <select
+                              className="form-select form-select-sm"
+                              required
+                              value={paymentMethodID}
+                              onChange={(e) => setPaymentMethodID(e.target.value)}
+                            >
+                              {paymentMethods.map(pm => (
+                                <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
+                                  {pm.paymentMethod}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                        <div className="mb-3">
-                          <label className="form-label">Down Payment Received (₱) *</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="form-control fw-bold text-success"
-                            required
-                            value={downPayment}
-                            onChange={(e) => setDownPayment(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="mb-3">
-                          <label className="form-label">Status *</label>
-                          <select name="status" className="form-select" required value={formData.status} onChange={handleInputChange}>
-                            <option value="Pending Check-in">Pending Check-in (Booked / In later)</option>
-                            <option value="Checked In">Checked In (Arrived / Check-in now)</option>
-                          </select>
+                          <div className="col-md-6">
+                            <label className="form-label small fw-semibold">Down Payment Received (₱) *</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="form-control form-control-sm fw-bold text-success"
+                              required
+                              value={downPayment}
+                              onChange={(e) => setDownPayment(e.target.value)}
+                            />
+                          </div>
                         </div>
                       </>
                     );
                   })()}
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary text-white">Save Booking</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Booking & Record Down Payment 🚀</button>
                 </div>
               </form>
             </div>
           </div>
         </div>
       )}
-
-      {/* CANCEL REASON MODAL */}
-      {activeModal === 'cancel_reason' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header bg-danger text-white">
-                <h5 className="modal-title">Cancel Booking</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
-              <form onSubmit={handleConfirmCancel}>
-                <div className="modal-body">
-                  <div className="alert alert-warning d-flex align-items-start gap-2 mb-3" style={{ borderLeft: '4px solid #f0a500' }}>
-                    <span style={{ fontSize: '1.2rem' }}>⚠️</span>
-                    <div>
-                      <strong className="d-block text-warning-dark" style={{ fontSize: '0.85rem' }}>PCC Non-Refundable Policy Applies</strong>
-                      <span className="small text-muted" style={{ fontSize: '0.78rem' }}>
-                        Cancellations are non-refundable under our strict client policy. Please document the mandatory reason for this cancellation below.
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Cancellation Reason *</label>
-                    <textarea
-                      className="form-control"
-                      rows="3"
-                      required
-                      placeholder="e.g. Guest requested cancellation via phone due to emergency..."
-                      value={cancelRemarks}
-                      onChange={(e) => setCancelRemarks(e.target.value)}
-                      style={{ fontSize: '0.82rem' }}
-                    ></textarea>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="submit" className="btn btn-danger text-white fw-semibold">Confirm Cancel</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Close</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MANAGE GUESTS MODAL */}
-      {activeModal === 'manage_guests' && managingBooking && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
-          <div className="modal-dialog modal-dialog-centered modal-md">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Registered Room Guests — Room {managingBooking.roomNumber}</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
-              <form onSubmit={handleUpdateGuestsSubmit}>
-                <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                  <div className="alert alert-info py-2 px-3 small mb-3">
-                    Specify all registered guests staying in this room. Room rent charges are divided equally among all registered guests, and configured discounts are applied to qualified guest shares.
-                  </div>
-                  
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <span className="fw-semibold small text-secondary">Guests List ({managingGuests.length} Pax)</span>
-                    <button type="button" className="btn btn-sm btn-pcc-outline" onClick={handleAddManagingGuest}>
-                      + Add Guest
-                    </button>
-                  </div>
-
-                  {managingGuests.map((g, idx) => (
-                    <div key={idx} className="p-3 mb-2 rounded bg-light border position-relative">
-                      <div className="d-flex justify-content-between mb-2 align-items-center">
-                        <span className="small text-dark fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary)"}</span>
-                        {idx > 0 && (
-                          <button type="button" className="btn-close" style={{ fontSize: '0.7rem' }} onClick={() => handleRemoveManagingGuest(idx)}></button>
-                        )}
-                      </div>
-                      <div className="row g-2">
-                        <div className="col-12 mb-2">
-                          <label className="form-label small mb-1">Full Name *</label>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            required
-                            value={g.fullName}
-                            onChange={(e) => handleManagingGuestChange(idx, 'fullName', e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary text-white">Save Changes</button>
-                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation & Alert dialog */}
-      <ModalDialog
-        isOpen={modalConfig.isOpen}
-        type={modalConfig.type}
-        title={modalConfig.title}
-        message={modalConfig.message}
-        confirmText={modalConfig.confirmText}
-        cancelText={modalConfig.cancelText}
-        onConfirm={modalConfig.onConfirm}
-        onCancel={modalConfig.onCancel}
-      />
-    </>
+    </div>
   );
 }
 
-export default function ReceptionistBookings() {
+export default function ReceptionistBookingsPage() {
   return (
-    <Suspense fallback={
-      <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status"></div>
-        <p className="text-muted mt-2">Loading bookings...</p>
-      </div>
-    }>
+    <Suspense fallback={<div className="p-4 text-center">Loading bookings...</div>}>
       <BookingsClient />
     </Suspense>
   );

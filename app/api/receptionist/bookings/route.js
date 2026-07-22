@@ -134,20 +134,28 @@ export async function POST(request) {
           return NextResponse.json({ error: 'Missing required fields or down payment details.' }, { status: 400 });
         }
 
-        // Calculate minimum required 50% down payment
+        // Calculate required down payment based on selected percentage (25%, 50%, 100%)
         const [roomData] = await conn.execute(
-          "SELECT r.floorID, r.roomTypeID, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
+          "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
           [roomID]
         );
         const roomRate = roomData.length > 0 ? parseFloat(roomData[0].rate || 0) : 0;
+        const maxOccupancy = roomData.length > 0 ? (parseInt(roomData[0].occupancyLimit) || 2) : 2;
         const checkInD = new Date(checkInDateTime);
         const checkOutD = new Date(checkOutDateTime);
         const diffDays = Math.max(1, Math.ceil(Math.abs(checkOutD - checkInD) / (1000 * 60 * 60 * 24)));
-        const requiredDp = roomRate * diffDays * 0.5;
+
+        const totalGuestCount = Math.max(1, guests.length);
+        const extraGuestsCount = Math.max(0, totalGuestCount - maxOccupancy);
+        const extraGuestFee = extraGuestsCount * 200 * diffDays;
+        const subtotalRoomCharge = (roomRate * diffDays) + extraGuestFee;
+
+        const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 25) / 100;
+        const requiredDp = subtotalRoomCharge * dpPercentageNum;
 
         if (downPaymentAmount < requiredDp - 0.01) {
           return NextResponse.json({ 
-            error: `Received down payment amount (₱${downPaymentAmount.toFixed(2)}) cannot be below the required minimum 50% down payment of ₱${requiredDp.toFixed(2)}.` 
+            error: `Received down payment amount (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected down payment requirement of ₱${requiredDp.toFixed(2)} (${(dpPercentageNum * 100).toFixed(0)}%).` 
           }, { status: 400 });
         }
 
