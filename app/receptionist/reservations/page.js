@@ -528,12 +528,15 @@ function ReservationsClient() {
                       )}
                     </td>
                     <td className="text-end">
-                      <div className="d-flex justify-content-end gap-1">
+                      <div className="actions-wrapper d-flex justify-content-end gap-1">
                         {!r.bookingID && r.status === 'Pending' && (
                           <button 
-                            className="btn btn-sm btn-pcc-primary text-white d-inline-flex align-items-center justify-content-center" 
-                            title="Confirm & Book"
-                            style={{ width: '32px', height: '32px' }}
+                            type="button"
+                            className="action-btn action-btn-activate" 
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Confirm & Book Reservation"
+                            aria-label="Confirm & Book Reservation"
                             onClick={() => openConvertModal(r)}
                           >
                             <i className="fa-solid fa-hotel"></i>
@@ -541,16 +544,19 @@ function ReservationsClient() {
                         )}
                         {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && (
                           <button 
-                            className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center" 
+                            type="button"
+                            className="action-btn action-btn-delete" 
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
                             title="Cancel Reservation"
-                            style={{ width: '32px', height: '32px' }}
+                            aria-label="Cancel Reservation"
                             onClick={() => handleCancel(r.reservationID)}
                           >
-                            <i className="fa-solid fa-ban"></i>
+                            <i className="fa-solid fa-xmark"></i>
                           </button>
                         )}
                         {r.bookingID && (
-                          <span className="text-muted small italic">✓ Converted to Booking</span>
+                          <span className="text-muted small font-italic">✓ Converted to Booking</span>
                         )}
                       </div>
                     </td>

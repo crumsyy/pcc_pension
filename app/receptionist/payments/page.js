@@ -215,7 +215,109 @@ function PaymentsClient() {
   };
 
   const handlePrintReceipt = () => {
-    window.print();
+    if (!receipt) return;
+    const printWindow = window.open('', '_blank', 'width=450,height=700');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - PCC Home Suite Home</title>
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body {
+              font-family: 'Courier New', Courier, monospace, sans-serif;
+              width: 80mm;
+              margin: 0 auto;
+              padding: 12px 10px;
+              color: #000;
+              background: #fff;
+              font-size: 11px;
+              line-height: 1.3;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .bold { font-weight: bold; }
+            .logo { width: 48px; height: 48px; border-radius: 4px; margin-bottom: 4px; }
+            .brand-name { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 2px 0; }
+            .address { font-size: 9px; color: #333; margin-bottom: 6px; }
+            .divider { border-top: 1px dashed #000; margin: 8px 0; }
+            .double-divider { border-top: 2px solid #000; margin: 8px 0; }
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+            .info-table td { padding: 2px 0; vertical-align: top; }
+            .items-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+            .items-table th, .items-table td { padding: 3px 0; font-size: 10px; }
+            .items-table th { border-bottom: 1px solid #000; text-align: left; }
+            .total-row { font-size: 12px; font-weight: bold; }
+            .footer { margin-top: 12px; text-align: center; font-size: 9px; color: #444; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center">
+            <img src="/assets/images/logo.jpg" class="logo" alt="PCC Logo" />
+            <div class="brand-name">PCC HOME SUITE HOME</div>
+            <div class="address">
+              Osmeña Street, Zone 1, Koronadal City<br/>
+              South Cotabato, Philippines<br/>
+              Tel: 09000000000 | Info: info@pccsuite.com
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <div class="text-center bold" style="font-size: 11px;">OFFICIAL POS RECEIPT</div>
+          <div class="divider"></div>
+
+          <table class="info-table">
+            <tr><td>Date/Time:</td><td class="text-right">${receipt.date}</td></tr>
+            <tr><td>Receipt No:</td><td class="text-right">#REC-${Math.floor(Math.random() * 900000 + 100000)}</td></tr>
+            <tr><td>Payment Method:</td><td class="text-right">${receipt.paymentMethodName}</td></tr>
+            <tr><td>Guest Name:</td><td class="text-right bold">${receipt.guestName}</td></tr>
+            <tr><td>Room:</td><td class="text-right">Room ${receipt.roomNumber} (${receipt.roomType})</td></tr>
+            <tr><td>Stay Nights:</td><td class="text-right">${receipt.nights} Night(s)</td></tr>
+          </table>
+
+          <div class="divider"></div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Room Charge (${receipt.nights} nights @ ₱${parseFloat(receipt.rate).toFixed(2)})</td>
+                <td class="text-right">₱${parseFloat(receipt.subtotal).toFixed(2)}</td>
+              </tr>
+              ${receipt.earlyCheckIn > 0 ? `<tr><td>Early Check-In Fee</td><td class="text-right">₱${receipt.earlyCheckIn.toFixed(2)}</td></tr>` : ''}
+              ${receipt.lateCheckOut > 0 ? `<tr><td>Late Check-Out Fee</td><td class="text-right">₱${receipt.lateCheckOut.toFixed(2)}</td></tr>` : ''}
+            </tbody>
+          </table>
+
+          <div class="divider"></div>
+
+          <table class="info-table">
+            <tr><td>Subtotal:</td><td class="text-right">₱${parseFloat(receipt.subtotal + receipt.earlyCheckIn + receipt.lateCheckOut).toFixed(2)}</td></tr>
+            ${receipt.discountAmount > 0 ? `<tr><td>Discount (${receipt.discountName || 'Applied'}):</td><td class="text-right">-₱${parseFloat(receipt.discountAmount).toFixed(2)}</td></tr>` : ''}
+            <tr class="total-row"><td>TOTAL AMOUNT:</td><td class="text-right">₱${parseFloat(receipt.payableAmount).toFixed(2)}</td></tr>
+            <tr><td>Amount Paid:</td><td class="text-right">₱${parseFloat(receipt.cashReceived).toFixed(2)}</td></tr>
+            ${receipt.change > 0 ? `<tr><td>Change:</td><td class="text-right">₱${parseFloat(receipt.change).toFixed(2)}</td></tr>` : ''}
+          </table>
+
+          <div class="double-divider"></div>
+
+          <div class="footer">
+            <p class="bold" style="margin-bottom: 2px;">Thank you for staying at PCC Home Suite Home!</p>
+            <p style="margin: 0;">We look forward to serving you again.</p>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
   return (

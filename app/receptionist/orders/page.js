@@ -17,7 +17,8 @@ export default function ReceptionistOrders() {
   const [statusFilter, setStatusFilter] = useState('');
 
   // Modals
-  const [activeModal, setActiveModal] = useState(null); // 'create' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create' | 'view_order' | null
+  const [viewingOrder, setViewingOrder] = useState(null);
   
   // New Order Form state
   const [newOrderForm, setNewOrderForm] = useState({
@@ -353,24 +354,41 @@ export default function ReceptionistOrders() {
                             </span>
                           </td>
                           <td className="text-end px-4">
-                            <div className="d-flex justify-content-end gap-1">
+                            <div className="actions-wrapper d-flex justify-content-end gap-1">
+                              <button 
+                                type="button"
+                                className="action-btn action-btn-view" 
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title="View Order Details"
+                                aria-label="View Order Details"
+                                onClick={() => { setViewingOrder(o); setActiveModal('view_order'); }}
+                              >
+                                <i className="fa-solid fa-eye"></i>
+                              </button>
                               {o.orderStatus === 'Preparing' && (
                                 <>
                                   <button 
-                                    className="btn btn-sm btn-success text-white d-inline-flex align-items-center justify-content-center" 
+                                    type="button"
+                                    className="action-btn action-btn-activate" 
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top"
                                     title="Serve Order"
-                                    style={{ width: '32px', height: '32px' }}
+                                    aria-label="Serve Order"
                                     onClick={() => handleUpdateOrderStatus(o.orderID, 'Completed')}
                                   >
                                     <i className="fa-solid fa-check"></i>
                                   </button>
                                   <button 
-                                    className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center" 
+                                    type="button"
+                                    className="action-btn action-btn-delete" 
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top"
                                     title="Cancel Order"
-                                    style={{ width: '32px', height: '32px' }}
+                                    aria-label="Cancel Order"
                                     onClick={() => handleUpdateOrderStatus(o.orderID, 'Canceled')}
                                   >
-                                    <i className="fa-solid fa-ban"></i>
+                                    <i className="fa-solid fa-xmark"></i>
                                   </button>
                                 </>
                               )}
@@ -516,6 +534,82 @@ export default function ReceptionistOrders() {
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW ORDER DETAILS MODAL */}
+      {activeModal === 'view_order' && viewingOrder && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header text-white" style={{ background: '#2155B5' }}>
+                <h5 className="modal-title fw-bold">🛍️ Order Details — #{viewingOrder.orderID}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => { setActiveModal(null); setViewingOrder(null); }}></button>
+              </div>
+              <div className="modal-body p-4">
+                <div className="p-3 bg-light rounded border mb-3">
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Order Number:</span>
+                    <strong className="text-dark">#{viewingOrder.orderID}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Guest Name:</span>
+                    <strong className="text-dark">{viewingOrder.firstName} {viewingOrder.lastName}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Target Room:</span>
+                    <strong className="text-pcc-blue">Room {viewingOrder.roomNumber || 'N/A'} ({viewingOrder.roomType || 'Standard'})</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Order Date & Time:</span>
+                    <span>{new Date(viewingOrder.orderDateTime || Date.now()).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                    <span className="text-muted">Status:</span>
+                    <span className={`badge ${getStatusBadge(viewingOrder.orderStatus)} px-3 py-1.5 rounded-pill`}>
+                      {viewingOrder.orderStatus}
+                    </span>
+                  </div>
+                </div>
+
+                <h6 className="fw-bold text-dark mb-2">Itemized Order Breakdown</h6>
+                <div className="table-responsive border rounded mb-3">
+                  <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.85rem' }}>
+                    <thead className="table-light">
+                      <tr>
+                        <th>Item Description</th>
+                        <th className="text-center">Qty</th>
+                        <th className="text-end">Unit Price</th>
+                        <th className="text-end">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewingOrder.items.map((it, i) => (
+                        <tr key={i}>
+                          <td className="fw-semibold text-dark">{it.name}</td>
+                          <td className="text-center">{it.quantity}x</td>
+                          <td className="text-end">₱{parseFloat(it.price).toFixed(2)}</td>
+                          <td className="text-end fw-bold">₱{(parseFloat(it.price) * it.quantity).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded border">
+                  <span className="fw-bold text-dark fs-6">Grand Total Amount:</span>
+                  <span className="fw-bold text-primary fs-5">
+                    ₱{viewingOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary text-white" onClick={() => { setActiveModal(null); setViewingOrder(null); }}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

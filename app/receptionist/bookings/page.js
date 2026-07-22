@@ -616,42 +616,34 @@ function BookingsClient() {
                       <span className={`badge ${getStatusBadge(b.status)}`}>{b.status}</span>
                     </td>
                     <td className="text-end">
-                      <div className="d-flex justify-content-end gap-1">
-                        {b.status !== 'Cancelled' && b.status !== 'Checked Out' && (
-                          <button 
-                            className="btn btn-sm btn-pcc-primary text-white"
-                            title="Manage Guests"
-                            onClick={() => {
-                              setManagingBooking(b);
-                              setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
-                              setActiveModal('manage_guests');
-                            }}
-                          >
-                            <i className="fa-solid fa-users me-1"></i> Guests
-                          </button>
-                        )}
-                        {b.status === 'Pending Check-in' && (
-                          <button 
-                            className="btn btn-sm btn-success text-white"
-                            onClick={() => handleCheckIn(b.bookingID)}
-                          >
-                            Check In 🟢
-                          </button>
-                        )}
-                        {b.status === 'Checked In' && (
-                          <button 
-                            className="btn btn-sm btn-danger text-white"
-                            onClick={() => handleCheckOut(b.bookingID)}
-                          >
-                            Check Out 🔴
-                          </button>
-                        )}
-                        {b.status === 'Pending Check-in' && (
-                          <button 
-                            className="btn btn-sm btn-outline-danger"
+                      <div className="actions-wrapper d-flex justify-content-end gap-1">
+                        <button
+                          type="button"
+                          className="action-btn action-btn-view"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="top"
+                          title="View Guest Details"
+                          aria-label="View Guest Details"
+                          onClick={() => {
+                            setManagingBooking(b);
+                            setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
+                            setActiveModal('manage_guests');
+                          }}
+                        >
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+
+                        {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Checked In') && (
+                          <button
+                            type="button"
+                            className="action-btn action-btn-delete"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Cancel Booking"
+                            aria-label="Cancel Booking"
                             onClick={() => openCancelModal(b.bookingID)}
                           >
-                            Cancel
+                            <i className="fa-solid fa-xmark"></i>
                           </button>
                         )}
                       </div>

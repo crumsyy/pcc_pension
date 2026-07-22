@@ -430,43 +430,75 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handlePrintReceipt = () => {
     if (!receiptData) return;
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'width=450,height=700');
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
-          <title>Payment Receipt - PCC Home Suite Home</title>
+          <title>Receipt - PCC Home Suite Home</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #1e293b; max-width: 600px; margin: auto; }
-            .header { text-align: center; border-bottom: 2px solid #2155B5; padding-bottom: 12px; margin-bottom: 16px; }
-            .header h2 { margin: 0; color: #2155B5; }
-            .header p { margin: 2px 0; font-size: 0.85rem; color: #64748b; }
-            .table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9rem; }
-            .table th, .table td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
-            .table th { background: #f8fafc; }
-            .total { font-size: 1.1rem; font-weight: bold; color: #2155B5; }
-            .footer { text-align: center; margin-top: 24px; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+            @page { size: 80mm auto; margin: 0; }
+            body {
+              font-family: 'Courier New', Courier, monospace, sans-serif;
+              width: 80mm;
+              margin: 0 auto;
+              padding: 12px 10px;
+              color: #000;
+              background: #fff;
+              font-size: 11px;
+              line-height: 1.3;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .bold { font-weight: bold; }
+            .logo { width: 48px; height: 48px; border-radius: 4px; margin-bottom: 4px; }
+            .brand-name { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 2px 0; }
+            .address { font-size: 9px; color: #333; margin-bottom: 6px; }
+            .divider { border-top: 1px dashed #000; margin: 8px 0; }
+            .double-divider { border-top: 2px solid #000; margin: 8px 0; }
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+            .info-table td { padding: 2px 0; vertical-align: top; }
+            .total-row { font-size: 12px; font-weight: bold; }
+            .footer { margin-top: 12px; text-align: center; font-size: 9px; color: #444; }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h2>PCC Home Suite Home</h2>
-            <p>Osmeña Street, Zone 1, Koronadal City, South Cotabato, Philippines</p>
-            <p>Contact: 09000000000 | Info: info@pccsuite.com</p>
+          <div class="text-center">
+            <img src="/assets/images/logo.jpg" class="logo" alt="PCC Logo" />
+            <div class="brand-name">PCC HOME SUITE HOME</div>
+            <div class="address">
+              Osmeña Street, Zone 1, Koronadal City<br/>
+              South Cotabato, Philippines<br/>
+              Tel: 09000000000 | Info: info@pccsuite.com
+            </div>
           </div>
-          <h3 style="text-align: center; margin-bottom: 16px;">OFFICIAL ONLINE GCASH RECEIPT</h3>
-          <table class="table">
-            <tr><td><strong>Receipt No:</strong></td><td>#REC-${receiptData.paymentID}</td></tr>
-            <tr><td><strong>Booking ID:</strong></td><td>#${receiptData.bookingID}</td></tr>
-            <tr><td><strong>Guest Name:</strong></td><td>${receiptData.guestName}</td></tr>
-            <tr><td><strong>Payment Method:</strong></td><td>${receiptData.paymentMethod}</td></tr>
-            <tr><td><strong>GCash Ref No:</strong></td><td>${receiptData.referenceNumber}</td></tr>
-            <tr><td><strong>Payment Option:</strong></td><td>${receiptData.paymentPercentage}</td></tr>
-            <tr><td><strong>Amount Paid:</strong></td><td class="total">₱${receiptData.amountPaid.toFixed(2)}</td></tr>
-            <tr><td><strong>Remaining Balance:</strong></td><td>₱${receiptData.remainingBalance.toFixed(2)}</td></tr>
-            <tr><td><strong>Date & Time:</strong></td><td>${new Date(receiptData.timestamp).toLocaleString()}</td></tr>
+
+          <div class="divider"></div>
+          <div class="text-center bold" style="font-size: 11px;">OFFICIAL ONLINE GCASH RECEIPT</div>
+          <div class="divider"></div>
+
+          <table class="info-table">
+            <tr><td>Date/Time:</td><td class="text-right">${new Date(receiptData.timestamp).toLocaleString()}</td></tr>
+            <tr><td>Receipt No:</td><td class="text-right">#REC-${receiptData.paymentID}</td></tr>
+            <tr><td>Booking Ref:</td><td class="text-right">#${receiptData.bookingID}</td></tr>
+            <tr><td>Guest Name:</td><td class="text-right bold">${receiptData.guestName}</td></tr>
+            <tr><td>Payment Method:</td><td class="text-right">${receiptData.paymentMethod}</td></tr>
+            <tr><td>GCash Ref No:</td><td class="text-right">${receiptData.referenceNumber}</td></tr>
+            <tr><td>Payment Option:</td><td class="text-right">${receiptData.paymentPercentage}</td></tr>
           </table>
+
+          <div class="divider"></div>
+
+          <table class="info-table">
+            <tr class="total-row"><td>AMOUNT PAID:</td><td class="text-right">₱${parseFloat(receiptData.amountPaid).toFixed(2)}</td></tr>
+            <tr><td>Remaining Balance:</td><td class="text-right">₱${parseFloat(receiptData.remainingBalance).toFixed(2)}</td></tr>
+          </table>
+
+          <div class="double-divider"></div>
+
           <div class="footer">
-            <p>Thank you for booking with PCC Home Suite Home!</p>
+            <p class="bold" style="margin-bottom: 2px;">Thank you for staying at PCC Home Suite Home!</p>
+            <p style="margin: 0;">We look forward to serving you again.</p>
           </div>
         </body>
       </html>
