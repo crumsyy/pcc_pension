@@ -5,7 +5,7 @@ import React from 'react';
 export default function DateInput({
   value,
   onChange,
-  className = "form-control",
+  className = "form-control form-control-sm",
   required = false,
   id,
   name,

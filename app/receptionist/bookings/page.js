@@ -903,8 +903,9 @@ function BookingsClient() {
                           />
                         </div>
                         <div className="col-md-4 mb-2">
-                          <label className="form-label small mb-1">Birthdate (Calendar) *</label>
+                          <label className="form-label small mb-1">Birthdate *</label>
                           <DateInput
+                            className="form-control form-control-sm"
                             value={walkInForm.dateOfBirth}
                             onChange={(e) => setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                           />
@@ -973,8 +974,8 @@ function BookingsClient() {
                         value={breakfastOption}
                         onChange={(e) => setBreakfastOption(e.target.value)}
                       >
-                        <option value="with">☕ With Breakfast</option>
-                        <option value="without">🚫 Without Breakfast</option>
+                        <option value="with">With Breakfast</option>
+                        <option value="without">Without Breakfast</option>
                       </select>
                     </div>
                   </div>
@@ -982,20 +983,17 @@ function BookingsClient() {
                   {/* ROOM OCCUPANCY & PRICE DISPLAY */}
                   {selectedRoomObj && (
                     <div className="p-3 mb-3 border rounded bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
-                      <div className="d-flex align-items-center gap-2">
-                        <span className="fs-5">🏷️</span>
-                        <div>
-                          <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
-                            Room Base Price: <span className="text-pcc-blue fw-bold fs-6">₱{(
-                              breakfastOption === 'with'
-                                ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
-                                : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0))
-                            ).toFixed(2)}</span> / night
-                          </div>
-                          <small className="text-muted">
-                            ({breakfastOption === 'with' ? 'Daily Breakfast Included' : 'Standard Stay Without Breakfast'})
-                          </small>
+                      <div>
+                        <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
+                          Room Base Price: <span className="text-pcc-blue fw-bold fs-6">₱{(
+                            breakfastOption === 'with'
+                              ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
+                              : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0))
+                          ).toFixed(2)}</span> / night
                         </div>
+                        <small className="text-muted">
+                          ({breakfastOption === 'with' ? 'Daily Breakfast Included' : 'Standard Stay Without Breakfast'})
+                        </small>
                       </div>
                       <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
                         Maximum Occupancy: {selectedRoomObj.occupancyLimit || 2} Guests
@@ -1017,7 +1015,7 @@ function BookingsClient() {
 
                     {selectedRoomObj && roomGuests.length > selectedRoomObj.occupancyLimit && (
                       <div className="alert alert-warning py-2 mb-2 small fw-bold">
-                        ⚠️ Excess Guests Detected: {roomGuests.length - selectedRoomObj.occupancyLimit} Additional Guest(s)
+                        Excess Guests Detected: {roomGuests.length - selectedRoomObj.occupancyLimit} Additional Guest(s)
                         <div className="fw-semibold text-dark">Additional Guest Fee: ₱{(roomGuests.length - selectedRoomObj.occupancyLimit) * 200}/night applied automatically.</div>
                       </div>
                     )}
@@ -1029,7 +1027,7 @@ function BookingsClient() {
                           <div className="d-flex align-items-center gap-2">
                             {g.age !== '' && g.age !== null && (
                               <span className={`badge ${parseInt(g.age) >= 60 ? 'bg-success' : 'bg-primary-subtle text-primary'}`} style={{ fontSize: '0.72rem' }}>
-                                🎂 Age: {g.age} yrs {parseInt(g.age) >= 60 ? '— Senior Citizen Eligible' : ''}
+                                Age: {g.age} yrs {parseInt(g.age) >= 60 ? '— Senior Citizen Eligible' : ''}
                               </span>
                             )}
                             {idx > 0 && (
@@ -1081,7 +1079,7 @@ function BookingsClient() {
                           setFormData(prev => ({ ...prev, status: 'Checked In' }));
                         }}
                       >
-                        ⚡ Book & Check-In Now (Current System Time)
+                        Book & Check-In Now (Current System Time)
                       </button>
                       <button
                         type="button"
@@ -1091,7 +1089,7 @@ function BookingsClient() {
                           setFormData(prev => ({ ...prev, status: 'Pending Check-in' }));
                         }}
                       >
-                        📅 Book Now, Check-In Later
+                        Book Now, Check-In Later
                       </button>
                     </div>
                   </div>
@@ -1198,7 +1196,7 @@ function BookingsClient() {
                             <div className="d-flex justify-content-between mb-1">
                               <span className="text-muted">Room Base Rate:</span>
                               <span className="fw-bold text-dark">
-                                ₱{rate.toFixed(2)}/night ({breakfastOption === 'with' ? 'With Breakfast ☕' : 'Without Breakfast 🚫'})
+                                ₱{rate.toFixed(2)}/night ({breakfastOption === 'with' ? 'With Breakfast' : 'Without Breakfast'})
                               </span>
                             </div>
                             <div className="d-flex justify-content-between mb-1">
@@ -1281,7 +1279,7 @@ function BookingsClient() {
                               value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
                             />
                             <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                              ⚡ Auto-calculated change
+                              Auto-calculated change
                             </small>
                           </div>
                         </div>
@@ -1291,7 +1289,7 @@ function BookingsClient() {
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Booking & Record Down Payment 🚀</button>
+                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Booking & Record Down Payment</button>
                 </div>
               </form>
             </div>
@@ -1305,7 +1303,7 @@ function BookingsClient() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ background: '#2155B5' }}>
-                <h5 className="modal-title fw-bold">🧾 Booking Down Payment Receipt</h5>
+                <h5 className="modal-title fw-bold">Booking Down Payment Receipt</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <div className="modal-body p-4 text-center">
@@ -1357,7 +1355,7 @@ function BookingsClient() {
               <div className="modal-footer d-flex justify-content-between">
                 <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Close</button>
                 <button type="button" className="btn btn-pcc-primary text-white fw-bold" onClick={handlePrintDownPaymentReceipt}>
-                  🖨️ Print Down Payment Receipt
+                  Print Down Payment Receipt
                 </button>
               </div>
             </div>
@@ -1371,7 +1369,7 @@ function BookingsClient() {
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ background: '#2155B5' }}>
-                <h5 className="modal-title fw-bold">👥 Manage Room Guests — Stay #{managingBooking.bookingID}</h5>
+                <h5 className="modal-title fw-bold">Manage Room Guests — Stay #{managingBooking.bookingID}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleSaveGuestsSubmit}>
@@ -1405,7 +1403,7 @@ function BookingsClient() {
                         <div className="d-flex align-items-center gap-2">
                           {g.age !== '' && g.age !== null && (
                             <span className={`badge ${parseInt(g.age) >= 60 ? 'bg-success' : 'bg-primary-subtle text-primary'}`} style={{ fontSize: '0.72rem' }}>
-                              🎂 Age: {g.age} yrs {parseInt(g.age) >= 60 ? '— Senior Citizen Eligible' : ''}
+                              Age: {g.age} yrs {parseInt(g.age) >= 60 ? '— Senior Citizen Eligible' : ''}
                             </span>
                           )}
                           {idx > 0 && (
