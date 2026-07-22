@@ -88,6 +88,7 @@ function BookingsClient() {
   });
 
   const [selectedRoomType, setSelectedRoomType] = useState('');
+  const [breakfastOption, setBreakfastOption] = useState('with'); // 'with' | 'without'
   const [availableDiscounts, setAvailableDiscounts] = useState([]);
   const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
   const [managingBooking, setManagingBooking] = useState(null);
@@ -255,6 +256,65 @@ function BookingsClient() {
       });
     }
   }, [isWalkIn, walkInForm.firstName, walkInForm.lastName, walkInForm.dateOfBirth, formData.guestID, guests, activeModal]);
+
+  // Auto-calculate downPayment based on selected room, breakfast option, and downpayment percentage tier
+  useEffect(() => {
+    if (activeModal === 'create' && formData.roomID) {
+      const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
+      const rate = selectedRoom
+        ? (breakfastOption === 'with'
+            ? parseFloat(selectedRoom.rateWithBreakfast || selectedRoom.rate || 0)
+            : parseFloat(selectedRoom.rateWithoutBreakfast || (selectedRoom.rate ? selectedRoom.rate - 200 : 0)))
+        : 0;
+      const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
+
+      let nights = 0;
+      if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
+        const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
+        const outStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
+        const inD = new Date(inStr);
+        const outD = new Date(outStr);
+        if (outD > inD) {
+          const diff = Math.abs(outD - inD);
+          nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        }
+      }
+
+      const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
+      const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
+      const rawSubtotal = (rate * (nights || 1)) + extraGuestFee;
+
+      let totalApportionedDiscount = 0;
+      if (roomGuests.length > 0 && selectedRoom) {
+        const sharePerGuest = (rate * (nights || 1)) / roomGuests.length;
+        roomGuests.forEach(g => {
+          if (g.discountID) {
+            const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+            if (disc) {
+              totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
+            }
+          }
+        });
+      }
+
+      const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+      const dpPctNum = parseInt(downPaymentOption) || 25;
+      const requiredDp = netTotalAmount * (dpPctNum / 100);
+      setDownPayment(requiredDp.toFixed(2));
+    }
+  }, [
+    activeModal,
+    formData.roomID,
+    breakfastOption,
+    checkInDate,
+    checkOutDate,
+    checkInTime,
+    checkOutTime,
+    downPaymentOption,
+    roomGuests,
+    rooms,
+    availableDiscounts
+  ]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -783,9 +843,9 @@ function BookingsClient() {
                     </div>
                   )}
 
-                  {/* ROOM SELECTION & OCCUPANCY DISPLAY */}
+                  {/* ROOM SELECTION & BREAKFAST OPTION */}
                   <div className="row g-2 mb-3">
-                    <div className="col-md-6">
+                    <div className="col-md-4">
                       <label className="form-label fw-semibold">Room Type *</label>
                       <select
                         className="form-select"
@@ -803,7 +863,7 @@ function BookingsClient() {
                       </select>
                     </div>
 
-                    <div className="col-md-6">
+                    <div className="col-md-4">
                       <label className="form-label fw-semibold">Available Room *</label>
                       <SearchableSelect
                         options={rooms
@@ -819,13 +879,37 @@ function BookingsClient() {
                         disabled={!selectedRoomType}
                       />
                     </div>
+
+                    <div className="col-md-4">
+                      <label className="form-label fw-semibold">Breakfast Inclusion *</label>
+                      <select
+                        className="form-select fw-semibold"
+                        value={breakfastOption}
+                        onChange={(e) => setBreakfastOption(e.target.value)}
+                      >
+                        <option value="with">☕ With Breakfast</option>
+                        <option value="without">🚫 Without Breakfast</option>
+                      </select>
+                    </div>
                   </div>
 
-                  {/* REQUIREMENT 1: ROOM OCCUPANCY LABEL */}
+                  {/* ROOM OCCUPANCY & PRICE DISPLAY */}
                   {selectedRoomObj && (
-                    <div className="alert alert-info py-2 mb-3 small fw-bold d-flex align-items-center justify-content-between">
-                      <span>ℹ Room Occupancy Capacity:</span>
-                      <span className="badge bg-primary fs-6 px-3 py-1">Maximum Occupancy: {selectedRoomObj.occupancyLimit} Guests</span>
+                    <div className="p-3 mb-3 border rounded bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="fs-5">🏷️</span>
+                        <div>
+                          <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
+                            Room Base Price: <span className="text-pcc-blue fw-bold fs-6">₱{(breakfastOption === 'with' ? (selectedRoomObj.rateWithBreakfast || selectedRoomObj.rate) : (selectedRoomObj.rateWithoutBreakfast || (selectedRoomObj.rate ? selectedRoomObj.rate - 200 : 0))).toFixed(2)}</span> / night
+                          </div>
+                          <small className="text-muted">
+                            ({breakfastOption === 'with' ? 'Daily Breakfast Included' : 'Standard Stay Without Breakfast'})
+                          </small>
+                        </div>
+                      </div>
+                      <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
+                        Maximum Occupancy: {selectedRoomObj.occupancyLimit} Guests
+                      </span>
                     </div>
                   )}
 
@@ -979,7 +1063,11 @@ function BookingsClient() {
 
                   {/* DYNAMIC BREAKDOWN MATH */}
                   {(() => {
-                    const rate = selectedRoomObj ? parseFloat(selectedRoomObj.rate || 0) : 0;
+                    const rate = selectedRoomObj
+                      ? (breakfastOption === 'with'
+                          ? parseFloat(selectedRoomObj.rateWithBreakfast || selectedRoomObj.rate || 0)
+                          : parseFloat(selectedRoomObj.rateWithoutBreakfast || (selectedRoomObj.rate ? selectedRoomObj.rate - 200 : 0)))
+                      : 0;
                     const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
 
                     let nights = 0;
@@ -996,11 +1084,11 @@ function BookingsClient() {
 
                     const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
                     const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
-                    const rawSubtotal = (rate * nights) + extraGuestFee;
+                    const rawSubtotal = (rate * (nights || 1)) + extraGuestFee;
 
                     let totalApportionedDiscount = 0;
                     if (roomGuests.length > 0 && selectedRoomObj) {
-                      const sharePerGuest = (rate * nights) / roomGuests.length;
+                      const sharePerGuest = (rate * (nights || 1)) / roomGuests.length;
                       roomGuests.forEach(g => {
                         if (g.discountID) {
                           const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
@@ -1012,7 +1100,7 @@ function BookingsClient() {
                     }
 
                     const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
-                    const dpPctNum = parseInt(downPaymentOption);
+                    const dpPctNum = parseInt(downPaymentOption) || 25;
                     const requiredDownpayment = netTotalAmount * (dpPctNum / 100);
                     const remainingBalance = netTotalAmount - requiredDownpayment;
 
@@ -1022,7 +1110,9 @@ function BookingsClient() {
                           <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
                             <div className="d-flex justify-content-between mb-1">
                               <span className="text-muted">Room Base Rate:</span>
-                              <span className="fw-semibold">₱{rate.toFixed(2)}/night</span>
+                              <span className="fw-bold text-dark">
+                                ₱{rate.toFixed(2)}/night ({breakfastOption === 'with' ? 'With Breakfast ☕' : 'Without Breakfast 🚫'})
+                              </span>
                             </div>
                             <div className="d-flex justify-content-between mb-1">
                               <span className="text-muted">Stay Duration:</span>
@@ -1049,8 +1139,8 @@ function BookingsClient() {
                             </div>
 
                             <div className="d-flex justify-content-between text-success fw-bold">
-                              <span>Required Down Payment ({dpPctNum}%):</span>
-                              <span>₱{requiredDownpayment.toFixed(2)}</span>
+                              <span>Required Down Payment ({dpPctNum}% Tier):</span>
+                              <span className="fs-6">₱{requiredDownpayment.toFixed(2)}</span>
                             </div>
 
                             <div className="d-flex justify-content-between text-muted small">
@@ -1087,6 +1177,9 @@ function BookingsClient() {
                               value={downPayment}
                               onChange={(e) => setDownPayment(e.target.value)}
                             />
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                              ⚡ Auto-calculated based on selected {dpPctNum}% downpayment tier.
+                            </small>
                           </div>
                         </div>
                       </>
