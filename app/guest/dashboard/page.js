@@ -145,13 +145,14 @@ export default async function GuestDashboard() {
     }
   }
 
+  // Safely serialize all props to prevent Next.js Server Component Date/Decimal serialization errors
   return (
     <GuestDashboardClient
-      initialGuest={guest}
-      initialReservations={reservations}
-      initialBookings={bookings}
-      initialActiveBill={activeBill}
-      initialAllRooms={allRooms}
+      initialGuest={JSON.parse(JSON.stringify(guest))}
+      initialReservations={JSON.parse(JSON.stringify(reservations))}
+      initialBookings={JSON.parse(JSON.stringify(bookings))}
+      initialActiveBill={activeBill ? JSON.parse(JSON.stringify(activeBill)) : null}
+      initialAllRooms={JSON.parse(JSON.stringify(allRooms))}
     />
   );
 }
