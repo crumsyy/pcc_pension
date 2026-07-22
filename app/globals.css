@@ -1080,3 +1080,28 @@ h4,
     background-position: -200% 0;
   }
 }
+
+.guest-desktop-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  z-index: 1040;
+  background-color: #ffffff;
+}
+
+.guest-desktop-content {
+  margin-left: 240px !important;
+  padding-bottom: 30px !important;
+}
+
+.sidebar-nav-item:hover {
+  background-color: #f1f5f9 !important;
+  color: var(--pcc-blue) !important;
+}
+
+.sidebar-nav-item.active:hover {
+  background-color: #2155B5 !important;
+  color: #ffffff !important;
+}

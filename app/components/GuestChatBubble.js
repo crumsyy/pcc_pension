@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-export default function GuestChatBubble() {
+export default function GuestChatBubble({ inlineView = false, hideFloating = false, bottomOffset = '24px' }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTabMode, setActiveTabMode] = useState('bot'); // 'bot' | 'live'
   const [input, setInput] = useState('');
@@ -366,6 +366,8 @@ export default function GuestChatBubble() {
     }
   };
 
+  if (!inlineView && hideFloating) return null;
+
   return (
     <>
       {/* FLOATING ACTION TRIGGER BUTTON */}
@@ -374,7 +376,7 @@ export default function GuestChatBubble() {
         onClick={() => setIsOpen(!isOpen)}
         style={{
           position: 'fixed',
-          bottom: '24px',
+          bottom: bottomOffset,
           right: '24px',
           width: '58px',
           height: '58px',
@@ -400,7 +402,7 @@ export default function GuestChatBubble() {
         className={`chatbot-window card border-0 shadow-lg ${isOpen ? 'active d-flex' : 'd-none'}`}
         style={{
           position: 'fixed',
-          bottom: '92px',
+          bottom: `calc(${bottomOffset} + 68px)`,
           right: '24px',
           width: '360px',
           height: '520px',

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
 import GuestBottomNav from './GuestBottomNav';
+import GuestSidebarNav from './GuestSidebarNav';
 
 export default function GuestDashboardClient({ initialGuest, initialReservations, initialBookings, initialActiveBill, initialAllRooms }) {
   const [guest, setGuest] = useState(initialGuest);
@@ -17,6 +18,29 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [discounts, setDiscounts] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Responsive Breakpoint State (1024px)
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)');
+    setIsDesktop(media.matches);
+
+    const listener = (e) => setIsDesktop(e.matches);
+    if (media.addEventListener) {
+      media.addEventListener('change', listener);
+    } else {
+      media.addListener(listener);
+    }
+
+    return () => {
+      if (media.removeEventListener) {
+        media.removeEventListener('change', listener);
+      } else {
+        media.removeListener(listener);
+      }
+    };
+  }, []);
 
   // Active Navigation Tab: 'home' | 'rooms' | 'chat' | 'notifications' | 'account'
   const [activeTab, setActiveTab] = useState('home');
@@ -510,31 +534,44 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         </div>
       )}
 
-      {/* TOP BRANDING BAR WITH FILLED RED POWER LOGOUT BUTTON */}
-      <nav className="navbar navbar-light bg-white border-bottom shadow-sm sticky-top px-3">
-        <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
-          <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0">
-            <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
-            <span className="fw-bold text-pcc-blue display-font d-none d-sm-inline" style={{ fontSize: '1.05rem' }}>PCC Home Suite</span>
-          </Link>
-          <div className="d-flex align-items-center gap-2">
-            <span className="badge bg-light text-pcc-blue border fw-bold px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
-              👤 {guest.firstName}
-            </span>
-            {/* MODERN FILLED RED POWER LOGOUT BUTTON */}
-            <button
-              className="btn btn-logout-power"
-              title="Log Out"
-              onClick={() => setShowLogoutModal(true)}
-            >
-              <i className="bi bi-power fs-5"></i>
-            </button>
+      {/* RESPONSIVE NAVIGATION: DESKTOP LEFT SIDEBAR vs MOBILE BOTTOM NAV */}
+      {isDesktop ? (
+        <GuestSidebarNav
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setViewMode('default');
+          }}
+          unreadNotificationsCount={unreadCount}
+          guest={guest}
+          onRequestLogout={() => setShowLogoutModal(true)}
+        />
+      ) : (
+        /* TOP BRANDING BAR (Mobile/Tablet Only) */
+        <nav className="navbar navbar-light bg-white border-bottom shadow-sm sticky-top px-3">
+          <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
+            <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0">
+              <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
+              <span className="fw-bold text-pcc-blue display-font d-none d-sm-inline" style={{ fontSize: '1.05rem' }}>PCC Home Suite</span>
+            </Link>
+            <div className="d-flex align-items-center gap-2">
+              <span className="badge bg-light text-pcc-blue border fw-bold px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
+                👤 {guest.firstName}
+              </span>
+              <button
+                className="btn btn-logout-power"
+                title="Log Out"
+                onClick={() => setShowLogoutModal(true)}
+              >
+                <i className="bi bi-power fs-5"></i>
+              </button>
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
 
       {/* MAIN CONTAINER WRAPPER */}
-      <div className="container py-3 guest-mobile-wrapper">
+      <div className={`container py-3 ${isDesktop ? 'guest-desktop-content' : 'guest-mobile-wrapper'}`}>
         {viewMode === 'select_room' ? (
           /* VISUAL ROOM LAYOUT SELECTION WORKSPACE */
           <div className="animate__animated animate__fadeIn">
@@ -803,7 +840,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             )}
           </div>
         ) : (
-          /* FIVE TAB MOBILE WORKSPACE */
+          /* FIVE TAB WORKSPACE */
           <>
             {/* TAB 1: HOME TAB */}
             {activeTab === 'home' && (
@@ -853,7 +890,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 {/* QUICK ACTION BUTTONS */}
                 <h6 className="fw-bold text-dark mb-2.5">Quick Actions</h6>
                 <div className="row g-2 mb-4">
-                  <div className="col-6">
+                  <div className="col-6 col-lg-3">
                     <button
                       className="btn btn-success text-white w-100 touch-action-btn shadow-sm"
                       onClick={handleStartReserveFlow}
@@ -862,7 +899,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <i className="bi bi-calendar-plus me-1.5"></i> Reserve Room
                     </button>
                   </div>
-                  <div className="col-6">
+                  <div className="col-6 col-lg-3">
                     <button
                       className="btn btn-primary text-white w-100 touch-action-btn shadow-sm"
                       onClick={handleStartBookFlow}
@@ -871,7 +908,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <i className="bi bi-credit-card me-1.5"></i> Book Room
                     </button>
                   </div>
-                  <div className="col-6">
+                  <div className="col-6 col-lg-3">
                     <button
                       className="btn btn-outline-dark w-100 touch-action-btn"
                       onClick={() => setActiveTab('account')}
@@ -879,7 +916,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <i className="bi bi-journal-text me-1.5"></i> My Bookings
                     </button>
                   </div>
-                  <div className="col-6">
+                  <div className="col-6 col-lg-3">
                     <button
                       className="btn btn-outline-pcc-blue w-100 touch-action-btn"
                       onClick={() => setActiveTab('notifications')}
@@ -893,7 +930,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <h6 className="fw-bold text-dark mb-2.5">Featured Rooms & Offers</h6>
                 <div className="row g-3 mb-4">
                   {allRooms.slice(0, 4).map((rm) => (
-                    <div key={rm.roomID} className="col-12 col-md-6">
+                    <div key={rm.roomID} className="col-12 col-md-6 col-lg-3">
                       <div className="card shadow-sm border-0 h-100 room-card-hover overflow-hidden" style={{ borderRadius: '12px' }}>
                         <div style={{ height: '140px', background: '#e2e8f0' }} className="d-flex align-items-center justify-content-center text-muted fw-bold">
                           🏨 Room {rm.roomNumber} ({rm.roomType})
@@ -1141,20 +1178,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         )}
       </div>
 
-      {/* MOBILE BOTTOM NAVIGATION BAR */}
-      <GuestBottomNav
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setActiveTab(tab);
-          setViewMode('default');
-        }}
-        unreadNotificationsCount={unreadCount}
-      />
+      {/* MOBILE BOTTOM NAVIGATION BAR (Mobile/Tablet Only) */}
+      {!isDesktop && (
+        <GuestBottomNav
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setViewMode('default');
+          }}
+          unreadNotificationsCount={unreadCount}
+        />
+      )}
 
       {/* FLOATING AI CHATBOT BUTTON */}
-      {activeTab !== 'chat' && (
-        <GuestChatBubble />
-      )}
+      <GuestChatBubble
+        hideFloating={activeTab === 'chat'}
+        bottomOffset={isDesktop ? '24px' : '85px'}
+      />
 
       {/* MODAL WORKFLOW: ROOM DETAILS MODAL */}
       {activeModal === 'room_details' && selectedRoom && (
