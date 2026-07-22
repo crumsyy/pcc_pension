@@ -35,6 +35,7 @@ export default function AdminInventory() {
   const [itemTypeFilter, setItemTypeFilter] = useState(''); // 'Consumable' | 'Non-Consumable'
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [expiredOnly, setExpiredOnly] = useState(false);
+  const [expiryDateFilter, setExpiryDateFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -117,11 +118,12 @@ export default function AdminInventory() {
       
       const isExpired = b.expirationDate && (new Date(b.expirationDate).toISOString().substring(0, 10) < todayStr);
       const matchesExpired = !expiredOnly || isExpired;
+      const matchesExpiryDate = !expiryDateFilter || (b.expirationDate && (new Date(b.expirationDate).toISOString().substring(0, 10) === toDbDate(expiryDateFilter)));
       const isAvailable = b.remainingQuantity > 0;
 
-      return matchesSearch && matchesType && matchesItemType && matchesExpired && isAvailable;
+      return matchesSearch && matchesType && matchesItemType && matchesExpired && matchesExpiryDate && isAvailable;
     });
-  }, [batches, items, search, typeFilter, itemTypeFilter, expiredOnly]);
+  }, [batches, items, search, typeFilter, itemTypeFilter, expiredOnly, expiryDateFilter]);
 
   const filteredBorrowLogs = useMemo(() => {
     return borrowLogs.filter(b => {
@@ -678,7 +680,21 @@ export default function AdminInventory() {
                 <option value="Non-Consumable">Non-Consumable</option>
               </select>
             </div>
-            <div className="col-md-3 d-flex align-items-center justify-content-center">
+            {activeTab === 'batches' && (
+              <div className="col-md-2">
+                <div className="input-group">
+                  <span className="input-group-text bg-light text-muted border-end-0" title="Filter by Expiration Date">
+                    <i className="bi bi-calendar-event"></i>
+                  </span>
+                  <DateInput
+                    className="form-control border-start-0 ps-0"
+                    value={expiryDateFilter}
+                    onChange={(e) => setExpiryDateFilter(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+            <div className={`col-md-${activeTab === 'batches' ? '1' : '3'} d-flex align-items-center justify-content-center`}>
               {activeTab === 'stocks' && (
                 <div className="form-check form-switch mb-0">
                   <input 
@@ -695,7 +711,7 @@ export default function AdminInventory() {
                 </div>
               )}
               {activeTab === 'batches' && (
-                <div className="form-check form-switch mb-0">
+                <div className="form-check form-switch mb-0 ms-1">
                   <input 
                     className="form-check-input" 
                     type="checkbox" 
@@ -705,13 +721,13 @@ export default function AdminInventory() {
                     onChange={(e) => setExpiredOnly(e.target.checked)}
                   />
                   <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="expiredOnlySwitch">
-                    ⌛ Expired Only
+                    ⌛ Expired
                   </label>
                 </div>
               )}
             </div>
             <div className="col-md-2">
-              <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); setLowStockOnly(false); setExpiredOnly(false); }}>
+              <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); setLowStockOnly(false); setExpiredOnly(false); setExpiryDateFilter(''); }}>
                 Clear Filters
               </button>
             </div>

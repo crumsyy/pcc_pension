@@ -39,6 +39,67 @@ button.btn-secondary:hover {
   color: #ffffff !important;
 }
 
+/* =====================================================================
+   PCC Premium High-Performance Loading Spinner System
+   ===================================================================== */
+.spinner-border,
+.pcc-spinner {
+  display: inline-block;
+  width: 2.5rem;
+  height: 2.5rem;
+  vertical-align: -0.125em;
+  border: 3px solid rgba(33, 85, 181, 0.15) !important;
+  border-top-color: var(--pcc-blue) !important;
+  border-right-color: var(--pcc-green) !important;
+  border-radius: 50%;
+  animation: pcc-spinner-rotate 0.75s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite !important;
+  box-shadow: 0 0 14px rgba(33, 85, 181, 0.22);
+  position: relative;
+}
+
+.spinner-border.spinner-border-sm,
+.pcc-spinner-sm {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-width: 2px !important;
+  box-shadow: 0 0 6px rgba(33, 85, 181, 0.18);
+}
+
+.spinner-border::after,
+.pcc-spinner::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 2px solid transparent;
+  border-top-color: rgba(63, 163, 77, 0.6);
+  border-radius: 50%;
+  animation: pcc-spinner-pulse 1.4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes pcc-spinner-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pcc-spinner-pulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
