@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 
 export default function ReceptionistInquiries() {
   const [inquiries, setInquiries] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Pending' | 'Responded' | 'Closed'
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const chatMessagesRef = useRef(null);
 
   // Tab State: 'inbox' | 'availability'
   const [activeTab, setActiveTab] = useState('inbox');
@@ -59,26 +63,47 @@ export default function ReceptionistInquiries() {
     });
   };
 
-  const fetchInquiries = async () => {
-    setLoading(true);
+  const fetchInquiries = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const res = await fetch('/api/receptionist/inquiries');
+      const selectedID = selectedInquiry?.inquiryID ? `?inquiryID=${selectedInquiry.inquiryID}` : '';
+      const res = await fetch(`/api/receptionist/inquiries${selectedID}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch inquiries');
+
       setInquiries(data.inquiries || []);
+
       if (data.inquiries?.length > 0 && !selectedInquiry) {
         setSelectedInquiry(data.inquiries[0]);
       }
+
+      if (data.selectedMessages) {
+        setMessages(data.selectedMessages);
+      }
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!silent) showAlert('error', 'Error', err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+    }
+  };
+
+  const fetchMessagesForInquiry = async (inquiryID) => {
+    setLoadingMessages(true);
+    try {
+      const res = await fetch(`/api/receptionist/inquiries?inquiryID=${inquiryID}`);
+      const data = await res.json();
+      if (res.ok && data.selectedMessages) {
+        setMessages(data.selectedMessages);
+      }
+    } catch (err) {
+      console.error("Failed to load inquiry thread:", err);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
   const fetchDiscounts = async () => {
     try {
-      // Use lightweight endpoint to prevent slow load times
       const res = await fetch('/api/receptionist/bookings?discountsOnly=true');
       const data = await res.json();
       if (data.discounts) {
@@ -94,9 +119,44 @@ export default function ReceptionistInquiries() {
     fetchDiscounts();
   }, []);
 
+  // Real-time polling every 3 seconds for active inquiry list and message thread updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchInquiries(true);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [selectedInquiry?.inquiryID]);
+
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  }, [messages, selectedInquiry]);
+
+  const handleSelectInquiry = (inq) => {
+    setSelectedInquiry(inq);
+    fetchMessagesForInquiry(inq.inquiryID);
+    // Mark as read in state
+    setInquiries(prev => prev.map(item => item.inquiryID === inq.inquiryID ? { ...item, unreadReceptionist: 0 } : item));
+  };
+
   const handleReplySubmit = async (e) => {
     e.preventDefault();
-    if (!replyText.trim()) return;
+    if (!replyText.trim() || !selectedInquiry) return;
+    const msgToSend = replyText.trim();
+    setReplyText('');
+
+    // Optimistic UI update
+    const tempMsg = {
+      messageID: Date.now(),
+      inquiryID: selectedInquiry.inquiryID,
+      senderType: 'Receptionist',
+      senderName: 'Front Desk Staff',
+      message: msgToSend,
+      isRead: 1,
+      timestamp: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, tempMsg]);
 
     try {
       const res = await fetch('/api/receptionist/inquiries', {
@@ -105,33 +165,56 @@ export default function ReceptionistInquiries() {
         body: JSON.stringify({
           action: 'respond',
           inquiryID: selectedInquiry.inquiryID,
-          response: replyText
+          response: msgToSend
         })
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send reply');
 
-      showAlert('success', 'Success', 'Response recorded successfully.');
-      setReplyText('');
-      
-      const updatedInquiry = {
-        ...selectedInquiry,
-        status: 'Responded',
-        response: replyText
-      };
-      setSelectedInquiry(updatedInquiry);
-      fetchInquiries();
+      if (data.messages) {
+        setMessages(data.messages);
+      }
+
+      setSelectedInquiry(prev => ({ ...prev, status: 'Responded', response: msgToSend }));
+      fetchInquiries(true);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     }
+  };
+
+  const handleUpdateStatus = async (newStatus) => {
+    if (!selectedInquiry) return;
+    try {
+      const res = await fetch('/api/receptionist/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_status',
+          inquiryID: selectedInquiry.inquiryID,
+          status: newStatus
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update status');
+
+      setSelectedInquiry(prev => ({ ...prev, status: newStatus }));
+      fetchInquiries(true);
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
+  };
+
+  const handleAppendEmoji = (emoji) => {
+    setReplyText(prev => prev + emoji);
   };
 
   const checkRoomAvailability = async (e) => {
     e.preventDefault();
     setCheckingAvail(true);
     setAvailRooms([]);
-    setQuoteGuest(prev => ({ ...prev, roomID: '' })); // reset selected room
+    setQuoteGuest(prev => ({ ...prev, roomID: '' }));
     try {
       const res = await fetch(
         `/api/rooms/availability?checkIn=${availForm.checkIn}&checkOut=${availForm.checkOut}&roomType=${encodeURIComponent(availForm.roomType)}&breakfast=${encodeURIComponent(availForm.breakfast)}`
@@ -197,105 +280,115 @@ export default function ReceptionistInquiries() {
   };
 
   const getAvatarColor = (name) => {
-    const colors = ['#0d6efd', '#198754', '#dc3545', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14'];
+    const colors = ['#2155B5', '#3FA34D', '#d97706', '#dc2626', '#0284c7', '#7c3aed', '#db2777'];
     if (!name) return colors[0];
     let sum = 0;
     for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
     return colors[sum % colors.length];
   };
 
-  // Calculations for quotation preview
-  const selectedRoom = availRooms.find(r => String(r.roomID) === quoteGuest.roomID);
-  let nights = 0;
-  let rate = 0;
-  let originalRoomCharge = 0;
-  let totalDiscount = 0;
-  let netRoomCharge = 0;
-  let downPaymentRequired = 0;
-
-  if (selectedRoom) {
-    const cIn = new Date(availForm.checkIn);
-    const cOut = new Date(availForm.checkOut);
-    const diffTime = Math.abs(cOut - cIn);
-    nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-    rate = parseFloat(selectedRoom.rate);
-    originalRoomCharge = rate * nights;
-
-    const selectedDiscount = discounts.find(d => String(d.discountID) === quoteGuest.discountID);
-    if (selectedDiscount) {
-      totalDiscount = originalRoomCharge * (parseFloat(selectedDiscount.percentage) / 100);
-    }
-    netRoomCharge = originalRoomCharge - totalDiscount;
-    downPaymentRequired = netRoomCharge * 0.5; // 50% downpayment quote
-  }
-
-  // Filter inquiries
+  // Filter inquiries by search & status
   const filteredInquiries = inquiries.filter(inq => {
     const matchesSearch = 
       (inq.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (inq.contactNumber || '').toLowerCase().includes(search.toLowerCase()) ||
       (inq.email || '').toLowerCase().includes(search.toLowerCase()) ||
       (inq.message || '').toLowerCase().includes(search.toLowerCase());
-    return matchesSearch;
+    const matchesStatus = statusFilter === 'All' || inq.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   return (
     <>
-      <div className="container-fluid py-4" style={{ backgroundColor: '#f8f9fa', minHeight: '85vh' }}>
-        <div className="d-flex justify-content-between align-items-center mb-4">
+      {/* Custom Modal Dialog */}
+      <ModalDialog
+        isOpen={modalConfig.isOpen}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={modalConfig.onCancel}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
+      />
+
+      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 70px)', overflow: 'hidden' }}>
+        <div className="d-flex justify-content-between align-items-center mb-3">
           <div>
-            <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Guest Inquiries & Quotation Desk</h2>
-            <p className="text-muted mb-0">Respond to message submissions or calculate stay quotations and schedule bookings.</p>
+            <h2 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.5rem' }}>Guest Live Chat & Inquiry Management Desk</h2>
+            <p className="text-muted mb-0 small">Real-time guest support live chat, inquiry ticket tracking, and stay quotation tools.</p>
           </div>
         </div>
 
         {/* Tab selection */}
-        <ul className="nav nav-tabs mb-4">
+        <ul className="nav nav-tabs mb-3 d-print-none">
           <li className="nav-item">
             <button
-              className={`nav-link fw-semibold ${activeTab === 'inbox' ? 'active text-primary' : 'text-secondary'}`}
+              className={`nav-link fw-bold ${activeTab === 'inbox' ? 'active text-pcc-blue border-bottom-3' : 'text-secondary'}`}
               onClick={() => setActiveTab('inbox')}
-              style={{ borderTopLeftRadius: '6px', borderTopRightRadius: '6px' }}
+              style={{ borderBottom: activeTab === 'inbox' ? '3px solid var(--pcc-blue)' : '' }}
             >
-              Guest Messages Inbox
+              Live Chat Support Workspace 💬
             </button>
           </li>
           <li className="nav-item">
             <button
-              className={`nav-link fw-semibold ${activeTab === 'availability' ? 'active text-primary' : 'text-secondary'}`}
+              className={`nav-link fw-bold ${activeTab === 'availability' ? 'active text-pcc-blue' : 'text-secondary'}`}
               onClick={() => setActiveTab('availability')}
-              style={{ borderTopLeftRadius: '6px', borderTopRightRadius: '6px' }}
+              style={{ borderBottom: activeTab === 'availability' ? '3px solid var(--pcc-blue)' : '' }}
             >
-              Room Availability & Quotation Tool
+              Room Availability & Quotation Calculator 📋
             </button>
           </li>
         </ul>
 
         {activeTab === 'inbox' ? (
-          <div className="row g-4 animate__animated animate__fadeIn">
-            {/* List Sidebar */}
-            <div className="col-md-4">
-              <div className="card shadow-sm border-0" style={{ borderRadius: '8px', height: '650px', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
+          <div className="row g-3 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '10px' }}>
+            {/* LEFT PANEL: Conversation List */}
+            <div className="col-lg-4 col-xl-4 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+              <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '10px', minHeight: 0 }}>
+                {/* Search & Status Filters Header */}
                 <div className="card-header bg-white py-3 border-0 border-bottom">
-                  <h5 className="fw-bold mb-3 text-dark">Conversations</h5>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h6 className="fw-bold mb-0 text-dark">Conversations</h6>
+                    <span className="badge bg-primary rounded-pill">{filteredInquiries.length}</span>
+                  </div>
                   <input
                     type="text"
-                    className="form-control"
-                    placeholder="Search inquiries..."
+                    className="form-control form-control-sm mb-2"
+                    placeholder="Search name, phone, or email..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    style={{ borderRadius: '20px', paddingLeft: '15px' }}
+                    style={{ borderRadius: '20px', paddingLeft: '14px' }}
                   />
+
+                  {/* Status Filter Buttons */}
+                  <div className="btn-group w-100" role="group">
+                    {['All', 'Pending', 'Responded', 'Closed'].map(st => (
+                      <button
+                        key={st}
+                        type="button"
+                        className={`btn btn-xs ${statusFilter === st ? (st === 'Pending' ? 'btn-warning text-dark' : st === 'Responded' ? 'btn-success text-white' : st === 'Closed' ? 'btn-secondary text-white' : 'btn-pcc-primary text-white') : 'btn-outline-secondary'}`}
+                        onClick={() => setStatusFilter(st)}
+                        style={{ fontSize: '0.72rem', padding: '3px 6px', fontWeight: '600' }}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="card-body p-0 overflow-auto flex-grow-1" style={{ maxHeight: '550px' }}>
+
+                {/* Conversation List Body */}
+                <div className="card-body p-0 overflow-y-auto flex-grow-1">
                   {loading ? (
                     <div className="text-center py-5">
-                      <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
+                      <div className="spinner-border text-pcc-primary" role="status">
+                        <span className="visually-hidden">Loading conversations...</span>
                       </div>
                     </div>
                   ) : filteredInquiries.length === 0 ? (
-                    <div className="text-center py-5 text-muted">
-                      <p className="mb-0">No conversations found.</p>
+                    <div className="text-center py-5 text-muted small">
+                      <p className="mb-0">No conversations match criteria.</p>
                     </div>
                   ) : (
                     <div className="list-group list-group-flush">
@@ -306,38 +399,48 @@ export default function ReceptionistInquiries() {
                         return (
                           <button
                             key={inq.inquiryID}
-                            onClick={() => {
-                              setSelectedInquiry(inq);
-                              setReplyText('');
+                            onClick={() => handleSelectInquiry(inq)}
+                            className={`list-group-item list-group-item-action d-flex align-items-center gap-3 p-3 border-0 border-bottom ${isSelected ? 'bg-light' : ''}`}
+                            style={{ 
+                              transition: 'all 0.2s', 
+                              borderLeft: isSelected ? '4px solid var(--pcc-blue) !important' : '4px solid transparent' 
                             }}
-                            className={`list-group-item list-group-item-action d-flex align-items-center gap-3 p-3 border-0 border-bottom ${isSelected ? 'bg-light border-start border-primary border-4' : ''}`}
-                            style={{ transition: 'all 0.2s', borderLeft: isSelected ? '4px solid #0d6efd !important' : 'none' }}
                           >
-                            <div 
-                              className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
-                              style={{ width: '42px', height: '42px', backgroundColor: avatarColor, minWidth: '42px', fontSize: '0.9rem' }}
-                            >
-                              {initials}
+                            <div className="position-relative">
+                              <div 
+                                className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
+                                style={{ width: '42px', height: '42px', backgroundColor: avatarColor, minWidth: '42px', fontSize: '0.9rem' }}
+                              >
+                                {initials}
+                              </div>
+                              {inq.unreadReceptionist > 0 && (
+                                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style={{ fontSize: '0.62rem' }}>
+                                  {inq.unreadReceptionist}
+                                </span>
+                              )}
                             </div>
                             <div className="flex-grow-1 min-w-0">
                               <div className="d-flex justify-content-between align-items-baseline">
-                                <h6 className={`mb-1 text-truncate ${inq.status === 'Pending' ? 'fw-bold text-dark' : 'text-secondary'}`} style={{ fontSize: '0.9rem' }}>
+                                <h6 className={`mb-0 text-truncate ${inq.status === 'Pending' ? 'fw-bold text-dark' : 'text-secondary'}`} style={{ fontSize: '0.88rem' }}>
                                   {inq.name}
                                 </h6>
-                                <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                  {new Date(inq.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                <small className="text-muted ms-1" style={{ fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
+                                  {inq.lastMessageTime ? new Date(inq.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(inq.createdAt).toLocaleDateString()}
                                 </small>
                               </div>
-                              <div className="text-truncate text-muted small" style={{ fontSize: '0.78rem' }}>
-                                {inq.message}
+                              <div className="text-truncate text-muted small mt-0.5" style={{ fontSize: '0.76rem' }}>
+                                {inq.lastMessage || inq.message}
                               </div>
-                              <div className="d-flex gap-1 mt-1">
-                                <span className={`badge rounded-pill ${inq.status === 'Responded' ? 'bg-success text-white' : 'bg-warning text-dark'}`} style={{ fontSize: '0.65rem' }}>
+                              <div className="d-flex align-items-center gap-1 mt-1">
+                                <span className={`badge rounded-pill ${
+                                  inq.status === 'Responded' ? 'bg-success text-white' : 
+                                  inq.status === 'Closed' ? 'bg-secondary text-white' : 'bg-warning text-dark'
+                                }`} style={{ fontSize: '0.65rem' }}>
                                   {inq.status}
                                 </span>
-                                {inq.isChatbotForwarded === 1 && (
-                                  <span className="badge bg-info text-white rounded-pill" style={{ fontSize: '0.65rem' }}>
-                                    🤖 Chatbot
+                                {inq.contactNumber && (
+                                  <span className="badge bg-light text-muted border" style={{ fontSize: '0.65rem' }}>
+                                    📞 {inq.contactNumber}
                                   </span>
                                 )}
                               </div>
@@ -351,357 +454,390 @@ export default function ReceptionistInquiries() {
               </div>
             </div>
 
-            {/* Details Panel / Messenger Chat Box */}
-            <div className="col-md-8">
-              <div className="card shadow-sm border-0" style={{ borderRadius: '8px', height: '650px', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
+            {/* RIGHT PANEL: Live Conversation Window */}
+            <div className="col-lg-8 col-xl-8 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+              <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '10px', minHeight: 0 }}>
                 {selectedInquiry ? (
                   <>
-                    {/* Chat Header */}
-                    <div className="card-header bg-white border-0 py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+                    {/* Header Details */}
+                    <div className="card-header bg-white py-3 border-0 border-bottom d-flex justify-content-between align-items-center">
                       <div className="d-flex align-items-center gap-3">
                         <div 
                           className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
-                          style={{ width: '48px', height: '48px', backgroundColor: getAvatarColor(selectedInquiry.name), fontSize: '1rem' }}
+                          style={{ width: '45px', height: '45px', backgroundColor: getAvatarColor(selectedInquiry.name), fontSize: '1rem' }}
                         >
                           {getInitials(selectedInquiry.name)}
                         </div>
                         <div>
-                          <h5 className="fw-bold mb-1 text-dark">{selectedInquiry.name}</h5>
-                          <div className="text-muted small" style={{ fontSize: '0.8rem' }}>
-                            {selectedInquiry.email} {selectedInquiry.contact ? `• ${selectedInquiry.contact}` : ''}
+                          <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>{selectedInquiry.name}</h6>
+                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                            {selectedInquiry.email} {selectedInquiry.contactNumber ? `• 📞 ${selectedInquiry.contactNumber}` : ''}
                           </div>
                         </div>
                       </div>
-                      <div className="d-flex gap-2">
-                        {/* Pre-fill booking link */}
-                        <a 
-                          href={`/receptionist/bookings?firstName=${encodeURIComponent(selectedInquiry.name.split(' ')[0] || '')}&lastName=${encodeURIComponent(selectedInquiry.name.split(' ').slice(1).join(' ') || '')}&email=${encodeURIComponent(selectedInquiry.email || '')}&contact=${encodeURIComponent(selectedInquiry.contact || '')}`}
-                          className="btn btn-primary text-white px-3 py-2 fw-semibold"
-                        >
-                          💸 Book Stay
-                        </a>
-                        <a 
-                          href={`/receptionist/reservations?firstName=${encodeURIComponent(selectedInquiry.name.split(' ')[0] || '')}&lastName=${encodeURIComponent(selectedInquiry.name.split(' ').slice(1).join(' ') || '')}&email=${encodeURIComponent(selectedInquiry.email || '')}&contact=${encodeURIComponent(selectedInquiry.contact || '')}`}
-                          className="btn btn-success text-white px-3 py-2 fw-semibold"
-                        >
-                          📅 Reserve Stay
-                        </a>
-                      </div>
-                    </div>
 
-                    {/* Chat Message History Thread */}
-                    <div className="card-body p-4 overflow-auto flex-grow-1 d-flex flex-column gap-3 bg-light" style={{ maxHeight: '420px' }}>
-                      
-                      {/* Date Separator */}
-                      <div className="text-center my-2">
-                        <span className="badge bg-secondary-subtle text-secondary px-3 py-1 rounded-pill" style={{ fontSize: '0.72rem' }}>
-                          Inquiry Received on {new Date(selectedInquiry.createdAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
+                      {/* Header Actions */}
+                      <div className="d-flex align-items-center gap-2">
+                        <span className={`badge rounded-pill px-3 py-1 ${
+                          selectedInquiry.status === 'Responded' ? 'bg-success text-white' :
+                          selectedInquiry.status === 'Closed' ? 'bg-secondary text-white' : 'bg-warning text-dark'
+                        }`} style={{ fontSize: '0.75rem' }}>
+                          Status: {selectedInquiry.status}
                         </span>
+
+                        {selectedInquiry.status === 'Closed' ? (
+                          <button
+                            className="btn btn-sm btn-outline-primary fw-semibold"
+                            onClick={() => handleUpdateStatus('Pending')}
+                            style={{ fontSize: '0.78rem' }}
+                          >
+                            Reopen Chat 🔓
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-sm btn-outline-secondary fw-semibold"
+                            onClick={() => handleUpdateStatus('Closed')}
+                            style={{ fontSize: '0.78rem' }}
+                          >
+                            Close Inquiry 🔒
+                          </button>
+                        )}
                       </div>
-
-                      {/* Guest Inquiry Message bubble (Left side) */}
-                      <div className="d-flex align-items-start gap-2 max-w-75 align-self-start">
-                        <div 
-                          className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
-                          style={{ width: '32px', height: '32px', backgroundColor: getAvatarColor(selectedInquiry.name), minWidth: '32px', fontSize: '0.75rem' }}
-                        >
-                          {getInitials(selectedInquiry.name)}
-                        </div>
-                        <div>
-                          <div className="p-3 bg-white text-dark shadow-xs border" style={{ borderRadius: '4px 18px 18px 18px', maxWidth: '100%', wordBreak: 'break-word' }}>
-                            <p className="mb-0" style={{ whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                              {selectedInquiry.message}
-                            </p>
-                          </div>
-                          <small className="text-muted ms-2 mt-1 d-block" style={{ fontSize: '0.7rem' }}>
-                            {new Date(selectedInquiry.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                          </small>
-                        </div>
-                      </div>
-
-                      {/* Forwarded by Chatbot notice */}
-                      {selectedInquiry.isChatbotForwarded === 1 && (
-                        <div className="text-center my-1 align-self-center">
-                          <span className="badge bg-info-subtle text-info border border-info-subtle px-3 py-1 rounded">
-                            🤖 Forwarded from PCC Virtual Chatbot Assistant
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Receptionist Response message bubble (Right side) */}
-                      {selectedInquiry.response && (
-                        <div className="d-flex align-items-end gap-2 max-w-75 align-self-end text-end">
-                          <div>
-                            <div className="p-3 bg-primary text-white shadow-xs" style={{ borderRadius: '18px 4px 18px 18px', textAlign: 'left', wordBreak: 'break-word' }}>
-                              <p className="mb-0" style={{ whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                                {selectedInquiry.response}
-                              </p>
-                            </div>
-                            <small className="text-muted me-2 mt-1 d-block" style={{ fontSize: '0.7rem' }}>
-                              ✓✓ Sent • {selectedInquiry.responseCreatedAt ? new Date(selectedInquiry.responseCreatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : 'Responded'}
-                            </small>
-                          </div>
-                        </div>
-                      )}
-
                     </div>
 
-                    {/* Chat Input Footer Form */}
-                    <div className="card-footer bg-white border-0 p-3 border-top">
-                      <form onSubmit={handleReplySubmit} className="d-flex gap-2">
-                        <textarea
-                          className="form-control flex-grow-1"
-                          rows="2"
-                          placeholder={selectedInquiry.status === 'Responded' ? "Type another response to the guest..." : "Type your response to reply..."}
-                          required
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                          style={{ borderRadius: '12px', resize: 'none', padding: '10px 15px' }}
-                        ></textarea>
-                        <button type="submit" className="btn btn-primary text-white px-4 d-flex align-items-center justify-content-center fw-bold" style={{ borderRadius: '12px', minWidth: '120px' }}>
-                          Send ✉
-                        </button>
-                      </form>
+                    {/* Chat Messages Thread Body */}
+                    <div 
+                      className="card-body p-4 flex-grow-1 overflow-y-auto"
+                      ref={chatMessagesRef}
+                      style={{ backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}
+                    >
+                      {loadingMessages ? (
+                        <div className="text-center py-5">
+                          <div className="spinner-border text-pcc-primary" role="status">
+                            <span className="visually-hidden">Loading thread...</span>
+                          </div>
+                        </div>
+                      ) : messages.length === 0 ? (
+                        <div className="p-3 bg-white border rounded text-start" style={{ fontSize: '0.85rem' }}>
+                          <strong>Initial Request:</strong> {selectedInquiry.message}
+                        </div>
+                      ) : (
+                        messages.map((m) => {
+                          const isGuest = m.senderType === 'Guest';
+                          const isSystem = m.senderType === 'System';
+                          return (
+                            <div 
+                              key={m.messageID}
+                              className={`d-flex flex-column ${isSystem ? 'align-items-center' : (isGuest ? 'align-items-start' : 'align-items-end')}`}
+                            >
+                              {!isSystem && (
+                                <div className="text-muted small mb-0.5 px-1" style={{ fontSize: '0.68rem' }}>
+                                  {m.senderName} • {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              )}
+                              <div 
+                                className="p-3 rounded shadow-sm"
+                                style={{
+                                  maxWidth: '75%',
+                                  fontSize: '0.88rem',
+                                  lineHeight: '1.45',
+                                  whiteSpace: 'pre-line',
+                                  backgroundColor: isSystem ? '#e2e8f0' : (isGuest ? '#ffffff' : 'var(--pcc-blue)'),
+                                  color: isSystem ? '#475569' : (isGuest ? '#1e293b' : '#ffffff'),
+                                  border: isGuest ? '1px solid #cbd5e1' : 'none',
+                                  borderRadius: isGuest ? '14px 14px 14px 2px' : (isSystem ? '8px' : '14px 14px 2px 14px')
+                                }}
+                              >
+                                {m.message}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Bottom Chat Toolbar Input */}
+                    <div className="card-footer bg-white p-3 border-0 border-top">
+                      {selectedInquiry.status === 'Closed' ? (
+                        <div className="alert alert-secondary mb-0 py-2 text-center small">
+                          🔒 This conversation is marked as <strong>Closed</strong>. Reopen chat above to send replies.
+                        </div>
+                      ) : (
+                        <form onSubmit={handleReplySubmit} className="d-flex flex-column gap-2">
+                          {/* Fast Emoji Toolbar */}
+                          <div className="d-flex align-items-center gap-1">
+                            <span className="text-muted small me-2" style={{ fontSize: '0.72rem' }}>Quick Emojis:</span>
+                            {['😊', '👍', '🏨', '🔑', '📋', '✨', '👋', '☕'].map(emo => (
+                              <button
+                                key={emo}
+                                type="button"
+                                className="btn btn-xs btn-light border"
+                                onClick={() => handleAppendEmoji(emo)}
+                                style={{ fontSize: '0.85rem', padding: '1px 6px' }}
+                              >
+                                {emo}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="d-flex gap-2">
+                            <textarea
+                              className="form-control"
+                              rows="2"
+                              placeholder="Type your response to guest..."
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleReplySubmit(e);
+                                }
+                              }}
+                              style={{ borderRadius: '8px', fontSize: '0.88rem' }}
+                            ></textarea>
+                            <button
+                              type="submit"
+                              className="btn btn-pcc-primary text-white fw-bold px-4 d-flex align-items-center justify-content-center"
+                              disabled={!replyText.trim()}
+                              style={{ borderRadius: '8px', minWidth: '100px' }}
+                            >
+                              Send ✈️
+                            </button>
+                          </div>
+                        </form>
+                      )}
                     </div>
                   </>
                 ) : (
-                  <div className="card-body d-flex align-items-center justify-content-center text-muted">
-                    <div className="text-center">
-                      <span style={{ fontSize: '3.5rem' }}>💬</span>
-                      <h5 className="mt-3 fw-bold">No conversation selected</h5>
-                      <p className="small">Select a guest from the left sidebar to view message history and send replies.</p>
-                    </div>
+                  <div className="d-flex align-items-center justify-content-center flex-grow-1 text-muted">
+                    <p className="mb-0">Select a conversation from the left panel to view messages.</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
         ) : (
-          <div className="row g-4 animate__animated animate__fadeIn">
-            {/* Availability search panel */}
-            <div className="col-md-5 col-lg-4">
-              <div className="card shadow-sm border-0 p-4" style={{ borderRadius: '8px', minHeight: '550px' }}>
-                <h5 className="fw-bold mb-3 text-dark">Check Room Vacancy</h5>
+          /* ROOM AVAILABILITY & QUOTATION CALCULATOR TAB (PRESERVED) */
+          <div className="row g-4 animate__animated animate__fadeIn overflow-y-auto flex-grow-1">
+            <div className="col-md-5">
+              <div className="card shadow-sm border-0 p-4 bg-white" style={{ borderRadius: '10px' }}>
+                <h5 className="fw-bold text-dark mb-3">Check Room Availability</h5>
                 <form onSubmit={checkRoomAvailability}>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold small">Check-In Date *</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      required
-                      value={availForm.checkIn}
-                      onChange={(e) => setAvailForm(prev => ({ ...prev, checkIn: e.target.value }))}
-                    />
+                  <div className="row g-3 mb-3">
+                    <div className="col-6">
+                      <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Check-In Date *</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={availForm.checkIn}
+                        onChange={(e) => setAvailForm(prev => ({ ...prev, checkIn: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Check-Out Date *</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={availForm.checkOut}
+                        onChange={(e) => setAvailForm(prev => ({ ...prev, checkOut: e.target.value }))}
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label fw-semibold small">Check-Out Date *</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      required
-                      value={availForm.checkOut}
-                      onChange={(e) => setAvailForm(prev => ({ ...prev, checkOut: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold small">Room Type</label>
+                    <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Room Type Filter</label>
                     <select
                       className="form-select"
                       value={availForm.roomType}
                       onChange={(e) => setAvailForm(prev => ({ ...prev, roomType: e.target.value }))}
                     >
-                      <option value="Any room type">Any Room Type</option>
-                      <option value="Single Room">Single Room</option>
-                      <option value="Double Room">Double Room</option>
-                      <option value="Suite">Suite</option>
+                      <option value="Any room type">Any room type</option>
+                      <option value="Standard Matrimonial">Standard Matrimonial</option>
+                      <option value="Twin Bed">Twin Bed</option>
+                      <option value="Deluxe Suite">Deluxe Suite</option>
                     </select>
                   </div>
 
-                  <div className="mb-4">
-                    <label className="form-label fw-semibold small">Breakfast Inclusion</label>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Breakfast Option</label>
                     <select
                       className="form-select"
                       value={availForm.breakfast}
                       onChange={(e) => setAvailForm(prev => ({ ...prev, breakfast: e.target.value }))}
                     >
                       <option value="With Breakfast">With Breakfast</option>
-                      <option value="Without Breakfast">Without Breakfast</option>
+                      <option value="No Breakfast">No Breakfast</option>
                     </select>
                   </div>
 
-                  <button type="submit" className="btn btn-primary text-white w-100 py-2 fw-bold" disabled={checkingAvail}>
-                    {checkingAvail ? (
-                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                    ) : '🔍 Check Vacancy'}
+                  <button type="submit" className="btn btn-pcc-primary text-white w-100 fw-bold py-2" disabled={checkingAvail}>
+                    {checkingAvail ? 'Checking Availability...' : '🔍 Search Available Rooms'}
                   </button>
                 </form>
+              </div>
 
-                {availRooms.length > 0 && (
-                  <div className="mt-4">
-                    <label className="form-label fw-bold text-dark small">Select Available Room *</label>
-                    <div className="list-group overflow-auto" style={{ maxHeight: '180px' }}>
-                      {availRooms.map(r => (
-                        <button
-                          key={r.roomID}
-                          type="button"
-                          onClick={() => setQuoteGuest(prev => ({ ...prev, roomID: String(r.roomID) }))}
-                          className={`list-group-item list-group-item-action py-2 px-3 small border d-flex justify-content-between align-items-center ${quoteGuest.roomID === String(r.roomID) ? 'active' : ''}`}
-                        >
-                          <span>Room {r.roomNumber} ({r.roomType})</span>
-                          <span className="fw-semibold">₱{parseFloat(r.rate).toFixed(2)}</span>
-                        </button>
-                      ))}
+              {/* Quotation Guest Input Details */}
+              {selectedRoom && (
+                <div className="card shadow-sm border-0 p-4 bg-white mt-4" style={{ borderRadius: '10px' }}>
+                  <h5 className="fw-bold text-dark mb-3">Guest Details for Schedule</h5>
+                  <div className="row g-2 mb-2">
+                    <div className="col-6">
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="First Name *"
+                        value={quoteGuest.firstName}
+                        onChange={(e) => setQuoteGuest(prev => ({ ...prev, firstName: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-6">
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Last Name *"
+                        value={quoteGuest.lastName}
+                        onChange={(e) => setQuoteGuest(prev => ({ ...prev, lastName: e.target.value }))}
+                      />
                     </div>
                   </div>
-                )}
-              </div>
+                  <div className="row g-2 mb-2">
+                    <div className="col-6">
+                      <input
+                        type="email"
+                        className="form-control form-control-sm"
+                        placeholder="Email Address"
+                        value={quoteGuest.email}
+                        onChange={(e) => setQuoteGuest(prev => ({ ...prev, email: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-6">
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Contact Number *"
+                        value={quoteGuest.contact}
+                        onChange={(e) => setQuoteGuest(prev => ({ ...prev, contact: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold" style={{ fontSize: '0.8rem' }}>Applicable Discount (Optional)</label>
+                    <select
+                      className="form-select form-select-sm"
+                      value={quoteGuest.discountID}
+                      onChange={(e) => setQuoteGuest(prev => ({ ...prev, discountID: e.target.value }))}
+                    >
+                      <option value="">No Discount</option>
+                      {discounts.map(d => (
+                        <option key={d.discountID} value={String(d.discountID)}>
+                          {d.name} ({d.percentage}%)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Quotation preview & actions panel */}
-            <div className="col-md-7 col-lg-8">
-              <div className="card shadow-sm border-0 p-4" style={{ borderRadius: '8px', minHeight: '550px' }}>
-                <h5 className="fw-bold mb-3 text-dark">Quotation & Booking Details</h5>
-                
-                {quoteGuest.roomID && selectedRoom ? (
-                  <div className="row g-3">
-                    <div className="col-md-6 border-end pe-md-4">
-                      <h6 className="fw-bold mb-3 text-secondary">Guest Information</h6>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">First Name *</label>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          required
-                          placeholder="e.g. Juan"
-                          value={quoteGuest.firstName}
-                          onChange={(e) => setQuoteGuest(prev => ({ ...prev, firstName: e.target.value }))}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">Last Name *</label>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          required
-                          placeholder="e.g. Dela Cruz"
-                          value={quoteGuest.lastName}
-                          onChange={(e) => setQuoteGuest(prev => ({ ...prev, lastName: e.target.value }))}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">Email Address</label>
-                        <input
-                          type="email"
-                          className="form-control form-control-sm"
-                          placeholder="e.g. juan@example.com"
-                          value={quoteGuest.email}
-                          onChange={(e) => setQuoteGuest(prev => ({ ...prev, email: e.target.value }))}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">Contact Number</label>
-                        <input
-                          type="text"
-                          maxLength="11"
-                          className="form-control form-control-sm"
-                          placeholder="e.g. 09171234567"
-                          value={quoteGuest.contact}
-                          onChange={(e) => setQuoteGuest(prev => ({ ...prev, contact: e.target.value }))}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">Discount Choice</label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={quoteGuest.discountID}
-                          onChange={(e) => setQuoteGuest(prev => ({ ...prev, discountID: e.target.value }))}
-                        >
-                          <option value="">No Discount</option>
-                          {discounts.map(d => (
-                            <option key={d.discountID} value={d.discountID}>{d.name} ({d.percentage}%)</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">No. of Occupying Guests</label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={quoteGuest.numGuests}
-                          onChange={(e) => setQuoteGuest(prev => ({ ...prev, numGuests: e.target.value }))}
-                        >
-                          <option value="1">1 Person</option>
-                          <option value="2">2 People</option>
-                          <option value="3">3 People</option>
-                          <option value="4">4 People</option>
-                        </select>
-                      </div>
-                    </div>
+            <div className="col-md-7">
+              <div className="card shadow-sm border-0 p-4 bg-white" style={{ borderRadius: '10px' }}>
+                <h5 className="fw-bold text-dark mb-3">Matching Available Rooms & Quotations</h5>
 
-                    <div className="col-md-6 ps-md-4 d-flex flex-column justify-content-between">
-                      <div>
-                        <h6 className="fw-bold mb-3 text-secondary">Price Quotation Summary</h6>
-                        <div className="p-3 bg-light rounded border border-light-subtle">
-                          <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted small">Stay Duration:</span>
-                            <span className="fw-semibold small">{nights} Night(s)</span>
-                          </div>
-                          <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted small">Daily Room Rate:</span>
-                            <span className="fw-semibold small">₱{rate.toFixed(2)}</span>
-                          </div>
-                          <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted small">Base Room Charge:</span>
-                            <span className="fw-semibold small">₱{originalRoomCharge.toFixed(2)}</span>
-                          </div>
-                          {totalDiscount > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-danger">
-                              <span className="small">Applied Discount:</span>
-                              <span className="fw-semibold small">-₱{totalDiscount.toFixed(2)}</span>
-                            </div>
-                          )}
-                          <hr className="my-2" />
-                          <div className="d-flex justify-content-between align-items-center">
-                            <span className="fw-bold text-dark small">Net Room Charge:</span>
-                            <span className="fw-bold text-dark fs-6">₱{netRoomCharge.toFixed(2)}</span>
-                          </div>
-                          <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-secondary-subtle text-primary">
-                            <span className="fw-semibold small">50% Down Payment:</span>
-                            <span className="fw-bold fs-6">₱{downPaymentRequired.toFixed(2)}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-top">
-                        <button
-                          type="button"
-                          className="btn btn-primary text-white w-100 mb-2 py-2 fw-bold"
-                          disabled={!quoteGuest.firstName || !quoteGuest.lastName}
-                          onClick={handleCreateBookingRedirect}
-                        >
-                          💸 Proceed to Settle & Book Stay
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-success text-white w-100 py-2 fw-bold"
-                          disabled={!quoteGuest.firstName || !quoteGuest.lastName}
-                          onClick={handleCreateReservationRedirect}
-                        >
-                          📅 Proceed to Create Reservation
-                        </button>
-                        <p className="text-muted text-center small mt-2 mb-0" style={{ fontSize: '0.72rem' }}>
-                          * First Name and Last Name are required fields to proceed to booking or reservation
-                        </p>
-                      </div>
-                    </div>
+                {availRooms.length === 0 ? (
+                  <div className="text-center py-5 text-muted">
+                    <p className="mb-0">Select check-in & check-out dates to view available rooms and calculate stay charges.</p>
                   </div>
                 ) : (
-                  <div className="d-flex align-items-center justify-content-center text-muted h-100 my-auto py-5">
-                    <div className="text-center">
-                      <span style={{ fontSize: '3rem' }}>📋</span>
-                      <h6 className="mt-3">No Room Selected</h6>
-                      <p className="small">Please search room vacancy and choose an available room from the list on the left to generate quotation.</p>
+                  <div className="table-responsive">
+                    <table className="table table-hover align-middle" style={{ fontSize: '0.88rem' }}>
+                      <thead className="table-light">
+                        <tr>
+                          <th>Room</th>
+                          <th>Type</th>
+                          <th>Floor</th>
+                          <th>Breakfast</th>
+                          <th>Rate / Night</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {availRooms.map(r => {
+                          const isSelected = quoteGuest.roomID === String(r.roomID);
+                          return (
+                            <tr key={r.roomID} className={isSelected ? 'table-primary' : ''}>
+                              <td className="fw-bold text-pcc-blue">Room {r.roomNumber}</td>
+                              <td>{r.roomType}</td>
+                              <td>Floor {r.floorID}</td>
+                              <td>{r.breakfastOption}</td>
+                              <td className="fw-bold text-dark">₱{parseFloat(r.rate).toFixed(2)}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className={`btn btn-xs fw-bold ${isSelected ? 'btn-success text-white' : 'btn-outline-primary'}`}
+                                  onClick={() => setQuoteGuest(prev => ({ ...prev, roomID: String(r.roomID) }))}
+                                  style={{ fontSize: '0.78rem', padding: '3px 8px' }}
+                                >
+                                  {isSelected ? '✓ Selected' : 'Select Room'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Quotation Calculation Summary Breakdown */}
+                {selectedRoom && (
+                  <div className="p-3 mt-3 rounded bg-light border">
+                    <h6 className="fw-bold text-dark mb-2">Calculated Quotation Breakdown</h6>
+                    <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.85rem' }}>
+                      <span className="text-muted">Selected Room:</span>
+                      <span className="fw-semibold">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.85rem' }}>
+                      <span className="text-muted">Stay Duration:</span>
+                      <span className="fw-semibold">{nights} Night(s) ({availForm.checkIn} to {availForm.checkOut})</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.85rem' }}>
+                      <span className="text-muted">Original Room Charge:</span>
+                      <span className="fw-semibold">₱{originalRoomCharge.toFixed(2)}</span>
+                    </div>
+                    {totalDiscount > 0 && (
+                      <div className="d-flex justify-content-between mb-1 text-danger" style={{ fontSize: '0.85rem' }}>
+                        <span>Applied Discount:</span>
+                        <span className="fw-semibold">-₱{totalDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="d-flex justify-content-between mb-1 text-primary fw-bold" style={{ fontSize: '0.9rem' }}>
+                      <span>Net Total Stay Charge:</span>
+                      <span>₱{netRoomCharge.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-3 text-success fw-bold" style={{ fontSize: '0.9rem' }}>
+                      <span>Required 50% Down Payment:</span>
+                      <span>₱{downPaymentRequired.toFixed(2)}</span>
+                    </div>
+
+                    <div className="d-flex gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-pcc-primary text-white fw-bold flex-grow-1 py-2"
+                        onClick={handleCreateBookingRedirect}
+                        disabled={!quoteGuest.firstName || !quoteGuest.lastName || !quoteGuest.contact}
+                      >
+                        Convert to Booking & Check-In 🏨
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary fw-bold flex-grow-1 py-2"
+                        onClick={handleCreateReservationRedirect}
+                        disabled={!quoteGuest.firstName || !quoteGuest.lastName}
+                      >
+                        Schedule Reservation 📅
+                      </button>
                     </div>
                   </div>
                 )}
@@ -710,17 +846,6 @@ export default function ReceptionistInquiries() {
           </div>
         )}
       </div>
-
-      <ModalDialog
-        isOpen={modalConfig.isOpen}
-        type={modalConfig.type}
-        title={modalConfig.title}
-        message={modalConfig.message}
-        confirmText={modalConfig.confirmText}
-        cancelText={modalConfig.cancelText}
-        onConfirm={modalConfig.onConfirm}
-        onCancel={modalConfig.onCancel}
-      />
     </>
   );
 }
