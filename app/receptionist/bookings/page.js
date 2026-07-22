@@ -500,6 +500,44 @@ function BookingsClient() {
     setActiveModal('cancel_reason');
   };
 
+  const handleSaveGuestsSubmit = async (e) => {
+    e.preventDefault();
+    if (!managingBooking) return;
+
+    for (let i = 0; i < managingGuests.length; i++) {
+      const g = managingGuests[i];
+      if (!g.fullName.trim()) {
+        showAlert('error', 'Validation Error', `Guest #${i + 1} full name is required.`);
+        return;
+      }
+      if (!g.age || parseInt(g.age) <= 0) {
+        showAlert('error', 'Validation Error', `Guest #${i + 1} valid age is required.`);
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch('/api/receptionist/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'manage_guests',
+          bookingID: managingBooking.bookingID,
+          guests: managingGuests
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update guests');
+
+      showAlert('success', 'Guests Updated', data.message || 'Room guests updated successfully.');
+      setActiveModal(null);
+      setManagingBooking(null);
+      fetchData();
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
+  };
+
   const filteredBookings = bookings.filter(b => {
     const fullName = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
     const contact = (b.contact || '').toLowerCase();
@@ -1058,6 +1096,108 @@ function BookingsClient() {
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                   <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Booking & Record Down Payment 🚀</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MANAGE ROOM GUESTS MODAL */}
+      {activeModal === 'manage_guests' && managingBooking && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header text-white" style={{ background: '#2155B5' }}>
+                <h5 className="modal-title fw-bold">👥 Manage Room Guests — Stay #{managingBooking.bookingID}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleSaveGuestsSubmit}>
+                <div className="modal-body p-4">
+                  <div className="p-3 bg-light rounded border mb-3">
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Primary Guest:</span>
+                      <strong className="text-dark">{managingBooking.firstName} {managingBooking.lastName}</strong>
+                    </div>
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Target Room:</span>
+                      <strong className="text-pcc-blue">Room {managingBooking.roomNumber} ({managingBooking.roomType})</strong>
+                    </div>
+                  </div>
+
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h6 className="fw-bold text-dark mb-0">Registered Room Guests ({managingGuests.length})</h6>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary fw-bold"
+                      onClick={() => setManagingGuests(prev => [...prev, { fullName: '', age: 30, discountID: '', discountIdNumber: '' }])}
+                    >
+                      + Add Guest
+                    </button>
+                  </div>
+
+                  {managingGuests.map((g, idx) => (
+                    <div key={idx} className="p-3 mb-2 rounded bg-light border position-relative">
+                      <div className="d-flex justify-content-between mb-2">
+                        <span className="small text-muted fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary Guest)"}</span>
+                        {idx > 0 && (
+                          <button
+                            type="button"
+                            className="btn-close"
+                            style={{ fontSize: '0.75rem' }}
+                            onClick={() => setManagingGuests(prev => prev.filter((_, i) => i !== idx))}
+                          ></button>
+                        )}
+                      </div>
+                      <div className="row g-2">
+                        <div className="col-md-5">
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="Full Name *"
+                            required
+                            value={g.fullName}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setManagingGuests(prev => prev.map((item, i) => i === idx ? { ...item, fullName: val } : item));
+                            }}
+                          />
+                        </div>
+                        <div className="col-md-2">
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            placeholder="Age *"
+                            required
+                            value={g.age}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setManagingGuests(prev => prev.map((item, i) => i === idx ? { ...item, age: val } : item));
+                            }}
+                          />
+                        </div>
+                        <div className="col-md-5">
+                          <select
+                            className="form-select form-select-sm"
+                            value={g.discountID}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setManagingGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountID: val } : item));
+                            }}
+                          >
+                            <option value="">No Discount</option>
+                            {availableDiscounts.map(d => (
+                              <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="modal-footer border-top">
+                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Registered Guests</button>
                 </div>
               </form>
             </div>

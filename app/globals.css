@@ -903,11 +903,16 @@ h4,
    Unified Action Buttons Styles
    ===================================================================== */
 .actions-wrapper {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  justify-content: flex-start;
+  justify-content: flex-end;
   flex-wrap: nowrap;
+  vertical-align: middle;
+}
+
+table td {
+  vertical-align: middle !important;
 }
 
 .action-btn {
