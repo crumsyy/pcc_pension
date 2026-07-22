@@ -157,9 +157,10 @@ function BookingsClient() {
 
           <table class="info-table">
             <tr><td>Total Booking Charge:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.totalRoomCharge).toFixed(2)}</td></tr>
-            <tr><td>Down Payment Tier:</td><td class="text-right">${downPaymentReceipt.downPaymentPercentage}%</td></tr>
-            <tr class="total-row"><td>DOWN PAYMENT PAID:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
-            <tr><td>Remaining Balance:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.remainingBalance).toFixed(2)}</td></tr>
+            <tr><td>Required Down Payment (${downPaymentReceipt.downPaymentPercentage}%):</td><td class="text-right">₱${parseFloat(downPaymentReceipt.requiredDownpayment || downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
+            <tr class="total-row"><td>MONEY RECEIVED:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.cashReceived || downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
+            ${downPaymentReceipt.change > 0 ? `<tr><td>Change Issued:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.change).toFixed(2)}</td></tr>` : ''}
+            <tr><td>Remaining Balance:</td><td class="text-right bold">₱${parseFloat(downPaymentReceipt.remainingBalance).toFixed(2)}</td></tr>
           </table>
 
           <div class="double-divider"></div>
@@ -562,6 +563,9 @@ function BookingsClient() {
           roomType: selectedRoom?.roomType || 'Standard',
           totalRoomCharge: netTotalAmount,
           downPaymentPercentage: dpPctNum,
+          requiredDownpayment: dpAmount,
+          cashReceived: parseFloat(downPayment || dpAmount),
+          change: Math.max(0, parseFloat(downPayment || 0) - dpAmount),
           amountPaid: dpAmount,
           remainingBalance: Math.max(0, netTotalAmount - dpAmount),
           paymentMethodName: pmObj?.paymentMethod || 'Cash'
@@ -1006,7 +1010,7 @@ function BookingsClient() {
                         <h6 className="mb-0 text-pcc-primary fw-bold">Registered Room Guests ({roomGuests.length} Pax)</h6>
                         <span className="small text-muted">Add all guests staying in this room.</span>
                       </div>
-                      <button type="button" className="btn btn-sm btn-outline-primary fw-bold" onClick={handleAddGuest}>
+                      <button type="button" className="btn btn-sm btn-pcc-primary text-white fw-bold" onClick={handleAddGuest}>
                         + Add Guest
                       </button>
                     </div>
@@ -1034,7 +1038,7 @@ function BookingsClient() {
                           </div>
                         </div>
                         <div className="row g-2">
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <input
                               type="text"
                               className="form-control form-control-sm"
@@ -1044,20 +1048,7 @@ function BookingsClient() {
                               onChange={(e) => handleGuestChange(idx, 'fullName', e.target.value)}
                             />
                           </div>
-                          <div className="col-md-4">
-                            <div className="input-group input-group-sm">
-                              <span className="input-group-text bg-white small px-2">🎂 Birthdate</span>
-                              <DateInput
-                                value={g.dateOfBirth || ''}
-                                onChange={(e) => {
-                                  const dateVal = e.target.value;
-                                  const calculatedAge = calculateAgeFromUiDate(dateVal);
-                                  setRoomGuests(prev => prev.map((item, i) => i === idx ? { ...item, dateOfBirth: dateVal, age: calculatedAge } : item));
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <select
                               className="form-select form-select-sm"
                               value={g.discountID}
@@ -1247,7 +1238,7 @@ function BookingsClient() {
                         )}
 
                         <div className="row g-2 mb-3">
-                          <div className="col-md-6">
+                          <div className="col-md-4">
                             <label className="form-label small fw-semibold">Payment Method *</label>
                             <select
                               className="form-select form-select-sm"
@@ -1263,18 +1254,34 @@ function BookingsClient() {
                             </select>
                           </div>
 
-                          <div className="col-md-6">
-                            <label className="form-label small fw-semibold">Down Payment Received (₱) *</label>
+                          <div className="col-md-4">
+                            <label className="form-label small fw-semibold">Payment Received (₱) *</label>
                             <input
                               type="number"
                               step="0.01"
                               className="form-control form-control-sm fw-bold text-success"
                               required
+                              placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
                               value={downPayment}
                               onChange={(e) => setDownPayment(e.target.value)}
                             />
                             <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                              ⚡ Auto-calculated based on selected {dpPctNum}% downpayment tier.
+                              Required Due: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
+                            </small>
+                          </div>
+
+                          <div className="col-md-4">
+                            <label className="form-label small fw-semibold">Change to Give (₱)</label>
+                            <input
+                              type="text"
+                              readOnly
+                              className={`form-control form-control-sm fw-bold ${
+                                (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
+                              }`}
+                              value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
+                            />
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                              ⚡ Auto-calculated change
                             </small>
                           </div>
                         </div>
@@ -1327,13 +1334,23 @@ function BookingsClient() {
                     <span className="text-muted">Total Booking Amount:</span>
                     <strong className="text-dark">₱{parseFloat(downPaymentReceipt.totalRoomCharge).toFixed(2)}</strong>
                   </div>
-                  <div className="d-flex justify-content-between mb-1 text-success fw-bold">
-                    <span>Down Payment Received ({downPaymentReceipt.downPaymentPercentage}%):</span>
-                    <span className="fs-6">₱{parseFloat(downPaymentReceipt.amountPaid).toFixed(2)}</span>
+                  <div className="d-flex justify-content-between mb-1 text-dark fw-bold">
+                    <span>Required Down Payment ({downPaymentReceipt.downPaymentPercentage}%):</span>
+                    <span>₱{parseFloat(downPaymentReceipt.requiredDownpayment || downPaymentReceipt.amountPaid).toFixed(2)}</span>
                   </div>
+                  <div className="d-flex justify-content-between mb-1 text-success fw-bold">
+                    <span>Payment Received from Guest:</span>
+                    <span className="fs-6">₱{parseFloat(downPaymentReceipt.cashReceived || downPaymentReceipt.amountPaid).toFixed(2)}</span>
+                  </div>
+                  {downPaymentReceipt.change > 0 && (
+                    <div className="d-flex justify-content-between mb-1 text-primary fw-bold">
+                      <span>Change Issued to Guest:</span>
+                      <span>₱{parseFloat(downPaymentReceipt.change).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="d-flex justify-content-between border-top pt-1 text-muted small">
                     <span>Remaining Balance at Check-in:</span>
-                    <span>₱{parseFloat(downPaymentReceipt.remainingBalance).toFixed(2)}</span>
+                    <span className="fw-bold text-dark">₱{parseFloat(downPaymentReceipt.remainingBalance).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -1374,7 +1391,7 @@ function BookingsClient() {
                     <h6 className="fw-bold text-dark mb-0">Registered Room Guests ({managingGuests.length})</h6>
                     <button
                       type="button"
-                      className="btn btn-sm btn-outline-primary fw-bold"
+                      className="btn btn-sm btn-pcc-primary text-white fw-bold"
                       onClick={() => setManagingGuests(prev => [...prev, { fullName: '', age: 30, discountID: '', discountIdNumber: '' }])}
                     >
                       + Add Guest
@@ -1402,7 +1419,7 @@ function BookingsClient() {
                         </div>
                       </div>
                       <div className="row g-2">
-                        <div className="col-md-4">
+                        <div className="col-md-6">
                           <input
                             type="text"
                             className="form-control form-control-sm"
@@ -1415,20 +1432,7 @@ function BookingsClient() {
                             }}
                           />
                         </div>
-                        <div className="col-md-4">
-                          <div className="input-group input-group-sm">
-                            <span className="input-group-text bg-white small px-2">🎂 Birthdate</span>
-                            <DateInput
-                              value={g.dateOfBirth || ''}
-                              onChange={(e) => {
-                                const dateVal = e.target.value;
-                                const calculatedAge = calculateAgeFromUiDate(dateVal);
-                                setManagingGuests(prev => prev.map((item, i) => i === idx ? { ...item, dateOfBirth: dateVal, age: calculatedAge } : item));
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div className="col-md-4">
+                        <div className="col-md-6">
                           <select
                             className="form-select form-select-sm"
                             value={g.discountID}
