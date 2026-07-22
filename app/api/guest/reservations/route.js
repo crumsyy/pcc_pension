@@ -31,19 +31,21 @@ export async function GET(request) {
       ORDER BY r.reservationDateTime DESC
     `, [guestID]);
 
-    // Fetch available rooms for reservation/booking
-    const availableRooms = await dbQuery(`
+    // Fetch ALL active rooms in pension house for visual room selection grid
+    const allRooms = await dbQuery(`
       SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit, r.isAircon, r.hasHotShower,
              rt.type as roomType, fl.name as floorName, COALESCE(rr.rate, 1500) as rate
       FROM room r
       JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
       JOIN floor fl ON fl.floorID = r.floorID
       LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
-      WHERE r.status = 'Available' AND r.isArchived = 0
-      ORDER BY r.roomNumber ASC
+      WHERE r.isArchived = 0
+      ORDER BY r.floorID ASC, r.roomNumber ASC
     `);
 
-    return NextResponse.json({ success: true, reservations, availableRooms });
+    const availableRooms = allRooms.filter(r => r.status === 'Available');
+
+    return NextResponse.json({ success: true, reservations, allRooms, availableRooms });
   } catch (error) {
     console.error("Failed to fetch guest reservations:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -90,7 +92,7 @@ export async function POST(request) {
     }
 
     // Default action: Create reservation
-    const { roomID, checkInDate } = body; // checkInDate is YYYY-MM-DD
+    const { roomID, checkInDate, checkOutDate, specialRequests, numGuests } = body; // checkInDate is YYYY-MM-DD
 
     if (!roomID || !checkInDate) {
       return NextResponse.json({ error: 'Room selection and Check-in date are required.' }, { status: 400 });
@@ -130,7 +132,17 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       message: `Reservation request for Room ${roomInfo.roomNumber} submitted successfully!`,
-      reservationID: insertRes.insertId
+      reservationID: insertRes.insertId,
+      summary: {
+        reservationID: insertRes.insertId,
+        roomNumber: roomInfo.roomNumber,
+        roomType: roomInfo.roomType,
+        checkInDate,
+        checkOutDate: checkOutDate || 'Standard 12:00 PM',
+        specialRequests: specialRequests || 'None',
+        numGuests: numGuests || 1,
+        status: 'Pending'
+      }
     });
   } catch (error) {
     console.error("Failed to process guest reservation:", error);
