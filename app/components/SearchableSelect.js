@@ -22,7 +22,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
       setSearchTerm('');
     }
     setIsTyping(false);
-  }, [value, options]);
+  }, [value]);
 
   // Click outside to close
   useEffect(() => {

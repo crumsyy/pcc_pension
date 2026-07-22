@@ -344,11 +344,11 @@ function BookingsClient() {
   // Auto-calculate downPayment based on selected room, breakfast option, and downpayment percentage tier
   useEffect(() => {
     if (activeModal === 'create' && formData.roomID) {
-      const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
+      const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
       const rate = selectedRoom
         ? (breakfastOption === 'with'
-            ? parseFloat(selectedRoom.rateWithBreakfast || selectedRoom.rate || 0)
-            : parseFloat(selectedRoom.rateWithoutBreakfast || (selectedRoom.rate ? selectedRoom.rate - 200 : 0)))
+            ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
+            : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
         : 0;
       const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
 
@@ -684,7 +684,7 @@ function BookingsClient() {
     }
   };
 
-  const selectedRoomObj = rooms.find(r => r.roomID === parseInt(formData.roomID));
+  const selectedRoomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
 
   return (
     <div className="container-fluid py-3">
@@ -932,19 +932,25 @@ function BookingsClient() {
 
                     <div className="col-md-4">
                       <label className="form-label fw-semibold">Available Room *</label>
-                      <SearchableSelect
-                        options={rooms
-                          .filter(rm => rm.roomType === selectedRoomType && rm.status === 'Available')
-                          .map(rm => ({
-                            value: String(rm.roomID),
-                            label: `Room ${rm.roomNumber}`
-                          }))
-                        }
+                      <select
+                        className="form-select"
+                        required
                         value={formData.roomID}
-                        onChange={(val) => setFormData(prev => ({ ...prev, roomID: val }))}
-                        placeholder={selectedRoomType ? "Search available room..." : "Choose Room Type first"}
+                        onChange={(e) => setFormData(prev => ({ ...prev, roomID: e.target.value }))}
                         disabled={!selectedRoomType}
-                      />
+                      >
+                        <option value="" disabled>
+                          {selectedRoomType ? "Select Available Room" : "Choose Room Type first"}
+                        </option>
+                        {rooms
+                          .filter(rm => rm.roomType === selectedRoomType && rm.status === 'Available')
+                          .map(rm => (
+                            <option key={rm.roomID} value={String(rm.roomID)}>
+                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax)
+                            </option>
+                          ))
+                        }
+                      </select>
                     </div>
 
                     <div className="col-md-4">
@@ -967,7 +973,11 @@ function BookingsClient() {
                         <span className="fs-5">🏷️</span>
                         <div>
                           <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
-                            Room Base Price: <span className="text-pcc-blue fw-bold fs-6">₱{(breakfastOption === 'with' ? (selectedRoomObj.rateWithBreakfast || selectedRoomObj.rate) : (selectedRoomObj.rateWithoutBreakfast || (selectedRoomObj.rate ? selectedRoomObj.rate - 200 : 0))).toFixed(2)}</span> / night
+                            Room Base Price: <span className="text-pcc-blue fw-bold fs-6">₱{(
+                              breakfastOption === 'with'
+                                ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
+                                : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0))
+                            ).toFixed(2)}</span> / night
                           </div>
                           <small className="text-muted">
                             ({breakfastOption === 'with' ? 'Daily Breakfast Included' : 'Standard Stay Without Breakfast'})
@@ -975,7 +985,7 @@ function BookingsClient() {
                         </div>
                       </div>
                       <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
-                        Maximum Occupancy: {selectedRoomObj.occupancyLimit} Guests
+                        Maximum Occupancy: {selectedRoomObj.occupancyLimit || 2} Guests
                       </span>
                     </div>
                   )}
@@ -1132,8 +1142,8 @@ function BookingsClient() {
                   {(() => {
                     const rate = selectedRoomObj
                       ? (breakfastOption === 'with'
-                          ? parseFloat(selectedRoomObj.rateWithBreakfast || selectedRoomObj.rate || 0)
-                          : parseFloat(selectedRoomObj.rateWithoutBreakfast || (selectedRoomObj.rate ? selectedRoomObj.rate - 200 : 0)))
+                          ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
+                          : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0)))
                       : 0;
                     const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
 
