@@ -221,7 +221,7 @@ function PaymentsClient() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt - PCC Home Suite Home</title>
+          <title>Official POS Receipt - PCC Home Suite Home</title>
           <style>
             @page { size: 80mm auto; margin: 0; }
             body {
@@ -242,10 +242,11 @@ function PaymentsClient() {
             .address { font-size: 9px; color: #333; margin-bottom: 6px; }
             .divider { border-top: 1px dashed #000; margin: 8px 0; }
             .double-divider { border-top: 2px solid #000; margin: 8px 0; }
-            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+            .section-header { font-weight: bold; text-transform: uppercase; font-size: 10px; margin: 6px 0 3px 0; background: #eee; padding: 2px 4px; }
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
             .info-table td { padding: 2px 0; vertical-align: top; }
-            .items-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
-            .items-table th, .items-table td { padding: 3px 0; font-size: 10px; }
+            .items-table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+            .items-table th, .items-table td { padding: 2px 0; font-size: 10px; }
             .items-table th { border-bottom: 1px solid #000; text-align: left; }
             .total-row { font-size: 12px; font-weight: bold; }
             .footer { margin-top: 12px; text-align: center; font-size: 9px; color: #444; }
@@ -272,43 +273,42 @@ function PaymentsClient() {
             <tr><td>Payment Method:</td><td class="text-right">${receipt.paymentMethodName}</td></tr>
             <tr><td>Guest Name:</td><td class="text-right bold">${receipt.guestName}</td></tr>
             <tr><td>Room:</td><td class="text-right">Room ${receipt.roomNumber} (${receipt.roomType})</td></tr>
-            <tr><td>Stay Nights:</td><td class="text-right">${receipt.nights} Night(s)</td></tr>
+            <tr><td>Stay Duration:</td><td class="text-right">${receipt.nights} Night(s)</td></tr>
           </table>
 
-          <div class="divider"></div>
-
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Room Charge (${receipt.nights} nights @ ₱${parseFloat(receipt.rate).toFixed(2)})</td>
-                <td class="text-right">₱${parseFloat(receipt.subtotal).toFixed(2)}</td>
-              </tr>
-              ${receipt.earlyCheckIn > 0 ? `<tr><td>Early Check-In Fee</td><td class="text-right">₱${receipt.earlyCheckIn.toFixed(2)}</td></tr>` : ''}
-              ${receipt.lateCheckOut > 0 ? `<tr><td>Late Check-Out Fee</td><td class="text-right">₱${receipt.lateCheckOut.toFixed(2)}</td></tr>` : ''}
-            </tbody>
-          </table>
-
-          <div class="divider"></div>
-
+          <div class="section-header">ROOM CHARGES</div>
           <table class="info-table">
-            <tr><td>Subtotal:</td><td class="text-right">₱${parseFloat(receipt.subtotal + receipt.earlyCheckIn + receipt.lateCheckOut).toFixed(2)}</td></tr>
+            <tr><td>Room Type:</td><td class="text-right">${receipt.roomType}</td></tr>
+            <tr><td>Room Number:</td><td class="text-right">Room ${receipt.roomNumber}</td></tr>
+            <tr><td>Room Charge (${receipt.nights} nights):</td><td class="text-right bold">₱${parseFloat(receipt.subtotal).toFixed(2)}</td></tr>
+          </table>
+
+          ${(receipt.earlyCheckIn > 0 || receipt.lateCheckOut > 0) ? `
+            <div class="section-header">ADDITIONAL FEES</div>
+            <table class="info-table">
+              ${receipt.earlyCheckIn > 0 ? `<tr><td>Early Check-in Fee (₱50/hr):</td><td class="text-right">₱${parseFloat(receipt.earlyCheckIn).toFixed(2)}</td></tr>` : ''}
+              ${receipt.lateCheckOut > 0 ? `<tr><td>Late Check-out Fee (₱150/hr):</td><td class="text-right">₱${parseFloat(receipt.lateCheckOut).toFixed(2)}</td></tr>` : ''}
+            </table>
+          ` : ''}
+
+          <div class="section-header">PAYMENT SUMMARY</div>
+          <table class="info-table">
+            <tr><td>Room Charge:</td><td class="text-right">₱${parseFloat(receipt.subtotal).toFixed(2)}</td></tr>
+            ${receipt.earlyCheckIn > 0 ? `<tr><td>Early Check-in Fee:</td><td class="text-right">+₱${parseFloat(receipt.earlyCheckIn).toFixed(2)}</td></tr>` : ''}
+            ${receipt.lateCheckOut > 0 ? `<tr><td>Late Check-out Fee:</td><td class="text-right">+₱${parseFloat(receipt.lateCheckOut).toFixed(2)}</td></tr>` : ''}
             ${receipt.discountAmount > 0 ? `<tr><td>Discount (${receipt.discountName || 'Applied'}):</td><td class="text-right">-₱${parseFloat(receipt.discountAmount).toFixed(2)}</td></tr>` : ''}
-            <tr class="total-row"><td>TOTAL AMOUNT:</td><td class="text-right">₱${parseFloat(receipt.payableAmount).toFixed(2)}</td></tr>
-            <tr><td>Amount Paid:</td><td class="text-right">₱${parseFloat(receipt.cashReceived).toFixed(2)}</td></tr>
+            <tr class="double-divider"><td colspan="2"></td></tr>
+            <tr class="total-row"><td>GRAND TOTAL:</td><td class="text-right">₱${parseFloat(receipt.payableAmount).toFixed(2)}</td></tr>
+            <tr><td>Payment Received:</td><td class="text-right">₱${parseFloat(receipt.cashReceived).toFixed(2)}</td></tr>
             ${receipt.change > 0 ? `<tr><td>Change:</td><td class="text-right">₱${parseFloat(receipt.change).toFixed(2)}</td></tr>` : ''}
+            <tr><td>Balance After Payment:</td><td class="text-right bold">₱0.00</td></tr>
           </table>
 
           <div class="double-divider"></div>
 
           <div class="footer">
             <p class="bold" style="margin-bottom: 2px;">Thank you for staying at PCC Home Suite Home!</p>
-            <p style="margin: 0;">We look forward to serving you again.</p>
+            <p style="margin: 0;">We hope to see you again.</p>
           </div>
         </body>
       </html>

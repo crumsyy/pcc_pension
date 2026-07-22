@@ -93,6 +93,90 @@ function BookingsClient() {
   const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
   const [managingBooking, setManagingBooking] = useState(null);
   const [managingGuests, setManagingGuests] = useState([]);
+  const [downPaymentReceipt, setDownPaymentReceipt] = useState(null);
+
+  const handlePrintDownPaymentReceipt = () => {
+    if (!downPaymentReceipt) return;
+    const printWindow = window.open('', '_blank', 'width=450,height=700');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Down Payment Receipt - PCC Home Suite Home</title>
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body {
+              font-family: 'Courier New', Courier, monospace, sans-serif;
+              width: 80mm;
+              margin: 0 auto;
+              padding: 12px 10px;
+              color: #000;
+              background: #fff;
+              font-size: 11px;
+              line-height: 1.3;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .bold { font-weight: bold; }
+            .logo { width: 48px; height: 48px; border-radius: 4px; margin-bottom: 4px; }
+            .brand-name { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 2px 0; }
+            .address { font-size: 9px; color: #333; margin-bottom: 6px; }
+            .divider { border-top: 1px dashed #000; margin: 8px 0; }
+            .double-divider { border-top: 2px solid #000; margin: 8px 0; }
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+            .info-table td { padding: 2px 0; vertical-align: top; }
+            .total-row { font-size: 12px; font-weight: bold; }
+            .footer { margin-top: 12px; text-align: center; font-size: 9px; color: #444; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center">
+            <img src="/assets/images/logo.jpg" class="logo" alt="PCC Logo" />
+            <div class="brand-name">PCC HOME SUITE HOME</div>
+            <div class="address">
+              Osmeña Street, Zone 1, Koronadal City<br/>
+              South Cotabato, Philippines<br/>
+              Tel: 09000000000 | Info: info@pccsuite.com
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <div class="text-center bold" style="font-size: 11px;">BOOKING DOWN PAYMENT RECEIPT</div>
+          <div class="divider"></div>
+
+          <table class="info-table">
+            <tr><td>Date/Time:</td><td class="text-right">${downPaymentReceipt.date}</td></tr>
+            <tr><td>Receipt No:</td><td class="text-right">#${downPaymentReceipt.receiptNo}</td></tr>
+            <tr><td>Booking Ref:</td><td class="text-right">#${downPaymentReceipt.bookingID}</td></tr>
+            <tr><td>Payment Method:</td><td class="text-right">${downPaymentReceipt.paymentMethodName}</td></tr>
+            <tr><td>Guest Name:</td><td class="text-right bold">${downPaymentReceipt.guestName}</td></tr>
+            <tr><td>Room:</td><td class="text-right">Room ${downPaymentReceipt.roomNumber} (${downPaymentReceipt.roomType})</td></tr>
+          </table>
+
+          <div class="divider"></div>
+
+          <table class="info-table">
+            <tr><td>Total Booking Charge:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.totalRoomCharge).toFixed(2)}</td></tr>
+            <tr><td>Down Payment Tier:</td><td class="text-right">${downPaymentReceipt.downPaymentPercentage}%</td></tr>
+            <tr class="total-row"><td>DOWN PAYMENT PAID:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
+            <tr><td>Remaining Balance:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.remainingBalance).toFixed(2)}</td></tr>
+          </table>
+
+          <div class="double-divider"></div>
+
+          <div class="footer">
+            <p class="bold" style="margin-bottom: 2px;">Thank you for your reservation!</p>
+            <p style="margin: 0;">Please present this receipt upon check-in.</p>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
@@ -460,8 +544,30 @@ function BookingsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create booking');
 
-        showAlert('success', 'Success', 'Booking created successfully.');
-        setActiveModal(null);
+        const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
+        const guestObj = isWalkIn ? null : guests.find(g => g.guestID === parseInt(formData.guestID));
+        const guestName = isWalkIn 
+          ? `${walkInForm.firstName} ${walkInForm.lastName}`.trim() 
+          : (guestObj ? `${guestObj.firstName} ${guestObj.lastName}` : 'Guest');
+
+        const pmObj = paymentMethods.find(m => String(m.paymentMethodID) === String(paymentMethodID));
+        const netTotalAmount = parseFloat(data.totalBookingAmount || dpAmount / (dpPctNum / 100) || 0);
+
+        setDownPaymentReceipt({
+          receiptNo: `DP-${Math.floor(Math.random() * 900000 + 100000)}`,
+          bookingID: data.bookingID || 'N/A',
+          date: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+          guestName,
+          roomNumber: selectedRoom?.roomNumber || 'N/A',
+          roomType: selectedRoom?.roomType || 'Standard',
+          totalRoomCharge: netTotalAmount,
+          downPaymentPercentage: dpPctNum,
+          amountPaid: dpAmount,
+          remainingBalance: Math.max(0, netTotalAmount - dpAmount),
+          paymentMethodName: pmObj?.paymentMethod || 'Cash'
+        });
+
+        setActiveModal('downpayment_receipt');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -469,46 +575,7 @@ function BookingsClient() {
     });
   };
 
-  useEffect(() => {
-    if (activeModal === 'create') {
-      const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
-      const rate = selectedRoom ? parseFloat(selectedRoom.rate || 0) : 0;
-      const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
 
-      let nights = 0;
-      if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
-        const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
-        const outStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
-        const inD = new Date(inStr);
-        const outD = new Date(outStr);
-        if (outD > inD) {
-          const diff = Math.abs(outD - inD);
-          nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        }
-      }
-
-      const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
-      const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
-      const rawSubtotal = (rate * nights) + extraGuestFee;
-
-      let totalApportionedDiscount = 0;
-      if (roomGuests.length > 0 && selectedRoom) {
-        const sharePerGuest = (rate * nights) / roomGuests.length;
-        roomGuests.forEach(g => {
-          if (g.discountID) {
-            const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
-            if (disc) {
-              totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
-            }
-          }
-        });
-      }
-
-      const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
-      const dpPctNum = parseInt(downPaymentOption || '25');
-      setDownPayment((netTotalAmount * (dpPctNum / 100)).toFixed(2));
-    }
-  }, [formData.roomID, roomGuests, checkInDate, checkOutDate, checkInTime, checkOutTime, downPaymentOption, rooms, availableDiscounts, activeModal]);
 
   const handleCheckIn = (id) => {
     showConfirm('Process Check-In', 'Check in this guest now?', async () => {
@@ -1191,6 +1258,62 @@ function BookingsClient() {
                   <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Booking & Record Down Payment 🚀</button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DOWN PAYMENT RECEIPT MODAL */}
+      {activeModal === 'downpayment_receipt' && downPaymentReceipt && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header text-white" style={{ background: '#2155B5' }}>
+                <h5 className="modal-title fw-bold">🧾 Booking Down Payment Receipt</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <div className="modal-body p-4 text-center">
+                <div className="mb-3">
+                  <div className="rounded-circle bg-success-subtle d-inline-flex align-items-center justify-content-center p-3 mb-2" style={{ width: '64px', height: '64px' }}>
+                    <span className="fs-2 text-success">✓</span>
+                  </div>
+                  <h5 className="fw-bold text-dark mb-1">Down Payment Recorded Successfully!</h5>
+                  <p className="text-muted small">Receipt #{downPaymentReceipt.receiptNo} generated for Booking #{downPaymentReceipt.bookingID}</p>
+                </div>
+
+                <div className="p-3 bg-light rounded border text-start mb-3" style={{ fontSize: '0.9rem' }}>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Guest Name:</span>
+                    <strong className="text-dark">{downPaymentReceipt.guestName}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Target Room:</span>
+                    <strong className="text-pcc-blue">Room {downPaymentReceipt.roomNumber} ({downPaymentReceipt.roomType})</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Payment Method:</span>
+                    <strong className="text-dark">{downPaymentReceipt.paymentMethodName}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Total Booking Amount:</span>
+                    <strong className="text-dark">₱{parseFloat(downPaymentReceipt.totalRoomCharge).toFixed(2)}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1 text-success fw-bold">
+                    <span>Down Payment Received ({downPaymentReceipt.downPaymentPercentage}%):</span>
+                    <span className="fs-6">₱{parseFloat(downPaymentReceipt.amountPaid).toFixed(2)}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-top pt-1 text-muted small">
+                    <span>Remaining Balance at Check-in:</span>
+                    <span>₱{parseFloat(downPaymentReceipt.remainingBalance).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer d-flex justify-content-between">
+                <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Close</button>
+                <button type="button" className="btn btn-pcc-primary text-white fw-bold" onClick={handlePrintDownPaymentReceipt}>
+                  🖨️ Print Down Payment Receipt
+                </button>
+              </div>
             </div>
           </div>
         </div>
