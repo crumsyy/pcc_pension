@@ -239,16 +239,16 @@ function CheckInClient() {
                           Remaining Balance: <strong className={b.remainingBalance > 0 ? "text-danger" : "text-success"}>₱{parseFloat(b.remainingBalance || 0).toFixed(2)}</strong>
                         </small>
                       </div>
-                      <div className="d-flex gap-2">
+                      <div className="actions-wrapper d-flex gap-2">
                         <a
                           href={`/receptionist/billing?bookingID=${b.bookingID}`}
-                          className="btn btn-sm btn-primary text-white fw-bold d-inline-flex align-items-center gap-1"
+                          className="action-btn action-btn-view"
                           data-bs-toggle="tooltip"
                           data-bs-placement="top"
-                          title="View Guest Billing"
-                          aria-label="View Guest Billing"
+                          title="View Billing Details"
+                          aria-label="View Billing Details"
                         >
-                          <i className="fa-solid fa-file-invoice-dollar"></i> View Billing
+                          <i className="fa-solid fa-eye"></i>
                         </a>
                       </div>
                     </div>

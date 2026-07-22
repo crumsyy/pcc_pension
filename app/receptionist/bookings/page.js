@@ -619,18 +619,18 @@ function BookingsClient() {
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
                         <button
                           type="button"
-                          className="action-btn action-btn-view"
+                          className="action-btn action-btn-edit"
                           data-bs-toggle="tooltip"
                           data-bs-placement="top"
-                          title="View Guest Details"
-                          aria-label="View Guest Details"
+                          title="Manage Room Guests"
+                          aria-label="Manage Room Guests"
                           onClick={() => {
                             setManagingBooking(b);
                             setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
                             setActiveModal('manage_guests');
                           }}
                         >
-                          <i className="fa-solid fa-eye"></i>
+                          <i className="fa-solid fa-users"></i>
                         </button>
 
                         {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Checked In') && (

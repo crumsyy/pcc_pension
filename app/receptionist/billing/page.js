@@ -341,15 +341,22 @@ export default function ReceptionistBilling() {
                           </span>
                         </td>
                         <td className="text-end px-4">
-                          <button
-                            className="btn btn-sm btn-pcc-primary text-white"
-                            onClick={() => {
-                              setSelectedBookingID(b.bookingID);
-                              fetchBillingDetails(b.bookingID);
-                            }}
-                          >
-                            📄 View Bill
-                          </button>
+                          <div className="actions-wrapper d-flex justify-content-end">
+                            <button
+                              type="button"
+                              className="action-btn action-btn-view"
+                              data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              title="View Billing Details"
+                              aria-label="View Billing Details"
+                              onClick={() => {
+                                setSelectedBookingID(b.bookingID);
+                                fetchBillingDetails(b.bookingID);
+                              }}
+                            >
+                              <i className="fa-solid fa-eye"></i>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
