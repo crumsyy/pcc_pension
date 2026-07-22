@@ -6,12 +6,12 @@ import NotificationBell from '../../components/NotificationBell';
 import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
 
-export default function GuestDashboardClient({ initialGuest, initialReservations, initialBookings, initialActiveBill }) {
+export default function GuestDashboardClient({ initialGuest, initialReservations, initialBookings, initialActiveBill, initialAllRooms }) {
   const [guest, setGuest] = useState(initialGuest);
   const [reservations, setReservations] = useState(initialReservations || []);
   const [bookings, setBookings] = useState(initialBookings || []);
   const [activeBill, setActiveBill] = useState(initialActiveBill);
-  const [allRooms, setAllRooms] = useState([]);
+  const [allRooms, setAllRooms] = useState(initialAllRooms || []);
   const [discounts, setDiscounts] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
@@ -379,9 +379,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const activeBookingsCount = bookings.filter(b => b.status === "Checked In").length;
 
-  // Group rooms by Floor
-  const groundFloorRooms = allRooms.filter(r => String(r.floorID) === '1' || r.floorName?.toLowerCase().includes('ground'));
-  const secondFloorRooms = allRooms.filter(r => String(r.floorID) === '2' || r.floorName?.toLowerCase().includes('second') || r.floorName?.toLowerCase().includes('upper'));
+  // Group rooms by Floor safely
+  const groundFloorRooms = allRooms.filter(r => String(r.floorID) === '1' || r.floorName?.toLowerCase().includes('ground') || String(r.roomNumber).startsWith('1'));
+  const secondFloorRooms = allRooms.filter(r => String(r.floorID) === '2' || r.floorName?.toLowerCase().includes('second') || r.floorName?.toLowerCase().includes('upper') || String(r.roomNumber).startsWith('2'));
+  const fallbackRooms = allRooms.filter(r => !groundFloorRooms.some(g => g.roomID === r.roomID) && !secondFloorRooms.some(s => s.roomID === r.roomID));
 
   return (
     <>
@@ -636,6 +637,80 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     })}
                   </div>
                 </div>
+
+                {fallbackRooms.length > 0 && (
+                  <div className="mb-4">
+                    <div className="d-flex align-items-center gap-2 mb-3">
+                      <h5 className="fw-bold text-pcc-blue mb-0">Additional Rooms</h5>
+                      <span className="badge bg-light text-muted border">Rooms</span>
+                    </div>
+                    <div className="row g-3">
+                      {fallbackRooms.map((rm) => {
+                        const isAvailable = rm.status === 'Available';
+                        const isOccupied = rm.status === 'Occupied';
+
+                        const cardBgColor = isAvailable ? '#ffffff' : (isOccupied ? '#f0f7ff' : '#fff5f5');
+                        const borderLeftColor = isAvailable ? '#198754' : (isOccupied ? '#0d6efd' : '#dc3545');
+                        const badgeClass = isAvailable ? 'bg-success text-white' : (isOccupied ? 'bg-primary text-white' : 'bg-danger text-white');
+
+                        return (
+                          <div key={rm.roomID} className="col-md-6 col-lg-4 col-xl-3">
+                            <div 
+                              className={`card h-100 shadow-sm border-0 p-3 transition-all ${isAvailable ? 'room-card-hover cursor-pointer' : 'opacity-75'}`}
+                              onClick={() => handleSelectRoomCard(rm)}
+                              style={{
+                                borderRadius: '12px',
+                                backgroundColor: cardBgColor,
+                                borderLeft: `5px solid ${borderLeftColor} !important`,
+                                cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                              }}
+                            >
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                  <h4 className="fw-bold mb-0 text-dark" style={{ fontSize: '1.35rem' }}>Room {rm.roomNumber}</h4>
+                                  <div className="text-muted small fw-semibold">{rm.roomType}</div>
+                                </div>
+                                <span className={`badge ${badgeClass} px-2 py-1`} style={{ fontSize: '0.75rem' }}>
+                                  {isAvailable ? '🟢 Available' : (isOccupied ? '🔵 Occupied' : '🔴 Maintenance')}
+                                </span>
+                              </div>
+
+                              <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem', color: '#475569' }}>
+                                <div className="d-flex justify-content-between">
+                                  <span>Max Capacity:</span>
+                                  <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                                </div>
+                                <div className="d-flex justify-content-between">
+                                  <span>Aircon:</span>
+                                  <strong>{rm.isAircon ? 'Yes' : 'Fan Only'}</strong>
+                                </div>
+                                <div className="d-flex justify-content-between">
+                                  <span>Hot Shower:</span>
+                                  <strong>{rm.hasHotShower ? 'Yes' : 'Standard'}</strong>
+                                </div>
+                              </div>
+
+                              <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                                <div>
+                                  <span className="text-muted" style={{ fontSize: '0.72rem' }}>Standard Rate:</span>
+                                  <div className="fw-bold text-pcc-blue" style={{ fontSize: '1.05rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</div>
+                                </div>
+                                {isAvailable ? (
+                                  <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                                    {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                                  </button>
+                                ) : (
+                                  <span className="badge bg-secondary text-white" style={{ fontSize: '0.7rem' }}>Disabled</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

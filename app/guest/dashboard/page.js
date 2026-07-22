@@ -25,8 +25,8 @@ export default async function GuestDashboard() {
   }
   const guest = guests[0];
 
-  // 2. Fetch reservations and bookings in parallel
-  const [reservations, bookings] = await Promise.all([
+  // 2. Fetch reservations, bookings, and all active rooms in parallel
+  const [reservations, bookings, allRooms] = await Promise.all([
     dbQuery(
       `SELECT r.reservationID, r.reservationDateTime, r.status,
               rm.roomNumber, rt.type as roomType, fl.name as floor
@@ -47,6 +47,16 @@ export default async function GuestDashboard() {
        WHERE b.guestID = ?
        ORDER BY b.checkInDateTime DESC`,
       [guest.guestID]
+    ),
+    dbQuery(
+      `SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit, r.isAircon, r.hasHotShower,
+              rt.type as roomType, fl.name as floorName, COALESCE(rr.rate, 1500) as rate
+       FROM room r
+       JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
+       JOIN floor fl ON fl.floorID = r.floorID
+       LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
+       WHERE r.isArchived = 0
+       ORDER BY r.floorID ASC, r.roomNumber ASC`
     )
   ]);
 
@@ -141,6 +151,7 @@ export default async function GuestDashboard() {
       initialReservations={reservations}
       initialBookings={bookings}
       initialActiveBill={activeBill}
+      initialAllRooms={allRooms}
     />
   );
 }
