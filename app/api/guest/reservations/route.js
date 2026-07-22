@@ -1,6 +1,54 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, syncRoomStatuses } from '@/lib/db';
+
+export async function GET(request) {
+  const session = await getSession();
+  if (!session || session.role !== 'Guest') {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
+  try {
+    await syncRoomStatuses();
+
+    const guests = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
+    if (guests.length === 0) {
+      return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
+    }
+    const guestID = guests[0].guestID;
+
+    // Fetch guest reservations
+    const reservations = await dbQuery(`
+      SELECT r.reservationID, r.reservationDateTime, r.status, r.roomID,
+             rm.roomNumber, rm.floorID, rt.type as roomType, fl.name as floor,
+             COALESCE(rr.rate, 1500) as rate
+      FROM reservation r
+      JOIN room rm ON rm.roomID = r.roomID
+      JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+      JOIN floor fl ON fl.floorID = rm.floorID
+      LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1
+      WHERE r.guestID = ?
+      ORDER BY r.reservationDateTime DESC
+    `, [guestID]);
+
+    // Fetch available rooms for reservation/booking
+    const availableRooms = await dbQuery(`
+      SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit, r.isAircon, r.hasHotShower,
+             rt.type as roomType, fl.name as floorName, COALESCE(rr.rate, 1500) as rate
+      FROM room r
+      JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
+      JOIN floor fl ON fl.floorID = r.floorID
+      LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
+      WHERE r.status = 'Available' AND r.isArchived = 0
+      ORDER BY r.roomNumber ASC
+    `);
+
+    return NextResponse.json({ success: true, reservations, availableRooms });
+  } catch (error) {
+    console.error("Failed to fetch guest reservations:", error);
+    return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
+  }
+}
 
 export async function POST(request) {
   const session = await getSession();
@@ -10,39 +58,82 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { roomID, checkInDate } = body; // checkInDate is YYYY-MM-DD
+    const { action } = body;
 
-    if (!roomID || !checkInDate) {
-      return NextResponse.json({ error: 'Room ID and Check-in date are required.' }, { status: 400 });
-    }
-
-    // Find the guestID of the logged-in user
-    const guests = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
+    const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
     if (guests.length === 0) {
       return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
     }
-    const guestID = guests[0].guestID;
+    const guest = guests[0];
 
-    // Insert reservation at 2:00 PM on check-in date
+    if (action === 'cancel') {
+      const reservationID = parseInt(body.reservationID);
+      if (!reservationID) {
+        return NextResponse.json({ error: 'Reservation ID is required.' }, { status: 400 });
+      }
+
+      await dbQuery(
+        "UPDATE reservation SET status = 'Canceled' WHERE reservationID = ? AND guestID = ?",
+        [reservationID, guest.guestID]
+      );
+
+      // Notify receptionists
+      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      for (const r of staffToNotify) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Canceled', ?)",
+          [r.userID, `Guest ${guest.firstName} ${guest.lastName} has canceled Reservation #${reservationID}.`]
+        );
+      }
+
+      return NextResponse.json({ success: true, message: 'Reservation request canceled successfully.' });
+    }
+
+    // Default action: Create reservation
+    const { roomID, checkInDate } = body; // checkInDate is YYYY-MM-DD
+
+    if (!roomID || !checkInDate) {
+      return NextResponse.json({ error: 'Room selection and Check-in date are required.' }, { status: 400 });
+    }
+
+    const roomRes = await dbQuery(
+      "SELECT r.roomNumber, rt.type as roomType FROM room r JOIN room_type rt ON rt.roomTypeID = r.roomTypeID WHERE r.roomID = ?",
+      [roomID]
+    );
+    const roomInfo = roomRes[0] || { roomNumber: 'N/A', roomType: 'Room' };
+
     const reservationDateTime = `${checkInDate} 14:00:00`;
 
-    await dbQuery(
+    const insertRes = await dbQuery(
       "INSERT INTO reservation (reservationDateTime, status, guestID, roomID) VALUES (?, 'Pending', ?, ?)",
-      [reservationDateTime, guestID, roomID]
+      [reservationDateTime, guest.guestID, roomID]
     );
 
-    // Also add a user notification
+    // Add user notification
     await dbQuery(
       "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Submitted', ?)",
       [
         session.userID,
-        `Your reservation request for Room is submitted. Front desk will confirm it shortly.`
+        `Your reservation request for Room ${roomInfo.roomNumber} (${roomInfo.roomType}) on ${checkInDate} has been submitted. Front Desk will review it shortly.`
       ]
     );
 
-    return NextResponse.json({ success: true, message: 'Reservation request submitted successfully!' });
+    // Notify active receptionists
+    const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+    for (const r of staffToNotify) {
+      await dbQuery(
+        "INSERT INTO notification (userID, title, message) VALUES (?, 'New Guest Reservation', ?)",
+        [r.userID, `Guest ${guest.firstName} ${guest.lastName} submitted a new reservation for Room ${roomInfo.roomNumber}.`]
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Reservation request for Room ${roomInfo.roomNumber} submitted successfully!`,
+      reservationID: insertRes.insertId
+    });
   } catch (error) {
-    console.error("Failed to create guest reservation:", error);
+    console.error("Failed to process guest reservation:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
   }
 }

@@ -16,6 +16,11 @@ export default function GuestChatBubble() {
   const [dbInquiry, setDbInquiry] = useState(null);
   const chatBodyRef = useRef(null);
 
+  // Catalog for Chat Ordering
+  const [catalog, setCatalog] = useState({ products: [], cookedMeals: [], amenities: [] });
+  const [pendingOrderPill, setPendingOrderPill] = useState(null); // { itemID, name, type, price, quantity, total }
+  const [placingOrder, setPlacingOrder] = useState(false);
+
   // Visitor Request Form States
   const [currentUser, setCurrentUser] = useState(null);
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -51,6 +56,22 @@ export default function GuestChatBubble() {
     }
   };
 
+  const fetchCatalog = async () => {
+    try {
+      const res = await fetch('/api/guest/orders');
+      if (res.ok) {
+        const data = await res.json();
+        setCatalog({
+          products: data.products || [],
+          cookedMeals: data.cookedMeals || [],
+          amenities: data.amenities || []
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load catalog for chat ordering:", err);
+    }
+  };
+
   const fetchLiveInquiry = async () => {
     try {
       const queryEmail = currentUser?.email || requestForm.email || (typeof window !== 'undefined' ? localStorage.getItem('pcc_guest_email') : '');
@@ -73,6 +94,7 @@ export default function GuestChatBubble() {
 
   useEffect(() => {
     checkSession();
+    fetchCatalog();
   }, []);
 
   // Polling every 3 seconds for real-time live chat responses when window is open
@@ -89,7 +111,7 @@ export default function GuestChatBubble() {
     if (chatBodyRef.current) {
       chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
     }
-  }, [botMessages, liveMessages, activeTabMode, isOpen, showRequestForm]);
+  }, [botMessages, liveMessages, activeTabMode, isOpen, showRequestForm, pendingOrderPill]);
 
   const knowledgeBase = {
     rates: "PCC Room Rates Per Night:\n" +
@@ -120,6 +142,41 @@ export default function GuestChatBubble() {
                  "You can reserve a room directly via our Booking portal or by requesting assistance from our Receptionist staff below!"
   };
 
+  // Smart Order Parser: Detects items like "2 Bottled Waters", "1 Chicken Meal", "1 Pillow"
+  const parseOrderIntent = (msg) => {
+    const text = msg.toLowerCase();
+    const allItems = [
+      ...catalog.products.map(p => ({ ...p, type: 'Product' })),
+      ...catalog.cookedMeals.map(m => ({ ...m, type: 'Product' })),
+      ...catalog.amenities.map(a => ({ ...a, type: 'Amenity' }))
+    ];
+
+    for (const item of allItems) {
+      const itemName = item.name.toLowerCase();
+      // Check if text mentions item name or key tokens
+      const keywords = itemName.split(/\s+/).filter(w => w.length > 2);
+      const isMatch = keywords.some(kw => text.includes(kw));
+
+      if (isMatch) {
+        // Extract quantity from text (e.g. "2 water" -> 2)
+        const matchNumber = text.match(/\b(\d+)\b/);
+        const qty = matchNumber ? parseInt(matchNumber[1]) : 1;
+        const price = parseFloat(item.price);
+        const itemID = item.productID || item.amenityID;
+
+        return {
+          itemID,
+          name: item.name,
+          type: item.type,
+          price,
+          quantity: qty,
+          total: price * qty
+        };
+      }
+    }
+    return null;
+  };
+
   const getBotReply = (msg) => {
     const text = msg.toLowerCase();
     if (text.includes('rate') || text.includes('price') || text.includes('cost') || text.includes('how much')) {
@@ -137,7 +194,7 @@ export default function GuestChatBubble() {
     if (text.includes('reserve') || text.includes('book') || text.includes('reservation')) {
       return knowledgeBase.reservation;
     }
-    return "I can answer questions about room rates, check-in times, amenities, and location. If you need further help, click 'Request Receptionist' below to speak directly with our staff!";
+    return "I can help with room rates, check-in times, amenities, location, or room ordering (e.g., '1 Bottled Water' or '1 Chicken Meal'). You can also click 'Request Receptionist' to speak directly with staff!";
   };
 
   const handleSendBotMessage = (text) => {
@@ -146,10 +203,62 @@ export default function GuestChatBubble() {
     setBotMessages(prev => [...prev, { sender: 'user', text }]);
     setInput('');
 
+    // Check if message is an ordering request
+    const detectedOrder = parseOrderIntent(text);
+    if (detectedOrder) {
+      setTimeout(() => {
+        setPendingOrderPill(detectedOrder);
+        setBotMessages(prev => [...prev, {
+          sender: 'bot',
+          text: `I detected your order request for ${detectedOrder.quantity}x ${detectedOrder.name}. Please confirm below to add it to your stay billing.`
+        }]);
+      }, 350);
+      return;
+    }
+
     setTimeout(() => {
       const reply = getBotReply(text);
       setBotMessages(prev => [...prev, { sender: 'bot', text: reply }]);
     }, 350);
+  };
+
+  const handleConfirmOrder = async () => {
+    if (!pendingOrderPill) return;
+    setPlacingOrder(true);
+
+    try {
+      const res = await fetch('/api/guest/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [
+            {
+              itemID: pendingOrderPill.itemID,
+              type: pendingOrderPill.type,
+              quantity: pendingOrderPill.quantity,
+              name: pendingOrderPill.name
+            }
+          ]
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to place order');
+
+      setBotMessages(prev => [...prev, {
+        sender: 'bot',
+        text: `✅ Order Placed! ${pendingOrderPill.quantity}x ${pendingOrderPill.name} (Total: ₱${pendingOrderPill.total.toFixed(2)}) has been added to your stay SOA.`
+      }]);
+
+      setPendingOrderPill(null);
+    } catch (err) {
+      setBotMessages(prev => [...prev, {
+        sender: 'bot',
+        text: `❌ Order Error: ${err.message}`
+      }]);
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
   const handleQuickOption = (key, label) => {
@@ -215,6 +324,12 @@ export default function GuestChatBubble() {
     if (!input.trim()) return;
     const msgToSend = input.trim();
     setInput('');
+
+    // Check if guest typed an order during live chat
+    const detectedOrder = parseOrderIntent(msgToSend);
+    if (detectedOrder) {
+      setPendingOrderPill(detectedOrder);
+    }
 
     // Optimistic update
     const tempMsg = {
@@ -288,7 +403,7 @@ export default function GuestChatBubble() {
           bottom: '92px',
           right: '24px',
           width: '360px',
-          height: '510px',
+          height: '520px',
           zIndex: 1050,
           borderRadius: '14px',
           backgroundColor: '#fff',
@@ -309,7 +424,7 @@ export default function GuestChatBubble() {
                 {activeTabMode === 'live' ? 'Receptionist Live Chat' : 'PCC Virtual Assistant'}
               </div>
               <div style={{ fontSize: '0.65rem', opacity: 0.85 }}>
-                {activeTabMode === 'live' ? 'Connected • Reception Desk' : 'Online • Automated Assistant'}
+                {activeTabMode === 'live' ? 'Connected • Front Desk Desk' : 'Online • Automated Assistant'}
               </div>
             </div>
           </div>
@@ -334,7 +449,7 @@ export default function GuestChatBubble() {
         {/* INQUIRY STATUS BAR (IF ACTIVE) */}
         {dbInquiry && (
           <div className="p-2 px-3 bg-light border-bottom d-flex justify-content-between align-items-center" style={{ fontSize: '0.75rem' }}>
-            <span className="text-muted fw-semibold">Status:</span>
+            <span className="text-muted fw-semibold">Inquiry Ticket Status:</span>
             <span className={`badge ${
               dbInquiry.status === 'Responded' ? 'bg-success text-white' :
               dbInquiry.status === 'Closed' ? 'bg-secondary text-white' : 'bg-warning text-dark'
@@ -488,6 +603,36 @@ export default function GuestChatBubble() {
               </div>
             ))
           )}
+
+          {/* INTERACTIVE CHAT ORDER CONFIRMATION PILL CARD */}
+          {pendingOrderPill && (
+            <div className="card border-primary shadow-sm p-2 bg-light text-start animate__animated animate__fadeIn mb-2" style={{ borderLeft: '4px solid var(--pcc-blue)', fontSize: '0.78rem' }}>
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <span className="fw-bold text-dark">🛍️ Confirm Room Order</span>
+                <span className="badge bg-primary text-white">₱{pendingOrderPill.total.toFixed(2)}</span>
+              </div>
+              <div className="text-muted mb-2">
+                Item: <strong>{pendingOrderPill.quantity}x {pendingOrderPill.name}</strong> @ ₱{pendingOrderPill.price.toFixed(2)}
+              </div>
+              <div className="d-flex gap-2">
+                <button
+                  className="btn btn-xs btn-danger text-white flex-grow-1"
+                  onClick={() => setPendingOrderPill(null)}
+                  style={{ fontSize: '0.72rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-xs btn-success text-white flex-grow-1 fw-bold"
+                  onClick={handleConfirmOrder}
+                  disabled={placingOrder}
+                  style={{ fontSize: '0.72rem' }}
+                >
+                  {placingOrder ? 'Processing...' : 'Confirm & Place Order 🛒'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* BOTTOM AREA */}
@@ -545,7 +690,7 @@ export default function GuestChatBubble() {
               <input 
                 type="text"
                 className="form-control form-control-sm flex-grow-1"
-                placeholder={activeTabMode === 'live' ? "Type message to Receptionist..." : "Type your question here..."}
+                placeholder={activeTabMode === 'live' ? "Type message to Receptionist..." : "Type question or order (e.g. 1 Bottled Water)..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 style={{ fontSize: '0.8rem' }}
