@@ -452,36 +452,36 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
     if (status === 'Occupied') {
       return {
-        badgeClass: 'bg-danger text-white',
-        label: '🔴 Occupied',
-        bgColor: '#fff5f5',
-        borderLeft: '#dc3545',
+        badgeClass: 'bg-primary text-white',
+        label: '🔵 Occupied',
+        bgColor: '#f0f7ff',
+        borderLeft: '#0d6efd',
         selectable: false
       };
     }
     if (status === 'Under Maintenance') {
       return {
-        badgeClass: 'bg-warning text-dark',
-        label: '🟠 Under Maintenance',
-        bgColor: '#fffdf0',
-        borderLeft: '#ffc107',
+        badgeClass: 'bg-danger text-white',
+        label: '🔴 Maintenance',
+        bgColor: '#fff5f5',
+        borderLeft: '#dc3545',
         selectable: false
       };
     }
-    if (status === 'Reserved') {
+    if (status === 'Booked' || status === 'Reserved') {
       return {
-        badgeClass: 'bg-secondary text-white',
-        label: '⚪ Reserved',
-        bgColor: '#f8fafc',
-        borderLeft: '#6c757d',
+        badgeClass: 'bg-warning text-dark',
+        label: '🟠 Booked',
+        bgColor: '#fffdf0',
+        borderLeft: '#fd7e14',
         selectable: false
       };
     }
     return {
-      badgeClass: 'bg-secondary text-white',
-      label: `⚪ ${status}`,
-      bgColor: '#f8fafc',
-      borderLeft: '#6c757d',
+      badgeClass: 'bg-warning text-dark',
+      label: `🟠 ${status}`,
+      bgColor: '#fffdf0',
+      borderLeft: '#fd7e14',
       selectable: false
     };
   };
@@ -603,16 +603,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="fw-bold text-success">🟢 Green (Available)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
+                    <span className="badge bg-primary p-1"></span>
+                    <span className="fw-semibold text-primary">🔵 Blue (Occupied)</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-1">
                     <span className="badge bg-danger p-1"></span>
-                    <span className="fw-semibold text-danger">🔴 Red (Occupied)</span>
+                    <span className="fw-semibold text-danger">🔴 Red (Maintenance)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
                     <span className="badge bg-warning p-1"></span>
-                    <span className="fw-semibold text-warning-emphasis">🟠 Orange (Maintenance)</span>
-                  </div>
-                  <div className="d-flex align-items-center gap-1">
-                    <span className="badge bg-secondary p-1"></span>
-                    <span className="fw-semibold text-secondary">⚪ Gray (Reserved)</span>
+                    <span className="fw-semibold text-warning-emphasis">🟠 Orange (Booked)</span>
                   </div>
                 </div>
               </div>
@@ -1088,14 +1088,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <span className="text-muted small">{guest.email}</span>
                       </div>
                     </div>
-                    {/* RED POWER LOGOUT BUTTON */}
-                    <button
-                      className="btn btn-logout-power"
-                      title="Log Out"
-                      onClick={() => setShowLogoutModal(true)}
-                    >
-                      <i className="bi bi-power fs-5"></i>
-                    </button>
                   </div>
 
                   <table className="table table-sm table-borderless mb-0" style={{ fontSize: '0.88rem' }}>
