@@ -102,7 +102,7 @@ function BookingsClient() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Down Payment Receipt - PCC Home Suite Home</title>
+          <title>Down Payment Sales Invoice - PCC Home Suite Home</title>
           <style>
             @page { size: 80mm auto; margin: 0; }
             body {
@@ -141,12 +141,12 @@ function BookingsClient() {
           </div>
 
           <div class="divider"></div>
-          <div class="text-center bold" style="font-size: 11px;">BOOKING DOWN PAYMENT RECEIPT</div>
+          <div class="text-center bold" style="font-size: 11px;">BOOKING DOWN PAYMENT SALES INVOICE</div>
           <div class="divider"></div>
 
           <table class="info-table">
             <tr><td>Date/Time:</td><td class="text-right">${downPaymentReceipt.date}</td></tr>
-            <tr><td>Receipt No:</td><td class="text-right">#${downPaymentReceipt.receiptNo}</td></tr>
+            <tr><td>Sales Invoice No:</td><td class="text-right">#INV-${downPaymentReceipt.receiptNo}</td></tr>
             <tr><td>Booking Ref:</td><td class="text-right">#${downPaymentReceipt.bookingID}</td></tr>
             <tr><td>Payment Method:</td><td class="text-right">${downPaymentReceipt.paymentMethodName}</td></tr>
             <tr><td>Guest Name:</td><td class="text-right bold">${downPaymentReceipt.guestName}</td></tr>

@@ -224,7 +224,7 @@ function PaymentsClient() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Official POS Receipt - PCC Home Suite Home</title>
+          <title>Sales Invoice - PCC Home Suite Home</title>
           <style>
             @page { size: 80mm auto; margin: 0; }
             body {
@@ -267,12 +267,12 @@ function PaymentsClient() {
           </div>
 
           <div class="divider"></div>
-          <div class="text-center bold" style="font-size: 11px;">OFFICIAL POS RECEIPT</div>
+          <div class="text-center bold" style="font-size: 11px;">OFFICIAL SALES INVOICE</div>
           <div class="divider"></div>
 
           <table class="info-table">
             <tr><td>Date/Time:</td><td class="text-right">${receipt.date}</td></tr>
-            <tr><td>Receipt No:</td><td class="text-right">#REC-${Math.floor(Math.random() * 900000 + 100000)}</td></tr>
+            <tr><td>Sales Invoice No:</td><td class="text-right">#INV-${Math.floor(Math.random() * 900000 + 100000)}</td></tr>
             <tr><td>Payment Method:</td><td class="text-right">${receipt.paymentMethodName}</td></tr>
             <tr><td>Guest Name:</td><td class="text-right bold">${receipt.guestName}</td></tr>
             <tr><td>Room:</td><td class="text-right">Room ${receipt.roomNumber} (${receipt.roomType})</td></tr>

@@ -286,6 +286,69 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Incidental charge deleted successfully.' });
     }
 
+    if (action === 'add_guest') {
+      const bookingID = parseInt(body.bookingID);
+      const fullName = body.fullName?.trim();
+      const age = parseInt(body.age || 30);
+      const discountID = body.discountID ? parseInt(body.discountID) : null;
+      const discountIdNumber = body.discountIdNumber?.trim() || null;
+
+      if (!bookingID || !fullName) {
+        return NextResponse.json({ error: 'Booking ID and Guest Name are required.' }, { status: 400 });
+      }
+
+      await dbQuery(
+        "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, ?, ?)",
+        [bookingID, fullName, age, discountID, discountIdNumber]
+      );
+      return NextResponse.json({ success: true, message: 'Guest added to billing record successfully.' });
+    }
+
+    if (action === 'remove_guest') {
+      const bookingGuestID = parseInt(body.bookingGuestID);
+      if (!bookingGuestID) {
+        return NextResponse.json({ error: 'Missing bookingGuestID.' }, { status: 400 });
+      }
+
+      await dbQuery("DELETE FROM booking_guest_details WHERE bookingGuestID = ?", [bookingGuestID]);
+      return NextResponse.json({ success: true, message: 'Guest removed from billing record.' });
+    }
+
+    if (action === 'update_borrow_status') {
+      const { borrowID, status, remarks } = body; // status: 'Returned' | 'Damaged' | 'Lost'
+      const bID = parseInt(borrowID);
+
+      const [borrow] = await dbQuery(`
+        SELECT bt.*, COALESCE(a.price, p.price, 0) as price, COALESCE(a.name, p.name) as itemName
+        FROM borrow_transaction bt
+        LEFT JOIN amenities a ON bt.itemType = 'Amenity' AND a.amenityID = bt.itemID
+        LEFT JOIN products p ON bt.itemType = 'Product' AND p.productID = bt.itemID
+        WHERE bt.borrowID = ?
+      `, [bID]);
+
+      if (!borrow) {
+        return NextResponse.json({ error: 'Borrow item not found.' }, { status: 404 });
+      }
+
+      await dbQuery(
+        "UPDATE borrow_transaction SET status = ?, conditionUponReturn = ?, actualReturnDate = NOW(), remarks = ? WHERE borrowID = ?",
+        [status, status === 'Returned' ? 'Good' : status, remarks || null, bID]
+      );
+
+      // Rule 12: If Missing or Damaged, automatically add replacement fee to incidental charges
+      if (status === 'Damaged' || status === 'Lost') {
+        const replacementCost = parseFloat(borrow.price || 0) * parseInt(borrow.quantity || 1);
+        const desc = `Replacement Fee: Missing/Damaged ${borrow.itemName} (${borrow.quantity} pcs)`;
+        
+        await dbQuery(
+          "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+          [borrow.bookingID, desc, replacementCost]
+        );
+      }
+
+      return NextResponse.json({ success: true, message: `Amenity marked as ${status}.` });
+    }
+
     // Default: Update Guest Discounts
     const bookingID = parseInt(body.bookingID);
     const guests = body.guests;

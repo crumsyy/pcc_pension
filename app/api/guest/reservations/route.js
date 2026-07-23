@@ -100,6 +100,46 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Room selection and Check-in date are required.' }, { status: 400 });
     }
 
+    // Rule 1A: Reservation Lead Time (At least 2 days before check-in date)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDate = new Date(checkInDate + 'T00:00:00');
+    targetDate.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 2) {
+      return NextResponse.json({
+        error: "Reservations must be made at least 2 days before your intended check-in date."
+      }, { status: 400 });
+    }
+
+    // Rule 1B: One Active Reservation or Booking Per Guest
+    const activeRes = await dbQuery(
+      "SELECT reservationID FROM reservation WHERE guestID = ? AND status IN ('Pending', 'Confirmed')",
+      [guest.guestID]
+    );
+    const activeBooking = await dbQuery(
+      "SELECT bookingID FROM booking WHERE guestID = ? AND status IN ('Pending', 'Checked In', 'Confirmed', 'Pending Check-in')",
+      [guest.guestID]
+    );
+
+    if (activeRes.length > 0 || activeBooking.length > 0) {
+      return NextResponse.json({
+        error: "You already have an active reservation/booking. Please modify or cancel your existing reservation before creating a new one."
+      }, { status: 400 });
+    }
+
+    // Rule 1C: Duplicate Reservation Validation
+    const dupRes = await dbQuery(
+      "SELECT reservationID FROM reservation WHERE guestID = ? AND roomID = ? AND status IN ('Pending', 'Confirmed')",
+      [guest.guestID, roomID]
+    );
+    if (dupRes.length > 0) {
+      return NextResponse.json({
+        error: "You already have an active reservation for this room."
+      }, { status: 400 });
+    }
+
     const roomRes = await dbQuery(
       "SELECT r.roomNumber, rt.type as roomType FROM room r JOIN room_type rt ON rt.roomTypeID = r.roomTypeID WHERE r.roomID = ?",
       [roomID]
@@ -107,10 +147,11 @@ export async function POST(request) {
     const roomInfo = roomRes[0] || { roomNumber: 'N/A', roomType: 'Room' };
 
     const reservationDateTime = `${checkInDate} 14:00:00`;
+    const checkOutDateTimeFormatted = checkOutDate ? `${checkOutDate} 12:00:00` : null;
 
     const insertRes = await dbQuery(
-      "INSERT INTO reservation (reservationDateTime, status, guestID, roomID) VALUES (?, 'Pending', ?, ?)",
-      [reservationDateTime, guest.guestID, roomID]
+      "INSERT INTO reservation (reservationDateTime, checkOutDateTime, guestCount, specialRequests, status, guestID, roomID) VALUES (?, ?, ?, ?, 'Pending', ?, ?)",
+      [reservationDateTime, checkOutDateTimeFormatted, parseInt(numGuests || 1), specialRequests || null, guest.guestID, roomID]
     );
 
     // Add user notification

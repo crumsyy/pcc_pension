@@ -38,6 +38,92 @@ export async function GET() {
       }
     }
 
+    // Auto-generate 24h Check-in and 1h Check-out Reminders
+    try {
+      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      const staffUserIDs = staffUsers.map(s => s.userID);
+
+      // 1. Bookings scheduled within next 24 hours (Check-in)
+      const upcomingCheckIns = await dbQuery(`
+        SELECT b.bookingID, b.guestID, g.userID, g.firstName, g.lastName, b.checkInDateTime
+        FROM booking b
+        JOIN guest g ON g.guestID = b.guestID
+        WHERE b.status IN ('Confirmed', 'Pending Check-in', 'Pending')
+          AND b.checkInDateTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 24 HOUR)
+      `);
+
+      for (const b of upcomingCheckIns) {
+        const msg = "Reminder: Your booking is scheduled within the next 24 hours.";
+        // Check if guest notified
+        if (b.userID) {
+          const alreadyNotified = await dbQuery(
+            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
+            [b.userID, msg]
+          );
+          if (alreadyNotified.length === 0) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-in Reminder', ?)",
+              [b.userID, msg]
+            );
+          }
+        }
+        // Notify staff
+        const staffMsg = `Reminder: Booking #${b.bookingID} for ${b.firstName} ${b.lastName} is scheduled within the next 24 hours.`;
+        for (const sID of staffUserIDs) {
+          const staffAlreadyNotified = await dbQuery(
+            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
+            [sID, staffMsg]
+          );
+          if (staffAlreadyNotified.length === 0) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-in Reminder', ?)",
+              [sID, staffMsg]
+            );
+          }
+        }
+      }
+
+      // 2. Bookings scheduled for Check-out within next 1 hour
+      const upcomingCheckOuts = await dbQuery(`
+        SELECT b.bookingID, b.guestID, g.userID, g.firstName, g.lastName, b.checkOutDateTime
+        FROM booking b
+        JOIN guest g ON g.guestID = b.guestID
+        WHERE b.status = 'Checked In'
+          AND b.checkOutDateTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 HOUR)
+      `);
+
+      for (const b of upcomingCheckOuts) {
+        const msg = "Reminder: Your scheduled check-out is in one hour.";
+        if (b.userID) {
+          const alreadyNotified = await dbQuery(
+            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
+            [b.userID, msg]
+          );
+          if (alreadyNotified.length === 0) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-out Reminder', ?)",
+              [b.userID, msg]
+            );
+          }
+        }
+        const staffMsg = `Reminder: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) scheduled check-out is in one hour.`;
+        for (const sID of staffUserIDs) {
+          const staffAlreadyNotified = await dbQuery(
+            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
+            [sID, staffMsg]
+          );
+          if (staffAlreadyNotified.length === 0) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-out Reminder', ?)",
+              [sID, staffMsg]
+            );
+          }
+        }
+      }
+    } catch (reminderError) {
+      console.error("Auto reminder generation error:", reminderError);
+    }
+
     // Fetch latest 10 notifications
     const notifications = await dbQuery(
       "SELECT * FROM notification WHERE userID = ? ORDER BY createdAt DESC LIMIT 10",

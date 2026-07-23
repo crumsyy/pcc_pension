@@ -64,8 +64,8 @@ async function run() {
  
     console.log("Connected to database. Checking and updating table structures...");
  
-    console.log("Altering purchase_order status column ENUM to support 'Canceled'...");
-    await connection.execute("ALTER TABLE purchase_order MODIFY COLUMN status ENUM('Pending','Approved','Completed','Canceled') NOT NULL DEFAULT 'Pending'");
+    console.log("Altering purchase_order status column ENUM to support 'Canceled' and 'Received'...");
+    await connection.execute("ALTER TABLE purchase_order MODIFY COLUMN status ENUM('Pending','Approved','Completed','Canceled','Received') NOT NULL DEFAULT 'Pending'");
 
     console.log("Altering user table for suspension and archiving...");
     await connection.execute("ALTER TABLE `user` MODIFY COLUMN `status` ENUM('Active','Inactive','Suspended') NOT NULL DEFAULT 'Active'");
@@ -257,6 +257,17 @@ async function run() {
 
     console.log("Renaming Breakfast/Silog Meals to Cooked Meals...");
     await connection.execute("UPDATE product_category SET name = 'Cooked Meals' WHERE name = 'Breakfast/Silog Meals'");
+
+    console.log("Ensuring auxiliary columns for reservations, orders, and billing...");
+    await ensureColumn(connection, 'reservation', 'checkOutDateTime', 'DATETIME DEFAULT NULL');
+    await ensureColumn(connection, 'reservation', 'guestCount', 'INT DEFAULT 1');
+    await ensureColumn(connection, 'reservation', 'specialRequests', 'TEXT DEFAULT NULL');
+    await ensureColumn(connection, 'orders', 'bookingID', 'INT DEFAULT NULL');
+    await ensureColumn(connection, 'orders', 'isBreakfast', 'TINYINT(1) DEFAULT 0');
+    await ensureColumn(connection, 'orders', 'hasCookedMeal', 'TINYINT(1) DEFAULT 0');
+    await ensureColumn(connection, 'order_product', 'isComplimentary', 'TINYINT(1) DEFAULT 0');
+    await ensureColumn(connection, 'order_product', 'unitPrice', 'DECIMAL(10,2) DEFAULT NULL');
+    await ensureColumn(connection, 'billing', 'missingAmenitiesFee', 'DECIMAL(10,2) DEFAULT 0.00');
 
     console.log("All database migrations verified!");
   } catch (error) {

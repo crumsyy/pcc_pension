@@ -296,14 +296,22 @@ export async function POST(request) {
     if (action === 'checkin') {
       const bookingID = parseInt(body.bookingID);
       
-      const res = await dbQuery("SELECT roomID FROM booking WHERE bookingID = ?", [bookingID]);
+      const res = await dbQuery("SELECT roomID, DATE_FORMAT(checkInDateTime, '%Y-%m-%d') as scheduledCheckInDate FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
-      const roomID = res[0].roomID;
+      const { roomID, scheduledCheckInDate } = res[0];
 
       const localNow = new Date();
       const pad = (num) => String(num).padStart(2, '0');
+      const todayDateStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())}`;
+
+      if (todayDateStr < scheduledCheckInDate) {
+        return NextResponse.json({
+          error: "Guests may only check in on their scheduled booking date."
+        }, { status: 400 });
+      }
+
       const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
 
       await dbQuery("UPDATE booking SET status = 'Checked In', checkInDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);

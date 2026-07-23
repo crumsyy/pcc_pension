@@ -119,9 +119,10 @@ export async function POST(request) {
 
         // Check active checked-in booking for this guest
         const [bookingCheck] = await connection.execute(
-          `SELECT b.bookingID, b.roomID, g.firstName, g.lastName 
+          `SELECT b.bookingID, b.roomID, g.firstName, g.lastName, r.roomTypeID, r.floorID 
            FROM booking b 
            JOIN guest g ON g.guestID = b.guestID 
+           JOIN room r ON r.roomID = b.roomID
            WHERE g.guestID = ? AND b.status = 'Checked In' 
            LIMIT 1`,
           [guestID]
@@ -133,10 +134,53 @@ export async function POST(request) {
         const activeRoomID = bookingCheck[0].roomID;
         const activeBorrowedBy = `${bookingCheck[0].firstName} ${bookingCheck[0].lastName}`.trim();
 
+        // Check if order contains cooked breakfast meals
+        let containsCookedBreakfast = false;
+        for (const item of items) {
+          if (item.type === 'Product') {
+            const [pRes] = await connection.execute(
+              "SELECT productCategoryID, name FROM products WHERE productID = ?",
+              [parseInt(item.itemID)]
+            );
+            if (pRes.length > 0 && pRes[0].productCategoryID === 3) {
+              containsCookedBreakfast = true;
+            }
+          }
+        }
+
+        // Rule 9: Breakfast Ordering Hours Validation (6:30 AM - 10:00 AM)
+        if (containsCookedBreakfast) {
+          const now = new Date();
+          const currentMins = now.getHours() * 60 + now.getMinutes();
+          // 6:30 AM = 390 mins, 10:00 AM = 600 mins
+          if (currentMins < 390 || currentMins > 600) {
+            return NextResponse.json({
+              error: "Breakfast orders are only available from 7:00 AM to 10:00 AM. Early requests may begin at 6:30 AM."
+            }, { status: 400 });
+          }
+        }
+
+        // Rule 10: Complimentary Breakfast Entitlement Check
+        const [compCheck] = await connection.execute(
+          `SELECT COUNT(*) as compCount 
+           FROM order_product op 
+           JOIN orders o ON o.orderID = op.orderID 
+           WHERE o.bookingID = ? AND op.isComplimentary = 1`,
+          [activeBookingID]
+        );
+        let currentCompCount = compCheck[0]?.compCount || 0;
+
+        // Fetch room rate to see if breakfast is included (breakfastID = 2 or rateWithBreakfast)
+        const [rateCheck] = await connection.execute(
+          `SELECT breakfastID FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = 2`,
+          [bookingCheck[0].roomTypeID, bookingCheck[0].floorID]
+        );
+        const roomHasBreakfast = rateCheck.length > 0;
+
         // 1. Create order record
         const [orderResult] = await connection.execute(
-          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID) VALUES ('Preparing', ?, ?, ?)",
-          [nowStr, guestID, activeBookingID]
+          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal) VALUES ('Preparing', ?, ?, ?, ?)",
+          [nowStr, guestID, activeBookingID, containsCookedBreakfast ? 1 : 0]
         );
         const orderID = orderResult.insertId;
 
@@ -146,7 +190,6 @@ export async function POST(request) {
           const quantity = parseInt(item.quantity);
           if (!itemID || quantity <= 0) continue;
 
-          // Check if item is a cooked meal
           let isCookedMeal = false;
           if (item.type === 'Product') {
             const [pRes] = await connection.execute(
@@ -159,15 +202,19 @@ export async function POST(request) {
           }
 
           if (isCookedMeal) {
-            // For cooked meals, just insert order item record and skip all inventory logic
+            let isComplimentary = 0;
+            if (roomHasBreakfast && currentCompCount < 1) {
+              isComplimentary = 1;
+              currentCompCount++;
+            }
             await connection.execute(
-              "INSERT INTO order_product(quantity, orderID, productID) VALUES(?, ?, ?)",
-              [quantity, orderID, itemID]
+              "INSERT INTO order_product(quantity, orderID, productID, isComplimentary) VALUES(?, ?, ?, ?)",
+              [quantity, orderID, itemID, isComplimentary]
             );
             continue;
           }
 
-          // Fetch active batches for this item (ordered by FIFO: expiration date first, then received date)
+          // Fetch active batches for this item
           const [batches] = await connection.execute(
             `SELECT * FROM inventory_batch 
              WHERE itemType = ? AND itemID = ? AND remainingQuantity > 0 
@@ -180,7 +227,6 @@ export async function POST(request) {
             throw new Error(`Insufficient stock for ${item.type === 'Product' ? 'product' : 'amenity'}: ID ${itemID}`);
           }
 
-          // Check if item is Consumable or Non-Consumable
           let itemClassType = 'Consumable';
           if (item.type === 'Product') {
             const [pRes] = await connection.execute("SELECT itemType FROM products WHERE productID = ?", [itemID]);
@@ -190,7 +236,6 @@ export async function POST(request) {
             if (aRes.length > 0) itemClassType = aRes[0].itemType;
           }
 
-          // FIFO batch deduction
           let needed = quantity;
           for (const batch of batches) {
             if (needed <= 0) break;
@@ -201,7 +246,6 @@ export async function POST(request) {
               [take, batch.batchID]
             );
 
-            // Log movement for this batch (movement type is Borrow for Non-Consumables)
             const mType = itemClassType === 'Non-Consumable' ? 'Borrow' : 'Stock Out';
             await connection.execute(
               `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
@@ -212,7 +256,6 @@ export async function POST(request) {
             needed -= take;
           }
 
-          // Register borrow transaction if it's a Non-Consumable item
           if (itemClassType === 'Non-Consumable') {
             await connection.execute(
               `INSERT INTO borrow_transaction (itemType, itemID, quantity, borrowedBy, bookingID, roomID, status, userID, remarks)
@@ -230,14 +273,11 @@ export async function POST(request) {
             );
           }
 
-          // Insert order item record
           if (item.type === 'Product') {
             await connection.execute("INSERT INTO order_product(quantity, orderID, productID) VALUES(?, ?, ?)", [quantity, orderID, itemID]);
-            // Legacy fallback update
             await connection.execute("UPDATE products SET quantity = GREATEST(0, quantity - ?) WHERE productID = ?", [quantity, itemID]);
           } else {
             await connection.execute("INSERT INTO order_amenities(quantity, orderID, amenityID) VALUES(?, ?, ?)", [quantity, orderID, itemID]);
-            // Legacy fallback update
             await connection.execute("UPDATE amenities SET quantity = GREATEST(0, quantity - ?) WHERE amenityID = ?", [quantity, itemID]);
           }
         }
@@ -265,25 +305,40 @@ export async function POST(request) {
       try {
         await connection.beginTransaction();
 
-        // If canceling, restore stock
+        // If canceling, check 2-minute restriction for cooked meals (Rule 8)
         if (newStatus === 'Canceled') {
-          // Fetch current status
-          const [statusRes] = await connection.execute("SELECT orderStatus FROM orders WHERE orderID = ?", [orderID]);
+          const [statusRes] = await connection.execute(
+            "SELECT orderStatus, orderDateTime, TIMESTAMPDIFF(SECOND, orderDateTime, NOW()) as elapsedSec FROM orders WHERE orderID = ?",
+            [orderID]
+          );
           if (statusRes.length > 0 && statusRes[0].orderStatus !== 'Canceled') {
+            const [cookedItems] = await connection.execute(`
+              SELECT op.orderProductID 
+              FROM order_product op 
+              JOIN products p ON p.productID = op.productID 
+              WHERE op.orderID = ? AND p.productCategoryID = 3
+            `, [orderID]);
+
+            if (cookedItems.length > 0) {
+              const elapsedSec = statusRes[0].elapsedSec || 0;
+              if (elapsedSec > 120) {
+                return NextResponse.json({
+                  error: "This order can no longer be cancelled because food preparation may already be in progress."
+                }, { status: 400 });
+              }
+            }
+
             // Restore products stock
             const [prodItems] = await connection.execute("SELECT productID, quantity FROM order_product WHERE orderID = ?", [orderID]);
             for (const item of prodItems) {
-              // Check if item is a cooked meal
               const [pRes] = await connection.execute(
                 "SELECT productCategoryID FROM products WHERE productID = ?",
                 [item.productID]
               );
               if (pRes.length > 0 && pRes[0].productCategoryID === 3) {
-                // Skip cooked meals refund logic
                 continue;
               }
 
-              // Find latest batch to refund stock to
               const [batches] = await connection.execute(
                 "SELECT batchID FROM inventory_batch WHERE itemType = 'Product' AND itemID = ? ORDER BY dateReceived DESC LIMIT 1",
                 [item.productID]
@@ -297,14 +352,12 @@ export async function POST(request) {
                 );
               }
 
-              // Log return movement
               await connection.execute(
                 `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
                  VALUES ('Product', ?, ?, ?, 'Return', ?, 'Order canceled - Stock refunded', ?)`,
                 [item.productID, item.quantity, session.userID, `ORD-${orderID}`, batchID]
               );
 
-              // Auto-return borrow transaction if non-consumable
               await connection.execute(
                 `UPDATE borrow_transaction 
                  SET status = 'Returned', actualReturnDate = ?, remarks = 'Order canceled - Auto-returned' 
@@ -312,7 +365,6 @@ export async function POST(request) {
                 [nowStr, item.productID, `%ORD-${orderID}%`]
               );
 
-              // Legacy fallback update
               await connection.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [item.quantity, item.productID]);
             }
 
@@ -332,14 +384,12 @@ export async function POST(request) {
                 );
               }
 
-              // Log return movement
               await connection.execute(
                 `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
                  VALUES ('Amenity', ?, ?, ?, 'Return', ?, 'Order canceled - Stock refunded', ?)`,
                 [item.amenityID, item.quantity, session.userID, `ORD-${orderID}`, batchID]
               );
 
-              // Auto-return borrow transaction if non-consumable
               await connection.execute(
                 `UPDATE borrow_transaction 
                  SET status = 'Returned', actualReturnDate = ?, remarks = 'Order canceled - Auto-returned' 
@@ -347,7 +397,6 @@ export async function POST(request) {
                 [nowStr, item.amenityID, `%ORD-${orderID}%`]
               );
 
-              // Legacy fallback update
               await connection.execute("UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?", [item.quantity, item.amenityID]);
             }
           }
