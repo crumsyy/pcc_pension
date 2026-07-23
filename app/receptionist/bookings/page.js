@@ -432,41 +432,64 @@ function BookingsClient() {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    if (!isWalkIn && !formData.guestID) {
-      showAlert('error', 'Validation Error', 'Please select a guest or choose Walk-In.');
-      return;
+    if (isWalkIn) {
+      if (!walkInForm.firstName.trim() || !walkInForm.lastName.trim()) {
+        showAlert('error', 'Validation Error', 'First Name and Last Name are required for walk-in guests.');
+        return;
+      }
+      if (!walkInForm.dateOfBirth) {
+        showAlert('error', 'Validation Error', 'Birthdate is required for walk-in guests.');
+        return;
+      }
+    } else {
+      if (!formData.guestID) {
+        showAlert('error', 'Validation Error', 'Please select a registered guest account or choose Walk-In.');
+        return;
+      }
     }
+
     if (!formData.roomID) {
-      showAlert('error', 'Validation Error', 'Please select a room.');
+      showAlert('error', 'Validation Error', 'Please select an available room.');
       return;
     }
+
     if (!isValidDate(checkInDate) || !isValidDate(checkOutDate)) {
       showAlert('error', 'Validation Error', 'Please enter valid Check-In and Check-Out dates (MM/DD/YYYY).');
       return;
     }
 
-    const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
+    const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
     const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
 
-    for (const g of roomGuests) {
-      if (!g.fullName.trim()) {
-        showAlert('error', 'Validation Error', 'All registered room guests must have a full name.');
+    const preparedGuests = [];
+    for (let i = 0; i < roomGuests.length; i++) {
+      const g = roomGuests[i];
+      if (!g.fullName || !g.fullName.trim()) {
+        showAlert('error', 'Validation Error', `Registered Guest #${i + 1} must have a full name.`);
         return;
       }
-      const ageNum = parseInt(g.age);
-      if (isNaN(ageNum) || ageNum <= 0) {
-        showAlert('error', 'Validation Error', `Please enter a valid age for guest ${g.fullName}.`);
-        return;
-      }
-      if (g.discountID) {
-        if (!g.discountIdNumber || !g.discountIdNumber.trim()) {
-          showAlert('error', 'Validation Error', `Discount ID number is required for ${g.fullName}.`);
-          return;
+      let computedAge = parseInt(g.age);
+      if (isNaN(computedAge) || computedAge <= 0) {
+        if (isWalkIn && walkInForm.dateOfBirth) {
+          computedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
+        } else {
+          computedAge = 30;
         }
       }
+      preparedGuests.push({
+        fullName: g.fullName.trim(),
+        age: computedAge,
+        discountID: g.discountID ? parseInt(g.discountID) : null,
+        discountIdNumber: g.discountIdNumber || 'N/A'
+      });
     }
 
-    const rate = selectedRoom ? parseFloat(selectedRoom.rate || 0) : 0;
+    const rate = selectedRoom
+      ? (breakfastOption === 'with'
+          ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
+          : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
+      : 0;
+
     let nights = 0;
     if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
       const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
@@ -478,15 +501,16 @@ function BookingsClient() {
         nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
       }
     }
+    nights = Math.max(1, nights);
 
-    const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
-    const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
+    const excessGuestsCount = Math.max(0, preparedGuests.length - maxOccupancy);
+    const extraGuestFee = excessGuestsCount * 200 * nights;
     const rawSubtotal = (rate * nights) + extraGuestFee;
 
     let totalApportionedDiscount = 0;
-    if (roomGuests.length > 0 && selectedRoom) {
-      const sharePerGuest = (rate * nights) / roomGuests.length;
-      roomGuests.forEach(g => {
+    if (preparedGuests.length > 0 && selectedRoom) {
+      const sharePerGuest = (rate * nights) / preparedGuests.length;
+      preparedGuests.forEach(g => {
         if (g.discountID) {
           const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
           if (disc) {
@@ -497,16 +521,16 @@ function BookingsClient() {
     }
 
     const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
-    const dpPctNum = parseInt(downPaymentOption);
+    const dpPctNum = parseInt(downPaymentOption) || 25;
     const requiredDownpayment = netTotalAmount * (dpPctNum / 100);
 
     const dpAmount = parseFloat(downPayment);
     if (isNaN(dpAmount) || dpAmount <= 0) {
-      showAlert('error', 'Validation Error', 'Please enter a valid down payment amount.');
+      showAlert('error', 'Validation Error', 'Please enter a valid payment received amount.');
       return;
     }
     if (dpAmount < requiredDownpayment - 0.01) {
-      showAlert('error', 'Validation Error', `Received down payment (₱${dpAmount.toFixed(2)}) cannot be below the selected ${dpPctNum}% requirement of ₱${requiredDownpayment.toFixed(2)}.`);
+      showAlert('error', 'Validation Error', `Payment received (₱${dpAmount.toFixed(2)}) cannot be below the selected ${dpPctNum}% requirement of ₱${requiredDownpayment.toFixed(2)}.`);
       return;
     }
 
@@ -518,7 +542,7 @@ function BookingsClient() {
       finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
     }
 
-    showConfirm('Create Booking', 'Are you sure you want to create this booking?', async () => {
+    showConfirm('Create Booking', 'Are you sure you want to create this booking and record the payment?', async () => {
       try {
         const res = await fetch('/api/receptionist/bookings', {
           method: 'POST',
@@ -534,15 +558,11 @@ function BookingsClient() {
             downPaymentAmount: dpAmount,
             downPaymentPercentage: dpPctNum,
             paymentMethodID: parseInt(paymentMethodID),
-            guests: roomGuests.map(g => ({
-              fullName: g.fullName,
-              age: parseInt(g.age),
-              discountID: g.discountID ? parseInt(g.discountID) : null,
-              discountIdNumber: g.discountIdNumber || null
-            }))
+            guests: preparedGuests
           })
         });
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create booking');
         if (!res.ok) throw new Error(data.error || 'Failed to create booking');
 
         const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));

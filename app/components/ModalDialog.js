@@ -57,7 +57,7 @@ export default function ModalDialog({
   };
 
   return (
-    <div className="modal show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+    <div className="modal show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2100 }}>
       <div className="modal-dialog modal-dialog-centered" role="document" style={{ maxWidth: '420px' }}>
         <div className="modal-content shadow border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
           <div className="modal-header border-0 py-3" style={getHeaderStyle()}>
