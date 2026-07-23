@@ -10,7 +10,25 @@ export default function ModalDialog({
   confirmText = 'OK',
   cancelText = 'Cancel'
 }) {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsSubmitting(false);
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const handleConfirmClick = async () => {
+    if (!onConfirm || isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+      await onConfirm();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const getHeaderStyle = () => {
     switch (type) {
@@ -62,7 +80,7 @@ export default function ModalDialog({
         <div className="modal-content shadow border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
           <div className="modal-header border-0 py-3" style={getHeaderStyle()}>
             <h5 className="modal-title fw-bold">{title || 'System Notification'}</h5>
-            {onCancel && (
+            {onCancel && !isSubmitting && (
               <button type="button" className="btn-close btn-close-white" aria-label="Close" onClick={onCancel}></button>
             )}
           </div>
@@ -74,12 +92,31 @@ export default function ModalDialog({
           </div>
           <div className="modal-footer border-0 justify-content-center pb-4 pt-0">
             {onConfirm && (
-              <button type="button" className="btn btn-pcc-primary px-4 py-2 text-white" onClick={onConfirm} style={{ borderRadius: '6px' }}>
-                {confirmText}
+              <button
+                type="button"
+                className="btn btn-pcc-primary px-4 py-2 text-white d-inline-flex align-items-center justify-content-center"
+                onClick={handleConfirmClick}
+                disabled={isSubmitting}
+                style={{ borderRadius: '6px', minWidth: '110px' }}
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Processing...
+                  </>
+                ) : (
+                  confirmText
+                )}
               </button>
             )}
             {onCancel && (
-              <button type="button" className="btn btn-danger px-4 py-2 ms-2 text-white" onClick={onCancel} style={{ borderRadius: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-danger px-4 py-2 ms-2 text-white"
+                onClick={onCancel}
+                disabled={isSubmitting}
+                style={{ borderRadius: '6px' }}
+              >
                 {cancelText}
               </button>
             )}

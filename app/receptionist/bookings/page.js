@@ -211,9 +211,12 @@ function BookingsClient() {
       message,
       confirmText: 'Confirm',
       cancelText: 'Cancel',
-      onConfirm: () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        onConfirmCallback();
+      onConfirm: async () => {
+        try {
+          await onConfirmCallback();
+        } finally {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
