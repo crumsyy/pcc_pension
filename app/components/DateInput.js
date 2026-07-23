@@ -9,11 +9,13 @@ export default function DateInput({
   required = false,
   id,
   name,
-  disabled = false
+  disabled = false,
+  min
 }) {
-  // Convert incoming value ("MM/DD/YYYY") to HTML5 date format ("YYYY-MM-DD")
+  // Convert incoming value ("MM/DD/YYYY" or "YYYY-MM-DD") to HTML5 date format ("YYYY-MM-DD")
   const uiToInputValue = (val) => {
     if (!val) return '';
+    if (val.includes('-')) return val.substring(0, 10);
     const parts = val.split('/');
     if (parts.length === 3) {
       const m = parts[0].padStart(2, '0');
@@ -51,6 +53,7 @@ export default function DateInput({
   };
 
   const inputValue = uiToInputValue(value);
+  const minInputValue = uiToInputValue(min);
 
   return (
     <input
@@ -62,6 +65,7 @@ export default function DateInput({
       value={inputValue}
       onChange={handleChange}
       disabled={disabled}
+      min={minInputValue || undefined}
     />
   );
 }

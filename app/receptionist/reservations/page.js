@@ -188,16 +188,23 @@ function ReservationsClient() {
     }
   }, [loading, searchParams]);
 
+  const getTwoDaysAheadUiDate = () => {
+    const today = new Date();
+    const target = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(target.getMonth() + 1)}/${pad(target.getDate())}/${target.getFullYear()}`;
+  };
+
+  const minResDate = getTwoDaysAheadUiDate();
+
   useEffect(() => {
     if (activeModal === 'create') {
-      const today = new Date();
-      const pad = (num) => String(num).padStart(2, '0');
-      const todayDateStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
-      const timeStr = `${pad(today.getHours())}:${pad(today.getMinutes())}`;
+      const defaultDateStr = minResDate;
+      const defaultTimeStr = "14:00"; // Standard 2:00 PM check-in time
 
-      setResDate(todayDateStr);
-      setResTime(timeStr);
-
+      setResDate(defaultDateStr);
+      setResTime(defaultTimeStr);
+      setConvOutDate('');
       setFormData({
         guestID: guests[0]?.guestID || '',
         roomID: '',
@@ -205,6 +212,7 @@ function ReservationsClient() {
     } else if (!activeModal) {
       setResDate('');
       setResTime('');
+      setConvOutDate('');
       setFormData({
         guestID: '',
         roomID: '',
@@ -218,8 +226,9 @@ function ReservationsClient() {
         gender: 'Male'
       });
       setSelectedRoomType('');
+      setSelectedRes(null);
     }
-  }, [activeModal, guests]);
+  }, [activeModal, guests, minResDate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -229,6 +238,37 @@ function ReservationsClient() {
   const handleConvertChange = (e) => {
     const { name, value } = e.target;
     setConvertData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const openEditModal = (res) => {
+    setSelectedRes(res);
+    setSelectedRoomType(res.roomType || '');
+    setFormData({
+      guestID: String(res.guestID),
+      roomID: String(res.roomID)
+    });
+    
+    if (res.reservationDateTime) {
+      const dateOnly = res.reservationDateTime.substring(0, 10);
+      setResDate(toUiDate(dateOnly));
+      setResTime(res.reservationDateTime.length >= 16 ? res.reservationDateTime.substring(11, 16) : '14:00');
+    } else {
+      setResDate(minResDate);
+      setResTime('14:00');
+    }
+
+    if (res.checkOutDateTime) {
+      setConvOutDate(toUiDate(res.checkOutDateTime.substring(0, 10)));
+    } else {
+      setConvOutDate('');
+    }
+
+    setWalkInForm({
+      guestCount: res.guestCount || 1,
+      specialRequests: res.specialRequests || ''
+    });
+
+    setActiveModal('edit');
   };
 
   const handleCreateSubmit = async (e) => {
@@ -243,13 +283,15 @@ function ReservationsClient() {
       return;
     }
 
-    const resDateTimeStr = toDbDate(resDate) + 'T' + resTime;
-    const resDateObj = new Date(resDateTimeStr);
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - 5);
+    // Lead time validation (at least 2 days ahead of today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateObj = new Date(toDbDate(resDate) + 'T00:00:00');
+    selectedDateObj.setHours(0, 0, 0, 0);
 
-    if (resDateObj < now) {
-      showAlert('error', 'Validation Error', 'Reservation date and time cannot be in the past.');
+    const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 2) {
+      showAlert('error', 'Validation Error', 'Reservations must be made at least 2 days before your intended check-in date.');
       return;
     }
 
@@ -274,13 +316,67 @@ function ReservationsClient() {
             isWalkIn,
             ...(isWalkIn ? walkInForm : { guestID: formData.guestID }),
             roomID: formData.roomID,
-            reservationDateTime: toDbDate(resDate) + ' ' + resTime + ':00'
+            reservationDateTime: toDbDate(resDate) + ' ' + resTime + ':00',
+            checkOutDateTime: convOutDate && isValidDate(convOutDate) ? toDbDate(convOutDate) + ' 12:00:00' : null,
+            guestCount: parseInt(walkInForm.guestCount || 1),
+            specialRequests: walkInForm.specialRequests || null
           })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create reservation');
 
         showAlert('success', 'Success', 'Reservation created successfully.');
+        setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const handleUpdateSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedRes) return;
+
+    if (!isValidDate(resDate)) {
+      showAlert('error', 'Validation Error', 'Please enter a valid Reservation Date (MM/DD/YYYY).');
+      return;
+    }
+    if (!resTime) {
+      showAlert('error', 'Validation Error', 'Please select a Reservation Time.');
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateObj = new Date(toDbDate(resDate) + 'T00:00:00');
+    selectedDateObj.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 2) {
+      showAlert('error', 'Validation Error', 'Reservations must be made at least 2 days before your intended check-in date.');
+      return;
+    }
+
+    showConfirm('Update Reservation', 'Are you sure you want to update this reservation?', async () => {
+      try {
+        const res = await fetch('/api/receptionist/reservations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update',
+            reservationID: selectedRes.reservationID,
+            roomID: formData.roomID,
+            reservationDateTime: toDbDate(resDate) + ' ' + resTime + ':00',
+            checkOutDateTime: convOutDate && isValidDate(convOutDate) ? toDbDate(convOutDate) + ' 12:00:00' : null,
+            guestCount: parseInt(walkInForm.guestCount || 1),
+            specialRequests: walkInForm.specialRequests || null
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update reservation');
+
+        showAlert('success', 'Success', 'Reservation updated successfully.');
         setActiveModal(null);
         fetchData();
       } catch (err) {
@@ -709,6 +805,7 @@ function ReservationsClient() {
                       value={resDate}
                       onChange={(e) => setResDate(e.target.value)}
                       required
+                      min={minResDate}
                     />
                   </div>
                   <div className="mb-3">

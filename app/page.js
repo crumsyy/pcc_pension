@@ -8,6 +8,7 @@ import DateInput, { isValidDate, toDbDate } from "./components/DateInput";
 export default function Home() {
   // Search state
   const [checkIn, setCheckIn] = useState("");
+  const [minCheckIn, setMinCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [roomType, setRoomType] = useState("Any room type");
   const [breakfast, setBreakfast] = useState("With Breakfast");
@@ -43,11 +44,13 @@ export default function Home() {
     checkSession();
 
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const twoDaysAhead = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
+    const threeDaysAhead = new Date(today.getTime() + (3 * 24 * 60 * 60 * 1000));
     const pad = (num) => String(num).padStart(2, '0');
-    setCheckIn(`${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`);
-    setCheckOut(`${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`);
+    const minCheckInStr = `${pad(twoDaysAhead.getMonth() + 1)}/${pad(twoDaysAhead.getDate())}/${twoDaysAhead.getFullYear()}`;
+    setMinCheckIn(minCheckInStr);
+    setCheckIn(minCheckInStr);
+    setCheckOut(`${pad(threeDaysAhead.getMonth() + 1)}/${pad(threeDaysAhead.getDate())}/${threeDaysAhead.getFullYear()}`);
   }, []);
 
   const handleSearchSubmit = async (e) => {
@@ -154,6 +157,7 @@ export default function Home() {
                       value={checkIn}
                       onChange={(e) => setCheckIn(e.target.value)}
                       required
+                      min={minCheckIn}
                     />
                   </div>
                   <div className="col-md-6">
@@ -162,6 +166,7 @@ export default function Home() {
                       value={checkOut}
                       onChange={(e) => setCheckOut(e.target.value)}
                       required
+                      min={checkIn || undefined}
                     />
                   </div>
                   <div className="col-md-7">
