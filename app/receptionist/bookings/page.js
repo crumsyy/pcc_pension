@@ -354,16 +354,14 @@ function BookingsClient() {
       const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
 
       let nights = 0;
-      if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
-        const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
-        const outStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
-        const inD = new Date(inStr);
-        const outD = new Date(outStr);
+      if (checkInDate && checkOutDate) {
+        const inD = new Date(toDbDate(checkInDate) + 'T00:00:00');
+        const outD = new Date(toDbDate(checkOutDate) + 'T00:00:00');
         if (outD > inD) {
-          const diff = Math.abs(outD - inD);
-          nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+          nights = Math.round(Math.abs(outD - inD) / (1000 * 60 * 60 * 24));
         }
       }
+      nights = Math.max(1, nights);
 
       const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
       const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
@@ -491,14 +489,11 @@ function BookingsClient() {
       : 0;
 
     let nights = 0;
-    if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
-      const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
-      const outStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
-      const inD = new Date(inStr);
-      const outD = new Date(outStr);
+    if (checkInDate && checkOutDate) {
+      const inD = new Date(toDbDate(checkInDate) + 'T00:00:00');
+      const outD = new Date(toDbDate(checkOutDate) + 'T00:00:00');
       if (outD > inD) {
-        const diff = Math.abs(outD - inD);
-        nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        nights = Math.round(Math.abs(outD - inD) / (1000 * 60 * 60 * 24));
       }
     }
     nights = Math.max(1, nights);
@@ -1176,16 +1171,14 @@ function BookingsClient() {
                     const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
 
                     let nights = 0;
-                    if (checkInDate && checkOutDate && checkInTime && checkOutTime) {
-                      const inStr = toDbDate(checkInDate) + 'T' + checkInTime;
-                      const outStr = toDbDate(checkOutDate) + 'T' + checkOutTime;
-                      const inD = new Date(inStr);
-                      const outD = new Date(outStr);
+                    if (checkInDate && checkOutDate) {
+                      const inD = new Date(toDbDate(checkInDate) + 'T00:00:00');
+                      const outD = new Date(toDbDate(checkOutDate) + 'T00:00:00');
                       if (outD > inD) {
-                        const diff = Math.abs(outD - inD);
-                        nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                        nights = Math.round(Math.abs(outD - inD) / (1000 * 60 * 60 * 24));
                       }
                     }
+                    nights = Math.max(1, nights);
 
                     const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
                     const extraGuestFee = excessGuestsCount * 200 * (nights || 1);

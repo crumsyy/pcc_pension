@@ -148,9 +148,11 @@ export async function POST(request) {
         );
         const roomRate = roomData.length > 0 ? parseFloat(roomData[0].rate || 0) : 0;
         const maxOccupancy = roomData.length > 0 ? (parseInt(roomData[0].occupancyLimit) || 2) : 2;
-        const checkInD = new Date(checkInDateTime);
-        const checkOutD = new Date(checkOutDateTime);
-        const diffDays = Math.max(1, Math.ceil(Math.abs(checkOutD - checkInD) / (1000 * 60 * 60 * 24)));
+        const inDateStr = (checkInDateTime || '').split(' ')[0] || (checkInDateTime || '').split('T')[0];
+        const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
+        const checkInD = new Date(inDateStr + 'T00:00:00');
+        const checkOutD = new Date(outDateStr + 'T00:00:00');
+        const diffDays = Math.max(1, Math.round(Math.abs(checkOutD - checkInD) / (1000 * 60 * 60 * 24)));
 
         const totalGuestCount = Math.max(1, guests.length);
         const extraGuestsCount = Math.max(0, totalGuestCount - maxOccupancy);
