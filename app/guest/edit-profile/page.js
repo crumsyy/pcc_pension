@@ -273,13 +273,13 @@ export default function EditProfilePage() {
       />
 
       {/* NAVBAR HEADER */}
-      <nav className="navbar navbar-light bg-white border-bottom shadow-sm sticky-top px-3">
+      <nav className="navbar navbar-dark text-white border-bottom shadow-sm sticky-top px-3" style={{ background: 'var(--pcc-blue)' }}>
         <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
-          <Link href="/guest/dashboard" className="btn btn-sm btn-outline-secondary fw-semibold d-flex align-items-center gap-1">
+          <Link href="/guest/dashboard" className="btn btn-sm btn-outline-light fw-semibold d-flex align-items-center gap-1">
             <i className="bi bi-arrow-left"></i> Back to Dashboard
           </Link>
-          <span className="fw-bold text-pcc-blue display-font" style={{ fontSize: '1.05rem' }}>
-            ⚙️ Edit Profile Settings
+          <span className="fw-bold text-white display-font" style={{ fontSize: '1.05rem', color: '#ffffff' }}>
+            Edit Profile Settings
           </span>
         </div>
       </nav>

@@ -269,24 +269,6 @@ export default function ReceptionistInquiries() {
     window.location.href = `/receptionist/reservations?${query}`;
   };
 
-  // Messenger avatar helper functions
-  const getInitials = (name) => {
-    if (!name) return '?';
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return parts[0][0].toUpperCase();
-  };
-
-  const getAvatarColor = (name) => {
-    const colors = ['#2155B5', '#3FA34D', '#d97706', '#dc2626', '#0284c7', '#7c3aed', '#db2777'];
-    if (!name) return colors[0];
-    let sum = 0;
-    for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
-    return colors[sum % colors.length];
-  };
-
   // Filter inquiries by search & status
   const filteredInquiries = inquiries.filter(inq => {
     const matchesSearch = 
@@ -328,7 +310,7 @@ export default function ReceptionistInquiries() {
               onClick={() => setActiveTab('inbox')}
               style={{ borderBottom: activeTab === 'inbox' ? '3px solid var(--pcc-blue)' : '' }}
             >
-              Live Chat Support Workspace 💬
+              Live Chat Support Workspace
             </button>
           </li>
           <li className="nav-item">
@@ -337,7 +319,7 @@ export default function ReceptionistInquiries() {
               onClick={() => setActiveTab('availability')}
               style={{ borderBottom: activeTab === 'availability' ? '3px solid var(--pcc-blue)' : '' }}
             >
-              Room Availability & Quotation Calculator 📋
+              Room Availability & Quotation Calculator
             </button>
           </li>
         </ul>
@@ -393,34 +375,19 @@ export default function ReceptionistInquiries() {
                   ) : (
                     <div className="list-group list-group-flush">
                       {filteredInquiries.map(inq => {
-                        const initials = getInitials(inq.name);
-                        const avatarColor = getAvatarColor(inq.name);
                         const isSelected = selectedInquiry?.inquiryID === inq.inquiryID;
                         return (
                           <button
                             key={inq.inquiryID}
                             onClick={() => handleSelectInquiry(inq)}
-                            className={`list-group-item list-group-item-action d-flex align-items-center gap-3 p-3 border-0 border-bottom ${isSelected ? 'bg-light' : ''}`}
+                            className={`list-group-item list-group-item-action d-flex align-items-center gap-2.5 p-3 border-0 border-bottom ${isSelected ? 'bg-light' : ''}`}
                             style={{ 
                               transition: 'all 0.2s', 
                               borderLeft: isSelected ? '4px solid var(--pcc-blue) !important' : '4px solid transparent' 
                             }}
                           >
-                            <div className="position-relative">
-                              <div 
-                                className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
-                                style={{ width: '42px', height: '42px', backgroundColor: avatarColor, minWidth: '42px', fontSize: '0.9rem' }}
-                              >
-                                {initials}
-                              </div>
-                              {inq.unreadReceptionist > 0 && (
-                                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style={{ fontSize: '0.62rem' }}>
-                                  {inq.unreadReceptionist}
-                                </span>
-                              )}
-                            </div>
                             <div className="flex-grow-1 min-w-0">
-                              <div className="d-flex justify-content-between align-items-baseline">
+                              <div className="d-flex justify-content-between align-items-baseline mb-1">
                                 <h6 className={`mb-0 text-truncate ${inq.status === 'Pending' ? 'fw-bold text-dark' : 'text-secondary'}`} style={{ fontSize: '0.88rem' }}>
                                   {inq.name}
                                 </h6>
@@ -428,19 +395,24 @@ export default function ReceptionistInquiries() {
                                   {inq.lastMessageTime ? new Date(inq.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(inq.createdAt).toLocaleDateString()}
                                 </small>
                               </div>
-                              <div className="text-truncate text-muted small mt-0.5" style={{ fontSize: '0.76rem' }}>
+                              <div className="text-truncate text-muted small" style={{ fontSize: '0.76rem' }}>
                                 {inq.lastMessage || inq.message}
                               </div>
-                              <div className="d-flex align-items-center gap-1 mt-1">
+                              <div className="d-flex align-items-center gap-1.5 mt-1.5">
                                 <span className={`badge rounded-pill ${
                                   inq.status === 'Responded' ? 'bg-success text-white' : 
                                   inq.status === 'Closed' ? 'bg-secondary text-white' : 'bg-warning text-dark'
                                 }`} style={{ fontSize: '0.65rem' }}>
                                   {inq.status}
                                 </span>
+                                {inq.unreadReceptionist > 0 && (
+                                  <span className="badge rounded-pill bg-danger text-white" style={{ fontSize: '0.65rem' }}>
+                                    {inq.unreadReceptionist} Unread
+                                  </span>
+                                )}
                                 {inq.contactNumber && (
-                                  <span className="badge bg-light text-muted border" style={{ fontSize: '0.65rem' }}>
-                                    📞 {inq.contactNumber}
+                                  <span className="badge bg-light text-muted border ms-auto" style={{ fontSize: '0.65rem' }}>
+                                    {inq.contactNumber}
                                   </span>
                                 )}
                               </div>
@@ -461,18 +433,10 @@ export default function ReceptionistInquiries() {
                   <>
                     {/* Header Details */}
                     <div className="card-header bg-white py-3 border-0 border-bottom d-flex justify-content-between align-items-center">
-                      <div className="d-flex align-items-center gap-3">
-                        <div 
-                          className="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold shadow-sm"
-                          style={{ width: '45px', height: '45px', backgroundColor: getAvatarColor(selectedInquiry.name), fontSize: '1rem' }}
-                        >
-                          {getInitials(selectedInquiry.name)}
-                        </div>
-                        <div>
-                          <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>{selectedInquiry.name}</h6>
-                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                            {selectedInquiry.email} {selectedInquiry.contactNumber ? `• 📞 ${selectedInquiry.contactNumber}` : ''}
-                          </div>
+                      <div>
+                        <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>{selectedInquiry.name}</h6>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                          {selectedInquiry.email} {selectedInquiry.contactNumber ? `• Contact: ${selectedInquiry.contactNumber}` : ''}
                         </div>
                       </div>
 

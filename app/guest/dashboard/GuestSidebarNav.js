@@ -7,29 +7,24 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
   return (
     <aside className="guest-desktop-sidebar bg-white border-end shadow-sm d-flex flex-column p-3">
       {/* BRAND HEADER */}
-      <div className="mb-4 text-center pb-3 border-bottom">
-        <Link href="/" className="d-flex align-items-center justify-content-center gap-2 text-decoration-none">
-          <img src="/assets/images/logo.jpg" height="42" alt="PCC Logo" style={{ borderRadius: "8px" }} />
+      <div className="mb-3 text-center p-3 rounded-3 text-white shadow-sm" style={{ background: 'var(--pcc-blue)' }}>
+        <Link href="/" className="d-flex align-items-center justify-content-center gap-2 text-decoration-none text-white">
+          <img src="/assets/images/logo.jpg" height="40" alt="PCC Logo" style={{ borderRadius: "8px" }} />
           <div className="text-start">
-            <h6 className="fw-bold text-pcc-blue mb-0 display-font" style={{ fontSize: '1.05rem', lineHeight: '1.1' }}>
+            <h6 className="fw-bold mb-0 display-font" style={{ fontSize: '1.05rem', lineHeight: '1.1', color: '#ffffff' }}>
               PCC Home Suite
             </h6>
-            <span className="text-muted" style={{ fontSize: '0.7rem' }}>Guest Portal</span>
+            <span className="text-white-50" style={{ fontSize: '0.72rem' }}>Guest Portal</span>
           </div>
         </Link>
       </div>
 
-      {/* GUEST PROFILE SUMMARY */}
-      <div className="p-3 bg-light rounded-3 mb-4 d-flex align-items-center gap-2.5 border">
-        <div className="rounded-circle bg-pcc-blue text-white d-flex align-items-center justify-content-center fw-bold" style={{ width: '40px', height: '40px', fontSize: '1.1rem' }}>
-          {guest?.firstName ? guest.firstName.charAt(0) : 'G'}
+      {/* GUEST PROFILE SUMMARY (No Profile Picture) */}
+      <div className="p-2.5 bg-light rounded-3 mb-3 border">
+        <div className="fw-bold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
+          {guest?.firstName} {guest?.lastName}
         </div>
-        <div className="overflow-hidden">
-          <div className="fw-bold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
-            {guest?.firstName} {guest?.lastName}
-          </div>
-          <span className="text-muted text-truncate d-block" style={{ fontSize: '0.75rem' }}>Guest Account</span>
-        </div>
+        <span className="text-muted text-truncate d-block" style={{ fontSize: '0.75rem' }}>Guest Account</span>
       </div>
 
       {/* NAVIGATION MENU */}

@@ -672,18 +672,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         />
       ) : (
         /* TOP BRANDING BAR (Mobile/Tablet Only) */
-        <nav className="navbar navbar-light bg-white border-bottom shadow-sm sticky-top px-3">
+        <nav className="navbar navbar-dark text-white border-bottom shadow-sm sticky-top px-3" style={{ background: 'var(--pcc-blue)' }}>
           <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
-            <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0">
+            <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0 text-white">
               <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
-              <span className="fw-bold text-pcc-blue display-font d-none d-sm-inline" style={{ fontSize: '1.05rem' }}>PCC Home Suite</span>
+              <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
             </Link>
             <div className="d-flex align-items-center gap-2">
-              <span className="badge bg-light text-pcc-blue border fw-bold px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
-                👤 {guest.firstName}
+              <span className="badge bg-white text-pcc-blue border fw-bold px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
+                {guest.firstName} {guest.lastName}
               </span>
               <button
-                className="btn btn-logout-power"
+                className="btn btn-sm text-white border-0"
                 title="Log Out"
                 onClick={() => setShowLogoutModal(true)}
               >
@@ -1342,7 +1342,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
       {/* FLOATING AI CHATBOT BUTTON */}
       <GuestChatBubble
-        hideFloating={activeTab === 'chat'}
+        hideFloating={false}
         bottomOffset={isDesktop ? '24px' : '85px'}
       />
 
