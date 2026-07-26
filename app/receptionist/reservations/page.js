@@ -230,7 +230,7 @@ function ReservationsClient() {
       setBreakfastOption('with');
       setSpecialRequests('');
       setFormData({
-        guestID: guests[0]?.guestID ? String(guests[0].guestID) : '',
+        guestID: '',
         roomID: '',
       });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
@@ -1073,7 +1073,9 @@ function ReservationsClient() {
                           <span className="small text-muted">Contact: {selectedRes.contact}</span>
                         </div>
                         <div className="text-end">
-                          <span className="badge bg-pcc-blue fs-6">Room {selectedRes.roomNumber} ({selectedRes.roomType})</span>
+                          <span className="badge bg-primary-subtle text-primary border border-primary fs-6 fw-bold">
+                            Room {selectedRes.roomNumber} ({selectedRes.roomType})
+                          </span>
                           <div className="small text-muted mt-1">
                             Inclusion: <strong>{isWithBk ? 'With Breakfast' : 'Without Breakfast'}</strong>
                           </div>
@@ -1097,7 +1099,7 @@ function ReservationsClient() {
                       </small>
                     </div>
 
-                    <div className="row g-2 mb-3 p-3 bg-light rounded border">
+                    <div className="row g-2 mb-3">
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Scheduled Check-In Date *</label>
                         <DateInput className="form-control form-control-sm" value={convInDate} onChange={(e) => setConvInDate(e.target.value)} required />
