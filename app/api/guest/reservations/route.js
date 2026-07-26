@@ -12,13 +12,10 @@ export async function GET(request) {
     await syncRoomStatuses();
 
     const guests = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
-    if (guests.length === 0) {
-      return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
-    }
-    const guestID = guests[0].guestID;
+    const guestID = guests.length > 0 ? guests[0].guestID : 0;
 
-    // Fetch guest reservations
-    const reservations = await dbQuery(`
+    // Fetch guest reservations if guest profile exists
+    const reservations = guestID > 0 ? await dbQuery(`
       SELECT r.reservationID, r.reservationDateTime, r.status, r.roomID,
              rm.roomNumber, rm.floorID, rt.type as roomType, fl.name as floor,
              COALESCE(rr.rate, 1500) as rate
@@ -29,7 +26,7 @@ export async function GET(request) {
       LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1
       WHERE r.guestID = ?
       ORDER BY r.reservationDateTime DESC
-    `, [guestID]);
+    `, [guestID]) : [];
 
     // Fetch ALL active rooms in pension house for visual room selection grid
     const allRooms = await dbQuery(`

@@ -658,56 +658,58 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         </div>
       )}
 
-      {/* RESPONSIVE NAVIGATION: DESKTOP LEFT SIDEBAR vs MOBILE BOTTOM NAV */}
-      {isDesktop ? (
-        <GuestSidebarNav
-          activeTab={activeTab}
-          setActiveTab={(tab) => {
-            setActiveTab(tab);
-            setViewMode('default');
-          }}
-          unreadNotificationsCount={unreadCount}
-          guest={guest}
-          onRequestLogout={() => setShowLogoutModal(true)}
-        />
-      ) : (
-        /* TOP BRANDING BAR (Mobile/Tablet Only) */
-        <nav className="navbar navbar-dark text-white border-bottom shadow-sm sticky-top px-3" style={{ background: 'var(--pcc-blue)' }}>
-          <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
-            <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0 text-white">
-              <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
-              <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
-            </Link>
-            <div className="d-flex align-items-center gap-2">
-              <span className="fw-semibold text-white px-2.5 py-1 rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
-                {guest.firstName} {guest.lastName}
-              </span>
-              <button
-                className="btn btn-sm text-white border-0"
-                title="Log Out"
-                onClick={() => setShowLogoutModal(true)}
-              >
-                <i className="bi bi-power fs-5"></i>
-              </button>
+      {/* GUEST PORTAL ROOT FLEX LAYOUT */}
+      <div className="d-flex flex-column flex-lg-row" style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8fafc' }}>
+        {/* RESPONSIVE NAVIGATION: DESKTOP LEFT SIDEBAR vs MOBILE TOP NAV */}
+        {isDesktop ? (
+          <GuestSidebarNav
+            activeTab={activeTab}
+            setActiveTab={(tab) => {
+              setActiveTab(tab);
+              setViewMode('default');
+            }}
+            unreadNotificationsCount={unreadCount}
+            guest={guest}
+            onRequestLogout={() => setShowLogoutModal(true)}
+          />
+        ) : (
+          /* TOP BRANDING BAR (Mobile/Tablet Only) */
+          <nav className="navbar navbar-dark text-white border-bottom shadow-sm sticky-top px-3" style={{ background: 'var(--pcc-blue)', zIndex: 1030 }}>
+            <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
+              <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0 text-white">
+                <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
+                <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
+              </Link>
+              <div className="d-flex align-items-center gap-2">
+                <span className="fw-semibold text-white px-2.5 py-1 rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
+                  {guest.firstName} {guest.lastName}
+                </span>
+                <button
+                  className="btn btn-sm text-white border-0"
+                  title="Log Out"
+                  onClick={() => setShowLogoutModal(true)}
+                >
+                  <i className="bi bi-power fs-5"></i>
+                </button>
+              </div>
             </div>
-          </div>
-        </nav>
-      )}
+          </nav>
+        )}
 
-      {/* MAIN CONTAINER WRAPPER */}
-      <div className={`container py-3 ${isDesktop ? 'guest-desktop-content' : 'guest-mobile-wrapper'}`}>
-        {viewMode === 'select_room' ? (
-          /* VISUAL ROOM LAYOUT SELECTION WORKSPACE */
-          <div className="animate__animated animate__fadeIn">
-            {/* BACK HEADER */}
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <button className="btn btn-sm btn-outline-secondary fw-semibold d-flex align-items-center gap-1" onClick={() => setViewMode('default')}>
-                <i className="bi bi-arrow-left"></i> Back to Navigation
-              </button>
-              <span className="badge bg-pcc-blue text-white px-3 py-1.5 fw-bold" style={{ fontSize: '0.82rem' }}>
-                {flowAction === 'reserve' ? '🟢 Reservation Mode' : '🔵 Booking Mode'}
-              </span>
-            </div>
+        {/* MAIN WORKSPACE CONTENT */}
+        <main className="flex-grow-1 p-3 p-lg-4" style={{ minWidth: 0, backgroundColor: '#f8fafc' }}>
+          {viewMode === 'select_room' ? (
+            /* VISUAL ROOM LAYOUT SELECTION WORKSPACE */
+            <div className="animate__animated animate__fadeIn">
+              {/* BACK HEADER */}
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <button className="btn btn-sm btn-outline-secondary fw-semibold d-flex align-items-center gap-1" onClick={() => setViewMode('default')}>
+                  <i className="bi bi-arrow-left"></i> Back to Navigation
+                </button>
+                <span className="badge bg-pcc-blue text-white px-3 py-1.5 fw-bold" style={{ fontSize: '0.82rem' }}>
+                  {flowAction === 'reserve' ? 'Reservation Mode' : 'Booking Mode'}
+                </span>
+              </div>
 
             {/* EXACT 4-COLOR STATUS LEGEND BAR */}
             <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
@@ -1126,13 +1128,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                   <div className="d-flex gap-2">
                     <button className="btn btn-sm btn-outline-secondary" onClick={fetchRoomsAndStatus} title="Refresh rooms">
-                      🔄 Refresh
+                      Refresh
                     </button>
                     <button className="btn btn-sm btn-success text-white fw-bold" onClick={handleStartReserveFlow}>
-                      🟢 Reserve Room
+                      Reserve Room
                     </button>
                     <button className="btn btn-sm btn-primary text-white fw-bold" onClick={handleStartBookFlow}>
-                      🔵 Book Room
+                      Book Room
                     </button>
                   </div>
                 </div>
@@ -1147,7 +1149,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <h6 className="fw-bold text-dark mb-1">No Rooms Available To Display</h6>
                     <p className="text-muted small mb-3">Click refresh to load the latest room status from server.</p>
                     <button className="btn btn-sm btn-pcc-primary text-white fw-bold mx-auto px-4 py-2" onClick={fetchRoomsAndStatus}>
-                      🔄 Fetch Rooms Catalog
+                      Fetch Rooms Catalog
                     </button>
                   </div>
                 ) : (
@@ -1202,7 +1204,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                   style={{ fontSize: '0.76rem' }}
                                 >
-                                  Details 👁️
+                                  Details
                                 </button>
                                 {isAvailable ? (
                                   <>
@@ -1217,7 +1219,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                       }}
                                       style={{ fontSize: '0.78rem' }}
                                     >
-                                      Reserve 🟢
+                                      Reserve
                                     </button>
                                     <button
                                       type="button"
@@ -1230,7 +1232,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                       }}
                                       style={{ fontSize: '0.78rem' }}
                                     >
-                                      Book 🔵
+                                      Book
                                     </button>
                                   </>
                                 ) : (
@@ -1391,11 +1393,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span><i className="bi bi-power me-2"></i> Log Out</span>
                     <i className="bi bi-box-arrow-right"></i>
                   </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </main>
       </div>
 
       {/* MOBILE BOTTOM NAVIGATION BAR (Mobile/Tablet Only) */}
