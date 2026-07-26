@@ -88,24 +88,41 @@ function CheckInClient() {
   }, [loading, targetBookingID, bookings]);
 
   const handleCheckIn = (id, guestName) => {
-    showConfirm('Process Check-In', `Check in ${guestName} now?`, async () => {
+    const performCheckIn = async (isEarlyConfirmed = false) => {
       try {
         const res = await fetch('/api/receptionist/bookings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'checkin',
-            bookingID: id
+            bookingID: id,
+            confirmEarlyCheckIn: isEarlyConfirmed
           })
         });
         const data = await res.json();
+
         if (!res.ok) throw new Error(data.error || 'Failed to check in');
 
-        showAlert('success', 'Success', `${guestName} checked in successfully.`);
+        if (data.requiresEarlyCheckInConfirmation) {
+          showConfirm(
+            'Early Check-In Confirmation',
+            `Standard check-in time is 2:00 PM. Are you sure you want to proceed with Early Check-In for ${guestName}? An additional early check-in fee of ₱${parseFloat(data.earlyFee).toFixed(2)} (${data.earlyHours} hour(s) @ ₱50/hr) will be automatically added to the guest's bill.`,
+            async () => {
+              await performCheckIn(true);
+            }
+          );
+          return;
+        }
+
+        showAlert('success', 'Success', data.message || `${guestName} checked in successfully.`);
         fetchBookings();
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
+    };
+
+    showConfirm('Process Check-In', `Check in ${guestName} now?`, async () => {
+      await performCheckIn(false);
     });
   };
 

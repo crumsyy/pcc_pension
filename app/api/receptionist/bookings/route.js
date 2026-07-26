@@ -295,8 +295,9 @@ export async function POST(request) {
 
     if (action === 'checkin') {
       const bookingID = parseInt(body.bookingID);
+      const confirmEarlyCheckIn = !!body.confirmEarlyCheckIn;
       
-      const res = await dbQuery("SELECT roomID, DATE_FORMAT(checkInDateTime, '%Y-%m-%d') as scheduledCheckInDate FROM booking WHERE bookingID = ?", [bookingID]);
+      const res = await dbQuery("SELECT roomID, DATE_FORMAT(checkInDateTime, '%Y-%m-%d') as scheduledCheckInDate, checkInDateTime FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
@@ -312,12 +313,46 @@ export async function POST(request) {
         }, { status: 400 });
       }
 
+      // Check if current time is before standard check-in time (2:00 PM / 14:00)
+      const standardCheckIn = new Date(`${todayDateStr}T14:00:00`);
+      let earlyHours = 0;
+      let earlyFee = 0;
+
+      if (localNow < standardCheckIn && todayDateStr === scheduledCheckInDate) {
+        const diffMs = standardCheckIn - localNow;
+        earlyHours = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
+        earlyFee = earlyHours * 50;
+
+        if (!confirmEarlyCheckIn) {
+          return NextResponse.json({
+            requiresEarlyCheckInConfirmation: true,
+            earlyHours,
+            earlyFee,
+            message: `This guest is checking in early. Standard check-in is 2:00 PM. An early check-in fee of ₱${earlyFee.toFixed(2)} (${earlyHours} hour(s) @ ₱50/hr) will be added.`
+          });
+        }
+      }
+
       const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
+      // If early check-in confirmed, record fee in incidental charges
+      if (confirmEarlyCheckIn && earlyFee > 0) {
+        const feeDesc = `Early Check-In Fee (${earlyHours} hr(s) @ ₱50.00/hr before 2:00 PM)`;
+        await dbQuery(
+          "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+          [bookingID, feeDesc, earlyFee]
+        );
+      }
 
       await dbQuery("UPDATE booking SET status = 'Checked In', checkInDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
       await dbQuery("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
 
-      return NextResponse.json({ success: true, message: 'Guest checked in successfully.' });
+      return NextResponse.json({
+        success: true,
+        message: earlyFee > 0 ? `Guest checked in early successfully. ₱${earlyFee.toFixed(2)} Early Check-In Fee added to bill.` : 'Guest checked in successfully.',
+        earlyFee,
+        earlyHours
+      });
     }
 
     if (action === 'checkout') {
