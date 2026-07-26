@@ -240,14 +240,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   // Triggers for Visual Room Selection
   const handleStartReserveFlow = () => {
-    setFlowAction('reserve');
-    setViewMode('select_room');
+    setActiveTab('rooms');
+    setViewMode('default');
     fetchRoomsAndStatus();
   };
 
   const handleStartBookFlow = () => {
-    setFlowAction('book');
-    setViewMode('select_room');
+    setActiveTab('rooms');
+    setViewMode('default');
     fetchRoomsAndStatus();
   };
 
@@ -1022,7 +1022,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="small text-muted mb-2">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
                         {renderBookingStatusTimeline(activeReservation.status)}
                       </div>
-                      <button className="btn btn-xs btn-outline-danger" onClick={() => handleCancelReservation(activeReservation.reservationID)}>
+                      <button className="btn btn-sm btn-danger text-white fw-bold px-3 py-1.5 shadow-sm ms-2" onClick={() => handleCancelReservation(activeReservation.reservationID)}>
                         Cancel
                       </button>
                     </div>
@@ -1133,7 +1133,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="text-muted small">Select any available room panel below to Reserve or Book your stay.</span>
                   </div>
                   <div>
-                    <button className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" onClick={fetchRoomsAndStatus} title="Refresh rooms">
+                    <button
+                      className="btn btn-sm text-white fw-bold d-flex align-items-center gap-1.5 shadow-sm"
+                      onClick={fetchRoomsAndStatus}
+                      title="Refresh rooms"
+                      style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', color: '#ffffff' }}
+                    >
                       <i className="bi bi-arrow-clockwise"></i> Refresh
                     </button>
                   </div>
