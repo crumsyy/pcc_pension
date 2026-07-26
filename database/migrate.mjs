@@ -262,6 +262,7 @@ async function run() {
     await ensureColumn(connection, 'reservation', 'checkOutDateTime', 'DATETIME DEFAULT NULL');
     await ensureColumn(connection, 'reservation', 'guestCount', 'INT DEFAULT 1');
     await ensureColumn(connection, 'reservation', 'specialRequests', 'TEXT DEFAULT NULL');
+    await ensureColumn(connection, 'reservation', 'breakfastOption', "VARCHAR(20) DEFAULT 'with'");
     await ensureColumn(connection, 'orders', 'bookingID', 'INT DEFAULT NULL');
     await ensureColumn(connection, 'orders', 'isBreakfast', 'TINYINT(1) DEFAULT 0');
     await ensureColumn(connection, 'orders', 'hasCookedMeal', 'TINYINT(1) DEFAULT 0');

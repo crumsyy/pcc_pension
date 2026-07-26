@@ -102,37 +102,46 @@ export async function GET(request) {
   }
 
   try {
-    const [reservations, guests, rooms, paymentMethods] = await Promise.all([
+    const [reservations, guests, rooms, paymentMethods, discounts] = await Promise.all([
       dbQuery(`
         SELECT r.reservationID, DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime,
                DATE_FORMAT(r.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
                COALESCE(r.guestCount, 1) as guestCount, r.specialRequests,
+               COALESCE(r.breakfastOption, 'with') as breakfastOption,
                r.status, r.guestID, r.roomID,
                g.firstName, g.lastName, g.contact, g.email,
-               rm.roomNumber, rt.type as roomType, rr.rate,
+               rm.roomNumber, rt.type as roomType,
+               rr1.rate as rateWithBreakfast, rr2.rate as rateWithoutBreakfast,
+               COALESCE(rr1.rate, rr2.rate, 0) as rate,
                b.bookingID, b.status as bookingStatus
         FROM reservation r
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1
+        LEFT JOIN room_rate rr1 ON rr1.roomTypeID = rm.roomTypeID AND rr1.floorID = rm.floorID AND rr1.breakfastID = 2
+        LEFT JOIN room_rate rr2 ON rr2.roomTypeID = rm.roomTypeID AND rr2.floorID = rm.floorID AND rr2.breakfastID = 1
         LEFT JOIN booking b ON b.reservationID = r.reservationID
         WHERE rm.isArchived = 0
         ORDER BY r.reservationDateTime DESC
       `),
       dbQuery("SELECT guestID, firstName, lastName, contact, email FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, rr.rate, r.occupancyLimit
+        SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, r.occupancyLimit,
+               rr1.rate as rateWithBreakfast,
+               rr2.rate as rateWithoutBreakfast,
+               COALESCE(rr1.rate, rr2.rate, 0) as rate
         FROM room r 
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
-        LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
+        LEFT JOIN room_rate rr1 ON rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 2
+        LEFT JOIN room_rate rr2 ON rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 1
         WHERE r.isArchived = 0 
         ORDER BY r.roomNumber
       `),
-      dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method")
+      dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method"),
+      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name")
     ]);
 
-    return NextResponse.json({ reservations, guests, rooms, paymentMethods });
+    return NextResponse.json({ reservations, guests, rooms, paymentMethods, discounts });
   } catch (error) {
     console.error("Failed to fetch reservations data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -171,6 +180,7 @@ export async function POST(request) {
       const checkOutDateTime = body.checkOutDateTime || null;
       const guestCount = parseInt(body.guestCount || 1);
       const specialRequests = body.specialRequests || null;
+      const breakfastOption = body.breakfastOption || 'with';
 
       if (!guestID || !roomID || !reservationDateTime) {
         return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
@@ -195,8 +205,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "INSERT INTO reservation(reservationDateTime, checkOutDateTime, guestCount, specialRequests, status, guestID, roomID) VALUES(?, ?, ?, ?, 'Pending', ?, ?)",
-        [reservationDateTime, checkOutDateTime, guestCount, specialRequests, guestID, roomID]
+        "INSERT INTO reservation(reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption, status, guestID, roomID) VALUES(?, ?, ?, ?, ?, 'Pending', ?, ?)",
+        [reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption, guestID, roomID]
       );
 
       return NextResponse.json({ success: true, message: 'Reservation created successfully.' });
@@ -209,6 +219,7 @@ export async function POST(request) {
       const checkOutDateTime = body.checkOutDateTime || null;
       const guestCount = parseInt(body.guestCount || 1);
       const specialRequests = body.specialRequests || null;
+      const breakfastOption = body.breakfastOption || 'with';
 
       if (!reservationID || !roomID || !reservationDateTime) {
         return NextResponse.json({ error: 'Missing required fields for update.' }, { status: 400 });
@@ -233,8 +244,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "UPDATE reservation SET roomID = ?, reservationDateTime = ?, checkOutDateTime = ?, guestCount = ?, specialRequests = ? WHERE reservationID = ?",
-        [roomID, reservationDateTime, checkOutDateTime, guestCount, specialRequests, reservationID]
+        "UPDATE reservation SET roomID = ?, reservationDateTime = ?, checkOutDateTime = ?, guestCount = ?, specialRequests = ?, breakfastOption = ? WHERE reservationID = ?",
+        [roomID, reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption, reservationID]
       );
 
       return NextResponse.json({ success: true, message: 'Reservation updated successfully.' });
@@ -245,6 +256,8 @@ export async function POST(request) {
       const checkInDateTime = body.checkInDateTime;
       const checkOutDateTime = body.checkOutDateTime;
       const downPaymentAmount = parseFloat(body.downPaymentAmount || 0);
+      const cashReceived = parseFloat(body.cashReceived || downPaymentAmount);
+      const change = parseFloat(body.change || 0);
       const paymentMethodID = parseInt(body.paymentMethodID || 1);
 
       if (!checkInDateTime || !checkOutDateTime || isNaN(downPaymentAmount) || downPaymentAmount <= 0) {
@@ -298,8 +311,8 @@ export async function POST(request) {
         // 6. Record Down Payment
         const [paymentInsert] = await conn.execute(
           `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID) 
-           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL)`,
-          [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID]
+           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
+          [downPaymentAmount, cashReceived, change, billingID, guestID, staffID, paymentMethodID]
         );
         const paymentID = paymentInsert.insertId;
 
@@ -316,7 +329,7 @@ export async function POST(request) {
         await resolveReservationConflicts(conn, roomID, reservationID);
 
         await conn.commit();
-        return NextResponse.json({ success: true, message: 'Reservation successfully converted to Booking.' });
+        return NextResponse.json({ success: true, message: 'Reservation successfully converted to Booking.', bookingID, billingID, paymentID });
       } catch (e) {
         await conn.rollback();
         throw e;
