@@ -5,9 +5,9 @@ import { NAV_ITEMS } from './navConfig';
 
 export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotificationsCount = 0, guest, onRequestLogout }) {
   return (
-    <aside className="guest-desktop-sidebar bg-white border-end shadow-sm d-flex flex-column p-3">
+    <aside className="guest-desktop-sidebar text-white shadow-sm d-flex flex-column p-3" style={{ background: 'var(--pcc-blue)', minHeight: '100vh' }}>
       {/* BRAND HEADER */}
-      <div className="mb-3 text-center p-3 rounded-3 text-white shadow-sm" style={{ background: 'var(--pcc-blue)' }}>
+      <div className="mb-3 text-center p-3 rounded-3 text-white shadow-sm" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' }}>
         <Link href="/" className="d-flex align-items-center justify-content-center gap-2 text-decoration-none text-white">
           <img src="/assets/images/logo.jpg" height="40" alt="PCC Logo" style={{ borderRadius: "8px" }} />
           <div className="text-start">
@@ -19,16 +19,16 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
         </Link>
       </div>
 
-      {/* GUEST PROFILE SUMMARY (No Profile Picture) */}
-      <div className="p-2.5 bg-light rounded-3 mb-3 border">
-        <div className="fw-bold text-dark text-truncate" style={{ fontSize: '0.9rem' }}>
+      {/* GUEST PROFILE SUMMARY */}
+      <div className="p-2.5 rounded-3 mb-3 border border-white-50" style={{ background: 'rgba(255,255,255,0.12)' }}>
+        <div className="fw-bold text-white text-truncate" style={{ fontSize: '0.9rem' }}>
           {guest?.firstName} {guest?.lastName}
         </div>
-        <span className="text-muted text-truncate d-block" style={{ fontSize: '0.75rem' }}>Guest Account</span>
+        <span className="text-white-50 text-truncate d-block" style={{ fontSize: '0.75rem' }}>Guest Account</span>
       </div>
 
       {/* NAVIGATION MENU */}
-      <div className="nav flex-column nav-pills gap-1 mb-auto">
+      <div className="nav flex-column nav-pills gap-1.5 mb-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = activeTab === item.id;
           const isNotification = item.id === 'notifications';
@@ -39,8 +39,8 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
               onClick={() => setActiveTab(item.id)}
               className={`btn text-start d-flex align-items-center justify-content-between p-2.5 rounded-3 border-0 sidebar-nav-item ${isActive ? 'active' : ''}`}
               style={{
-                backgroundColor: isActive ? '#2155B5' : 'transparent',
-                color: isActive ? '#ffffff' : '#475569',
+                backgroundColor: isActive ? '#ffffff' : 'transparent',
+                color: isActive ? 'var(--pcc-blue)' : '#ffffff',
                 fontWeight: isActive ? '700' : '500',
                 fontSize: '0.92rem',
                 transition: 'all 0.2s ease-in-out'
@@ -51,7 +51,7 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
                 <span>{item.label}</span>
               </div>
               {isNotification && unreadNotificationsCount > 0 && (
-                <span className={`badge ${isActive ? 'bg-white text-danger' : 'bg-danger text-white'} rounded-pill`} style={{ fontSize: '0.7rem' }}>
+                <span className={`badge ${isActive ? 'bg-danger text-white' : 'bg-white text-danger'} rounded-pill`} style={{ fontSize: '0.7rem' }}>
                   {unreadNotificationsCount}
                 </span>
               )}
@@ -60,8 +60,8 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
         })}
       </div>
 
-      {/* FOOTER & RED LOGOUT POWER BUTTON */}
-      <div className="pt-3 border-top mt-3">
+      {/* FOOTER & LOGOUT BUTTON */}
+      <div className="pt-3 border-top border-white-50 mt-3">
         <button
           onClick={onRequestLogout}
           className="btn btn-danger text-white w-100 py-2.5 px-3 rounded-3 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"

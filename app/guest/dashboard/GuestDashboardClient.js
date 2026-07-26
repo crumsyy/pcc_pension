@@ -1120,11 +1120,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <div>
                     <h4 className="fw-bold text-dark mb-0">Rooms Catalog</h4>
-                    <span className="text-muted small">Explore our comfortable rooms and suites.</span>
+                    <span className="text-muted small">Select any available room to Reserve or Book your stay.</span>
                   </div>
-                  <button className="btn btn-sm btn-primary text-white fw-bold" onClick={handleStartBookFlow}>
-                    + Book Stay
-                  </button>
+                  <div className="d-flex gap-2">
+                    <button className="btn btn-sm btn-success text-white fw-bold" onClick={handleStartReserveFlow}>
+                      🟢 Reserve Room
+                    </button>
+                    <button className="btn btn-sm btn-primary text-white fw-bold" onClick={handleStartBookFlow}>
+                      🔵 Book Room
+                    </button>
+                  </div>
                 </div>
 
                 <div className="row g-3">
@@ -1132,42 +1137,84 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     const isAvailable = rm.status === 'Available';
                     return (
                       <div key={rm.roomID} className="col-12 col-md-6 col-lg-4">
-                        <div className="card shadow-sm border-0 h-100 room-card-hover overflow-hidden" style={{ borderRadius: '12px' }}>
-                          <div style={{ height: '150px', background: '#cbd5e1' }} className="d-flex align-items-center justify-content-center text-secondary fw-bold">
-                            🛌 Room {rm.roomNumber} Image Placeholder
-                          </div>
+                        <div 
+                          className={`card shadow-sm border-0 h-100 room-card-hover overflow-hidden ${isAvailable ? 'cursor-pointer' : 'opacity-75'}`}
+                          style={{
+                            borderRadius: '12px',
+                            borderLeft: isAvailable ? '5px solid #198754 !important' : '5px solid #6c757d !important'
+                          }}
+                          onClick={() => {
+                            if (isAvailable) {
+                              setSelectedRoom(rm);
+                              setFlowAction('book');
+                              setActiveModal('book_form');
+                            }
+                          }}
+                        >
                           <div className="card-body p-3 d-flex flex-column">
                             <div className="d-flex justify-content-between align-items-start mb-2">
                               <div>
                                 <h5 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h5>
-                                <div className="text-muted small">{rm.roomType} • {rm.floorName}</div>
+                                <div className="text-muted small">{rm.roomType} • {rm.floorName || 'Ground Floor'}</div>
                               </div>
-                              <span className={`badge ${isAvailable ? 'bg-success' : 'bg-secondary'}`}>
-                                {isAvailable ? 'Available' : rm.status}
+                              <span className={`badge ${isAvailable ? 'bg-success text-white' : 'bg-secondary text-white'}`}>
+                                {isAvailable ? '🟢 Available' : rm.status}
                               </span>
                             </div>
 
-                            <div className="my-2 p-2 bg-light rounded small">
-                              <div className="d-flex justify-content-between">
-                                <span>Max Occupancy:</span>
-                                <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
+                            <div className="my-2 p-2.5 bg-light rounded small">
+                              <div className="d-flex justify-content-between mb-1">
+                                <span className="text-muted">Max Occupancy:</span>
+                                <strong className="text-dark">Up to {rm.occupancyLimit || 2} Pax</strong>
                               </div>
                               <div className="d-flex justify-content-between">
-                                <span>Rate per Night:</span>
-                                <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}</strong>
+                                <span className="text-muted">Base Rate:</span>
+                                <strong className="text-pcc-blue">₱{parseFloat(rm.rate || 0).toFixed(2)} / night</strong>
                               </div>
                             </div>
 
-                            <div className="mt-auto pt-2 d-flex gap-2">
-                              <button className="btn btn-sm btn-outline-secondary w-50" onClick={() => handleOpenRoomDetails(rm)}>
-                                View Details 👁️
+                            <div className="mt-auto pt-2 d-flex gap-1.5 align-items-center">
+                              <button
+                                type="button"
+                                className="btn btn-xs btn-outline-secondary py-1.5 px-2"
+                                onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                                style={{ fontSize: '0.76rem' }}
+                              >
+                                Details 👁️
                               </button>
                               {isAvailable ? (
-                                <button className="btn btn-sm btn-primary text-white w-50 fw-bold" onClick={handleStartBookFlow}>
-                                  Book Now 🔵
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs btn-success text-white fw-bold py-1.5 px-2.5 flex-grow-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedRoom(rm);
+                                      setFlowAction('reserve');
+                                      setActiveModal('reserve_form');
+                                    }}
+                                    style={{ fontSize: '0.78rem' }}
+                                  >
+                                    Reserve 🟢
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs btn-primary text-white fw-bold py-1.5 px-2.5 flex-grow-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedRoom(rm);
+                                      setFlowAction('book');
+                                      setActiveModal('book_form');
+                                    }}
+                                    style={{ fontSize: '0.78rem' }}
+                                  >
+                                    Book 🔵
+                                  </button>
+                                </>
                               ) : (
-                                <button className="btn btn-sm btn-secondary text-white w-50" disabled>Unavailable</button>
+                                <button type="button" className="btn btn-xs btn-secondary text-white w-100" disabled style={{ fontSize: '0.78rem' }}>
+                                  Unavailable
+                                </button>
                               )}
                             </div>
                           </div>
