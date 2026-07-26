@@ -52,14 +52,17 @@ export default async function GuestDashboard() {
         [guest.guestID]
       ),
       dbQuery(
-        `SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit, r.isAircon, r.hasHotShower,
+        `SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit,
                 COALESCE(rt.type, 'Standard Room') as roomType,
                 COALESCE(fl.name, 'Ground Floor') as floorName,
-                COALESCE(rr.rate, 1500) as rate
+                (
+                  SELECT COALESCE(MIN(rr.rate), 1500)
+                  FROM room_rate rr
+                  WHERE rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID
+                ) as rate
          FROM room r
          LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
          LEFT JOIN floor fl ON fl.floorID = r.floorID
-         LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
          WHERE r.isArchived = 0
          ORDER BY r.floorID ASC, r.roomNumber ASC`
       )
