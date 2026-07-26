@@ -45,6 +45,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   // Active Navigation Tab: 'home' | 'rooms' | 'chat' | 'notifications' | 'account'
   const [activeTab, setActiveTab] = useState('home');
 
+  // Room Search & Filtering States
+  const [roomSearchQuery, setRoomSearchQuery] = useState('');
+  const [selectedFloorFilter, setSelectedFloorFilter] = useState('All');
+  const [selectedRoomTypeFilter, setSelectedRoomTypeFilter] = useState('All');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
+
   // Workflow Mode: 'default' | 'select_room'
   const [viewMode, setViewMode] = useState('default');
   const [flowAction, setFlowAction] = useState('reserve'); // 'reserve' | 'book'
@@ -523,7 +529,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (status === 'Available') {
       return {
         badgeClass: 'bg-success text-white',
-        label: '🟢 Available',
+        label: 'Available',
         bgColor: '#ffffff',
         borderLeft: '#198754',
         selectable: true
@@ -532,7 +538,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (status === 'Occupied') {
       return {
         badgeClass: 'bg-primary text-white',
-        label: '🔵 Occupied',
+        label: 'Occupied',
         bgColor: '#f0f7ff',
         borderLeft: '#0d6efd',
         selectable: false
@@ -541,7 +547,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (status === 'Under Maintenance') {
       return {
         badgeClass: 'bg-danger text-white',
-        label: '🔴 Maintenance',
+        label: 'Under Maintenance',
         bgColor: '#fff5f5',
         borderLeft: '#dc3545',
         selectable: false
@@ -550,7 +556,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (status === 'Booked' || status === 'Reserved') {
       return {
         badgeClass: 'bg-warning text-dark',
-        label: '🟠 Booked',
+        label: 'Booked',
         bgColor: '#fffdf0',
         borderLeft: '#fd7e14',
         selectable: false
@@ -558,7 +564,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
     return {
       badgeClass: 'bg-warning text-dark',
-      label: `🟠 ${status}`,
+      label: status,
       bgColor: '#fffdf0',
       borderLeft: '#fd7e14',
       selectable: false
@@ -1123,19 +1129,84 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="animate__animated animate__fadeIn">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <div>
-                    <h4 className="fw-bold text-dark mb-0">Rooms Catalog</h4>
-                    <span className="text-muted small">Select any available room to Reserve or Book your stay.</span>
+                    <h4 className="fw-bold text-dark mb-0">Rooms</h4>
+                    <span className="text-muted small">Select any available room panel below to Reserve or Book your stay.</span>
                   </div>
-                  <div className="d-flex gap-2">
-                    <button className="btn btn-sm btn-outline-secondary" onClick={fetchRoomsAndStatus} title="Refresh rooms">
-                      Refresh
+                  <div>
+                    <button className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" onClick={fetchRoomsAndStatus} title="Refresh rooms">
+                      <i className="bi bi-arrow-clockwise"></i> Refresh
                     </button>
-                    <button className="btn btn-sm btn-success text-white fw-bold" onClick={handleStartReserveFlow}>
-                      Reserve Room
-                    </button>
-                    <button className="btn btn-sm btn-primary text-white fw-bold" onClick={handleStartBookFlow}>
-                      Book Room
-                    </button>
+                  </div>
+                </div>
+
+                {/* SEARCH & FILTER BAR */}
+                <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                  <div className="row g-2 align-items-center">
+                    <div className="col-12 col-md-4">
+                      <div className="input-group input-group-sm">
+                        <span className="input-group-text bg-light text-muted border-end-0"><i className="bi bi-search"></i></span>
+                        <input
+                          type="text"
+                          className="form-control border-start-0"
+                          placeholder="Search room number or type..."
+                          value={roomSearchQuery}
+                          onChange={(e) => setRoomSearchQuery(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-2.5">
+                      <select
+                        className="form-select form-select-sm"
+                        value={selectedFloorFilter}
+                        onChange={(e) => setSelectedFloorFilter(e.target.value)}
+                      >
+                        <option value="All">All Floors</option>
+                        {Array.from(new Set(allRooms.map(r => r.floorName).filter(Boolean))).map(f => (
+                          <option key={f} value={f}>{f}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-6 col-md-2.5">
+                      <select
+                        className="form-select form-select-sm"
+                        value={selectedRoomTypeFilter}
+                        onChange={(e) => setSelectedRoomTypeFilter(e.target.value)}
+                      >
+                        <option value="All">All Room Types</option>
+                        {Array.from(new Set(allRooms.map(r => r.roomType).filter(Boolean))).map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-6 col-md-2">
+                      <select
+                        className="form-select form-select-sm"
+                        value={selectedStatusFilter}
+                        onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="Available">Available</option>
+                        <option value="Occupied">Occupied</option>
+                        <option value="Under Maintenance">Under Maintenance</option>
+                        <option value="Booked">Booked / Reserved</option>
+                      </select>
+                    </div>
+                    {(roomSearchQuery || selectedFloorFilter !== 'All' || selectedRoomTypeFilter !== 'All' || selectedStatusFilter !== 'All') && (
+                      <div className="col-12 text-end mt-2">
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-danger text-white py-1 px-3 fw-bold"
+                          onClick={() => {
+                            setRoomSearchQuery('');
+                            setSelectedFloorFilter('All');
+                            setSelectedRoomTypeFilter('All');
+                            setSelectedStatusFilter('All');
+                          }}
+                        >
+                          Reset Filters
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1153,100 +1224,121 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </button>
                   </div>
                 ) : (
-                  <div className="row g-3">
-                    {allRooms.map((rm) => {
-                      const meta = getRoomStatusMeta(rm.status);
-                      const isAvailable = rm.status === 'Available';
+                  (() => {
+                    const filteredRooms = allRooms.filter((rm) => {
+                      const q = roomSearchQuery.trim().toLowerCase();
+                      const matchesSearch = !q || rm.roomNumber.toLowerCase().includes(q) || (rm.roomType && rm.roomType.toLowerCase().includes(q));
+                      const matchesFloor = selectedFloorFilter === 'All' || String(rm.floorName || '') === selectedFloorFilter;
+                      const matchesType = selectedRoomTypeFilter === 'All' || String(rm.roomType || '') === selectedRoomTypeFilter;
+                      const matchesStatus = selectedStatusFilter === 'All' || rm.status === selectedStatusFilter || (selectedStatusFilter === 'Booked' && (rm.status === 'Booked' || rm.status === 'Reserved'));
+                      return matchesSearch && matchesFloor && matchesType && matchesStatus;
+                    });
 
+                    if (filteredRooms.length === 0) {
                       return (
-                        <div key={rm.roomID} className="col-12 col-md-6 col-lg-4">
-                          <div 
-                            className={`card shadow-sm border-0 h-100 room-card-hover overflow-hidden ${isAvailable ? 'cursor-pointer' : 'opacity-85'}`}
-                            style={{
-                              borderRadius: '12px',
-                              backgroundColor: meta.bgColor,
-                              borderLeft: `5px solid ${meta.borderLeft} !important`
-                            }}
-                            onClick={() => {
-                              if (isAvailable) {
-                                setSelectedRoom(rm);
-                                setFlowAction('book');
-                                setActiveModal('book_form');
-                              }
-                            }}
-                          >
-                            <div className="card-body p-3 d-flex flex-column">
-                              <div className="d-flex justify-content-between align-items-start mb-2">
-                                <div>
-                                  <h5 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h5>
-                                  <div className="text-muted small">{rm.roomType} • {rm.floorName || 'Ground Floor'}</div>
-                                </div>
-                                <span className={`badge ${meta.badgeClass} px-2.5 py-1.5`} style={{ fontSize: '0.78rem' }}>
-                                  {meta.label}
-                                </span>
-                              </div>
-
-                              <div className="my-2 p-2.5 bg-white rounded border small">
-                                <div className="d-flex justify-content-between mb-1">
-                                  <span className="text-muted">Max Occupancy:</span>
-                                  <strong className="text-dark">Up to {rm.occupancyLimit || 2} Pax</strong>
-                                </div>
-                                <div className="d-flex justify-content-between">
-                                  <span className="text-muted">Base Rate:</span>
-                                  <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rate || 0).toFixed(2)} / night</strong>
-                                </div>
-                              </div>
-
-                              <div className="mt-auto pt-2 d-flex gap-1.5 align-items-center">
-                                <button
-                                  type="button"
-                                  className="btn btn-xs btn-outline-secondary py-1.5 px-2"
-                                  onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                                  style={{ fontSize: '0.76rem' }}
-                                >
-                                  Details
-                                </button>
-                                {isAvailable ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      className="btn btn-xs btn-success text-white fw-bold py-1.5 px-2.5 flex-grow-1"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedRoom(rm);
-                                        setFlowAction('reserve');
-                                        setActiveModal('reserve_form');
-                                      }}
-                                      style={{ fontSize: '0.78rem' }}
-                                    >
-                                      Reserve
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn btn-xs btn-primary text-white fw-bold py-1.5 px-2.5 flex-grow-1"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedRoom(rm);
-                                        setFlowAction('book');
-                                        setActiveModal('book_form');
-                                      }}
-                                      style={{ fontSize: '0.78rem' }}
-                                    >
-                                      Book
-                                    </button>
-                                  </>
-                                ) : (
-                                  <button type="button" className="btn btn-xs btn-secondary text-white w-100" disabled style={{ fontSize: '0.78rem' }}>
-                                    {rm.status}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                        <div className="card shadow-sm border-0 p-4 text-center bg-white" style={{ borderRadius: '12px' }}>
+                          <p className="text-muted mb-0">No rooms match your selected search or filter criteria.</p>
                         </div>
                       );
-                    })}
-                  </div>
+                    }
+
+                    return (
+                      <div className="row g-3">
+                        {filteredRooms.map((rm) => {
+                          const meta = getRoomStatusMeta(rm.status);
+                          const isAvailable = rm.status === 'Available';
+
+                          return (
+                            <div key={rm.roomID} className="col-12 col-md-6 col-lg-4">
+                              <div 
+                                className={`card shadow-sm border-0 h-100 room-card-hover overflow-hidden ${isAvailable ? 'cursor-pointer' : 'opacity-85'}`}
+                                style={{
+                                  borderRadius: '12px',
+                                  backgroundColor: meta.bgColor,
+                                  borderLeft: `5px solid ${meta.borderLeft} !important`
+                                }}
+                                onClick={() => {
+                                  if (isAvailable) {
+                                    setSelectedRoom(rm);
+                                    setFlowAction('book');
+                                    setActiveModal('book_form');
+                                  }
+                                }}
+                              >
+                                <div className="card-body p-3 d-flex flex-column">
+                                  <div className="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                      <h5 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h5>
+                                      <div className="text-muted small">{rm.roomType} • {rm.floorName || 'Ground Floor'}</div>
+                                    </div>
+                                    <span className={`badge ${meta.badgeClass} px-2.5 py-1.5`} style={{ fontSize: '0.78rem' }}>
+                                      {meta.label}
+                                    </span>
+                                  </div>
+
+                                  <div className="my-2 p-2.5 bg-white rounded border small">
+                                    <div className="d-flex justify-content-between mb-1">
+                                      <span className="text-muted">Max Occupancy:</span>
+                                      <strong className="text-dark">Up to {rm.occupancyLimit || 2} Pax</strong>
+                                    </div>
+                                    <div className="d-flex justify-content-between">
+                                      <span className="text-muted">Base Rate:</span>
+                                      <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rate || 0).toFixed(2)} / night</strong>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-auto pt-2 d-flex gap-1.5 align-items-center">
+                                    <button
+                                      type="button"
+                                      className="btn btn-xs btn-outline-secondary py-1.5 px-2"
+                                      onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                                      style={{ fontSize: '0.76rem' }}
+                                    >
+                                      Details
+                                    </button>
+                                    {isAvailable ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="btn btn-xs btn-success text-white fw-bold py-1.5 px-2.5 flex-grow-1"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedRoom(rm);
+                                            setFlowAction('reserve');
+                                            setActiveModal('reserve_form');
+                                          }}
+                                          style={{ fontSize: '0.78rem' }}
+                                        >
+                                          Reserve
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn btn-xs btn-primary text-white fw-bold py-1.5 px-2.5 flex-grow-1"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedRoom(rm);
+                                            setFlowAction('book');
+                                            setActiveModal('book_form');
+                                          }}
+                                          style={{ fontSize: '0.78rem' }}
+                                        >
+                                          Book
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button type="button" className="btn btn-xs btn-secondary text-white w-100" disabled style={{ fontSize: '0.78rem' }}>
+                                        {rm.status}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             )}
@@ -1368,7 +1460,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
                                 {(b.status === 'Pending' || b.status === 'Confirmed') && (
-                                  <button className="btn btn-xs btn-outline-danger py-0 px-2" onClick={() => handleCancelBooking(b.bookingID)}>
+                                  <button className="btn btn-xs btn-danger text-white fw-bold px-2.5 py-1" onClick={() => handleCancelBooking(b.bookingID)}>
                                     Cancel
                                   </button>
                                 )}
