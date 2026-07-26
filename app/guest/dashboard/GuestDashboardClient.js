@@ -679,7 +679,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
             </Link>
             <div className="d-flex align-items-center gap-2">
-              <span className="badge bg-white text-pcc-blue border fw-bold px-2.5 py-1.5" style={{ fontSize: '0.8rem' }}>
+              <span className="fw-semibold text-white px-2.5 py-1 rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
                 {guest.firstName} {guest.lastName}
               </span>
               <button
@@ -973,7 +973,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="guest-hero-card p-4 mb-4 shadow-sm">
                   <div className="d-flex justify-content-between align-items-start">
                     <div>
-                      <span className="badge bg-white text-pcc-blue fw-bold mb-2">Hotel Guest Portal</span>
+                      <span className="fw-bold mb-2 d-inline-block px-3 py-1 rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.25)', color: '#ffffff', fontSize: '0.78rem', border: '1px solid rgba(255, 255, 255, 0.4)' }}>
+                        Hotel Guest Portal
+                      </span>
                       <h3 className="fw-bold mb-1">Welcome, {guest.firstName}!</h3>
                       <p className="mb-0 text-white-50 small">Experience comfort and convenience at PCC Home Suite Home.</p>
                     </div>
@@ -1123,6 +1125,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="text-muted small">Select any available room to Reserve or Book your stay.</span>
                   </div>
                   <div className="d-flex gap-2">
+                    <button className="btn btn-sm btn-outline-secondary" onClick={fetchRoomsAndStatus} title="Refresh rooms">
+                      🔄 Refresh
+                    </button>
                     <button className="btn btn-sm btn-success text-white fw-bold" onClick={handleStartReserveFlow}>
                       🟢 Reserve Room
                     </button>
@@ -1132,97 +1137,115 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
 
-                <div className="row g-3">
-                  {allRooms.map((rm) => {
-                    const isAvailable = rm.status === 'Available';
-                    return (
-                      <div key={rm.roomID} className="col-12 col-md-6 col-lg-4">
-                        <div 
-                          className={`card shadow-sm border-0 h-100 room-card-hover overflow-hidden ${isAvailable ? 'cursor-pointer' : 'opacity-75'}`}
-                          style={{
-                            borderRadius: '12px',
-                            borderLeft: isAvailable ? '5px solid #198754 !important' : '5px solid #6c757d !important'
-                          }}
-                          onClick={() => {
-                            if (isAvailable) {
-                              setSelectedRoom(rm);
-                              setFlowAction('book');
-                              setActiveModal('book_form');
-                            }
-                          }}
-                        >
-                          <div className="card-body p-3 d-flex flex-column">
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <div>
-                                <h5 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h5>
-                                <div className="text-muted small">{rm.roomType} • {rm.floorName || 'Ground Floor'}</div>
-                              </div>
-                              <span className={`badge ${isAvailable ? 'bg-success text-white' : 'bg-secondary text-white'}`}>
-                                {isAvailable ? '🟢 Available' : rm.status}
-                              </span>
-                            </div>
+                {loadingRooms ? (
+                  <div className="card shadow-sm border-0 p-5 text-center bg-white" style={{ borderRadius: '12px' }}>
+                    <div className="spinner-border text-pcc-blue mx-auto mb-2" role="status"></div>
+                    <p className="text-muted small mb-0">Loading rooms catalog...</p>
+                  </div>
+                ) : allRooms.length === 0 ? (
+                  <div className="card shadow-sm border-0 p-5 text-center bg-white" style={{ borderRadius: '12px' }}>
+                    <h6 className="fw-bold text-dark mb-1">No Rooms Available To Display</h6>
+                    <p className="text-muted small mb-3">Click refresh to load the latest room status from server.</p>
+                    <button className="btn btn-sm btn-pcc-primary text-white fw-bold mx-auto px-4 py-2" onClick={fetchRoomsAndStatus}>
+                      🔄 Fetch Rooms Catalog
+                    </button>
+                  </div>
+                ) : (
+                  <div className="row g-3">
+                    {allRooms.map((rm) => {
+                      const meta = getRoomStatusMeta(rm.status);
+                      const isAvailable = rm.status === 'Available';
 
-                            <div className="my-2 p-2.5 bg-light rounded small">
-                              <div className="d-flex justify-content-between mb-1">
-                                <span className="text-muted">Max Occupancy:</span>
-                                <strong className="text-dark">Up to {rm.occupancyLimit || 2} Pax</strong>
+                      return (
+                        <div key={rm.roomID} className="col-12 col-md-6 col-lg-4">
+                          <div 
+                            className={`card shadow-sm border-0 h-100 room-card-hover overflow-hidden ${isAvailable ? 'cursor-pointer' : 'opacity-85'}`}
+                            style={{
+                              borderRadius: '12px',
+                              backgroundColor: meta.bgColor,
+                              borderLeft: `5px solid ${meta.borderLeft} !important`
+                            }}
+                            onClick={() => {
+                              if (isAvailable) {
+                                setSelectedRoom(rm);
+                                setFlowAction('book');
+                                setActiveModal('book_form');
+                              }
+                            }}
+                          >
+                            <div className="card-body p-3 d-flex flex-column">
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                  <h5 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h5>
+                                  <div className="text-muted small">{rm.roomType} • {rm.floorName || 'Ground Floor'}</div>
+                                </div>
+                                <span className={`badge ${meta.badgeClass} px-2.5 py-1.5`} style={{ fontSize: '0.78rem' }}>
+                                  {meta.label}
+                                </span>
                               </div>
-                              <div className="d-flex justify-content-between">
-                                <span className="text-muted">Base Rate:</span>
-                                <strong className="text-pcc-blue">₱{parseFloat(rm.rate || 0).toFixed(2)} / night</strong>
-                              </div>
-                            </div>
 
-                            <div className="mt-auto pt-2 d-flex gap-1.5 align-items-center">
-                              <button
-                                type="button"
-                                className="btn btn-xs btn-outline-secondary py-1.5 px-2"
-                                onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                                style={{ fontSize: '0.76rem' }}
-                              >
-                                Details 👁️
-                              </button>
-                              {isAvailable ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="btn btn-xs btn-success text-white fw-bold py-1.5 px-2.5 flex-grow-1"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedRoom(rm);
-                                      setFlowAction('reserve');
-                                      setActiveModal('reserve_form');
-                                    }}
-                                    style={{ fontSize: '0.78rem' }}
-                                  >
-                                    Reserve 🟢
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="btn btn-xs btn-primary text-white fw-bold py-1.5 px-2.5 flex-grow-1"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedRoom(rm);
-                                      setFlowAction('book');
-                                      setActiveModal('book_form');
-                                    }}
-                                    style={{ fontSize: '0.78rem' }}
-                                  >
-                                    Book 🔵
-                                  </button>
-                                </>
-                              ) : (
-                                <button type="button" className="btn btn-xs btn-secondary text-white w-100" disabled style={{ fontSize: '0.78rem' }}>
-                                  Unavailable
+                              <div className="my-2 p-2.5 bg-white rounded border small">
+                                <div className="d-flex justify-content-between mb-1">
+                                  <span className="text-muted">Max Occupancy:</span>
+                                  <strong className="text-dark">Up to {rm.occupancyLimit || 2} Pax</strong>
+                                </div>
+                                <div className="d-flex justify-content-between">
+                                  <span className="text-muted">Base Rate:</span>
+                                  <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rate || 0).toFixed(2)} / night</strong>
+                                </div>
+                              </div>
+
+                              <div className="mt-auto pt-2 d-flex gap-1.5 align-items-center">
+                                <button
+                                  type="button"
+                                  className="btn btn-xs btn-outline-secondary py-1.5 px-2"
+                                  onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
+                                  style={{ fontSize: '0.76rem' }}
+                                >
+                                  Details 👁️
                                 </button>
-                              )}
+                                {isAvailable ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="btn btn-xs btn-success text-white fw-bold py-1.5 px-2.5 flex-grow-1"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedRoom(rm);
+                                        setFlowAction('reserve');
+                                        setActiveModal('reserve_form');
+                                      }}
+                                      style={{ fontSize: '0.78rem' }}
+                                    >
+                                      Reserve 🟢
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-xs btn-primary text-white fw-bold py-1.5 px-2.5 flex-grow-1"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedRoom(rm);
+                                        setFlowAction('book');
+                                        setActiveModal('book_form');
+                                      }}
+                                      style={{ fontSize: '0.78rem' }}
+                                    >
+                                      Book 🔵
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button type="button" className="btn btn-xs btn-secondary text-white w-100" disabled style={{ fontSize: '0.78rem' }}>
+                                    {rm.status}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
