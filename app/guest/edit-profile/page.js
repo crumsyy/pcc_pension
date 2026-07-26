@@ -374,7 +374,7 @@ export default function EditProfilePage() {
             {/* CARD 2: EMAIL SETTINGS (Locked - Requires 2-Step OTP Verification) */}
             <div className="card shadow-sm border-0 p-4 bg-white" style={{ borderRadius: '16px' }}>
               <div className="border-bottom pb-3 mb-3">
-                <h5 className="fw-bold text-dark mb-1">✉️ Email Address Settings (OTP Required)</h5>
+                <h5 className="fw-bold text-dark mb-1">Email Address Settings (OTP Required)</h5>
                 <p className="text-muted small mb-0">Email modification requires 2-step OTP verification to confirm identity and ownership.</p>
               </div>
 
@@ -383,31 +383,31 @@ export default function EditProfilePage() {
                   <div className="text-muted small">Registered Email Address:</div>
                   <strong className="text-dark fs-6">{currentEmail}</strong>
                 </div>
-                <span className="badge bg-secondary text-white px-2.5 py-1.5">🔒 Verified</span>
+                <span className="badge bg-secondary text-white px-2.5 py-1.5">Verified</span>
               </div>
 
               <button
-                className="btn btn-outline-pcc-blue fw-bold w-100 py-2.5"
+                className="btn btn-pcc-primary text-white fw-bold w-100 py-2.5"
                 onClick={handleStartEmailChange}
                 disabled={emailProcessing}
               >
-                {emailProcessing ? 'Sending Verification OTP...' : '🔑 Change Email Address (Requires 2-Step OTP)'}
+                {emailProcessing ? 'Sending Verification OTP...' : 'Change Email Address (Requires 2-Step OTP)'}
               </button>
             </div>
 
             {/* CARD 3: PASSWORD & SECURITY (Locked - Requires OTP) */}
             <div className="card shadow-sm border-0 p-4 bg-white mb-4" style={{ borderRadius: '16px' }}>
               <div className="border-bottom pb-3 mb-3">
-                <h5 className="fw-bold text-dark mb-1">🔐 Password & Account Security</h5>
+                <h5 className="fw-bold text-dark mb-1">Password & Account Security</h5>
                 <p className="text-muted small mb-0">Password updates require OTP verification sent to your current email.</p>
               </div>
 
               <button
-                className="btn btn-outline-danger fw-bold w-100 py-2.5"
+                className="btn btn-danger text-white fw-bold w-100 py-2.5 shadow-sm"
                 onClick={handleStartPasswordChange}
                 disabled={passwordProcessing}
               >
-                {passwordProcessing ? 'Sending Password OTP...' : '🛡️ Change Account Password (Requires OTP)'}
+                {passwordProcessing ? 'Sending Password OTP...' : 'Change Account Password (Required OTP)'}
               </button>
             </div>
           </div>
@@ -420,7 +420,7 @@ export default function EditProfilePage() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0 p-3" style={{ borderRadius: '16px' }}>
               <div className="modal-header border-0 pb-0">
-                <h5 className="modal-title fw-bold text-pcc-blue">✉️ Email Change — Step {emailStep} of 3</h5>
+                <h5 className="modal-title fw-bold text-pcc-blue">Email Change — Step {emailStep} of 3</h5>
                 <button type="button" className="btn-close" onClick={() => setEmailStep(0)}></button>
               </div>
               <div className="modal-body py-3">
@@ -443,9 +443,9 @@ export default function EditProfilePage() {
                       />
                     </div>
                     <div className="d-flex gap-2">
-                      <button type="button" className="btn btn-secondary text-white w-50" onClick={() => setEmailStep(0)}>Cancel</button>
+                      <button type="button" className="btn btn-danger text-white w-50 fw-bold" onClick={() => setEmailStep(0)}>Cancel</button>
                       <button type="submit" className="btn btn-primary text-white fw-bold w-50" disabled={emailProcessing}>
-                        {emailProcessing ? 'Verifying...' : 'Next Step ➡️'}
+                        {emailProcessing ? 'Verifying...' : 'Next Step'}
                       </button>
                     </div>
                   </form>
@@ -455,7 +455,7 @@ export default function EditProfilePage() {
                 {emailStep === 2 && (
                   <form onSubmit={handleRequestNewEmailOtp}>
                     <p className="text-muted small mb-3">
-                      ✅ Current identity verified! Enter your proposed <strong>new email address</strong>. We will send a second verification OTP to this new address.
+                      Current identity verified! Enter your proposed <strong>new email address</strong>. We will send a second verification OTP to this new address.
                     </p>
                     <div className="mb-3">
                       <label className="form-label fw-bold small">New Email Address *</label>
@@ -469,9 +469,9 @@ export default function EditProfilePage() {
                       />
                     </div>
                     <div className="d-flex gap-2">
-                      <button type="button" className="btn btn-secondary text-white w-50" onClick={() => setEmailStep(0)}>Cancel</button>
+                      <button type="button" className="btn btn-danger text-white w-50 fw-bold" onClick={() => setEmailStep(0)}>Cancel</button>
                       <button type="submit" className="btn btn-primary text-white fw-bold w-50" disabled={emailProcessing}>
-                        {emailProcessing ? 'Sending...' : 'Send OTP to New Email 📧'}
+                        {emailProcessing ? 'Sending...' : 'Send OTP to New Email'}
                       </button>
                     </div>
                   </form>
@@ -496,9 +496,9 @@ export default function EditProfilePage() {
                       />
                     </div>
                     <div className="d-flex gap-2">
-                      <button type="button" className="btn btn-secondary text-white w-50" onClick={() => setEmailStep(0)}>Cancel</button>
+                      <button type="button" className="btn btn-danger text-white w-50 fw-bold" onClick={() => setEmailStep(0)}>Cancel</button>
                       <button type="submit" className="btn btn-success text-white fw-bold w-50" disabled={emailProcessing}>
-                        {emailProcessing ? 'Updating...' : 'Confirm & Update Email ✅'}
+                        {emailProcessing ? 'Updating...' : 'Confirm & Update Email'}
                       </button>
                     </div>
                   </form>
@@ -515,7 +515,7 @@ export default function EditProfilePage() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0 p-3" style={{ borderRadius: '16px' }}>
               <div className="modal-header border-0 pb-0">
-                <h5 className="modal-title fw-bold text-danger">🛡️ Password Reset via Email OTP</h5>
+                <h5 className="modal-title fw-bold text-danger">Password Reset via Email OTP</h5>
                 <button type="button" className="btn-close" onClick={() => setPasswordStep(0)}></button>
               </div>
               <div className="modal-body py-3">
@@ -562,9 +562,9 @@ export default function EditProfilePage() {
                   </div>
 
                   <div className="d-flex gap-2 pt-2">
-                    <button type="button" className="btn btn-secondary text-white w-50" onClick={() => setPasswordStep(0)}>Cancel</button>
+                    <button type="button" className="btn btn-danger text-white w-50 fw-bold" onClick={() => setPasswordStep(0)}>Cancel</button>
                     <button type="submit" className="btn btn-danger text-white fw-bold w-50" disabled={passwordProcessing}>
-                      {passwordProcessing ? 'Resetting...' : 'Update Password 🔒'}
+                      {passwordProcessing ? 'Resetting...' : 'Update Password'}
                     </button>
                   </div>
                 </form>

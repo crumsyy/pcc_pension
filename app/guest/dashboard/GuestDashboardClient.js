@@ -275,6 +275,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const handleCreateReservation = async (e) => {
     e.preventDefault();
     if (!selectedRoom) return;
+
+    // Reservation Rule: Must be at least 2 days in advance from today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const minResDate = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const chosenCheckIn = new Date(checkInDate);
+    chosenCheckIn.setHours(0, 0, 0, 0);
+
+    if (chosenCheckIn < minResDate) {
+      showAlert('warning', 'Reservation Restriction', 'Reservations must be scheduled at least 2 days in advance from today.');
+      return;
+    }
+
     setProcessing(true);
 
     try {
@@ -1060,36 +1073,34 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="row g-2 mb-4">
                   <div className="col-6 col-lg-3">
                     <button
-                      className="btn btn-success text-white w-100 touch-action-btn shadow-sm"
+                      className="btn btn-success text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={handleStartReserveFlow}
-                      style={{ backgroundColor: '#198754', borderColor: '#198754' }}
                     >
-                      <i className="bi bi-calendar-plus me-1.5"></i> Reserve Room
+                      Reserve Room
                     </button>
                   </div>
                   <div className="col-6 col-lg-3">
                     <button
-                      className="btn btn-primary text-white w-100 touch-action-btn shadow-sm"
+                      className="btn btn-primary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={handleStartBookFlow}
-                      style={{ backgroundColor: '#0d6efd', borderColor: '#0d6efd' }}
                     >
-                      <i className="bi bi-credit-card me-1.5"></i> Book Room
+                      Book Room
                     </button>
                   </div>
                   <div className="col-6 col-lg-3">
                     <button
-                      className="btn btn-outline-dark w-100 touch-action-btn"
+                      className="btn btn-secondary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={() => setActiveTab('account')}
                     >
-                      <i className="bi bi-journal-text me-1.5"></i> My Bookings
+                      My Bookings
                     </button>
                   </div>
                   <div className="col-6 col-lg-3">
                     <button
-                      className="btn btn-outline-pcc-blue w-100 touch-action-btn"
+                      className="btn btn-info text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={() => setActiveTab('notifications')}
                     >
-                      <i className="bi bi-bell me-1.5"></i> Alerts ({unreadCount})
+                      Alerts ({unreadCount})
                     </button>
                   </div>
                 </div>
@@ -1352,7 +1363,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             {activeTab === 'chat' && (
               <div className="animate__animated animate__fadeIn">
                 <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
-                  <h5 className="fw-bold mb-1 text-dark">💬 Inquiry & Live Chat Workspace</h5>
+                  <h5 className="fw-bold mb-1 text-dark">Inquiry & Live Chat Workspace</h5>
                   <p className="text-muted mb-0 small">Interact with our AI Chatbot or talk directly to our Front Desk Receptionist.</p>
                 </div>
 
@@ -1407,20 +1418,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="card shadow-sm border-0 p-4 mb-4 bg-white" style={{ borderRadius: '16px' }}>
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div className="d-flex align-items-center gap-3">
-                      <div className="rounded-circle bg-pcc-blue text-white d-flex align-items-center justify-content-center fw-bold" style={{ width: '56px', height: '56px', fontSize: '1.5rem' }}>
-                        {guest.firstName ? guest.firstName.charAt(0) : 'G'}
+                      <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold fs-4" style={{ width: '56px', height: '56px', backgroundColor: 'var(--pcc-blue)' }}>
+                        {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
                       </div>
                       <div>
                         <h5 className="fw-bold mb-0 text-dark">{guest.firstName} {guest.lastName}</h5>
-                        <span className="text-muted small">{guest.email}</span>
+                        <div className="text-muted small">{guest.email}</div>
                       </div>
                     </div>
+                    <span className="badge bg-success text-white px-3 py-1.5 rounded-pill">Active Guest</span>
                   </div>
 
-                  <table className="table table-sm table-borderless mb-0" style={{ fontSize: '0.88rem' }}>
+                  <table className="table table-borderless table-sm small mb-0">
                     <tbody>
                       <tr>
-                        <td className="text-muted">Contact:</td>
+                        <td className="text-muted" style={{ width: '120px' }}>Contact:</td>
                         <td className="fw-semibold">{guest.contact}</td>
                       </tr>
                       <tr>
@@ -1458,10 +1470,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               <div className="d-flex gap-1.5 align-items-center">
                                 {remBal > 0 && (b.status === 'Pending' || b.status === 'Confirmed' || b.status === 'Checked In') && (
                                   <button
-                                    className="btn btn-xs btn-success text-white fw-bold px-2 py-1"
+                                    className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
                                     onClick={() => setSettleBooking(b)}
                                   >
-                                    💳 Pay Balance
+                                    Pay Balance
                                   </button>
                                 )}
                                 {(b.status === 'Pending' || b.status === 'Confirmed') && (
@@ -1482,8 +1494,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {/* ACCOUNT ACTION BUTTONS */}
                 <div className="d-flex flex-column gap-2 mb-4">
-                  <Link href="/guest/edit-profile" className="btn btn-outline-pcc-blue text-start p-3 fw-bold d-flex justify-content-between align-items-center" style={{ borderRadius: '10px' }}>
-                    <span>⚙️ Edit Profile Settings</span>
+                  <Link href="/guest/edit-profile" className="btn btn-pcc-primary text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm" style={{ borderRadius: '10px' }}>
+                    <span>Edit Profile Settings</span>
                     <i className="bi bi-chevron-right"></i>
                   </Link>
                   <button onClick={() => setShowLogoutModal(true)} className="btn btn-danger text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center" style={{ borderRadius: '10px' }}>
@@ -1522,13 +1534,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ backgroundColor: '#198754' }}>
-                <h5 className="modal-title fw-bold">💳 Settle Remaining Balance — Booking #{settleBooking.bookingID}</h5>
+                <h5 className="modal-title fw-bold">Settle Remaining Balance — Booking #{settleBooking.bookingID}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setSettleBooking(null)}></button>
               </div>
               <form onSubmit={handleConfirmPayBalance}>
                 <div className="modal-body">
                   <div className="alert alert-success py-2 small mb-3">
-                    ℹ Enter your GCash payment reference number below to settle the remaining balance of <strong>₱{parseFloat(settleBooking.remainingBalance).toFixed(2)}</strong>.
+                    Enter your GCash payment reference number below to settle the remaining balance of <strong>₱{parseFloat(settleBooking.remainingBalance).toFixed(2)}</strong>.
                   </div>
 
                   <div className="p-3 bg-light rounded border mb-3">
@@ -1563,9 +1575,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-danger text-white" onClick={() => setSettleBooking(null)}>Cancel</button>
+                  <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setSettleBooking(null)}>Cancel</button>
                   <button type="submit" className="btn btn-success text-white fw-bold" disabled={settleProcessing || !settleGcashRef.trim()}>
-                    {settleProcessing ? 'Processing Payment...' : `Submit Payment (₱${parseFloat(settleBooking.remainingBalance).toFixed(2)}) 🚀`}
+                    {settleProcessing ? 'Processing Payment...' : `Submit Payment (₱${parseFloat(settleBooking.remainingBalance).toFixed(2)})`}
                   </button>
                 </div>
               </form>
@@ -1580,7 +1592,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ backgroundColor: '#2155B5' }}>
-                <h5 className="modal-title fw-bold">🏨 Room {selectedRoom.roomNumber} Details</h5>
+                <h5 className="modal-title fw-bold">Room {selectedRoom.roomNumber} Details</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
               <div className="modal-body">
@@ -1617,10 +1629,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </ul>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal('none')}>Close</button>
+                <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setActiveModal('none')}>Close</button>
                 {selectedRoom.status === 'Available' && (
                   <button type="button" className="btn btn-primary text-white fw-bold" onClick={() => { setActiveModal('none'); handleStartBookFlow(); }}>
-                    Book Room Now 🔵
+                    Book Room Now
                   </button>
                 )}
               </div>
@@ -1635,7 +1647,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ backgroundColor: '#198754' }}>
-                <h5 className="modal-title fw-bold">🟢 Reservation Request Form</h5>
+                <h5 className="modal-title fw-bold">Reservation Request Form</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
               <form onSubmit={handleCreateReservation}>
@@ -1643,12 +1655,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="p-3 bg-light rounded border mb-3">
                     <h6 className="fw-bold text-success mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h6>
                     <div className="small text-muted">Floor: {selectedRoom.floorName} • Rate: ₱{parseFloat(selectedRoom.rate).toFixed(2)}/night</div>
+                    <div className="small text-danger fw-semibold mt-1">Note: Reservations must be made at least 2 days in advance.</div>
                   </div>
 
                   <div className="row g-2 mb-3">
                     <div className="col-6">
                       <label className="form-label fw-semibold small">Check-In Date *</label>
-                      <input type="date" className="form-control form-control-sm" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} required />
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        min={new Date(Date.now() + 2 * 86400000).toISOString().substring(0, 10)}
+                        value={checkInDate}
+                        onChange={(e) => setCheckInDate(e.target.value)}
+                        required
+                      />
                     </div>
                     <div className="col-6">
                       <label className="form-label fw-semibold small">Check-Out Date *</label>
@@ -1667,9 +1687,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-danger text-white" onClick={() => setActiveModal('none')}>Cancel</button>
+                  <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
                   <button type="submit" className="btn btn-success text-white fw-bold" disabled={processing}>
-                    {processing ? 'Submitting...' : 'Submit Reservation Request 🟢'}
+                    {processing ? 'Submitting...' : 'Submit Reservation Request'}
                   </button>
                 </div>
               </form>
@@ -1684,7 +1704,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0 text-center p-3">
               <div className="modal-body py-3">
-                <div className="text-success display-4 mb-2">🟢</div>
                 <h4 className="fw-bold text-dark">Reservation Request Sent!</h4>
                 <p className="text-muted small mb-3">Front Desk will review your reservation request shortly.</p>
 
@@ -1718,7 +1737,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ backgroundColor: '#0d6efd' }}>
-                <h5 className="modal-title fw-bold">🔵 Online Booking Summary & Guest Details</h5>
+                <h5 className="modal-title fw-bold">Online Booking Summary & Guest Details</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
               <form onSubmit={handleProceedToPayment}>
@@ -1752,8 +1771,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <h6 className="fw-bold text-dark mb-0">Registered Room Guests ({registeredGuests.length} Pax)</h6>
                       {registeredGuests.length < selectedRoom.occupancyLimit && (
-                        <button type="button" className="btn btn-xs btn-outline-primary" onClick={() => setRegisteredGuests(prev => [...prev, { fullName: '', age: 25, discountID: '', discountIdNumber: '' }])}>
-                          + Add Guest
+                        <button type="button" className="btn btn-xs btn-primary text-white fw-bold" onClick={() => setRegisteredGuests(prev => [...prev, { fullName: '', age: 25, discountID: '', discountIdNumber: '' }])}>
+                          Add Guest
                         </button>
                       )}
                     </div>
@@ -1815,8 +1834,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             />
                           )}
                           {registeredGuests.length > 1 && (
-                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setRegisteredGuests(prev => prev.filter((_, i) => i !== idx))}>
-                              ✕
+                            <button type="button" className="btn btn-sm btn-danger text-white fw-bold" onClick={() => setRegisteredGuests(prev => prev.filter((_, i) => i !== idx))}>
+                              Remove
                             </button>
                           )}
                         </div>
@@ -1842,9 +1861,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-danger text-white" onClick={() => setActiveModal('none')}>Cancel</button>
+                  <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
                   <button type="submit" className="btn btn-primary text-white fw-bold">
-                    Proceed to GCash Payment 💳
+                    Proceed to GCash Payment
                   </button>
                 </div>
               </form>
@@ -1865,7 +1884,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <form onSubmit={handleConfirmGCashBookingPayment}>
                 <div className="modal-body">
                   <div className="alert alert-info py-2 small mb-3">
-                    ℹ Online payments are processed exclusively via <strong>GCash</strong>. Select downpayment percentage below.
+                    Online payments are processed exclusively via <strong>GCash</strong>. Select downpayment percentage below.
                   </div>
 
                   <div className="mb-3">
@@ -1918,9 +1937,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-danger text-white" onClick={() => setActiveModal('book_form')}>Back</button>
+                  <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('book_form')}>Back</button>
                   <button type="submit" className="btn btn-success text-white fw-bold" disabled={processing || !gcashRef.trim()}>
-                    {processing ? 'Processing Payment...' : `Submit GCash Payment (₱${amountToPayNow.toFixed(2)}) 🚀`}
+                    {processing ? 'Processing Payment...' : `Submit GCash Payment (₱${amountToPayNow.toFixed(2)})`}
                   </button>
                 </div>
               </form>
@@ -1935,7 +1954,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0 text-center p-3">
               <div className="modal-body py-4">
-                <div className="text-success display-4 mb-2">✅</div>
                 <h4 className="fw-bold text-dark">Booking & Payment Confirmed!</h4>
                 <p className="text-muted small mb-4">Your GCash payment has been verified and your booking is confirmed.</p>
 
@@ -1963,8 +1981,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
 
                 <div className="d-flex gap-2 justify-content-center">
-                  <button className="btn btn-outline-primary fw-bold" onClick={handlePrintReceipt}>
-                    🖨️ Print / Download Receipt
+                  <button className="btn btn-primary text-white fw-bold" onClick={handlePrintReceipt}>
+                    Print / Download Receipt
                   </button>
                   <button className="btn btn-pcc-primary text-white fw-bold" onClick={() => { setActiveModal('none'); setViewMode('default'); setActiveTab('home'); }}>
                     Done & View Portal
