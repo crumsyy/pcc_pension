@@ -209,11 +209,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const roomRate = selectedRoom ? parseFloat(selectedRoom.rate) : 0;
   const originalTotal = roomRate * nightsCount;
 
-  // Apportionment discount math
+  // Apportionment discount math based on numGuests and discountedGuests
   let totalDiscount = 0;
-  if (selectedRoom && registeredGuests.length > 0) {
-    const sharePerGuest = originalTotal / registeredGuests.length;
-    registeredGuests.forEach(g => {
+  if (selectedRoom && numGuests > 0 && discountedGuests.length > 0) {
+    const sharePerGuest = originalTotal / numGuests;
+    discountedGuests.forEach(g => {
       if (g.discountID) {
         const disc = discounts.find(d => String(d.discountID) === String(g.discountID));
         if (disc) {
@@ -318,8 +318,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleProceedToPayment = (e) => {
     e.preventDefault();
-    if (registeredGuests.some(g => !g.fullName.trim())) {
-      showAlert('warning', 'Missing Name', 'All registered room guests must have a full name.');
+    if (discountedGuests.some(g => !g.discountID || !g.discountIdNumber.trim())) {
+      showAlert('warning', 'Missing Discount Info', 'Please select a discount type and enter valid ID numbers for all discounted guests.');
       return;
     }
     setActiveModal('payment');
@@ -1766,81 +1766,89 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
-                  {/* Registered Guests */}
+                  {/* Room Occupancy & Special Discounts */}
                   <div className="p-3 bg-white border rounded mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <h6 className="fw-bold text-dark mb-0">Registered Room Guests ({registeredGuests.length} Pax)</h6>
-                      {registeredGuests.length < selectedRoom.occupancyLimit && (
-                        <button type="button" className="btn btn-xs btn-primary text-white fw-bold" onClick={() => setRegisteredGuests(prev => [...prev, { fullName: '', age: 25, discountID: '', discountIdNumber: '' }])}>
-                          Add Guest
-                        </button>
-                      )}
+                    <div className="row g-2 align-items-center mb-2">
+                      <div className="col-md-6">
+                        <label className="form-label fw-bold mb-0 small text-dark">Number of Guests Staying *</label>
+                        <input
+                          type="number"
+                          className="form-control form-control-sm mt-1"
+                          min="1"
+                          max={selectedRoom.occupancyLimit}
+                          value={numGuests}
+                          onChange={(e) => setNumGuests(Math.max(1, Math.min(selectedRoom.occupancyLimit, parseInt(e.target.value) || 1)))}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <div className="small text-muted mt-3">
+                          Maximum Occupancy: <strong>Up to {selectedRoom.occupancyLimit} Pax</strong>
+                        </div>
+                      </div>
                     </div>
 
-                    {registeredGuests.map((g, idx) => (
-                      <div key={idx} className="row g-2 align-items-center mb-2 p-2 border rounded bg-light">
-                        <div className="col-md-4">
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="Full Name *"
-                            value={g.fullName}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setRegisteredGuests(prev => prev.map((item, i) => i === idx ? { ...item, fullName: val } : item));
-                            }}
-                            required
-                          />
+                    {/* SPECIAL DISCOUNTS (SENIOR / PWD) */}
+                    <div className="pt-2 border-top mt-2">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                          <h6 className="fw-bold text-dark mb-0 small">Special Discounts (Senior Citizen / PWD)</h6>
+                          <span className="text-muted small" style={{ fontSize: '0.75rem' }}>Optional: Add details for any guest qualifying for a discount.</span>
                         </div>
-                        <div className="col-md-2">
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            placeholder="Age"
-                            value={g.age}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setRegisteredGuests(prev => prev.map((item, i) => i === idx ? { ...item, age: val } : item));
-                            }}
-                          />
-                        </div>
-                        <div className="col-md-3">
-                          <select
-                            className="form-select form-select-sm"
-                            value={g.discountID}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setRegisteredGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountID: val } : item));
-                            }}
+                        {discountedGuests.length < numGuests && (
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-primary text-white fw-bold"
+                            onClick={() => setDiscountedGuests(prev => [...prev, { discountID: '', discountIdNumber: '' }])}
                           >
-                            <option value="">No Discount</option>
-                            {discounts.map(d => (
-                              <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="col-md-3 d-flex gap-1">
-                          {g.discountID && (
+                            + Add Discounted Guest
+                          </button>
+                        )}
+                      </div>
+
+                      {discountedGuests.map((g, idx) => (
+                        <div key={idx} className="row g-2 align-items-center mb-2 p-2 border rounded bg-light">
+                          <div className="col-md-5">
+                            <select
+                              className="form-select form-select-sm"
+                              value={g.discountID}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountID: val } : item));
+                              }}
+                              required
+                            >
+                              <option value="">Select Discount Type *</option>
+                              {discounts.map(d => (
+                                <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-md-5">
                             <input
                               type="text"
                               className="form-control form-control-sm"
-                              placeholder="ID Card No *"
+                              placeholder="Valid ID Card No * (OSCA / PWD ID)"
                               value={g.discountIdNumber}
                               onChange={(e) => {
                                 const val = e.target.value;
-                                setRegisteredGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountIdNumber: val } : item));
+                                setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountIdNumber: val } : item));
                               }}
                               required
                             />
-                          )}
-                          {registeredGuests.length > 1 && (
-                            <button type="button" className="btn btn-sm btn-danger text-white fw-bold" onClick={() => setRegisteredGuests(prev => prev.filter((_, i) => i !== idx))}>
+                          </div>
+                          <div className="col-md-2 text-end">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-danger text-white fw-bold py-1 px-2.5 w-100"
+                              onClick={() => setDiscountedGuests(prev => prev.filter((_, i) => i !== idx))}
+                            >
                               Remove
                             </button>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
 
                   <div className="p-3 bg-light rounded border" style={{ fontSize: '0.88rem' }}>

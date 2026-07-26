@@ -90,7 +90,8 @@ function BookingsClient() {
   const [selectedRoomType, setSelectedRoomType] = useState('');
   const [breakfastOption, setBreakfastOption] = useState('with'); // 'with' | 'without'
   const [availableDiscounts, setAvailableDiscounts] = useState([]);
-  const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+  const [numGuestsCount, setNumGuestsCount] = useState(1);
+  const [discountedGuests, setDiscountedGuests] = useState([]);
   const [managingBooking, setManagingBooking] = useState(null);
   const [managingGuests, setManagingGuests] = useState([]);
   const [downPaymentReceipt, setDownPaymentReceipt] = useState(null);
@@ -463,25 +464,17 @@ function BookingsClient() {
     const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
 
     const preparedGuests = [];
-    for (let i = 0; i < roomGuests.length; i++) {
-      const g = roomGuests[i];
-      if (!g.fullName || !g.fullName.trim()) {
-        showAlert('error', 'Validation Error', `Registered Guest #${i + 1} must have a full name.`);
-        return;
-      }
-      let computedAge = parseInt(g.age);
-      if (isNaN(computedAge) || computedAge <= 0) {
-        if (isWalkIn && walkInForm.dateOfBirth) {
-          computedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
-        } else {
-          computedAge = 30;
-        }
-      }
+    const primaryName = isWalkIn
+      ? `${walkInForm.firstName} ${walkInForm.lastName}`.trim()
+      : 'Primary Guest';
+
+    for (let i = 0; i < numGuestsCount; i++) {
+      const disc = discountedGuests[i];
       preparedGuests.push({
-        fullName: g.fullName.trim(),
-        age: computedAge,
-        discountID: g.discountID ? parseInt(g.discountID) : null,
-        discountIdNumber: g.discountIdNumber || 'N/A'
+        fullName: i === 0 ? (primaryName || 'Primary Guest') : `Guest #${i + 1}`,
+        age: 30,
+        discountID: disc?.discountID ? parseInt(disc.discountID) : null,
+        discountIdNumber: disc?.discountIdNumber || 'N/A'
       });
     }
 
@@ -501,14 +494,14 @@ function BookingsClient() {
     }
     nights = Math.max(1, nights);
 
-    const excessGuestsCount = Math.max(0, preparedGuests.length - maxOccupancy);
+    const excessGuestsCount = Math.max(0, numGuestsCount - maxOccupancy);
     const extraGuestFee = excessGuestsCount * 200 * nights;
     const rawSubtotal = (rate * nights) + extraGuestFee;
 
     let totalApportionedDiscount = 0;
-    if (preparedGuests.length > 0 && selectedRoom) {
-      const sharePerGuest = (rate * nights) / preparedGuests.length;
-      preparedGuests.forEach(g => {
+    if (numGuestsCount > 0 && selectedRoom && discountedGuests.length > 0) {
+      const sharePerGuest = (rate * nights) / numGuestsCount;
+      discountedGuests.forEach(g => {
         if (g.discountID) {
           const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
           if (disc) {
@@ -1036,66 +1029,92 @@ function BookingsClient() {
                     </div>
                   )}
 
-                  {/* REQUIREMENT 2: REGISTERED GUESTS & EXTRA GUEST DETECTION */}
+                  {/* ROOM OCCUPANCY & NUMBER OF GUESTS */}
                   <div className="p-3 mb-3 border rounded bg-white">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <div>
-                        <h6 className="mb-0 text-pcc-primary fw-bold">Registered Room Guests ({roomGuests.length} Pax)</h6>
-                        <span className="small text-muted">Add all guests staying in this room.</span>
+                    <div className="row g-2 align-items-center mb-2">
+                      <div className="col-md-6">
+                        <label className="form-label fw-bold mb-0 small text-dark">Total Number of Guests *</label>
+                        <input
+                          type="number"
+                          className="form-control form-control-sm mt-1"
+                          min="1"
+                          max={selectedRoomObj ? (selectedRoomObj.occupancyLimit || 2) + 5 : 10}
+                          value={numGuestsCount}
+                          onChange={(e) => setNumGuestsCount(Math.max(1, parseInt(e.target.value) || 1))}
+                          required
+                        />
                       </div>
-                      <button type="button" className="btn btn-sm btn-pcc-primary text-white fw-bold" onClick={handleAddGuest}>
-                        + Add Guest
-                      </button>
+                      <div className="col-md-6">
+                        {selectedRoomObj && numGuestsCount > (selectedRoomObj.occupancyLimit || 2) && (
+                          <div className="alert alert-warning py-1.5 mb-0 small fw-bold">
+                            Excess Guests: {numGuestsCount - selectedRoomObj.occupancyLimit} Additional Guest(s)
+                            <div>Fee: ₱{(numGuestsCount - selectedRoomObj.occupancyLimit) * 200}/night applied.</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {selectedRoomObj && roomGuests.length > selectedRoomObj.occupancyLimit && (
-                      <div className="alert alert-warning py-2 mb-2 small fw-bold">
-                        Excess Guests Detected: {roomGuests.length - selectedRoomObj.occupancyLimit} Additional Guest(s)
-                        <div className="fw-semibold text-dark">Additional Guest Fee: ₱{(roomGuests.length - selectedRoomObj.occupancyLimit) * 200}/night applied automatically.</div>
-                      </div>
-                    )}
-
-                    {roomGuests.map((g, idx) => (
-                      <div key={idx} className="p-2.5 mb-2 rounded bg-light border position-relative">
-                        <div className="d-flex justify-content-between align-items-center mb-1">
-                          <span className="small text-muted fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary)"}</span>
-                          <div className="d-flex align-items-center gap-2">
-                            {g.age !== '' && g.age !== null && (
-                              <span className={`badge ${parseInt(g.age) >= 60 ? 'bg-success' : 'bg-primary-subtle text-primary'}`} style={{ fontSize: '0.72rem' }}>
-                                Age: {g.age} yrs {parseInt(g.age) >= 60 ? '— Senior Citizen Eligible' : ''}
-                              </span>
-                            )}
-                            {idx > 0 && (
-                              <button type="button" className="btn-close" style={{ fontSize: '0.75rem' }} onClick={() => handleRemoveGuest(idx)}></button>
-                            )}
-                          </div>
+                    {/* SPECIAL DISCOUNTS (SENIOR / PWD) */}
+                    <div className="pt-2 border-top mt-2">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                          <h6 className="fw-bold text-pcc-primary mb-0 small">Special Discounts (Senior Citizen / PWD)</h6>
+                          <span className="small text-muted">Optional: Add details for any guest qualifying for a discount.</span>
                         </div>
-                        <div className="row g-2">
-                          <div className="col-md-6">
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              placeholder="Full Name *"
-                              required
-                              value={g.fullName}
-                              onChange={(e) => handleGuestChange(idx, 'fullName', e.target.value)}
-                            />
-                          </div>
-                          <div className="col-md-6">
+                        {discountedGuests.length < numGuestsCount && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-pcc-primary text-white fw-bold"
+                            onClick={() => setDiscountedGuests(prev => [...prev, { discountID: '', discountIdNumber: '' }])}
+                          >
+                            + Add Discounted Guest
+                          </button>
+                        )}
+                      </div>
+
+                      {discountedGuests.map((g, idx) => (
+                        <div key={idx} className="row g-2 align-items-center mb-2 p-2 border rounded bg-light">
+                          <div className="col-md-5">
                             <select
                               className="form-select form-select-sm"
                               value={g.discountID}
-                              onChange={(e) => handleGuestChange(idx, 'discountID', e.target.value)}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountID: val } : item));
+                              }}
+                              required
                             >
-                              <option value="">No Discount</option>
+                              <option value="">Select Discount Type *</option>
                               {availableDiscounts.map(d => (
                                 <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
                               ))}
                             </select>
                           </div>
+                          <div className="col-md-5">
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              placeholder="Valid ID Card No * (OSCA / PWD ID)"
+                              value={g.discountIdNumber}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountIdNumber: val } : item));
+                              }}
+                              required
+                            />
+                          </div>
+                          <div className="col-md-2 text-end">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-danger text-white fw-bold py-1 px-2.5 w-100"
+                              onClick={() => setDiscountedGuests(prev => prev.filter((_, i) => i !== idx))}
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
 
                   {/* REQUIREMENT 3: CHECK-IN SCENARIO SELECTOR */}
