@@ -499,8 +499,8 @@ function ReservationsClient() {
     const isWithBk = (selectedRes.breakfastOption || breakfastOption) === 'with';
     const rate = selectedRoom
       ? (isWithBk
-          ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-          : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
+        ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
+        : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
       : parseFloat(selectedRes.rate || 0);
 
     const diff = Math.abs(outDateObj - inDateObj);
@@ -672,9 +672,9 @@ function ReservationsClient() {
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
                         {!r.bookingID && r.status === 'Pending' && (
                           <>
-                            <button 
+                            <button
                               type="button"
-                              className="action-btn action-btn-activate" 
+                              className="action-btn action-btn-activate"
                               data-bs-toggle="tooltip"
                               title="Confirm & Book Reservation"
                               aria-label="Confirm & Book Reservation"
@@ -682,9 +682,9 @@ function ReservationsClient() {
                             >
                               <i className="fa-solid fa-hotel"></i>
                             </button>
-                            <button 
+                            <button
                               type="button"
-                              className="action-btn action-btn-edit" 
+                              className="action-btn action-btn-edit"
                               data-bs-toggle="tooltip"
                               title="Edit Reservation"
                               aria-label="Edit Reservation"
@@ -695,9 +695,9 @@ function ReservationsClient() {
                           </>
                         )}
                         {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && (
-                          <button 
+                          <button
                             type="button"
-                            className="action-btn action-btn-delete" 
+                            className="action-btn action-btn-delete"
                             data-bs-toggle="tooltip"
                             title="Cancel Reservation"
                             aria-label="Cancel Reservation"
@@ -1035,8 +1035,8 @@ function ReservationsClient() {
         const selectedRoom = rooms.find(r => String(r.roomID) === String(selectedRes.roomID));
         const rate = selectedRoom
           ? (isWithBk
-              ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-              : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
+            ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
+            : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
           : parseFloat(selectedRes.rate || 0);
 
         let nights = 0;
@@ -1214,9 +1214,8 @@ function ReservationsClient() {
                         <input
                           type="text"
                           readOnly
-                          className={`form-control form-control-sm fw-bold ${
-                            (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
-                          }`}
+                          className={`form-control form-control-sm fw-bold ${(parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
+                            }`}
                           value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
                         />
                         <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
