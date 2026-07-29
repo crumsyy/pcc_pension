@@ -91,6 +91,7 @@ function BookingsClient() {
   const [breakfastOption, setBreakfastOption] = useState('with'); // 'with' | 'without'
   const [availableDiscounts, setAvailableDiscounts] = useState([]);
   const [numGuestsCount, setNumGuestsCount] = useState(1);
+  const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
   const [discountedGuests, setDiscountedGuests] = useState([]);
   const [managingBooking, setManagingBooking] = useState(null);
   const [managingGuests, setManagingGuests] = useState([]);
@@ -468,10 +469,11 @@ function BookingsClient() {
       ? `${walkInForm.firstName} ${walkInForm.lastName}`.trim()
       : 'Primary Guest';
 
-    for (let i = 0; i < numGuestsCount; i++) {
+    for (let i = 0; i < (parseInt(numGuestsCount) || 1); i++) {
       const disc = discountedGuests[i];
+      const gName = disc?.guestName?.trim();
       preparedGuests.push({
-        fullName: i === 0 ? (primaryName || 'Primary Guest') : `Guest #${i + 1}`,
+        fullName: gName || (i === 0 ? (primaryName || 'Primary Guest') : `Guest #${i + 1}`),
         age: 30,
         discountID: disc?.discountID ? parseInt(disc.discountID) : null,
         discountIdNumber: disc?.discountIdNumber || 'N/A'
