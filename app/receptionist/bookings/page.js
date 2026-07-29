@@ -1040,7 +1040,13 @@ function BookingsClient() {
                           min="1"
                           max={selectedRoomObj ? (selectedRoomObj.occupancyLimit || 2) + 5 : 10}
                           value={numGuestsCount}
-                          onChange={(e) => setNumGuestsCount(Math.max(1, parseInt(e.target.value) || 1))}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNumGuestsCount(val === '' ? '' : Math.max(1, parseInt(val) || 1));
+                          }}
+                          onBlur={() => {
+                            if (numGuestsCount === '' || isNaN(numGuestsCount)) setNumGuestsCount(1);
+                          }}
                           required
                         />
                       </div>
@@ -1061,11 +1067,11 @@ function BookingsClient() {
                           <h6 className="fw-bold text-pcc-primary mb-0 small">Special Discounts (Senior Citizen / PWD)</h6>
                           <span className="small text-muted">Optional: Add details for any guest qualifying for a discount.</span>
                         </div>
-                        {discountedGuests.length < numGuestsCount && (
+                        {discountedGuests.length < (numGuestsCount || 1) && (
                           <button
                             type="button"
                             className="btn btn-sm btn-pcc-primary text-white fw-bold"
-                            onClick={() => setDiscountedGuests(prev => [...prev, { discountID: '', discountIdNumber: '' }])}
+                            onClick={() => setDiscountedGuests(prev => [...prev, { guestName: '', discountID: '', discountIdNumber: '' }])}
                           >
                             + Add Discounted Guest
                           </button>
@@ -1074,7 +1080,20 @@ function BookingsClient() {
 
                       {discountedGuests.map((g, idx) => (
                         <div key={idx} className="row g-2 align-items-center mb-2 p-2 border rounded bg-light">
-                          <div className="col-md-5">
+                          <div className="col-md-4">
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              placeholder="Qualifying Guest Full Name *"
+                              value={g.guestName || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, guestName: val } : item));
+                              }}
+                              required
+                            />
+                          </div>
+                          <div className="col-md-4">
                             <select
                               className="form-select form-select-sm"
                               value={g.discountID}
@@ -1090,11 +1109,11 @@ function BookingsClient() {
                               ))}
                             </select>
                           </div>
-                          <div className="col-md-5">
+                          <div className="col-md-3">
                             <input
                               type="text"
                               className="form-control form-control-sm"
-                              placeholder="Valid ID Card No * (OSCA / PWD ID)"
+                              placeholder="Valid ID No * (OSCA/PWD)"
                               value={g.discountIdNumber}
                               onChange={(e) => {
                                 const val = e.target.value;
@@ -1103,13 +1122,14 @@ function BookingsClient() {
                               required
                             />
                           </div>
-                          <div className="col-md-2 text-end">
+                          <div className="col-md-1 text-end">
                             <button
                               type="button"
-                              className="btn btn-sm btn-danger text-white fw-bold py-1 px-2.5 w-100"
+                              className="btn btn-sm btn-danger text-white fw-bold py-1 px-2 w-100"
                               onClick={() => setDiscountedGuests(prev => prev.filter((_, i) => i !== idx))}
+                              title="Remove discount"
                             >
-                              Remove
+                              ✕
                             </button>
                           </div>
                         </div>

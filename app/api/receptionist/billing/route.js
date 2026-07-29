@@ -57,7 +57,11 @@ export async function GET(request) {
     const checkOut = new Date(booking.checkOutDateTime);
     const diffTime = Math.abs(checkOut - checkIn);
     const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-    const roomCharge = rate * nights;
+    
+    const maxOccupancy = parseInt(booking.occupancyLimit) || 2;
+    const extraGuestsCount = Math.max(0, (booking.guestCount || 1) - maxOccupancy);
+    const extraGuestFee = extraGuestsCount * 200 * nights;
+    const roomCharge = (rate * nights) + extraGuestFee;
 
     // Fetch registered guest list for this booking
     const guestsList = await dbQuery(`
