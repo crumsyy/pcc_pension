@@ -70,6 +70,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [registeredGuests, setRegisteredGuests] = useState([
     { fullName: `${initialGuest.firstName || 'Guest'} ${initialGuest.lastName || ''}`.trim(), age: 30, discountID: '', discountIdNumber: '' }
   ]);
+  const [discountedGuests, setDiscountedGuests] = useState([]);
   const [reservationSummaryData, setReservationSummaryData] = useState(null);
   const [receiptData, setReceiptData] = useState(null);
   const [processing, setProcessing] = useState(false);
