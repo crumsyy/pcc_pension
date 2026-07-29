@@ -10,6 +10,7 @@ export default function EditProfilePage() {
   const [currentEmail, setCurrentEmail] = useState('');
   const [profileForm, setProfileForm] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     contact: '',
     gender: 'Other',
@@ -62,6 +63,7 @@ export default function EditProfilePage() {
       if (res.ok) {
         setProfileForm({
           firstName: data.guest.firstName || '',
+          middleName: data.guest.middleName || '',
           lastName: data.guest.lastName || '',
           contact: data.guest.contact || '',
           gender: data.guest.gender || 'Other',
@@ -301,7 +303,7 @@ export default function EditProfilePage() {
 
               <form onSubmit={handleSaveBasicProfile}>
                 <div className="row g-3">
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <label className="form-label fw-semibold small">First Name *</label>
                     <input
                       type="text"
@@ -311,7 +313,17 @@ export default function EditProfilePage() {
                       required
                     />
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-4">
+                    <label className="form-label fw-semibold small">Middle Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="(Optional)"
+                      value={profileForm.middleName}
+                      onChange={(e) => setProfileForm({ ...profileForm, middleName: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-md-4">
                     <label className="form-label fw-semibold small">Last Name *</label>
                     <input
                       type="text"

@@ -1124,7 +1124,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           </div>
                           <p className="small text-muted mb-3">Aircon, Hot Shower, Free Wi-Fi, and 24/7 Front Desk Service.</p>
                           <div className="d-flex gap-2">
-                            <button className="btn btn-sm btn-outline-secondary w-50" onClick={() => handleOpenRoomDetails(rm)}>Details</button>
+                            <button className="btn btn-sm btn-secondary text-white fw-bold w-50" onClick={() => handleOpenRoomDetails(rm)}>Details</button>
                             <button className="btn btn-sm btn-primary text-white w-50" onClick={handleStartBookFlow}>Book Now</button>
                           </div>
                         </div>
@@ -1306,7 +1306,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   <div className="mt-auto pt-2 d-flex gap-1.5 align-items-center">
                                     <button
                                       type="button"
-                                      className="btn btn-xs btn-outline-secondary py-1.5 px-2"
+                                      className="btn btn-xs btn-secondary text-white fw-bold py-1.5 px-2"
                                       onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                       style={{ fontSize: '0.76rem' }}
                                     >

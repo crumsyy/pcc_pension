@@ -40,7 +40,7 @@ export async function PUT(request) {
 
   try {
     const body = await request.json();
-    const { firstName, lastName, contact, gender, city, province } = body;
+    const { firstName, middleName, lastName, contact, gender, city, province } = body;
 
     if (!firstName || !lastName || !contact) {
       return NextResponse.json({ error: 'First Name, Last Name, and Contact Number are required.' }, { status: 400 });
@@ -48,9 +48,9 @@ export async function PUT(request) {
 
     await dbQuery(
       `UPDATE guest 
-       SET firstName = ?, lastName = ?, contact = ?, gender = ?, city = ?, province = ?
+       SET firstName = ?, middleName = ?, lastName = ?, contact = ?, gender = ?, city = ?, province = ?
        WHERE userID = ?`,
-      [firstName.trim(), lastName.trim(), contact.trim(), gender || 'Other', city ? city.trim() : '', province ? province.trim() : '', session.userID]
+      [firstName.trim(), middleName ? middleName.trim() : '', lastName.trim(), contact.trim(), gender || 'Other', city ? city.trim() : '', province ? province.trim() : '', session.userID]
     );
 
     return NextResponse.json({ success: true, message: 'Profile updated successfully!' });

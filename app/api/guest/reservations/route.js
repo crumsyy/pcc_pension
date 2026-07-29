@@ -77,7 +77,7 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "UPDATE reservation SET status = 'Canceled' WHERE reservationID = ? AND guestID = ?",
+        "UPDATE reservation SET status = 'Cancelled' WHERE reservationID = ? AND guestID = ?",
         [reservationID, guest.guestID]
       );
 
