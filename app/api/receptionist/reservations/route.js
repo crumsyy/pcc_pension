@@ -340,14 +340,37 @@ export async function POST(request) {
 
     if (action === 'cancel') {
       const reservationID = parseInt(body.reservationID);
-      const res = await dbQuery("SELECT * FROM reservation WHERE reservationID = ?", [reservationID]);
+      const res = await dbQuery("SELECT r.*, g.userID, g.firstName, g.lastName FROM reservation r JOIN guest g ON g.guestID = r.guestID WHERE r.reservationID = ?", [reservationID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       }
+      const targetRes = res[0];
 
-      await dbQuery("UPDATE reservation SET status = 'Canceled' WHERE reservationID = ?", [reservationID]);
+      await dbQuery("UPDATE reservation SET status = 'Cancelled' WHERE reservationID = ?", [reservationID]);
 
-      return NextResponse.json({ success: true, message: 'Reservation canceled.' });
+      // Release room status back to Available if it was Reserved
+      if (targetRes.roomID) {
+        await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ? AND status = 'Reserved'", [targetRes.roomID]);
+      }
+
+      // 1. Send Guest Notification
+      if (targetRes.userID) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Cancelled', ?)",
+          [targetRes.userID, `Your Reservation #${reservationID} for Room ${targetRes.roomID} has been cancelled by Front Desk.`]
+        );
+      }
+
+      // 2. Audit Log for Receptionist/Admin Panel
+      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      for (const s of staffUsers) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Cancelled Audit', ?)",
+          [s.userID, `Front Desk staff cancelled Reservation #${reservationID} for Guest ${targetRes.firstName} ${targetRes.lastName}.`]
+        );
+      }
+
+      return NextResponse.json({ success: true, message: 'Reservation cancelled successfully.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

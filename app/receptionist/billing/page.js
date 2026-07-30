@@ -590,6 +590,65 @@ export default function ReceptionistBilling() {
                             </table>
                           </div>
 
+                          {/* Non-Consumable Amenities Checkout Inspection */}
+                          <h6 className="fw-bold text-dark mb-1 border-bottom pb-1 mt-3" style={{ fontSize: '0.82rem' }}>
+                            🧹 Room Check-Out Inspection — Non-Consumable Amenities
+                          </h6>
+                          <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>
+                            Check items returned in good condition. Uncheck any item that is missing or damaged to automatically add replacement charges to the bill.
+                          </p>
+                          <div className="p-3 border rounded bg-white mb-3">
+                            {(!billDetails.nonConsumableAmenities || billDetails.nonConsumableAmenities.length === 0) ? (
+                              <div className="text-muted small text-center">No non-consumable room amenities listed.</div>
+                            ) : (
+                              <div className="row g-2">
+                                {billDetails.nonConsumableAmenities.map((amenity) => (
+                                  <div key={amenity.amenityID} className="col-md-6">
+                                    <div className={`p-2 border rounded d-flex align-items-center justify-content-between ${amenity.isReturned ? 'bg-light' : 'bg-danger-subtle border-danger'}`}>
+                                      <div className="form-check m-0">
+                                        <input
+                                          className="form-check-input"
+                                          type="checkbox"
+                                          id={`amenity-check-${amenity.amenityID}`}
+                                          checked={amenity.isReturned}
+                                          onChange={async (e) => {
+                                            const newIsReturned = e.target.checked;
+                                            try {
+                                              const res = await fetch('/api/receptionist/billing', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                  action: 'toggle_amenity_inspection',
+                                                  bookingID: selectedBookingID,
+                                                  amenityID: amenity.amenityID,
+                                                  isReturned: newIsReturned
+                                                })
+                                              });
+                                              const data = await res.json();
+                                              if (!res.ok) throw new Error(data.error || 'Failed to update amenity status');
+                                              openBillingModal(selectedBookingID);
+                                            } catch (err) {
+                                              alert(err.message);
+                                            }
+                                          }}
+                                        />
+                                        <label className="form-check-label ms-2 fw-semibold text-dark" htmlFor={`amenity-check-${amenity.amenityID}`} style={{ fontSize: '0.82rem', cursor: 'pointer' }}>
+                                          {amenity.name}
+                                        </label>
+                                        <div className="small text-muted" style={{ fontSize: '0.72rem', marginLeft: '1.5rem' }}>
+                                          Replacement Cost: ₱{parseFloat(amenity.replacementCost).toFixed(2)}
+                                        </div>
+                                      </div>
+                                      <span className={`badge ${amenity.isReturned ? 'bg-success text-white' : 'bg-danger text-white'} px-2 py-1`} style={{ fontSize: '0.72rem' }}>
+                                        {amenity.isReturned ? '✓ Returned & Good' : `+₱${parseFloat(amenity.replacementCost).toFixed(2)} Billed`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
                           {/* Incidental Charges */}
                           <div className="d-flex justify-content-between align-items-center mb-1 mt-3 border-bottom pb-1">
                             <h6 className="fw-bold text-dark mb-0" style={{ fontSize: '0.82rem' }}>Incidental & Damage Charges</h6>

@@ -178,6 +178,30 @@ export async function GET(request) {
       WHERE bt.bookingID = ?
     `, [bookingID]);
 
+    // Fetch non-consumable room amenities for check-out inspection
+    const nonConsumableList = await dbQuery(`
+      SELECT a.amenityID, a.name, COALESCE(a.sellingPrice, a.price, 0) as replacementCost, a.description
+      FROM amenities a
+      WHERE a.itemType = 'Non-Consumable' AND (a.isArchived IS NULL OR a.isArchived = 0)
+      ORDER BY a.name ASC
+    `);
+
+    const nonConsumableAmenities = nonConsumableList.map(a => {
+      const matchIncidental = incidentalCharges.find(ic => 
+        ic.description && ic.description.toLowerCase().includes(`missing/damaged non-consumable amenity: ${a.name.toLowerCase()}`)
+      );
+      const isReturned = !matchIncidental;
+      return {
+        amenityID: a.amenityID,
+        name: a.name,
+        replacementCost: parseFloat(a.replacementCost || 0),
+        description: a.description,
+        isReturned: isReturned,
+        chargeAmount: matchIncidental ? parseFloat(matchIncidental.amount) : 0,
+        chargeID: matchIncidental ? matchIncidental.chargeID : null
+      };
+    });
+
     const subtotalCharges = finalRoomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal + incidentalTotal;
 
     // 5. Fetch existing billing record if any
@@ -226,6 +250,7 @@ export async function GET(request) {
       },
       productCharges,
       amenityCharges,
+      nonConsumableAmenities,
       incidentalCharges,
       borrowItems,
       chargesSummary: {
@@ -348,9 +373,51 @@ export async function POST(request) {
           "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
           [borrow.bookingID, desc, replacementCost]
         );
+        return NextResponse.json({ success: true, message: 'Borrow item status updated and replacement fee billed.' });
       }
 
-      return NextResponse.json({ success: true, message: `Amenity marked as ${status}.` });
+      return NextResponse.json({ success: true, message: 'Borrow item status updated.' });
+    }
+
+    if (action === 'toggle_amenity_inspection') {
+      const bookingID = parseInt(body.bookingID);
+      const amenityID = parseInt(body.amenityID);
+      const isReturned = body.isReturned; // boolean
+
+      const [amenity] = await dbQuery(
+        "SELECT name, COALESCE(sellingPrice, price, 0) as replacementCost FROM amenities WHERE amenityID = ?",
+        [amenityID]
+      );
+
+      if (!amenity) {
+        return NextResponse.json({ error: 'Amenity not found.' }, { status: 404 });
+      }
+
+      const desc = `Missing/Damaged Non-Consumable Amenity: ${amenity.name}`;
+
+      if (isReturned) {
+        // Returned -> remove incidental charge if any
+        await dbQuery(
+          "DELETE FROM incidental_charge WHERE bookingID = ? AND LOWER(description) = LOWER(?)",
+          [bookingID, desc]
+        );
+        return NextResponse.json({ success: true, message: `${amenity.name} marked as returned & in good condition.` });
+      } else {
+        // Unchecked -> Missing/Damaged -> add replacement cost as incidental charge
+        const cost = parseFloat(amenity.replacementCost || 0);
+        // Check if charge already exists
+        const existing = await dbQuery(
+          "SELECT chargeID FROM incidental_charge WHERE bookingID = ? AND LOWER(description) = LOWER(?)",
+          [bookingID, desc]
+        );
+        if (existing.length === 0) {
+          await dbQuery(
+            "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+            [bookingID, desc, cost]
+          );
+        }
+        return NextResponse.json({ success: true, message: `${amenity.name} marked as missing/damaged. Replacement fee (₱${cost.toFixed(2)}) added to bill.` });
+      }
     }
 
     // Default: Update Guest Discounts
