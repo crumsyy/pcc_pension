@@ -592,14 +592,14 @@ export default function ReceptionistBilling() {
 
                           {/* Non-Consumable Amenities Checkout Inspection */}
                           <h6 className="fw-bold text-dark mb-1 border-bottom pb-1 mt-3" style={{ fontSize: '0.82rem' }}>
-                            🧹 Room Check-Out Inspection — Non-Consumable Amenities
+                            🧹 Room Check-Out Inspection — Ordered Non-Consumable Amenities
                           </h6>
                           <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>
                             Check items returned in good condition. Uncheck any item that is missing or damaged to automatically add replacement charges to the bill.
                           </p>
                           <div className="p-3 border rounded bg-white mb-3">
                             {(!billDetails.nonConsumableAmenities || billDetails.nonConsumableAmenities.length === 0) ? (
-                              <div className="text-muted small text-center py-2">No non-consumable room amenities listed.</div>
+                              <div className="text-muted small text-center py-2">No ordered non-consumable amenities recorded for this stay.</div>
                             ) : (
                               <div className="row g-2">
                                 {billDetails.nonConsumableAmenities.map((amenity) => (
@@ -630,10 +630,10 @@ export default function ReceptionistBilling() {
                                           });
                                           const data = await res.json();
                                           if (!res.ok) throw new Error(data.error || 'Failed to update amenity status');
-                                          openBillingModal(selectedBookingID);
+                                          fetchBillingDetails(selectedBookingID);
                                         } catch (err) {
                                           alert(err.message);
-                                          openBillingModal(selectedBookingID);
+                                          fetchBillingDetails(selectedBookingID);
                                         }
                                       }}
                                     >
