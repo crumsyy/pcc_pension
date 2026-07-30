@@ -697,13 +697,16 @@ function ReservationsClient() {
                         {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && (
                           <button
                             type="button"
-                            className="action-btn action-btn-delete"
-                            data-bs-toggle="tooltip"
+                            className="btn btn-xs btn-outline-danger fw-bold ms-1"
                             title="Cancel Reservation"
                             aria-label="Cancel Reservation"
-                            onClick={() => handleCancel(r.reservationID)}
+                            style={{ padding: '2px 8px', fontSize: '0.78rem' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancel(r.reservationID);
+                            }}
                           >
-                            <i className="fa-solid fa-xmark"></i>
+                            <i className="fa-solid fa-xmark me-1"></i> Cancel
                           </button>
                         )}
                         {r.bookingID && (

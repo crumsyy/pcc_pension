@@ -599,7 +599,7 @@ export default function ReceptionistBilling() {
                           </p>
                           <div className="p-3 border rounded bg-white mb-3">
                             {(!billDetails.nonConsumableAmenities || billDetails.nonConsumableAmenities.length === 0) ? (
-                              <div className="text-muted small text-center">No non-consumable room amenities listed.</div>
+                              <div className="text-muted small text-center py-2">No ordered non-consumable amenities recorded for this stay.</div>
                             ) : (
                               <div className="row g-2">
                                 {billDetails.nonConsumableAmenities.map((amenity) => (

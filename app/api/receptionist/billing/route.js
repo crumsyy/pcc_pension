@@ -178,23 +178,35 @@ export async function GET(request) {
       WHERE bt.bookingID = ?
     `, [bookingID]);
 
-    // Fetch non-consumable room amenities for check-out inspection
+    // Fetch ONLY ordered non-consumable amenities for check-out inspection
     const nonConsumableList = await dbQuery(`
-      SELECT a.amenityID, a.name, COALESCE(a.sellingPrice, a.price, 0) as replacementCost, a.description
-      FROM amenities a
-      WHERE a.itemType = 'Non-Consumable' AND (a.isArchived IS NULL OR a.isArchived = 0)
+      SELECT a.amenityID, a.name, COALESCE(a.sellingPrice, a.price, 0) as replacementCost, a.description,
+             SUM(oa.quantity) as orderedQty
+      FROM order_amenities oa
+      JOIN amenities a ON a.amenityID = oa.amenityID
+      JOIN orders o ON o.orderID = oa.orderID
+      WHERE o.guestID = ? 
+        AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR)
+        AND o.orderStatus != 'Canceled'
+        AND a.itemType = 'Non-Consumable'
+        AND (a.isArchived IS NULL OR a.isArchived = 0)
+      GROUP BY a.amenityID, a.name, a.sellingPrice, a.price, a.description
       ORDER BY a.name ASC
-    `);
+    `, [booking.guestID, booking.checkInDateTime]);
 
     const nonConsumableAmenities = nonConsumableList.map(a => {
       const matchIncidental = incidentalCharges.find(ic => 
         ic.description && ic.description.toLowerCase().includes(`missing/damaged non-consumable amenity: ${a.name.toLowerCase()}`)
       );
       const isReturned = !matchIncidental;
+      const unitCost = parseFloat(a.replacementCost || 0);
+      const totalCost = unitCost * (parseInt(a.orderedQty) || 1);
       return {
         amenityID: a.amenityID,
         name: a.name,
-        replacementCost: parseFloat(a.replacementCost || 0),
+        quantity: parseInt(a.orderedQty) || 1,
+        replacementCost: totalCost,
+        unitCost: unitCost,
         description: a.description,
         isReturned: isReturned,
         chargeAmount: matchIncidental ? parseFloat(matchIncidental.amount) : 0,

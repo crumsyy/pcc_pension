@@ -298,34 +298,11 @@ export default function ReceptionistInquiries() {
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div>
             <h2 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.5rem' }}>Guest Live Chat & Inquiry Management Desk</h2>
-            <p className="text-muted mb-0 small">Real-time guest support live chat, inquiry ticket tracking, and stay quotation tools.</p>
+            <p className="text-muted mb-0 small">Real-time guest live chat support and inquiry ticket tracking.</p>
           </div>
         </div>
 
-        {/* Tab selection */}
-        <ul className="nav nav-tabs mb-3 d-print-none">
-          <li className="nav-item">
-            <button
-              className={`nav-link fw-bold ${activeTab === 'inbox' ? 'active text-pcc-blue border-bottom-3' : 'text-secondary'}`}
-              onClick={() => setActiveTab('inbox')}
-              style={{ borderBottom: activeTab === 'inbox' ? '3px solid var(--pcc-blue)' : '' }}
-            >
-              Live Chat Support Workspace
-            </button>
-          </li>
-          <li className="nav-item">
-            <button
-              className={`nav-link fw-bold ${activeTab === 'availability' ? 'active text-pcc-blue' : 'text-secondary'}`}
-              onClick={() => setActiveTab('availability')}
-              style={{ borderBottom: activeTab === 'availability' ? '3px solid var(--pcc-blue)' : '' }}
-            >
-              Room Availability & Quotation Calculator
-            </button>
-          </li>
-        </ul>
-
-        {activeTab === 'inbox' ? (
-          <div className="row g-3 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '10px' }}>
+        <div className="row g-3 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '10px' }}>
             {/* LEFT PANEL: Conversation List */}
             <div className="col-lg-4 col-xl-4 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
               <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '10px', minHeight: 0 }}>
@@ -808,7 +785,6 @@ export default function ReceptionistInquiries() {
               </div>
             </div>
           </div>
-        )}
       </div>
     </>
   );
