@@ -214,6 +214,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
     : 0;
   const originalTotal = roomRate * nightsCount;
+  const totalDiscount = 0;
   const netTotalAmount = originalTotal;
   const paymentPctNumber = parseInt(paymentOption);
   const amountToPayNow = netTotalAmount * (paymentPctNumber / 100);
@@ -1041,10 +1042,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           <span className="badge bg-primary text-white">🔵 Active Stay Booking (#{activeBookingStay.bookingID})</span>
                           {parseFloat(activeBookingStay.remainingBalance || 0) > 0 && (
                             <button
-                              className="btn btn-xs btn-success text-white fw-bold px-2 py-1"
+                              className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
                               onClick={() => setSettleBooking(activeBookingStay)}
                             >
-                              💳 Pay Remaining Balance (₱{parseFloat(activeBookingStay.remainingBalance).toFixed(2)})
+                              💳 Pay (₱{parseFloat(activeBookingStay.remainingBalance).toFixed(2)})
                             </button>
                           )}
                         </div>
