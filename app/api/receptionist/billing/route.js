@@ -178,18 +178,14 @@ export async function GET(request) {
       WHERE bt.bookingID = ?
     `, [bookingID]);
 
-    // Fetch ONLY ordered non-consumable amenities for check-out inspection
+    // Fetch non-consumable room amenities for check-out inspection (room standard + ordered)
     const nonConsumableList = await dbQuery(`
       SELECT a.amenityID, a.name, COALESCE(a.sellingPrice, a.price, 0) as replacementCost, a.description,
-             SUM(oa.quantity) as orderedQty
-      FROM order_amenities oa
-      JOIN amenities a ON a.amenityID = oa.amenityID
-      JOIN orders o ON o.orderID = oa.orderID
-      WHERE o.guestID = ? 
-        AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR)
-        AND o.orderStatus != 'Canceled'
-        AND a.itemType = 'Non-Consumable'
-        AND (a.isArchived IS NULL OR a.isArchived = 0)
+             COALESCE(SUM(oa.quantity), 1) as qty
+      FROM amenities a
+      LEFT JOIN order_amenities oa ON oa.amenityID = a.amenityID
+      LEFT JOIN orders o ON o.orderID = oa.orderID AND o.guestID = ? AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) AND o.orderStatus != 'Canceled'
+      WHERE a.itemType = 'Non-Consumable' AND (a.isArchived IS NULL OR a.isArchived = 0)
       GROUP BY a.amenityID, a.name, a.sellingPrice, a.price, a.description
       ORDER BY a.name ASC
     `, [booking.guestID, booking.checkInDateTime]);
@@ -200,11 +196,11 @@ export async function GET(request) {
       );
       const isReturned = !matchIncidental;
       const unitCost = parseFloat(a.replacementCost || 0);
-      const totalCost = unitCost * (parseInt(a.orderedQty) || 1);
+      const totalCost = unitCost * (parseInt(a.qty) || 1);
       return {
         amenityID: a.amenityID,
         name: a.name,
-        quantity: parseInt(a.orderedQty) || 1,
+        quantity: parseInt(a.qty) || 1,
         replacementCost: totalCost,
         unitCost: unitCost,
         description: a.description,
