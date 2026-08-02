@@ -27,6 +27,8 @@ export default function RoomsClient() {
     rateWithoutBreakfast: '',
     rateWithBreakfast: '',
     description: '',
+    occupancyLimit: '4',
+    image: '',
   });
 
   // Custom Modal dialog state
@@ -274,6 +276,7 @@ export default function RoomsClient() {
       rateWithBreakfast: rates ? rates.withBreakfast : '',
       description: '',
       occupancyLimit: '4',
+      image: '',
     });
     setActiveModal('create');
   };
@@ -294,6 +297,7 @@ export default function RoomsClient() {
       rateWithBreakfast: rates ? rates.withBreakfast : '',
       description: room.description || '',
       occupancyLimit: room.occupancyLimit ? room.occupancyLimit.toString() : '4',
+      image: room.image || '',
     });
     setActiveModal('edit');
   };
@@ -582,6 +586,20 @@ export default function RoomsClient() {
                     </select>
                   </div>
                   <div className="mb-3">
+                    <label className="form-label">Room Image URL / Path (Optional)</label>
+                    <input
+                      type="text"
+                      name="image"
+                      className="form-control"
+                      placeholder="e.g. /assets/images/rooms/standard.jpg or image URL"
+                      value={formData.image}
+                      onChange={handleInputChange}
+                    />
+                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                      Attached image will be displayed on the landing page for this room.
+                    </small>
+                  </div>
+                  <div className="mb-3">
                     <label className="form-label">Description / Remarks (Optional)</label>
                     <textarea
                       name="description"
@@ -706,6 +724,20 @@ export default function RoomsClient() {
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Room Image URL / Path (Optional)</label>
+                    <input
+                      type="text"
+                      name="image"
+                      className="form-control"
+                      placeholder="e.g. /assets/images/rooms/standard.jpg or image URL"
+                      value={formData.image}
+                      onChange={handleInputChange}
+                    />
+                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                      Attached image will be displayed on the landing page for this room.
+                    </small>
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Description / Remarks (Optional)</label>

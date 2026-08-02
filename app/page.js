@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import GuestChatBubble from "./components/GuestChatBubble";
 import DateInput, { isValidDate, toDbDate } from "./components/DateInput";
@@ -13,14 +13,12 @@ export default function Home() {
   const [roomType, setRoomType] = useState("Any room type");
   const [breakfast, setBreakfast] = useState("With Breakfast");
 
-
-
   const [year, setYear] = useState(2026);
-  useEffect(() => {
-    setYear(new Date().getFullYear());
-  }, []);
-
-
+  const [landingData, setLandingData] = useState({
+    totalRooms: 0,
+    rooms: [],
+    promotions: []
+  });
 
   const [availableRooms, setAvailableRooms] = useState([]);
   const [searchTriggered, setSearchTriggered] = useState(false);
@@ -30,6 +28,8 @@ export default function Home() {
   const [bookingInProgress, setBookingInProgress] = useState(false);
 
   useEffect(() => {
+    setYear(new Date().getFullYear());
+
     async function checkSession() {
       try {
         const res = await fetch('/api/auth/session-check');
@@ -41,8 +41,27 @@ export default function Home() {
         console.error("Session check failed", err);
       }
     }
-    checkSession();
 
+    async function fetchLandingData() {
+      try {
+        const res = await fetch('/api/landing');
+        const data = await res.json();
+        if (res.ok) {
+          setLandingData({
+            totalRooms: data.totalRooms || 0,
+            rooms: data.rooms || [],
+            promotions: data.promotions || []
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load landing data", err);
+      }
+    }
+
+    checkSession();
+    fetchLandingData();
+
+    // 2-Day Minimum Lead Time Rule
     const today = new Date();
     const twoDaysAhead = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
     const threeDaysAhead = new Date(today.getTime() + (3 * 24 * 60 * 60 * 1000));
@@ -59,6 +78,19 @@ export default function Home() {
       alert("Please enter valid dates in MM/DD/YYYY format.");
       return;
     }
+
+    // Lead time validation check
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedCheckIn = new Date(toDbDate(checkIn) + 'T00:00:00');
+    selectedCheckIn.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((selectedCheckIn.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 2) {
+      alert("Guests can only reserve rooms starting at least 2 days ahead of today.");
+      return;
+    }
+
     setSearching(true);
     setSearchTriggered(true);
     try {
@@ -98,6 +130,12 @@ export default function Home() {
     }
   };
 
+  const defaultRoomImages = {
+    'Standard Matrimonial': 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80',
+    'Twin Matrimonial': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80',
+    'Deluxe Matrimonial': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+  };
+
   return (
     <>
       {/* NAVBAR */}
@@ -112,7 +150,8 @@ export default function Home() {
           <div className="collapse navbar-collapse" id="mainNav">
             <ul className="navbar-nav ms-auto align-items-lg-center gap-lg-2">
               <li className="nav-item"><a className="nav-link" href="#home">Home</a></li>
-              <li className="nav-item"><a className="nav-link" href="#about">About</a></li>
+              <li className="nav-item"><a className="nav-link" href="#about">About Us</a></li>
+              <li className="nav-item"><a className="nav-link" href="#promotions">Promotions</a></li>
               <li className="nav-item"><a className="nav-link" href="#rooms">Rooms &amp; Rates</a></li>
               <li className="nav-item"><a className="nav-link" href="#amenities">Amenities</a></li>
               <li className="nav-item"><a className="nav-link" href="#contact">Contact</a></li>
@@ -149,24 +188,25 @@ export default function Home() {
                 <form onSubmit={handleSearchSubmit} className="row g-3 align-items-end">
                   <div className="col-12">
                     <span className="section-eyebrow d-block">Check Availability</span>
-                    <h4 className="text-blue mb-0">Plan your stay</h4>
+                    <h4 className="text-blue mb-0">Plan your stay (Earliest Check-In: 2 Days Ahead)</h4>
                   </div>
                   <div className="col-md-6">
-                    <label className="form-label d-block mb-1">Check-in</label>
+                    <label className="form-label d-block mb-1">Check-in *</label>
                     <DateInput
                       value={checkIn}
                       onChange={(e) => setCheckIn(e.target.value)}
                       required
                       min={minCheckIn}
                     />
+                    <small className="text-muted" style={{ fontSize: '0.72rem' }}>Earliest: 2 days from today</small>
                   </div>
                   <div className="col-md-6">
-                    <label className="form-label d-block mb-1">Check-out</label>
+                    <label className="form-label d-block mb-1">Check-out *</label>
                     <DateInput
                       value={checkOut}
                       onChange={(e) => setCheckOut(e.target.value)}
                       required
-                      min={checkIn || undefined}
+                      min={checkIn || minCheckIn}
                     />
                   </div>
                   <div className="col-md-7">
@@ -205,7 +245,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ABOUT */}
+      {/* ABOUT US */}
       <section className="section" id="about">
         <div className="container">
           <div className="row g-5 align-items-center">
@@ -227,7 +267,7 @@ export default function Home() {
                 available with or without breakfast — so you can choose what fits
                 your stay best.
               </p>
-              <div className="stat-row">
+              <div className="stat-row d-flex flex-wrap gap-4 mt-4">
                 <div>
                   <div className="stat-number">2</div>
                   <div className="stat-label">Floors</div>
@@ -235,6 +275,10 @@ export default function Home() {
                 <div>
                   <div className="stat-number">3</div>
                   <div className="stat-label">Room Types</div>
+                </div>
+                <div>
+                  <div className="stat-number text-pcc-blue fw-bold">{landingData.totalRooms > 0 ? landingData.totalRooms : 6}</div>
+                  <div className="stat-label">Total Rooms</div>
                 </div>
                 <div>
                   <div className="stat-number">24/7</div>
@@ -246,7 +290,40 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ROOMS & RATES */}
+      {/* PROMOTIONS DISPLAY */}
+      {landingData.promotions && landingData.promotions.length > 0 && (
+        <section className="section bg-light py-5" id="promotions">
+          <div className="container">
+            <div className="text-center mb-4">
+              <div className="section-eyebrow">Special Offers</div>
+              <h2 className="section-title">Active Discounts &amp; Promotions</h2>
+              <p className="text-muted">Enjoy exclusive savings when you book during our active promotion periods.</p>
+            </div>
+            <div className="row g-4 justify-content-center">
+              {landingData.promotions.map((promo) => (
+                <div key={promo.promotionID} className="col-md-6 col-lg-4">
+                  <div className="card h-100 border-0 shadow-sm p-4 bg-white" style={{ borderRadius: '12px', borderLeft: '5px solid var(--pcc-blue)' }}>
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                      <h5 className="fw-bold text-dark mb-0">{promo.name}</h5>
+                      <span className="badge bg-danger text-white px-3 py-1 fs-6">{promo.percentage}% OFF</span>
+                    </div>
+                    <p className="text-muted small mb-3 flex-grow-1">{promo.description || 'Exclusive promotional discount for lodging stays.'}</p>
+                    <div className="p-2 bg-light rounded small mb-3" style={{ fontSize: '0.78rem' }}>
+                      <div>📅 <strong>Valid:</strong> {new Date(promo.startDate).toLocaleDateString()} – {new Date(promo.endDate).toLocaleDateString()}</div>
+                      {promo.roomTypeName && <div>🛏️ <strong>Applicable Room:</strong> {promo.roomTypeName}</div>}
+                    </div>
+                    <Link href="/auth/register" className="btn btn-pcc-primary btn-sm text-white w-100 text-center fw-bold">
+                      Claim Promo &amp; Book Now
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ROOMS & RATES WITH IMAGES */}
       <section className="section bg-mist" id="rooms">
         <div className="container">
           <div className="text-center mb-5">
@@ -255,123 +332,151 @@ export default function Home() {
             <p className="text-muted">All rates are per night and listed without &amp; with breakfast.</p>
           </div>
 
-          {/* Ground Floor */}
-          <div className="floor-block">
-            <div className="floor-label">
-              <div className="floor-number">01</div>
-              <div>
-                <div className="display-font text-blue" style={{ fontSize: "1.15rem" }}>Ground Floor</div>
-                <div className="floor-name">Standard · Twin · Deluxe Matrimonial</div>
-              </div>
-              <hr />
-            </div>
+          {landingData.rooms && landingData.rooms.length > 0 ? (
             <div className="row g-4">
-              <div className="col-md-4">
-                <div className="key-tag d-flex flex-column">
-                  <div className="room-type">Standard Matrimonial</div>
-                  <div className="room-meta">Sleeps 2&ndash;4 · 2 extra foam</div>
-                  <p className="room-desc">A cozy room with the essentials for a comfortable short or long stay.</p>
-                  <div className="rate-row">
-                    <span className="rate-label">Without breakfast</span>
-                    <span className="rate-value">₱1,200</span>
+              {landingData.rooms.map((rm) => {
+                const roomImg = rm.image || defaultRoomImages[rm.roomType] || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
+                return (
+                  <div key={rm.roomID} className="col-md-6 col-lg-4">
+                    <div className="card h-100 border-0 shadow-sm overflow-hidden room-card-hover" style={{ borderRadius: '12px', backgroundColor: '#fff' }}>
+                      <div style={{ height: '210px', overflow: 'hidden', position: 'relative' }}>
+                        <img
+                          src={roomImg}
+                          alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                        <span className="badge bg-dark text-white position-absolute top-0 start-0 m-3 px-3 py-1 shadow-sm" style={{ fontSize: '0.82rem' }}>
+                          {rm.floorName}
+                        </span>
+                        <span className={`badge ${rm.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'} position-absolute top-0 end-0 m-3 px-3 py-1 shadow-sm`} style={{ fontSize: '0.82rem' }}>
+                          Room {rm.roomNumber} • {rm.status}
+                        </span>
+                      </div>
+                      <div className="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                          <h5 className="fw-bold text-pcc-blue mb-1">{rm.roomType} (Room {rm.roomNumber})</h5>
+                          <small className="text-muted d-block mb-2">Max Occupancy: {rm.occupancyLimit || 4} Guests</small>
+                          <p className="text-muted small mb-3">{rm.description || rm.typeDescription || 'Comfortable stay with essential amenities and daily housekeeping.'}</p>
+                        </div>
+                        <div>
+                          <div className="p-2.5 bg-light rounded mb-3" style={{ fontSize: '0.82rem' }}>
+                            <div className="d-flex justify-content-between mb-1">
+                              <span className="text-muted">Without Breakfast:</span>
+                              <span className="fw-bold text-dark">₱{parseFloat(rm.rateWithoutBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="d-flex justify-content-between">
+                              <span className="text-muted">With Breakfast:</span>
+                              <span className="fw-bold text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSelectedRoomType(rm.roomType);
+                              setCheckIn(minCheckIn);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            className="btn btn-pcc-outline btn-sm w-100 fw-bold"
+                          >
+                            Check Availability 📅
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="rate-row">
-                    <span className="rate-label">With breakfast</span>
-                    <span className="rate-value">₱1,500</span>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-4">
-                <div className="key-tag d-flex flex-column">
-                  <div className="room-type">Twin Matrimonial</div>
-                  <div className="room-meta">Sleeps 4&ndash;5 · 1 extra foam</div>
-                  <p className="room-desc">Twin bed setup, perfect for families or groups traveling together.</p>
-                  <div className="rate-row">
-                    <span className="rate-label">Without breakfast</span>
-                    <span className="rate-value">₱1,300</span>
-                  </div>
-                  <div className="rate-row">
-                    <span className="rate-label">With breakfast</span>
-                    <span className="rate-value">₱1,800</span>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-4">
-                <div className="key-tag d-flex flex-column">
-                  <div className="room-type">Deluxe Matrimonial</div>
-                  <div className="room-meta">Sleeps 5&ndash;7 · 2 extra foam</div>
-                  <p className="room-desc">Our most spacious option, ideal for bigger groups and extended stays.</p>
-                  <div className="rate-row">
-                    <span className="rate-label">Without breakfast</span>
-                    <span className="rate-value">₱2,100</span>
-                  </div>
-                  <div className="rate-row">
-                    <span className="rate-label">With breakfast</span>
-                    <span className="rate-value">₱2,500</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Ground Floor Fallback */}
+              <div className="floor-block">
+                <div className="floor-label">
+                  <div className="floor-number">01</div>
+                  <div>
+                    <div className="display-font text-blue" style={{ fontSize: "1.15rem" }}>Ground Floor</div>
+                    <div className="floor-name">Standard · Twin · Deluxe Matrimonial</div>
+                  </div>
+                  <hr />
+                </div>
+                <div className="row g-4">
+                  <div className="col-md-4">
+                    <div className="key-tag d-flex flex-column">
+                      <img src={defaultRoomImages['Standard Matrimonial']} alt="Standard Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
+                      <div className="room-type">Standard Matrimonial</div>
+                      <div className="room-meta">Sleeps 2&ndash;4 · 2 extra foam</div>
+                      <p className="room-desc">A cozy room with the essentials for a comfortable short or long stay.</p>
+                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱1,200</span></div>
+                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱1,500</span></div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="key-tag d-flex flex-column">
+                      <img src={defaultRoomImages['Twin Matrimonial']} alt="Twin Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
+                      <div className="room-type">Twin Matrimonial</div>
+                      <div className="room-meta">Sleeps 4&ndash;5 · 1 extra foam</div>
+                      <p className="room-desc">Twin bed setup, perfect for families or groups traveling together.</p>
+                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱1,300</span></div>
+                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱1,800</span></div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="key-tag d-flex flex-column">
+                      <img src={defaultRoomImages['Deluxe Matrimonial']} alt="Deluxe Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
+                      <div className="room-type">Deluxe Matrimonial</div>
+                      <div className="room-meta">Sleeps 5&ndash;7 · 2 extra foam</div>
+                      <p className="room-desc">Our most spacious option, ideal for bigger groups and extended stays.</p>
+                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱2,100</span></div>
+                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱2,500</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-          {/* Second Floor */}
-          <div className="floor-block mb-0">
-            <div className="floor-label">
-              <div className="floor-number">02</div>
-              <div>
-                <div className="display-font text-blue" style={{ fontSize: "1.15rem" }}>Second Floor</div>
-                <div className="floor-name">Standard · Twin · Deluxe Matrimonial</div>
-              </div>
-              <hr />
-            </div>
-            <div className="row g-4">
-              <div className="col-md-4">
-                <div className="key-tag d-flex flex-column">
-                  <div className="room-type">Standard Matrimonial</div>
-                  <div className="room-meta">Sleeps 2&ndash;4 · 2 extra foam</div>
-                  <p className="room-desc">A quiet upper-floor room with the same comfort as our ground floor standard.</p>
-                  <div className="rate-row">
-                    <span className="rate-label">Without breakfast</span>
-                    <span className="rate-value">₱1,500</span>
+              {/* Second Floor Fallback */}
+              <div className="floor-block mb-0">
+                <div className="floor-label">
+                  <div className="floor-number">02</div>
+                  <div>
+                    <div className="display-font text-blue" style={{ fontSize: "1.15rem" }}>Second Floor</div>
+                    <div className="floor-name">Standard · Twin · Deluxe Matrimonial</div>
                   </div>
-                  <div className="rate-row">
-                    <span className="rate-label">With breakfast</span>
-                    <span className="rate-value">₱1,800</span>
+                  <hr />
+                </div>
+                <div className="row g-4">
+                  <div className="col-md-4">
+                    <div className="key-tag d-flex flex-column">
+                      <img src={defaultRoomImages['Standard Matrimonial']} alt="Standard Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
+                      <div className="room-type">Standard Matrimonial</div>
+                      <div className="room-meta">Sleeps 2&ndash;4 · 2 extra foam</div>
+                      <p className="room-desc">A quiet upper-floor room with the same comfort as our ground floor standard.</p>
+                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱1,500</span></div>
+                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱1,800</span></div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="key-tag d-flex flex-column">
+                      <img src={defaultRoomImages['Twin Matrimonial']} alt="Twin Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
+                      <div className="room-type">Twin Matrimonial</div>
+                      <div className="room-meta">Sleeps 4&ndash;5 · 1 extra foam</div>
+                      <p className="room-desc">Second floor twin room, great for groups who prefer a higher vantage.</p>
+                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱1,800</span></div>
+                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱2,200</span></div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="key-tag d-flex flex-column">
+                      <img src={defaultRoomImages['Deluxe Matrimonial']} alt="Deluxe Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
+                      <div className="room-type">Deluxe Matrimonial</div>
+                      <div className="room-meta">Sleeps 5&ndash;7 · 2 extra foam</div>
+                      <p className="room-desc">Top-floor deluxe room — our largest and most premium accommodation.</p>
+                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱2,200</span></div>
+                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱2,500</span></div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="col-md-4">
-                <div className="key-tag d-flex flex-column">
-                  <div className="room-type">Twin Matrimonial</div>
-                  <div className="room-meta">Sleeps 4&ndash;5 · 1 extra foam</div>
-                  <p className="room-desc">Second floor twin room, great for groups who prefer a higher vantage.</p>
-                  <div className="rate-row">
-                    <span className="rate-label">Without breakfast</span>
-                    <span className="rate-value">₱1,800</span>
-                  </div>
-                  <div className="rate-row">
-                    <span className="rate-label">With breakfast</span>
-                    <span className="rate-value">₱2,200</span>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-4">
-                <div className="key-tag d-flex flex-column">
-                  <div className="room-type">Deluxe Matrimonial</div>
-                  <div className="room-meta">Sleeps 5&ndash;7 · 2 extra foam</div>
-                  <p className="room-desc">Top-floor deluxe room — our largest and most premium accommodation.</p>
-                  <div className="rate-row">
-                    <span className="rate-label">Without breakfast</span>
-                    <span className="rate-value">₱2,200</span>
-                  </div>
-                  <div className="rate-row">
-                    <span className="rate-label">With breakfast</span>
-                    <span className="rate-value">₱2,500</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -436,6 +541,7 @@ export default function Home() {
               <h5>Quick Links</h5>
               <ul className="list-unstyled" style={{ paddingLeft: "0", listStyle: "none" }}>
                 <li className="mb-2"><a href="#rooms">Rooms &amp; Rates</a></li>
+                <li className="mb-2"><a href="#promotions">Promotions</a></li>
                 <li className="mb-2"><a href="#amenities">Amenities</a></li>
                 <li className="mb-2"><Link href="/auth/register">Create an Account</Link></li>
                 <li className="mb-2"><Link href="/auth/login">Staff / Guest Login</Link></li>

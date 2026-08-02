@@ -1226,6 +1226,31 @@ function ReservationsClient() {
                         </small>
                       </div>
                     </div>
+
+                    {String(paymentMethodID) === '2' && (
+                      <div className="p-3 border border-primary rounded bg-light text-center mb-3">
+                        <div className="badge bg-primary text-white mb-2 px-3 py-1" style={{ fontSize: '0.78rem' }}>
+                          📱 Pay with GCash / QR Ph Standard
+                        </div>
+                        <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.9rem' }}>
+                          Required Downpayment: <span className="text-primary fs-5 fw-bold">₱{requiredDownpayment.toFixed(2)}</span>
+                        </div>
+                        <div className="my-2 d-flex justify-content-center">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(`GCASH|PCC_RESERVATION|AMOUNT:${requiredDownpayment.toFixed(2)}|RES:${selectedRes?.reservationID}`)}`}
+                            alt="GCash QR Code"
+                            className="border p-2 bg-white rounded shadow-sm"
+                            style={{ width: '150px', height: '150px' }}
+                          />
+                        </div>
+                        <div className="small text-muted mb-1" style={{ fontSize: '0.76rem' }}>
+                          <strong>GCash Account:</strong> 0900 000 0000 (PCC Suite)
+                        </div>
+                        <p className="small text-primary mb-0 fw-semibold" style={{ fontSize: '0.74rem' }}>
+                          Guest scans QR code using GCash app and presents proof of payment. Front Desk verifies before confirming.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="modal-footer">

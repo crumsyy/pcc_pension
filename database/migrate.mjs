@@ -64,18 +64,23 @@ async function run() {
  
     console.log("Connected to database. Checking and updating table structures...");
  
-    console.log("Altering purchase_order status column ENUM to support 'Canceled' and 'Received'...");
-    await connection.execute("ALTER TABLE purchase_order MODIFY COLUMN status ENUM('Pending','Approved','Completed','Canceled','Received') NOT NULL DEFAULT 'Pending'");
+    console.log("Converting status columns to VARCHAR(50) for status safety...");
+    await connection.execute("ALTER TABLE purchase_order MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'Pending'");
+    await connection.execute("ALTER TABLE reservation MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'Pending'");
+    await connection.execute("ALTER TABLE booking MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'Pending'");
+    await connection.execute("ALTER TABLE room MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'Available'");
+    await connection.execute("ALTER TABLE orders MODIFY COLUMN orderStatus VARCHAR(50) NOT NULL DEFAULT 'Pending'");
+    await connection.execute("ALTER TABLE inquiry MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'Pending'");
+    await connection.execute("ALTER TABLE `user` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'Active'");
 
-    console.log("Altering user table for suspension and archiving...");
-    await connection.execute("ALTER TABLE `user` MODIFY COLUMN `status` ENUM('Active','Inactive','Suspended') NOT NULL DEFAULT 'Active'");
     await ensureColumn(connection, 'user', 'suspendedUntil', 'DATETIME DEFAULT NULL');
     await ensureColumn(connection, 'user', 'suspensionRemarks', 'VARCHAR(255) DEFAULT NULL');
     await ensureColumn(connection, 'user', 'isDeleted', 'TINYINT(1) NOT NULL DEFAULT 0');
 
-    console.log("Altering room table for description and occupancyLimit...");
+    console.log("Altering room table for description, occupancyLimit, and image...");
     await ensureColumn(connection, 'room', 'description', 'TEXT DEFAULT NULL');
     await ensureColumn(connection, 'room', 'occupancyLimit', 'INT NOT NULL DEFAULT 4');
+    await ensureColumn(connection, 'room', 'image', 'VARCHAR(255) DEFAULT NULL');
 
     console.log("Altering booking table for cancellation reason...");
     await ensureColumn(connection, 'booking', 'cancelRemarks', 'VARCHAR(255) DEFAULT NULL');

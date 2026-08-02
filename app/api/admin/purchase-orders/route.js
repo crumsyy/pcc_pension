@@ -89,8 +89,26 @@ export async function POST(request) {
 
     if (action === 'create_po') {
       const { items, expectedDeliveryDate } = body; // Array of { itemName, itemType, quantity, unitPrice }
-      if (!items || items.length === 0) {
-        return NextResponse.json({ error: 'No items provided' }, { status: 400 });
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return NextResponse.json({ error: 'No items provided for purchase order.' }, { status: 400 });
+      }
+
+      // Input validation for each item
+      for (const item of items) {
+        if (!item.itemName || !item.itemName.trim()) {
+          return NextResponse.json({ error: 'Item name cannot be empty.' }, { status: 400 });
+        }
+        const qty = parseInt(item.quantity);
+        if (isNaN(qty) || qty <= 0) {
+          return NextResponse.json({ error: `Invalid quantity for item "${item.itemName}". Must be greater than 0.` }, { status: 400 });
+        }
+        const price = parseFloat(item.unitPrice);
+        if (isNaN(price) || price < 0) {
+          return NextResponse.json({ error: `Invalid unit price for item "${item.itemName}". Cannot be negative.` }, { status: 400 });
+        }
+        if (!['Amenity', 'Product'].includes(item.itemType)) {
+          return NextResponse.json({ error: `Invalid item type for item "${item.itemName}".` }, { status: 400 });
+        }
       }
 
       // Duplicate protection (Module H - REQ054)

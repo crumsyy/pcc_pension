@@ -601,63 +601,90 @@ export default function ReceptionistBilling() {
                             {(!billDetails.nonConsumableAmenities || billDetails.nonConsumableAmenities.length === 0) ? (
                               <div className="text-muted small text-center py-2">No ordered non-consumable amenities recorded for this stay.</div>
                             ) : (
-                              <div className="row g-2">
+                              <div className="row g-3">
                                 {billDetails.nonConsumableAmenities.map((amenity) => (
                                   <div key={amenity.amenityID} className="col-md-6">
                                     <div 
-                                      className={`p-2 border rounded d-flex align-items-center justify-content-between ${amenity.isReturned ? 'bg-light' : 'bg-danger-subtle border-danger'}`}
-                                      style={{ cursor: 'pointer' }}
-                                      onClick={async () => {
-                                        const newIsReturned = !amenity.isReturned;
-                                        // Optimistic UI update
-                                        setBillDetails(prev => {
-                                          if (!prev) return prev;
-                                          const updatedList = prev.nonConsumableAmenities.map(item =>
-                                            item.amenityID === amenity.amenityID ? { ...item, isReturned: newIsReturned } : item
-                                          );
-                                          return { ...prev, nonConsumableAmenities: updatedList };
-                                        });
-                                        try {
-                                          const res = await fetch('/api/receptionist/billing', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                              action: 'toggle_amenity_inspection',
-                                              bookingID: selectedBookingID,
-                                              amenityID: amenity.amenityID,
-                                              isReturned: newIsReturned
-                                            })
-                                          });
-                                          const data = await res.json();
-                                          if (!res.ok) throw new Error(data.error || 'Failed to update amenity status');
-                                          fetchBillingDetails(selectedBookingID);
-                                        } catch (err) {
-                                          alert(err.message);
-                                          fetchBillingDetails(selectedBookingID);
-                                        }
-                                      }}
+                                      className={`p-2.5 border rounded ${amenity.isReturned ? 'bg-light' : 'bg-danger-subtle border-danger'}`}
                                     >
-                                      <div className="form-check m-0 d-flex align-items-center">
-                                        <input
-                                          className="form-check-input mt-0"
-                                          type="checkbox"
-                                          id={`amenity-check-${amenity.amenityID}`}
-                                          checked={amenity.isReturned}
-                                          onChange={() => {}}
-                                          style={{ cursor: 'pointer', width: '18px', height: '18px' }}
-                                        />
-                                        <div className="ms-2">
-                                          <label className="form-check-label fw-bold text-dark m-0" htmlFor={`amenity-check-${amenity.amenityID}`} style={{ fontSize: '0.85rem', cursor: 'pointer' }}>
-                                            {amenity.name} {amenity.quantity > 1 ? `(${amenity.quantity} pcs)` : ''}
+                                      <div className="d-flex align-items-center justify-content-between mb-1">
+                                        <div className="form-check m-0 d-flex align-items-center">
+                                          <input
+                                            className="form-check-input mt-0"
+                                            type="checkbox"
+                                            id={`amenity-check-${amenity.amenityID}`}
+                                            checked={amenity.isReturned}
+                                            onChange={async (e) => {
+                                              const newIsReturned = e.target.checked;
+                                              try {
+                                                const res = await fetch('/api/receptionist/billing', {
+                                                  method: 'POST',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({
+                                                    action: 'toggle_amenity_inspection',
+                                                    bookingID: selectedBookingID,
+                                                    amenityID: amenity.amenityID,
+                                                    isReturned: newIsReturned,
+                                                    lostQuantity: amenity.lostQty || 1
+                                                  })
+                                                });
+                                                const data = await res.json();
+                                                if (!res.ok) throw new Error(data.error || 'Failed to update amenity status');
+                                                fetchBillingDetails(selectedBookingID);
+                                              } catch (err) {
+                                                alert(err.message);
+                                              }
+                                            }}
+                                            style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                                          />
+                                          <label className="form-check-label fw-bold text-dark ms-2 m-0" htmlFor={`amenity-check-${amenity.amenityID}`} style={{ fontSize: '0.85rem', cursor: 'pointer' }}>
+                                            {amenity.name} {amenity.orderedQty > 1 ? `(${amenity.orderedQty} ordered)` : ''}
                                           </label>
-                                          <div className="small text-muted" style={{ fontSize: '0.72rem' }}>
-                                            Replacement Cost: ₱{parseFloat(amenity.replacementCost).toFixed(2)}
-                                          </div>
                                         </div>
+                                        <span className={`badge ${amenity.isReturned ? 'bg-success text-white' : 'bg-danger text-white'} px-2 py-1`} style={{ fontSize: '0.72rem' }}>
+                                          {amenity.isReturned ? '✓ Returned & Good' : `+₱${parseFloat(amenity.replacementCost).toFixed(2)} Billed`}
+                                        </span>
                                       </div>
-                                      <span className={`badge ${amenity.isReturned ? 'bg-success text-white' : 'bg-danger text-white'} px-2 py-1.5 ms-2`} style={{ fontSize: '0.74rem' }}>
-                                        {amenity.isReturned ? '✓ Returned & Good' : `+₱${parseFloat(amenity.replacementCost).toFixed(2)} Billed`}
-                                      </span>
+
+                                      {!amenity.isReturned && (
+                                        <div className="d-flex align-items-center gap-2 mt-2 pt-2 border-top border-danger-subtle">
+                                          <label className="small text-danger fw-bold mb-0" style={{ fontSize: '0.74rem' }}>
+                                            Lost/Damaged Qty:
+                                          </label>
+                                          <input
+                                            type="number"
+                                            className="form-control form-control-sm text-center font-weight-bold"
+                                            style={{ width: '65px', height: '26px', fontSize: '0.8rem' }}
+                                            min="1"
+                                            max={amenity.orderedQty || 99}
+                                            value={amenity.lostQty || 1}
+                                            onChange={async (e) => {
+                                              const newLostQty = parseInt(e.target.value) || 1;
+                                              try {
+                                                const res = await fetch('/api/receptionist/billing', {
+                                                  method: 'POST',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({
+                                                    action: 'toggle_amenity_inspection',
+                                                    bookingID: selectedBookingID,
+                                                    amenityID: amenity.amenityID,
+                                                    isReturned: false,
+                                                    lostQuantity: newLostQty
+                                                  })
+                                                });
+                                                const data = await res.json();
+                                                if (!res.ok) throw new Error(data.error || 'Failed to update lost quantity');
+                                                fetchBillingDetails(selectedBookingID);
+                                              } catch (err) {
+                                                alert(err.message);
+                                              }
+                                            }}
+                                          />
+                                          <span className="small text-muted ms-auto" style={{ fontSize: '0.72rem' }}>
+                                            @ ₱{parseFloat(amenity.unitCost).toFixed(2)} ea
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 ))}

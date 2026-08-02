@@ -200,13 +200,19 @@ export async function GET(request) {
       );
       const isReturned = !matchIncidental;
       const unitCost = parseFloat(a.replacementCost || 0);
-      const totalCost = unitCost * (parseInt(a.orderedQty) || 1);
+      let lostQty = 1;
+      if (matchIncidental) {
+        const matchNum = matchIncidental.description.match(/(\d+)x/);
+        if (matchNum) lostQty = parseInt(matchNum[1]);
+      }
       return {
         amenityID: a.amenityID,
         name: a.name,
         quantity: parseInt(a.orderedQty) || 1,
-        replacementCost: totalCost,
+        orderedQty: parseInt(a.orderedQty) || 1,
+        lostQty: matchIncidental ? lostQty : 1,
         unitCost: unitCost,
+        replacementCost: matchIncidental ? parseFloat(matchIncidental.amount) : (unitCost * lostQty),
         description: a.description,
         isReturned: isReturned,
         chargeAmount: matchIncidental ? parseFloat(matchIncidental.amount) : 0,
@@ -395,6 +401,7 @@ export async function POST(request) {
       const bookingID = parseInt(body.bookingID);
       const amenityID = parseInt(body.amenityID);
       const isReturned = body.isReturned; // boolean
+      const lostQuantity = Math.max(1, parseInt(body.lostQuantity || 1));
 
       const [amenity] = await dbQuery(
         "SELECT name, COALESCE(sellingPrice, price, 0) as replacementCost FROM amenities WHERE amenityID = ?",
@@ -405,30 +412,37 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Amenity not found.' }, { status: 404 });
       }
 
-      const desc = `Missing/Damaged Non-Consumable Amenity: ${amenity.name}`;
+      const descPattern = `%Missing/Damaged Non-Consumable Amenity: ${amenity.name}%`;
+      const descText = `${lostQuantity}x Missing/Damaged Non-Consumable Amenity: ${amenity.name}`;
 
       if (isReturned) {
         // Returned -> remove incidental charge if any
         await dbQuery(
-          "DELETE FROM incidental_charge WHERE bookingID = ? AND LOWER(description) = LOWER(?)",
-          [bookingID, desc]
+          "DELETE FROM incidental_charge WHERE bookingID = ? AND description LIKE ?",
+          [bookingID, descPattern]
         );
         return NextResponse.json({ success: true, message: `${amenity.name} marked as returned & in good condition.` });
       } else {
-        // Unchecked -> Missing/Damaged -> add replacement cost as incidental charge
-        const cost = parseFloat(amenity.replacementCost || 0);
+        // Unchecked -> Missing/Damaged -> add/update replacement cost as incidental charge
+        const unitCost = parseFloat(amenity.replacementCost || 0);
+        const cost = unitCost * lostQuantity;
         // Check if charge already exists
         const existing = await dbQuery(
-          "SELECT chargeID FROM incidental_charge WHERE bookingID = ? AND LOWER(description) = LOWER(?)",
-          [bookingID, desc]
+          "SELECT chargeID FROM incidental_charge WHERE bookingID = ? AND description LIKE ?",
+          [bookingID, descPattern]
         );
-        if (existing.length === 0) {
+        if (existing.length > 0) {
+          await dbQuery(
+            "UPDATE incidental_charge SET description = ?, amount = ? WHERE chargeID = ?",
+            [descText, cost, existing[0].chargeID]
+          );
+        } else {
           await dbQuery(
             "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
-            [bookingID, desc, cost]
+            [bookingID, descText, cost]
           );
         }
-        return NextResponse.json({ success: true, message: `${amenity.name} marked as missing/damaged. Replacement fee (₱${cost.toFixed(2)}) added to bill.` });
+        return NextResponse.json({ success: true, message: `${lostQuantity}x ${amenity.name} marked as missing/damaged. Replacement fee (₱${cost.toFixed(2)}) billed.` });
       }
     }
 

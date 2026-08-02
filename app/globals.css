@@ -1130,3 +1130,18 @@ table td {
   background-color: #2155B5 !important;
   color: #ffffff !important;
 }
+
+/* Chat Float Responsive Edge Alignment */
+@media (max-width: 576px) {
+  .chatbot-toggle {
+    right: 14px !important;
+    bottom: 16px !important;
+  }
+  .chatbot-window {
+    right: 10px !important;
+    width: calc(100vw - 20px) !important;
+    max-width: 360px !important;
+    bottom: 80px !important;
+    height: 480px !important;
+  }
+}

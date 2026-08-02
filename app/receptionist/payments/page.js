@@ -397,6 +397,31 @@ function PaymentsClient() {
                     </div>
                   )}
 
+                  {paymentForm.paymentMethodID === '2' && (
+                    <div className="p-3 mb-3 border border-primary rounded bg-light text-center">
+                      <div className="badge bg-primary text-white mb-2 px-3 py-1" style={{ fontSize: '0.78rem' }}>
+                        📱 Pay with GCash / QR Ph Standard
+                      </div>
+                      <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.9rem' }}>
+                        Amount Due: <span className="text-primary fs-5 fw-bold">₱{payableAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="my-2 d-flex justify-content-center">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(`GCASH|PCC_HOME_SUITE_HOME|AMOUNT:${payableAmount.toFixed(2)}|REF:${selectedBookingID}`)}`}
+                          alt="GCash QR Code"
+                          className="border p-2 bg-white rounded shadow-sm"
+                          style={{ width: '160px', height: '160px' }}
+                        />
+                      </div>
+                      <div className="small text-muted mb-1" style={{ fontSize: '0.76rem' }}>
+                        <strong>GCash Account:</strong> 0900 000 0000 (PCC Suite)
+                      </div>
+                      <p className="small text-primary mb-0 fw-semibold" style={{ fontSize: '0.74rem' }}>
+                        Guest scans QR code using their GCash app and presents proof of payment.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="alert alert-info py-2 px-3 mb-2 mt-2" style={{ fontSize: '0.78rem' }}>
                     ℹ Guest checkout and room release will occur automatically upon payment.
                   </div>

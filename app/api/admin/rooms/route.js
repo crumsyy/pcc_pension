@@ -73,6 +73,7 @@ export async function POST(request) {
       const rateWithBreakfast = parseFloat(body.rateWithBreakfast);
       const description = (body.description || '').trim();
       const occupancyLimit = parseInt(body.occupancyLimit) || 4;
+      const image = (body.image || '').trim() || null;
 
       if (status === 'Occupied') {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
@@ -88,8 +89,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "INSERT INTO room(roomNumber,status,floorID,roomTypeID,description,occupancyLimit) VALUES(?,?,?,?,?,?)",
-        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit]
+        "INSERT INTO room(roomNumber,status,floorID,roomTypeID,description,occupancyLimit,image) VALUES(?,?,?,?,?,?,?)",
+        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image]
       );
 
       // Upsert rates
@@ -122,6 +123,7 @@ export async function POST(request) {
       const rateWithBreakfast = parseFloat(body.rateWithBreakfast);
       const description = (body.description || '').trim();
       const occupancyLimit = parseInt(body.occupancyLimit) || 4;
+      const image = (body.image || '').trim() || null;
 
       if (status === 'Occupied') {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
@@ -143,8 +145,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=?, description=?, occupancyLimit=? WHERE roomID=?",
-        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, roomID]
+        "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=?, description=?, occupancyLimit=?, image=? WHERE roomID=?",
+        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image, roomID]
       );
 
       // Upsert rates
