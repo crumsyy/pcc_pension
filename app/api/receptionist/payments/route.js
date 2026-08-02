@@ -28,7 +28,29 @@ export async function GET(request) {
     // Fetch payment methods
     const paymentMethods = await dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method");
 
-    return NextResponse.json({ success: true, activeBookings, discounts, paymentMethods });
+    // Fetch payment history logs
+    const paymentHistory = await dbQuery(`
+      SELECT p.paymentID, p.amount, p.cashReceived, p.change, p.paymentMethodID,
+             DATE_FORMAT(p.createdAt, '%Y-%m-%d %H:%i:%s') as paymentDateTime,
+             pm.paymentMethod,
+             g.guestID, g.firstName, g.lastName, g.contact,
+             b.billingID, b.bookingID,
+             rm.roomNumber, rt.type as roomType,
+             COALESCE(st.name, u.username, 'Front Desk Staff') as processedBy
+      FROM payment p
+      JOIN payment_method pm ON pm.paymentMethodID = p.paymentMethodID
+      JOIN guest g ON g.guestID = p.guestID
+      LEFT JOIN billing b ON b.billingID = p.billingID
+      LEFT JOIN booking bk ON bk.bookingID = b.bookingID
+      LEFT JOIN room rm ON rm.roomID = bk.roomID
+      LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+      LEFT JOIN staff st ON st.staffID = p.staffID
+      LEFT JOIN user u ON u.userID = st.userID
+      ORDER BY p.paymentID DESC
+      LIMIT 500
+    `);
+
+    return NextResponse.json({ success: true, activeBookings, discounts, paymentMethods, paymentHistory });
   } catch (error) {
     console.error("Failed to fetch payments checkout list:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

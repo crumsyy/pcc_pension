@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 
@@ -13,6 +13,34 @@ export default function RoomsClient() {
   const [typeFilter, setTypeFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
+  const fileInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const dataForm = new FormData();
+      dataForm.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: dataForm
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to upload image');
+
+      setFormData(prev => ({ ...prev, image: data.url }));
+      showAlert('success', 'Image Uploaded', 'Room photo uploaded successfully!');
+    } catch (err) {
+      showAlert('error', 'Upload Failed', err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | null
@@ -585,18 +613,48 @@ export default function RoomsClient() {
                       ))}
                     </select>
                   </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="d-none"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
                   <div className="mb-3">
-                    <label className="form-label">Room Image URL / Path (Optional)</label>
-                    <input
-                      type="text"
-                      name="image"
-                      className="form-control"
-                      placeholder="e.g. /assets/images/rooms/standard.jpg or image URL"
-                      value={formData.image}
-                      onChange={handleInputChange}
-                    />
-                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>
-                      Attached image will be displayed on the landing page for this room.
+                    <label className="form-label">Room Image URL / Local Photo (Optional)</label>
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        name="image"
+                        className="form-control"
+                        placeholder="e.g. /uploads/rooms/standard.jpg or image URL"
+                        value={formData.image}
+                        onChange={handleInputChange}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary fw-bold"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Uploading...
+                          </>
+                        ) : (
+                          '📂 Browse Files'
+                        )}
+                      </button>
+                    </div>
+                    {formData.image && (
+                      <div className="mt-2 p-2 bg-light rounded text-center border">
+                        <img src={formData.image} alt="Room preview" className="rounded" style={{ maxHeight: '100px', objectFit: 'cover' }} />
+                        <div className="small text-muted mt-1" style={{ fontSize: '0.72rem' }}>Selected photo preview</div>
+                      </div>
+                    )}
+                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                      Click "Browse Files" to upload a local photo or paste an image URL to display on the landing page.
                     </small>
                   </div>
                   <div className="mb-3">
@@ -726,17 +784,40 @@ export default function RoomsClient() {
                     </select>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Room Image URL / Path (Optional)</label>
-                    <input
-                      type="text"
-                      name="image"
-                      className="form-control"
-                      placeholder="e.g. /assets/images/rooms/standard.jpg or image URL"
-                      value={formData.image}
-                      onChange={handleInputChange}
-                    />
-                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>
-                      Attached image will be displayed on the landing page for this room.
+                    <label className="form-label">Room Image URL / Local Photo (Optional)</label>
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        name="image"
+                        className="form-control"
+                        placeholder="e.g. /uploads/rooms/standard.jpg or image URL"
+                        value={formData.image}
+                        onChange={handleInputChange}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary fw-bold"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                            Uploading...
+                          </>
+                        ) : (
+                          '📂 Browse Files'
+                        )}
+                      </button>
+                    </div>
+                    {formData.image && (
+                      <div className="mt-2 p-2 bg-light rounded text-center border">
+                        <img src={formData.image} alt="Room preview" className="rounded" style={{ maxHeight: '100px', objectFit: 'cover' }} />
+                        <div className="small text-muted mt-1" style={{ fontSize: '0.72rem' }}>Selected photo preview</div>
+                      </div>
+                    )}
+                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                      Click "Browse Files" to upload a local photo or paste an image URL to display on the landing page.
                     </small>
                   </div>
                   <div className="mb-3">

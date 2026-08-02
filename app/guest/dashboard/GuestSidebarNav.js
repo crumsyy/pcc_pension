@@ -45,9 +45,9 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
                   transition: 'all 0.15s ease-in-out'
                 }}
               >
-                <div className="d-flex align-items-center gap-2.5">
-                  <i className={`bi ${item.icon}`} style={{ fontSize: '1.05rem' }}></i>
-                  <span className="text-nowrap">{item.label}</span>
+                <div className="d-flex align-items-center gap-3">
+                  <i className={`bi ${item.icon} me-1`} style={{ fontSize: '1.1rem' }}></i>
+                  <span className="text-nowrap" style={{ letterSpacing: '0.01em' }}>{item.label}</span>
                 </div>
                 {isNotification && unreadNotificationsCount > 0 && (
                   <span className="badge bg-danger text-white rounded-pill" style={{ fontSize: '0.68rem' }}>

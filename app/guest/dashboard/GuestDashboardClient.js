@@ -76,7 +76,43 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [receiptData, setReceiptData] = useState(null);
   const [processing, setProcessing] = useState(false);
 
-  // Pay Remaining Balance Workflow States
+  // Edit Profile Modal State
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [editProfileForm, setEditProfileForm] = useState({
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    contact: '',
+    gender: 'Other',
+    city: '',
+    province: ''
+  });
+
+  const handleSaveProfileSubmit = async (e) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const res = await fetch('/api/guest/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editProfileForm)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update profile');
+
+      setGuest(prev => ({
+        ...prev,
+        ...editProfileForm
+      }));
+      showAlert('success', 'Success', data.message || 'Profile updated successfully!');
+      setShowEditProfileModal(false);
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
   const [settleBooking, setSettleBooking] = useState(null);
   const [settleGcashRef, setSettleGcashRef] = useState('');
   const [settleProcessing, setSettleProcessing] = useState(false);
@@ -1418,7 +1454,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="text-muted small">{guest.email}</div>
                       </div>
                     </div>
-                    <span className="badge bg-success text-white px-3 py-1.5 rounded-pill">Active Guest</span>
+                    <div className="d-flex align-items-center gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-pcc-outline fw-bold"
+                        onClick={() => {
+                          setEditProfileForm({
+                            firstName: guest.firstName || '',
+                            middleName: guest.middleName || '',
+                            lastName: guest.lastName || '',
+                            contact: guest.contact || '',
+                            gender: guest.gender || 'Other',
+                            city: guest.city || '',
+                            province: guest.province || ''
+                          });
+                          setShowEditProfileModal(true);
+                        }}
+                      >
+                        Edit Profile ✏️
+                      </button>
+                      <span className="badge bg-success text-white px-3 py-1.5 rounded-pill">Active Guest</span>
+                    </div>
                   </div>
 
                   <table className="table table-borderless table-sm small mb-0">
@@ -1938,10 +1994,120 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     Print / Download Receipt
                   </button>
                   <button className="btn btn-pcc-primary text-white fw-bold" onClick={() => { setActiveModal('none'); setViewMode('default'); setActiveTab('home'); }}>
-                    Done & View Portal
+                    Done &amp; View Portal
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROFILE MODAL DIALOG */}
+      {showEditProfileModal && (
+        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1070 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue)' }}>
+                <h5 className="modal-title fw-bold">Edit Profile Settings</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowEditProfileModal(false)}></button>
+              </div>
+              <form onSubmit={handleSaveProfileSubmit}>
+                <div className="modal-body p-4">
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-4">
+                      <label className="form-label small fw-semibold">First Name *</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        required
+                        value={editProfileForm.firstName}
+                        onChange={(e) => setEditProfileForm(prev => ({ ...prev, firstName: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-semibold">Middle Name</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={editProfileForm.middleName}
+                        onChange={(e) => setEditProfileForm(prev => ({ ...prev, middleName: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-semibold">Last Name *</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        required
+                        value={editProfileForm.lastName}
+                        onChange={(e) => setEditProfileForm(prev => ({ ...prev, lastName: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Contact Number *</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        required
+                        value={editProfileForm.contact}
+                        onChange={(e) => setEditProfileForm(prev => ({ ...prev, contact: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Gender</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={editProfileForm.gender}
+                        onChange={(e) => setEditProfileForm(prev => ({ ...prev, gender: e.target.value }))}
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">City / Municipality</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={editProfileForm.city}
+                        onChange={(e) => setEditProfileForm(prev => ({ ...prev, city: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Province / Region</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={editProfileForm.province}
+                        onChange={(e) => setEditProfileForm(prev => ({ ...prev, province: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer border-top-0 pt-0 pb-4 px-4">
+                  <button type="button" className="btn btn-secondary text-white fw-bold px-4" onClick={() => setShowEditProfileModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold px-4" disabled={savingProfile}>
+                    {savingProfile ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        Saving Changes...
+                      </>
+                    ) : (
+                      'Save Profile Settings'
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

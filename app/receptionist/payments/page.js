@@ -72,6 +72,11 @@ function PaymentsClient() {
     });
   };
 
+  const [activeTab, setActiveTab] = useState('terminal'); // 'terminal' | 'history'
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyMethodFilter, setHistoryMethodFilter] = useState('All');
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -82,6 +87,7 @@ function PaymentsClient() {
       setActiveBookings(data.activeBookings || []);
       setDiscounts(data.discounts || []);
       setPaymentMethods(data.paymentMethods || []);
+      setPaymentHistory(data.paymentHistory || []);
       
       if (initialBookingID) {
         setSelectedBookingID(initialBookingID);
@@ -323,16 +329,131 @@ function PaymentsClient() {
     }, 500);
   };
 
+  // Filter payment history logs
+  const filteredHistory = paymentHistory.filter(item => {
+    const query = historySearch.toLowerCase();
+    const guestName = `${item.firstName || ''} ${item.lastName || ''}`.toLowerCase();
+    const matchesQuery = 
+      guestName.includes(query) ||
+      (item.contact || '').toLowerCase().includes(query) ||
+      (item.roomNumber || '').toLowerCase().includes(query) ||
+      String(item.paymentID).includes(query) ||
+      String(item.bookingID || '').includes(query);
+    const matchesMethod = historyMethodFilter === 'All' || item.paymentMethod === historyMethodFilter;
+    return matchesQuery && matchesMethod;
+  });
+
   return (
     <>
       <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
-        <div className="d-flex justify-content-between align-items-center mb-4">
+        <div className="d-flex justify-content-between align-items-center mb-3">
           <div>
-            <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Payment POS Terminal</h2>
-            <p className="text-muted mb-0">Record payments, calculate change, apply PWD/Senior discounts, and issue guest receipts.</p>
+            <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.4rem' }}>
+              Payment Management &amp; POS
+            </h2>
+            <p className="text-muted mb-0 small">Settle guest stays, accept GCash/Cash payments, and track transaction history.</p>
+          </div>
+
+          <div className="btn-group" role="group">
+            <button
+              type="button"
+              className={`btn btn-sm ${activeTab === 'terminal' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+              onClick={() => setActiveTab('terminal')}
+            >
+              💳 Payment POS Terminal
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${activeTab === 'history' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+              onClick={() => setActiveTab('history')}
+            >
+              📜 Payment History Log
+            </button>
           </div>
         </div>
 
+        {activeTab === 'history' ? (
+          <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden" style={{ borderRadius: '10px' }}>
+            <div className="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '1rem' }}>Transaction History Log</h5>
+              <div className="d-flex gap-2">
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search guest, room #, ref..."
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  style={{ width: '220px', borderRadius: '20px' }}
+                />
+                <select
+                  className="form-select form-select-sm"
+                  value={historyMethodFilter}
+                  onChange={(e) => setHistoryMethodFilter(e.target.value)}
+                  style={{ width: '130px', borderRadius: '6px' }}
+                >
+                  <option value="All">All Methods</option>
+                  <option value="Cash">Cash</option>
+                  <option value="GCash">GCash</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="card-body p-0 overflow-y-auto flex-grow-1">
+              {filteredHistory.length === 0 ? (
+                <div className="text-center py-5 text-muted small">
+                  No payment transactions recorded yet or matching search criteria.
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.86rem' }}>
+                    <thead className="table-light">
+                      <tr>
+                        <th>Ref #</th>
+                        <th>Date &amp; Time</th>
+                        <th>Guest Name</th>
+                        <th>Room / Booking</th>
+                        <th>Method</th>
+                        <th>Amount Paid</th>
+                        <th>Processed By</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredHistory.map((h) => (
+                        <tr key={h.paymentID}>
+                          <td className="fw-bold text-muted">PAY-{String(h.paymentID).padStart(5, '0')}</td>
+                          <td className="small text-muted">{new Date(h.paymentDateTime).toLocaleString()}</td>
+                          <td>
+                            <div className="fw-bold text-dark">{h.firstName} {h.lastName}</div>
+                            <small className="text-muted" style={{ fontSize: '0.72rem' }}>📞 {h.contact || 'N/A'}</small>
+                          </td>
+                          <td>
+                            <span className="fw-semibold text-pcc-blue">
+                              {h.roomNumber ? `Room ${h.roomNumber}` : 'Direct SOA'}
+                            </span>
+                            {h.bookingID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Booking #{h.bookingID}</small>}
+                          </td>
+                          <td>
+                            <span className={`badge ${h.paymentMethod === 'GCash' ? 'bg-primary text-white' : 'bg-success text-white'} px-2 py-1`} style={{ fontSize: '0.72rem' }}>
+                              {h.paymentMethod === 'GCash' ? '📱 GCash' : '💵 Cash'}
+                            </span>
+                          </td>
+                          <td className="fw-bold text-success fs-6">₱{parseFloat(h.amount).toFixed(2)}</td>
+                          <td><small className="text-muted">{h.processedBy || 'Front Desk'}</small></td>
+                          <td>
+                            <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style={{ fontSize: '0.72rem' }}>
+                              ✓ Settled
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
         <div className="row g-4 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '15px' }}>
           {/* Left Payment form */}
           <div className="col-lg-6 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
@@ -528,6 +649,7 @@ function PaymentsClient() {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* PRINT RECEIPT MODAL */}

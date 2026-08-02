@@ -269,25 +269,22 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     }, 350);
   };
 
-  const handleOpenRequestForm = () => {
-    setShowRequestForm(true);
-  };
-
-  const handleCreateInquiryTicket = async (e) => {
-    e.preventDefault();
-    if (!requestForm.message.trim()) return;
+  const handleDirectReceptionistRequest = async () => {
     setSubmittingRequest(true);
 
     try {
+      const guestName = currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || 'Guest Visitor' : 'Guest Visitor';
+      const guestEmail = currentUser?.email || (typeof window !== 'undefined' ? localStorage.getItem('pcc_guest_email') : null) || 'guest@pccsuite.com';
+
       const payload = {
-        name: requestForm.name.trim() || (currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Guest Visitor'),
-        email: requestForm.email.trim() || (currentUser ? currentUser.email : 'visitor@pcc.com'),
-        contactNumber: requestForm.contactNumber.trim() || null,
-        message: requestForm.message.trim()
+        name: guestName,
+        email: guestEmail,
+        contactNumber: currentUser?.contact || null,
+        message: 'Guest requested live receptionist assistance.'
       };
 
-      if (typeof window !== 'undefined' && payload.email) {
-        localStorage.setItem('pcc_guest_email', payload.email);
+      if (typeof window !== 'undefined' && guestEmail) {
+        localStorage.setItem('pcc_guest_email', guestEmail);
       }
 
       const res = await fetch('/api/guest/inquiries', {
@@ -297,7 +294,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to send inquiry');
+      if (!res.ok) throw new Error(data.error || 'Failed to connect to receptionist');
 
       setDbInquiry(data.inquiry);
       if (data.messages) {
@@ -306,17 +303,20 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
 
       setBotMessages(prev => [...prev, {
         sender: 'bot',
-        text: 'Your request has been sent. A receptionist will respond shortly.'
+        text: 'Live chat session initialized. You are now connected to the Front Desk Receptionist.'
       }]);
 
       setShowRequestForm(false);
-      setRequestForm(prev => ({ ...prev, message: '' }));
       setActiveTabMode('live');
     } catch (err) {
-      alert(err.message || 'Failed to send request. Please try again.');
+      alert(err.message || 'Failed to connect to receptionist. Please try again.');
     } finally {
       setSubmittingRequest(false);
     }
+  };
+
+  const handleOpenRequestForm = () => {
+    handleDirectReceptionistRequest();
   };
 
   const handleSendLiveMessage = async (e) => {
@@ -547,10 +547,11 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               <div className="text-center py-5 text-muted" style={{ fontSize: '0.8rem' }}>
                 <p className="mb-2">No active live conversation ticket found.</p>
                 <button
-                  className="btn btn-sm btn-outline-primary rounded-pill"
-                  onClick={() => setShowRequestForm(true)}
+                  className="btn btn-sm btn-outline-primary rounded-pill fw-bold"
+                  onClick={handleDirectReceptionistRequest}
+                  disabled={submittingRequest}
                 >
-                  Request Receptionist Now
+                  {submittingRequest ? 'Connecting...' : 'Request Receptionist Now'}
                 </button>
               </div>
             ) : (

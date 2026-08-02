@@ -226,7 +226,13 @@ export default function SidebarClient({ session, role, children }) {
           <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }}>
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '8px' }}>
               <div className="modal-body p-4 text-center">
-                <div className="mb-3" style={{ fontSize: '3.5rem' }}>🚪</div>
+                <div className="d-inline-flex align-items-center justify-content-center bg-danger bg-opacity-10 text-danger rounded-circle mb-3" style={{ width: '64px', height: '64px' }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                </div>
                 <h5 className="fw-bold text-dark mb-2">Log Out Confirmation</h5>
                 <p className="text-muted small px-3">Are you sure you want to log out from PCC Home Suite Home?</p>
                 <div className="d-flex gap-2 mt-4">

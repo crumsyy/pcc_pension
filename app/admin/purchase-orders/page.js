@@ -301,17 +301,28 @@ export default function AdminPurchaseOrders() {
       return;
     }
     
-    const itemsRows = po.items.map((item, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td style="font-weight: bold; color: #111;">${item.itemName}</td>
-        <td>${item.itemType}</td>
-        <td>${item.itemClassType || 'Consumable'}</td>
-        <td style="text-align: right; font-weight: bold;">${item.quantity}</td>
-        <td style="text-align: right;">₱${parseFloat(item.unitPrice).toFixed(2)}</td>
-        <td style="text-align: right; font-weight: bold; color: #1a3c61;">₱${(parseInt(item.quantity) * parseFloat(item.unitPrice)).toFixed(2)}</td>
-      </tr>
-    `).join('');
+    const isPartial = po.status === 'Partially Received' || po.items.some(i => (i.quantityReceived || 0) > 0);
+    const totalOrdered = po.items.reduce((sum, i) => sum + parseInt(i.quantity || 0), 0);
+    const totalReceived = po.items.reduce((sum, i) => sum + parseInt(i.quantityReceived || 0), 0);
+    const totalRemaining = Math.max(0, totalOrdered - totalReceived);
+
+    const itemsRows = po.items.map((item, idx) => {
+      const rec = parseInt(item.quantityReceived || 0);
+      const rem = Math.max(0, parseInt(item.quantity || 0) - rec);
+      return `
+        <tr>
+          <td>${idx + 1}</td>
+          <td style="font-weight: bold; color: #111;">${item.itemName}</td>
+          <td>${item.itemType}</td>
+          <td>${item.itemClassType || 'Consumable'}</td>
+          <td style="text-align: right; font-weight: bold;">${item.quantity}</td>
+          ${isPartial ? `<td style="text-align: right; color: #28a745; font-weight: bold;">${rec}</td>` : ''}
+          ${isPartial ? `<td style="text-align: right; color: ${rem > 0 ? '#dc3545' : '#6c757d'}; font-weight: bold;">${rem}</td>` : ''}
+          <td style="text-align: right;">₱${parseFloat(item.unitPrice).toFixed(2)}</td>
+          <td style="text-align: right; font-weight: bold; color: #1a3c61;">₱${(parseInt(item.quantity) * parseFloat(item.unitPrice)).toFixed(2)}</td>
+        </tr>
+      `;
+    }).join('');
 
     const formattedOrderDate = new Date(po.orderDate).toLocaleDateString('en-US', {
       month: 'long',
@@ -371,7 +382,7 @@ export default function AdminPurchaseOrders() {
             .details {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 35px;
+              margin-bottom: 25px;
               background-color: #f8f9fa;
               padding: 20px;
               border-radius: 8px;
@@ -392,6 +403,16 @@ export default function AdminPurchaseOrders() {
               margin: 6px 0;
               font-size: 14px;
             }
+            .status-badge-partial {
+              display: inline-block;
+              background-color: #fff3cd;
+              color: #856404;
+              border: 1px solid #ffeeba;
+              padding: 4px 10px;
+              border-radius: 4px;
+              font-weight: bold;
+              font-size: 13px;
+            }
             table {
               width: 100%;
               border-collapse: collapse;
@@ -400,19 +421,20 @@ export default function AdminPurchaseOrders() {
             th {
               background-color: #1a3c61;
               color: #fff;
-              padding: 12px 10px;
+              padding: 10px 8px;
               text-align: left;
-              font-size: 13px;
+              font-size: 12px;
               text-transform: uppercase;
             }
             td {
               border-bottom: 1px solid #ddd;
-              padding: 12px 10px;
-              font-size: 14px;
+              padding: 10px 8px;
+              font-size: 13px;
             }
             .totals {
               display: flex;
-              justify-content: flex-end;
+              justify-content: space-between;
+              align-items: flex-start;
               margin-bottom: 60px;
             }
             .totals-table {
@@ -462,7 +484,8 @@ export default function AdminPurchaseOrders() {
               <h3>PO DETAILS</h3>
               <p><strong>Order Date:</strong> ${formattedOrderDate}</p>
               <p><strong>Expected Delivery:</strong> ${formattedDeliveryDate}</p>
-              <p><strong>Status:</strong> ${po.status}</p>
+              <p><strong>Status:</strong> <span class="${po.status === 'Partially Received' ? 'status-badge-partial' : ''}">${po.status}</span></p>
+              ${isPartial ? `<p><strong>Fulfillment:</strong> ${totalReceived} of ${totalOrdered} items received (${totalRemaining} remaining)</p>` : ''}
             </div>
             <div class="details-col">
               <h3>SUPPLIER / REMARKS</h3>
@@ -474,13 +497,15 @@ export default function AdminPurchaseOrders() {
           <table>
             <thead>
               <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 40%;">Item Name</th>
-                <th style="width: 15%;">Category</th>
-                <th style="width: 15%;">Type</th>
-                <th style="width: 10%; text-align: right;">Qty</th>
-                <th style="width: 15%; text-align: right;">Unit Cost</th>
-                <th style="width: 15%; text-align: right;">Total</th>
+                <th style="width: 4%;">#</th>
+                <th style="width: 32%;">Item Name</th>
+                <th style="width: 12%;">Category</th>
+                <th style="width: 12%;">Type</th>
+                <th style="width: 10%; text-align: right;">Ordered</th>
+                ${isPartial ? `<th style="width: 10%; text-align: right;">Received</th>` : ''}
+                ${isPartial ? `<th style="width: 10%; text-align: right;">Remaining</th>` : ''}
+                <th style="width: 10%; text-align: right;">Unit Cost</th>
+                <th style="width: 12%; text-align: right;">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -489,6 +514,15 @@ export default function AdminPurchaseOrders() {
           </table>
           
           <div class="totals">
+            <div>
+              ${isPartial ? `
+                <div style="font-size: 13px; background: #eef2f7; padding: 10px 15px; borderRadius: 6px; border-left: 4px solid #1a3c61;">
+                  <strong>Stock-In Summary:</strong><br/>
+                  Total Received So Far: <strong>${totalReceived} pcs</strong><br/>
+                  Total Remaining to Stock-In: <strong style="color: ${totalRemaining > 0 ? '#dc3545' : '#28a745'}">${totalRemaining} pcs</strong>
+                </div>
+              ` : ''}
+            </div>
             <table class="totals-table">
               <tr class="grand-total">
                 <td><strong>Grand Total:</strong></td>
