@@ -6,6 +6,85 @@ import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
 import GuestBottomNav from './GuestBottomNav';
 import GuestSidebarNav from './GuestSidebarNav';
+function parseRoomImages(imgVal) {
+  if (!imgVal) return [];
+  if (Array.isArray(imgVal)) return imgVal;
+  if (typeof imgVal === 'string') {
+    const trimmed = imgVal.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch (e) {}
+    }
+    return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function RoomImageCarousel({ images, fallbackImg, alt, height = '200px' }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    if (!images || images.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveIdx((prev) => (prev + 1) % images.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [images]);
+
+  const list = images && images.length > 0 ? images : [fallbackImg];
+
+  if (list.length <= 1) {
+    return (
+      <img
+        src={list[0]}
+        alt={alt}
+        style={{ width: '100%', height: height, objectFit: 'cover' }}
+      />
+    );
+  }
+
+  return (
+    <div className="position-relative overflow-hidden w-100" style={{ height: height }}>
+      {list.map((img, idx) => (
+        <img
+          key={idx}
+          src={img}
+          alt={`${alt} slide ${idx + 1}`}
+          className={`position-absolute top-0 start-0 w-100 h-100 ${idx === activeIdx ? 'opacity-100' : 'opacity-0'}`}
+          style={{ objectFit: 'cover', transition: 'opacity 0.6s ease-in-out' }}
+        />
+      ))}
+      <button
+        type="button"
+        className="btn btn-dark btn-xs position-absolute top-50 start-0 translate-middle-y ms-2 bg-dark bg-opacity-50 border-0 rounded-circle text-white p-1"
+        style={{ width: '26px', height: '26px', zIndex: 5, fontSize: '0.8rem' }}
+        onClick={(e) => { e.stopPropagation(); setActiveIdx(prev => (prev - 1 + list.length) % list.length); }}
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        className="btn btn-dark btn-xs position-absolute top-50 end-0 translate-middle-y me-2 bg-dark bg-opacity-50 border-0 rounded-circle text-white p-1"
+        style={{ width: '26px', height: '26px', zIndex: 5, fontSize: '0.8rem' }}
+        onClick={(e) => { e.stopPropagation(); setActiveIdx(prev => (prev + 1) % list.length); }}
+      >
+        ›
+      </button>
+      <div className="position-absolute bottom-0 start-50 translate-middle-x mb-2 d-flex gap-1" style={{ zIndex: 5 }}>
+        {list.map((_, idx) => (
+          <span
+            key={idx}
+            className={`rounded-circle ${idx === activeIdx ? 'bg-white' : 'bg-white bg-opacity-50'}`}
+            style={{ width: '6px', height: '6px', cursor: 'pointer' }}
+            onClick={(e) => { e.stopPropagation(); setActiveIdx(idx); }}
+          ></span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function GuestDashboardClient({ initialGuest, initialReservations, initialBookings, initialActiveBill, initialAllRooms }) {
   const [guest, setGuest] = useState(initialGuest);
@@ -1454,27 +1533,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="text-muted small">{guest.email}</div>
                       </div>
                     </div>
-                    <div className="d-flex align-items-center gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-pcc-outline fw-bold"
-                        onClick={() => {
-                          setEditProfileForm({
-                            firstName: guest.firstName || '',
-                            middleName: guest.middleName || '',
-                            lastName: guest.lastName || '',
-                            contact: guest.contact || '',
-                            gender: guest.gender || 'Other',
-                            city: guest.city || '',
-                            province: guest.province || ''
-                          });
-                          setShowEditProfileModal(true);
-                        }}
-                      >
-                        Edit Profile ✏️
-                      </button>
-                      <span className="badge bg-success text-white px-3 py-1.5 rounded-pill">Active Guest</span>
-                    </div>
+                    <span className="badge bg-success text-white px-3 py-1.5 rounded-pill">Active Guest</span>
                   </div>
 
                   <table className="table table-borderless table-sm small mb-0">
@@ -1501,7 +1560,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {/* MY BOOKINGS HISTORY */}
                 <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                  <h6 className="fw-bold text-dark mb-3">My Bookings History & Status Timeline</h6>
+                  <h6 className="fw-bold text-dark mb-3">My Bookings History &amp; Status Timeline</h6>
                   {bookings.length === 0 ? (
                     <p className="text-muted small mb-0">No booking records found.</p>
                   ) : (
@@ -1542,10 +1601,26 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {/* ACCOUNT ACTION BUTTONS */}
                 <div className="d-flex flex-column gap-2 mb-4">
-                  <Link href="/guest/edit-profile" className="btn btn-pcc-primary text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm" style={{ borderRadius: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditProfileForm({
+                        firstName: guest.firstName || '',
+                        middleName: guest.middleName || '',
+                        lastName: guest.lastName || '',
+                        contact: guest.contact || '',
+                        gender: guest.gender || 'Other',
+                        city: guest.city || '',
+                        province: guest.province || ''
+                      });
+                      setShowEditProfileModal(true);
+                    }}
+                    className="btn btn-pcc-primary text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm"
+                    style={{ borderRadius: '10px' }}
+                  >
                     <span>Edit Profile Settings</span>
-                    <i className="bi bi-chevron-right"></i>
-                  </Link>
+                    <i className="bi bi-pencil-square"></i>
+                  </button>
                   <button onClick={() => setShowLogoutModal(true)} className="btn btn-danger text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center" style={{ borderRadius: '10px' }}>
                     <span><i className="bi bi-power me-2"></i> Log Out</span>
                     <i className="bi bi-box-arrow-right"></i>
@@ -1643,11 +1718,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <h5 className="modal-title fw-bold">Room {selectedRoom.roomNumber} Details</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
-              <div className="modal-body">
-                <div className="p-3 bg-light rounded text-center mb-3">
-                  <h4 className="fw-bold text-pcc-blue mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h4>
-                  <div className="text-muted small">Floor: {selectedRoom.floorName}</div>
+              <div className="modal-body p-0">
+                <div className="position-relative overflow-hidden" style={{ borderRadius: '0', maxHeight: '220px' }}>
+                  <RoomImageCarousel
+                    images={parseRoomImages(selectedRoom.image)}
+                    fallbackImg="https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80"
+                    alt={`Room ${selectedRoom.roomNumber}`}
+                    height="200px"
+                  />
                 </div>
+
+                <div className="p-3">
+                  <div className="p-3 bg-light rounded text-center mb-3">
+                    <h4 className="fw-bold text-pcc-blue mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h4>
+                    <div className="text-muted small">Floor: {selectedRoom.floorName}</div>
+                  </div>
 
                 <div className="p-3 border rounded mb-3" style={{ fontSize: '0.88rem' }}>
                   <div className="d-flex justify-content-between mb-1">
@@ -1668,13 +1753,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
 
-                <h6 className="fw-bold text-dark mb-1">Included Amenities & Policies</h6>
-                <ul className="small text-muted mb-0">
-                  <li>Free High-Speed Wi-Fi connection</li>
-                  <li>Clean towels and basic toiletries included</li>
-                  <li>Check-in: 2:00 PM | Check-out: 12:00 PM</li>
-                  <li>No smoking allowed inside rooms</li>
-                </ul>
+                  <h6 className="fw-bold text-dark mb-1">Included Amenities &amp; Policies</h6>
+                  <ul className="small text-muted mb-0">
+                    <li>Free High-Speed Wi-Fi connection</li>
+                    <li>Clean towels and basic toiletries included</li>
+                    <li>Check-in: 2:00 PM | Check-out: 12:00 PM</li>
+                    <li>No smoking allowed inside rooms</li>
+                  </ul>
+                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setActiveModal('none')}>Close</button>

@@ -867,51 +867,58 @@ export default function AdminDiscounts() {
       {/* CREATE PROMO MODAL */}
       {activeModal === 'create_promo' && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Create Promotion</h5>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
+                <h5 className="modal-title fw-bold">Create Promotion</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreatePromoSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-control"
-                      required
-                      value={promoFormData.name}
-                      onChange={handlePromoInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-control"
-                      rows="2"
-                      value={promoFormData.description}
-                      onChange={handlePromoInputChange}
-                    ></textarea>
-                  </div>
-                  <div className="row g-2 mb-3">
+                <div className="modal-body p-4">
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-8">
+                      <label className="form-label small fw-semibold">Promotion Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-control"
+                        placeholder="e.g. Summer Promo Special"
+                        required
+                        value={promoFormData.name}
+                        onChange={handlePromoInputChange}
+                      />
+                    </div>
                     <div className="col-md-4">
-                      <label className="form-label">Percentage (1-100) *</label>
+                      <label className="form-label small fw-semibold">Discount Percentage (1-100)% *</label>
                       <input
                         type="number"
                         name="percentage"
                         className="form-control"
                         min="1"
                         max="100"
+                        placeholder="15"
                         required
                         value={promoFormData.percentage}
                         onChange={handlePromoInputChange}
                       />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Room Limit (Optional)</label>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Description / Terms</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      rows="2"
+                      placeholder="Brief summary of promotion eligibility and details..."
+                      value={promoFormData.description}
+                      onChange={handlePromoInputChange}
+                    ></textarea>
+                  </div>
+
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Room Limit (Optional)</label>
                       <select
                         name="roomID"
                         className="form-select"
@@ -929,8 +936,8 @@ export default function AdminDiscounts() {
                         ))}
                       </select>
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Room Type Limit (Optional)</label>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Room Type Limit (Optional)</label>
                       <select
                         name="roomTypeID"
                         className="form-select"
@@ -949,9 +956,10 @@ export default function AdminDiscounts() {
                       </select>
                     </div>
                   </div>
-                  <div className="row g-2">
-                    <div className="col">
-                      <label className="form-label">Start Date *</label>
+
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Start Date *</label>
                       <DateInput
                         name="startDate"
                         className="form-control"
@@ -960,8 +968,8 @@ export default function AdminDiscounts() {
                         onChange={handlePromoInputChange}
                       />
                     </div>
-                    <div className="col">
-                      <label className="form-label">End Date *</label>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">End Date *</label>
                       <DateInput
                         name="endDate"
                         className="form-control"
@@ -972,9 +980,9 @@ export default function AdminDiscounts() {
                     </div>
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Create Promotion</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                <div className="modal-footer border-top-0 pt-0 pb-4 px-4">
+                  <button type="button" className="btn btn-secondary px-4 fw-bold" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-pcc-primary px-4 fw-bold text-white">Create Promotion</button>
                 </div>
               </form>
             </div>
@@ -985,38 +993,28 @@ export default function AdminDiscounts() {
       {/* EDIT PROMO MODAL */}
       {activeModal === 'edit_promo' && selectedPromo && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Update Promotion</h5>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
+                <h5 className="modal-title fw-bold">Update Promotion</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditPromoSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-control"
-                      required
-                      value={promoFormData.name}
-                      onChange={handlePromoInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-control"
-                      rows="2"
-                      value={promoFormData.description}
-                      onChange={handlePromoInputChange}
-                    ></textarea>
-                  </div>
-                  <div className="row g-2 mb-3">
+                <div className="modal-body p-4">
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-8">
+                      <label className="form-label small fw-semibold">Promotion Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-control"
+                        required
+                        value={promoFormData.name}
+                        onChange={handlePromoInputChange}
+                      />
+                    </div>
                     <div className="col-md-4">
-                      <label className="form-label">Percentage *</label>
+                      <label className="form-label small fw-semibold">Discount Percentage (1-100)% *</label>
                       <input
                         type="number"
                         name="percentage"
@@ -1028,8 +1026,22 @@ export default function AdminDiscounts() {
                         onChange={handlePromoInputChange}
                       />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Room Limit</label>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Description / Terms</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      rows="2"
+                      value={promoFormData.description}
+                      onChange={handlePromoInputChange}
+                    ></textarea>
+                  </div>
+
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Room Limit (Optional)</label>
                       <select
                         name="roomID"
                         className="form-select"
@@ -1047,8 +1059,8 @@ export default function AdminDiscounts() {
                         ))}
                       </select>
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Room Type Limit</label>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Room Type Limit (Optional)</label>
                       <select
                         name="roomTypeID"
                         className="form-select"
@@ -1067,9 +1079,10 @@ export default function AdminDiscounts() {
                       </select>
                     </div>
                   </div>
-                  <div className="row g-2">
-                    <div className="col">
-                      <label className="form-label">Start Date *</label>
+
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Start Date *</label>
                       <DateInput
                         name="startDate"
                         className="form-control"
@@ -1078,8 +1091,8 @@ export default function AdminDiscounts() {
                         onChange={handlePromoInputChange}
                       />
                     </div>
-                    <div className="col">
-                      <label className="form-label">End Date *</label>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">End Date *</label>
                       <DateInput
                         name="endDate"
                         className="form-control"
@@ -1090,9 +1103,9 @@ export default function AdminDiscounts() {
                     </div>
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Update Promotion</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                <div className="modal-footer border-top-0 pt-0 pb-4 px-4">
+                  <button type="button" className="btn btn-secondary px-4 fw-bold" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-pcc-primary px-4 fw-bold text-white">Update Promotion</button>
                 </div>
               </form>
             </div>

@@ -680,7 +680,7 @@ function ReservationsClient() {
                               aria-label="Confirm & Book Reservation"
                               onClick={() => openConvertModal(r)}
                             >
-                              <i className="fa-solid fa-hotel"></i>
+                              <i className="fa-solid fa-book-bookmark"></i>
                             </button>
                             <button
                               type="button"
@@ -697,16 +697,16 @@ function ReservationsClient() {
                         {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && (
                           <button
                             type="button"
-                            className="btn btn-xs btn-outline-danger fw-bold ms-1"
+                            className="action-btn action-btn-delete"
+                            data-bs-toggle="tooltip"
                             title="Cancel Reservation"
                             aria-label="Cancel Reservation"
-                            style={{ padding: '2px 8px', fontSize: '0.78rem' }}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleCancel(r.reservationID);
                             }}
                           >
-                            <i className="fa-solid fa-xmark me-1"></i> Cancel
+                            <i className="fa-solid fa-xmark"></i>
                           </button>
                         )}
                         {r.bookingID && (

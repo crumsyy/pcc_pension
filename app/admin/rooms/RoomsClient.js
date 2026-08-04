@@ -14,32 +14,64 @@ export default function RoomsClient() {
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
   const fileInputRef = useRef(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const parseRoomImages = (imgVal) => {
+    if (!imgVal) return [];
+    if (Array.isArray(imgVal)) return imgVal;
+    if (typeof imgVal === 'string') {
+      const trimmed = imgVal.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.filter(Boolean);
+        } catch (e) {}
+      }
+      return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     setUploadingImage(true);
     try {
-      const dataForm = new FormData();
-      dataForm.append('file', file);
+      const uploadedUrls = [];
+      for (const file of files) {
+        const dataForm = new FormData();
+        dataForm.append('file', file);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: dataForm
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: dataForm
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to upload image');
+        if (data.url) uploadedUrls.push(data.url);
+      }
+
+      setFormData(prev => {
+        const currentList = parseRoomImages(prev.image);
+        const newList = [...currentList, ...uploadedUrls];
+        return { ...prev, image: JSON.stringify(newList) };
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to upload image');
-
-      setFormData(prev => ({ ...prev, image: data.url }));
-      showAlert('success', 'Image Uploaded', 'Room photo uploaded successfully!');
+      showAlert('success', 'Photos Uploaded', `${uploadedUrls.length} room photo(s) added successfully!`);
     } catch (err) {
       showAlert('error', 'Upload Failed', err.message);
     } finally {
       setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const removePhotoFromForm = (urlToRemove) => {
+    setFormData(prev => {
+      const currentList = parseRoomImages(prev.image);
+      const newList = currentList.filter(u => u !== urlToRemove);
+      return { ...prev, image: JSON.stringify(newList) };
+    });
   };
 
   // Modals state
@@ -618,16 +650,17 @@ export default function RoomsClient() {
                     ref={fileInputRef}
                     className="d-none"
                     accept="image/*"
+                    multiple
                     onChange={handleFileChange}
                   />
                   <div className="mb-3">
-                    <label className="form-label">Room Image URL / Local Photo (Optional)</label>
-                    <div className="input-group">
+                    <label className="form-label">Room Photos (Select Multiple Local Photos or Paste URLs)</label>
+                    <div className="input-group mb-2">
                       <input
                         type="text"
                         name="image"
                         className="form-control"
-                        placeholder="e.g. /uploads/rooms/standard.jpg or image URL"
+                        placeholder="e.g. /uploads/rooms/standard.jpg or paste URL"
                         value={formData.image}
                         onChange={handleInputChange}
                       />
@@ -643,18 +676,41 @@ export default function RoomsClient() {
                             Uploading...
                           </>
                         ) : (
-                          '📂 Browse Files'
+                          '📂 Browse / Upload Multiple Photos'
                         )}
                       </button>
                     </div>
-                    {formData.image && (
-                      <div className="mt-2 p-2 bg-light rounded text-center border">
-                        <img src={formData.image} alt="Room preview" className="rounded" style={{ maxHeight: '100px', objectFit: 'cover' }} />
-                        <div className="small text-muted mt-1" style={{ fontSize: '0.72rem' }}>Selected photo preview</div>
+
+                    {parseRoomImages(formData.image).length > 0 && (
+                      <div className="p-3 bg-light rounded border">
+                        <div className="small fw-semibold text-muted mb-2">
+                          Attached Room Photos ({parseRoomImages(formData.image).length} total):
+                        </div>
+                        <div className="d-flex flex-wrap gap-2">
+                          {parseRoomImages(formData.image).map((imgUrl, idx) => (
+                            <div key={idx} className="position-relative d-inline-block border rounded p-1 bg-white shadow-sm">
+                              <img
+                                src={imgUrl}
+                                alt={`Room photo ${idx + 1}`}
+                                className="rounded"
+                                style={{ width: '90px', height: '65px', objectFit: 'cover' }}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-xs position-absolute top-0 end-0 translate-middle badge rounded-circle p-1"
+                                style={{ width: '20px', height: '20px', fontSize: '0.65rem', lineHeight: '10px' }}
+                                onClick={() => removePhotoFromForm(imgUrl)}
+                                title="Remove photo"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                     <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      Click "Browse Files" to upload a local photo or paste an image URL to display on the landing page.
+                      Selected photos will automatically display as an interactive slideshow carousel on the Landing Page and Guest Portal.
                     </small>
                   </div>
                   <div className="mb-3">
@@ -784,13 +840,13 @@ export default function RoomsClient() {
                     </select>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Room Image URL / Local Photo (Optional)</label>
-                    <div className="input-group">
+                    <label className="form-label">Room Photos (Select Multiple Local Photos or Paste URLs)</label>
+                    <div className="input-group mb-2">
                       <input
                         type="text"
                         name="image"
                         className="form-control"
-                        placeholder="e.g. /uploads/rooms/standard.jpg or image URL"
+                        placeholder="e.g. /uploads/rooms/standard.jpg or paste URL"
                         value={formData.image}
                         onChange={handleInputChange}
                       />
@@ -806,18 +862,41 @@ export default function RoomsClient() {
                             Uploading...
                           </>
                         ) : (
-                          '📂 Browse Files'
+                          '📂 Browse / Upload Multiple Photos'
                         )}
                       </button>
                     </div>
-                    {formData.image && (
-                      <div className="mt-2 p-2 bg-light rounded text-center border">
-                        <img src={formData.image} alt="Room preview" className="rounded" style={{ maxHeight: '100px', objectFit: 'cover' }} />
-                        <div className="small text-muted mt-1" style={{ fontSize: '0.72rem' }}>Selected photo preview</div>
+
+                    {parseRoomImages(formData.image).length > 0 && (
+                      <div className="p-3 bg-light rounded border">
+                        <div className="small fw-semibold text-muted mb-2">
+                          Attached Room Photos ({parseRoomImages(formData.image).length} total):
+                        </div>
+                        <div className="d-flex flex-wrap gap-2">
+                          {parseRoomImages(formData.image).map((imgUrl, idx) => (
+                            <div key={idx} className="position-relative d-inline-block border rounded p-1 bg-white shadow-sm">
+                              <img
+                                src={imgUrl}
+                                alt={`Room photo ${idx + 1}`}
+                                className="rounded"
+                                style={{ width: '90px', height: '65px', objectFit: 'cover' }}
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-xs position-absolute top-0 end-0 translate-middle badge rounded-circle p-1"
+                                style={{ width: '20px', height: '20px', fontSize: '0.65rem', lineHeight: '10px' }}
+                                onClick={() => removePhotoFromForm(imgUrl)}
+                                title="Remove photo"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                     <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      Click "Browse Files" to upload a local photo or paste an image URL to display on the landing page.
+                      Selected photos will automatically display as an interactive slideshow carousel on the Landing Page and Guest Portal.
                     </small>
                   </div>
                   <div className="mb-3">

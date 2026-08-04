@@ -1132,16 +1132,16 @@ table td {
 }
 
 /* Chat Float Responsive Edge Alignment */
-@media (max-width: 576px) {
+@media (max-width: 991px) {
   .chatbot-toggle {
-    right: 14px !important;
-    bottom: 16px !important;
+    right: 16px !important;
+    bottom: 80px !important;
   }
   .chatbot-window {
     right: 10px !important;
     width: calc(100vw - 20px) !important;
     max-width: 360px !important;
-    bottom: 80px !important;
-    height: 480px !important;
+    bottom: 145px !important;
+    height: 460px !important;
   }
 }

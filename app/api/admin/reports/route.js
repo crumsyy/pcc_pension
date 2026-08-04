@@ -31,10 +31,11 @@ export async function GET(request) {
 
       // 2. Fetch all bookings to compute detailed discounts
       const bookings = await dbQuery(`
-        SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, rt.price as roomPrice
+        SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, COALESCE(rr.rate, 0) as roomPrice
         FROM booking b
         JOIN room r ON r.roomID = b.roomID
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
+        LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
       `);
 
       // 3. Fetch guest details with discount percentage

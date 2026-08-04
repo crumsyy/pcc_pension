@@ -31,7 +31,7 @@ export async function GET(request) {
     // Fetch payment history logs
     const paymentHistory = await dbQuery(`
       SELECT p.paymentID, p.amount, p.cashReceived, p.change, p.paymentMethodID,
-             DATE_FORMAT(p.createdAt, '%Y-%m-%d %H:%i:%s') as paymentDateTime,
+             COALESCE(DATE_FORMAT(t.transactionDateTime, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')) as paymentDateTime,
              pm.paymentMethod,
              g.guestID, g.firstName, g.lastName, g.contact,
              b.billingID, b.bookingID,
@@ -46,6 +46,7 @@ export async function GET(request) {
       LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
       LEFT JOIN staff st ON st.staffID = p.staffID
       LEFT JOIN user u ON u.userID = st.userID
+      LEFT JOIN transactions t ON t.paymentID = p.paymentID
       ORDER BY p.paymentID DESC
       LIMIT 500
     `);

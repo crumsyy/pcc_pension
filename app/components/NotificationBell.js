@@ -39,10 +39,12 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const toggleDropdown = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) {
-      fetchNotifications();
+  const toggleDropdown = async () => {
+    const willOpen = !isOpen;
+    setIsOpen(willOpen);
+    if (willOpen) {
+      await fetchNotifications();
+      handleMarkAllRead();
     }
   };
 

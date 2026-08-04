@@ -5,6 +5,86 @@ import Link from "next/link";
 import GuestChatBubble from "./components/GuestChatBubble";
 import DateInput, { isValidDate, toDbDate } from "./components/DateInput";
 
+function parseRoomImages(imgVal) {
+  if (!imgVal) return [];
+  if (Array.isArray(imgVal)) return imgVal;
+  if (typeof imgVal === 'string') {
+    const trimmed = imgVal.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean);
+      } catch (e) {}
+    }
+    return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function RoomImageCarousel({ images, fallbackImg, alt, height = '210px' }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    if (!images || images.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveIdx((prev) => (prev + 1) % images.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [images]);
+
+  const list = images && images.length > 0 ? images : [fallbackImg];
+
+  if (list.length <= 1) {
+    return (
+      <img
+        src={list[0]}
+        alt={alt}
+        style={{ width: '100%', height: height, objectFit: 'cover' }}
+      />
+    );
+  }
+
+  return (
+    <div className="position-relative overflow-hidden w-100" style={{ height: height }}>
+      {list.map((img, idx) => (
+        <img
+          key={idx}
+          src={img}
+          alt={`${alt} slide ${idx + 1}`}
+          className={`position-absolute top-0 start-0 w-100 h-100 ${idx === activeIdx ? 'opacity-100' : 'opacity-0'}`}
+          style={{ objectFit: 'cover', transition: 'opacity 0.6s ease-in-out' }}
+        />
+      ))}
+      <button
+        type="button"
+        className="btn btn-dark btn-xs position-absolute top-50 start-0 translate-middle-y ms-2 bg-dark bg-opacity-50 border-0 rounded-circle text-white p-1"
+        style={{ width: '28px', height: '28px', zIndex: 5, fontSize: '0.85rem' }}
+        onClick={(e) => { e.stopPropagation(); setActiveIdx(prev => (prev - 1 + list.length) % list.length); }}
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        className="btn btn-dark btn-xs position-absolute top-50 end-0 translate-middle-y me-2 bg-dark bg-opacity-50 border-0 rounded-circle text-white p-1"
+        style={{ width: '28px', height: '28px', zIndex: 5, fontSize: '0.85rem' }}
+        onClick={(e) => { e.stopPropagation(); setActiveIdx(prev => (prev + 1) % list.length); }}
+      >
+        ›
+      </button>
+      <div className="position-absolute bottom-0 start-50 translate-middle-x mb-2 d-flex gap-1" style={{ zIndex: 5 }}>
+        {list.map((_, idx) => (
+          <span
+            key={idx}
+            className={`rounded-circle ${idx === activeIdx ? 'bg-white' : 'bg-white bg-opacity-50'}`}
+            style={{ width: '6px', height: '6px', cursor: 'pointer' }}
+            onClick={(e) => { e.stopPropagation(); setActiveIdx(idx); }}
+          ></span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   // Search state
   const [checkIn, setCheckIn] = useState("");
@@ -335,20 +415,21 @@ export default function Home() {
           {landingData.rooms && landingData.rooms.length > 0 ? (
             <div className="row g-4">
               {landingData.rooms.map((rm) => {
-                const roomImg = rm.image || defaultRoomImages[rm.roomType] || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
+                const parsedImages = parseRoomImages(rm.image);
+                const defaultImg = defaultRoomImages[rm.roomType] || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
                 return (
                   <div key={rm.roomID} className="col-md-6 col-lg-4">
                     <div className="card h-100 border-0 shadow-sm overflow-hidden room-card-hover" style={{ borderRadius: '12px', backgroundColor: '#fff' }}>
                       <div style={{ height: '210px', overflow: 'hidden', position: 'relative' }}>
-                        <img
-                          src={roomImg}
+                        <RoomImageCarousel
+                          images={parsedImages}
+                          fallbackImg={defaultImg}
                           alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
-                        <span className="badge bg-dark text-white position-absolute top-0 start-0 m-3 px-3 py-1 shadow-sm" style={{ fontSize: '0.82rem' }}>
+                        <span className="badge bg-dark text-white position-absolute top-0 start-0 m-3 px-3 py-1 shadow-sm" style={{ fontSize: '0.82rem', zIndex: 6 }}>
                           {rm.floorName}
                         </span>
-                        <span className={`badge ${rm.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'} position-absolute top-0 end-0 m-3 px-3 py-1 shadow-sm`} style={{ fontSize: '0.82rem' }}>
+                        <span className={`badge ${rm.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'} position-absolute top-0 end-0 m-3 px-3 py-1 shadow-sm`} style={{ fontSize: '0.82rem', zIndex: 6 }}>
                           Room {rm.roomNumber} • {rm.status}
                         </span>
                       </div>

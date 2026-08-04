@@ -772,7 +772,7 @@ export default function AdminPurchaseOrders() {
   const recommendedItems = inventoryItems;
 
   return (
-    <div className="pcc-page-container">
+    <div className="container-fluid p-3 d-flex flex-column" style={{ minHeight: 'calc(100vh - 80px)' }}>
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -795,10 +795,8 @@ export default function AdminPurchaseOrders() {
         </button>
       </div>
 
-
-
-      <div className="row g-3 flex-grow-1 overflow-hidden d-flex" style={{ minHeight: 0 }}>
-        <div className="col-lg-8 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+      <div className="row g-3 flex-grow-1" style={{ minHeight: 0 }}>
+        <div className="col-lg-8 d-flex flex-column">
           {/* Filter */}
           <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
             <div className="row g-2 align-items-end">
@@ -842,7 +840,7 @@ export default function AdminPurchaseOrders() {
           </div>
 
           {/* Purchase Orders Table */}
-          <div className="card-module pcc-table-card flex-grow-1 overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
+          <div className="card-module pcc-table-card mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
             {loading ? (
               <div className="text-center py-4">
                 <div className="spinner-border text-primary" role="status">
@@ -850,7 +848,7 @@ export default function AdminPurchaseOrders() {
                 </div>
               </div>
             ) : (
-              <div className="table-responsive">
+              <div className="table-responsive" style={{ maxHeight: '520px', overflowY: 'auto' }}>
                 <table className="table align-middle mb-0">
                   <thead>
                     <tr>
@@ -917,9 +915,9 @@ export default function AdminPurchaseOrders() {
           </div>
         </div>
 
-        <div className="col-lg-4 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+        <div className="col-lg-4 d-flex flex-column">
           {/* Recommended Restock Panel */}
-          <div className="card-module flex-grow-1 mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", display: 'flex', flexDirection: 'column', maxHeight: '640px' }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h4 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
                 ⚠️ Recommended for Restock
