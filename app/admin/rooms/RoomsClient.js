@@ -13,6 +13,7 @@ export default function RoomsClient() {
   const [typeFilter, setTypeFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
+  const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
   const parseRoomImages = (imgVal) => {
     if (!imgVal) return [];
