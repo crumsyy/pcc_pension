@@ -369,7 +369,7 @@ function PaymentsClient() {
 
           <button
             type="button"
-            className="btn btn-outline-secondary fw-bold px-3 shadow-sm"
+            className="btn btn-pcc-primary text-white fw-bold px-3.5 py-2 shadow-sm"
             onClick={() => setShowHistoryModal(true)}
           >
             Payment History
