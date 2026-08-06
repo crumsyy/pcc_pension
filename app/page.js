@@ -265,23 +265,22 @@ export default function Home() {
             </div>
             <div className="col-lg-6">
               <div className="availability-bar">
-                <form onSubmit={handleSearchSubmit} className="row g-3 align-items-end">
-                  <div className="col-12">
+                <form onSubmit={handleSearchSubmit} className="row g-3">
+                  <div className="col-12 mb-1">
                     <span className="section-eyebrow d-block">Check Availability</span>
-                    <h4 className="text-blue mb-0">Plan your stay (Earliest Check-In: 2 Days Ahead)</h4>
+                    <h4 className="text-blue mb-0">Plan your stay</h4>
                   </div>
                   <div className="col-md-6">
-                    <label className="form-label d-block mb-1">Check-in *</label>
+                    <label className="form-label d-block mb-1.5 fw-semibold small">Check-in *</label>
                     <DateInput
                       value={checkIn}
                       onChange={(e) => setCheckIn(e.target.value)}
                       required
                       min={minCheckIn}
                     />
-                    <small className="text-muted" style={{ fontSize: '0.72rem' }}>Earliest: 2 days from today</small>
                   </div>
                   <div className="col-md-6">
-                    <label className="form-label d-block mb-1">Check-out *</label>
+                    <label className="form-label d-block mb-1.5 fw-semibold small">Check-out *</label>
                     <DateInput
                       value={checkOut}
                       onChange={(e) => setCheckOut(e.target.value)}
@@ -289,8 +288,8 @@ export default function Home() {
                       min={checkIn || minCheckIn}
                     />
                   </div>
-                  <div className="col-md-7">
-                    <label className="form-label d-block mb-1">Room Type</label>
+                  <div className="col-md-6">
+                    <label className="form-label d-block mb-1.5 fw-semibold small">Room Type</label>
                     <select
                       className="form-select"
                       value={roomType}
@@ -302,8 +301,8 @@ export default function Home() {
                       <option>Deluxe Matrimonial</option>
                     </select>
                   </div>
-                  <div className="col-md-5">
-                    <label className="form-label d-block mb-1">Breakfast</label>
+                  <div className="col-md-6">
+                    <label className="form-label d-block mb-1.5 fw-semibold small">Breakfast</label>
                     <select
                       className="form-select"
                       value={breakfast}
@@ -313,8 +312,8 @@ export default function Home() {
                       <option>Without Breakfast</option>
                     </select>
                   </div>
-                  <div className="col-12">
-                    <button type="submit" className="btn btn-pcc-primary w-100" disabled={searching}>
+                  <div className="col-12 mt-3">
+                    <button type="submit" className="btn btn-pcc-primary w-100 py-2.5 fw-bold" disabled={searching}>
                       {searching ? "Checking..." : "Check Availability"}
                     </button>
                   </div>
