@@ -10,7 +10,7 @@ function ForgotPasswordContent() {
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [step, setStep] = useState(1); // 1: Enter email, 2: Enter OTP & new password
+  const [step, setStep] = useState(1); // 1: Enter email, 2: Enter OTP, 3: Enter new password
   
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -38,12 +38,49 @@ function ForgotPasswordContent() {
         return;
       }
 
-      setSuccessMsg(data.message || "A reset code has been sent to your email.");
+      setSuccessMsg("Password reset code has been sent to your email.");
       setStep(2);
       setLoading(false);
     } catch (err) {
       console.error(err);
       setErrorMsg("An error occurred. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    if (!otp || otp.length < 6) {
+      setErrorMsg("Please enter the complete 6-digit code.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify_otp", email, otp }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.message || "Incorrect verification code. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      setSuccessMsg("Code verified! Please enter your new password below.");
+      setStep(3);
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("An error occurred verifying code. Please try again.");
       setLoading(false);
     }
   };
@@ -117,16 +154,16 @@ function ForgotPasswordContent() {
                 <div className="section-eyebrow">Account Recovery</div>
                 <h2 className="section-title">Forgot Password</h2>
                 <p className="text-muted">
-                  {step === 1 
-                    ? "Enter your email to receive a password reset verification code."
-                    : "Enter the 6-digit code sent to your email and your new password."}
+                  {step === 1 && "Enter your registered email address to receive a password reset verification code."}
+                  {step === 2 && "Enter the 6-digit verification code sent to your email."}
+                  {step === 3 && "Create a new password for your account."}
                 </p>
               </div>
 
               {errorMsg && <div className="alert alert-danger">{errorMsg}</div>}
               {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
-              {step === 1 ? (
+              {step === 1 && (
                 <form onSubmit={handleRequestOtp} className="availability-bar">
                   <div className="mb-3">
                     <label className="form-label">Email Address</label>
@@ -144,8 +181,10 @@ function ForgotPasswordContent() {
                     {loading ? "Sending Code..." : "Send Reset Code"}
                   </button>
                 </form>
-              ) : (
-                <form onSubmit={handleResetPassword} className="availability-bar">
+              )}
+
+              {step === 2 && (
+                <form onSubmit={handleVerifyOtp} className="availability-bar">
                   <div className="mb-3">
                     <label className="form-label">Verification Code (OTP)</label>
                     <input
@@ -154,7 +193,7 @@ function ForgotPasswordContent() {
                       pattern="[0-9]{6}"
                       inputMode="numeric"
                       className="form-control text-center fw-bold"
-                      style={{ fontSize: "1.2rem", letterSpacing: "0.2em" }}
+                      style={{ fontSize: "1.3rem", letterSpacing: "0.25em" }}
                       placeholder="000000"
                       value={otp}
                       onChange={(e) => handleOtpChange(e.target.value)}
@@ -162,6 +201,22 @@ function ForgotPasswordContent() {
                       autoFocus
                     />
                   </div>
+                  <button type="submit" className="btn btn-pcc-primary w-100" disabled={loading}>
+                    {loading ? "Verifying..." : "Verify Code"}
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-link w-100 text-blue mt-2" 
+                    onClick={() => { setStep(1); setErrorMsg(""); setSuccessMsg(""); setOtp(""); }}
+                    style={{ fontSize: "0.85rem", textDecoration: "none" }}
+                  >
+                    Resend Code / Change Email
+                  </button>
+                </form>
+              )}
+
+              {step === 3 && (
+                <form onSubmit={handleResetPassword} className="availability-bar">
                   <div className="mb-3">
                     <label className="form-label">New Password</label>
                     <div className="password-field-wrap" style={{ position: "relative", display: "flex", alignItems: "center" }}>
@@ -173,6 +228,7 @@ function ForgotPasswordContent() {
                         onChange={(e) => setNewPassword(e.target.value)}
                         style={{ paddingRight: "2.8rem", flex: "1" }}
                         required
+                        autoFocus
                       />
                       <button
                         type="button"
@@ -209,15 +265,7 @@ function ForgotPasswordContent() {
                     />
                   </div>
                   <button type="submit" className="btn btn-pcc-primary w-100" disabled={loading}>
-                    {loading ? "Resetting Password..." : "Reset Password"}
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-link w-100 text-blue mt-2" 
-                    onClick={() => { setStep(1); setErrorMsg(""); setSuccessMsg(""); }}
-                    style={{ fontSize: "0.85rem", textDecoration: "none" }}
-                  >
-                    Resend Code / Change Email
+                    {loading ? "Resetting Password..." : "Set New Password"}
                   </button>
                 </form>
               )}

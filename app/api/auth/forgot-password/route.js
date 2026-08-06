@@ -58,20 +58,41 @@ export async function POST(request) {
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Password Reset Code Generated', ?)",
           [user.userID, `Your password reset code is: ${otpCode}. Check your email or use this code to reset your password.`]
         );
-
-        return NextResponse.json({ 
-          success: true, 
-          message: `Password reset code sent! Your reset code is: ${otpCode} (also sent to your notification bell).` 
-        });
+      } else {
+        // Add a system notification about requested password reset
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Password Reset Requested', ?)",
+          [user.userID, `A password reset code (${otpCode}) has been sent to your email.`]
+        );
       }
 
-      // Add a system notification about requested password reset
-      await dbQuery(
-        "INSERT INTO notification (userID, title, message) VALUES (?, 'Password Reset Requested', ?)",
-        [user.userID, `A password reset code (${otpCode}) has been sent to your email.`]
-      );
+      return NextResponse.json({ success: true, message: "Password reset code has been sent to your email." });
+    }
 
-      return NextResponse.json({ success: true, message: "Password reset code sent to your email!" });
+    if (action === 'verify_otp') {
+      if (!email || !otp) {
+        return NextResponse.json({ success: false, message: "Email and verification code are required." }, { status: 400 });
+      }
+
+      const lowerEmail = email.trim().toLowerCase();
+      const otpEntered = otp.trim();
+
+      const users = await dbQuery("SELECT userID, otp_code, otp_expires FROM user WHERE email = ?", [lowerEmail]);
+      if (users.length === 0) {
+        return NextResponse.json({ success: false, message: "Account not found." }, { status: 400 });
+      }
+
+      const user = users[0];
+
+      if (!user.otp_expires || new Date(user.otp_expires) < new Date()) {
+        return NextResponse.json({ success: false, message: "This code has expired. Please request a new one." }, { status: 400 });
+      }
+
+      if (otpEntered !== user.otp_code) {
+        return NextResponse.json({ success: false, message: "Incorrect code. Please try again." }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: "Verification code confirmed." });
     }
 
     if (action === 'reset_password') {
