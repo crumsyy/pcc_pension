@@ -36,7 +36,7 @@ export async function GET(request) {
              g.guestID, g.firstName, g.lastName, g.contact,
              b.billingID, b.bookingID,
              rm.roomNumber, rt.type as roomType,
-             COALESCE(st.name, u.username, 'Front Desk Staff') as processedBy
+             COALESCE(CONCAT(st.firstName, ' ', st.lastName), u.username, 'Front Desk Staff') as processedBy
       FROM payment p
       JOIN payment_method pm ON pm.paymentMethodID = p.paymentMethodID
       JOIN guest g ON g.guestID = p.guestID
