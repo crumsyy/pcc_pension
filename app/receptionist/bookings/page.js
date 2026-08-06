@@ -461,6 +461,14 @@ function BookingsClient() {
       return;
     }
 
+    const inDateObj = new Date(toDbDate(checkInDate) + 'T' + (checkInTime || '14:00') + ':00');
+    const outDateObj = new Date(toDbDate(checkOutDate) + 'T' + (checkOutTime || '12:00') + ':00');
+
+    if (outDateObj <= inDateObj) {
+      showAlert('error', 'Validation Error', 'Check-In date & time and Check-Out date & time cannot be the same. Check-Out must be strictly after Check-In.');
+      return;
+    }
+
     const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
     const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
 

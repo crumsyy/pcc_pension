@@ -396,6 +396,15 @@ function ReservationsClient() {
       }
     }
 
+    if (checkOutDate && isValidDate(checkOutDate)) {
+      const inDateObj = new Date(toDbDate(resDate) + 'T' + resTime + ':00');
+      const outDateObj = new Date(toDbDate(checkOutDate) + 'T' + checkOutTime + ':00');
+      if (outDateObj <= inDateObj) {
+        showAlert('error', 'Validation Error', 'Check-in date & time and Check-out date & time cannot be the same. Check-out must be strictly after Check-in.');
+        return;
+      }
+    }
+
     showConfirm('Create Reservation', 'Are you sure you want to create this reservation?', async () => {
       try {
         const res = await fetch('/api/receptionist/reservations', {

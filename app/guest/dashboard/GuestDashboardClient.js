@@ -390,6 +390,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const chosenCheckIn = new Date(checkInDate);
     chosenCheckIn.setHours(0, 0, 0, 0);
 
+    if (checkOutDate && checkOutDate <= checkInDate) {
+      showAlert('warning', 'Invalid Stay Dates', 'Check-in date and Check-out date cannot be the same. Check-out date must be strictly after Check-in date.');
+      return;
+    }
+
     if (chosenCheckIn < minResDate) {
       showAlert('warning', 'Reservation Restriction', 'Reservations must be scheduled at least 2 days in advance from today.');
       return;

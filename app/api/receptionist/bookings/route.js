@@ -141,6 +141,12 @@ export async function POST(request) {
           return NextResponse.json({ error: 'Missing required fields or down payment details.' }, { status: 400 });
         }
 
+        const checkInDVal = new Date(checkInDateTime.replace(' ', 'T'));
+        const checkOutDVal = new Date(checkOutDateTime.replace(' ', 'T'));
+        if (!isNaN(checkInDVal.getTime()) && !isNaN(checkOutDVal.getTime()) && checkOutDVal <= checkInDVal) {
+          return NextResponse.json({ error: 'Check-in date/time and Check-out date/time cannot be the same. Check-out must be strictly after Check-in.' }, { status: 400 });
+        }
+
         // Calculate required down payment based on selected percentage (25%, 50%, 100%)
         const [roomData] = await conn.execute(
           "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",

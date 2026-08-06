@@ -159,6 +159,11 @@ export default function Home() {
       return;
     }
 
+    if (toDbDate(checkIn) >= toDbDate(checkOut)) {
+      alert("Check-in date and Check-out date cannot be the same. Check-out date must be strictly after Check-in date.");
+      return;
+    }
+
     // Lead time validation check
     const today = new Date();
     today.setHours(0, 0, 0, 0);

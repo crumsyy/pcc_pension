@@ -186,6 +186,14 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
       }
 
+      if (checkOutDateTime) {
+        const inD = new Date(reservationDateTime.replace(' ', 'T'));
+        const outD = new Date(checkOutDateTime.replace(' ', 'T'));
+        if (!isNaN(inD.getTime()) && !isNaN(outD.getTime()) && outD <= inD) {
+          return NextResponse.json({ error: 'Check-in date/time and Check-out date/time cannot be the same. Check-out must be strictly after Check-in.' }, { status: 400 });
+        }
+      }
+
       // Rule 1A: Reservation Lead Time (At least 2 days before check-in)
       const leadCheck = checkReservationLeadTime(reservationDateTime);
       if (!leadCheck.valid) {
@@ -262,6 +270,12 @@ export async function POST(request) {
 
       if (!checkInDateTime || !checkOutDateTime || isNaN(downPaymentAmount) || downPaymentAmount <= 0) {
         return NextResponse.json({ error: 'Valid stay dates and down payment are required to convert reservation.' }, { status: 400 });
+      }
+
+      const inD = new Date(checkInDateTime.replace(' ', 'T'));
+      const outD = new Date(checkOutDateTime.replace(' ', 'T'));
+      if (!isNaN(inD.getTime()) && !isNaN(outD.getTime()) && outD <= inD) {
+        return NextResponse.json({ error: 'Check-in date/time and Check-out date/time cannot be the same. Check-out must be strictly after Check-in.' }, { status: 400 });
       }
 
       const res = await dbQuery("SELECT * FROM reservation WHERE reservationID = ?", [reservationID]);
