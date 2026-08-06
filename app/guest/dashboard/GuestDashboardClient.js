@@ -6,6 +6,7 @@ import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
 import GuestBottomNav from './GuestBottomNav';
 import GuestSidebarNav from './GuestSidebarNav';
+import ThemeToggle from '../../components/ThemeToggle';
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
   if (Array.isArray(imgVal)) return imgVal;
@@ -1112,6 +1113,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <h3 className="fw-bold mb-1">Welcome, {guest.firstName}!</h3>
                       <p className="mb-0 text-white-50 small">Experience comfort and convenience at PCC Home Suite Home.</p>
                     </div>
+                    <ThemeToggle />
                   </div>
                 </div>
 
