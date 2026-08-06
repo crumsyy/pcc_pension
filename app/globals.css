@@ -1145,3 +1145,93 @@ table td {
     height: 460px !important;
   }
 }
+
+/* =====================================================================
+   PCC Night / Dark Mode Styling Overrides
+   ===================================================================== */
+[data-bs-theme="dark"],
+body.dark-theme {
+  --pcc-cream: #0f172a;
+  --pcc-mist: #1e293b;
+  --pcc-charcoal: #f8fafc;
+  --pcc-muted: #94a3b8;
+
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .bg-white,
+body.dark-theme .bg-white,
+[data-bs-theme="dark"] .card,
+body.dark-theme .card,
+[data-bs-theme="dark"] .card-module,
+body.dark-theme .card-module,
+[data-bs-theme="dark"] .modal-content,
+body.dark-theme .modal-content,
+[data-bs-theme="dark"] header,
+body.dark-theme header,
+[data-bs-theme="dark"] .pcc-main-wrapper,
+body.dark-theme .pcc-main-wrapper {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .text-dark,
+body.dark-theme .text-dark,
+[data-bs-theme="dark"] .modal-title,
+body.dark-theme .modal-title,
+[data-bs-theme="dark"] h1,
+body.dark-theme h1,
+[data-bs-theme="dark"] h2,
+body.dark-theme h2,
+[data-bs-theme="dark"] h3,
+body.dark-theme h3,
+[data-bs-theme="dark"] h4,
+body.dark-theme h4,
+[data-bs-theme="dark"] h5,
+body.dark-theme h5,
+[data-bs-theme="dark"] h6,
+body.dark-theme h6 {
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .text-muted,
+body.dark-theme .text-muted {
+  color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .table,
+body.dark-theme .table {
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .table-light,
+body.dark-theme .table-light,
+[data-bs-theme="dark"] .table th,
+body.dark-theme .table th,
+[data-bs-theme="dark"] .bg-light,
+body.dark-theme .bg-light {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .form-control,
+body.dark-theme .form-control,
+[data-bs-theme="dark"] .form-select,
+body.dark-theme .form-select {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+body.dark-theme .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus,
+body.dark-theme .form-select:focus {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #3b82f6 !important;
+}

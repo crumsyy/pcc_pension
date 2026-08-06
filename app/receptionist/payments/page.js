@@ -72,10 +72,11 @@ function PaymentsClient() {
     });
   };
 
-  const [activeTab, setActiveTab] = useState('terminal'); // 'terminal' | 'history'
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [historySearch, setHistorySearch] = useState('');
   const [historyMethodFilter, setHistoryMethodFilter] = useState('All');
+  const [historyDateFilter, setHistoryDateFilter] = useState('');
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -333,14 +334,26 @@ function PaymentsClient() {
   const filteredHistory = paymentHistory.filter(item => {
     const query = historySearch.toLowerCase();
     const guestName = `${item.firstName || ''} ${item.lastName || ''}`.toLowerCase();
+    const trxID = `trx-${item.paymentID}`.toLowerCase();
+    const rawID = String(item.paymentID).toLowerCase();
+    
     const matchesQuery = 
       guestName.includes(query) ||
+      trxID.includes(query) ||
+      rawID.includes(query) ||
       (item.contact || '').toLowerCase().includes(query) ||
       (item.roomNumber || '').toLowerCase().includes(query) ||
-      String(item.paymentID).includes(query) ||
       String(item.bookingID || '').includes(query);
+      
     const matchesMethod = historyMethodFilter === 'All' || item.paymentMethod === historyMethodFilter;
-    return matchesQuery && matchesMethod;
+    
+    let matchesDate = true;
+    if (historyDateFilter) {
+      const itemDateStr = item.paymentDateTime ? item.paymentDateTime.split(' ')[0] : '';
+      matchesDate = itemDateStr === historyDateFilter;
+    }
+
+    return matchesQuery && matchesMethod && matchesDate;
   });
 
   return (
@@ -354,106 +367,15 @@ function PaymentsClient() {
             <p className="text-muted mb-0 small">Settle guest stays, accept GCash/Cash payments, and track transaction history.</p>
           </div>
 
-          <div className="btn-group" role="group">
-            <button
-              type="button"
-              className={`btn btn-sm ${activeTab === 'terminal' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-              onClick={() => setActiveTab('terminal')}
-            >
-              💳 Payment POS Terminal
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${activeTab === 'history' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-              onClick={() => setActiveTab('history')}
-            >
-              📜 Payment History Log
-            </button>
-          </div>
+          <button
+            type="button"
+            className="btn btn-outline-secondary fw-bold px-3 shadow-sm"
+            onClick={() => setShowHistoryModal(true)}
+          >
+            Payment History
+          </button>
         </div>
 
-        {activeTab === 'history' ? (
-          <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden" style={{ borderRadius: '10px' }}>
-            <div className="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '1rem' }}>Transaction History Log</h5>
-              <div className="d-flex gap-2">
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Search guest, room #, ref..."
-                  value={historySearch}
-                  onChange={(e) => setHistorySearch(e.target.value)}
-                  style={{ width: '220px', borderRadius: '20px' }}
-                />
-                <select
-                  className="form-select form-select-sm"
-                  value={historyMethodFilter}
-                  onChange={(e) => setHistoryMethodFilter(e.target.value)}
-                  style={{ width: '130px', borderRadius: '6px' }}
-                >
-                  <option value="All">All Methods</option>
-                  <option value="Cash">Cash</option>
-                  <option value="GCash">GCash</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="card-body p-0 overflow-y-auto flex-grow-1">
-              {filteredHistory.length === 0 ? (
-                <div className="text-center py-5 text-muted small">
-                  No payment transactions recorded yet or matching search criteria.
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.86rem' }}>
-                    <thead className="table-light">
-                      <tr>
-                        <th>Ref #</th>
-                        <th>Date &amp; Time</th>
-                        <th>Guest Name</th>
-                        <th>Room / Booking</th>
-                        <th>Method</th>
-                        <th>Amount Paid</th>
-                        <th>Processed By</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredHistory.map((h) => (
-                        <tr key={h.paymentID}>
-                          <td className="fw-bold text-muted">PAY-{String(h.paymentID).padStart(5, '0')}</td>
-                          <td className="small text-muted">{new Date(h.paymentDateTime).toLocaleString()}</td>
-                          <td>
-                            <div className="fw-bold text-dark">{h.firstName} {h.lastName}</div>
-                            <small className="text-muted" style={{ fontSize: '0.72rem' }}>📞 {h.contact || 'N/A'}</small>
-                          </td>
-                          <td>
-                            <span className="fw-semibold text-pcc-blue">
-                              {h.roomNumber ? `Room ${h.roomNumber}` : 'Direct SOA'}
-                            </span>
-                            {h.bookingID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Booking #{h.bookingID}</small>}
-                          </td>
-                          <td>
-                            <span className={`badge ${h.paymentMethod === 'GCash' ? 'bg-primary text-white' : 'bg-success text-white'} px-2 py-1`} style={{ fontSize: '0.72rem' }}>
-                              {h.paymentMethod === 'GCash' ? '📱 GCash' : '💵 Cash'}
-                            </span>
-                          </td>
-                          <td className="fw-bold text-success fs-6">₱{parseFloat(h.amount).toFixed(2)}</td>
-                          <td><small className="text-muted">{h.processedBy || 'Front Desk'}</small></td>
-                          <td>
-                            <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style={{ fontSize: '0.72rem' }}>
-                              ✓ Settled
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
         <div className="row g-4 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '15px' }}>
           {/* Left Payment form */}
           <div className="col-lg-6 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
@@ -649,8 +571,144 @@ function PaymentsClient() {
             </div>
           </div>
         </div>
-        )}
       </div>
+
+      {/* PAYMENT HISTORY SCROLLABLE MODAL DIALOG */}
+      {showHistoryModal && (
+        <div className="modal show d-block animate__animated animate__fadeIn" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-xl modal-dialog-scrollable" style={{ maxWidth: '92%' }}>
+            <div className="modal-content border-0 shadow-lg" style={{ height: '85vh', borderRadius: '12px', overflow: 'hidden' }}>
+              <div className="modal-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                <h5 className="modal-title fw-bold text-dark m-0" style={{ fontSize: '1.1rem' }}>
+                  Payment History
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setShowHistoryModal(false)}></button>
+              </div>
+
+              {/* Filters Toolbar */}
+              <div className="px-4 py-3 bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div className="d-flex flex-wrap align-items-center gap-3">
+                  <div>
+                    <label className="form-label small fw-bold mb-1 text-muted d-block" style={{ fontSize: '0.75rem' }}>Search Transaction ID / Guest Name / Room</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="e.g. TRX-1, Guest Name, Room #..."
+                      value={historySearch}
+                      onChange={(e) => setHistorySearch(e.target.value)}
+                      style={{ width: '260px', borderRadius: '6px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="form-label small fw-bold mb-1 text-muted d-block" style={{ fontSize: '0.75rem' }}>Filter by Date</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={historyDateFilter}
+                      onChange={(e) => setHistoryDateFilter(e.target.value)}
+                      style={{ width: '160px', borderRadius: '6px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="form-label small fw-bold mb-1 text-muted d-block" style={{ fontSize: '0.75rem' }}>Payment Method</label>
+                    <select
+                      className="form-select form-select-sm"
+                      value={historyMethodFilter}
+                      onChange={(e) => setHistoryMethodFilter(e.target.value)}
+                      style={{ width: '140px', borderRadius: '6px' }}
+                    >
+                      <option value="All">All Methods</option>
+                      <option value="Cash">Cash</option>
+                      <option value="GCash">GCash</option>
+                    </select>
+                  </div>
+
+                  {(historySearch || historyDateFilter || historyMethodFilter !== 'All') && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-link text-danger p-0 mt-3 align-self-end text-decoration-none fw-semibold"
+                      style={{ fontSize: '0.8rem' }}
+                      onClick={() => {
+                        setHistorySearch('');
+                        setHistoryDateFilter('');
+                        setHistoryMethodFilter('All');
+                      }}
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+
+                <span className="badge bg-secondary text-white px-3 py-2" style={{ fontSize: '0.78rem' }}>
+                  Total Records: {filteredHistory.length}
+                </span>
+              </div>
+
+              {/* Scrollable Table Body */}
+              <div className="modal-body p-0 overflow-auto">
+                {filteredHistory.length === 0 ? (
+                  <div className="text-center py-5 text-muted small">
+                    No payment history records found matching search filters.
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.86rem' }}>
+                      <thead className="table-light sticky-top" style={{ top: 0, zIndex: 10 }}>
+                        <tr>
+                          <th>Transaction ID</th>
+                          <th>Date &amp; Time</th>
+                          <th>Guest Name</th>
+                          <th>Room / Booking</th>
+                          <th>Method</th>
+                          <th>Amount Paid</th>
+                          <th>Processed By</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredHistory.map((h) => (
+                          <tr key={h.paymentID}>
+                            <td className="fw-bold text-pcc-blue font-monospace">#TRX-{String(h.paymentID).padStart(5, '0')}</td>
+                            <td className="small text-muted">{new Date(h.paymentDateTime).toLocaleString()}</td>
+                            <td>
+                              <div className="fw-bold text-dark">{h.firstName} {h.lastName}</div>
+                              <small className="text-muted" style={{ fontSize: '0.72rem' }}>Contact: {h.contact || 'N/A'}</small>
+                            </td>
+                            <td>
+                              <span className="fw-semibold text-dark">
+                                {h.roomNumber ? `Room ${h.roomNumber}` : 'Direct SOA'}
+                              </span>
+                              {h.bookingID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Booking #{h.bookingID}</small>}
+                            </td>
+                            <td>
+                              <span className={`badge ${h.paymentMethod === 'GCash' ? 'bg-primary text-white' : 'bg-success text-white'} px-2 py-1`} style={{ fontSize: '0.72rem' }}>
+                                {h.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="fw-bold text-success fs-6">₱{parseFloat(h.amount).toFixed(2)}</td>
+                            <td><small className="text-muted">{h.processedBy || 'Front Desk'}</small></td>
+                            <td>
+                              <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style={{ fontSize: '0.72rem' }}>
+                                Settled
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer bg-light border-top py-2 px-4">
+                <button type="button" className="btn btn-secondary text-white fw-semibold" onClick={() => setShowHistoryModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PRINT RECEIPT MODAL */}
       {receipt && (
