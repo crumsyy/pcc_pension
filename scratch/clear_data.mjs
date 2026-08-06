@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-// Parse .env.local manually
 try {
   const envConfig = fs.readFileSync(path.resolve('.env.local'), 'utf8');
   for (const line of envConfig.split('\n')) {
@@ -14,9 +13,7 @@ try {
       }
     }
   }
-} catch (e) {
-  console.warn('Could not load .env.local file:', e.message);
-}
+} catch (e) {}
 
 import { getDbConnection } from '../lib/db.js';
 
@@ -25,28 +22,33 @@ async function clearData() {
   const conn = await pool.getConnection();
 
   try {
-    console.log('Clearing all transactional records...');
+    console.log('Clearing ALL reservation, booking, order, billing, payment, and notification records...');
     await conn.execute('SET FOREIGN_KEY_CHECKS = 0');
     
     const tables = [
-      'transactions',
-      'payment',
-      'incidental_charge',
+      'reservation',
+      'booking',
+      'booking_guest_details',
       'billing',
+      'billing_room',
+      'billing_product',
+      'billing_amenity',
+      'incidental_charge',
+      'orders',
       'order_product',
       'order_amenities',
-      'orders',
       'borrow_transaction',
-      'booking_guest_details',
-      'booking',
+      'payment',
+      'transactions',
+      'inquiry',
       'inquiry_message',
-      'inquiry'
+      'notification'
     ];
 
     for (const table of tables) {
       try {
-        await conn.execute(`DELETE FROM ${table}`);
-        await conn.execute(`ALTER TABLE ${table} AUTO_INCREMENT = 1`);
+        await conn.execute(`DELETE FROM \`${table}\``);
+        await conn.execute(`ALTER TABLE \`${table}\` AUTO_INCREMENT = 1`);
         console.log(`✓ Cleared table: ${table}`);
       } catch (err) {
         console.warn(`! Warning clearing ${table}:`, err.message);
@@ -57,9 +59,9 @@ async function clearData() {
     console.log('✓ Reset all active room statuses to Available');
 
     await conn.execute('SET FOREIGN_KEY_CHECKS = 1');
-    console.log('🎉 SUCCESS: All transactional data cleared! Ready for fresh testing.');
+    console.log('🎉 SUCCESS: All reservation and transactional data completely cleared!');
   } catch (error) {
-    console.error('Error clearing transactional data:', error);
+    console.error('Error clearing data:', error);
   } finally {
     conn.release();
     process.exit(0);

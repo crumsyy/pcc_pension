@@ -297,7 +297,7 @@ export default function EditProfilePage() {
             {/* CARD 1: BASIC INFORMATION (Direct Save to MySQL) */}
             <div className="card shadow-sm border-0 p-4 bg-white" style={{ borderRadius: '16px' }}>
               <div className="border-bottom pb-3 mb-3">
-                <h5 className="fw-bold text-dark mb-1">👤 Personal Profile Information</h5>
+                <h5 className="fw-bold text-dark mb-1">Personal Profile Information</h5>
                 <p className="text-muted small mb-0">Update your basic details directly in the system.</p>
               </div>
 
@@ -377,7 +377,7 @@ export default function EditProfilePage() {
 
                 <div className="mt-4 pt-3 border-top d-flex justify-content-end">
                   <button type="submit" className="btn btn-pcc-primary text-white fw-bold px-4 py-2" disabled={saving}>
-                    {saving ? 'Saving Changes...' : '💾 Save Profile Details'}
+                    {saving ? 'Saving Changes...' : 'Save Profile Details'}
                   </button>
                 </div>
               </form>

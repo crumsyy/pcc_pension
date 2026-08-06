@@ -848,7 +848,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                   <h5 className="fw-bold mb-1 text-dark">
-                    {flowAction === 'reserve' ? '🟢 Select Room to Reserve' : '🔵 Select Room to Book'}
+                    {flowAction === 'reserve' ? 'Select Room to Reserve' : 'Select Room to Book'}
                   </h5>
                   <p className="text-muted mb-0 small">Click any Green (Available) room card to proceed with your stay request.</p>
                 </div>
@@ -858,19 +858,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <span className="fw-bold text-dark">Status Legend:</span>
                   <div className="d-flex align-items-center gap-1">
                     <span className="badge bg-success p-1"></span>
-                    <span className="fw-bold text-success">🟢 Green (Available)</span>
+                    <span className="fw-bold text-success">Green (Available)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
                     <span className="badge bg-primary p-1"></span>
-                    <span className="fw-semibold text-primary">🔵 Blue (Occupied)</span>
+                    <span className="fw-semibold text-primary">Blue (Occupied)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
                     <span className="badge bg-danger p-1"></span>
-                    <span className="fw-semibold text-danger">🔴 Red (Maintenance)</span>
+                    <span className="fw-semibold text-danger">Red (Maintenance)</span>
                   </div>
                   <div className="d-flex align-items-center gap-1">
                     <span className="badge bg-warning p-1"></span>
-                    <span className="fw-semibold text-warning-emphasis">🟠 Orange (Booked)</span>
+                    <span className="fw-semibold text-warning-emphasis">Orange (Booked)</span>
                   </div>
                 </div>
               </div>
@@ -893,11 +893,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             ) : allRooms.length === 0 ? (
               /* FRIENDLY EMPTY STATE DESIGN */
               <div className="card shadow-sm border-0 p-5 text-center my-4 bg-white" style={{ borderRadius: '16px' }}>
-                <div className="display-3 text-muted mb-3">🏨</div>
                 <h5 className="fw-bold text-dark mb-1">No Rooms Available At The Moment</h5>
                 <p className="text-muted small mb-3">Our rooms are currently being updated by Front Desk. Please check back shortly.</p>
                 <button className="btn btn-outline-pcc-blue btn-sm m-auto" onClick={fetchRoomsAndStatus}>
-                  🔄 Refresh Availability
+                  Refresh Availability
                 </button>
               </div>
             ) : (
@@ -949,11 +948,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                 style={{ fontSize: '0.75rem' }}
                               >
-                                Details 👁️
+                                Details
                               </button>
                               {meta.selectable ? (
                                 <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                                  {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                                  {flowAction === 'reserve' ? 'Reserve' : 'Book'}
                                 </button>
                               ) : (
                                 <span className="badge bg-secondary text-white">Disabled</span>
@@ -1013,11 +1012,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                 style={{ fontSize: '0.75rem' }}
                               >
-                                Details 👁️
+                                Details
                               </button>
                               {meta.selectable ? (
                                 <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                                  {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                                  {flowAction === 'reserve' ? 'Reserve' : 'Book'}
                                 </button>
                               ) : (
                                 <span className="badge bg-secondary text-white">Disabled</span>
@@ -1077,11 +1076,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                   style={{ fontSize: '0.75rem' }}
                                 >
-                                  Details 👁️
+                                  Details
                                 </button>
                                 {meta.selectable ? (
                                   <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
-                                    {flowAction === 'reserve' ? 'Reserve 🟢' : 'Book 🔵'}
+                                    {flowAction === 'reserve' ? 'Reserve' : 'Book'}
                                   </button>
                                 ) : (
                                   <span className="badge bg-secondary text-white">Disabled</span>
@@ -1144,7 +1143,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                     <div className="d-flex justify-content-between align-items-center">
                       <div>
-                        <span className="badge bg-success text-white mb-1">🟢 Active Reservation Request</span>
+                        <span className="badge bg-success text-white mb-1">Active Reservation Request</span>
                         <h6 className="fw-bold mb-0 text-dark">Room {activeReservation.roomNumber} ({activeReservation.roomType})</h6>
                         <div className="small text-muted mb-2">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
                         {renderBookingStatusTimeline(activeReservation.status)}
@@ -1161,13 +1160,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="d-flex justify-content-between align-items-start mb-2">
                       <div className="w-100">
                         <div className="d-flex justify-content-between align-items-center mb-1">
-                          <span className="badge bg-primary text-white">🔵 Active Stay Booking (#{activeBookingStay.bookingID})</span>
+                          <span className="badge bg-primary text-white">Active Stay Booking (#{activeBookingStay.bookingID})</span>
                           {parseFloat(activeBookingStay.remainingBalance || 0) > 0 && (
                             <button
                               className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
                               onClick={() => setSettleBooking(activeBookingStay)}
                             >
-                              💳 Pay (₱{parseFloat(activeBookingStay.remainingBalance).toFixed(2)})
+                              Pay (₱{parseFloat(activeBookingStay.remainingBalance).toFixed(2)})
                             </button>
                           )}
                         </div>
@@ -1917,8 +1916,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           value={breakfastOption}
                           onChange={(e) => setBreakfastOption(e.target.value)}
                         >
-                          <option value="with">🍳 With Breakfast</option>
-                          <option value="without">☕ Without Breakfast</option>
+                          <option value="with">With Breakfast</option>
+                          <option value="without">Without Breakfast</option>
                         </select>
                       </div>
                       <div className="col-md-6">

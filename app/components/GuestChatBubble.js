@@ -394,7 +394,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
         }}
         title="Guest Assistant & Live Chat"
       >
-        {isOpen ? '✕' : (dbInquiry && dbInquiry.unreadGuest > 0 ? '🔔' : '💬')}
+        {isOpen ? '✕' : (dbInquiry && dbInquiry.unreadGuest > 0 ? 'Notification' : 'Chat')}
       </button>
 
       {/* CHAT CONTAINER WINDOW */}
@@ -420,7 +420,6 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
           style={{ backgroundColor: 'var(--pcc-blue)' }}
         >
           <div className="d-flex align-items-center gap-2">
-            <span style={{ fontSize: '1.3rem' }}>{activeTabMode === 'live' ? '💬' : '🤖'}</span>
             <div>
               <div className="fw-bold small" style={{ lineHeight: 1.2 }}>
                 {activeTabMode === 'live' ? 'Receptionist Live Chat' : 'PCC Virtual Assistant'}
@@ -437,7 +436,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               style={{ fontSize: '0.65rem' }}
               onClick={() => setActiveTabMode(activeTabMode === 'live' ? 'bot' : 'live')}
             >
-              {activeTabMode === 'live' ? 'Bot Help' : 'Live Chat 💬'}
+              {activeTabMode === 'live' ? 'Bot Help' : 'Live Chat'}
             </button>
             <button 
               type="button" 
@@ -536,7 +535,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                     className="btn btn-sm btn-pcc-primary text-white fw-bold"
                     disabled={submittingRequest}
                   >
-                    {submittingRequest ? 'Sending...' : 'Send Request 📩'}
+                    {submittingRequest ? 'Sending...' : 'Send Request'}
                   </button>
                 </div>
               </form>
@@ -611,7 +610,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
           {pendingOrderPill && (
             <div className="card border-primary shadow-sm p-2 bg-light text-start animate__animated animate__fadeIn mb-2" style={{ borderLeft: '4px solid var(--pcc-blue)', fontSize: '0.78rem' }}>
               <div className="d-flex justify-content-between align-items-center mb-1">
-                <span className="fw-bold text-dark">🛍️ Confirm Room Order</span>
+                <span className="fw-bold text-dark">Confirm Room Order</span>
                 <span className="badge bg-primary text-white">₱{pendingOrderPill.total.toFixed(2)}</span>
               </div>
               <div className="text-muted mb-2">
@@ -631,7 +630,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   disabled={placingOrder}
                   style={{ fontSize: '0.72rem' }}
                 >
-                  {placingOrder ? 'Processing...' : 'Confirm & Place Order 🛒'}
+                  {placingOrder ? 'Processing...' : 'Confirm & Place Order'}
                 </button>
               </div>
             </div>
@@ -677,7 +676,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   onClick={handleOpenRequestForm}
                   style={{ fontSize: '0.75rem' }}
                 >
-                  Request Receptionist 👤
+                  Request Receptionist
                 </button>
               </div>
             )}

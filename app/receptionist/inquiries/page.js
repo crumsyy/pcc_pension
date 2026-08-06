@@ -311,7 +311,6 @@ export default function ReceptionistInquiries() {
             <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '10px', minHeight: 0 }}>
               {!selectedInquiry ? (
                 <div className="text-center py-5 text-muted flex-grow-1 d-flex flex-column justify-content-center align-items-center">
-                  <span style={{ fontSize: '3rem' }}>💬</span>
                   <h5 className="mt-3 fw-bold text-dark">No Conversation Selected</h5>
                   <p className="small mb-0">Select a guest inquiry from the left panel to start chatting in real time.</p>
                 </div>
@@ -416,23 +415,8 @@ export default function ReceptionistInquiries() {
                     )}
                   </div>
 
-                  {/* Chat Input & Reply Footer */}
+                  {/* Chat Input Box */}
                   <div className="card-footer bg-white p-3 border-0 border-top">
-                    {/* Emoji Quick Bar */}
-                    <div className="d-flex gap-1 mb-2">
-                      {['😊', '👋', '🏨', '✅', '🔑', '☕'].map(emoji => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          className="btn btn-xs btn-light border"
-                          onClick={() => handleAppendEmoji(emoji)}
-                          style={{ fontSize: '0.8rem', padding: '2px 8px' }}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-
                     <form onSubmit={handleReplySubmit} className="d-flex gap-2">
                       <input
                         type="text"
@@ -447,7 +431,7 @@ export default function ReceptionistInquiries() {
                         className="btn btn-pcc-primary text-white fw-bold btn-sm px-4"
                         disabled={!replyText.trim()}
                       >
-                        Send Reply 📩
+                        Send Reply
                       </button>
                     </form>
                   </div>

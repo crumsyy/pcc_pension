@@ -488,7 +488,7 @@ export default function ReceptionistBilling() {
                           {billDetails.guestsList && billDetails.guestsList.length > 0 && (
                             <div className="mb-2 bg-light p-2 rounded border animate__animated animate__fadeIn" style={{ fontSize: '0.75rem' }}>
                               <div className="fw-bold mb-1 text-dark d-flex justify-content-between align-items-center">
-                                <span>👥 Registered Room Guests ({billDetails.guestsList.length} Pax)</span>
+                                <span>Registered Room Guests ({billDetails.guestsList.length} Pax)</span>
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-pcc-primary text-white"
@@ -592,7 +592,7 @@ export default function ReceptionistBilling() {
 
                           {/* Non-Consumable Amenities Checkout Inspection */}
                           <h6 className="fw-bold text-dark mb-1 border-bottom pb-1 mt-3" style={{ fontSize: '0.82rem' }}>
-                            🧹 Room Check-Out Inspection — Ordered Non-Consumable Amenities
+                            Room Check-Out Inspection — Ordered Non-Consumable Amenities
                           </h6>
                           <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>
                             Check items returned in good condition. Uncheck any item that is missing or damaged to automatically add replacement charges to the bill.
@@ -749,7 +749,7 @@ export default function ReceptionistBilling() {
                           {/* Borrowed Amenities & Room Items check */}
                           {billDetails.borrowedItems && billDetails.borrowedItems.length > 0 && (
                             <div className="mt-3">
-                              <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>📦 Borrowed Room Items &amp; Amenities</h6>
+                              <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Borrowed Room Items &amp; Amenities</h6>
                               <div className="table-responsive">
                                 <table className="table table-hover table-sm align-middle mb-0" style={{ fontSize: '0.78rem' }}>
                                   <thead className="table-light">
@@ -858,7 +858,7 @@ export default function ReceptionistBilling() {
                               href={`/receptionist/payments?bookingID=${selectedBookingID}`}
                               className="btn btn-pcc-primary text-white w-100 py-2 fw-semibold text-center d-block text-decoration-none"
                             >
-                              💳 Go to Payment Checkout
+                              Go to Payment Checkout
                             </a>
                           ) : (
                             <div className="alert alert-success text-center py-2 mb-0 fw-semibold">

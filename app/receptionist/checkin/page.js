@@ -230,7 +230,7 @@ function CheckInClient() {
                         aria-label="Process Check In"
                         onClick={() => handleCheckIn(b.bookingID, b.firstName + ' ' + b.lastName)}
                       >
-                        <i className="fa-solid fa-right-to-bracket"></i> Check In 🟢
+                        <i className="fa-solid fa-right-to-bracket"></i> Check In
                       </button>
                     </div>
                   ))}

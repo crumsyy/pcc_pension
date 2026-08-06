@@ -1239,7 +1239,7 @@ function ReservationsClient() {
                     {String(paymentMethodID) === '2' && (
                       <div className="p-3 border border-primary rounded bg-light text-center mb-3">
                         <div className="badge bg-primary text-white mb-2 px-3 py-1" style={{ fontSize: '0.78rem' }}>
-                          📱 Pay with GCash / QR Ph Standard
+                          Pay with GCash / QR Ph Standard
                         </div>
                         <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.9rem' }}>
                           Required Downpayment: <span className="text-primary fs-5 fw-bold">₱{requiredDownpayment.toFixed(2)}</span>

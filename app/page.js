@@ -393,8 +393,8 @@ export default function Home() {
                     </div>
                     <p className="text-muted small mb-3 flex-grow-1">{promo.description || 'Exclusive promotional discount for lodging stays.'}</p>
                     <div className="p-2 bg-light rounded small mb-3" style={{ fontSize: '0.78rem' }}>
-                      <div>📅 <strong>Valid:</strong> {new Date(promo.startDate).toLocaleDateString()} – {new Date(promo.endDate).toLocaleDateString()}</div>
-                      {promo.roomTypeName && <div>🛏️ <strong>Applicable Room:</strong> {promo.roomTypeName}</div>}
+                      <div><strong>Valid:</strong> {new Date(promo.startDate).toLocaleDateString()} – {new Date(promo.endDate).toLocaleDateString()}</div>
+                      {promo.roomTypeName && <div><strong>Applicable Room:</strong> {promo.roomTypeName}</div>}
                     </div>
                     <Link href="/auth/register" className="btn btn-pcc-primary btn-sm text-white w-100 text-center fw-bold">
                       Claim Promo &amp; Book Now
@@ -462,7 +462,7 @@ export default function Home() {
                             }}
                             className="btn btn-pcc-outline btn-sm w-100 fw-bold"
                           >
-                            Check Availability 📅
+                            Check Availability
                           </button>
                         </div>
                       </div>
@@ -665,7 +665,6 @@ export default function Home() {
 
                 {availableRooms.length === 0 ? (
                   <div className="text-center py-5 text-muted">
-                    <span style={{ fontSize: '2.5rem' }}>🛏️</span>
                     <h5 className="mt-3 fw-bold">No Rooms Available</h5>
                     <p className="small mb-0">Sorry, there are no rooms of this type vacant for the selected stay dates. Please try other dates.</p>
                   </div>

@@ -443,7 +443,7 @@ function PaymentsClient() {
                   {paymentForm.paymentMethodID === '2' && (
                     <div className="p-3 mb-3 border border-primary rounded bg-light text-center">
                       <div className="badge bg-primary text-white mb-2 px-3 py-1" style={{ fontSize: '0.78rem' }}>
-                        📱 Pay with GCash / QR Ph Standard
+                        Pay with GCash / QR Ph Standard
                       </div>
                       <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.9rem' }}>
                         Amount Due: <span className="text-primary fs-5 fw-bold">₱{payableAmount.toFixed(2)}</span>
@@ -563,7 +563,6 @@ function PaymentsClient() {
                   </div>
                 ) : (
                   <div className="text-center py-5 text-muted my-auto">
-                    <span style={{ fontSize: '2.5rem' }}>🧾</span>
                     <p className="small mt-2 mb-0">Select an active check-in guest to preview POS checkout calculations.</p>
                   </div>
                 )}
