@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 function LoginContent() {
   const router = useRouter();
@@ -83,7 +84,10 @@ function LoginContent() {
           <Link href="/" className="navbar-brand d-flex align-items-center gap-2">
             <img src="/assets/images/logo.jpg" alt="PCC Home Suite Home logo" height="42" style={{ borderRadius: "4px" }} />
           </Link>
-          <Link href="/" className="btn btn-pcc-primary btn-sm">Back to Home</Link>
+          <div className="d-flex align-items-center gap-2">
+            <ThemeToggle />
+            <Link href="/" className="btn btn-pcc-primary btn-sm">Back to Home</Link>
+          </div>
         </div>
       </nav>
 

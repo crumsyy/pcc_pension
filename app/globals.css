@@ -1174,6 +1174,16 @@ body.dark-theme .bg-mist,
 body.dark-theme .card,
 [data-bs-theme="dark"] .card-module,
 body.dark-theme .card-module,
+[data-bs-theme="dark"] .key-tag,
+body.dark-theme .key-tag,
+[data-bs-theme="dark"] .availability-bar,
+body.dark-theme .availability-bar,
+[data-bs-theme="dark"] .hero,
+body.dark-theme .hero,
+[data-bs-theme="dark"] .section,
+body.dark-theme .section,
+[data-bs-theme="dark"] .navbar-pcc,
+body.dark-theme .navbar-pcc,
 [data-bs-theme="dark"] .card-header,
 body.dark-theme .card-header,
 [data-bs-theme="dark"] .card-footer,
@@ -1203,6 +1213,27 @@ body.dark-theme div[style*="backgroundColor: '#fff'"] {
   border-color: #334155 !important;
 }
 
+/* Key Tag Receptionist Board Dark Theme Styling */
+.key-tag {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+[data-bs-theme="dark"] .key-tag,
+body.dark-theme .key-tag {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .room-type,
+body.dark-theme .room-type {
+  color: #60a5fa !important;
+}
+
 /* Secondary dark backgrounds for inset boxes */
 [data-bs-theme="dark"] .table-light,
 body.dark-theme .table-light,
@@ -1224,6 +1255,8 @@ body.dark-theme div[style*="background: '#f8fafc'"] {
 body.dark-theme .text-dark,
 [data-bs-theme="dark"] .modal-title,
 body.dark-theme .modal-title,
+[data-bs-theme="dark"] .section-title,
+body.dark-theme .section-title,
 [data-bs-theme="dark"] h1,
 body.dark-theme h1,
 [data-bs-theme="dark"] h2,
@@ -1245,7 +1278,11 @@ body.dark-theme .text-muted {
 }
 
 [data-bs-theme="dark"] .text-pcc-blue,
-body.dark-theme .text-pcc-blue {
+body.dark-theme .text-pcc-blue,
+[data-bs-theme="dark"] .section-eyebrow,
+body.dark-theme .section-eyebrow,
+[data-bs-theme="dark"] .hero .eyebrow,
+body.dark-theme .hero .eyebrow {
   color: #60a5fa !important;
 }
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import GuestChatBubble from "./components/GuestChatBubble";
 import DateInput, { isValidDate, toDbDate } from "./components/DateInput";
+import ThemeToggle from "./components/ThemeToggle";
 
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
@@ -243,8 +244,11 @@ export default function Home() {
               <li className="nav-item mt-2 mt-lg-0">
                 <Link href="/auth/login" className="btn btn-pcc-primary btn-sm me-2">Log In</Link>
               </li>
-              <li className="nav-item mt-2 mt-lg-0">
+              <li className="nav-item mt-2 mt-lg-0 me-2">
                 <Link href="/auth/register" className="btn btn-pcc-primary btn-sm">Book Now</Link>
+              </li>
+              <li className="nav-item mt-2 mt-lg-0">
+                <ThemeToggle />
               </li>
             </ul>
           </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DateInput, { isValidDate, toDbDate } from "@/app/components/DateInput";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -138,7 +139,10 @@ export default function RegisterPage() {
           <Link href="/" className="navbar-brand">
             <img src="/assets/images/logo.jpg" height="42" alt="PCC Logo" style={{ borderRadius: "4px" }} />
           </Link>
-          <Link href="/" className="btn btn-pcc-primary btn-sm">Back to Home</Link>
+          <div className="d-flex align-items-center gap-2">
+            <ThemeToggle />
+            <Link href="/" className="btn btn-pcc-primary btn-sm">Back to Home</Link>
+          </div>
         </div>
       </nav>
 
