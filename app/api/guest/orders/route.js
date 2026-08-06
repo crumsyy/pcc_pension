@@ -75,6 +75,30 @@ export async function POST(request) {
     }
 
     const booking = bookings[0];
+
+    // Check if order contains cooked meals (productCategoryID === 3)
+    let containsCookedMeal = false;
+    for (const item of items) {
+      if (item.type === 'Product') {
+        const pCheck = await dbQuery("SELECT productCategoryID FROM products WHERE productID = ?", [parseInt(item.itemID)]);
+        if (pCheck.length > 0 && pCheck[0].productCategoryID === 3) {
+          containsCookedMeal = true;
+          break;
+        }
+      }
+    }
+
+    if (containsCookedMeal) {
+      const now = new Date();
+      const currentMins = now.getHours() * 60 + now.getMinutes();
+      // 6:00 AM = 360 mins, 10:30 AM = 630 mins
+      if (currentMins < 360 || currentMins > 630) {
+        return NextResponse.json({
+          error: "Cooked meals can only be ordered between 6:00 AM and 10:30 AM."
+        }, { status: 400 });
+      }
+    }
+
     const db = await getDbConnection();
     const connection = await db.getConnection();
 

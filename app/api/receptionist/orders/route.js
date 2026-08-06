@@ -148,14 +148,14 @@ export async function POST(request) {
           }
         }
 
-        // Rule 9: Breakfast Ordering Hours Validation (6:30 AM - 10:00 AM)
+        // Rule 9: Cooked Meal Ordering Hours Validation (6:00 AM - 10:30 AM)
         if (containsCookedBreakfast) {
           const now = new Date();
           const currentMins = now.getHours() * 60 + now.getMinutes();
-          // 6:30 AM = 390 mins, 10:00 AM = 600 mins
-          if (currentMins < 390 || currentMins > 600) {
+          // 6:00 AM = 360 mins, 10:30 AM = 630 mins
+          if (currentMins < 360 || currentMins > 630) {
             return NextResponse.json({
-              error: "Breakfast orders are only available from 7:00 AM to 10:00 AM. Early requests may begin at 6:30 AM."
+              error: "Cooked meals can only be ordered between 6:00 AM and 10:30 AM."
             }, { status: 400 });
           }
         }

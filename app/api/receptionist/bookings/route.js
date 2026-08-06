@@ -121,6 +121,14 @@ export async function POST(request) {
           if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
             return NextResponse.json({ error: 'First name and Last name are required for walk-in guests.' }, { status: 400 });
           }
+          if (dateOfBirth) {
+            const dobObj = new Date(dateOfBirth + 'T00:00:00');
+            const todayZero = new Date();
+            todayZero.setHours(0, 0, 0, 0);
+            if (dobObj >= todayZero) {
+              return NextResponse.json({ error: 'Date of birth cannot be today or in the future.' }, { status: 400 });
+            }
+          }
           const [insertGuestRes] = await conn.execute(
             "INSERT INTO guest (firstName, lastName, contact, email, gender, dateOfBirth, userID) VALUES (?, ?, ?, ?, ?, ?, NULL)",
             [firstName.trim(), lastName.trim(), (contact || '').trim(), (email || '').trim() || null, gender || null, dateOfBirth || null]
@@ -314,9 +322,14 @@ export async function POST(request) {
       const todayDateStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())}`;
 
       if (todayDateStr < scheduledCheckInDate) {
-        return NextResponse.json({
-          error: "Guests may only check in on their scheduled booking date."
-        }, { status: 400 });
+        if (!confirmEarlyCheckIn) {
+          return NextResponse.json({
+            requiresEarlyCheckInConfirmation: true,
+            earlyHours: 0,
+            earlyFee: 0,
+            message: `This guest is scheduled to check in on ${scheduledCheckInDate}. Are you sure you want to proceed with Early Check-In today?`
+          });
+        }
       }
 
       // Check if current time is before standard check-in time (2:00 PM / 14:00)

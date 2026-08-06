@@ -444,6 +444,13 @@ function BookingsClient() {
         showAlert('error', 'Validation Error', 'Birthdate is required for walk-in guests.');
         return;
       }
+      const pad = (n) => String(n).padStart(2, '0');
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      if (walkInForm.dateOfBirth >= todayStr) {
+        showAlert('error', 'Validation Error', 'Date of birth cannot be today or a future date. Please enter a valid birthdate.');
+        return;
+      }
     } else {
       if (!formData.guestID) {
         showAlert('error', 'Validation Error', 'Please select a registered guest account or choose Walk-In.');

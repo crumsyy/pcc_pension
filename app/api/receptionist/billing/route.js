@@ -29,9 +29,11 @@ export async function GET(request) {
   try {
     // 1. Fetch booking details
     const bookingRes = await dbQuery(`
-      SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, b.guestID, b.roomID,
+      SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, 
+             DATE_FORMAT(b.checkInDateTime, '%Y-%m-%d %H:%i:%s') as dbCheckInDateTime,
+             DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, b.guestID, b.roomID,
              g.firstName, g.lastName, g.contact, g.email,
-             rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID
+             rm.roomNumber, rm.floorID, rm.occupancyLimit, rt.type as roomType, rt.roomTypeID
       FROM booking b
       JOIN guest g ON g.guestID = b.guestID
       JOIN room rm ON rm.roomID = b.roomID
@@ -135,6 +137,8 @@ export async function GET(request) {
       }
     }
 
+    const cleanCheckInDate = (booking.dbCheckInDateTime || booking.checkInDateTime || '').replace('T', ' ');
+
     // 3. Fetch product orders for this stay (since check-in date)
     const productCharges = await dbQuery(`
       SELECT op.orderProductID, op.quantity, p.name, p.price, (op.quantity * p.price) as subtotal
@@ -145,7 +149,7 @@ export async function GET(request) {
         AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
         AND o.orderStatus != 'Canceled'
         AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
-    `, [booking.guestID, booking.checkInDateTime]);
+    `, [booking.guestID, cleanCheckInDate]);
 
     // 4. Fetch amenity orders for this stay
     const amenityCharges = await dbQuery(`
@@ -157,7 +161,7 @@ export async function GET(request) {
         AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
         AND o.orderStatus != 'Canceled'
         AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
-    `, [booking.guestID, booking.checkInDateTime]);
+    `, [booking.guestID, cleanCheckInDate]);
 
     const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
     const amenityTotal = amenityCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
@@ -192,7 +196,7 @@ export async function GET(request) {
         AND (a.isArchived IS NULL OR a.isArchived = 0)
       GROUP BY a.amenityID, a.name, a.sellingPrice, a.price, a.description
       ORDER BY a.name ASC
-    `, [booking.guestID, booking.checkInDateTime]);
+    `, [booking.guestID, cleanCheckInDate]);
 
     const nonConsumableAmenities = nonConsumableList.map(a => {
       const matchIncidental = incidentalCharges.find(ic => 
