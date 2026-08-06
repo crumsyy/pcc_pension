@@ -139,64 +139,69 @@ export async function GET(request) {
 
     const cleanCheckInDate = (booking.dbCheckInDateTime || booking.checkInDateTime || '').replace('T', ' ');
 
-    // 3. Fetch product orders for this stay (since check-in date)
-    const productCharges = await dbQuery(`
-      SELECT op.orderProductID, op.quantity, p.name, p.price, (op.quantity * p.price) as subtotal
-      FROM order_product op
-      JOIN products p ON p.productID = op.productID
-      JOIN orders o ON o.orderID = op.orderID
-      WHERE o.guestID = ? 
-        AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
-        AND o.orderStatus != 'Canceled'
-        AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
-    `, [booking.guestID, cleanCheckInDate]);
-
-    // 4. Fetch amenity orders for this stay
-    const amenityCharges = await dbQuery(`
-      SELECT oa.orderAmenityID, oa.quantity, a.name, a.price, (oa.quantity * a.price) as subtotal
-      FROM order_amenities oa
-      JOIN amenities a ON a.amenityID = oa.amenityID
-      JOIN orders o ON o.orderID = oa.orderID
-      WHERE o.guestID = ? 
-        AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
-        AND o.orderStatus != 'Canceled'
-        AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
-    `, [booking.guestID, cleanCheckInDate]);
+    const [
+      productCharges,
+      amenityCharges,
+      incidentalCharges,
+      borrowItems,
+      nonConsumableList,
+      billingRes,
+      activeDiscounts,
+      activePromos
+    ] = await Promise.all([
+      dbQuery(`
+        SELECT op.orderProductID, op.quantity, p.name, p.price, (op.quantity * p.price) as subtotal
+        FROM order_product op
+        JOIN products p ON p.productID = op.productID
+        JOIN orders o ON o.orderID = op.orderID
+        WHERE o.guestID = ? 
+          AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
+          AND o.orderStatus != 'Canceled'
+          AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
+      `, [booking.guestID, cleanCheckInDate]),
+      dbQuery(`
+        SELECT oa.orderAmenityID, oa.quantity, a.name, a.price, (oa.quantity * a.price) as subtotal
+        FROM order_amenities oa
+        JOIN amenities a ON a.amenityID = oa.amenityID
+        JOIN orders o ON o.orderID = oa.orderID
+        WHERE o.guestID = ? 
+          AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
+          AND o.orderStatus != 'Canceled'
+          AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
+      `, [booking.guestID, cleanCheckInDate]),
+      dbQuery(
+        "SELECT chargeID, description, amount, createdAt FROM incidental_charge WHERE bookingID = ?",
+        [bookingID]
+      ),
+      dbQuery(`
+        SELECT bt.*, COALESCE(a.name, p.name) as itemName
+        FROM borrow_transaction bt
+        LEFT JOIN amenities a ON bt.itemType = 'Amenity' AND a.amenityID = bt.itemID
+        LEFT JOIN products p ON bt.itemType = 'Product' AND p.productID = bt.itemID
+        WHERE bt.bookingID = ?
+      `, [bookingID]),
+      dbQuery(`
+        SELECT a.amenityID, a.name, COALESCE(a.sellingPrice, a.price, 0) as replacementCost, a.description,
+               SUM(oa.quantity) as orderedQty
+        FROM order_amenities oa
+        JOIN amenities a ON a.amenityID = oa.amenityID
+        JOIN orders o ON o.orderID = oa.orderID
+        WHERE o.guestID = ? 
+          AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR)
+          AND o.orderStatus != 'Canceled'
+          AND a.itemType = 'Non-Consumable'
+          AND (a.isArchived IS NULL OR a.isArchived = 0)
+        GROUP BY a.amenityID, a.name, a.sellingPrice, a.price, a.description
+        ORDER BY a.name ASC
+      `, [booking.guestID, cleanCheckInDate]),
+      dbQuery("SELECT billingID FROM billing WHERE bookingID = ?", [bookingID]),
+      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name"),
+      dbQuery("SELECT promotionID, name, percentage FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name")
+    ]);
 
     const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
     const amenityTotal = amenityCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-
-    // Fetch incidental charges
-    const incidentalCharges = await dbQuery(
-      "SELECT chargeID, description, amount, createdAt FROM incidental_charge WHERE bookingID = ?",
-      [bookingID]
-    );
     const incidentalTotal = incidentalCharges.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-
-    // Fetch borrow transaction items
-    const borrowItems = await dbQuery(`
-      SELECT bt.*, COALESCE(a.name, p.name) as itemName
-      FROM borrow_transaction bt
-      LEFT JOIN amenities a ON bt.itemType = 'Amenity' AND a.amenityID = bt.itemID
-      LEFT JOIN products p ON bt.itemType = 'Product' AND p.productID = bt.itemID
-      WHERE bt.bookingID = ?
-    `, [bookingID]);
-
-    // Fetch ONLY ordered non-consumable amenities for check-out inspection
-    const nonConsumableList = await dbQuery(`
-      SELECT a.amenityID, a.name, COALESCE(a.sellingPrice, a.price, 0) as replacementCost, a.description,
-             SUM(oa.quantity) as orderedQty
-      FROM order_amenities oa
-      JOIN amenities a ON a.amenityID = oa.amenityID
-      JOIN orders o ON o.orderID = oa.orderID
-      WHERE o.guestID = ? 
-        AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR)
-        AND o.orderStatus != 'Canceled'
-        AND a.itemType = 'Non-Consumable'
-        AND (a.isArchived IS NULL OR a.isArchived = 0)
-      GROUP BY a.amenityID, a.name, a.sellingPrice, a.price, a.description
-      ORDER BY a.name ASC
-    `, [booking.guestID, cleanCheckInDate]);
 
     const nonConsumableAmenities = nonConsumableList.map(a => {
       const matchIncidental = incidentalCharges.find(ic => 
@@ -226,12 +231,6 @@ export async function GET(request) {
 
     const subtotalCharges = finalRoomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal + incidentalTotal;
 
-    // 5. Fetch existing billing record if any
-    const billingRes = await dbQuery(
-      "SELECT billingID FROM billing WHERE bookingID = ?",
-      [bookingID]
-    );
-
     let billingID = billingRes[0]?.billingID || null;
     let paidTotal = 0;
 
@@ -244,9 +243,6 @@ export async function GET(request) {
     }
 
     const balance = subtotalCharges - paidTotal;
-
-    const activeDiscounts = await dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name");
-    const activePromos = await dbQuery("SELECT promotionID, name, percentage FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name");
 
     const discounts = [
       ...activeDiscounts.map(d => ({

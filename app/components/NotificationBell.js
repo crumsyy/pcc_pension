@@ -24,8 +24,8 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll every 4 seconds for near real-time notifications
-    const interval = setInterval(fetchNotifications, 4000);
+    // Poll every 15 seconds for notifications
+    const interval = setInterval(fetchNotifications, 15000);
     return () => clearInterval(interval);
   }, []);
 

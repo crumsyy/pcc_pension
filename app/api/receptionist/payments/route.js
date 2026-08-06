@@ -9,47 +9,42 @@ export async function GET(request) {
   }
 
   try {
-    // Fetch checked in bookings that need checkout/payment
-    const activeBookings = await dbQuery(`
-      SELECT b.bookingID, b.guestID, b.roomID, b.status, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
-             g.firstName, g.lastName, g.contact,
-             rm.roomNumber, rt.type as roomType
-      FROM booking b
-      JOIN guest g ON g.guestID = b.guestID
-      JOIN room rm ON rm.roomID = b.roomID
-      JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      WHERE b.status IN ('Checked In', 'Pending Check-in')
-      ORDER BY rm.roomNumber
-    `);
-
-    // Fetch discounts
-    const discounts = await dbQuery("SELECT discountID, name, percentage, eligibilityTypeID FROM discounts WHERE isArchived = 0");
-
-    // Fetch payment methods
-    const paymentMethods = await dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method");
-
-    // Fetch payment history logs
-    const paymentHistory = await dbQuery(`
-      SELECT p.paymentID, p.amount, p.cashReceived, p.change, p.paymentMethodID,
-             COALESCE(DATE_FORMAT(t.transactionDateTime, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')) as paymentDateTime,
-             pm.paymentMethod,
-             g.guestID, g.firstName, g.lastName, g.contact,
-             b.billingID, b.bookingID,
-             rm.roomNumber, rt.type as roomType,
-             COALESCE(CONCAT(st.firstName, ' ', st.lastName), u.username, 'Front Desk Staff') as processedBy
-      FROM payment p
-      JOIN payment_method pm ON pm.paymentMethodID = p.paymentMethodID
-      JOIN guest g ON g.guestID = p.guestID
-      LEFT JOIN billing b ON b.billingID = p.billingID
-      LEFT JOIN booking bk ON bk.bookingID = b.bookingID
-      LEFT JOIN room rm ON rm.roomID = bk.roomID
-      LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      LEFT JOIN staff st ON st.staffID = p.staffID
-      LEFT JOIN user u ON u.userID = st.userID
-      LEFT JOIN transactions t ON t.paymentID = p.paymentID
-      ORDER BY p.paymentID DESC
-      LIMIT 500
-    `);
+    const [activeBookings, discounts, paymentMethods, paymentHistory] = await Promise.all([
+      dbQuery(`
+        SELECT b.bookingID, b.guestID, b.roomID, b.status, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
+               g.firstName, g.lastName, g.contact,
+               rm.roomNumber, rt.type as roomType
+        FROM booking b
+        JOIN guest g ON g.guestID = b.guestID
+        JOIN room rm ON rm.roomID = b.roomID
+        JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        WHERE b.status IN ('Checked In', 'Pending Check-in')
+        ORDER BY rm.roomNumber
+      `),
+      dbQuery("SELECT discountID, name, percentage, eligibilityTypeID FROM discounts WHERE isArchived = 0"),
+      dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method"),
+      dbQuery(`
+        SELECT p.paymentID, p.amount, p.cashReceived, p.change, p.paymentMethodID,
+               COALESCE(DATE_FORMAT(t.transactionDateTime, '%Y-%m-%d %H:%i:%s'), DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')) as paymentDateTime,
+               pm.paymentMethod,
+               g.guestID, g.firstName, g.lastName, g.contact,
+               b.billingID, b.bookingID,
+               rm.roomNumber, rt.type as roomType,
+               COALESCE(CONCAT(st.firstName, ' ', st.lastName), u.email, 'Front Desk Staff') as processedBy
+        FROM payment p
+        JOIN payment_method pm ON pm.paymentMethodID = p.paymentMethodID
+        JOIN guest g ON g.guestID = p.guestID
+        LEFT JOIN billing b ON b.billingID = p.billingID
+        LEFT JOIN booking bk ON bk.bookingID = b.bookingID
+        LEFT JOIN room rm ON rm.roomID = bk.roomID
+        LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        LEFT JOIN staff st ON st.staffID = p.staffID
+        LEFT JOIN user u ON u.userID = st.userID
+        LEFT JOIN transactions t ON t.paymentID = p.paymentID
+        ORDER BY p.paymentID DESC
+        LIMIT 500
+      `)
+    ]);
 
     return NextResponse.json({ success: true, activeBookings, discounts, paymentMethods, paymentHistory });
   } catch (error) {
