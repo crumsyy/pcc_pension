@@ -51,7 +51,22 @@ export async function POST(request) {
       // Send email
       const emailSent = await sendResetOtpEmail(lowerEmail, fullName || 'User', otpCode);
       if (!emailSent) {
-        return NextResponse.json({ success: false, message: "Failed to send reset email. Please check your mail settings." }, { status: 500 });
+        console.log(`⚠️ Password reset requested for ${lowerEmail}, but SMTP delivery failed. Code logged in terminal: ${otpCode}`);
+        // In local development / testing, allow reset to proceed or provide actionable error feedback
+        if (process.env.NODE_ENV !== 'production') {
+          await dbQuery(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'Password Reset Code Generated', ?)",
+            [user.userID, `Your password reset code is: ${otpCode}`]
+          );
+          return NextResponse.json({ 
+            success: true, 
+            message: `Password reset code generated (${otpCode}). (Note: Mail server credentials in .env.local require updating).` 
+          });
+        }
+        return NextResponse.json({ 
+          success: false, 
+          message: "Failed to send reset email due to invalid SMTP mail credentials. Please check your Gmail App Password in .env.local." 
+        }, { status: 500 });
       }
 
       // Add a system notification about requested password reset
