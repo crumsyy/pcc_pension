@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
+import { getQRPhImageURL } from '@/lib/qrph';
 
 function PaymentsClient() {
   const searchParams = useSearchParams();
@@ -443,24 +444,28 @@ function PaymentsClient() {
                   {paymentForm.paymentMethodID === '2' && (
                     <div className="p-3 mb-3 border border-primary rounded bg-light text-center">
                       <div className="badge bg-primary text-white mb-2 px-3 py-1" style={{ fontSize: '0.78rem' }}>
-                        Pay with GCash / QR Ph Standard
+                        Pay with Dynamic QR Ph / GCash
                       </div>
                       <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.9rem' }}>
                         Amount Due: <span className="text-primary fs-5 fw-bold">₱{payableAmount.toFixed(2)}</span>
                       </div>
                       <div className="my-2 d-flex justify-content-center">
                         <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(`GCASH|PCC_HOME_SUITE_HOME|AMOUNT:${payableAmount.toFixed(2)}|REF:${selectedBookingID}`)}`}
-                          alt="GCash QR Code"
+                          src={getQRPhImageURL({
+                            amount: payableAmount,
+                            reference: `PAY-${selectedBookingID}`,
+                            merchantName: 'PCC HOME SUITE HOME'
+                          })}
+                          alt="Dynamic QR Ph Code"
                           className="border p-2 bg-white rounded shadow-sm"
-                          style={{ width: '160px', height: '160px' }}
+                          style={{ width: '170px', height: '170px' }}
                         />
                       </div>
                       <div className="small text-muted mb-1" style={{ fontSize: '0.76rem' }}>
                         <strong>GCash Account:</strong> 0900 000 0000 (PCC Suite)
                       </div>
                       <p className="small text-primary mb-0 fw-semibold" style={{ fontSize: '0.74rem' }}>
-                        Guest scans QR code using their GCash app and presents proof of payment.
+                        Scan using GCash / Maya. The exact amount (₱{payableAmount.toFixed(2)}) will auto-fill automatically with 0 transaction fees!
                       </p>
                     </div>
                   )}
