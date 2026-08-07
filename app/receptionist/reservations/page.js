@@ -916,61 +916,6 @@ function ReservationsClient() {
                     </div>
                   )}
 
-                  {/* REGISTERED ROOM GUESTS */}
-                  <div className="p-3 mb-3 border rounded bg-white">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <div>
-                        <h6 className="mb-0 text-pcc-primary fw-bold">Registered Room Guests ({roomGuests.length} Pax)</h6>
-                        <span className="small text-muted">Add all guests staying in this room.</span>
-                      </div>
-                      <button type="button" className="btn btn-sm btn-pcc-primary text-white fw-bold" onClick={handleAddGuest}>
-                        + Add Guest
-                      </button>
-                    </div>
-
-                    {roomGuests.map((g, idx) => (
-                      <div key={idx} className="p-2.5 mb-2 rounded bg-light border position-relative">
-                        <div className="d-flex justify-content-between align-items-center mb-1">
-                          <span className="small text-muted fw-bold">Guest #{idx + 1} {idx === 0 && "(Primary)"}</span>
-                          <div className="d-flex align-items-center gap-2">
-                            {g.age !== '' && g.age !== null && (
-                              <span className={`badge ${parseInt(g.age) >= 60 ? 'bg-success' : 'bg-primary-subtle text-primary'}`} style={{ fontSize: '0.72rem' }}>
-                                Age: {g.age} yrs {parseInt(g.age) >= 60 ? '— Senior Citizen Eligible' : ''}
-                              </span>
-                            )}
-                            {idx > 0 && (
-                              <button type="button" className="btn-close" style={{ fontSize: '0.75rem' }} onClick={() => handleRemoveGuest(idx)}></button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="row g-2">
-                          <div className="col-md-6">
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              placeholder="Full Name *"
-                              required
-                              value={g.fullName}
-                              onChange={(e) => handleGuestChange(idx, 'fullName', e.target.value)}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <select
-                              className="form-select form-select-sm"
-                              value={g.discountID}
-                              onChange={(e) => handleGuestChange(idx, 'discountID', e.target.value)}
-                            >
-                              <option value="">No Discount</option>
-                              {availableDiscounts.map(d => (
-                                <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
                   {/* RESERVATION CHECK-IN & CHECK-OUT DATES */}
                   <div className="row g-2 mb-3 p-3 bg-light rounded border">
                     <div className="col-md-6">

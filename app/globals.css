@@ -1213,13 +1213,20 @@ body.dark-theme div[style*="backgroundColor: '#fff'"] {
   border-color: #334155 !important;
 }
 
-/* Key Tag Receptionist Board Dark Theme Styling */
+/* Key Tag Receptionist Board Light & Dark Theme Styling */
 .key-tag {
-  background-color: #1e293b;
-  border: 1px solid #334155;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
   border-radius: 12px;
   padding: 1.25rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.room-type {
+  color: #2155B5;
+  font-weight: 700;
+  font-size: 1rem;
 }
 
 [data-bs-theme="dark"] .key-tag,
