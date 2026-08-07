@@ -1260,6 +1260,10 @@ body.dark-theme div[style*="background: '#f8fafc'"] {
 /* Typography Colors */
 [data-bs-theme="dark"] .text-dark,
 body.dark-theme .text-dark,
+[data-bs-theme="dark"] .tag-line,
+body.dark-theme .tag-line,
+[data-bs-theme="dark"] .about-figure .tag-line,
+body.dark-theme .about-figure .tag-line,
 [data-bs-theme="dark"] .modal-title,
 body.dark-theme .modal-title,
 [data-bs-theme="dark"] .section-title,

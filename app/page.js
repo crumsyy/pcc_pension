@@ -464,7 +464,7 @@ export default function Home() {
                               setCheckIn(minCheckIn);
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
-                            className="btn btn-pcc-outline btn-sm w-100 fw-bold"
+                            className="btn btn-pcc-primary btn-sm text-white w-100 fw-bold"
                           >
                             Check Availability
                           </button>
