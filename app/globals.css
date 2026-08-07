@@ -1375,3 +1375,74 @@ body.dark-theme .btn-pcc-outline:hover {
   background-color: #2563eb !important;
   color: #ffffff !important;
 }
+
+/* =====================================================================
+   Chatbot Floater & Window Light / Dark Theme Styling
+   ===================================================================== */
+.chat-bubble-sent {
+  background-color: var(--pcc-blue);
+  color: #ffffff;
+}
+
+.chat-bubble-received {
+  background-color: #ffffff;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+}
+
+[data-bs-theme="dark"] .chat-bubble-sent,
+body.dark-theme .chat-bubble-sent {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .chat-bubble-received,
+body.dark-theme .chat-bubble-received {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+}
+
+/* Chatbot Window Container */
+[data-bs-theme="dark"] .chatbot-window,
+body.dark-theme .chatbot-window {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Chat Header */
+[data-bs-theme="dark"] .chatbot-header,
+body.dark-theme .chatbot-header {
+  background-color: #1e293b !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+/* Chat Body */
+[data-bs-theme="dark"] .chatbot-body,
+body.dark-theme .chatbot-body {
+  background-color: #0f172a !important;
+}
+
+/* Request Form & Cards in Chatbot */
+[data-bs-theme="dark"] .chatbot-body .card,
+body.dark-theme .chatbot-body .card {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+}
+
+/* Quick Option Pills in Chat Window */
+[data-bs-theme="dark"] .chatbot-window .btn-outline-secondary,
+body.dark-theme .chatbot-window .btn-outline-secondary {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .chatbot-window .btn-outline-secondary:hover,
+body.dark-theme .chatbot-window .btn-outline-secondary:hover {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}

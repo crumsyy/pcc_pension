@@ -574,15 +574,12 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                     {m.senderName} • {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                   <div 
-                    className="p-2.5 px-3 rounded shadow-sm"
+                    className={`p-2.5 px-3 rounded shadow-sm ${m.senderType !== 'Guest' ? 'chat-bubble-received' : 'chat-bubble-sent'}`}
                     style={{
                       maxWidth: '85%',
                       fontSize: '0.82rem',
                       lineHeight: '1.4',
                       whiteSpace: 'pre-line',
-                      backgroundColor: m.senderType === 'Guest' ? 'var(--pcc-blue)' : (m.senderType === 'System' ? '#f1f5f9' : '#ffffff'),
-                      color: m.senderType === 'Guest' ? '#ffffff' : '#1e293b',
-                      border: m.senderType === 'Receptionist' ? '1px solid #e2e8f0' : 'none',
                       borderRadius: m.senderType === 'Guest' ? '12px 12px 2px 12px' : '12px 12px 12px 2px'
                     }}
                   >
@@ -599,15 +596,12 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                 className={`d-flex ${m.sender === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
               >
                 <div 
-                  className="p-2.5 px-3 rounded shadow-sm"
+                  className={`p-2.5 px-3 rounded shadow-sm ${m.sender !== 'user' ? 'chat-bubble-received' : 'chat-bubble-sent'}`}
                   style={{
                     maxWidth: '85%',
                     fontSize: '0.82rem',
                     lineHeight: '1.4',
                     whiteSpace: 'pre-line',
-                    backgroundColor: m.sender === 'user' ? 'var(--pcc-blue)' : '#ffffff',
-                    color: m.sender === 'user' ? '#fff' : '#1e293b',
-                    border: m.sender === 'bot' ? '1px solid #e2e8f0' : 'none',
                     borderRadius: m.sender === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px'
                   }}
                 >
