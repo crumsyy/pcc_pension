@@ -45,11 +45,8 @@ function CheckInClient() {
       confirmText: 'Confirm',
       cancelText: 'Cancel',
       onConfirm: async () => {
-        try {
-          await onConfirmCallback();
-        } finally {
-          setModalConfig(prev => ({ ...prev, isOpen: false }));
-        }
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        await onConfirmCallback();
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
@@ -219,7 +216,12 @@ function CheckInClient() {
                       <div>
                         <div className="fw-bold text-dark">{b.firstName} {b.lastName}</div>
                         <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType})</small>
-                        <small className="text-muted d-block">Schedule: {new Date(b.checkInDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</small>
+                        <small className="text-muted d-block">
+                          Schedule: {new Date(b.checkInDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
+                          {new Date(b.checkInDateTime) < new Date() && (
+                            <span className="badge bg-warning text-dark ms-2" style={{ fontSize: '0.7rem' }}>Overdue Check-In</span>
+                          )}
+                        </small>
                       </div>
                       <button
                         type="button"

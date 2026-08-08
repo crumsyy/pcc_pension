@@ -18,7 +18,7 @@ export async function GET(request) {
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        WHERE b.status IN ('Checked In', 'Pending Check-in')
+        WHERE b.status IN ('Checked In', 'Checked Out')
         ORDER BY rm.roomNumber
       `),
       dbQuery("SELECT discountID, name, percentage, eligibilityTypeID FROM discounts WHERE isArchived = 0"),

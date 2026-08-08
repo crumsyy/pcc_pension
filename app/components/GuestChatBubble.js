@@ -127,7 +127,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
              "• Standard Check-in: 2:00 PM\n" +
              "• Standard Check-out: 12:00 PM (noon)\n\n" +
              "Early check-in fee: ₱50/hr before 2:00 PM.\n" +
-             "Late check-out fee: ₱150/hr after 12:00 PM.",
+             "Late check-out fee: ₱100/hr after 12:00 PM.",
     amenities: "PCC Pension House Amenities:\n" +
                "• Free High-Speed Wi-Fi\n" +
                "• Air-conditioned Rooms\n" +

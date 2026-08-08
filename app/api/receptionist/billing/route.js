@@ -47,6 +47,10 @@ export async function GET(request) {
 
     const booking = bookingRes[0];
 
+    if (booking.status === 'Pending Check-in' || booking.status === 'Pending' || booking.status === 'Cancelled' || booking.status === 'Canceled') {
+      return NextResponse.json({ error: 'Billing is only available for guests who have checked in or checked out.' }, { status: 400 });
+    }
+
     // 2. Fetch room rate
     const rateRes = await dbQuery(
       "SELECT rate FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = 1",
@@ -121,7 +125,7 @@ export async function GET(request) {
       }
     }
 
-    // Late check-out fee (₱150 per hour extended after 12:00 PM of the check-out day)
+    // Late check-out fee (₱100 per hour extended after 12:00 PM of the check-out day)
     let lateCheckOutFee = 0;
     const standardCheckOutTime = new Date(checkOut);
     standardCheckOutTime.setHours(12, 0, 0, 0);
@@ -133,7 +137,7 @@ export async function GET(request) {
     if (endCheckoutTime > standardCheckOutTime) {
       const lateHours = Math.ceil((endCheckoutTime - standardCheckOutTime) / (1000 * 60 * 60));
       if (lateHours > 0) {
-        lateCheckOutFee = lateHours * 150;
+        lateCheckOutFee = lateHours * 100;
       }
     }
 

@@ -64,11 +64,8 @@ export default function ReceptionistOrders() {
       confirmText: 'Confirm',
       cancelText: 'Cancel',
       onConfirm: async () => {
-        try {
-          await onConfirmCallback();
-        } finally {
-          setModalConfig(prev => ({ ...prev, isOpen: false }));
-        }
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        await onConfirmCallback();
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });

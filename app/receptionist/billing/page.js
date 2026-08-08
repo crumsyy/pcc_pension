@@ -476,7 +476,7 @@ export default function ReceptionistBilling() {
                                 )}
                                 {billDetails.chargesSummary.lateCheckOut > 0 && (
                                   <tr>
-                                    <td colSpan="3">Late Check-Out / Extension Fee (₱150/hr after 12:00 PM)</td>
+                                    <td colSpan="3">Late Check-Out / Extension Fee (₱100/hr after 12:00 PM)</td>
                                     <td className="text-end fw-semibold text-danger">₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</td>
                                   </tr>
                                 )}

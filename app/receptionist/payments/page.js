@@ -63,11 +63,8 @@ function PaymentsClient() {
       confirmText: 'Confirm',
       cancelText: 'Cancel',
       onConfirm: async () => {
-        try {
-          await onConfirmCallback();
-        } finally {
-          setModalConfig(prev => ({ ...prev, isOpen: false }));
-        }
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        await onConfirmCallback();
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
@@ -298,7 +295,7 @@ function PaymentsClient() {
             <div class="section-header">ADDITIONAL FEES</div>
             <table class="info-table">
               ${receipt.earlyCheckIn > 0 ? `<tr><td>Early Check-in Fee (₱50/hr):</td><td class="text-right">₱${parseFloat(receipt.earlyCheckIn).toFixed(2)}</td></tr>` : ''}
-              ${receipt.lateCheckOut > 0 ? `<tr><td>Late Check-out Fee (₱150/hr):</td><td class="text-right">₱${parseFloat(receipt.lateCheckOut).toFixed(2)}</td></tr>` : ''}
+              ${receipt.lateCheckOut > 0 ? `<tr><td>Late Check-out Fee (₱100/hr):</td><td class="text-right">₱${parseFloat(receipt.lateCheckOut).toFixed(2)}</td></tr>` : ''}
             </table>
           ` : ''}
 
