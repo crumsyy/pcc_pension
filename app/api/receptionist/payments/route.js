@@ -46,7 +46,20 @@ export async function GET(request) {
       `)
     ]);
 
-    return NextResponse.json({ success: true, activeBookings, discounts, paymentMethods, paymentHistory });
+    // Filter activeBookings: Checked In guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
+    const filteredActiveBookings = [];
+    for (const b of activeBookings) {
+      if (b.status === 'Checked In') {
+        filteredActiveBookings.push(b);
+      } else if (b.status === 'Checked Out') {
+        const bal = await getBookingBalance(b.bookingID);
+        if (bal > 0.05) {
+          filteredActiveBookings.push(b);
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, activeBookings: filteredActiveBookings, discounts, paymentMethods, paymentHistory });
   } catch (error) {
     console.error("Failed to fetch payments checkout list:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

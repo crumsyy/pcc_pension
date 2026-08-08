@@ -147,7 +147,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     const text = msg.toLowerCase();
     const allItems = [
       ...catalog.products.map(p => ({ ...p, type: 'Product' })),
-      ...catalog.cookedMeals.map(m => ({ ...m, type: 'Product' })),
+      ...catalog.cookedMeals.map(m => ({ ...m, type: 'Product', isCookedMeal: true })),
       ...catalog.amenities.map(a => ({ ...a, type: 'Amenity' }))
     ];
 
@@ -164,13 +164,19 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
         const price = parseFloat(item.price);
         const itemID = item.productID || item.amenityID;
 
+        const now = new Date();
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+        const isRestrictedWindow = item.isCookedMeal && (currentMins < 360 || currentMins > 630);
+
         return {
           itemID,
           name: item.name,
           type: item.type,
           price,
           quantity: qty,
-          total: price * qty
+          total: price * qty,
+          isCookedMeal: !!item.isCookedMeal,
+          isRestrictedWindow
         };
       }
     }
@@ -206,6 +212,16 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     // Check if message is an ordering request
     const detectedOrder = parseOrderIntent(text);
     if (detectedOrder) {
+      if (detectedOrder.isRestrictedWindow) {
+        setTimeout(() => {
+          setBotMessages(prev => [...prev, {
+            sender: 'bot',
+            text: `⚠️ Ordering Window Restricted: Cooked meals (breakfast) can only be ordered between 6:00 AM and 10:30 AM.`
+          }]);
+        }, 350);
+        return;
+      }
+
       setTimeout(() => {
         setPendingOrderPill(detectedOrder);
         setBotMessages(prev => [...prev, {

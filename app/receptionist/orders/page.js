@@ -131,6 +131,17 @@ export default function ReceptionistOrders() {
 
     if (!details) return;
 
+    // Check ordering hours for cooked meals (6:00 AM - 10:30 AM)
+    if (details.productCategoryID === 3) {
+      const now = new Date();
+      const currentMins = now.getHours() * 60 + now.getMinutes();
+      // 6:00 AM = 360 mins, 10:30 AM = 630 mins
+      if (currentMins < 360 || currentMins > 630) {
+        showAlert('warning', 'Ordering Window Restricted', 'Cooked meals (breakfast) can only be ordered between 6:00 AM and 10:30 AM in the morning.');
+        return;
+      }
+    }
+
     // Check stock
     const currentQtyInForm = existsIndex >= 0 ? newOrderForm.items[existsIndex].quantity : 0;
     if (details.productCategoryID !== 3 && details.quantity < currentQtyInForm + qty) {
@@ -442,7 +453,7 @@ export default function ReceptionistOrders() {
                       >
                         <option value="Product">Products</option>
                         <option value="Amenity">Amenities</option>
-                        <option value="Meal">Cooked Meals</option>
+                        <option value="Meal">Cooked Meals (6:00 AM - 10:30 AM Only)</option>
                       </select>
                     </div>
 
