@@ -1538,3 +1538,28 @@ body.dark-theme .form-select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Header, Navbar, & Sidebar Dark Mode Overrides */
+[data-bs-theme="dark"] header,
+body.dark-theme header,
+[data-bs-theme="dark"] nav.navbar,
+body.dark-theme nav.navbar,
+[data-bs-theme="dark"] .guest-hero-card,
+body.dark-theme .guest-hero-card,
+[data-bs-theme="dark"] aside,
+body.dark-theme aside {
+  background-color: #1e293b !important;
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] header *,
+body.dark-theme header *,
+[data-bs-theme="dark"] nav.navbar *,
+body.dark-theme nav.navbar *,
+[data-bs-theme="dark"] .guest-hero-card *,
+body.dark-theme .guest-hero-card *,
+[data-bs-theme="dark"] aside *,
+body.dark-theme aside * {
+  color: #f8fafc !important;
+}

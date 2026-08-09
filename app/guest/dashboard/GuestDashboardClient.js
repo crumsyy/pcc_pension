@@ -831,7 +831,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       )}
 
       {/* GUEST PORTAL ROOT FLEX LAYOUT */}
-      <div className="d-flex flex-column flex-lg-row" style={{ minHeight: '100vh', width: '100%', backgroundColor: '#f8fafc' }}>
+      <div className="d-flex flex-column flex-lg-row" style={{ minHeight: '100vh', width: '100%' }}>
         {/* RESPONSIVE NAVIGATION: DESKTOP LEFT SIDEBAR vs MOBILE TOP NAV */}
         {isDesktop ? (
           <GuestSidebarNav
@@ -869,7 +869,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         )}
 
         {/* MAIN WORKSPACE CONTENT */}
-        <main className={`flex-grow-1 p-3 p-lg-4 ${!isDesktop ? 'pb-5 mb-4' : ''}`} style={{ minWidth: 0, backgroundColor: '#f8fafc', paddingBottom: !isDesktop ? '95px' : undefined }}>
+        <main className={`flex-grow-1 p-3 p-lg-4 ${!isDesktop ? 'pb-5 mb-4' : ''}`} style={{ minWidth: 0, paddingBottom: !isDesktop ? '95px' : undefined }}>
           {viewMode === 'select_room' ? (
             /* VISUAL ROOM LAYOUT SELECTION WORKSPACE */
             <div className="animate__animated animate__fadeIn">
