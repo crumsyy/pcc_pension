@@ -1446,3 +1446,95 @@ body.dark-theme .chatbot-window .btn-outline-secondary:hover {
   background-color: #2563eb !important;
   color: #ffffff !important;
 }
+
+/* =====================================================================
+   Mobile View & Comprehensive Dark Mode Overrides
+   ===================================================================== */
+[data-bs-theme="dark"],
+body.dark-theme {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] body,
+body.dark-theme body,
+[data-bs-theme="dark"] #__next,
+body.dark-theme #__next,
+[data-bs-theme="dark"] main,
+body.dark-theme main,
+[data-bs-theme="dark"] .wrapper,
+body.dark-theme .wrapper,
+[data-bs-theme="dark"] .bg-light,
+body.dark-theme .bg-light,
+[data-bs-theme="dark"] .bg-white,
+body.dark-theme .bg-white,
+[data-bs-theme="dark"] .min-vh-100,
+body.dark-theme .min-vh-100 {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .card,
+body.dark-theme .card,
+[data-bs-theme="dark"] .modal-content,
+body.dark-theme .modal-content,
+[data-bs-theme="dark"] .offcanvas,
+body.dark-theme .offcanvas,
+[data-bs-theme="dark"] .list-group-item,
+body.dark-theme .list-group-item,
+[data-bs-theme="dark"] .dropdown-menu,
+body.dark-theme .dropdown-menu,
+[data-bs-theme="dark"] .nav-tabs .nav-link.active,
+body.dark-theme .nav-tabs .nav-link.active {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .text-dark,
+body.dark-theme .text-dark,
+[data-bs-theme="dark"] .text-black,
+body.dark-theme .text-black,
+[data-bs-theme="dark"] h1, body.dark-theme h1,
+[data-bs-theme="dark"] h2, body.dark-theme h2,
+[data-bs-theme="dark"] h3, body.dark-theme h3,
+[data-bs-theme="dark"] h4, body.dark-theme h4,
+[data-bs-theme="dark"] h5, body.dark-theme h5,
+[data-bs-theme="dark"] h6, body.dark-theme h6 {
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .text-muted,
+body.dark-theme .text-muted,
+[data-bs-theme="dark"] .text-secondary,
+body.dark-theme .text-secondary {
+  color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .form-control,
+body.dark-theme .form-control,
+[data-bs-theme="dark"] .form-select,
+body.dark-theme .form-select {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+body.dark-theme .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus,
+body.dark-theme .form-select:focus {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25) !important;
+}
+
+/* Metric / Stat Cards Text Overflow Fixes */
+.stat-card-number,
+.balance-due-text {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

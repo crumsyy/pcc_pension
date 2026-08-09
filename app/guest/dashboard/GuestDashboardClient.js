@@ -1117,23 +1117,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
 
                 {/* STAY & LOYALTY METRICS WIDGETS */}
-                <div className="row g-3 mb-4">
+                <div className="row g-2 g-md-3 mb-4">
                   <div className="col-4">
-                    <div className="card shadow-sm border-0 p-3 text-center bg-white" style={{ borderRadius: '12px' }}>
-                      <div className="text-pcc-blue fw-bold display-6 mb-0">{totalStaysCount}</div>
-                      <div className="text-muted small fw-semibold">Total Stays</div>
+                    <div className="card shadow-sm border-0 p-2.5 p-md-3 text-center bg-white" style={{ borderRadius: '12px' }}>
+                      <div className="text-pcc-blue fw-bold fs-4 fs-md-3 mb-0 text-nowrap">{totalStaysCount}</div>
+                      <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Total Stays</div>
                     </div>
                   </div>
                   <div className="col-4">
-                    <div className="card shadow-sm border-0 p-3 text-center bg-white" style={{ borderRadius: '12px' }}>
-                      <div className="text-success fw-bold display-6 mb-0">{totalNightsCount}</div>
-                      <div className="text-muted small fw-semibold">Nights Booked</div>
+                    <div className="card shadow-sm border-0 p-2.5 p-md-3 text-center bg-white" style={{ borderRadius: '12px' }}>
+                      <div className="text-success fw-bold fs-4 fs-md-3 mb-0 text-nowrap">{totalNightsCount}</div>
+                      <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Nights Booked</div>
                     </div>
                   </div>
                   <div className="col-4">
-                    <div className="card shadow-sm border-0 p-3 text-center bg-white" style={{ borderRadius: '12px' }}>
-                      <div className="text-danger fw-bold display-6 mb-0">₱{totalActiveBalanceDue.toFixed(0)}</div>
-                      <div className="text-muted small fw-semibold">Balance Due</div>
+                    <div className="card shadow-sm border-0 p-2.5 p-md-3 text-center bg-white" style={{ borderRadius: '12px' }}>
+                      <div className="text-danger fw-bold fs-5 fs-md-3 mb-0 text-nowrap text-truncate" style={{ whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                        ₱{totalActiveBalanceDue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </div>
+                      <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Balance Due</div>
                     </div>
                   </div>
                 </div>
@@ -1562,6 +1564,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       </tr>
                     </tbody>
                   </table>
+                </div>
+
+                {/* THEME & APPEARANCE SETTINGS CARD */}
+                <div className="card shadow-sm border-0 p-3.5 mb-4 bg-white" style={{ borderRadius: '14px' }}>
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div>
+                      <h6 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                        <i className="bi bi-moon-stars-fill text-primary"></i> Theme &amp; Display Setup
+                      </h6>
+                      <div className="text-muted small">Switch between Light Mode and Night Mode for comfortable viewing across devices.</div>
+                    </div>
+                    <ThemeToggle />
+                  </div>
                 </div>
 
                 {/* MY BOOKINGS HISTORY */}
