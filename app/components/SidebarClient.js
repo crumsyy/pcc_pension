@@ -202,19 +202,26 @@ export default function SidebarClient({ session, role, children }) {
       >
         {/* DESKTOP HEADER PORTION */}
         <header 
-          className="d-none d-lg-flex justify-content-between align-items-center px-4 py-3 bg-white border-bottom shadow-sm" 
-          style={{ position: 'sticky', top: 0, zIndex: 1010 }}
+          className="d-none d-lg-flex justify-content-between align-items-center px-4 py-3 text-white border-bottom shadow-sm" 
+          style={{ position: 'sticky', top: 0, zIndex: 1010, backgroundColor: 'var(--pcc-blue)' }}
         >
           <div>
-            <h4 className="m-0 text-dark fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
+            <h4 className="m-0 text-white fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
           </div>
           <div className="d-flex align-items-center gap-3">
             <ThemeToggle />
             <NotificationBell />
-            <div className="text-end" style={{ borderLeft: '1px solid #eee', paddingLeft: '15px' }}>
-              <div className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
-              <div className="text-muted" style={{ fontSize: '0.72rem' }}>{role}</div>
+            <div className="text-end" style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}>
+              <div className="fw-semibold text-white" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
+              <div className="text-white-50" style={{ fontSize: '0.72rem' }}>{role}</div>
             </div>
+            <button
+              className="btn btn-sm btn-outline-light ms-1"
+              title="Log Out"
+              onClick={() => setShowLogoutModal(true)}
+            >
+              <i className="bi bi-power"></i>
+            </button>
           </div>
         </header>
 

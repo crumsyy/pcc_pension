@@ -24,7 +24,6 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll every 15 seconds for notifications
     const interval = setInterval(fetchNotifications, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -60,19 +59,21 @@ export default function NotificationBell() {
         setUnreadCount(0);
       }
     } catch (err) {
-      console.error("Failed to mark all as read:", err);
+      console.error("Failed to mark notifications as read:", err);
     }
   };
 
-  const handleMarkRead = async (id) => {
+  const handleMarkRead = async (notificationID) => {
     try {
       const res = await fetch("/api/notifications", {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "mark_read", notificationID: id }),
+        body: JSON.stringify({ notificationID }),
       });
       if (res.ok) {
-        setNotifications(prev => prev.map(n => n.notificationID === id ? { ...n, isRead: 1 } : n));
+        setNotifications(prev =>
+          prev.map(n => (n.notificationID === notificationID ? { ...n, isRead: 1 } : n))
+        );
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch (err) {
@@ -80,72 +81,70 @@ export default function NotificationBell() {
     }
   };
 
-  const formatTime = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+  const getNotificationIcon = (title = '') => {
+    const t = title.toLowerCase();
+    if (t.includes('payment') || t.includes('billing') || t.includes('balance')) return 'bi-credit-card-fill text-success';
+    if (t.includes('booking') || t.includes('reservation') || t.includes('check-in')) return 'bi-calendar-check-fill text-primary';
+    if (t.includes('alert') || t.includes('stock') || t.includes('warning')) return 'bi-exclamation-triangle-fill text-warning';
+    return 'bi-bell-fill text-info';
   };
 
   return (
-    <div className="position-relative" ref={dropdownRef} style={{ zIndex: 1050 }}>
+    <div className="position-relative d-inline-block" ref={dropdownRef}>
       <button
         onClick={toggleDropdown}
-        className="btn d-flex align-items-center justify-content-center p-0 rounded-circle"
+        className="btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 transition-all position-relative"
         style={{
           width: "36px",
           height: "36px",
-          background: "none",
-          border: "none",
-          color: "currentColor",
-          cursor: "pointer",
-          transition: "transform 0.2s ease, opacity 0.2s ease"
+          backgroundColor: "rgba(255, 255, 255, 0.18)",
+          color: "#ffffff",
+          border: "1px solid rgba(255, 255, 255, 0.3)",
+          cursor: "pointer"
         }}
         aria-label="Notifications"
         type="button"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
+        <i className="bi bi-bell-fill fs-6"></i>
         {unreadCount > 0 && (
           <span
-            className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light"
-            style={{ fontSize: "0.65rem", padding: "0.25em 0.5em" }}
+            className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white"
+            style={{ fontSize: "0.6rem", padding: "0.22em 0.45em" }}
           >
             {unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Modern Dropdown Menu */}
       {isOpen && (
         <div
-          className="position-absolute bg-white rounded shadow-lg border mt-2"
+          className="position-absolute bg-white rounded-3 shadow-lg border mt-2 animate__animated animate__fadeIn"
           style={{
-            width: "320px",
+            width: "340px",
             right: 0,
-            maxHeight: "400px",
+            maxHeight: "440px",
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            borderColor: "var(--pcc-mist)"
+            zIndex: 1060,
+            borderRadius: "14px"
           }}
         >
           {/* Header */}
           <div
-            className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom"
-            style={{ backgroundColor: "#fbfdfb" }}
+            className="d-flex justify-content-between align-items-center px-3 py-2.5 text-white"
+            style={{ backgroundColor: "var(--pcc-blue)" }}
           >
-            <span className="fw-bold text-dark" style={{ fontSize: "0.9rem" }}>Notifications</span>
+            <div className="d-flex align-items-center gap-2">
+              <i className="bi bi-bell-fill text-warning"></i>
+              <span className="fw-bold small mb-0">Notifications</span>
+            </div>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="btn btn-link p-0 text-blue fw-semibold text-decoration-none"
-                style={{ fontSize: "0.75rem" }}
+                className="btn btn-xs btn-outline-light rounded-pill px-2 py-0.5 fw-semibold"
+                style={{ fontSize: "0.68rem" }}
               >
                 Mark all read
               </button>
@@ -153,9 +152,10 @@ export default function NotificationBell() {
           </div>
 
           {/* List Area */}
-          <div className="flex-grow-1 overflow-auto" style={{ maxHeight: "330px" }}>
+          <div className="flex-grow-1 overflow-auto p-2" style={{ maxHeight: "360px" }}>
             {notifications.length === 0 ? (
-              <div className="text-center py-4 text-muted" style={{ fontSize: "0.85rem" }}>
+              <div className="text-center py-4 text-muted small">
+                <i className="bi bi-bell-slash fs-3 d-block mb-1 text-secondary opacity-50"></i>
                 No notifications yet.
               </div>
             ) : (
@@ -163,34 +163,34 @@ export default function NotificationBell() {
                 <div
                   key={n.notificationID}
                   onClick={() => !n.isRead && handleMarkRead(n.notificationID)}
-                  className={`px-3 py-2 border-bottom ${!n.isRead ? "bg-light" : ""}`}
+                  className={`p-2.5 mb-1.5 rounded-3 border transition-all ${
+                    !n.isRead ? "bg-light border-primary-subtle shadow-xs" : "bg-white border-light text-muted"
+                  }`}
                   style={{
                     cursor: !n.isRead ? "pointer" : "default",
-                    transition: "background-color 0.2s ease"
+                    fontSize: "0.8rem"
                   }}
                 >
-                  <div className="d-flex justify-content-between align-items-start">
-                    <span
-                      className={`fw-semibold ${!n.isRead ? "text-dark" : "text-muted"}`}
-                      style={{ fontSize: "0.82rem" }}
-                    >
-                      {n.title}
-                    </span>
-                    {!n.isRead && (
-                      <span
-                        className="bg-primary rounded-circle"
-                        style={{ width: "6px", height: "6px", display: "inline-block", marginTop: "4px" }}
-                      ></span>
-                    )}
-                  </div>
-                  <p
-                    className="mb-1 text-muted mt-1"
-                    style={{ fontSize: "0.75rem", lineHeight: "1.3", whiteSpace: "pre-line" }}
-                  >
-                    {n.message}
-                  </p>
-                  <div className="text-end" style={{ fontSize: "0.65rem", color: "var(--pcc-muted)" }}>
-                    {formatTime(n.createdAt)}
+                  <div className="d-flex align-items-start gap-2.5">
+                    <div className="mt-0.5">
+                      <i className={`bi ${getNotificationIcon(n.title)} fs-6`}></i>
+                    </div>
+                    <div className="flex-grow-1">
+                      <div className="d-flex justify-content-between align-items-center mb-0.5">
+                        <span className={`fw-bold ${!n.isRead ? "text-dark" : "text-secondary"}`}>
+                          {n.title}
+                        </span>
+                        {!n.isRead && (
+                          <span className="badge bg-primary rounded-circle p-1" style={{ width: '6px', height: '6px' }}></span>
+                        )}
+                      </div>
+                      <p className="mb-1 text-secondary small" style={{ lineHeight: "1.3", fontSize: "0.78rem" }}>
+                        {n.message}
+                      </p>
+                      <small className="text-muted d-block" style={{ fontSize: "0.68rem" }}>
+                        {new Date(n.createdAt).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
+                      </small>
+                    </div>
                   </div>
                 </div>
               ))
