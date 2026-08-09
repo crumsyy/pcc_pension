@@ -109,10 +109,11 @@ export async function POST(request) {
     try {
       await connection.beginTransaction();
 
+      const deliveryTime = body.deliveryTime || null;
       // Create Order
       const [orderRes] = await connection.execute(
-        "INSERT INTO orders (orderDateTime, orderStatus, guestID) VALUES (?, 'Pending', ?)",
-        [nowStr, guest.guestID]
+        "INSERT INTO orders (orderDateTime, orderStatus, guestID, hasCookedMeal, deliveryTime) VALUES (?, 'Pending', ?, ?, ?)",
+        [nowStr, guest.guestID, containsCookedMeal ? 1 : 0, deliveryTime]
       );
       const orderID = orderRes.insertId;
 

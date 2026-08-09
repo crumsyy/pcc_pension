@@ -177,10 +177,11 @@ export async function POST(request) {
         );
         const roomHasBreakfast = rateCheck.length > 0;
 
+        const deliveryTime = body.deliveryTime || null;
         // 1. Create order record
         const [orderResult] = await connection.execute(
-          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal) VALUES ('Preparing', ?, ?, ?, ?)",
-          [nowStr, guestID, activeBookingID, containsCookedBreakfast ? 1 : 0]
+          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal, deliveryTime) VALUES ('Preparing', ?, ?, ?, ?, ?)",
+          [nowStr, guestID, activeBookingID, containsCookedBreakfast ? 1 : 0, deliveryTime]
         );
         const orderID = orderResult.insertId;
 

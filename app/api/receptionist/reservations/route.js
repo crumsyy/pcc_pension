@@ -141,7 +141,14 @@ export async function GET(request) {
       dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name")
     ]);
 
-    return NextResponse.json({ reservations, guests, rooms, paymentMethods, discounts });
+    const syncedReservations = reservations.map(r => {
+      if (r.bookingStatus && r.bookingStatus !== 'Pending Check-in' && r.bookingStatus !== 'Pending') {
+        return { ...r, status: r.bookingStatus };
+      }
+      return r;
+    });
+
+    return NextResponse.json({ reservations: syncedReservations, guests, rooms, paymentMethods, discounts });
   } catch (error) {
     console.error("Failed to fetch reservations data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

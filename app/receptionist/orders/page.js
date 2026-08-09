@@ -498,6 +498,33 @@ export default function ReceptionistOrders() {
                     </div>
                   </div>
 
+                  {newOrderForm.items.some(item => cookedMeals.some(m => m.productID === item.itemID)) && (
+                    <div className="mb-3 p-3 bg-primary-subtle border border-primary-subtle rounded">
+                      <label className="form-label fw-bold text-primary small mb-1">
+                        Scheduled Delivery Time (6:00 AM - 10:30 AM) *
+                      </label>
+                      <select
+                        className="form-select form-select-sm fw-semibold"
+                        value={newOrderForm.deliveryTime || '08:00 AM'}
+                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
+                      >
+                        <option value="06:00 AM">06:00 AM</option>
+                        <option value="06:30 AM">06:30 AM</option>
+                        <option value="07:00 AM">07:00 AM</option>
+                        <option value="07:30 AM">07:30 AM</option>
+                        <option value="08:00 AM">08:00 AM</option>
+                        <option value="08:30 AM">08:30 AM</option>
+                        <option value="09:00 AM">09:00 AM</option>
+                        <option value="09:30 AM">09:30 AM</option>
+                        <option value="10:00 AM">10:00 AM</option>
+                        <option value="10:30 AM">10:30 AM</option>
+                      </select>
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                        Specify the preferred delivery time for room service breakfast/meal delivery.
+                      </small>
+                    </div>
+                  )}
+
                   <h6 className="fw-bold text-dark mt-4 mb-2">Order Items Bucket:</h6>
                   <div className="table-responsive border rounded mb-3 bg-white" style={{ maxHeight: '200px' }}>
                     <table className="table table-sm align-middle mb-0">
@@ -521,8 +548,8 @@ export default function ReceptionistOrders() {
                         ) : (
                           newOrderForm.items.map((item, idx) => (
                             <tr key={idx}>
-                              <td className="ps-3 fw-semibold">{item.name}</td>
-                              <td>{item.type}</td>
+                              <td className="ps-3 fw-bold">{item.name}</td>
+                              <td><span className="badge bg-secondary-subtle text-secondary">{item.type}</span></td>
                               <td>₱{item.price.toFixed(2)}</td>
                               <td>{item.quantity}</td>
                               <td className="fw-bold">₱{(item.price * item.quantity).toFixed(2)}</td>

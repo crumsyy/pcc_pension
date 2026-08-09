@@ -254,7 +254,8 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               quantity: pendingOrderPill.quantity,
               name: pendingOrderPill.name
             }
-          ]
+          ],
+          deliveryTime: pendingOrderPill.isCookedMeal ? (pendingOrderPill.deliveryTime || '08:00 AM') : null
         })
       });
 

@@ -365,6 +365,10 @@ export async function POST(request) {
 
       await dbQuery("UPDATE booking SET status = 'Checked In', checkInDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
       await dbQuery("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
+      await dbQuery(
+        "UPDATE reservation SET status = 'Checked In' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = (SELECT guestID FROM booking WHERE bookingID = ?) AND roomID = ? AND status IN ('Pending', 'Confirmed', 'Booked'))",
+        [bookingID, bookingID, roomID]
+      );
 
       return NextResponse.json({
         success: true,
@@ -376,21 +380,65 @@ export async function POST(request) {
 
     if (action === 'checkout') {
       const bookingID = parseInt(body.bookingID);
+      const confirmEarlyCheckOut = !!body.confirmEarlyCheckOut;
       
-      const res = await dbQuery("SELECT roomID FROM booking WHERE bookingID = ?", [bookingID]);
+      const res = await dbQuery("SELECT roomID, checkOutDateTime FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
-      const roomID = res[0].roomID;
+      const { roomID, checkOutDateTime } = res[0];
 
       const localNow = new Date();
+      const scheduledCheckOut = new Date(String(checkOutDateTime).replace(' ', 'T'));
+
+      if (localNow < scheduledCheckOut && !confirmEarlyCheckOut) {
+        const scheduledFormatted = scheduledCheckOut.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+        return NextResponse.json({
+          requiresEarlyCheckOutConfirmation: true,
+          message: `The scheduled check-out time for this guest is ${scheduledFormatted}. The guest is checking out early today. Are you sure you want to process early check-out now?`
+        });
+      }
+
       const pad = (num) => String(num).padStart(2, '0');
       const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
 
       await dbQuery("UPDATE booking SET status = 'Checked Out', checkOutDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
       await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
+      await dbQuery(
+        "UPDATE reservation SET status = 'Checked Out' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = (SELECT guestID FROM booking WHERE bookingID = ?) AND roomID = ? AND status IN ('Pending', 'Confirmed', 'Booked', 'Checked In'))",
+        [bookingID, bookingID, roomID]
+      );
 
       return NextResponse.json({ success: true, message: 'Guest checked out successfully.' });
+    }
+
+    if (action === 'extend_stay' || action === 'update_checkout') {
+      const bookingID = parseInt(body.bookingID);
+      const newCheckOutDateTime = body.newCheckOutDateTime;
+
+      if (!bookingID || !newCheckOutDateTime) {
+        return NextResponse.json({ error: 'Booking ID and new check-out date & time are required.' }, { status: 400 });
+      }
+
+      const bRes = await dbQuery("SELECT checkInDateTime, guestID, roomID FROM booking WHERE bookingID = ?", [bookingID]);
+      if (bRes.length === 0) {
+        return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      }
+
+      const inD = new Date(String(bRes[0].checkInDateTime).replace(' ', 'T'));
+      const newOutD = new Date(String(newCheckOutDateTime).replace(' ', 'T'));
+
+      if (isNaN(newOutD.getTime()) || newOutD <= inD) {
+        return NextResponse.json({ error: 'New Check-out date & time must be strictly after the Check-in date & time.' }, { status: 400 });
+      }
+
+      await dbQuery("UPDATE booking SET checkOutDateTime = ? WHERE bookingID = ?", [newCheckOutDateTime, bookingID]);
+      await dbQuery(
+        "UPDATE reservation SET checkOutDateTime = ? WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = ? AND roomID = ? AND status IN ('Confirmed', 'Booked', 'Checked In'))",
+        [newCheckOutDateTime, bookingID, bRes[0].guestID, bRes[0].roomID]
+      );
+
+      return NextResponse.json({ success: true, message: 'Stay extended / Check-out date updated successfully.' });
     }
 
     if (action === 'cancel') {
