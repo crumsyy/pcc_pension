@@ -14,7 +14,8 @@ export default function InactivityTimeout() {
       pathname.startsWith('/receptionist') || 
       pathname.startsWith('/guest');
 
-    if (!isDashboard) return;
+    // Receptionists operate 24/7 for processing bookings & room service orders; exempt /receptionist from inactivity auto-logout
+    if (!isDashboard || pathname.startsWith('/receptionist')) return;
 
     // Timeout duration: 15 minutes (900,000 milliseconds)
     const timeoutDuration = 15 * 60 * 1000;

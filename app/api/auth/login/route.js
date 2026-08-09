@@ -100,9 +100,13 @@ export async function POST(request) {
       sessionToken
     };
 
-    // Sign the JWT token (valid for 24 hours, client-side inactivity handles auto-logout)
+    // Sign the JWT token (Receptionists get 30-day persistent session for 24/7 operations)
+    const isReceptionist = user.role === 'Receptionist';
+    const expiresIn = isReceptionist ? '30d' : '24h';
+    const maxAge = isReceptionist ? 30 * 86400 : 86400;
+
     const secret = process.env.JWT_SECRET || 'super_secret_pcc_pension_key_change_me_in_production';
-    const token = jwt.sign(tokenData, secret, { expiresIn: '24h' });
+    const token = jwt.sign(tokenData, secret, { expiresIn });
 
     // Set Response Cookie
     const response = NextResponse.json({
@@ -115,7 +119,7 @@ export async function POST(request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 86400, // 24 hours
+      maxAge,
       path: '/'
     });
 

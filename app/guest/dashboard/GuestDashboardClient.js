@@ -267,6 +267,46 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
   };
 
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_all_read" }),
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: 1 })));
+        setUnreadCount(0);
+      }
+    } catch (err) {
+      console.error("Failed to mark notifications read:", err);
+    }
+  };
+
+  const handleMarkSingleNotificationRead = async (id) => {
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationID: id }),
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.map(n => n.notificationID === id ? { ...n, isRead: 1 } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error("Failed to mark notification read:", err);
+    }
+  };
+
+  const getNotificationIcon = (title = '') => {
+    const t = title.toLowerCase();
+    if (t.includes('payment') || t.includes('billing') || t.includes('balance')) return 'bi-credit-card-fill text-success';
+    if (t.includes('booking') || t.includes('reservation') || t.includes('check-in')) return 'bi-calendar-check-fill text-primary';
+    if (t.includes('alert') || t.includes('stock') || t.includes('warning')) return 'bi-exclamation-triangle-fill text-warning';
+    return 'bi-bell-fill text-info';
+  };
+
   const fetchDiscounts = async () => {
     try {
       const res = await fetch('/api/receptionist/bookings?discountsOnly=true');
@@ -1491,34 +1531,67 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             {/* TAB 4: NOTIFICATIONS TAB */}
             {activeTab === 'notifications' && (
               <div className="animate__animated animate__fadeIn">
-                <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
                   <div>
-                    <h4 className="fw-bold text-dark mb-0">Notifications</h4>
-                    <span className="text-muted small">Stay updated on your reservations, bookings, and payments.</span>
+                    <h4 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                      <i className="bi bi-bell-fill text-primary"></i> Notifications
+                    </h4>
+                    <span className="text-muted small">Stay updated on your stay reservations, bookings, and SOA payments.</span>
                   </div>
-                  {unreadCount > 0 && (
-                    <span className="badge bg-danger rounded-pill px-3 py-1.5">{unreadCount} Unread</span>
-                  )}
+                  <div className="d-flex align-items-center gap-2">
+                    {unreadCount > 0 && (
+                      <span className="badge bg-danger rounded-pill px-3 py-1.5">{unreadCount} Unread</span>
+                    )}
+                    {unreadCount > 0 && (
+                      <button
+                        className="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold shadow-xs"
+                        onClick={handleMarkAllNotificationsRead}
+                        style={{ fontSize: '0.78rem' }}
+                      >
+                        Mark All as Read
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {notifications.length === 0 ? (
-                  <div className="card shadow-sm border-0 p-4 text-center text-muted" style={{ borderRadius: '12px' }}>
-                    <i className="bi bi-bell-slash display-4 mb-2"></i>
-                    <p className="mb-0">No notifications yet. Alerts will appear here in real time.</p>
+                  <div className="card shadow-sm border-0 p-5 text-center text-muted bg-white" style={{ borderRadius: '16px' }}>
+                    <i className="bi bi-bell-slash text-secondary display-3 mb-2 opacity-50"></i>
+                    <h6 className="fw-bold text-dark mb-1">No notifications yet</h6>
+                    <p className="mb-0 small">Real-time alerts regarding your room bookings and SOA payments will appear here.</p>
                   </div>
                 ) : (
-                  <div className="d-flex flex-column gap-2">
+                  <div className="d-flex flex-column gap-2.5">
                     {notifications.map((n) => (
                       <div
                         key={n.notificationID}
-                        className={`card shadow-sm border-0 p-3 ${!n.isRead ? 'border-start border-4 border-pcc-blue bg-light' : 'bg-white'}`}
-                        style={{ borderRadius: '12px' }}
+                        onClick={() => !n.isRead && handleMarkSingleNotificationRead(n.notificationID)}
+                        className={`card shadow-sm border-0 p-3.5 transition-all ${
+                          !n.isRead ? 'border-start border-4 border-pcc-blue bg-light shadow-sm cursor-pointer' : 'bg-white text-muted'
+                        }`}
+                        style={{ borderRadius: '14px', cursor: !n.isRead ? 'pointer' : 'default' }}
                       >
-                        <div className="d-flex justify-content-between align-items-start mb-1">
-                          <h6 className="fw-bold text-dark mb-0">{n.title}</h6>
-                          <span className="text-muted" style={{ fontSize: '0.72rem' }}>{formatDate(n.createdAt)}</span>
+                        <div className="d-flex align-items-start gap-3">
+                          <div className="rounded-circle p-2.5 d-flex align-items-center justify-content-center bg-white shadow-xs" style={{ width: '42px', height: '42px', flexShrink: 0 }}>
+                            <i className={`bi ${getNotificationIcon(n.title)} fs-5`}></i>
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <h6 className={`fw-bold mb-0 ${!n.isRead ? 'text-dark' : 'text-secondary'}`} style={{ fontSize: '0.92rem' }}>
+                                {n.title}
+                              </h6>
+                              <div className="d-flex align-items-center gap-2">
+                                {!n.isRead && (
+                                  <span className="badge bg-primary text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.65rem' }}>NEW</span>
+                                )}
+                                <span className="text-muted" style={{ fontSize: '0.74rem' }}>
+                                  {new Date(n.createdAt).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-secondary small mb-0" style={{ lineHeight: '1.45' }}>{n.message}</p>
+                          </div>
                         </div>
-                        <p className="text-secondary small mb-0">{n.message}</p>
                       </div>
                     ))}
                   </div>

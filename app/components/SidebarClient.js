@@ -215,13 +215,6 @@ export default function SidebarClient({ session, role, children }) {
               <div className="fw-semibold text-white" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
               <div className="text-white-50" style={{ fontSize: '0.72rem' }}>{role}</div>
             </div>
-            <button
-              className="btn btn-sm btn-outline-light ms-1"
-              title="Log Out"
-              onClick={() => setShowLogoutModal(true)}
-            >
-              <i className="bi bi-power"></i>
-            </button>
           </div>
         </header>
 
