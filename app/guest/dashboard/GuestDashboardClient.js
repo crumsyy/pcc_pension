@@ -1152,7 +1152,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <h3 className="fw-bold mb-1">Welcome, {guest.firstName}! <span className="fs-6 font-monospace opacity-75 fw-normal">(User ID: #{guest.userID || guest.guestID})</span></h3>
                       <p className="mb-0 text-white-50 small">Experience comfort and convenience at PCC Home Suite Home.</p>
                     </div>
-                    <ThemeToggle />
                   </div>
                 </div>
 

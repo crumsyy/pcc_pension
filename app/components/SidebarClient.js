@@ -91,7 +91,6 @@ export default function SidebarClient({ session, role, children }) {
           <span className="fw-bold text-white" style={{ fontSize: '0.95rem' }}>{labelText}</span>
         </Link>
         <div className="d-flex align-items-center gap-2">
-          <ThemeToggle />
           <NotificationBell />
           <button 
             className="btn btn-outline-light d-flex align-items-center justify-content-center p-2" 
@@ -209,7 +208,6 @@ export default function SidebarClient({ session, role, children }) {
             <h4 className="m-0 text-white fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
           </div>
           <div className="d-flex align-items-center gap-3">
-            <ThemeToggle />
             <NotificationBell />
             <div className="text-end" style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}>
               <div className="fw-semibold text-white" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
