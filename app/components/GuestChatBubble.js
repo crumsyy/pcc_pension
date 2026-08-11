@@ -443,7 +443,11 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
   };
 
   const handleOpenRequestForm = () => {
-    handleDirectReceptionistRequest();
+    if (currentUser && currentUser.email) {
+      handleDirectReceptionistRequest();
+    } else {
+      setShowRequestForm(true);
+    }
   };
 
   const handleSendLiveMessage = async (e) => {

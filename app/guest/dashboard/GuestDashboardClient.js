@@ -1149,7 +1149,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <span className="fw-bold mb-2 d-inline-block px-3 py-1 rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.25)', color: '#ffffff', fontSize: '0.78rem', border: '1px solid rgba(255, 255, 255, 0.4)' }}>
                         Hotel Guest Portal
                       </span>
-                      <h3 className="fw-bold mb-1">Welcome, {guest.firstName}!</h3>
+                      <h3 className="fw-bold mb-1">Welcome, {guest.firstName}! <span className="fs-6 font-monospace opacity-75 fw-normal">(User ID: #{guest.userID || guest.guestID})</span></h3>
                       <p className="mb-0 text-white-50 small">Experience comfort and convenience at PCC Home Suite Home.</p>
                     </div>
                     <ThemeToggle />
@@ -1610,7 +1610,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
                       </div>
                       <div>
-                        <h5 className="fw-bold mb-0 text-dark">{guest.firstName} {guest.lastName}</h5>
+                        <h5 className="fw-bold mb-0 text-dark">{guest.firstName} {guest.lastName} <span className="badge bg-secondary text-white font-monospace ms-1" style={{ fontSize: '0.74rem' }}>User ID: #{guest.userID || guest.guestID}</span></h5>
                         <div className="text-muted small">{guest.email}</div>
                       </div>
                     </div>
@@ -1619,6 +1619,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                   <table className="table table-borderless table-sm small mb-0">
                     <tbody>
+                      <tr>
+                        <td className="text-muted" style={{ width: '120px' }}>User ID:</td>
+                        <td className="fw-bold text-pcc-blue font-monospace">#{guest.userID || guest.guestID}</td>
+                      </tr>
                       <tr>
                         <td className="text-muted" style={{ width: '120px' }}>Contact:</td>
                         <td className="fw-semibold">{guest.contact}</td>

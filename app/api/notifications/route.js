@@ -119,6 +119,60 @@ export async function GET() {
             );
           }
         }
+        
+        // 3. Checked In bookings overdue past 12:00 PM check-out threshold (Late Check-out Fee Alerts)
+        const overdueBookings = await dbQuery(`
+          SELECT b.bookingID, b.guestID, g.userID, g.firstName, g.lastName, b.checkOutDateTime, rm.roomNumber, rt.rate as roomRate
+          FROM booking b
+          JOIN guest g ON g.guestID = b.guestID
+          JOIN room rm ON rm.roomID = b.roomID
+          JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+          WHERE b.status = 'Checked In'
+            AND NOW() > b.checkOutDateTime
+        `);
+
+        for (const b of overdueBookings) {
+          const checkOutDt = new Date(String(b.checkOutDateTime).replace(' ', 'T'));
+          const standardCheckOut = new Date(checkOutDt);
+          standardCheckOut.setHours(12, 0, 0, 0);
+
+          const now = new Date();
+          if (now > standardCheckOut) {
+            const lateHours = Math.max(1, Math.ceil((now - standardCheckOut) / (1000 * 60 * 60)));
+            const isFullNight = lateHours > 22;
+            const lateFee = isFullNight ? parseFloat(b.roomRate || 0) : lateHours * 100;
+            const feeDetailStr = isFullNight ? `1 full night room price (exceeded 22 hrs)` : `${lateHours} hr/s @ ₱100/hr`;
+
+            const guestLateMsg = `⏰ Late Check-Out Alert: A late check-out fee of ₱${lateFee.toFixed(2)} (${feeDetailStr}) has been added to your stay billing for Room ${b.roomNumber}.`;
+            const staffLateMsg = `⏰ Late Check-Out Alert: Guest ${b.firstName} ${b.lastName} (Room ${b.roomNumber}) has incurred a late check-out fee of ₱${lateFee.toFixed(2)} (${feeDetailStr}).`;
+
+            if (b.userID) {
+              const alreadyNotified = await dbQuery(
+                "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
+                [b.userID, guestLateMsg]
+              );
+              if (alreadyNotified.length === 0) {
+                await dbQuery(
+                  "INSERT INTO notification (userID, title, message) VALUES (?, 'Late Check-Out Fee Incurred', ?)",
+                  [b.userID, guestLateMsg]
+                );
+              }
+            }
+
+            for (const sID of staffUserIDs) {
+              const staffAlreadyNotified = await dbQuery(
+                "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
+                [sID, staffLateMsg]
+              );
+              if (staffAlreadyNotified.length === 0) {
+                await dbQuery(
+                  "INSERT INTO notification (userID, title, message) VALUES (?, 'Late Check-Out Fee Alert', ?)",
+                  [sID, staffLateMsg]
+                );
+              }
+            }
+          }
+        }
       }
     } catch (reminderError) {
       console.error("Auto reminder generation error:", reminderError);

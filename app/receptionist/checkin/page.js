@@ -24,6 +24,51 @@ function CheckInClient() {
     cancelText: 'Cancel'
   });
 
+  const [updateModal, setUpdateModal] = useState({
+    isOpen: false,
+    booking: null,
+    newCheckOut: ''
+  });
+
+  const handleOpenUpdateModal = (b) => {
+    const dt = b.checkOutDateTime ? new Date(String(b.checkOutDateTime).replace(' ', 'T')) : new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const formattedLocal = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    
+    setUpdateModal({
+      isOpen: true,
+      booking: b,
+      newCheckOut: formattedLocal
+    });
+  };
+
+  const handleSaveUpdateCheckOut = async () => {
+    if (!updateModal.newCheckOut || !updateModal.booking) return;
+
+    try {
+      const formattedForDb = updateModal.newCheckOut.replace('T', ' ') + ':00';
+
+      const res = await fetch('/api/receptionist/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_checkout',
+          bookingID: updateModal.booking.bookingID,
+          newCheckOutDateTime: formattedForDb
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update check-out date & time');
+
+      showAlert('success', 'Check-Out Schedule Updated', 'Check-out schedule updated successfully. The guest and front desk have been notified.');
+      setUpdateModal({ isOpen: false, booking: null, newCheckOut: '' });
+      fetchBookings();
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
+  };
+
   const showAlert = (type, title, message) => {
     setModalConfig({
       isOpen: true,
@@ -230,7 +275,9 @@ function CheckInClient() {
                   {filterList(arrivals).map(b => (
                     <div key={b.bookingID} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3 mb-2 border rounded">
                       <div>
-                        <div className="fw-bold text-dark">{b.firstName} {b.lastName}</div>
+                        <div className="fw-bold text-dark">
+                          {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>User ID: #{b.userID || b.guestID}</span>
+                        </div>
                         <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType})</small>
                         <small className="text-muted d-block">
                           Schedule: {new Date(b.checkInDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
@@ -270,14 +317,25 @@ function CheckInClient() {
                   {filterList(departures).map(b => (
                     <div key={b.bookingID} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3 mb-2 border rounded">
                       <div>
-                        <div className="fw-bold text-dark">{b.firstName} {b.lastName} (Stay #{b.bookingID})</div>
-                        <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType})</small>
+                        <div className="fw-bold text-dark">
+                          {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>User ID: #{b.userID || b.guestID}</span>
+                        </div>
+                        <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType}) • Stay #{b.bookingID}</small>
                         <small className="text-muted d-block">Check-out Schedule: {new Date(b.checkOutDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</small>
                         <small className="d-block mt-1">
                           Remaining Balance: <strong className={b.remainingBalance > 0 ? "text-danger" : "text-success"}>₱{parseFloat(b.remainingBalance || 0).toFixed(2)}</strong>
                         </small>
                       </div>
-                      <div className="actions-wrapper d-flex gap-2">
+                      <div className="actions-wrapper d-flex align-items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-outline-primary fw-bold d-inline-flex align-items-center gap-1 py-1 px-2"
+                          title="Update Check-Out Date & Time"
+                          onClick={() => handleOpenUpdateModal(b)}
+                          style={{ fontSize: '0.75rem' }}
+                        >
+                          <i className="fa-solid fa-clock-rotate-left"></i> Update Check-Out
+                        </button>
                         <a
                           href={`/receptionist/billing?bookingID=${b.bookingID}`}
                           className="action-btn action-btn-view"
@@ -297,6 +355,48 @@ function CheckInClient() {
           </div>
         )}
       </div>
+
+      {/* UPDATE CHECK-OUT DATE & TIME MODAL */}
+      {updateModal.isOpen && updateModal.booking && (
+        <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1080 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px' }}>
+              <div className="modal-header border-bottom px-4 py-3">
+                <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                  <i className="fa-solid fa-clock-rotate-left text-primary"></i> Update Check-Out Date &amp; Time
+                </h5>
+                <button type="button" className="btn-close" onClick={() => setUpdateModal({ isOpen: false, booking: null, newCheckOut: '' })}></button>
+              </div>
+              <div className="modal-body p-4">
+                <div className="alert alert-info py-2 small mb-3">
+                  <strong>Guest:</strong> {updateModal.booking.firstName} {updateModal.booking.lastName} (User ID: #{updateModal.booking.userID || updateModal.booking.guestID})<br/>
+                  <strong>Room:</strong> Room {updateModal.booking.roomNumber} ({updateModal.booking.roomType})
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-bold text-dark small">New Check-Out Date &amp; Time *</label>
+                  <input
+                    type="datetime-local"
+                    className="form-control"
+                    value={updateModal.newCheckOut}
+                    onChange={(e) => setUpdateModal(prev => ({ ...prev, newCheckOut: e.target.value }))}
+                    required
+                  />
+                  <small className="text-muted d-block mt-1">Select the new scheduled check-out date and time for this stay.</small>
+                </div>
+              </div>
+              <div className="modal-footer border-top px-4 py-3 d-flex justify-content-end gap-2">
+                <button type="button" className="btn btn-secondary text-white" onClick={() => setUpdateModal({ isOpen: false, booking: null, newCheckOut: '' })}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary fw-bold text-white" onClick={handleSaveUpdateCheckOut}>
+                  Save Check-Out Schedule
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ModalDialog
         isOpen={modalConfig.isOpen}

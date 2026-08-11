@@ -67,8 +67,11 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
       {/* LOGGED IN USER INFO & LOGOUT BUTTON */}
       <div className="pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
         <div className="text-white-50" style={{ fontSize: '0.75rem' }}>Logged in as</div>
-        <div className="text-white fw-semibold text-truncate mb-2" style={{ fontSize: '0.88rem' }}>
+        <div className="text-white fw-semibold text-truncate mb-1" style={{ fontSize: '0.88rem' }}>
           {guest?.firstName} {guest?.lastName}
+        </div>
+        <div className="text-white-50 font-monospace mb-2" style={{ fontSize: '0.72rem' }}>
+          User ID: #{guest?.userID || guest?.guestID}
         </div>
         <button
           type="button"
