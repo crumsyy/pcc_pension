@@ -192,6 +192,20 @@ export async function POST(request) {
 
       await connection.commit();
       await syncInventoryStock();
+
+      // Notify Administrators (roleID = 1) of front-desk payment
+      try {
+        const adminUsers = await dbQuery("SELECT userID FROM user WHERE roleID = 1 AND status = 'Active'");
+        for (const admin of adminUsers) {
+          await dbQuery(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'Payment Received Alert', ?)",
+            [admin.userID, `Payment of ₱${parsedAmount.toFixed(2)} received for Booking #${bookingID} (Billing #${billingID}).`]
+          );
+        }
+      } catch (notifyErr) {
+        console.error("Failed to notify admin of payment:", notifyErr);
+      }
+
       return NextResponse.json({ success: true, message: 'Payment recorded and checkout completed successfully.', billingID, paymentID, checkoutChecked: shouldCheckout });
     } catch (err) {
       await connection.rollback();

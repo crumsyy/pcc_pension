@@ -239,6 +239,19 @@ export async function POST(request) {
           [nowStr, billingID, paymentID]
         );
 
+        // Notify Administrators (roleID = 1) of down payment
+        try {
+          const [admins] = await conn.execute("SELECT userID FROM user WHERE roleID = 1 AND status = 'Active'");
+          for (const adm of admins) {
+            await conn.execute(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Down Payment Received Alert', ?)",
+              [adm.userID, `Down payment of ₱${parseFloat(downPaymentAmount).toFixed(2)} received for Booking #${bookingID}.`]
+            );
+          }
+        } catch (adminNotifyErr) {
+          console.error("Failed to notify admin of down payment:", adminNotifyErr);
+        }
+
         await conn.commit();
         return NextResponse.json({ success: true, message: 'Booking created successfully with down payment.' });
       } catch (e) {
