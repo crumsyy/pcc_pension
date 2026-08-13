@@ -10,7 +10,8 @@ export default function DateInput({
   id,
   name,
   disabled = false,
-  min
+  min,
+  max
 }) {
   // Convert incoming value ("MM/DD/YYYY" or "YYYY-MM-DD") to HTML5 date format ("YYYY-MM-DD")
   const uiToInputValue = (val) => {
@@ -54,6 +55,7 @@ export default function DateInput({
 
   const inputValue = uiToInputValue(value);
   const minInputValue = uiToInputValue(min);
+  const maxInputValue = uiToInputValue(max);
 
   return (
     <input
@@ -66,6 +68,7 @@ export default function DateInput({
       onChange={handleChange}
       disabled={disabled}
       min={minInputValue || undefined}
+      max={maxInputValue || undefined}
     />
   );
 }

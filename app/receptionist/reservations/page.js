@@ -55,6 +55,14 @@ function ReservationsClient() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [maxDobStr, setMaxDobStr] = useState('');
+
+  useEffect(() => {
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    setMaxDobStr(`${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`);
+  }, []);
 
   // Modals
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'convert' | null
@@ -386,6 +394,13 @@ function ReservationsClient() {
       }
       if (!walkInForm.dateOfBirth) {
         showAlert('error', 'Validation Error', 'Birthdate is required for walk-in guests.');
+        return;
+      }
+      const pad = (n) => String(n).padStart(2, '0');
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      if (walkInForm.dateOfBirth >= todayStr) {
+        showAlert('error', 'Validation Error', 'Date of birth cannot be today or a future date. Please enter a valid birthdate.');
         return;
       }
       if (!walkInForm.contact || walkInForm.contact.length !== 11) {
@@ -820,6 +835,7 @@ function ReservationsClient() {
                             className="form-control form-control-sm"
                             value={walkInForm.dateOfBirth}
                             onChange={(e) => setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                            max={maxDobStr}
                           />
                         </div>
                         <div className="col-md-4 mb-2">

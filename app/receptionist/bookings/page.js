@@ -55,6 +55,14 @@ function BookingsClient() {
   const [cancellingBookingID, setCancellingBookingID] = useState(null);
   const [cancelRemarks, setCancelRemarks] = useState('');
   const [minDateTime, setMinDateTime] = useState('');
+  const [maxDobStr, setMaxDobStr] = useState('');
+
+  useEffect(() => {
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    setMaxDobStr(`${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`);
+  }, []);
 
   const [formData, setFormData] = useState({
     guestID: '',
@@ -984,6 +992,7 @@ function BookingsClient() {
                             className="form-control form-control-sm"
                             value={walkInForm.dateOfBirth}
                             onChange={(e) => setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                            max={maxDobStr}
                           />
                         </div>
                         <div className="col-md-4 mb-2">

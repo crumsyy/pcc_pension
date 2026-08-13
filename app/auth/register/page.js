@@ -36,6 +36,14 @@ export default function RegisterPage() {
   
   // Field specific invalid states
   const [fieldErrors, setFieldErrors] = useState({});
+  const [maxDobStr, setMaxDobStr] = useState('');
+
+  useEffect(() => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    setMaxDobStr(`${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`);
+  }, []);
 
   // Input sanitization helpers
   const handleNameChange = (val, setter, fieldName) => {
@@ -74,6 +82,17 @@ export default function RegisterPage() {
 
     if (!dob || !isValidDate(dob)) {
       errors.dob = true;
+    } else {
+      const selectedDob = new Date(toDbDate(dob) + 'T00:00:00');
+      const todayFloor = new Date();
+      todayFloor.setHours(0, 0, 0, 0);
+      if (selectedDob >= todayFloor) {
+        errors.dob = true;
+        setErrorMsg("Birthdate cannot be today or a future date. Please select a valid past date.");
+        setFieldErrors({ ...errors, dob: true });
+        setLoading(false);
+        return;
+      }
     }
 
     // REQ190: Password strength check
@@ -221,9 +240,10 @@ export default function RegisterPage() {
                         setDob(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, dob: false }));
                       }}
+                      max={maxDobStr}
                       required
                     />
-                    <div className="invalid-feedback">Please enter a valid date of birth (MM/DD/YYYY).</div>
+                    <div className="invalid-feedback">Please enter a valid past birthdate before today.</div>
                   </div>
                   <div className="col-md-6">
                     <label className="form-label">City <span className="text-danger">*</span></label>

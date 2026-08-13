@@ -101,6 +101,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   // Responsive Breakpoint State (1024px)
   const [isDesktop, setIsDesktop] = useState(false);
+  const [minReserveDateStr, setMinReserveDateStr] = useState('');
+  const [minBookDateStr, setMinBookDateStr] = useState('');
+
+  useEffect(() => {
+    const t = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    setMinBookDateStr(`${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`);
+
+    const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 2);
+    setMinReserveDateStr(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 1024px)');
@@ -1895,7 +1906,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <input
                         type="date"
                         className="form-control form-control-sm"
-                        min={new Date(Date.now() + 2 * 86400000).toISOString().substring(0, 10)}
+                        min={minReserveDateStr}
                         value={checkInDate}
                         onChange={(e) => setCheckInDate(e.target.value)}
                         required
@@ -1986,7 +1997,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <h6 className="fw-bold text-dark mb-2">Stay Schedule</h6>
                         <div className="mb-2">
                           <label className="form-label mb-0 small text-muted">Check-In Date *</label>
-                          <input type="date" className="form-control form-control-sm" value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} required />
+                          <input
+                            type="date"
+                            className="form-control form-control-sm"
+                            min={minBookDateStr}
+                            value={checkInDate}
+                            onChange={(e) => setCheckInDate(e.target.value)}
+                            required
+                          />
                         </div>
                         <div className="mb-2">
                           <label className="form-label mb-0 small text-muted">Check-Out Date *</label>
