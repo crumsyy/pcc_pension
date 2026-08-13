@@ -81,11 +81,11 @@ export default function ReceptionistInquiries() {
     fetchInquiries();
   }, []);
 
-  // Real-time polling every 3 seconds for active inquiry list and message thread updates
+  // Fast polling (every 1.2s) for active inquiry list and message thread updates
   useEffect(() => {
     const interval = setInterval(() => {
       fetchInquiries(true);
-    }, 3000);
+    }, 1200);
     return () => clearInterval(interval);
   }, [selectedInquiry?.inquiryID]);
 
