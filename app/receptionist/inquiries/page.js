@@ -90,21 +90,27 @@ export default function ReceptionistInquiries() {
     return () => clearInterval(interval);
   }, [selectedInquiry?.inquiryID]);
 
-  // Smart auto-scroll: Only scroll to bottom if user is already near bottom or selected a new inquiry
-  const prevInquiryIDRef = useRef(null);
+  // Always start and align view at the bottom of the conversation when switching or receiving messages
+  const lastInquiryIDRef = useRef(null);
 
   useEffect(() => {
-    if (chatMessagesRef.current) {
-      const container = chatMessagesRef.current;
-      const isNewInquiry = prevInquiryIDRef.current !== selectedInquiry?.inquiryID;
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
-      
-      if (isNewInquiry || isNearBottom) {
-        container.scrollTop = container.scrollHeight;
-      }
-      prevInquiryIDRef.current = selectedInquiry?.inquiryID;
+    if (!chatMessagesRef.current) return;
+    const container = chatMessagesRef.current;
+    const isNewInquiry = lastInquiryIDRef.current !== selectedInquiry?.inquiryID;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+
+    if (isNewInquiry || isNearBottom || loadingMessages) {
+      // Use double requestAnimationFrame to scroll AFTER browser DOM calculation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (chatMessagesRef.current) {
+            chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+          }
+        });
+      });
     }
-  }, [messages, selectedInquiry]);
+    lastInquiryIDRef.current = selectedInquiry?.inquiryID;
+  }, [messages, selectedInquiry?.inquiryID, loadingMessages]);
 
   const handleSelectInquiry = (inq) => {
     if (selectedInquiry?.inquiryID === inq.inquiryID) return;

@@ -115,9 +115,14 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
   }, [isOpen, currentUser, requestForm.email]);
 
   useEffect(() => {
-    if (chatBodyRef.current) {
-      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-    }
+    if (!chatBodyRef.current) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (chatBodyRef.current) {
+          chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+        }
+      });
+    });
   }, [botMessages, liveMessages, activeTabMode, isOpen, showRequestForm, pendingOrderPill]);
 
   const knowledgeBase = {
