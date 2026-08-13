@@ -448,10 +448,15 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Cancellation remarks are mandatory.' }, { status: 400 });
       }
       
-      const res = await dbQuery("SELECT roomID FROM booking WHERE bookingID = ?", [bookingID]);
+      const res = await dbQuery("SELECT roomID, status FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
+
+      if (res[0].status === 'Checked In' || res[0].status === 'Checked Out') {
+        return NextResponse.json({ error: 'Cannot cancel a booking that is already checked in or checked out. Please process Check-Out instead.' }, { status: 400 });
+      }
+
       const roomID = res[0].roomID;
 
       await dbQuery("UPDATE booking SET status = 'Cancelled', cancelRemarks = ? WHERE bookingID = ?", [cancelRemarks, bookingID]);

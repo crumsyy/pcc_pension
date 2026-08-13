@@ -844,7 +844,7 @@ function BookingsClient() {
                           <i className="fa-solid fa-users"></i>
                         </button>
 
-                        {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Checked In') && (
+                        {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'Booked') && (
                           <button
                             type="button"
                             className="action-btn action-btn-delete"
