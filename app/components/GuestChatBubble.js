@@ -877,13 +877,6 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   Location
                 </button>
                 <button
-                  className="btn btn-xs btn-outline-primary py-1 px-2 rounded-pill fw-bold"
-                  onClick={handleStartOrderWizard}
-                  style={{ fontSize: '0.72rem' }}
-                >
-                  🛒 Order Food / Items
-                </button>
-                <button
                   className="btn btn-xs btn-pcc-primary py-1 px-2 rounded-pill text-white fw-bold w-100 mt-1"
                   onClick={handleOpenRequestForm}
                   style={{ fontSize: '0.75rem' }}
@@ -904,7 +897,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               <input
                 type="text"
                 className="form-control form-control-sm flex-grow-1"
-                placeholder={activeTabMode === 'live' ? "Type message to Receptionist..." : "Type question or order (e.g. 1 Bottled Water)..."}
+                placeholder={activeTabMode === 'live' ? "Type message to Receptionist..." : "Type your inquiry..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 style={{ fontSize: '0.8rem' }}
