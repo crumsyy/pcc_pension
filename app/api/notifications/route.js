@@ -8,20 +8,20 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Admin-only restriction: Non-admin users do not receive/access system alerts
-  if (session.role !== 'Administrator') {
+  // Staff notification access (Administrator & Receptionist)
+  if (session.role !== 'Administrator' && session.role !== 'Receptionist') {
     return NextResponse.json({ success: true, notifications: [] });
   }
 
   const userID = session.userID;
 
   try {
-    // 1. Auto-generate Low Inventory Alerts (quantity <= reorderLevel) for Admin
+    // 1. Auto-generate Low Inventory Alerts (quantity <= reorderLevel) for Staff
     try {
       const lowStockItems = await dbQuery(`
         SELECT i.inventoryID, p.name as productName, i.quantity, COALESCE(i.reorderLevel, 5) as reorderLevel
         FROM inventory i
-        JOIN product p ON p.productID = i.productID
+        JOIN products p ON p.productID = i.productID
         WHERE i.quantity <= COALESCE(i.reorderLevel, 5) AND i.isArchived = 0
       `);
 

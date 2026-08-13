@@ -10,6 +10,20 @@ export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
   const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutDots, setLogoutDots] = useState(1);
+
+  useEffect(() => {
+    let interval;
+    if (loggingOut) {
+      interval = setInterval(() => {
+        setLogoutDots((prev) => (prev % 3) + 1);
+      }, 400);
+    } else {
+      setLogoutDots(1);
+    }
+    return () => clearInterval(interval);
+  }, [loggingOut]);
 
   // SVG Icons
   const icons = {
@@ -91,15 +105,8 @@ export default function SidebarClient({ session, role, children }) {
           <span className="fw-bold text-white" style={{ fontSize: '0.95rem' }}>{labelText}</span>
         </Link>
         <div className="d-flex align-items-center gap-2">
-          {role === 'Administrator' && <NotificationBell />}
-          <Link 
-            href={dashboardUrl} 
-            className="btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 text-white transition-all"
-            style={{ width: '36px', height: '36px', backgroundColor: 'rgba(255,255,255,0.18)' }}
-            title="Go to Dashboard"
-          >
-            <i className="bi bi-speedometer2" style={{ fontSize: '1.1rem' }}></i>
-          </Link>
+          {(role === 'Administrator' || role === 'Receptionist') && <NotificationBell />}
+          <ThemeToggle />
           <button 
             className="btn btn-outline-light d-flex align-items-center justify-content-center p-2" 
             type="button" 
@@ -216,20 +223,11 @@ export default function SidebarClient({ session, role, children }) {
             <h4 className="m-0 text-white fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
           </div>
           <div className="d-flex align-items-center gap-3">
-            {role === 'Administrator' && <NotificationBell />}
-            <div className="d-flex align-items-center gap-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}>
-              <div className="text-end">
-                <div className="fw-semibold text-white" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
-                <div className="text-white-50" style={{ fontSize: '0.72rem' }}>{role}</div>
-              </div>
-              <Link 
-                href={dashboardUrl} 
-                className="btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 text-white transition-all ms-1"
-                style={{ width: '36px', height: '36px', backgroundColor: 'rgba(255,255,255,0.18)' }}
-                title="Go to Dashboard"
-              >
-                <i className="bi bi-speedometer2" style={{ fontSize: '1.1rem' }}></i>
-              </Link>
+            {(role === 'Administrator' || role === 'Receptionist') && <NotificationBell />}
+            <ThemeToggle />
+            <div className="text-end" style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}>
+              <div className="fw-semibold text-white" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
+              <div className="text-white-50" style={{ fontSize: '0.72rem' }}>{role}</div>
             </div>
           </div>
         </header>
@@ -265,7 +263,9 @@ export default function SidebarClient({ session, role, children }) {
                   <button 
                     type="button" 
                     className="btn btn-pcc-primary text-white w-100 fw-semibold"
+                    disabled={loggingOut}
                     onClick={async () => {
+                      setLoggingOut(true);
                       try {
                         await fetch('/api/auth/logout', { method: 'POST' });
                         window.location.href = '/auth/login';
@@ -275,7 +275,7 @@ export default function SidebarClient({ session, role, children }) {
                       }
                     }}
                   >
-                    Log Out
+                    {loggingOut ? `Logging out${'.'.repeat(logoutDots)}` : 'Log Out'}
                   </button>
                 </div>
               </div>
