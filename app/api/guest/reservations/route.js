@@ -110,16 +110,16 @@ export async function POST(request) {
       }
     }
 
-    // Rule 1A: Reservation Lead Time (At least 2 days before check-in date)
+    // Rule 1A: Reservation Lead Time (Only exactly 2 days ahead of today allowed)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const targetDate = new Date(checkInDate + 'T00:00:00');
     targetDate.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 2) {
+    if (diffDays !== 2) {
       return NextResponse.json({
-        error: "Reservations must be made at least 2 days before your intended check-in date."
+        error: "Reservations can only be made for exactly 2 days ahead of today."
       }, { status: 400 });
     }
 

@@ -93,6 +93,22 @@ function ReservationsClient() {
   const [checkOutTime, setCheckOutTime] = useState('12:00');
   const [specialRequests, setSpecialRequests] = useState('');
 
+  const handleResDateChange = (val) => {
+    setResDate(val);
+    if (val && isValidDate(val)) {
+      const dbStr = toDbDate(val);
+      if (dbStr) {
+        const inDate = new Date(dbStr + 'T00:00:00');
+        if (!isNaN(inDate.getTime())) {
+          inDate.setDate(inDate.getDate() + 1);
+          const pad = (n) => String(n).padStart(2, '0');
+          const nextDayDb = `${inDate.getFullYear()}-${pad(inDate.getMonth() + 1)}-${pad(inDate.getDate())}`;
+          setCheckOutDate(toUiDate(nextDayDb));
+        }
+      }
+    }
+  };
+
   // Room guests matching Booking form
   const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
 
@@ -936,9 +952,10 @@ function ReservationsClient() {
                       <DateInput
                         className="form-control form-control-sm"
                         value={resDate}
-                        onChange={(e) => setResDate(e.target.value)}
+                        onChange={(e) => handleResDateChange(e.target.value)}
                         required
                         min={minResDate}
+                        max={minResDate}
                       />
                     </div>
                     <div className="col-md-6">

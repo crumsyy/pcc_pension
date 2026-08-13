@@ -153,6 +153,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   // Form States
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().substring(0, 10));
   const [checkOutDate, setCheckOutDate] = useState(new Date(Date.now() + 86400000).toISOString().substring(0, 10));
+
+  const handleCheckInDateChange = (val) => {
+    setCheckInDate(val);
+    if (val) {
+      const inDate = new Date(val + 'T00:00:00');
+      if (!isNaN(inDate.getTime())) {
+        inDate.setDate(inDate.getDate() + 1);
+        const pad = (n) => String(n).padStart(2, '0');
+        const nextDayStr = `${inDate.getFullYear()}-${pad(inDate.getMonth() + 1)}-${pad(inDate.getDate())}`;
+        setCheckOutDate(nextDayStr);
+      }
+    }
+  };
   const [numGuests, setNumGuests] = useState(1);
   const [breakfastOption, setBreakfastOption] = useState('with'); // 'with' | 'without'
   const [specialRequests, setSpecialRequests] = useState('');
@@ -1490,6 +1503,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                             e.stopPropagation();
                                             setSelectedRoom(rm);
                                             setFlowAction('reserve');
+                                            handleCheckInDateChange(minReserveDateStr);
                                             setActiveModal('reserve_form');
                                           }}
                                           style={{ fontSize: '0.78rem' }}
@@ -1503,6 +1517,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                             e.stopPropagation();
                                             setSelectedRoom(rm);
                                             setFlowAction('book');
+                                            handleCheckInDateChange(minBookDateStr);
                                             setActiveModal('book_form');
                                           }}
                                           style={{ fontSize: '0.78rem' }}
@@ -1911,8 +1926,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         type="date"
                         className="form-control form-control-sm"
                         min={minReserveDateStr}
+                        max={minReserveDateStr}
                         value={checkInDate}
-                        onChange={(e) => setCheckInDate(e.target.value)}
+                        onChange={(e) => handleCheckInDateChange(e.target.value)}
                         required
                       />
                     </div>
@@ -2006,7 +2022,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             className="form-control form-control-sm"
                             min={minBookDateStr}
                             value={checkInDate}
-                            onChange={(e) => setCheckInDate(e.target.value)}
+                            onChange={(e) => handleCheckInDateChange(e.target.value)}
                             required
                           />
                         </div>

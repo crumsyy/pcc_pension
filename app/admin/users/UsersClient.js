@@ -446,7 +446,7 @@ export default function UsersClient() {
             <table className="table align-middle mb-0">
               <thead>
                 <tr>
-                  <th>#</th>
+                  <th>User ID</th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Contact</th>
@@ -468,7 +468,7 @@ export default function UsersClient() {
                     const isSelf = u.userID === currentUserID;
                     return (
                       <tr key={u.userID}>
-                        <td>{i + 1}</td>
+                        <td><strong className="text-pcc-blue">#USER-{u.userID}</strong></td>
                         <td>
                           <strong>
                             {u.middleName ? `${u.firstName} ${u.middleName.charAt(0).toUpperCase()}. ${u.lastName}` : `${u.firstName} ${u.lastName}`}

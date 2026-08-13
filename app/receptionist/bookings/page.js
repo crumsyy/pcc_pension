@@ -85,6 +85,22 @@ function BookingsClient() {
   const [checkOutDate, setCheckOutDate] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
 
+  const handleCheckInDateChange = (val) => {
+    setCheckInDate(val);
+    if (val && isValidDate(val)) {
+      const dbStr = toDbDate(val);
+      if (dbStr) {
+        const inDate = new Date(dbStr + 'T00:00:00');
+        if (!isNaN(inDate.getTime())) {
+          inDate.setDate(inDate.getDate() + 1);
+          const pad = (n) => String(n).padStart(2, '0');
+          const nextDayDb = `${inDate.getFullYear()}-${pad(inDate.getMonth() + 1)}-${pad(inDate.getDate())}`;
+          setCheckOutDate(toUiDate(nextDayDb));
+        }
+      }
+    }
+  };
+
   const [isWalkIn, setIsWalkIn] = useState(false);
   const [walkInForm, setWalkInForm] = useState({
     firstName: '',
@@ -1206,6 +1222,9 @@ function BookingsClient() {
                           const now = new Date();
                           const pad = (n) => String(n).padStart(2, '0');
                           setCheckInDate(toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`));
+                          const tomorrow = new Date(now);
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          setCheckOutDate(toUiDate(`${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`));
                           setCheckInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
                           setFormData(prev => ({ ...prev, status: 'Checked In' }));
                         }}
@@ -1229,7 +1248,7 @@ function BookingsClient() {
                     <div className="row g-2 mb-3 p-3 bg-light rounded border">
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Check-In Date *</label>
-                        <DateInput value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} required />
+                        <DateInput value={checkInDate} onChange={(e) => handleCheckInDateChange(e.target.value)} required />
                       </div>
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Check-In Time *</label>

@@ -92,6 +92,14 @@ export default function SidebarClient({ session, role, children }) {
         </Link>
         <div className="d-flex align-items-center gap-2">
           {role === 'Administrator' && <NotificationBell />}
+          <Link 
+            href={dashboardUrl} 
+            className="btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 text-white transition-all"
+            style={{ width: '36px', height: '36px', backgroundColor: 'rgba(255,255,255,0.18)' }}
+            title="Go to Dashboard"
+          >
+            <i className="bi bi-speedometer2" style={{ fontSize: '1.1rem' }}></i>
+          </Link>
           <button 
             className="btn btn-outline-light d-flex align-items-center justify-content-center p-2" 
             type="button" 
@@ -209,9 +217,19 @@ export default function SidebarClient({ session, role, children }) {
           </div>
           <div className="d-flex align-items-center gap-3">
             {role === 'Administrator' && <NotificationBell />}
-            <div className="text-end" style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}>
-              <div className="fw-semibold text-white" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
-              <div className="text-white-50" style={{ fontSize: '0.72rem' }}>{role}</div>
+            <div className="d-flex align-items-center gap-2" style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}>
+              <div className="text-end">
+                <div className="fw-semibold text-white" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
+                <div className="text-white-50" style={{ fontSize: '0.72rem' }}>{role}</div>
+              </div>
+              <Link 
+                href={dashboardUrl} 
+                className="btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 text-white transition-all ms-1"
+                style={{ width: '36px', height: '36px', backgroundColor: 'rgba(255,255,255,0.18)' }}
+                title="Go to Dashboard"
+              >
+                <i className="bi bi-speedometer2" style={{ fontSize: '1.1rem' }}></i>
+              </Link>
             </div>
           </div>
         </header>
