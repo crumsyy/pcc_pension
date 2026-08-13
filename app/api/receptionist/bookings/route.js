@@ -443,26 +443,52 @@ export async function POST(request) {
 
     if (action === 'cancel') {
       const bookingID = parseInt(body.bookingID);
-      const cancelRemarks = body.cancelRemarks?.trim() || '';
+      let cancelRemarks = body.cancelRemarks?.trim() || '';
       if (!cancelRemarks) {
         return NextResponse.json({ error: 'Cancellation remarks are mandatory.' }, { status: 400 });
       }
       
-      const res = await dbQuery("SELECT roomID, status FROM booking WHERE bookingID = ?", [bookingID]);
+      const res = await dbQuery("SELECT roomID, status, guestID FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
 
-      if (res[0].status === 'Checked In' || res[0].status === 'Checked Out') {
-        return NextResponse.json({ error: 'Cannot cancel a booking that is already checked in or checked out. Please process Check-Out instead.' }, { status: 400 });
+      if (res[0].status === 'Checked Out') {
+        return NextResponse.json({ error: 'Cannot cancel a booking that has already checked out.' }, { status: 400 });
+      }
+
+      const wasCheckedIn = res[0].status === 'Checked In';
+      if (wasCheckedIn) {
+        cancelRemarks += ' [Checked-In Stay Cancelled — Non-Refundable Policy Enforced]';
       }
 
       const roomID = res[0].roomID;
 
       await dbQuery("UPDATE booking SET status = 'Cancelled', cancelRemarks = ? WHERE bookingID = ?", [cancelRemarks, bookingID]);
       await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
+      await dbQuery(
+        "UPDATE reservation SET status = 'Cancelled' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = ? AND roomID = ? AND status IN ('Pending', 'Confirmed', 'Booked', 'Checked In'))",
+        [bookingID, res[0].guestID, roomID]
+      );
 
-      return NextResponse.json({ success: true, message: 'Booking canceled successfully.' });
+      // Notify Guest if account exists
+      const guestRes = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [res[0].guestID]);
+      if (guestRes.length > 0 && guestRes[0].userID) {
+        const notifyMsg = wasCheckedIn 
+          ? `⚠️ Stay Cancelled: Your checked-in stay (Booking #${bookingID}) has been cancelled. As per hotel policy, payments made are non-refundable.`
+          : `Notice: Booking #${bookingID} has been cancelled by front desk staff.`;
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Booking Cancellation Notice', ?)",
+          [guestRes[0].userID, notifyMsg]
+        );
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        message: wasCheckedIn 
+          ? 'Checked-in stay cancelled successfully. Room is now available. (Note: Payments made are non-refundable).' 
+          : 'Booking cancelled successfully.' 
+      });
     }
 
     if (action === 'noshow') {

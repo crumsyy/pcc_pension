@@ -667,10 +667,44 @@ function BookingsClient() {
     });
   };
 
-  const openCancelModal = (id) => {
-    setCancellingBookingID(id);
+  const [cancellingBookingObj, setCancellingBookingObj] = useState(null);
+
+  const openCancelModal = (b) => {
+    setCancellingBookingObj(b);
+    setCancellingBookingID(b.bookingID);
     setCancelRemarks('');
     setActiveModal('cancel_reason');
+  };
+
+  const handleCancelSubmit = async (e) => {
+    e.preventDefault();
+    if (!cancellingBookingID) return;
+    if (!cancelRemarks.trim()) {
+      showAlert('error', 'Validation Error', 'Please enter cancellation remarks.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/receptionist/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cancel',
+          bookingID: cancellingBookingID,
+          cancelRemarks
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to cancel booking');
+
+      showAlert('success', 'Booking Cancelled', data.message || 'Booking cancelled successfully.');
+      setActiveModal(null);
+      setCancellingBookingObj(null);
+      fetchData();
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
   };
 
   const handleSaveGuestsSubmit = async (e) => {
@@ -844,7 +878,7 @@ function BookingsClient() {
                           <i className="fa-solid fa-users"></i>
                         </button>
 
-                        {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'Booked') && (
+                        {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'Booked' || b.status === 'Checked In') && (
                           <button
                             type="button"
                             className="action-btn action-btn-delete"
@@ -852,7 +886,7 @@ function BookingsClient() {
                             data-bs-placement="top"
                             title="Cancel Booking"
                             aria-label="Cancel Booking"
-                            onClick={() => openCancelModal(b.bookingID)}
+                            onClick={() => openCancelModal(b)}
                           >
                             <i className="fa-solid fa-xmark"></i>
                           </button>
@@ -1538,6 +1572,54 @@ function BookingsClient() {
                 <div className="modal-footer border-top">
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                   <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Registered Guests</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* CANCEL BOOKING REASON MODAL */}
+      {activeModal === 'cancel_reason' && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px' }}>
+              <div className="modal-header text-white" style={{ background: '#dc3545' }}>
+                <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
+                  <i className="fa-solid fa-ban"></i> Cancel Booking #{cancellingBookingID}
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleCancelSubmit}>
+                <div className="modal-body p-4">
+                  {cancellingBookingObj && cancellingBookingObj.status === 'Checked In' && (
+                    <div className="alert alert-warning border-warning d-flex align-items-start gap-3 mb-3 p-3" style={{ borderRadius: '10px' }}>
+                      <i className="fa-solid fa-triangle-exclamation text-warning fs-3 mt-1"></i>
+                      <div className="small">
+                        <strong className="text-dark d-block mb-1 fs-6">⚠️ Non-Refundable Policy Notice:</strong>
+                        This guest is currently <strong>CHECKED IN</strong> to Room {cancellingBookingObj.roomNumber}. Cancelling this active stay will make the room available, but as per hotel policy, <strong>all payments made are strictly NON-REFUNDABLE</strong>.
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold text-dark">Cancellation Remarks / Reason *</label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      placeholder="Please specify reason for cancellation..."
+                      required
+                      value={cancelRemarks}
+                      onChange={(e) => setCancelRemarks(e.target.value)}
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="modal-footer border-top px-4 py-3 d-flex justify-content-end gap-2">
+                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>
+                    Dismiss
+                  </button>
+                  <button type="submit" className="btn btn-danger text-white fw-bold">
+                    Confirm Cancellation
+                  </button>
                 </div>
               </form>
             </div>
