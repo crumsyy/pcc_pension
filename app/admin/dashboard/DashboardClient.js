@@ -92,17 +92,7 @@ export default function DashboardClient({ userName }) {
         </div>
       </div>
 
-      {/* System Alerts */}
-      {lowStockCount > 0 && (
-        <div className="alert alert-warning d-flex align-items-center gap-2 mb-2 shadow-sm" role="alert">
-          <span>
-            ⚠ <strong>{lowStockCount} item(s)</strong> are running low on stock.
-          </span>
-          <Link href="/admin/inventory" className="ms-auto btn btn-sm btn-warning">
-            View Alerts
-          </Link>
-        </div>
-      )}
+
 
 
 
