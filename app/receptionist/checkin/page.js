@@ -45,6 +45,14 @@ function CheckInClient() {
   const handleSaveUpdateCheckOut = async () => {
     if (!updateModal.newCheckOut || !updateModal.booking) return;
 
+    const inDateObj = new Date(String(updateModal.booking.checkInDateTime).replace(' ', 'T'));
+    const outDateObj = new Date(String(updateModal.newCheckOut).replace(' ', 'T'));
+
+    if (outDateObj <= inDateObj) {
+      showAlert('error', 'Validation Error', 'Check-out time must be later than check-in time.');
+      return;
+    }
+
     try {
       const formattedForDb = updateModal.newCheckOut.replace('T', ' ') + ':00';
 

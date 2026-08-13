@@ -105,7 +105,7 @@ export async function POST(request) {
       const checkOutD = new Date(checkOutDate + 'T00:00:00');
       if (checkOutD <= checkInD) {
         return NextResponse.json({
-          error: "Check-in date and Check-out date cannot be the same. Check-out date must be strictly after Check-in date."
+          error: "Check-out time must be later than check-in time."
         }, { status: 400 });
       }
     }

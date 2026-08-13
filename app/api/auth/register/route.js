@@ -39,6 +39,17 @@ export async function POST(request) {
     }
     if (!dob || isNaN(Date.parse(dob))) {
       errors.push("Please provide a valid date of birth.");
+    } else {
+      const birthDate = new Date(dob + 'T00:00:00');
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const mDiff = today.getMonth() - birthDate.getMonth();
+      if (mDiff < 0 || (mDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 18) {
+        errors.push("You must be at least 18 years old to proceed.");
+      }
     }
     if (!city || !nameRegex.test(city.trim())) {
       errors.push("City must contain letters only.");

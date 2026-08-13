@@ -443,7 +443,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     chosenCheckIn.setHours(0, 0, 0, 0);
 
     if (checkOutDate && checkOutDate <= checkInDate) {
-      showAlert('warning', 'Invalid Stay Dates', 'Check-in date and Check-out date cannot be the same. Check-out date must be strictly after Check-in date.');
+      showAlert('warning', 'Invalid Stay Dates', 'Check-out time must be later than check-in time.');
       return;
     }
 
@@ -482,6 +482,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleProceedToPayment = (e) => {
     e.preventDefault();
+    if (checkOutDate && checkOutDate <= checkInDate) {
+      showAlert('warning', 'Invalid Stay Dates', 'Check-out time must be later than check-in time.');
+      return;
+    }
     if (discountedGuests.some(g => !g.discountID || !g.discountIdNumber.trim())) {
       showAlert('warning', 'Missing Discount Info', 'Please select a discount type and enter valid ID numbers for all discounted guests.');
       return;

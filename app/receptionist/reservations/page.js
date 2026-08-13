@@ -58,10 +58,10 @@ function ReservationsClient() {
   const [maxDobStr, setMaxDobStr] = useState('');
 
   useEffect(() => {
-    const y = new Date();
-    y.setDate(y.getDate() - 1);
+    const today = new Date();
+    const year18Ago = today.getFullYear() - 18;
     const pad = (n) => String(n).padStart(2, '0');
-    setMaxDobStr(`${y.getFullYear()}-${pad(y.getMonth() + 1)}-${pad(y.getDate())}`);
+    setMaxDobStr(`${year18Ago}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
   }, []);
 
   // Modals
@@ -396,12 +396,12 @@ function ReservationsClient() {
         showAlert('error', 'Validation Error', 'Birthdate is required for walk-in guests.');
         return;
       }
-      const pad = (n) => String(n).padStart(2, '0');
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-      if (walkInForm.dateOfBirth >= todayStr) {
-        showAlert('error', 'Validation Error', 'Date of birth cannot be today or a future date. Please enter a valid birthdate.');
-        return;
+      if (walkInForm.dateOfBirth) {
+        const calculatedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
+        if (typeof calculatedAge === 'number' && calculatedAge < 18) {
+          showAlert('error', 'Validation Error', 'You must be at least 18 years old to proceed.');
+          return;
+        }
       }
       if (!walkInForm.contact || walkInForm.contact.length !== 11) {
         showAlert('error', 'Validation Error', 'Contact number must be exactly 11 digits.');
@@ -413,7 +413,7 @@ function ReservationsClient() {
       const inDateObj = new Date(toDbDate(resDate) + 'T' + resTime + ':00');
       const outDateObj = new Date(toDbDate(checkOutDate) + 'T' + checkOutTime + ':00');
       if (outDateObj <= inDateObj) {
-        showAlert('error', 'Validation Error', 'Check-in date & time and Check-out date & time cannot be the same. Check-out must be strictly after Check-in.');
+        showAlert('error', 'Validation Error', 'Check-out time must be later than check-in time.');
         return;
       }
     }

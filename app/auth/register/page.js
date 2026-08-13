@@ -39,10 +39,10 @@ export default function RegisterPage() {
   const [maxDobStr, setMaxDobStr] = useState('');
 
   useEffect(() => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const today = new Date();
+    const year18Ago = today.getFullYear() - 18;
     const pad = (n) => String(n).padStart(2, '0');
-    setMaxDobStr(`${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`);
+    setMaxDobStr(`${year18Ago}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
   }, []);
 
   // Input sanitization helpers
@@ -86,9 +86,16 @@ export default function RegisterPage() {
       const selectedDob = new Date(toDbDate(dob) + 'T00:00:00');
       const todayFloor = new Date();
       todayFloor.setHours(0, 0, 0, 0);
-      if (selectedDob >= todayFloor) {
+      
+      let age = todayFloor.getFullYear() - selectedDob.getFullYear();
+      const mDiff = todayFloor.getMonth() - selectedDob.getMonth();
+      if (mDiff < 0 || (mDiff === 0 && todayFloor.getDate() < selectedDob.getDate())) {
+        age--;
+      }
+
+      if (age < 18) {
         errors.dob = true;
-        setErrorMsg("Birthdate cannot be today or a future date. Please select a valid past date.");
+        setErrorMsg("You must be at least 18 years old to proceed.");
         setFieldErrors({ ...errors, dob: true });
         setLoading(false);
         return;
@@ -243,7 +250,7 @@ export default function RegisterPage() {
                       max={maxDobStr}
                       required
                     />
-                    <div className="invalid-feedback">Please enter a valid past birthdate before today.</div>
+                    <div className="invalid-feedback">You must be at least 18 years old to proceed.</div>
                   </div>
                   <div className="col-md-6">
                     <label className="form-label">City <span className="text-danger">*</span></label>

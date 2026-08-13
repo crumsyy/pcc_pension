@@ -152,7 +152,7 @@ export async function POST(request) {
         const checkInDVal = new Date(checkInDateTime.replace(' ', 'T'));
         const checkOutDVal = new Date(checkOutDateTime.replace(' ', 'T'));
         if (!isNaN(checkInDVal.getTime()) && !isNaN(checkOutDVal.getTime()) && checkOutDVal <= checkInDVal) {
-          return NextResponse.json({ error: 'Check-in date/time and Check-out date/time cannot be the same. Check-out must be strictly after Check-in.' }, { status: 400 });
+          return NextResponse.json({ error: 'Check-out time must be later than check-in time.' }, { status: 400 });
         }
 
         // Calculate required down payment based on selected percentage (25%, 50%, 100%)
@@ -442,7 +442,7 @@ export async function POST(request) {
       const newOutD = new Date(String(newCheckOutDateTime).replace(' ', 'T'));
 
       if (isNaN(newOutD.getTime()) || newOutD <= inD) {
-        return NextResponse.json({ error: 'New Check-out date & time must be strictly after the Check-in date & time.' }, { status: 400 });
+        return NextResponse.json({ error: 'Check-out time must be later than check-in time.' }, { status: 400 });
       }
 
       await dbQuery("UPDATE booking SET checkOutDateTime = ? WHERE bookingID = ?", [newCheckOutDateTime, bookingID]);
