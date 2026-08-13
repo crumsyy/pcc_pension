@@ -171,11 +171,11 @@ export default function NotificationBell() {
                     fontSize: "0.8rem"
                   }}
                 >
-                  <div className="d-flex align-items-start gap-2.5">
-                    <div className="mt-0.5">
+                  <div className="d-flex align-items-start gap-3">
+                    <div className="d-flex align-items-center justify-content-center rounded-circle bg-light border flex-shrink-0 mt-0.5" style={{ width: "32px", height: "32px" }}>
                       <i className={`bi ${getNotificationIcon(n.title)} fs-6`}></i>
                     </div>
-                    <div className="flex-grow-1">
+                    <div className="flex-grow-1 min-w-0">
                       <div className="d-flex justify-content-between align-items-center mb-0.5">
                         <span className={`fw-bold ${!n.isRead ? "text-dark" : "text-secondary"}`}>
                           {n.title}

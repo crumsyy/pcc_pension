@@ -74,7 +74,7 @@ export async function GET() {
 
       // Bookings scheduled for Check-out within next 1 hour
       const upcomingCheckOuts = await dbQuery(`
-        SELECT b.bookingID, b.guestID, g.firstName, g.lastName
+        SELECT b.bookingID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         WHERE b.status = 'Checked In'
@@ -82,7 +82,7 @@ export async function GET() {
       `);
 
       for (const b of upcomingCheckOuts) {
-        const staffMsg = `Check-out Reminder: Booking #${b.bookingID} for ${b.firstName} ${b.lastName} is scheduled for check-out in 1 hour.`;
+        const staffMsg = `Check-out Reminder: Booking #${b.bookingID} for ${b.firstName} ${b.lastName} is scheduled for check-out in 1 hour. Late check-out fee applies for delays past 12:00 PM today.`;
         for (const sID of staffUserIDs) {
           const alreadyNotified = await dbQuery(
             "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
@@ -92,6 +92,21 @@ export async function GET() {
             await dbQuery(
               "INSERT INTO notification (userID, title, message) VALUES (?, 'Check-out Reminder', ?)",
               [sID, staffMsg]
+            );
+          }
+        }
+
+        // Send 1-hour check-out alert to Guest account
+        if (b.guestUserID) {
+          const guestMsg = `Check-out Reminder: Your scheduled check-out for Booking #${b.bookingID} is in 1 hour. Please prepare for check-out at the front desk. Late check-out fee (₱100/hr) applies for delays past 12:00 PM today.`;
+          const alreadyGuestNotified = await dbQuery(
+            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
+            [b.guestUserID, guestMsg]
+          );
+          if (alreadyGuestNotified.length === 0) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Check-out Reminder', ?)",
+              [b.guestUserID, guestMsg]
             );
           }
         }

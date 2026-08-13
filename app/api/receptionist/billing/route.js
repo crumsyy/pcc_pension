@@ -135,7 +135,8 @@ export async function GET(request) {
     // If guest is Checked Out, evaluate against the actual checkout time recorded.
     const endCheckoutTime = booking.status === 'Checked In' ? new Date() : new Date(booking.checkOutDateTime);
 
-    if (endCheckoutTime > standardCheckOutTime) {
+    // Late Check-Out fees apply only within the same checkout calendar day
+    if (endCheckoutTime > standardCheckOutTime && endCheckoutTime.toDateString() === standardCheckOutTime.toDateString()) {
       lateHours = Math.ceil((endCheckoutTime - standardCheckOutTime) / (1000 * 60 * 60));
       if (lateHours > 0) {
         if (lateHours <= 22) {
