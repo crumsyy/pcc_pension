@@ -89,9 +89,19 @@ export default function ReceptionistInquiries() {
     return () => clearInterval(interval);
   }, [selectedInquiry?.inquiryID]);
 
+  // Smart auto-scroll: Only scroll to bottom if user is already near bottom or selected a new inquiry
+  const prevInquiryIDRef = useRef(null);
+
   useEffect(() => {
     if (chatMessagesRef.current) {
-      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+      const container = chatMessagesRef.current;
+      const isNewInquiry = prevInquiryIDRef.current !== selectedInquiry?.inquiryID;
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+      
+      if (isNewInquiry || isNearBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
+      prevInquiryIDRef.current = selectedInquiry?.inquiryID;
     }
   }, [messages, selectedInquiry]);
 
@@ -337,22 +347,25 @@ export default function ReceptionistInquiries() {
 
                     {/* Quick Status Update Action Buttons */}
                     <div className="d-flex gap-1">
-                      <button
-                        type="button"
-                        className="btn btn-xs btn-outline-success fw-semibold"
-                        onClick={() => handleUpdateStatus('Responded')}
-                        style={{ fontSize: '0.72rem' }}
-                      >
-                        Mark Responded
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-xs btn-outline-secondary fw-semibold"
-                        onClick={() => handleUpdateStatus('Closed')}
-                        style={{ fontSize: '0.72rem' }}
-                      >
-                        Close Ticket
-                      </button>
+                      {selectedInquiry.status === 'Closed' ? (
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-outline-primary fw-semibold"
+                          onClick={() => handleUpdateStatus('Responded')}
+                          style={{ fontSize: '0.72rem' }}
+                        >
+                          Reopen Ticket
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-outline-secondary fw-semibold"
+                          onClick={() => handleUpdateStatus('Closed')}
+                          style={{ fontSize: '0.72rem' }}
+                        >
+                          Close Ticket
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -431,7 +444,7 @@ export default function ReceptionistInquiries() {
                         className="btn btn-pcc-primary text-white fw-bold btn-sm px-4"
                         disabled={!replyText.trim()}
                       >
-                        Send Reply
+                        Send
                       </button>
                     </form>
                   </div>
