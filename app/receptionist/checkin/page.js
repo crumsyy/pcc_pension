@@ -329,12 +329,14 @@ function CheckInClient() {
                       <div className="actions-wrapper d-flex align-items-center gap-2">
                         <button
                           type="button"
-                          className="btn btn-xs btn-outline-primary fw-bold d-inline-flex align-items-center gap-1 py-1 px-2"
+                          className="action-btn action-btn-edit"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="top"
                           title="Update Check-Out Date & Time"
+                          aria-label="Update Check-Out Date & Time"
                           onClick={() => handleOpenUpdateModal(b)}
-                          style={{ fontSize: '0.75rem' }}
                         >
-                          <i className="fa-solid fa-clock-rotate-left"></i> Update Check-Out
+                          <i className="fa-solid fa-clock-rotate-left"></i>
                         </button>
                         <a
                           href={`/receptionist/billing?bookingID=${b.bookingID}`}
