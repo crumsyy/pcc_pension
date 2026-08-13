@@ -12,6 +12,7 @@ export default function ReceptionistInquiries() {
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Pending' | 'Responded' | 'Closed'
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const chatMessagesRef = useRef(null);
 
   // Modal alert/confirm
@@ -52,7 +53,7 @@ export default function ReceptionistInquiries() {
         setSelectedInquiry(data.inquiries[0]);
       }
 
-      if (data.selectedMessages) {
+      if (data.selectedMessages && data.inquiryID === selectedInquiry?.inquiryID) {
         setMessages(data.selectedMessages);
       }
     } catch (err) {
@@ -106,10 +107,21 @@ export default function ReceptionistInquiries() {
   }, [messages, selectedInquiry]);
 
   const handleSelectInquiry = (inq) => {
+    if (selectedInquiry?.inquiryID === inq.inquiryID) return;
     setSelectedInquiry(inq);
+    setMessages([]); // Clear previous messages immediately to prevent flashing jitter
+    setLoadingMessages(true);
     fetchMessagesForInquiry(inq.inquiryID);
     // Mark as read in state
     setInquiries(prev => prev.map(item => item.inquiryID === inq.inquiryID ? { ...item, unreadReceptionist: 0 } : item));
+  };
+
+  const handleChatScroll = () => {
+    if (chatMessagesRef.current) {
+      const container = chatMessagesRef.current;
+      const isUp = container.scrollHeight - container.scrollTop - container.clientHeight > 150;
+      setShowScrollBottomBtn(isUp);
+    }
   };
 
   const handleReplySubmit = async (e) => {
@@ -371,8 +383,9 @@ export default function ReceptionistInquiries() {
 
                   {/* Chat Messages Body Thread */}
                   <div 
-                    className="card-body p-4 overflow-y-auto flex-grow-1 bg-light d-flex flex-column gap-3"
+                    className="card-body p-4 overflow-y-auto flex-grow-1 bg-light d-flex flex-column gap-3 position-relative"
                     ref={chatMessagesRef}
+                    onScroll={handleChatScroll}
                   >
                     {/* Initial Guest Submission Ticket Box */}
                     <div className="card border-0 shadow-sm p-3 bg-white mb-2" style={{ borderLeft: '4px solid var(--pcc-blue)', borderRadius: '8px' }}>
@@ -425,6 +438,31 @@ export default function ReceptionistInquiries() {
                           </div>
                         );
                       })
+                    )}
+
+                    {/* Floating Scroll to Bottom Circle Button */}
+                    {showScrollBottomBtn && (
+                      <button
+                        type="button"
+                        className="btn btn-pcc-primary rounded-circle shadow position-sticky start-50 translate-middle-x d-flex align-items-center justify-content-center transition-all mt-auto"
+                        style={{
+                          bottom: '15px',
+                          width: '42px',
+                          height: '42px',
+                          zIndex: 20,
+                          backgroundColor: 'var(--pcc-blue)',
+                          borderColor: 'var(--pcc-blue)',
+                          alignSelf: 'center'
+                        }}
+                        onClick={() => {
+                          if (chatMessagesRef.current) {
+                            chatMessagesRef.current.scrollTo({ top: chatMessagesRef.current.scrollHeight, behavior: 'smooth' });
+                          }
+                        }}
+                        title="Scroll to bottom"
+                      >
+                        <i className="bi bi-arrow-down text-white fs-5"></i>
+                      </button>
                     )}
                   </div>
 
