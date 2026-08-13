@@ -308,12 +308,21 @@ export async function GET(request) {
       data.averageOccupancy = parseFloat(averageOccupancy.toFixed(1));
 
     } else if (report === 'inventory') {
+      const safeDbQuery = async (queryStr, params = []) => {
+        try {
+          return await dbQuery(queryStr, params);
+        } catch (err) {
+          console.warn("Report safe query fallback:", err.message);
+          return [];
+        }
+      };
+
       // 1. Fetch all stock movements in range
-      const movements = await dbQuery(`
+      const movements = await safeDbQuery(`
         SELECT im.*, COALESCE(a.name, p.name) as itemName, ib.batchNumber, u.email as userEmail
         FROM inventory_movement im
         LEFT JOIN amenities a ON im.itemType = 'Amenity' AND a.amenityID = im.itemID
-        LEFT JOIN products p ON im.itemType = 'Product' AND p.productID = im.itemID
+        LEFT JOIN product p ON im.itemType = 'Product' AND p.productID = im.itemID
         LEFT JOIN inventory_batch ib ON ib.batchID = im.batchID
         LEFT JOIN user u ON u.userID = im.userID
         WHERE DATE(im.movementDateTime) BETWEEN ? AND ?
@@ -321,28 +330,27 @@ export async function GET(request) {
       `, [from, to]);
 
       // 2. Fetch inventory summary (received, consumed, remaining)
-      // First select all catalog items
-      const amenities = await dbQuery(`
-        SELECT 'Amenity' as sourceTable, a.amenityID as itemID, a.name, ac.name as category, 'Amenity' as itemClass, a.minStock, a.itemType, a.unit
+      const amenities = await safeDbQuery(`
+        SELECT 'Amenity' as sourceTable, a.amenityID as itemID, a.name, COALESCE(ac.name, 'General') as category, 'Amenity' as itemClass, COALESCE(a.minStock, 5) as minStock, 'Consumable' as itemType, COALESCE(a.unit, 'pcs') as unit
         FROM amenities a
-        JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
+        LEFT JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
         WHERE a.isArchived = 0
       `);
 
-      const products = await dbQuery(`
-        SELECT 'Product' as sourceTable, p.productID as itemID, p.name, pc.name as category, 'Product' as itemClass, p.minStock, p.itemType, p.unit
-        FROM products p
-        JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
+      const products = await safeDbQuery(`
+        SELECT 'Product' as sourceTable, p.productID as itemID, p.name, COALESCE(pc.name, 'General') as category, 'Product' as itemClass, COALESCE(p.minStock, 5) as minStock, 'Consumable' as itemType, COALESCE(p.unit, 'pcs') as unit
+        FROM product p
+        LEFT JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
         WHERE p.isArchived = 0
       `);
 
       const catalog = [...amenities, ...products];
 
       // Fetch batch data
-      const batches = await dbQuery("SELECT * FROM inventory_batch");
-      const borrows = await dbQuery("SELECT * FROM borrow_transaction");
-      const disposals = await dbQuery("SELECT * FROM inventory_disposal");
-      const allMovements = await dbQuery("SELECT * FROM inventory_movement");
+      const batches = await safeDbQuery("SELECT * FROM inventory_batch");
+      const borrows = await safeDbQuery("SELECT * FROM borrow_transaction");
+      const disposals = await safeDbQuery("SELECT * FROM inventory_disposal");
+      const allMovements = await safeDbQuery("SELECT * FROM inventory_movement");
 
       const todayStr = new Date().toISOString().substring(0, 10);
 
@@ -361,25 +369,25 @@ export async function GET(request) {
         const itemBorrows = borrows.filter(b => b.itemType === item.itemClass && b.itemID === item.itemID);
         
         // Sums
-        const received = itemBatches.reduce((sum, b) => sum + b.quantity, 0);
-        const remaining = itemBatches.reduce((sum, b) => sum + b.remainingQuantity, 0);
+        const received = itemBatches.reduce((sum, b) => sum + (b.quantity || 0), 0);
+        const remaining = itemBatches.reduce((sum, b) => sum + (b.remainingQuantity || 0), 0);
         
         const used = allMovements
           .filter(m => m.itemType === item.itemClass && m.itemID === item.itemID && m.movementType === 'Stock Out')
-          .reduce((sum, m) => sum + Math.abs(m.quantity), 0);
+          .reduce((sum, m) => sum + Math.abs(m.quantity || 0), 0);
 
-        const disposed = itemDisposals.reduce((sum, d) => sum + d.quantity, 0);
-        const borrowed = itemBorrows.filter(b => b.status === 'Borrowed').reduce((sum, b) => sum + b.quantity, 0);
-        const returned = itemBorrows.filter(b => b.status === 'Returned').reduce((sum, b) => sum + b.quantity, 0);
+        const disposed = itemDisposals.reduce((sum, d) => sum + (d.quantity || 0), 0);
+        const borrowed = itemBorrows.filter(b => b.status === 'Borrowed').reduce((sum, b) => sum + (b.quantity || 0), 0);
+        const returned = itemBorrows.filter(b => b.status === 'Returned').reduce((sum, b) => sum + (b.quantity || 0), 0);
 
         const expired = itemBatches
           .filter(b => b.expirationDate && getFormatDate(b.expirationDate) < todayStr)
-          .reduce((sum, b) => sum + b.remainingQuantity, 0);
+          .reduce((sum, b) => sum + (b.remainingQuantity || 0), 0);
 
         return {
           itemName: item.name,
           category: item.category,
-          itemType: item.itemType, // 'Consumable' | 'Non-Consumable'
+          itemType: item.itemType,
           quantityReceived: received,
           quantityUsed: used,
           remainingStock: remaining,
@@ -391,7 +399,6 @@ export async function GET(request) {
         };
       });
 
-      // 3. Analytics
       let mostUsedItem = '—';
       let maxUsed = 0;
       let mostBorrowed = '—';
@@ -422,6 +429,116 @@ export async function GET(request) {
       data.maxBorrowed = maxBorrowed;
       data.mostDisposed = mostDisposed;
       data.maxDisposed = maxDisposed;
+
+    } else if (report === 'reservations') {
+      const reservationsList = await dbQuery(`
+        SELECT r.reservationID, DATE_FORMAT(r.createdAt, '%Y-%m-%dT%H:%i:%s') as createdAt, DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime, DATE_FORMAT(r.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, r.status,
+               g.firstName, g.lastName, g.contact, g.email,
+               rm.roomNumber, rt.type as roomType
+        FROM reservation r
+        JOIN guest g ON g.guestID = r.guestID
+        JOIN room rm ON rm.roomID = r.roomID
+        JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        WHERE DATE(r.createdAt) BETWEEN ? AND ?
+        ORDER BY r.createdAt DESC
+      `, [from, to]);
+
+      data.reservationRows = reservationsList.map(r => ({
+        reservationID: r.reservationID,
+        guestName: `${r.firstName} ${r.lastName}`,
+        contact: r.contact || '—',
+        email: r.email || '—',
+        roomNumber: r.roomNumber,
+        roomType: r.roomType,
+        reservationDate: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—',
+        checkInDate: r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleDateString() : '—',
+        status: r.status
+      }));
+      data.totalReservations = reservationsList.length;
+      data.confirmedCount = reservationsList.filter(r => r.status === 'Confirmed').length;
+      data.pendingCount = reservationsList.filter(r => r.status === 'Pending').length;
+      data.cancelledCount = reservationsList.filter(r => r.status === 'Cancelled').length;
+
+    } else if (report === 'payments') {
+      const paymentsList = await dbQuery(`
+        SELECT p.paymentID, DATE_FORMAT(p.paymentDate, '%Y-%m-%dT%H:%i:%s') as paymentDate, p.amount, pm.paymentMethod, p.isFullyPaid,
+               bil.billingID, bil.bookingID,
+               g.firstName, g.lastName
+        FROM payment p
+        JOIN billing bil ON bil.billingID = p.billingID
+        JOIN booking b ON b.bookingID = bil.bookingID
+        JOIN guest g ON g.guestID = b.guestID
+        LEFT JOIN payment_method pm ON pm.paymentMethodID = p.paymentMethodID
+        WHERE DATE(p.paymentDate) BETWEEN ? AND ?
+        ORDER BY p.paymentDate DESC
+      `, [from, to]);
+
+      let totalPaymentAmount = 0;
+      let cashTotal = 0;
+      let gcashTotal = 0;
+
+      const paymentRows = paymentsList.map(p => {
+        const amt = parseFloat(p.amount || 0);
+        totalPaymentAmount += amt;
+        const method = p.paymentMethod || 'Cash';
+        if (method.toLowerCase().includes('gcash')) {
+          gcashTotal += amt;
+        } else {
+          cashTotal += amt;
+        }
+
+        return {
+          paymentID: p.paymentID,
+          paymentDate: p.paymentDate ? new Date(p.paymentDate).toLocaleString() : '—',
+          guestName: `${p.firstName} ${p.lastName}`,
+          bookingID: p.bookingID,
+          billingID: p.billingID,
+          amount: amt,
+          paymentMethod: method,
+          status: p.isFullyPaid ? 'Fully Paid' : 'Partial'
+        };
+      });
+
+      data.paymentRows = paymentRows;
+      data.totalPaymentsCount = paymentsList.length;
+      data.totalPaymentAmount = totalPaymentAmount;
+      data.cashTotal = cashTotal;
+      data.gcashTotal = gcashTotal;
+
+    } else if (report === 'billing') {
+      const billingList = await dbQuery(`
+        SELECT bil.billingID, DATE_FORMAT(bil.billingDate, '%Y-%m-%dT%H:%i:%s') as billingDate, bil.status as billingStatus, bil.bookingID,
+               g.firstName, g.lastName, g.contact,
+               rm.roomNumber,
+               (SELECT COALESCE(SUM(p.amount), 0) FROM payment p WHERE p.billingID = bil.billingID) as totalPaid
+        FROM billing bil
+        JOIN booking b ON b.bookingID = bil.bookingID
+        JOIN guest g ON g.guestID = b.guestID
+        JOIN room rm ON rm.roomID = b.roomID
+        WHERE DATE(bil.billingDate) BETWEEN ? AND ?
+        ORDER BY bil.billingDate DESC
+      `, [from, to]);
+
+      let totalCollected = 0;
+
+      const billingRows = billingList.map(b => {
+        const paid = parseFloat(b.totalPaid || 0);
+        totalCollected += paid;
+
+        return {
+          billingID: b.billingID,
+          bookingID: b.bookingID,
+          guestName: `${b.firstName} ${b.lastName}`,
+          roomNumber: b.roomNumber,
+          billingDate: b.billingDate ? new Date(b.billingDate).toLocaleDateString() : '—',
+          status: b.billingStatus,
+          totalPaid: paid
+        };
+      });
+
+      data.billingRows = billingRows;
+      data.totalBillingsCount = billingList.length;
+      data.totalCollected = totalCollected;
 
     } else if (report === 'guests') {
       // 1. Fetch guest stay logs
@@ -477,7 +594,6 @@ export async function GET(request) {
       let newGuestsCount = 0;
       let returningGuestsCount = 0;
       let totalNights = 0;
-      let visitCounts = {};
       let mostFrequentGuest = '—';
       let maxVisits = 0;
 

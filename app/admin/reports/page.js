@@ -200,6 +200,9 @@ export default function AdminReports() {
     else if (report === 'occupancy') rawRows = reportData.occupancyTrend || [];
     else if (report === 'inventory') rawRows = reportData.summaries || [];
     else if (report === 'guests') rawRows = reportData.guestRows || [];
+    else if (report === 'reservations') rawRows = reportData.reservationRows || [];
+    else if (report === 'payments') rawRows = reportData.paymentRows || [];
+    else if (report === 'billing') rawRows = reportData.billingRows || [];
 
     // Search filter
     let filtered = rawRows.filter(row => {
@@ -218,6 +221,21 @@ export default function AdminReports() {
         return row.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                row.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                row.roomNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      if (report === 'reservations') {
+        return row.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               row.roomNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               row.status.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      if (report === 'payments') {
+        return row.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               row.paymentMethod.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               String(row.bookingID).includes(searchTerm);
+      }
+      if (report === 'billing') {
+        return row.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               row.roomNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               row.status.toLowerCase().includes(searchTerm.toLowerCase());
       }
       return true;
     });
@@ -285,7 +303,10 @@ export default function AdminReports() {
           { id: 'sales', icon: 'bi-cash-coin', title: 'Sales & Revenue', desc: 'Earnings logs, groupings, discounts, and payment methods.', bg: '#2155B5' },
           { id: 'occupancy', icon: 'bi-building-up', title: 'Occupancy', desc: 'Occupancy trends, room utilization levels, and check-ins.', bg: '#3FA34D' },
           { id: 'inventory', icon: 'bi-box-seam', title: 'Inventory Movement', desc: 'Stock movements, batches, remaining balances, and disposals.', bg: '#17a2b8' },
-          { id: 'guests', icon: 'bi-people', title: 'Guest History', desc: 'Stay logs, length of stay, payment summaries, and repeat visits.', bg: '#6f42c1' }
+          { id: 'guests', icon: 'bi-people', title: 'Guest History', desc: 'Stay logs, length of stay, payment summaries, and repeat visits.', bg: '#6f42c1' },
+          { id: 'reservations', icon: 'bi-calendar-check', title: 'Reservations Log', desc: 'Reservation requests, room assignments, and booking status logs.', bg: '#fd7e14' },
+          { id: 'payments', icon: 'bi-wallet2', title: 'Payments Received', desc: 'Payment logs, Cash vs GCash breakdown, and transactions.', bg: '#198754' },
+          { id: 'billing', icon: 'bi-receipt', title: 'Billing & Collections', desc: 'Folio summary, total billed, collections, and unpaid balances.', bg: '#0dcaf0' }
         ].map(cat => (
           <div key={cat.id} className="col-12 col-sm-6 col-lg-3">
             <div 
@@ -785,47 +806,44 @@ export default function AdminReports() {
             </div>
           )}
 
-          {/* REPORT CATEGORY 4: GUEST HISTORY REPORT (REQ083) */}
-          {report === 'guests' && (
+          {/* REPORT CATEGORY 5: RESERVATIONS REPORT */}
+          {report === 'reservations' && (
             <div>
-              {/* Guest Analytics Cards */}
               <div className="row g-3 mb-4">
                 <div className="col-12 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-purple border-4">
-                    <span className="text-muted small fw-bold">NEW GUESTS</span>
-                    <h3 className="fw-bold text-purple mb-0 mt-1" style={{ color: '#6f42c1' }}>{reportData.newGuestsCount}</h3>
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-warning border-4">
+                    <span className="text-muted small fw-bold">TOTAL RESERVATIONS</span>
+                    <h3 className="fw-bold text-warning mb-0 mt-1">{reportData.totalReservations}</h3>
                   </div>
                 </div>
-                <div className="col-6 col-md-3">
+                <div className="col-4 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">RETURNING GUESTS</span>
-                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData.returningGuestsCount}</h3>
+                    <span className="text-muted small fw-bold">CONFIRMED</span>
+                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData.confirmedCount}</h3>
                   </div>
                 </div>
-                <div className="col-6 col-md-3">
+                <div className="col-4 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">AVG. STAY DURATION</span>
-                    <h3 className="fw-bold text-primary mb-0 mt-1">{reportData.averageStayLength} Nights</h3>
+                    <span className="text-muted small fw-bold">PENDING</span>
+                    <h3 className="fw-bold text-primary mb-0 mt-1">{reportData.pendingCount}</h3>
                   </div>
                 </div>
-                <div className="col-12 col-md-3">
+                <div className="col-4 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">TOP RETURNING GUEST</span>
-                    <h5 className="fw-bold text-dark mb-0 mt-2">{reportData.mostFrequentGuest}</h5>
-                    <small className="text-muted">{reportData.maxVisits} previous stay(s)</small>
+                    <span className="text-muted small fw-bold">CANCELLED</span>
+                    <h3 className="fw-bold text-danger mb-0 mt-1">{reportData.cancelledCount}</h3>
                   </div>
                 </div>
               </div>
 
-              {/* Guest history details table */}
               <div className="card shadow-sm border-0 bg-white rounded">
                 <div className="card-header bg-white py-3 border-0">
                   <div className="d-flex justify-content-between align-items-center">
-                    <h6 className="fw-bold text-dark mb-0">Guest Stays History Log</h6>
+                    <h6 className="fw-bold text-dark mb-0">Reservations History Log</h6>
                     <input
                       type="text"
                       className="form-control form-control-sm w-25"
-                      placeholder="Search guest name..."
+                      placeholder="Search guest or room..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -835,51 +853,166 @@ export default function AdminReports() {
                   <table className="table table-hover align-middle mb-0">
                     <thead>
                       <tr className="table-light">
-                        <th onClick={() => handleSort('guestName')} style={{ cursor: 'pointer' }}>Guest Name <i className="bi bi-arrow-down-up small text-muted"></i></th>
+                        <th>Ref #</th>
+                        <th>Guest Name</th>
                         <th>Contact</th>
-                        <th>Email</th>
-                        <th>Booking Dates</th>
-                        <th>Room</th>
-                        <th onClick={() => handleSort('lengthOfStay')} style={{ cursor: 'pointer' }}>Stay (Nights) <i className="bi bi-arrow-down-up small text-muted"></i></th>
-                        <th onClick={() => handleSort('amountPaid')} style={{ cursor: 'pointer' }}>Amount Paid <i className="bi bi-arrow-down-up small text-muted"></i></th>
-                        <th>Discount Applied</th>
+                        <th>Room Assigned</th>
+                        <th>Room Type</th>
+                        <th>Reservation Date</th>
+                        <th>Check-In Date</th>
                         <th>Status</th>
-                        <th onClick={() => handleSort('previousVisits')} style={{ cursor: 'pointer' }}>Previous Visits <i className="bi bi-arrow-down-up small text-muted"></i></th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedData.map((row, idx) => (
                         <tr key={idx}>
-                          <td><strong>{row.guestName}</strong></td>
+                          <td><strong>#RES-{row.reservationID}</strong></td>
+                          <td>{row.guestName}</td>
                           <td>{row.contact}</td>
-                          <td>{row.email}</td>
-                          <td><span className="small text-muted">{row.checkIn} - {row.checkOut}</span></td>
                           <td>Room {row.roomNumber}</td>
-                          <td>{row.lengthOfStay}</td>
-                          <td className="fw-semibold text-pcc-primary">₱{row.amountPaid.toFixed(2)}</td>
-                          <td>{row.discountApplied}</td>
-                          <td>
-                            <span className={`badge ${
-                              row.bookingStatus === 'Checked Out' ? 'text-bg-success' : 'text-bg-warning'
-                            }`}>
-                              {row.bookingStatus}
-                            </span>
-                          </td>
-                          <td>{row.previousVisits} stay(s)</td>
+                          <td>{row.roomType}</td>
+                          <td>{row.reservationDate}</td>
+                          <td>{row.checkInDate}</td>
+                          <td><span className="badge bg-warning text-dark">{row.status}</span></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                {totalPages > 1 && (
-                  <div className="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <span className="small text-muted">Showing page {currentPage} of {totalPages}</span>
-                    <div className="d-flex gap-1">
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(c => c - 1)}>Prev</button>
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage(c => c + 1)}>Next</button>
-                    </div>
+              </div>
+            </div>
+          )}
+
+          {/* REPORT CATEGORY 6: PAYMENTS RECEIVED REPORT */}
+          {report === 'payments' && (
+            <div>
+              <div className="row g-3 mb-4">
+                <div className="col-12 col-md-4">
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-success border-4">
+                    <span className="text-muted small fw-bold">TOTAL PAYMENTS RECEIVED</span>
+                    <h3 className="fw-bold text-success mb-0 mt-1">₱{reportData.totalPaymentAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
                   </div>
-                )}
+                </div>
+                <div className="col-6 col-md-4">
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                    <span className="text-muted small fw-bold">CASH PAYMENTS</span>
+                    <h3 className="fw-bold text-primary mb-0 mt-1">₱{reportData.cashTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+                  </div>
+                </div>
+                <div className="col-6 col-md-4">
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                    <span className="text-muted small fw-bold">GCASH ONLINE PAYMENTS</span>
+                    <h3 className="fw-bold text-info mb-0 mt-1">₱{reportData.gcashTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card shadow-sm border-0 bg-white rounded">
+                <div className="card-header bg-white py-3 border-0">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <h6 className="fw-bold text-dark mb-0">Payments Received Log</h6>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm w-25"
+                      placeholder="Search guest or payment method..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead>
+                      <tr className="table-light">
+                        <th>Payment ID</th>
+                        <th>Payment Date</th>
+                        <th>Guest Name</th>
+                        <th>Booking #</th>
+                        <th>Billing #</th>
+                        <th>Amount Paid</th>
+                        <th>Payment Method</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedData.map((row, idx) => (
+                        <tr key={idx}>
+                          <td><strong>#PAY-{row.paymentID}</strong></td>
+                          <td>{row.paymentDate}</td>
+                          <td>{row.guestName}</td>
+                          <td>Booking #{row.bookingID}</td>
+                          <td>Billing #{row.billingID}</td>
+                          <td className="fw-bold text-success">₱{row.amount.toFixed(2)}</td>
+                          <td><span className="badge bg-secondary">{row.paymentMethod}</span></td>
+                          <td><span className="badge bg-success">{row.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* REPORT CATEGORY 7: BILLING REPORT */}
+          {report === 'billing' && (
+            <div>
+              <div className="row g-3 mb-4">
+                <div className="col-12 col-md-6">
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-info border-4">
+                    <span className="text-muted small fw-bold">TOTAL BILLINGS COUNT</span>
+                    <h3 className="fw-bold text-info mb-0 mt-1">{reportData.totalBillingsCount} Folio(s)</h3>
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-success border-4">
+                    <span className="text-muted small fw-bold">TOTAL COLLECTED</span>
+                    <h3 className="fw-bold text-success mb-0 mt-1">₱{reportData.totalCollected.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card shadow-sm border-0 bg-white rounded">
+                <div className="card-header bg-white py-3 border-0">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <h6 className="fw-bold text-dark mb-0">Billing & Folio Statements Log</h6>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm w-25"
+                      placeholder="Search guest or room..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead>
+                      <tr className="table-light">
+                        <th>Billing ID</th>
+                        <th>Booking #</th>
+                        <th>Guest Name</th>
+                        <th>Room Number</th>
+                        <th>Billing Date</th>
+                        <th>Status</th>
+                        <th>Total Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedData.map((row, idx) => (
+                        <tr key={idx}>
+                          <td><strong>#BIL-{row.billingID}</strong></td>
+                          <td>Booking #{row.bookingID}</td>
+                          <td>{row.guestName}</td>
+                          <td>Room {row.roomNumber}</td>
+                          <td>{row.billingDate}</td>
+                          <td><span className="badge bg-primary">{row.status}</span></td>
+                          <td className="fw-bold text-success">₱{row.totalPaid.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

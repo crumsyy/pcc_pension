@@ -8,44 +8,48 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Admin-only restriction: Non-admin users do not receive/access system alerts
+  if (session.role !== 'Administrator') {
+    return NextResponse.json({ success: true, notifications: [] });
+  }
+
   const userID = session.userID;
 
   try {
-    // Check if the user has any notifications. If they have 0, let's insert 2 welcome notifications
-    const countRes = await dbQuery("SELECT COUNT(*) as count FROM notification WHERE userID = ?", [userID]);
-    const count = countRes[0]?.count || 0;
+    // 1. Auto-generate Low Inventory Alerts (quantity <= reorderLevel) for Admin
+    try {
+      const lowStockItems = await dbQuery(`
+        SELECT i.inventoryID, p.name as productName, i.quantity, COALESCE(i.reorderLevel, 5) as reorderLevel
+        FROM inventory i
+        JOIN product p ON p.productID = i.productID
+        WHERE i.quantity <= COALESCE(i.reorderLevel, 5) AND i.isArchived = 0
+      `);
 
-    if (count === 0) {
-      if (session.role === 'Administrator') {
-        await dbQuery(`
-          INSERT INTO notification (userID, title, message) VALUES
-          (?, 'Welcome to PCC Admin Panel', 'You have full administrative access. You can manage users, room types, rates, products, and check system reports.'),
-          (?, 'Low Stock Alert Notification', 'The system will automatically notify you here when items in the inventory fall below 5 units.'),
-          (?, 'Payment Received Alert', 'A payment of ₱3,500.00 was successfully received from guest Juan Dela Cruz for Booking #102.')
-        `, [userID, userID, userID]);
-      } else if (session.role === 'Receptionist') {
-        await dbQuery(`
-          INSERT INTO notification (userID, title, message) VALUES
-          (?, 'Welcome to PCC Front Desk', 'Welcome back! You can check today\\'s check-ins, process reservations, and manage guest bills here.'),
-          (?, 'New Registration Watch', 'When new guests register, their account requests will be updated. You can approve reservations from the dashboard.')
-        `, [userID, userID]);
-      } else {
-        await dbQuery(`
-          INSERT INTO notification (userID, title, message) VALUES
-          (?, 'Welcome to PCC Home Suite Home!', 'Thank you for choosing PCC! Explore our available standard, twin, and deluxe matrimonial rooms and book your stay.'),
-          (?, 'Profile Completed', 'Your guest profile is active. You can now track your reservations and check-in statuses under My Bookings.')
-        `, [userID, userID]);
+      for (const item of lowStockItems) {
+        const alertMsg = `Low Inventory Alert: ${item.productName} stock has dropped to ${item.quantity} units (Threshold: ${item.reorderLevel} units).`;
+        const alreadyNotified = await dbQuery(
+          "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
+          [userID, alertMsg]
+        );
+        if (alreadyNotified.length === 0) {
+          await dbQuery(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'Low Inventory Alert', ?)",
+            [userID, alertMsg]
+          );
+        }
       }
+    } catch (invErr) {
+      console.error("Low inventory notification check failed:", invErr);
     }
 
-    // Auto-generate 24h Check-in and 1h Check-out Reminders
+    // 2. Auto-generate Check-in (24h) and Check-out (1h / Overdue) Alerts for Admin
     try {
-      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
-      const staffUserIDs = staffUsers.map(s => s.userID);
+      const adminUsers = await dbQuery("SELECT userID FROM user WHERE roleID = 1 AND status = 'Active'");
+      const adminUserIDs = adminUsers.map(a => a.userID);
 
-      // 1. Bookings scheduled within next 24 hours (Check-in)
+      // Bookings scheduled for Check-in within next 24 hours
       const upcomingCheckIns = await dbQuery(`
-        SELECT b.bookingID, b.guestID, g.userID, g.firstName, g.lastName, b.checkInDateTime
+        SELECT b.bookingID, b.guestID, g.firstName, g.lastName
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         WHERE b.status IN ('Confirmed', 'Pending Check-in', 'Pending')
@@ -53,39 +57,24 @@ export async function GET() {
       `);
 
       for (const b of upcomingCheckIns) {
-        const msg = "Reminder: Your booking is scheduled within the next 24 hours.";
-        // Check if guest notified
-        if (b.userID) {
+        const staffMsg = `Upcoming Check-in: Booking #${b.bookingID} for ${b.firstName} ${b.lastName} is scheduled within 24 hours.`;
+        for (const aID of adminUserIDs) {
           const alreadyNotified = await dbQuery(
             "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-            [b.userID, msg]
+            [aID, staffMsg]
           );
           if (alreadyNotified.length === 0) {
             await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-in Reminder', ?)",
-              [b.userID, msg]
-            );
-          }
-        }
-        // Notify staff
-        const staffMsg = `Reminder: Booking #${b.bookingID} for ${b.firstName} ${b.lastName} is scheduled within the next 24 hours.`;
-        for (const sID of staffUserIDs) {
-          const staffAlreadyNotified = await dbQuery(
-            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-            [sID, staffMsg]
-          );
-          if (staffAlreadyNotified.length === 0) {
-            await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-in Reminder', ?)",
-              [sID, staffMsg]
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-in Alert', ?)",
+              [aID, staffMsg]
             );
           }
         }
       }
 
-      // 2. Bookings scheduled for Check-out within next 1 hour
+      // Bookings scheduled for Check-out within next 1 hour
       const upcomingCheckOuts = await dbQuery(`
-        SELECT b.bookingID, b.guestID, g.userID, g.firstName, g.lastName, b.checkOutDateTime
+        SELECT b.bookingID, b.guestID, g.firstName, g.lastName
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         WHERE b.status = 'Checked In'
@@ -93,94 +82,27 @@ export async function GET() {
       `);
 
       for (const b of upcomingCheckOuts) {
-        const msg = "Reminder: Your scheduled check-out is in one hour.";
-        if (b.userID) {
+        const staffMsg = `Check-out Reminder: Booking #${b.bookingID} for ${b.firstName} ${b.lastName} is scheduled for check-out in 1 hour.`;
+        for (const aID of adminUserIDs) {
           const alreadyNotified = await dbQuery(
             "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-            [b.userID, msg]
+            [aID, staffMsg]
           );
           if (alreadyNotified.length === 0) {
             await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-out Reminder', ?)",
-              [b.userID, msg]
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Check-out Reminder', ?)",
+              [aID, staffMsg]
             );
-          }
-        }
-        const staffMsg = `Reminder: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) scheduled check-out is in one hour.`;
-        for (const sID of staffUserIDs) {
-          const staffAlreadyNotified = await dbQuery(
-            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-            [sID, staffMsg]
-          );
-          if (staffAlreadyNotified.length === 0) {
-            await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-out Reminder', ?)",
-              [sID, staffMsg]
-            );
-          }
-        }
-        
-        // 3. Checked In bookings overdue past 12:00 PM check-out threshold (Late Check-out Fee Alerts)
-        const overdueBookings = await dbQuery(`
-          SELECT b.bookingID, b.guestID, g.userID, g.firstName, g.lastName, b.checkOutDateTime, rm.roomNumber, rt.rate as roomRate
-          FROM booking b
-          JOIN guest g ON g.guestID = b.guestID
-          JOIN room rm ON rm.roomID = b.roomID
-          JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-          WHERE b.status = 'Checked In'
-            AND NOW() > b.checkOutDateTime
-        `);
-
-        for (const b of overdueBookings) {
-          const checkOutDt = new Date(String(b.checkOutDateTime).replace(' ', 'T'));
-          const standardCheckOut = new Date(checkOutDt);
-          standardCheckOut.setHours(12, 0, 0, 0);
-
-          const now = new Date();
-          if (now > standardCheckOut) {
-            const lateHours = Math.max(1, Math.ceil((now - standardCheckOut) / (1000 * 60 * 60)));
-            const isFullNight = lateHours > 22;
-            const lateFee = isFullNight ? parseFloat(b.roomRate || 0) : lateHours * 100;
-            const feeDetailStr = isFullNight ? `1 full night room price (exceeded 22 hrs)` : `${lateHours} hr/s @ ₱100/hr`;
-
-            const guestLateMsg = `⏰ Late Check-Out Alert: A late check-out fee of ₱${lateFee.toFixed(2)} (${feeDetailStr}) has been added to your stay billing for Room ${b.roomNumber}.`;
-            const staffLateMsg = `⏰ Late Check-Out Alert: Guest ${b.firstName} ${b.lastName} (Room ${b.roomNumber}) has incurred a late check-out fee of ₱${lateFee.toFixed(2)} (${feeDetailStr}).`;
-
-            if (b.userID) {
-              const alreadyNotified = await dbQuery(
-                "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-                [b.userID, guestLateMsg]
-              );
-              if (alreadyNotified.length === 0) {
-                await dbQuery(
-                  "INSERT INTO notification (userID, title, message) VALUES (?, 'Late Check-Out Fee Incurred', ?)",
-                  [b.userID, guestLateMsg]
-                );
-              }
-            }
-
-            for (const sID of staffUserIDs) {
-              const staffAlreadyNotified = await dbQuery(
-                "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-                [sID, staffLateMsg]
-              );
-              if (staffAlreadyNotified.length === 0) {
-                await dbQuery(
-                  "INSERT INTO notification (userID, title, message) VALUES (?, 'Late Check-Out Fee Alert', ?)",
-                  [sID, staffLateMsg]
-                );
-              }
-            }
           }
         }
       }
-    } catch (reminderError) {
-      console.error("Auto reminder generation error:", reminderError);
+    } catch (reminderErr) {
+      console.error("Admin auto-reminder generation failed:", reminderErr);
     }
 
-    // Fetch latest 10 notifications
+    // Fetch latest 15 notifications for current Admin
     const notifications = await dbQuery(
-      "SELECT * FROM notification WHERE userID = ? ORDER BY createdAt DESC LIMIT 10",
+      "SELECT * FROM notification WHERE userID = ? ORDER BY createdAt DESC LIMIT 15",
       [userID]
     );
 
