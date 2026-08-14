@@ -116,7 +116,7 @@ export default async function ReceptionistDashboard() {
 
   return (
     <>
-      <AutoRefresh />
+      <AutoRefresh interval={5000} />
       <div className="section-eyebrow">Receptionist</div>
       <h2 className="section-title mb-1">Welcome, {userName}!</h2>
       <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>

@@ -161,7 +161,9 @@ export async function GET(request) {
       activePromos
     ] = await Promise.all([
       dbQuery(`
-        SELECT op.orderProductID, op.quantity, p.name, p.price, (op.quantity * p.price) as subtotal
+        SELECT op.orderProductID, op.quantity, p.name, 
+               CASE WHEN op.isComplimentary = 1 THEN 0 ELSE p.price END as price, 
+               CASE WHEN op.isComplimentary = 1 THEN 0 ELSE (op.quantity * p.price) END as subtotal
         FROM order_product op
         JOIN products p ON p.productID = op.productID
         JOIN orders o ON o.orderID = op.orderID

@@ -142,15 +142,16 @@ export default function Home() {
     checkSession();
     fetchLandingData();
 
-    // 2-Day Minimum Lead Time Rule
     const today = new Date();
-    const twoDaysAhead = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
-    const threeDaysAhead = new Date(today.getTime() + (3 * 24 * 60 * 60 * 1000));
-    const pad = (num) => String(num).padStart(2, '0');
-    const minCheckInStr = `${pad(twoDaysAhead.getMonth() + 1)}/${pad(twoDaysAhead.getDate())}/${twoDaysAhead.getFullYear()}`;
-    setMinCheckIn(minCheckInStr);
-    setCheckIn(minCheckInStr);
-    setCheckOut(`${pad(threeDaysAhead.getMonth() + 1)}/${pad(threeDaysAhead.getDate())}/${threeDaysAhead.getFullYear()}`);
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
+
+    const tomorrow = new Date(today.getTime() + (24 * 60 * 60 * 1000));
+    const tomorrowStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
+
+    setMinCheckIn(todayStr);
+    setCheckIn(todayStr);
+    setCheckOut(tomorrowStr);
   }, []);
 
   const handleSearchSubmit = async (e) => {
@@ -165,15 +166,15 @@ export default function Home() {
       return;
     }
 
-    // Lead time validation check
+    // Reservation Rule: Today up to 2 days ahead max
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selectedCheckIn = new Date(toDbDate(checkIn) + 'T00:00:00');
     selectedCheckIn.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((selectedCheckIn.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 2) {
-      alert("Guests can only reserve rooms starting at least 2 days ahead of today.");
+    if (diffDays < 0 || diffDays > 2) {
+      alert("Reservations can only be made for today or up to 2 days ahead maximum.");
       return;
     }
 

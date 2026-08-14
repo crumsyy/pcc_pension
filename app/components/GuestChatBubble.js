@@ -178,8 +178,6 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
 
         const now = new Date();
         const currentMins = now.getHours() * 60 + now.getMinutes();
-        const isRestrictedWindow = item.isCookedMeal && (currentMins < 360 || currentMins > 630);
-
         return {
           itemID,
           name: item.name,
@@ -188,7 +186,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
           quantity: qty,
           total: price * qty,
           isCookedMeal: !!item.isCookedMeal,
-          isRestrictedWindow
+          isRestrictedWindow: false
         };
       }
     }

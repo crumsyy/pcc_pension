@@ -9,13 +9,19 @@ export async function GET(request) {
   }
 
   try {
-    // 1. Fetch all orders with guest information
+    // 1. Fetch all orders with guest and historical room information
     const ordersRaw = await dbQuery(`
-      SELECT o.*, g.firstName, g.lastName, r.roomNumber 
+      SELECT o.*, g.firstName, g.lastName, 
+             COALESCE(r.roomNumber, r_prev.roomNumber) as roomNumber 
       FROM orders o
       JOIN guest g ON g.guestID = o.guestID
       LEFT JOIN booking b ON b.guestID = g.guestID AND b.status = 'Checked In'
       LEFT JOIN room r ON r.roomID = b.roomID
+      LEFT JOIN (
+        SELECT guestID, MAX(bookingID) as maxID FROM booking GROUP BY guestID
+      ) b_latest ON b_latest.guestID = g.guestID
+      LEFT JOIN booking b_prev ON b_prev.bookingID = b_latest.maxID
+      LEFT JOIN room r_prev ON r_prev.roomID = b_prev.roomID
       ORDER BY o.orderDateTime DESC
     `);
 

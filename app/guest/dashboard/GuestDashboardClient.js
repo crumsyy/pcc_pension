@@ -448,10 +448,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     e.preventDefault();
     if (!selectedRoom) return;
 
-    // Reservation Rule: Must be at least 2 days in advance from today
+    // Reservation Rule: Guests can only select today’s date and up to 2 days ahead maximum
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const minResDate = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const maxResDate = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+    maxResDate.setHours(23, 59, 59, 999);
     const chosenCheckIn = new Date(checkInDate);
     chosenCheckIn.setHours(0, 0, 0, 0);
 
@@ -460,8 +461,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       return;
     }
 
-    if (chosenCheckIn < minResDate) {
-      showAlert('warning', 'Reservation Restriction', 'Reservations must be scheduled at least 2 days in advance from today.');
+    if (chosenCheckIn < today || chosenCheckIn > maxResDate) {
+      showAlert('warning', 'Reservation Date Restriction', 'Reservations can only be made for today or up to 2 days ahead maximum.');
       return;
     }
 

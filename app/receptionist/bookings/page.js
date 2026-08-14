@@ -81,7 +81,7 @@ function BookingsClient() {
   const [downPaymentOption, setDownPaymentOption] = useState('25'); // '25' | '50' | '100'
 
   const [checkInDate, setCheckInDate] = useState('');
-  const [checkInTime, setCheckInTime] = useState('');
+  const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutDate, setCheckOutDate] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
 
@@ -281,7 +281,7 @@ function BookingsClient() {
     setCheckInScenario('now');
     setDownPaymentOption('25');
     setCheckInDate(todayUiDate);
-    setCheckInTime(currentTimeStr);
+    setCheckInTime('14:00');
     setCheckOutDate(tomorrowUiDate);
     setCheckOutTime('12:00');
     
@@ -307,7 +307,7 @@ function BookingsClient() {
     setCheckInScenario('now');
     setDownPaymentOption('25');
     setCheckInDate(todayUiDate);
-    setCheckInTime(currentTimeStr);
+    setCheckInTime('14:00');
     setCheckOutDate(tomorrowUiDate);
     setCheckOutTime('12:00');
 

@@ -115,11 +115,14 @@ export async function GET() {
       console.error("Staff auto-reminder generation failed:", reminderErr);
     }
 
-    // Fetch latest 15 notifications for current User
-    const notifications = await dbQuery(
-      "SELECT * FROM notification WHERE userID = ? ORDER BY createdAt DESC LIMIT 15",
-      [userID]
-    );
+    // Fetch latest 15 notifications for current User (strictly filter Admin notifications)
+    let sql = "SELECT * FROM notification WHERE userID = ?";
+    if (session.role === 'Administrator') {
+      sql += " AND title IN ('Low Inventory Alert', 'Payment Received', 'Down Payment Received')";
+    }
+    sql += " ORDER BY createdAt DESC LIMIT 15";
+
+    const notifications = await dbQuery(sql, [userID]);
 
     return NextResponse.json({ success: true, notifications });
   } catch (error) {

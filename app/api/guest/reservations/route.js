@@ -110,16 +110,16 @@ export async function POST(request) {
       }
     }
 
-    // Rule 1A: Reservation Lead Time (Only exactly 2 days ahead of today allowed)
+    // Rule 1A: Reservation Date Restrictions (Today up to 2 days ahead maximum allowed)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const targetDate = new Date(checkInDate + 'T00:00:00');
     targetDate.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays !== 2) {
+    if (diffDays < 0 || diffDays > 2) {
       return NextResponse.json({
-        error: "Reservations can only be made for exactly 2 days ahead of today."
+        error: "Reservations can only be made for today or up to 2 days ahead maximum."
       }, { status: 400 });
     }
 
