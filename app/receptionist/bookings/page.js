@@ -86,19 +86,28 @@ function BookingsClient() {
   const [checkOutTime, setCheckOutTime] = useState('12:00');
 
   const handleCheckInDateChange = (val) => {
-    setCheckInDate(val);
     if (val && isValidDate(val)) {
       const dbStr = toDbDate(val);
       if (dbStr) {
         const inDate = new Date(dbStr + 'T00:00:00');
-        if (!isNaN(inDate.getTime())) {
-          inDate.setDate(inDate.getDate() + 1);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (inDate < today) {
+          showAlert('warning', 'Invalid Date', 'Past dates are not allowed for Check-In date. Reverting to today.');
           const pad = (n) => String(n).padStart(2, '0');
-          const nextDayDb = `${inDate.getFullYear()}-${pad(inDate.getMonth() + 1)}-${pad(inDate.getDate())}`;
-          setCheckOutDate(toUiDate(nextDayDb));
+          const todayUi = toUiDate(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
+          setCheckInDate(todayUi);
+          return;
         }
+
+        inDate.setDate(inDate.getDate() + 1);
+        const pad = (n) => String(n).padStart(2, '0');
+        const nextDayDb = `${inDate.getFullYear()}-${pad(inDate.getMonth() + 1)}-${pad(inDate.getDate())}`;
+        setCheckOutDate(toUiDate(nextDayDb));
       }
     }
+    setCheckInDate(val);
   };
 
   const [isWalkIn, setIsWalkIn] = useState(false);
@@ -491,6 +500,15 @@ function BookingsClient() {
 
     const inDateObj = new Date(toDbDate(checkInDate) + 'T' + (checkInTime || '14:00') + ':00');
     const outDateObj = new Date(toDbDate(checkOutDate) + 'T' + (checkOutTime || '12:00') + ':00');
+
+    const todayFloor = new Date();
+    todayFloor.setHours(0, 0, 0, 0);
+    const checkInFloor = new Date(toDbDate(checkInDate) + 'T00:00:00');
+
+    if (checkInFloor < todayFloor) {
+      showAlert('error', 'Validation Error', 'Past dates are not allowed for Check-In date. Please select today or a future date.');
+      return;
+    }
 
     if (outDateObj <= inDateObj) {
       showAlert('error', 'Validation Error', 'Check-out time must be later than check-in time.');

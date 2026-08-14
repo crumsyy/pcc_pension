@@ -151,6 +151,17 @@ export async function POST(request) {
 
         const checkInDVal = new Date(checkInDateTime.replace(' ', 'T'));
         const checkOutDVal = new Date(checkOutDateTime.replace(' ', 'T'));
+
+        const todayFloor = new Date();
+        todayFloor.setHours(0, 0, 0, 0);
+
+        const inDateOnlyStr = (checkInDateTime || '').split(' ')[0] || (checkInDateTime || '').split('T')[0];
+        const checkInFloor = new Date(inDateOnlyStr + 'T00:00:00');
+
+        if (checkInFloor < todayFloor) {
+          return NextResponse.json({ error: 'Check-in date cannot be a past date. Please select today or a future date.' }, { status: 400 });
+        }
+
         if (!isNaN(checkInDVal.getTime()) && !isNaN(checkOutDVal.getTime()) && checkOutDVal <= checkInDVal) {
           return NextResponse.json({ error: 'Check-out time must be later than check-in time.' }, { status: 400 });
         }
