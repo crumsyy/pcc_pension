@@ -7,6 +7,7 @@ import ModalDialog from '../../components/ModalDialog';
 import GuestBottomNav from './GuestBottomNav';
 import GuestSidebarNav from './GuestSidebarNav';
 import ThemeToggle from '../../components/ThemeToggle';
+import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
   if (Array.isArray(imgVal)) return imgVal;
@@ -1809,11 +1810,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
+                  <DynamicQrPhCode 
+                    amount={settleBooking.remainingBalance} 
+                    merchantName="JOHN LLOYD CASPILLO"
+                    accountNumber="0948-825-1444"
+                    refNumber={`SETTLE-${settleBooking.bookingID}`} 
+                  />
+
                   <div className="p-3 border rounded bg-white text-center mb-3">
-                    <div className="fw-bold text-primary mb-1">PCC Home Suite Home GCash Merchant</div>
-                    <div className="small text-muted mb-2">Account No: <strong>0917-123-4567</strong></div>
                     <div className="mb-2">
-                      <label className="form-label fw-semibold small">GCash Reference Number *</label>
+                      <label className="form-label fw-semibold small">Enter GCash Reference Number *</label>
                       <input
                         type="text"
                         className="form-control text-center fw-bold"
@@ -2151,11 +2157,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
+                  <DynamicQrPhCode 
+                    amount={amountToPayNow} 
+                    merchantName="JOHN LLOYD CASPILLO"
+                    accountNumber="0948-825-1444"
+                    refNumber={`BOOK-${selectedRoom?.roomID || 'PAY'}`} 
+                  />
+
                   <div className="p-3 border rounded bg-white text-center mb-3">
-                    <div className="fw-bold text-primary mb-1">PCC Home Suite Home GCash Merchant</div>
-                    <div className="small text-muted mb-2">Account No: <strong>0917-123-4567</strong></div>
                     <div className="mb-2">
-                      <label className="form-label fw-semibold small">GCash Reference Number *</label>
+                      <label className="form-label fw-semibold small">Enter GCash Reference Number *</label>
                       <input
                         type="text"
                         className="form-control text-center fw-bold"
