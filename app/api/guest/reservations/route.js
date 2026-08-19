@@ -123,21 +123,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Rule 1B: One Active Reservation or Booking Per Guest
-    const activeRes = await dbQuery(
-      "SELECT reservationID FROM reservation WHERE guestID = ? AND status IN ('Pending', 'Confirmed')",
-      [guest.guestID]
-    );
-    const activeBooking = await dbQuery(
-      "SELECT bookingID FROM booking WHERE guestID = ? AND status IN ('Pending', 'Checked In', 'Confirmed', 'Pending Check-in')",
-      [guest.guestID]
-    );
-
-    if (activeRes.length > 0 || activeBooking.length > 0) {
-      return NextResponse.json({
-        error: "You already have an active reservation/booking. Please modify or cancel your existing reservation before creating a new one."
-      }, { status: 400 });
-    }
+    // Allow guests to reserve multiple rooms (Rule 1B restriction removed)
 
     // Rule 1C: Duplicate Reservation Validation
     const dupRes = await dbQuery(

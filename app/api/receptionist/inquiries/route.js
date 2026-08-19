@@ -35,7 +35,7 @@ export async function GET(request) {
       );
     }
 
-    return NextResponse.json({ success: true, inquiries, selectedMessages });
+    return NextResponse.json({ success: true, inquiries, selectedMessages, inquiryID: selectedID });
   } catch (error) {
     console.error("Failed to fetch receptionist inquiries:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

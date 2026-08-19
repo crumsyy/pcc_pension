@@ -53,7 +53,7 @@ export default function ReceptionistInquiries() {
         setSelectedInquiry(data.inquiries[0]);
       }
 
-      if (data.selectedMessages && data.inquiryID === selectedInquiry?.inquiryID) {
+      if (data.selectedMessages && data.selectedMessages.length > 0) {
         setMessages(data.selectedMessages);
       }
     } catch (err) {

@@ -30,19 +30,7 @@ async function checkActiveReservationOrBooking(guestID, currentReservationID = n
     resSql += " AND reservationID != ?";
     resParams.push(currentReservationID);
   }
-  const activeRes = await dbQuery(resSql, resParams);
-
-  const activeBooking = await dbQuery(
-    "SELECT bookingID FROM booking WHERE guestID = ? AND status IN ('Pending', 'Checked In', 'Confirmed', 'Pending Check-in')",
-    [guestID]
-  );
-
-  if (activeRes.length > 0 || activeBooking.length > 0) {
-    return {
-      valid: false,
-      message: "You already have an active reservation/booking. Please modify or cancel your existing reservation before creating a new one."
-    };
-  }
+  // Allow guests/receptionists to reserve multiple rooms for the same guest
   return { valid: true };
 }
 

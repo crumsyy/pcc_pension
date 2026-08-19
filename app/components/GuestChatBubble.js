@@ -104,15 +104,12 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     fetchCatalog();
   }, []);
 
-  // Fast polling (every 1.2s) for real-time live chat responses when window is open
+  // Continuous polling for real-time live chat responses
   useEffect(() => {
-    let interval;
-    if (isOpen) {
-      fetchLiveInquiry();
-      interval = setInterval(fetchLiveInquiry, 1200);
-    }
+    fetchLiveInquiry();
+    const interval = setInterval(fetchLiveInquiry, 1200);
     return () => clearInterval(interval);
-  }, [isOpen, currentUser, requestForm.email]);
+  }, [currentUser, requestForm.email]);
 
   useEffect(() => {
     if (!chatBodyRef.current) return;
