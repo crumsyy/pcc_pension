@@ -68,10 +68,38 @@ export default function DynamicQrPhCode({
         </div>
       </div>
 
+      {/* Deep Link Button to Open GCash App Directly */}
+      <button
+        type="button"
+        className="btn btn-primary w-100 fw-bold my-2 py-2 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+        style={{ backgroundColor: '#005CE6', borderColor: '#005CE6', borderRadius: '8px', fontSize: '0.88rem' }}
+        onClick={() => {
+          // 1. Copy payment details to clipboard
+          const infoText = `Account: ${accountNumber} | Name: ${merchantName} | Amount: ₱${parsedAmount.toFixed(2)}`;
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(infoText);
+          }
+          // 2. Trigger GCash app launch deep-link
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile) {
+            window.location.href = `intent://qrph?payload=${encodeURIComponent(qrPayload)}#Intent;scheme=gcash;package=com.gcash;end`;
+            setTimeout(() => {
+              window.location.href = 'gcash://';
+            }, 600);
+          } else {
+            alert(`Payment details copied to clipboard!\nAccount: ${accountNumber} (${merchantName})\nAmount: ₱${parsedAmount.toFixed(2)}\n\nPlease open your GCash app to complete payment.`);
+          }
+        }}
+      >
+        <i className="bi bi-phone-fill fs-6"></i>
+        <span>Proceed to GCash App (₱{parsedAmount.toFixed(2)})</span>
+        <i className="bi bi-box-arrow-up-right small"></i>
+      </button>
+
       {/* Supported Apps Disclaimer */}
-      <div className="mt-2 text-muted" style={{ fontSize: '0.68rem', lineHeight: '1.3' }}>
+      <div className="text-muted" style={{ fontSize: '0.68rem', lineHeight: '1.3' }}>
         <i className="bi bi-shield-check text-success me-1"></i>
-        <span>Scan using <strong>GCash</strong> or <strong>Maya</strong>. The exact amount (<strong>₱{parsedAmount.toFixed(2)}</strong>) will auto-fill with zero transaction fee.</span>
+        <span>Click <strong>Proceed to GCash App</strong> on mobile or scan QR with <strong>GCash / Maya</strong>. The exact amount (<strong>₱{parsedAmount.toFixed(2)}</strong>) auto-fills with zero transaction fee.</span>
       </div>
     </div>
   );
