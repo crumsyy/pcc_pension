@@ -446,7 +446,7 @@ function PaymentsClient() {
                       refNumber={`PAY-${selectedBookingID || 'POS'}`}
                       paymentStatus="Pending"
                       showCheckStatusBtn={true}
-                      onCheckStatus={fetchData}
+                      onCheckStatus={fetchInitialData}
                     />
                   )}
 
