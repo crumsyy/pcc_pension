@@ -1225,6 +1225,9 @@ function ReservationsClient() {
                         merchantName="JOHN LLOYD CASPILLO"
                         accountNumber="0948-825-1444"
                         refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
+                        paymentStatus="Pending"
+                        showCheckStatusBtn={true}
+                        onCheckStatus={fetchData}
                       />
                     )}
                   </div>

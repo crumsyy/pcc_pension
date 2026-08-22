@@ -444,6 +444,9 @@ function PaymentsClient() {
                       merchantName="JOHN LLOYD CASPILLO"
                       accountNumber="0948-825-1444"
                       refNumber={`PAY-${selectedBookingID || 'POS'}`}
+                      paymentStatus="Pending"
+                      showCheckStatusBtn={true}
+                      onCheckStatus={fetchData}
                     />
                   )}
 

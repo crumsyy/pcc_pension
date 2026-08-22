@@ -2186,36 +2186,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
-                  {/* PAYMONGO DIRECT GCASH CHECKOUT */}
-                  <div className="p-3 bg-primary-subtle border border-primary-subtle rounded text-center mb-3">
-                    <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.92rem' }}>
-                      ⚡ Instant GCash Checkout (Powered by PayMongo)
-                    </div>
-                    <p className="text-muted small mb-2" style={{ fontSize: '0.78rem' }}>
-                      Automatically opens your GCash app or web login with instant verification.
-                    </p>
-                    <button
-                      type="button"
-                      className="btn btn-primary text-white w-100 fw-bold py-2 shadow-sm"
-                      onClick={handlePayMongoCheckout}
-                      disabled={processing}
-                    >
-                      {processing ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                          Connecting PayMongo...
-                        </>
-                      ) : (
-                        `⚡ Pay ₱${amountToPayNow.toFixed(2)} via PayMongo GCash`
-                      )}
-                    </button>
-                  </div>
-
                   <DynamicQrPhCode 
                     amount={amountToPayNow} 
                     merchantName="JOHN LLOYD CASPILLO"
                     accountNumber="0948-825-1444"
-                    refNumber={`BOOK-${selectedRoom?.roomID || 'PAY'}`} 
+                    refNumber={`BOOK-${selectedRoom?.roomID || 'PAY'}`}
+                    paymentStatus="Pending"
+                    onProceedToGCash={handlePayMongoCheckout}
+                    isRedirecting={processing}
                   />
 
                   <div className="p-3 border rounded bg-white text-center mb-3">
