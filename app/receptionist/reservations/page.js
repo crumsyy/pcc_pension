@@ -167,6 +167,13 @@ function ReservationsClient() {
     return `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
   };
 
+  const getTomorrowUiDate = () => {
+    const today = new Date();
+    const target = new Date(today.getTime() + (1 * 24 * 60 * 60 * 1000));
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(target.getMonth() + 1)}/${pad(target.getDate())}/${target.getFullYear()}`;
+  };
+
   const getTwoDaysAheadUiDate = () => {
     const today = new Date();
     const target = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
@@ -220,7 +227,7 @@ function ReservationsClient() {
 
         setResDate(formatParamDate(qCheckIn));
         setResTime("14:00");
-        setCheckOutDate(getThreeDaysAheadUiDate());
+        setCheckOutDate(getTomorrowUiDate());
         setCheckOutTime("12:00");
         setIsWalkIn(true);
         setWalkInForm({
@@ -243,7 +250,7 @@ function ReservationsClient() {
   useEffect(() => {
     if (activeModal === 'create') {
       const defaultDateStr = minResDate;
-      const defaultOutStr = getThreeDaysAheadUiDate();
+      const defaultOutStr = getTomorrowUiDate();
 
       setResDate(defaultDateStr);
       setResTime("14:00");
@@ -342,7 +349,7 @@ function ReservationsClient() {
       setCheckOutDate(toUiDate(res.checkOutDateTime.substring(0, 10)));
       setCheckOutTime(res.checkOutDateTime.length >= 16 ? res.checkOutDateTime.substring(11, 16) : '12:00');
     } else {
-      setCheckOutDate(getThreeDaysAheadUiDate());
+      setCheckOutDate(getTomorrowUiDate());
       setCheckOutTime('12:00');
     }
 
@@ -365,7 +372,7 @@ function ReservationsClient() {
       setConvOutDate(toUiDate(outDateOnly));
       setConvOutTime(outTimeOnly);
     } else {
-      setConvOutDate(getThreeDaysAheadUiDate());
+      setConvOutDate(getTomorrowUiDate());
       setConvOutTime('12:00');
     }
 
