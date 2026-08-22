@@ -450,19 +450,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (!selectedRoom) return;
 
     // Reservation Rule: Guests can only select today’s date and up to 2 days ahead maximum
+    const pad = (n) => String(n).padStart(2, '0');
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const maxResDate = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
-    maxResDate.setHours(23, 59, 59, 999);
-    const chosenCheckIn = new Date(checkInDate);
-    chosenCheckIn.setHours(0, 0, 0, 0);
+    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+    const maxDate = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const maxDateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`;
 
     if (checkOutDate && checkOutDate <= checkInDate) {
       showAlert('warning', 'Invalid Stay Dates', 'Check-out time must be later than check-in time.');
       return;
     }
 
-    if (chosenCheckIn < today || chosenCheckIn > maxResDate) {
+    if (checkInDate < todayStr || checkInDate > maxDateStr) {
       showAlert('warning', 'Reservation Date Restriction', 'Reservations can only be made for today or up to 2 days ahead maximum.');
       return;
     }
