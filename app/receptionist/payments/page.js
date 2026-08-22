@@ -445,6 +445,7 @@ function PaymentsClient() {
                       accountNumber="0948-825-1444"
                       refNumber={`PAY-${selectedBookingID || 'POS'}`}
                       paymentStatus="Pending"
+                      showProceedBtn={false}
                       showCheckStatusBtn={true}
                       onCheckStatus={fetchInitialData}
                     />

@@ -1226,6 +1226,7 @@ function ReservationsClient() {
                         accountNumber="0948-825-1444"
                         refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
                         paymentStatus="Pending"
+                        showProceedBtn={false}
                         showCheckStatusBtn={true}
                         onCheckStatus={fetchData}
                       />
