@@ -161,6 +161,12 @@ function ReservationsClient() {
     });
   };
 
+  const getTodayUiDate = () => {
+    const today = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
+  };
+
   const getTwoDaysAheadUiDate = () => {
     const today = new Date();
     const target = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
@@ -168,14 +174,8 @@ function ReservationsClient() {
     return `${pad(target.getMonth() + 1)}/${pad(target.getDate())}/${target.getFullYear()}`;
   };
 
-  const getThreeDaysAheadUiDate = () => {
-    const today = new Date();
-    const target = new Date(today.getTime() + (3 * 24 * 60 * 60 * 1000));
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(target.getMonth() + 1)}/${pad(target.getDate())}/${target.getFullYear()}`;
-  };
-
-  const minResDate = getTwoDaysAheadUiDate();
+  const minResDate = getTodayUiDate();
+  const maxResDate = getTwoDaysAheadUiDate();
 
   const fetchData = async () => {
     setLoading(true);
@@ -398,8 +398,8 @@ function ReservationsClient() {
     selectedDateObj.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 2) {
-      showAlert('error', 'Validation Error', 'Reservations must be made at least 2 days before your intended check-in date.');
+    if (diffDays < 0 || diffDays > 2) {
+      showAlert('error', 'Validation Error', 'Reservations are strictly allowed for Today, Tomorrow, and Next Day only (up to 2 days ahead).');
       return;
     }
 
@@ -955,7 +955,7 @@ function ReservationsClient() {
                         onChange={(e) => handleResDateChange(e.target.value)}
                         required
                         min={minResDate}
-                        max={minResDate}
+                        max={maxResDate}
                       />
                     </div>
                     <div className="col-md-6">

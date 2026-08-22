@@ -103,15 +103,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   // Responsive Breakpoint State (1024px)
   const [isDesktop, setIsDesktop] = useState(false);
   const [minReserveDateStr, setMinReserveDateStr] = useState('');
+  const [maxReserveDateStr, setMaxReserveDateStr] = useState('');
   const [minBookDateStr, setMinBookDateStr] = useState('');
 
   useEffect(() => {
     const t = new Date();
     const pad = (n) => String(n).padStart(2, '0');
-    setMinBookDateStr(`${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`);
+    const todayStr = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+    setMinBookDateStr(todayStr);
+    setMinReserveDateStr(todayStr);
 
-    const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 2);
-    setMinReserveDateStr(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+    const maxD = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 2);
+    setMaxReserveDateStr(`${maxD.getFullYear()}-${pad(maxD.getMonth() + 1)}-${pad(maxD.getDate())}`);
   }, []);
 
   useEffect(() => {
@@ -1923,7 +1926,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="p-3 bg-light rounded border mb-3">
                     <h6 className="fw-bold text-success mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h6>
                     <div className="small text-muted">Floor: {selectedRoom.floorName} • Rate: ₱{parseFloat(selectedRoom.rate).toFixed(2)}/night</div>
-                    <div className="small text-danger fw-semibold mt-1">Note: Reservations must be made at least 2 days in advance.</div>
+                    <div className="small text-primary fw-semibold mt-1">Note: Selectable reservation check-in dates are Today, Tomorrow, and Day After Tomorrow (up to 2 days ahead).</div>
                   </div>
 
                   <div className="row g-2 mb-3">
@@ -1933,7 +1936,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         type="date"
                         className="form-control form-control-sm"
                         min={minReserveDateStr}
-                        max={minReserveDateStr}
+                        max={maxReserveDateStr}
                         value={checkInDate}
                         onChange={(e) => handleCheckInDateChange(e.target.value)}
                         required

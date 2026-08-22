@@ -90,6 +90,7 @@ export default function Home() {
   // Search state
   const [checkIn, setCheckIn] = useState("");
   const [minCheckIn, setMinCheckIn] = useState("");
+  const [maxCheckIn, setMaxCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [roomType, setRoomType] = useState("Any room type");
   const [breakfast, setBreakfast] = useState("With Breakfast");
@@ -142,14 +143,11 @@ export default function Home() {
     checkSession();
     fetchLandingData();
 
-    const today = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const todayStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
-
-    const tomorrow = new Date(today.getTime() + (24 * 60 * 60 * 1000));
-    const tomorrowStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
+    const maxDate = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
+    const maxDateStr = `${pad(maxDate.getMonth() + 1)}/${pad(maxDate.getDate())}/${maxDate.getFullYear()}`;
 
     setMinCheckIn(todayStr);
+    setMaxCheckIn(maxDateStr);
     setCheckIn(todayStr);
     setCheckOut(tomorrowStr);
   }, []);
@@ -287,6 +285,7 @@ export default function Home() {
                       onChange={(e) => setCheckIn(e.target.value)}
                       required
                       min={minCheckIn}
+                      max={maxCheckIn}
                     />
                   </div>
                   <div className="col-md-6">
