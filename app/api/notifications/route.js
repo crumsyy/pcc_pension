@@ -42,72 +42,91 @@ export async function GET() {
       console.error("Low inventory notification check failed:", invErr);
     }
 
-    // 2. Auto-generate Check-in (24h) and Check-out (1h / Overdue) Alerts for Staff (Admin & Receptionist)
+    // 2. Auto-generate Pre-Check-in (3h), Pre-Check-out (2h), and Exceeded Check-out Alerts
     try {
-      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
-      const staffUserIDs = staffUsers.map(a => a.userID);
+      const receptionistUsers = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
+      const receptionistUserIDs = receptionistUsers.map(a => a.userID);
 
-      // Bookings scheduled for Check-in within next 24 hours
+      // A. Pre-Check-In Notifications (within 3 hours of scheduled check-in)
       const upcomingCheckIns = await dbQuery(`
-        SELECT b.bookingID, b.guestID, g.firstName, g.lastName
+        SELECT b.bookingID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         WHERE b.status IN ('Confirmed', 'Pending Check-in', 'Pending')
-          AND b.checkInDateTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 24 HOUR)
+          AND b.checkInDateTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 3 HOUR)
       `);
 
       for (const b of upcomingCheckIns) {
-        const staffMsg = `Upcoming Check-in: Booking #${b.bookingID} for ${b.firstName} ${b.lastName} is scheduled within 24 hours.`;
-        for (const sID of staffUserIDs) {
-          const alreadyNotified = await dbQuery(
-            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-            [sID, staffMsg]
-          );
+        // Guest Notification
+        if (b.guestUserID) {
+          const guestMsg = "Your check-in time is approaching. Please prepare for arrival.";
+          const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [b.guestUserID, guestMsg]);
           if (alreadyNotified.length === 0) {
-            await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Upcoming Check-in Alert', ?)",
-              [sID, staffMsg]
-            );
+            await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-In Alert', ?)", [b.guestUserID, guestMsg]);
+          }
+        }
+        // Receptionist Notification
+        const staffMsg = `Upcoming Check-in: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) check-in time is approaching within 3 hours.`;
+        for (const sID of receptionistUserIDs) {
+          const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
+          if (alreadyNotified.length === 0) {
+            await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-In Alert', ?)", [sID, staffMsg]);
           }
         }
       }
 
-      // Bookings scheduled for Check-out within next 1 hour
+      // B. Pre-Check-Out Notifications (within 2 hours of scheduled check-out)
       const upcomingCheckOuts = await dbQuery(`
         SELECT b.bookingID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         WHERE b.status = 'Checked In'
-          AND b.checkOutDateTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 HOUR)
+          AND b.checkOutDateTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
       `);
 
       for (const b of upcomingCheckOuts) {
-        const staffMsg = `Check-out Reminder: Booking #${b.bookingID} for ${b.firstName} ${b.lastName} is scheduled for check-out in 1 hour. Late check-out fee applies for delays past 12:00 PM today.`;
-        for (const sID of staffUserIDs) {
-          const alreadyNotified = await dbQuery(
-            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-            [sID, staffMsg]
-          );
+        // Guest Notification
+        if (b.guestUserID) {
+          const guestMsg = "Your stay is almost over. Please prepare for check-out or request an extension.";
+          const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [b.guestUserID, guestMsg]);
           if (alreadyNotified.length === 0) {
-            await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Check-out Reminder', ?)",
-              [sID, staffMsg]
-            );
+            await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-Out Alert', ?)", [b.guestUserID, guestMsg]);
           }
         }
+        // Receptionist Notification
+        const staffMsg = `Upcoming Check-out: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) is approaching scheduled check-out within 2 hours.`;
+        for (const sID of receptionistUserIDs) {
+          const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
+          if (alreadyNotified.length === 0) {
+            await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-Out Alert', ?)", [sID, staffMsg]);
+          }
+        }
+      }
 
-        // Send 1-hour check-out alert to Guest account
+      // C. Exceeded Check-Out Handling (Overdue past 12:00 PM)
+      const overdueCheckOuts = await dbQuery(`
+        SELECT b.bookingID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID
+        FROM booking b
+        JOIN guest g ON g.guestID = b.guestID
+        WHERE b.status = 'Checked In'
+          AND NOW() > b.checkOutDateTime
+      `);
+
+      for (const b of overdueCheckOuts) {
+        // Guest Notification
         if (b.guestUserID) {
-          const guestMsg = `Check-out Reminder: Your scheduled check-out for Booking #${b.bookingID} is in 1 hour. Please prepare for check-out at the front desk. Late check-out fee (₱100/hr) applies for delays past 12:00 PM today.`;
-          const alreadyGuestNotified = await dbQuery(
-            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-            [b.guestUserID, guestMsg]
-          );
-          if (alreadyGuestNotified.length === 0) {
-            await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Check-out Reminder', ?)",
-              [b.guestUserID, guestMsg]
-            );
+          const guestMsg = "Check-out time exceeded! A late fee of ₱100 per hour applies until check-out is processed.";
+          const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [b.guestUserID, guestMsg]);
+          if (alreadyNotified.length === 0) {
+            await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Exceeded Check-Out Alert', ?)", [b.guestUserID, guestMsg]);
+          }
+        }
+        // Receptionist Notification
+        const staffMsg = `Exceeded Check-out: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) has exceeded checkout time. ₱100/hr late fee applies.`;
+        for (const sID of receptionistUserIDs) {
+          const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
+          if (alreadyNotified.length === 0) {
+            await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Exceeded Check-Out Alert', ?)", [sID, staffMsg]);
           }
         }
       }
