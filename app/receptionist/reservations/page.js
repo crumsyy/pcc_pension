@@ -1222,8 +1222,6 @@ function ReservationsClient() {
                     {String(paymentMethodID) === '2' && (
                       <DynamicQrPhCode 
                         amount={requiredDownpayment}
-                        merchantName="JOHN LLOYD CASPILLO"
-                        accountNumber="0948-825-1444"
                         refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
                         paymentStatus="Pending"
                         showProceedBtn={false}

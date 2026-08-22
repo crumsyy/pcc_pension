@@ -3,17 +3,15 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * Dynamic QR Ph / PayMongo QR Code Component
- * - Displays official PayMongo QR Ph code (fetched via PayMongo API).
- * - On Receptionist Panel (showProceedBtn=false): Hides "Proceed to GCash" button. Displays centered QR code, Amount to Pay, Payment Status (Pending), and Check Payment Status button.
- * - On Guest Panel (showProceedBtn=true): Shows both Option A (Scan QR) and Option B ("Proceed to GCash" direct PayMongo checkout button).
+ * Official PayMongo QRPh Component
+ * - Uses ONLY the actual QRPh image URL generated and returned by PayMongo's servers.
+ * - Zero custom payload generators or external QR encoding APIs.
+ * - Receptionist Panel (showProceedBtn=false): Displays centered PayMongo QR, Amount, Status (Pending), and Check Status button.
+ * - Guest Panel (showProceedBtn=true): Displays Option 1 (PayMongo QRPh) + Option 2 (Proceed to GCash direct checkout).
  */
 export default function DynamicQrPhCode({
   amount = 0,
-  merchantName = "JOHN LLOYD CASPILLO",
-  accountNumber = "0948-825-1444",
   refNumber = "",
-  size = 210,
   paymentStatus = "Pending",
   showProceedBtn = true, // Set to false on Receptionist Panel!
   onProceedToGCash = null,
@@ -26,25 +24,30 @@ export default function DynamicQrPhCode({
 
   const [paymongoQrUrl, setPaymongoQrUrl] = useState(null);
   const [loadingQr, setLoadingQr] = useState(false);
+  const [qrError, setQrError] = useState(null);
 
-  // Fetch official PayMongo QR Ph image dynamically when amount changes
+  // Fetch official PayMongo QRPh image directly from PayMongo API via backend
   useEffect(() => {
     let isMounted = true;
     if (parsedAmount > 0) {
       setLoadingQr(true);
+      setQrError(null);
       fetch('/api/payments/paymongo-qr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: parsedAmount, refNumber: cleanRef })
+        body: JSON.stringify({ amount: parsedAmount, description: `Downpayment Ref #${cleanRef}` })
       })
         .then(res => res.json())
         .then(data => {
-          if (isMounted && data.success && data.paymongoQrUrl) {
+          if (!isMounted) return;
+          if (data.success && data.paymongoQrUrl) {
             setPaymongoQrUrl(data.paymongoQrUrl);
+          } else {
+            setQrError(data.error || 'Unable to retrieve PayMongo QRPh code.');
           }
         })
         .catch(err => {
-          console.log("PayMongo QR fetch notice:", err.message);
+          if (isMounted) setQrError('Connection error loading PayMongo QRPh.');
         })
         .finally(() => {
           if (isMounted) setLoadingQr(false);
@@ -53,49 +56,49 @@ export default function DynamicQrPhCode({
     return () => { isMounted = false; };
   }, [parsedAmount, cleanRef]);
 
-  // EMVCo / QR Ph Dynamic payload format fallback
-  const cleanPhone = accountNumber.replace(/[^0-9]/g, '');
-  const qrPayload = `00020101021226580009ph.qrph0111${cleanPhone}52045999530360854${parsedAmount > 0 ? String(parsedAmount.toFixed(2)).length.toString().padStart(2, '0') + parsedAmount.toFixed(2) : ''}5802PH5918${merchantName.slice(0, 18)}6009Koronadal62200516${cleanRef}6304`;
-  const fallbackQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=12&data=${encodeURIComponent(qrPayload)}`;
-
-  const displayQrUrl = paymongoQrUrl || fallbackQrUrl;
-
   return (
     <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mx-auto my-2 text-center w-100" style={{ maxWidth: '380px' }}>
-      {/* Official PayMongo / QR Ph Header */}
+      {/* PayMongo Official Header Badge */}
       <div className="d-flex align-items-center justify-content-center gap-2 mb-2 w-100 py-1.5 px-3 rounded-2 text-white shadow-xs" style={{ backgroundColor: '#005CE6', fontWeight: 600, fontSize: '0.88rem' }}>
         <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.65rem', padding: '3px 6px' }}>QR Ph</span>
-        <span>{paymongoQrUrl ? 'PayMongo QR Ph Payment' : 'GCash QR Ph Payment'}</span>
+        <span>PayMongo Official QRPh Payment</span>
       </div>
 
-      {/* Centered QR Code Frame */}
+      {/* Option 1: Centered PayMongo QR Code Frame */}
       <div className="d-flex flex-column align-items-center justify-content-center my-2">
         <div 
-          className="p-2.5 bg-white rounded-3 border shadow-xs d-flex align-items-center justify-content-center position-relative" 
-          style={{ border: '2.5px solid #005CE6', width: `${size + 24}px`, height: `${size + 24}px`, maxWidth: '100%' }}
+          className="p-2.5 bg-white rounded-3 border shadow-xs d-flex align-items-center justify-content-center position-relative overflow-hidden" 
+          style={{ border: '2.5px solid #005CE6', width: '234px', height: '234px', maxWidth: '100%' }}
         >
           {loadingQr ? (
             <div className="d-flex flex-column align-items-center justify-content-center">
-              <span className="spinner-border spinner-border-sm text-primary mb-1" role="status"></span>
-              <small className="text-muted" style={{ fontSize: '0.7rem' }}>Generating PayMongo QR...</small>
+              <span className="spinner-border spinner-border-sm text-primary mb-2" role="status"></span>
+              <small className="text-muted fw-semibold" style={{ fontSize: '0.74rem' }}>Requesting PayMongo QRPh...</small>
             </div>
-          ) : (
+          ) : qrError ? (
+            <div className="p-2 text-danger small">
+              <i className="bi bi-exclamation-triangle-fill d-block fs-5 mb-1"></i>
+              {qrError}
+            </div>
+          ) : paymongoQrUrl ? (
             <img
-              src={displayQrUrl}
-              alt="PayMongo QR Ph Code"
-              width={size}
-              height={size}
+              src={paymongoQrUrl}
+              alt="Official PayMongo QRPh Code"
+              width={210}
+              height={210}
               className="img-fluid rounded"
               style={{ display: 'block', objectFit: 'contain', maxWidth: '100%', height: 'auto' }}
             />
+          ) : (
+            <div className="text-muted small">PayMongo QR unavailable</div>
           )}
         </div>
         <small className="text-muted fw-semibold mt-2" style={{ fontSize: '0.76rem' }}>
-          {showProceedBtn ? 'Option A: Scan this QR code using your GCash app' : 'Scan this QR code using GCash / Maya app'}
+          {showProceedBtn ? 'Option 1: Scan this QR code using your payment app' : 'Scan this PayMongo QRPh code using GCash, Maya, or any bank app'}
         </small>
       </div>
 
-      {/* Option B: Proceed to GCash Button (GUEST PANEL ONLY!) */}
+      {/* Option 2: Proceed to GCash Button (GUEST PANEL ONLY!) */}
       {showProceedBtn && (
         <div className="my-2 w-100">
           <div className="d-flex align-items-center justify-content-center gap-2 text-muted small mb-1" style={{ fontSize: '0.72rem' }}>
@@ -112,28 +115,18 @@ export default function DynamicQrPhCode({
             onClick={() => {
               if (onProceedToGCash) {
                 onProceedToGCash();
-              } else {
-                const infoText = `Account: ${accountNumber} | Name: ${merchantName} | Amount: ₱${parsedAmount.toFixed(2)}`;
-                if (navigator.clipboard) navigator.clipboard.writeText(infoText);
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                if (isMobile) {
-                  window.location.href = `intent://qrph?payload=${encodeURIComponent(qrPayload)}#Intent;scheme=gcash;package=com.gcash;end`;
-                  setTimeout(() => { window.location.href = 'gcash://'; }, 600);
-                } else {
-                  alert(`Payment details copied to clipboard!\nAccount: ${accountNumber} (${merchantName})\nAmount: ₱${parsedAmount.toFixed(2)}\n\nPlease open your GCash app to complete payment.`);
-                }
               }
             }}
           >
             {isRedirecting ? (
               <>
                 <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                <span>Redirecting to GCash...</span>
+                <span>Connecting to PayMongo... Redirecting to GCash...</span>
               </>
             ) : (
               <>
                 <i className="bi bi-box-arrow-up-right fs-6"></i>
-                <span>Proceed to GCash (₱{parsedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                <span>Option 2: Proceed to GCash (₱{parsedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
               </>
             )}
           </button>
@@ -142,14 +135,6 @@ export default function DynamicQrPhCode({
 
       {/* Payment Details Summary */}
       <div className="w-100 text-start bg-light p-2.5 rounded-2 border mt-2" style={{ fontSize: '0.78rem' }}>
-        <div className="d-flex justify-content-between mb-1">
-          <span className="text-muted">Account Name:</span>
-          <span className="fw-bold text-dark">{merchantName}</span>
-        </div>
-        <div className="d-flex justify-content-between mb-1">
-          <span className="text-muted">GCash Number:</span>
-          <span className="fw-bold text-primary">{accountNumber}</span>
-        </div>
         <div className="d-flex justify-content-between mb-1">
           <span className="text-muted">Amount to Pay:</span>
           <span className="fw-bold text-success" style={{ fontSize: '0.92rem' }}>
@@ -163,7 +148,7 @@ export default function DynamicQrPhCode({
           </span>
         </div>
         <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.72rem' }}>
-          <span>QR Ref ID:</span>
+          <span>Transaction Ref:</span>
           <span className="font-monospace text-dark">{cleanRef}</span>
         </div>
       </div>

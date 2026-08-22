@@ -2188,10 +2188,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                   <DynamicQrPhCode 
                     amount={amountToPayNow} 
-                    merchantName="JOHN LLOYD CASPILLO"
-                    accountNumber="0948-825-1444"
                     refNumber={`BOOK-${selectedRoom?.roomID || 'PAY'}`}
                     paymentStatus="Pending"
+                    showProceedBtn={true}
                     onProceedToGCash={handlePayMongoCheckout}
                     isRedirecting={processing}
                   />

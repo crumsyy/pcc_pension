@@ -441,8 +441,6 @@ function PaymentsClient() {
                   {paymentForm.paymentMethodID === '2' && (
                     <DynamicQrPhCode 
                       amount={payableAmount}
-                      merchantName="JOHN LLOYD CASPILLO"
-                      accountNumber="0948-825-1444"
                       refNumber={`PAY-${selectedBookingID || 'POS'}`}
                       paymentStatus="Pending"
                       showProceedBtn={false}
