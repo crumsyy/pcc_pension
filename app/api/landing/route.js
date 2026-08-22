@@ -21,7 +21,7 @@ export async function GET(request) {
       `),
       dbQuery(`
         SELECT p.promotionID, COALESCE(p.name, 'Special Discount') as name, 
-               p.description, COALESCE(p.discountPercentage, 10) as percentage, 
+               p.description, COALESCE(p.percentage, 10) as percentage, 
                p.startDate, p.endDate, rt.type as roomTypeName
         FROM promotions p
         LEFT JOIN room_type rt ON rt.roomTypeID = p.roomTypeID

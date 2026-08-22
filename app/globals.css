@@ -1563,3 +1563,38 @@ body.dark-theme .guest-hero-card *,
 body.dark-theme aside * {
   color: #f8fafc !important;
 }
+
+/* =====================================================================
+   Guest Panel Mobile & Tablet Responsive Media Queries
+   ===================================================================== */
+@media (max-width: 768px) {
+  .guest-dashboard-container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .guest-hero-card {
+    padding: 1rem !important;
+    border-radius: 12px !important;
+  }
+
+  .chatbot-window {
+    width: calc(100vw - 24px) !important;
+    right: 12px !important;
+    left: 12px !important;
+    bottom: 70px !important;
+    height: calc(100vh - 130px) !important;
+    max-height: 520px !important;
+  }
+
+  .room-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .chatbot-window {
+    width: 340px !important;
+    right: 20px !important;
+  }
+}
