@@ -140,6 +140,20 @@ export async function POST(request) {
         const activeRoomID = bookingCheck[0].roomID;
         const activeBorrowedBy = `${bookingCheck[0].firstName} ${bookingCheck[0].lastName}`.trim();
 
+        // Prevent duplicate order creation within 10 seconds for the same guest
+        const [recentOrderCheck] = await connection.execute(
+          "SELECT orderID FROM orders WHERE guestID = ? AND orderDateTime >= DATE_SUB(NOW(), INTERVAL 10 SECOND) LIMIT 1",
+          [guestID]
+        );
+        if (recentOrderCheck.length > 0) {
+          await connection.commit();
+          return NextResponse.json({
+            success: true,
+            orderID: recentOrderCheck[0].orderID,
+            message: "Order placed successfully."
+          });
+        }
+
         // Check if order contains cooked breakfast meals
         let containsCookedBreakfast = false;
         for (const item of items) {

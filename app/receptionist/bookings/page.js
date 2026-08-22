@@ -1278,7 +1278,7 @@ function BookingsClient() {
                   <div className="row g-2 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-Out Date *</label>
-                      <DateInput value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
+                      <DateInput value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required min={checkInDate} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-Out Time *</label>

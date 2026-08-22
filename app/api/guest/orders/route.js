@@ -108,6 +108,20 @@ export async function POST(request) {
     try {
       await connection.beginTransaction();
 
+      // Prevent duplicate order creation within 10 seconds for the same guest
+      const [recentOrderCheck] = await connection.execute(
+        "SELECT orderID FROM orders WHERE guestID = ? AND orderDateTime >= DATE_SUB(NOW(), INTERVAL 10 SECOND) LIMIT 1",
+        [guest.guestID]
+      );
+      if (recentOrderCheck.length > 0) {
+        await connection.commit();
+        return NextResponse.json({
+          success: true,
+          orderID: recentOrderCheck[0].orderID,
+          message: "Order already submitted."
+        });
+      }
+
       const deliveryTime = body.deliveryTime || null;
       // Create Order
       const [orderRes] = await connection.execute(

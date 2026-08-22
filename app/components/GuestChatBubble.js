@@ -246,7 +246,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
   };
 
   const handleConfirmOrder = async () => {
-    if (!pendingOrderPill) return;
+    if (!pendingOrderPill || placingOrder) return;
     setPlacingOrder(true);
 
     try {
