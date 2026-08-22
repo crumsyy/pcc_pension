@@ -154,17 +154,7 @@ export async function POST(request) {
           }
         }
 
-        // Rule 9: Cooked Meal Ordering Hours Validation (6:00 AM - 10:30 AM)
-        if (containsCookedBreakfast) {
-          const now = new Date();
-          const currentMins = now.getHours() * 60 + now.getMinutes();
-          // 6:00 AM = 360 mins, 10:30 AM = 630 mins
-          if (currentMins < 360 || currentMins > 630) {
-            return NextResponse.json({
-              error: "Cooked meals can only be ordered between 6:00 AM and 10:30 AM."
-            }, { status: 400 });
-          }
-        }
+        // Flexible meal scheduling allowed at any time (restricted ordering window removed)
 
         // Rule 10: Complimentary Breakfast Entitlement Check
         const [compCheck] = await connection.execute(

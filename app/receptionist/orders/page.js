@@ -131,16 +131,7 @@ export default function ReceptionistOrders() {
 
     if (!details) return;
 
-    // Check ordering hours for cooked meals (6:00 AM - 10:30 AM)
-    if (details.productCategoryID === 3) {
-      const now = new Date();
-      const currentMins = now.getHours() * 60 + now.getMinutes();
-      // 6:00 AM = 360 mins, 10:30 AM = 630 mins
-      if (currentMins < 360 || currentMins > 630) {
-        showAlert('warning', 'Ordering Window Restricted', 'Cooked meals (breakfast) can only be ordered between 6:00 AM and 10:30 AM in the morning.');
-        return;
-      }
-    }
+    // Flexible meal scheduling allowed at any time (6-10:30 AM restriction removed)
 
     // Check stock
     const currentQtyInForm = existsIndex >= 0 ? newOrderForm.items[existsIndex].quantity : 0;
@@ -198,7 +189,8 @@ export default function ReceptionistOrders() {
           body: JSON.stringify({
             action: 'create',
             guestID: newOrderForm.guestID,
-            items: newOrderForm.items
+            items: newOrderForm.items,
+            deliveryTime: newOrderForm.deliveryTime || 'ASAP'
           })
         });
 
@@ -355,6 +347,13 @@ export default function ReceptionistOrders() {
                                 </div>
                               ))}
                             </div>
+                            {o.deliveryTime && (
+                              <div className="mt-1">
+                                <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style={{ fontSize: '0.73rem' }}>
+                                  <i className="bi bi-clock me-1"></i>Scheduled Delivery: {o.deliveryTime}
+                                </span>
+                              </div>
+                            )}
                           </td>
                           <td className="fw-bold text-dark">
                             ₱{totalAmt.toFixed(2)}
@@ -501,26 +500,30 @@ export default function ReceptionistOrders() {
                   {newOrderForm.items.some(item => cookedMeals.some(m => m.productID === item.itemID)) && (
                     <div className="mb-3 p-3 bg-primary-subtle border border-primary-subtle rounded">
                       <label className="form-label fw-bold text-primary small mb-1">
-                        Scheduled Delivery Time (6:00 AM - 10:30 AM) *
+                        Scheduled Meal Delivery Time *
                       </label>
                       <select
                         className="form-select form-select-sm fw-semibold"
-                        value={newOrderForm.deliveryTime || '08:00 AM'}
+                        value={newOrderForm.deliveryTime || 'ASAP'}
                         onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
                       >
-                        <option value="06:00 AM">06:00 AM</option>
-                        <option value="06:30 AM">06:30 AM</option>
-                        <option value="07:00 AM">07:00 AM</option>
-                        <option value="07:30 AM">07:30 AM</option>
-                        <option value="08:00 AM">08:00 AM</option>
-                        <option value="08:30 AM">08:30 AM</option>
-                        <option value="09:00 AM">09:00 AM</option>
-                        <option value="09:30 AM">09:30 AM</option>
-                        <option value="10:00 AM">10:00 AM</option>
-                        <option value="10:30 AM">10:30 AM</option>
+                        <option value="ASAP">ASAP (Deliver Immediately)</option>
+                        <option value="06:00 AM">Tomorrow 06:00 AM</option>
+                        <option value="06:30 AM">Tomorrow 06:30 AM</option>
+                        <option value="07:00 AM">Tomorrow 07:00 AM</option>
+                        <option value="07:30 AM">Tomorrow 07:30 AM</option>
+                        <option value="08:00 AM">Tomorrow 08:00 AM</option>
+                        <option value="08:30 AM">Tomorrow 08:30 AM</option>
+                        <option value="09:00 AM">Tomorrow 09:00 AM</option>
+                        <option value="10:00 AM">Tomorrow 10:00 AM</option>
+                        <option value="11:30 AM">Lunch 11:30 AM</option>
+                        <option value="01:00 PM">Afternoon 01:00 PM</option>
+                        <option value="06:00 PM">Dinner 06:00 PM</option>
+                        <option value="08:00 PM">Evening 08:00 PM</option>
+                        <option value="09:00 PM">Late Evening 09:00 PM</option>
                       </select>
                       <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                        Specify the preferred delivery time for room service breakfast/meal delivery.
+                        Guests can schedule meal orders at any time for immediate or future delivery.
                       </small>
                     </div>
                   )}
