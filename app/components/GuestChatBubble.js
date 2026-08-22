@@ -793,7 +793,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
 
           {orderWizard.step === 'delivery_time' && (
             <div className="d-flex flex-wrap gap-1.5 my-2 animate__animated animate__fadeIn">
-              {['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'].map(timeStr => (
+              {['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'].map(timeStr => (
                 <button
                   key={timeStr}
                   className="btn btn-xs btn-outline-success px-2.5 py-1 rounded-pill fw-semibold bg-white shadow-sm"

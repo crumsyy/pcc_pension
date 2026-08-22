@@ -190,7 +190,7 @@ export default function ReceptionistOrders() {
             action: 'create',
             guestID: newOrderForm.guestID,
             items: newOrderForm.items,
-            deliveryTime: newOrderForm.deliveryTime || 'ASAP'
+            deliveryTime: newOrderForm.deliveryTime || '07:30 AM'
           })
         });
 
@@ -500,30 +500,25 @@ export default function ReceptionistOrders() {
                   {newOrderForm.items.some(item => cookedMeals.some(m => m.productID === item.itemID)) && (
                     <div className="mb-3 p-3 bg-primary-subtle border border-primary-subtle rounded">
                       <label className="form-label fw-bold text-primary small mb-1">
-                        Scheduled Meal Delivery Time *
+                        Scheduled Breakfast Delivery Time (6:30 AM - 10:30 AM) *
                       </label>
                       <select
                         className="form-select form-select-sm fw-semibold"
-                        value={newOrderForm.deliveryTime || 'ASAP'}
+                        value={newOrderForm.deliveryTime || '07:30 AM'}
                         onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
                       >
-                        <option value="ASAP">ASAP (Deliver Immediately)</option>
-                        <option value="06:00 AM">Tomorrow 06:00 AM</option>
-                        <option value="06:30 AM">Tomorrow 06:30 AM</option>
-                        <option value="07:00 AM">Tomorrow 07:00 AM</option>
-                        <option value="07:30 AM">Tomorrow 07:30 AM</option>
-                        <option value="08:00 AM">Tomorrow 08:00 AM</option>
-                        <option value="08:30 AM">Tomorrow 08:30 AM</option>
-                        <option value="09:00 AM">Tomorrow 09:00 AM</option>
-                        <option value="10:00 AM">Tomorrow 10:00 AM</option>
-                        <option value="11:30 AM">Lunch 11:30 AM</option>
-                        <option value="01:00 PM">Afternoon 01:00 PM</option>
-                        <option value="06:00 PM">Dinner 06:00 PM</option>
-                        <option value="08:00 PM">Evening 08:00 PM</option>
-                        <option value="09:00 PM">Late Evening 09:00 PM</option>
+                        <option value="06:30 AM">06:30 AM</option>
+                        <option value="07:00 AM">07:00 AM</option>
+                        <option value="07:30 AM">07:30 AM</option>
+                        <option value="08:00 AM">08:00 AM</option>
+                        <option value="08:30 AM">08:30 AM</option>
+                        <option value="09:00 AM">09:00 AM</option>
+                        <option value="09:30 AM">09:30 AM</option>
+                        <option value="10:00 AM">10:00 AM</option>
+                        <option value="10:30 AM">10:30 AM</option>
                       </select>
                       <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                        Guests can schedule meal orders at any time for immediate or future delivery.
+                        Advance breakfast orders can be placed at any time for scheduled delivery between 6:30 AM and 10:30 AM.
                       </small>
                     </div>
                   )}

@@ -88,13 +88,12 @@ export async function POST(request) {
       }
     }
 
-    if (containsCookedMeal) {
-      const now = new Date();
-      const currentMins = now.getHours() * 60 + now.getMinutes();
-      // 6:00 AM = 360 mins, 10:30 AM = 630 mins
-      if (currentMins < 360 || currentMins > 630) {
+    // Validate deliveryTime for cooked meals (must be between 6:30 AM and 10:30 AM)
+    if (containsCookedMeal && body.deliveryTime) {
+      const allowedTimes = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
+      if (!allowedTimes.includes(body.deliveryTime)) {
         return NextResponse.json({
-          error: "Cooked meals can only be ordered between 6:00 AM and 10:30 AM."
+          error: "Breakfast delivery time must be scheduled between 6:30 AM and 10:30 AM."
         }, { status: 400 });
       }
     }

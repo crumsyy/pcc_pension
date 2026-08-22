@@ -154,7 +154,15 @@ export async function POST(request) {
           }
         }
 
-        // Flexible meal scheduling allowed at any time (restricted ordering window removed)
+        // Validate deliveryTime for cooked meals (must be between 6:30 AM and 10:30 AM)
+        if (containsCookedBreakfast && body.deliveryTime) {
+          const allowedTimes = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
+          if (!allowedTimes.includes(body.deliveryTime)) {
+            return NextResponse.json({
+              error: "Breakfast delivery time must be scheduled between 6:30 AM and 10:30 AM."
+            }, { status: 400 });
+          }
+        }
 
         // Rule 10: Complimentary Breakfast Entitlement Check
         const [compCheck] = await connection.execute(
