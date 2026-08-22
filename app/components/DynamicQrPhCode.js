@@ -5,12 +5,12 @@
  * Encodes EMVCo / QR Ph compatible payment payload with Merchant, Exact Amount, and Ref ID.
  * Default Account: 09488251444 (JOHN LLOYD CASPILLO - PCC Suite)
  */
-export default function DynamicQrPhCode({ 
-  amount = 0, 
-  merchantName = "JOHN LLOYD CASPILLO", 
+export default function DynamicQrPhCode({
+  amount = 0,
+  merchantName = "JOHN LLOYD CASPILLO",
   accountNumber = "09488251444",
   refNumber = "",
-  size = 210 
+  size = 210
 }) {
   const parsedAmount = parseFloat(amount) || 0;
   const cleanRef = refNumber || `PCC-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -31,16 +31,16 @@ export default function DynamicQrPhCode({
 
       {/* QR Code Canvas Frame */}
       <div className="position-relative p-2 bg-white rounded-3 border shadow-xs mb-2" style={{ border: '2.5px solid #005CE6' }}>
-        <img 
-          src={qrCodeUrl} 
-          alt="GCash Dynamic QR Ph Code" 
-          width={size} 
+        <img
+          src={qrCodeUrl}
+          alt="GCash Dynamic QR Ph Code"
+          width={size}
           height={size}
           className="img-fluid rounded"
           style={{ display: 'block', objectFit: 'contain' }}
         />
         {/* Center Badge logo overlay */}
-        <div 
+        <div
           className="position-absolute top-50 start-50 translate-middle bg-white rounded-circle p-1 shadow-sm d-flex align-items-center justify-content-center"
           style={{ width: '36px', height: '36px', border: '1.5px solid #005CE6' }}
         >
