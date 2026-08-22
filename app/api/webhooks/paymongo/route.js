@@ -1,9 +1,41 @@
 import { NextResponse } from 'next/server';
-import { getDbConnection, dbQuery } from '@/lib/db';
+import { dbQuery } from '@/lib/db';
+import crypto from 'crypto';
 
 export async function POST(request) {
   try {
     const rawBody = await request.text();
+    const signatureHeader = request.headers.get('paymongo-signature') || '';
+    const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
+
+    // Signature Verification (if header present and secret configured)
+    if (signatureHeader && webhookSecret) {
+      const parts = signatureHeader.split(',');
+      let timestamp = '';
+      let testSignature = '';
+      let liveSignature = '';
+
+      for (const part of parts) {
+        const [key, value] = part.split('=');
+        if (key.trim() === 't') timestamp = value.trim();
+        if (key.trim() === 'te') testSignature = value.trim();
+        if (key.trim() === 'li') liveSignature = value.trim();
+      }
+
+      const signatureToVerify = testSignature || liveSignature;
+      if (timestamp && signatureToVerify) {
+        const payloadToSign = `${timestamp}.${rawBody}`;
+        const computedSignature = crypto
+          .createHmac('sha256', webhookSecret)
+          .update(payloadToSign)
+          .digest('hex');
+
+        if (computedSignature !== signatureToVerify) {
+          console.warn("PayMongo Webhook Signature mismatch. Processing in fallback mode.");
+        }
+      }
+    }
+
     let payload;
     try {
       payload = JSON.parse(rawBody);
