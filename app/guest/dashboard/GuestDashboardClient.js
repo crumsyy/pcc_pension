@@ -511,6 +511,32 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     setActiveModal('payment');
   };
 
+  const handlePayMongoCheckout = async () => {
+    if (!amountToPayNow || amountToPayNow <= 0) return;
+    setProcessing(true);
+    try {
+      const res = await fetch('/api/guest/payments/paymongo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amountToPayNow,
+          description: `Online Down Payment (₱${amountToPayNow.toFixed(2)}) for Room ${selectedRoom?.roomNumber || ''}`
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to initiate PayMongo GCash checkout');
+
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error('Checkout URL not returned.');
+      }
+    } catch (err) {
+      showAlert('error', 'PayMongo Error', err.message);
+      setProcessing(false);
+    }
+  };
+
   const handleConfirmGCashBookingPayment = async (e) => {
     e.preventDefault();
     if (!gcashRef.trim()) {
@@ -2158,6 +2184,31 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <span>Remaining Balance at Check-in:</span>
                       <span className="fw-bold">₱{remainingBalanceAfterPay.toFixed(2)}</span>
                     </div>
+                  </div>
+
+                  {/* PAYMONGO DIRECT GCASH CHECKOUT */}
+                  <div className="p-3 bg-primary-subtle border border-primary-subtle rounded text-center mb-3">
+                    <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.92rem' }}>
+                      ⚡ Instant GCash Checkout (Powered by PayMongo)
+                    </div>
+                    <p className="text-muted small mb-2" style={{ fontSize: '0.78rem' }}>
+                      Automatically opens your GCash app or web login with instant verification.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-primary text-white w-100 fw-bold py-2 shadow-sm"
+                      onClick={handlePayMongoCheckout}
+                      disabled={processing}
+                    >
+                      {processing ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                          Connecting PayMongo...
+                        </>
+                      ) : (
+                        `⚡ Pay ₱${amountToPayNow.toFixed(2)} via PayMongo GCash`
+                      )}
+                    </button>
                   </div>
 
                   <DynamicQrPhCode 
