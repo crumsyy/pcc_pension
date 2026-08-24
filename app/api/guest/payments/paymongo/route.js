@@ -17,10 +17,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid payment amount.' }, { status: 400 });
     }
 
-    const secretKey = process.env.PAYMONGO_SECRET_KEY;
-    if (!secretKey) {
-      return NextResponse.json({ error: 'PayMongo secret key is not configured.' }, { status: 500 });
-    }
+    const secretKey = process.env.PAYMONGO_SECRET_KEY || 'sk_test_GjYHQCNkKkxUuhQykSsSetrS';
 
     // Get guest details
     const guests = await dbQuery("SELECT guestID, firstName, lastName, contact FROM guest WHERE userID = ?", [session.userID]);

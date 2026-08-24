@@ -6,7 +6,7 @@ export async function POST(request) {
   try {
     const rawBody = await request.text();
     const signatureHeader = request.headers.get('paymongo-signature') || '';
-    const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
+    const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET || 'whsk_ueV7cmWcMZyBvMWn7GoYuHj5';
 
     // Signature Verification (if header present and secret configured)
     if (signatureHeader && webhookSecret) {
@@ -53,7 +53,7 @@ export async function POST(request) {
 
     console.log(`PayMongo Webhook Received Event: ${eventType}`, eventData?.id);
 
-    const secretKey = process.env.PAYMONGO_SECRET_KEY;
+    const secretKey = process.env.PAYMONGO_SECRET_KEY || 'sk_test_GjYHQCNkKkxUuhQykSsSetrS';
 
     // Handle source.chargeable event (GCash Payment Authorized by Guest)
     if (eventType === 'source.chargeable' && eventData && secretKey) {
