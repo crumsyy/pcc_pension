@@ -55,7 +55,10 @@ export async function POST(request) {
       body: JSON.stringify({
         data: {
           attributes: {
-            type: 'qrph'
+            type: 'qrph',
+            billing: {
+              email: 'guest@example.com'
+            }
           }
         }
       })

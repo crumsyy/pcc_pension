@@ -397,7 +397,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
         : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
     : 0;
-  const originalTotal = roomRate * nightsCount;
+  const extraGuestsCount = selectedRoom ? Math.max(0, (parseInt(numGuests) || 1) - (parseInt(selectedRoom.occupancyLimit) || 2)) : 0;
+  const extraGuestFee = extraGuestsCount * 100 * nightsCount;
+  const originalTotal = (roomRate * nightsCount) + extraGuestFee;
   const totalDiscount = 0;
   const netTotalAmount = originalTotal;
   const paymentPctNumber = parseInt(paymentOption);
@@ -1970,13 +1972,26 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                     <div className="col-6">
                       <label className="form-label fw-semibold small">Check-Out Date *</label>
-                      <input type="date" className="form-control form-control-sm" value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
+                      <input type="date" className="form-control form-control-sm" min={checkInDate} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
                     </div>
                   </div>
 
                   <div className="mb-3">
                     <label className="form-label fw-semibold small">Number of Guests *</label>
-                    <input type="number" className="form-control form-control-sm" min="1" max={selectedRoom.occupancyLimit} value={numGuests} onChange={(e) => setNumGuests(parseInt(e.target.value) || 1)} required />
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      min="1"
+                      placeholder="e.g. 2"
+                      value={numGuests === '' ? '' : numGuests}
+                      onChange={(e) => setNumGuests(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+                      required
+                    />
+                    {selectedRoom && (parseInt(numGuests) || 1) > selectedRoom.occupancyLimit && (
+                      <small className="text-primary fw-semibold mt-1 d-block" style={{ fontSize: '0.75rem' }}>
+                        ℹ Extra Guest Fee: ₱100/night per guest applied for {(parseInt(numGuests) || 1) - selectedRoom.occupancyLimit} guest(s) exceeding capacity ({selectedRoom.occupancyLimit}).
+                      </small>
+                    )}
                   </div>
 
                   <div className="mb-3">
@@ -2064,7 +2079,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         </div>
                         <div className="mb-2">
                           <label className="form-label mb-0 small text-muted">Check-Out Date *</label>
-                          <input type="date" className="form-control form-control-sm" value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
+                          <input type="date" className="form-control form-control-sm" min={checkInDate} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
                         </div>
                         <div className="fw-bold text-primary small">Duration: {nightsCount} Night(s)</div>
                       </div>
@@ -2091,19 +2106,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           type="number"
                           className="form-control form-control-sm"
                           min="1"
-                          max={selectedRoom.occupancyLimit}
-                          value={numGuests}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setNumGuests(val === '' ? '' : Math.max(1, Math.min(selectedRoom.occupancyLimit, parseInt(val) || 1)));
-                          }}
-                          onBlur={() => {
-                            if (numGuests === '' || isNaN(numGuests)) setNumGuests(1);
-                          }}
+                          placeholder="e.g. 2"
+                          value={numGuests === '' ? '' : numGuests}
+                          onChange={(e) => setNumGuests(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
                           required
                         />
                         <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
-                          Maximum Occupancy: <strong>Up to {selectedRoom.occupancyLimit} Pax</strong>
+                          Standard Room Capacity: <strong>Up to {selectedRoom.occupancyLimit} Pax</strong>
+                          {extraGuestsCount > 0 && (
+                            <span className="text-primary fw-bold ms-1">
+                              (+₱{(extraGuestFee).toFixed(2)} for {extraGuestsCount} extra guest(s))
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

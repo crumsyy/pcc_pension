@@ -18,13 +18,13 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
     >
       {/* BRAND HEADER */}
       <div className="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
-        <div className="d-flex align-items-center gap-2">
+        <Link href="/" className="d-flex align-items-center gap-2 text-decoration-none cursor-pointer" title="Go to Landing Page">
           <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ height: '36px', borderRadius: '6px' }} />
           <div className="text-start">
             <span className="fw-bold text-white d-block" style={{ fontSize: '0.95rem', lineHeight: '1.2' }}>PCC Guest Suite</span>
             <span className="text-white-50 small" style={{ fontSize: '0.72rem' }}>Hotel Guest Portal</span>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* NAVIGATION MENU */}

@@ -20,9 +20,10 @@ export async function POST(request) {
     const secretKey = process.env.PAYMONGO_SECRET_KEY || 'sk_test_GjYHQCNkKkxUuhQykSsSetrS';
 
     // Get guest details
-    const guests = await dbQuery("SELECT guestID, firstName, lastName, contact FROM guest WHERE userID = ?", [session.userID]);
+    const guests = await dbQuery("SELECT guestID, firstName, lastName, contact, email FROM guest WHERE userID = ?", [session.userID]);
     const guest = guests[0] || {};
     const guestName = `${guest.firstName || 'Guest'} ${guest.lastName || ''}`.trim();
+    const guestEmail = guest.email || session?.email || 'guest@example.com';
     const guestPhone = guest.contact || '09171234567';
 
     // Host URL calculation
@@ -53,6 +54,7 @@ export async function POST(request) {
             },
             billing: {
               name: guestName,
+              email: guestEmail,
               phone: guestPhone.length === 11 ? guestPhone : '09171234567'
             }
           }
