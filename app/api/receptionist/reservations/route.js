@@ -4,20 +4,17 @@ import { dbQuery, getDbConnection } from '@/lib/db';
 
 function checkReservationLeadTime(checkInDateStr) {
   if (!checkInDateStr) return { valid: true };
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const pad = (n) => String(n).padStart(2, '0');
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const maxDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const maxDateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`;
 
-  const targetDate = new Date(String(checkInDateStr).replace(' ', 'T'));
-  if (isNaN(targetDate.getTime())) return { valid: true };
-  targetDate.setHours(0, 0, 0, 0);
-
-  const diffTime = targetDate.getTime() - today.getTime();
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 2) {
+  const inDateStr = (checkInDateStr || '').split(' ')[0] || (checkInDateStr || '').split('T')[0];
+  if (inDateStr < todayStr || inDateStr > maxDateStr) {
     return {
       valid: false,
-      message: "Reservations must be made at least 2 days before your intended check-in date."
+      message: "Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum)."
     };
   }
   return { valid: true };

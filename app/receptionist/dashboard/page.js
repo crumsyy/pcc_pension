@@ -7,7 +7,8 @@ export default async function ReceptionistDashboard() {
   const auth = await requireSessionRole("Receptionist");
   await syncRoomStatuses();
   const userName = auth.session?.fullName || "Receptionist";
-  // 1. Fetch statistics, check-ins, reservations, and room status board in parallel
+
+  // Fetch statistics, check-ins, reservations, confirmed bookings, inquiries, orders, and payment statuses in parallel
   const [
     totalCheckInsRes,
     totalCheckOutsRes,
@@ -17,7 +18,10 @@ export default async function ReceptionistDashboard() {
     underMaintenanceRoomsRes,
     checkInsList,
     pendingResList,
-    rooms
+    rooms,
+    confirmedBookingsList,
+    guestInquiriesList,
+    guestOrdersList
   ] = await Promise.all([
     dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Checked Out')"),
     dbQuery("SELECT COUNT(*) as count FROM booking WHERE status = 'Checked Out'"),
@@ -55,7 +59,35 @@ export default async function ReceptionistDashboard() {
       JOIN floor fl ON fl.floorID = rm.floorID
       WHERE rm.isArchived = 0
       ORDER BY fl.name, rm.roomNumber
-    `)
+    `),
+    dbQuery(`
+      SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
+             g.firstName, g.lastName, g.contact,
+             rm.roomNumber, rt.type as roomType
+      FROM booking b
+      JOIN guest g ON g.guestID = b.guestID
+      JOIN room rm ON rm.roomID = b.roomID
+      JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+      WHERE b.status IN ('Confirmed', 'Pending Check-in')
+      ORDER BY b.checkInDateTime ASC
+      LIMIT 10
+    `),
+    dbQuery(`
+      SELECT inquiryID, guestName, email, subject, status, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt
+      FROM inquiry
+      ORDER BY createdAt DESC
+      LIMIT 6
+    `).catch(() => []),
+    dbQuery(`
+      SELECT o.orderID, o.orderStatus, DATE_FORMAT(o.orderDateTime, '%Y-%m-%d %H:%i') as orderDateTime,
+             g.firstName, g.lastName, rm.roomNumber
+      FROM orders o
+      JOIN guest g ON g.guestID = o.guestID
+      LEFT JOIN booking b ON b.guestID = g.guestID AND b.status = 'Checked In'
+      LEFT JOIN room rm ON rm.roomID = b.roomID
+      ORDER BY o.orderDateTime DESC
+      LIMIT 6
+    `).catch(() => [])
   ]);
 
   const totalCheckIns = totalCheckInsRes[0]?.count || 0;
@@ -66,14 +98,6 @@ export default async function ReceptionistDashboard() {
   const underMaintenanceRooms = underMaintenanceRoomsRes[0]?.count || 0;
 
   // Formatter helpers
-  const formatTime = (dateStr) => {
-    return new Date(dateStr).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true
-    });
-  };
-
   const formatDateShort = (dateStr) => {
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
@@ -92,16 +116,11 @@ export default async function ReceptionistDashboard() {
 
   const getRoomColor = (status) => {
     switch (status) {
-      case "Available":
-        return "#3FA34D";
-      case "Occupied":
-        return "#2155B5";
-      case "Reserved":
-        return "#f0a500";
-      case "Under Maintenance":
-        return "#dc3545";
-      default:
-        return "#6c757d";
+      case "Available": return "#3FA34D";
+      case "Occupied": return "#2155B5";
+      case "Reserved": return "#f0a500";
+      case "Under Maintenance": return "#dc3545";
+      default: return "#6c757d";
     }
   };
 
@@ -117,15 +136,13 @@ export default async function ReceptionistDashboard() {
   return (
     <>
       <AutoRefresh interval={5000} />
-      <div className="section-eyebrow">Receptionist</div>
+      <div className="section-eyebrow">Receptionist Portal</div>
       <h2 className="section-title mb-1">Welcome, {userName}!</h2>
       <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>
         Today — {formatDateLong(new Date())}
       </p>
 
-
-
-      {/* Quick stats as filled colored blocks */}
+      {/* Quick stats */}
       <div className="row g-3 mb-4">
         {stats.map(([label, value, color], index) => (
           <div key={index} className="col-6 col-xl-2">
@@ -151,10 +168,43 @@ export default async function ReceptionistDashboard() {
         ))}
       </div>
 
+      {/* PAYMENT STATUS BREAKDOWN SUMMARY */}
+      <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+        <h6 className="fw-bold text-pcc-blue mb-3">
+          <i className="bi bi-wallet2 me-2"></i> Payment Statuses Summary
+        </h6>
+        <div className="row g-3 text-center">
+          <div className="col-3">
+            <div className="p-2 border rounded bg-light">
+              <div className="fw-bold text-success fs-5">{totalCheckOuts}</div>
+              <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PAID (Checked Out)</small>
+            </div>
+          </div>
+          <div className="col-3">
+            <div className="p-2 border rounded bg-light">
+              <div className="fw-bold text-primary fs-5">{occupiedRooms}</div>
+              <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PARTIALLY PAID (In-Stay)</small>
+            </div>
+          </div>
+          <div className="col-3">
+            <div className="p-2 border rounded bg-light">
+              <div className="fw-bold text-warning text-dark fs-5">{confirmedBookingsList.length}</div>
+              <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PENDING CHECK-IN</small>
+            </div>
+          </div>
+          <div className="col-3">
+            <div className="p-2 border rounded bg-light">
+              <div className="fw-bold text-danger fs-5">{underMaintenanceRooms}</div>
+              <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>OVERDUE / ISSUES</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="row g-4">
         {/* Room status board */}
         <div className="col-lg-4">
-          <div className="key-tag">
+          <div className="key-tag mb-4">
             <div className="room-type mb-3">Room Status Board</div>
             {rooms.length === 0 ? (
               <p className="text-muted small">No rooms configured yet.</p>
@@ -200,10 +250,94 @@ export default async function ReceptionistDashboard() {
               </>
             )}
           </div>
+
+          {/* GUEST INQUIRIES VIEW */}
+          <div className="key-tag mb-4">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="room-type">Guest Inquiries</div>
+              <Link href="/receptionist/inquiries" className="btn btn-pcc-outline btn-sm">View All</Link>
+            </div>
+            {guestInquiriesList.length === 0 ? (
+              <p className="text-muted small">No guest inquiries submitted.</p>
+            ) : (
+              <div className="list-group list-group-flush">
+                {guestInquiriesList.map(inq => (
+                  <div key={inq.inquiryID} className="list-group-item px-0 py-2 border-bottom">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <strong className="text-dark small">{inq.guestName || 'Guest'}</strong>
+                      <span className={`badge ${inq.status === 'Closed' ? 'bg-secondary' : inq.status === 'Responded' ? 'bg-success' : 'bg-warning text-dark'}`} style={{ fontSize: '0.7rem' }}>
+                        {inq.status || 'Pending'}
+                      </span>
+                    </div>
+                    <div className="small text-muted text-truncate">{inq.subject || 'Portal Inquiry'}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* GUEST ORDERS VIEW */}
+          <div className="key-tag">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="room-type">Active Guest Orders</div>
+              <Link href="/receptionist/orders" className="btn btn-pcc-outline btn-sm">View All</Link>
+            </div>
+            {guestOrdersList.length === 0 ? (
+              <p className="text-muted small">No recent guest orders.</p>
+            ) : (
+              <div className="list-group list-group-flush">
+                {guestOrdersList.map(ord => (
+                  <div key={ord.orderID} className="list-group-item px-0 py-2 border-bottom">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <strong className="text-dark small">Order #{ord.orderID} ({ord.firstName} {ord.lastName})</strong>
+                      <span className="badge bg-info text-dark" style={{ fontSize: '0.7rem' }}>{ord.orderStatus}</span>
+                    </div>
+                    <div className="small text-muted">Room: {ord.roomNumber || 'N/A'} • {ord.orderDateTime}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Currently Checked-In Rooms */}
         <div className="col-lg-8">
+          {/* CONFIRMED BOOKINGS VIEW */}
+          <div className="key-tag mb-4">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="room-type">Confirmed Bookings (Ready for Check-In)</div>
+              <Link href="/receptionist/bookings" className="btn btn-pcc-outline btn-sm">View All</Link>
+            </div>
+            {confirmedBookingsList.length === 0 ? (
+              <p className="text-muted small">No confirmed bookings pending check-in.</p>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
+                  <thead>
+                    <tr>
+                      <th>Booking ID</th>
+                      <th>Guest</th>
+                      <th>Room</th>
+                      <th>Check-In Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {confirmedBookingsList.map((b) => (
+                      <tr key={b.bookingID}>
+                        <td><strong>#{b.bookingID}</strong></td>
+                        <td>{b.firstName} {b.lastName}</td>
+                        <td><strong>Room {b.roomNumber}</strong> ({b.roomType})</td>
+                        <td>{formatDateShort(b.checkInDateTime)}</td>
+                        <td><span className="badge bg-warning text-dark">{b.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Currently Checked-In Rooms */}
           <div className="key-tag mb-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div className="room-type">Currently Checked-In Rooms</div>

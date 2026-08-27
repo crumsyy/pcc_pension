@@ -483,14 +483,15 @@ function ReservationsClient() {
       return;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDateObj = new Date(toDbDate(resDate) + 'T00:00:00');
-    selectedDateObj.setHours(0, 0, 0, 0);
+    const pad = (n) => String(n).padStart(2, '0');
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const maxDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const maxDateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`;
 
-    const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 2) {
-      showAlert('error', 'Validation Error', 'Reservations must be made at least 2 days before your intended check-in date.');
+    const inDateStr = toDbDate(resDate);
+    if (inDateStr < todayStr || inDateStr > maxDateStr) {
+      showAlert('error', 'Validation Error', 'Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum).');
       return;
     }
 

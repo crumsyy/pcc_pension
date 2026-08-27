@@ -350,24 +350,13 @@ export async function POST(request) {
       const pad = (num) => String(num).padStart(2, '0');
       const todayDateStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())}`;
 
-      if (todayDateStr < scheduledCheckInDate) {
-        if (!confirmEarlyCheckIn) {
-          return NextResponse.json({
-            requiresEarlyCheckInConfirmation: true,
-            earlyHours: 0,
-            earlyFee: 0,
-            message: `This guest is scheduled to check in on ${scheduledCheckInDate}. Are you sure you want to proceed with Early Check-In today?`
-          });
-        }
-      }
-
-      // Check if current time is before standard check-in time (2:00 PM / 14:00)
-      const standardCheckIn = new Date(`${todayDateStr}T14:00:00`);
+      // Check if current time is before standard check-in time (2:00 PM on scheduled check-in date)
+      const scheduledCheckInTime = new Date(`${scheduledCheckInDate}T14:00:00`);
       let earlyHours = 0;
       let earlyFee = 0;
 
-      if (localNow < standardCheckIn && todayDateStr === scheduledCheckInDate) {
-        const diffMs = standardCheckIn - localNow;
+      if (localNow < scheduledCheckInTime) {
+        const diffMs = scheduledCheckInTime - localNow;
         earlyHours = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
         earlyFee = earlyHours * 50;
 
@@ -376,7 +365,7 @@ export async function POST(request) {
             requiresEarlyCheckInConfirmation: true,
             earlyHours,
             earlyFee,
-            message: `This guest is checking in early. Standard check-in is 2:00 PM. An early check-in fee of ₱${earlyFee.toFixed(2)} (${earlyHours} hour(s) @ ₱50/hr) will be added.`
+            message: `This guest is checking in early (scheduled for ${scheduledCheckInDate} at 2:00 PM). Standard check-in is 2:00 PM. An early check-in fee of ₱${earlyFee.toFixed(2)} (${earlyHours} hour(s) @ ₱50/hr) will be automatically added to the bill.`
           });
         }
       }

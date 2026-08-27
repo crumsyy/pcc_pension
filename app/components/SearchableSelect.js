@@ -2,27 +2,31 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-export default function SearchableSelect({ options, value, onChange, placeholder, disabled, emptyLabel = "No matches found" }) {
+export default function SearchableSelect({ options = [], value, onChange, placeholder, disabled, emptyLabel = "No matches found" }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const containerRef = useRef(null);
 
+  const safeOptions = Array.isArray(options) ? options : [];
+
   // Find currently selected option
-  const selectedOption = options.find(o => String(o.value) === String(value));
+  const selectedOption = safeOptions.find(opt => String(opt?.value) === String(value));
 
   // Determine display value
   const displayValue = isOpen ? searchTerm : (selectedOption ? selectedOption.label : '');
 
   // Keep search term synced with value updates
   useEffect(() => {
-    if (selectedOption) {
-      setSearchTerm(selectedOption.label);
+    const opts = Array.isArray(options) ? options : [];
+    const currentOpt = opts.find(opt => String(opt?.value) === String(value));
+    if (currentOpt) {
+      setSearchTerm(currentOpt.label);
     } else {
       setSearchTerm('');
     }
     setIsTyping(false);
-  }, [value]);
+  }, [value, options]);
 
   // Click outside to close
   useEffect(() => {
@@ -38,9 +42,9 @@ export default function SearchableSelect({ options, value, onChange, placeholder
   }, []);
 
   // Filter based on typed searchTerm
-  const filtered = options.filter(opt => {
+  const filtered = safeOptions.filter(opt => {
     if (!isTyping) return true;
-    return opt.label.toLowerCase().includes(searchTerm.toLowerCase());
+    return opt?.label?.toLowerCase().includes((searchTerm || '').toLowerCase());
   });
 
   return (
@@ -55,7 +59,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
           setSearchTerm(e.target.value);
           setIsTyping(true);
           setIsOpen(true);
-          const match = options.find(o => o.label.toLowerCase() === e.target.value.toLowerCase());
+          const match = safeOptions.find(opt => opt?.label?.toLowerCase() === e.target.value.toLowerCase());
           if (match) {
             onChange(match.value);
           }
