@@ -119,7 +119,7 @@ export async function POST(request) {
 
     if (checkInDate < todayStr || checkInDate > maxDateStr) {
       return NextResponse.json({
-        error: "Reservations can only be made for today or up to 2 days ahead maximum."
+        error: "Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum)."
       }, { status: 400 });
     }
 

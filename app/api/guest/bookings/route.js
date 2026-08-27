@@ -37,10 +37,16 @@ export async function GET() {
         LEFT JOIN discounts d ON d.discountID = bg.discountID
         WHERE bg.bookingID = ?
       `, [b.bookingID]);
+      const incidentals = await dbQuery(`
+        SELECT incidentalID, description, amount
+        FROM incidental_charge
+        WHERE bookingID = ?
+      `, [b.bookingID]);
       return {
         ...b,
         remainingBalance,
-        registeredGuests
+        registeredGuests,
+        incidentals: incidentals || []
       };
     }));
 

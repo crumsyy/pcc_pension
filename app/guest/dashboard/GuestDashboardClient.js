@@ -402,9 +402,24 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const originalTotal = (roomRate * nightsCount) + extraGuestFee;
   const totalDiscount = 0;
   const netTotalAmount = originalTotal;
-  const paymentPctNumber = parseInt(paymentOption);
-  const amountToPayNow = netTotalAmount * (paymentPctNumber / 100);
-  const remainingBalanceAfterPay = netTotalAmount - amountToPayNow;
+  const paymentPctNumber = parseInt(paymentOption) || 50;
+  const amountToPayNow = Math.round(netTotalAmount * (paymentPctNumber / 100) * 100) / 100;
+  const remainingBalanceAfterPay = Math.max(0, Math.round((netTotalAmount - amountToPayNow) * 100) / 100);
+
+  // Early Check-In Fee Preview Calculation
+  const calculateEarlyCheckInPreview = () => {
+    if (!checkInDate) return { isEarly: false, earlyHours: 0, earlyFee: 0 };
+    const now = new Date();
+    const scheduledStandard = new Date(`${checkInDate}T14:00:00`);
+    if (now < scheduledStandard) {
+      const diffMs = scheduledStandard - now;
+      const earlyHours = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
+      const earlyFee = earlyHours * 50;
+      return { isEarly: true, earlyHours, earlyFee };
+    }
+    return { isEarly: false, earlyHours: 0, earlyFee: 0 };
+  };
+  const earlyCheckInInfo = calculateEarlyCheckInPreview();
 
   // Dashboard Metrics
   const totalStaysCount = bookings.length;
@@ -1287,6 +1302,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="small text-muted mb-2">
                           Remaining Balance: <strong className="text-danger">₱{parseFloat(activeBookingStay.remainingBalance || 0).toFixed(2)}</strong>
                         </div>
+                        {activeBookingStay.incidentals && activeBookingStay.incidentals.length > 0 && (
+                          <div className="mt-2 p-2.5 bg-light rounded border small mb-2">
+                            <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.78rem' }}>Incidental Charges:</div>
+                            {activeBookingStay.incidentals.map(inc => (
+                              <div key={inc.incidentalID} className="d-flex justify-content-between text-muted" style={{ fontSize: '0.75rem' }}>
+                                <span>• {inc.description}</span>
+                                <span className="fw-semibold text-danger">₱{parseFloat(inc.amount).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {/* REQ165a TIMELINE */}
                         {renderBookingStatusTimeline(activeBookingStay.status)}
                       </div>
@@ -1737,12 +1763,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   ) : (
                     <div className="d-flex flex-column gap-3">
                       {bookings.map((b) => {
-                        const remBal = parseFloat(b.remainingBalance || 0);
+                        const isCheckedOut = b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled';
+                        const remBal = isCheckedOut ? 0 : parseFloat(b.remainingBalance || 0);
                         return (
                           <div key={b.bookingID} className="p-3 border rounded bg-light">
                             <div className="d-flex justify-content-between align-items-start mb-2">
                               <div>
-                                <h6 className="fw-bold mb-0 text-dark">Booking #{b.bookingID} — Room {b.roomNumber}</h6>
+                                <h6 className="fw-bold mb-0 text-dark">Booking #{b.bookingID} — Room {b.roomNumber} ({b.roomType || 'Room'})</h6>
                                 <span className="small text-muted">Remaining Balance: <strong className={remBal > 0 ? 'text-danger' : 'text-success'}>₱{remBal.toFixed(2)}</strong></span>
                               </div>
                               <div className="d-flex gap-1.5 align-items-center">
@@ -2134,6 +2161,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
+                  {earlyCheckInInfo.isEarly && (
+                    <div className="alert alert-warning py-2 px-3 small mb-3">
+                      <i className="bi bi-clock-history me-1.5 fw-bold"></i>
+                      <strong>Early Arrival Note:</strong> Standard check-in is 2:00 PM. Arriving before 2:00 PM will incur an estimated early check-in fee of <strong>₱{earlyCheckInInfo.earlyFee.toFixed(2)}</strong> ({earlyCheckInInfo.earlyHours} hr(s) @ ₱50/hr) added upon check-in.
+                    </div>
+                  )}
+
                   <div className="p-3 bg-light rounded border" style={{ fontSize: '0.88rem' }}>
                     <div className="d-flex justify-content-between mb-1">
                       <span className="text-muted">Room Rent Subtotal ({nightsCount} nights):</span>
@@ -2181,8 +2215,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="mb-3">
                     <label className="form-label fw-bold">Select Down Payment Percentage *</label>
                     <div className="btn-group w-100" role="group">
-                      <input type="radio" className="btn-check" name="payPct" id="pct25" value="25" checked={paymentOption === '25'} onChange={(e) => setPaymentOption(e.target.value)} />
-                      <label className="btn btn-outline-primary fw-bold" htmlFor="pct25">25% Down Payment</label>
+                      <input type="radio" className="btn-check" name="payPct" id="pct30" value="30" checked={paymentOption === '30'} onChange={(e) => setPaymentOption(e.target.value)} />
+                      <label className="btn btn-outline-primary fw-bold" htmlFor="pct30">30% Down Payment</label>
 
                       <input type="radio" className="btn-check" name="payPct" id="pct50" value="50" checked={paymentOption === '50'} onChange={(e) => setPaymentOption(e.target.value)} />
                       <label className="btn btn-outline-primary fw-bold" htmlFor="pct50">50% Down Payment</label>
