@@ -909,7 +909,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           /* TOP BRANDING BAR (Mobile/Tablet Only) */
           <nav className="navbar navbar-dark text-white border-bottom shadow-sm sticky-top px-3" style={{ background: 'var(--pcc-blue)', zIndex: 1030 }}>
             <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
-              <Link href="/" className="navbar-brand d-flex align-items-center gap-2 m-0 text-white">
+              <Link 
+                href="/guest/dashboard" 
+                onClick={() => { setActiveTab('home'); setViewMode('default'); }}
+                className="navbar-brand d-flex align-items-center gap-2 m-0 text-white cursor-pointer"
+                title="Guest Dashboard Home"
+              >
                 <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
                 <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
               </Link>
