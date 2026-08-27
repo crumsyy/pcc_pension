@@ -8,6 +8,7 @@ import GuestBottomNav from './GuestBottomNav';
 import GuestSidebarNav from './GuestSidebarNav';
 import ThemeToggle from '../../components/ThemeToggle';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
+import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
   if (Array.isArray(imgVal)) return imgVal;
@@ -1297,7 +1298,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="d-flex justify-content-between align-items-start mb-2">
                       <div className="w-100">
                         <div className="d-flex justify-content-between align-items-center mb-1">
-                          <span className="badge bg-primary text-white">Active Stay Booking (#{activeBookingStay.bookingID})</span>
+                          <span className="badge bg-primary text-white">Active Stay Booking ({formatBookingID(activeBookingStay.bookingID)})</span>
                           {parseFloat(activeBookingStay.remainingBalance || 0) > 0 && (
                             <button
                               className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
@@ -1787,7 +1788,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           <div key={b.bookingID} className="p-3 border rounded bg-light">
                             <div className="d-flex justify-content-between align-items-start mb-2">
                               <div>
-                                <h6 className="fw-bold mb-0 text-dark">Booking #{b.bookingID} — Room {b.roomNumber} ({b.roomType || 'Room'})</h6>
+                                <h6 className="fw-bold mb-0 text-dark">Booking #{formatBookingID(b.bookingID)} — Room {b.roomNumber} ({b.roomType || 'Room'})</h6>
                                 <span className="small text-muted">Remaining Balance: <strong className={remBal > 0 ? 'text-danger' : 'text-success'}>₱{remBal.toFixed(2)}</strong></span>
                               </div>
                               <div className="d-flex gap-1.5 align-items-center">
@@ -2079,7 +2080,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="p-3 bg-light rounded text-start border mb-3" style={{ fontSize: '0.85rem' }}>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Reservation Ref:</span>
-                    <span className="fw-bold text-success">#RES-{reservationSummaryData.reservationID}</span>
+                    <span className="fw-bold text-success">#{formatReservationID(reservationSummaryData.reservationID)}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Reserved Room:</span>
