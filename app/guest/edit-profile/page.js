@@ -55,6 +55,47 @@ export default function EditProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordProcessing, setPasswordProcessing] = useState(false);
 
+  const [profilePicture, setProfilePicture] = useState('');
+  const [uploadingPic, setUploadingPic] = useState(false);
+
+  const handleProfilePictureUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      showAlert('error', 'File Size Exceeded', 'Please select an image file smaller than 2MB.');
+      return;
+    }
+
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+      showAlert('error', 'Unsupported Format', 'Please upload a valid JPG or PNG image.');
+      return;
+    }
+
+    setUploadingPic(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'profile');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to upload profile picture.');
+
+      setProfilePicture(data.url);
+      showAlert('success', 'Profile Picture Updated', 'Your profile picture has been uploaded and saved!');
+    } catch (err) {
+      showAlert('error', 'Upload Failed', err.message);
+    } finally {
+      setUploadingPic(false);
+    }
+  };
+
   const fetchProfile = async () => {
     setLoading(true);
     try {
@@ -70,6 +111,7 @@ export default function EditProfilePage() {
           city: data.guest.city || '',
           province: data.guest.province || ''
         });
+        setProfilePicture(data.guest.profilePicture || '');
         setCurrentEmail(data.email || '');
       } else {
         showAlert('error', 'Error', data.error || 'Failed to load profile.');
@@ -294,6 +336,53 @@ export default function EditProfilePage() {
           </div>
         ) : (
           <div className="d-flex flex-column gap-4">
+            {/* CARD 0: PROFILE PICTURE UPLOAD */}
+            <div className="card shadow-sm border-0 p-4 bg-white" style={{ borderRadius: '16px' }}>
+              <div className="d-flex flex-column flex-sm-row align-items-center gap-4">
+                <div className="position-relative d-inline-block">
+                  <img
+                    src={profilePicture || "/assets/images/logo.jpg"}
+                    alt="Guest Profile Picture"
+                    className="rounded-circle border shadow-sm"
+                    style={{
+                      width: '120px',
+                      height: '120px',
+                      objectFit: 'cover',
+                      border: '3px solid var(--pcc-blue, #2155B5)'
+                    }}
+                  />
+                  <label
+                    htmlFor="avatarInput"
+                    className="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm cursor-pointer"
+                    style={{ width: '36px', height: '36px', border: '2px solid #ffffff' }}
+                    title="Upload & Change Profile Picture"
+                  >
+                    <i className="bi bi-camera-fill"></i>
+                  </label>
+                  <input
+                    type="file"
+                    id="avatarInput"
+                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                    className="d-none"
+                    onChange={handleProfilePictureUpload}
+                    disabled={uploadingPic}
+                  />
+                </div>
+                <div>
+                  <h5 className="fw-bold text-dark mb-1">Profile Photo</h5>
+                  <p className="text-muted small mb-2">
+                    Square image (1:1 ratio) recommended — 400×400px. JPG or PNG under 2MB.
+                  </p>
+                  <label
+                    htmlFor="avatarInput"
+                    className="btn btn-sm btn-pcc-outline fw-semibold"
+                  >
+                    {uploadingPic ? 'Uploading...' : 'Upload New Photo'}
+                  </label>
+                </div>
+              </div>
+            </div>
+
             {/* CARD 1: BASIC INFORMATION (Direct Save to MySQL) */}
             <div className="card shadow-sm border-0 p-4 bg-white" style={{ borderRadius: '16px' }}>
               <div className="border-bottom pb-3 mb-3">

@@ -1598,3 +1598,30 @@ body.dark-theme aside * {
     right: 20px !important;
   }
 }
+
+/* =====================================================================
+   Theme Toggle Switch & Profile Picture Styling
+   ===================================================================== */
+.theme-toggle-switch:hover {
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4) !important;
+  transform: scale(1.02);
+}
+
+.theme-toggle-switch:active .toggle-circle {
+  transform: scale(0.92);
+}
+
+.profile-avatar-img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid var(--pcc-blue, #2155B5);
+  box-shadow: 0 4px 14px rgba(33, 85, 181, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-avatar-img:hover {
+  transform: scale(1.03);
+  box-shadow: 0 6px 18px rgba(33, 85, 181, 0.28);
+}

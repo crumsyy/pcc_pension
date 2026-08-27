@@ -919,7 +919,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
               </Link>
               <div className="d-flex align-items-center gap-2">
-                <span className="fw-semibold text-white px-2.5 py-1 rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
+                <span className="fw-semibold text-white px-2.5 py-1 rounded-pill d-flex align-items-center gap-1.5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
+                  <img
+                    src={guest.profilePicture || "/assets/images/logo.jpg"}
+                    alt="Avatar"
+                    className="rounded-circle border border-white"
+                    style={{ width: '22px', height: '22px', objectFit: 'cover' }}
+                  />
                   {guest.firstName} {guest.lastName}
                 </span>
                 <button

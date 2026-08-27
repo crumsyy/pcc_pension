@@ -69,12 +69,21 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
 
       {/* LOGGED IN USER INFO & LOGOUT BUTTON */}
       <div className="pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-        <div className="text-white-50" style={{ fontSize: '0.75rem' }}>Logged in as</div>
-        <div className="text-white fw-semibold text-truncate mb-1" style={{ fontSize: '0.88rem' }}>
-          {guest?.firstName} {guest?.lastName}
-        </div>
-        <div className="text-white-50 font-monospace mb-2" style={{ fontSize: '0.72rem' }}>
-          User ID: #{guest?.userID || guest?.guestID}
+        <div className="d-flex align-items-center gap-2 mb-2">
+          <img
+            src={guest?.profilePicture || "/assets/images/logo.jpg"}
+            alt="Avatar"
+            className="rounded-circle border border-white shadow-sm"
+            style={{ width: '36px', height: '36px', objectFit: 'cover' }}
+          />
+          <div className="text-truncate">
+            <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.88rem', lineHeight: '1.2' }}>
+              {guest?.firstName} {guest?.lastName}
+            </div>
+            <div className="text-white-50 font-monospace" style={{ fontSize: '0.72rem' }}>
+              User ID: #{guest?.userID || guest?.guestID}
+            </div>
+          </div>
         </div>
         <button
           type="button"

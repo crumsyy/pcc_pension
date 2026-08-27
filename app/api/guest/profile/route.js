@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, ensureProfilePictureSchema } from '@/lib/db';
 import { sendOtpEmail, sendResetOtpEmail, generateOtp } from '@/lib/mailer';
 import bcrypt from 'bcryptjs';
 
@@ -11,6 +11,8 @@ export async function GET(request) {
   }
 
   try {
+    await ensureProfilePictureSchema();
+
     const users = await dbQuery("SELECT userID, email FROM user WHERE userID = ?", [session.userID]);
     if (users.length === 0) {
       return NextResponse.json({ error: 'User not found.' }, { status: 404 });

@@ -33,36 +33,42 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className={`btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 transition-all ${
-        isLight ? 'btn-light text-dark border border-secondary-subtle' : 'btn-dark text-warning border border-secondary'
-      }`}
+      className="theme-toggle-switch d-inline-flex align-items-center justify-content-between position-relative px-1 py-1 rounded-pill cursor-pointer border-0 shadow-sm"
       style={{
-        width: '36px',
-        height: '36px',
-        cursor: 'pointer',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+        width: '62px',
+        height: '32px',
+        backgroundColor: isLight ? '#cbd5e1' : '#1e293b',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.15)',
+        flexShrink: 0,
+        outline: 'none'
       }}
-      title={`Switch to ${isLight ? 'Night' : 'Light'} Mode`}
+      title={`Switch to ${isLight ? 'Dark' : 'Light'} Mode`}
       aria-label="Toggle Night/Light Mode"
       type="button"
     >
-      {isLight ? (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-      ) : (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-      )}
+      <span className="d-flex align-items-center justify-content-center text-warning opacity-75" style={{ width: '24px', height: '24px', fontSize: '0.85rem' }}>
+        <i className="bi bi-sun-fill"></i>
+      </span>
+      <span className="d-flex align-items-center justify-content-center text-info opacity-75" style={{ width: '24px', height: '24px', fontSize: '0.85rem' }}>
+        <i className="bi bi-moon-stars-fill"></i>
+      </span>
+
+      <span
+        className="toggle-circle position-absolute d-flex align-items-center justify-content-center rounded-circle shadow-sm"
+        style={{
+          width: '26px',
+          height: '26px',
+          top: '3px',
+          left: isLight ? '3px' : '33px',
+          backgroundColor: isLight ? '#ffffff' : '#38bdf8',
+          color: isLight ? '#f59e0b' : '#0f172a',
+          transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease',
+          fontSize: '0.85rem'
+        }}
+      >
+        <i className={`bi ${isLight ? 'bi-sun-fill' : 'bi-moon-stars-fill'}`}></i>
+      </span>
     </button>
   );
 }
