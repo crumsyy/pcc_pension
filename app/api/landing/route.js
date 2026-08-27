@@ -29,7 +29,7 @@ export async function GET(request) {
           AND (p.endDate IS NULL OR p.endDate >= CURDATE())
         UNION ALL
         SELECT d.discountID as promotionID, d.name, 
-               d.description, COALESCE(d.discountPercentage, 10) as percentage,
+               d.description, COALESCE(d.percentage, 10) as percentage,
                CURDATE() as startDate, CURDATE() as endDate, 'All Room Types' as roomTypeName
         FROM discounts d
         WHERE (d.isArchived IS NULL OR d.isArchived = 0)

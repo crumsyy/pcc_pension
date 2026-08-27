@@ -602,6 +602,7 @@ function BookingsClient() {
             checkInDateTime: finalCheckInDateTime,
             checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
             status: checkInScenario === 'now' ? 'Checked In' : 'Pending Check-in',
+            netTotalAmount,
             downPaymentAmount: dpAmount,
             downPaymentPercentage: dpPctNum,
             paymentMethodID: parseInt(paymentMethodID),
@@ -609,7 +610,6 @@ function BookingsClient() {
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to create booking');
         if (!res.ok) throw new Error(data.error || 'Failed to create booking');
 
         const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
@@ -909,9 +909,15 @@ function BookingsClient() {
                           className="action-btn action-btn-edit"
                           data-bs-toggle="tooltip"
                           data-bs-placement="top"
-                          title="Manage Room Guests"
+                          title={b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled' ? 'Cannot modify checked-out or cancelled stays' : 'Manage Room Guests'}
                           aria-label="Manage Room Guests"
+                          disabled={b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled'}
+                          style={{
+                            opacity: (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') ? 0.4 : 1,
+                            cursor: (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') ? 'not-allowed' : 'pointer'
+                          }}
                           onClick={() => {
+                            if (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') return;
                             setManagingBooking(b);
                             setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
                             setActiveModal('manage_guests');
@@ -973,7 +979,7 @@ function BookingsClient() {
                       <SearchableSelect
                         options={guests.map(g => ({
                           value: String(g.guestID),
-                          label: `${g.lastName}, ${g.firstName} (${g.contact || 'No Phone'})`
+                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName}`
                         }))}
                         value={formData.guestID}
                         onChange={(val) => setFormData(prev => ({ ...prev, guestID: val }))}

@@ -167,27 +167,32 @@ export async function POST(request) {
         }
 
         // Calculate required down payment based on selected percentage (25%, 50%, 100%)
-        const [roomData] = await conn.execute(
-          "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
-          [roomID]
-        );
-        const roomRate = roomData.length > 0 ? parseFloat(roomData[0].rate || 0) : 0;
-        const maxOccupancy = roomData.length > 0 ? (parseInt(roomData[0].occupancyLimit) || 2) : 2;
-        const inDateStr = (checkInDateTime || '').split(' ')[0] || (checkInDateTime || '').split('T')[0];
-        const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
-        const checkInD = new Date(inDateStr + 'T00:00:00');
-        const checkOutD = new Date(outDateStr + 'T00:00:00');
-        const diffDays = Math.max(1, Math.round(Math.abs(checkOutD - checkInD) / (1000 * 60 * 60 * 24)));
-
-        const totalGuestCount = Math.max(1, guests.length);
-        const extraGuestsCount = Math.max(0, totalGuestCount - maxOccupancy);
-        const extraGuestFee = extraGuestsCount * 200 * diffDays;
-        const subtotalRoomCharge = (roomRate * diffDays) + extraGuestFee;
-
         const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 25) / 100;
-        const requiredDp = subtotalRoomCharge * dpPercentageNum;
+        const providedTotal = parseFloat(body.netTotalAmount || 0);
 
-        if (downPaymentAmount < requiredDp - 0.01) {
+        let subtotalRoomCharge = providedTotal;
+        if (subtotalRoomCharge <= 0) {
+          const [roomData] = await conn.execute(
+            "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
+            [roomID]
+          );
+          const roomRate = roomData.length > 0 ? parseFloat(roomData[0].rate || 0) : 0;
+          const maxOccupancy = roomData.length > 0 ? (parseInt(roomData[0].occupancyLimit) || 2) : 2;
+          const inDateStr = (checkInDateTime || '').split(' ')[0] || (checkInDateTime || '').split('T')[0];
+          const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
+          const checkInD = new Date(inDateStr + 'T00:00:00');
+          const checkOutD = new Date(outDateStr + 'T00:00:00');
+          const diffDays = Math.max(1, Math.round(Math.abs(checkOutD - checkInD) / (1000 * 60 * 60 * 24)));
+
+          const totalGuestCount = Math.max(1, guests.length);
+          const extraGuestsCount = Math.max(0, totalGuestCount - maxOccupancy);
+          const extraGuestFee = extraGuestsCount * 100 * diffDays;
+          subtotalRoomCharge = (roomRate * diffDays) + extraGuestFee;
+        }
+
+        const requiredDp = Math.round((subtotalRoomCharge * dpPercentageNum) * 100) / 100;
+
+        if (downPaymentAmount < requiredDp - 0.05) {
           return NextResponse.json({ 
             error: `Received down payment amount (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected down payment requirement of ₱${requiredDp.toFixed(2)} (${(dpPercentageNum * 100).toFixed(0)}%).` 
           }, { status: 400 });

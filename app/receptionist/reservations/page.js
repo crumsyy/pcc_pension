@@ -806,7 +806,7 @@ function ReservationsClient() {
                       <SearchableSelect
                         options={guests.map(g => ({
                           value: String(g.guestID),
-                          label: `${g.lastName}, ${g.firstName} (${g.contact})`
+                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName}`
                         }))}
                         value={formData.guestID}
                         onChange={(val) => setFormData(prev => ({ ...prev, guestID: val }))}
