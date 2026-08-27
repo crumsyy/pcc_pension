@@ -1619,9 +1619,20 @@ body.dark-theme aside * {
   border: 3px solid var(--pcc-blue, #2155B5);
   box-shadow: 0 4px 14px rgba(33, 85, 181, 0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
 }
 
 .profile-avatar-img:hover {
   transform: scale(1.03);
   box-shadow: 0 6px 18px rgba(33, 85, 181, 0.28);
+}
+
+@media (max-width: 768px) {
+  .profile-avatar-img {
+    width: 100px !important;       /* fixed square size */
+    height: 100px !important;
+    object-fit: cover !important;  /* keeps proportions without squishing */
+    border-radius: 50% !important; /* circular avatar */
+    flex-shrink: 0 !important;
+  }
 }

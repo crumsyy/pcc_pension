@@ -935,12 +935,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               </Link>
               <div className="d-flex align-items-center gap-2">
                 <span className="fw-semibold text-white px-2.5 py-1 rounded-pill d-flex align-items-center gap-1.5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
-                  <img
-                    src={guest.profilePicture || "/assets/images/logo.jpg"}
-                    alt="Avatar"
-                    className="rounded-circle border border-white"
-                    style={{ width: '22px', height: '22px', objectFit: 'cover' }}
-                  />
+                  {guest?.profilePicture ? (
+                    <img
+                      src={guest.profilePicture}
+                      alt="Avatar"
+                      className="rounded-circle border border-white flex-shrink-0"
+                      style={{ width: '22px', height: '22px', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div
+                      className="rounded-circle bg-white text-pcc-blue fw-bold d-flex align-items-center justify-content-center flex-shrink-0"
+                      style={{ width: '22px', height: '22px', fontSize: '0.65rem' }}
+                    >
+                      {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
+                    </div>
+                  )}
                   {guest.firstName} {guest.lastName}
                 </span>
                 <button
@@ -1705,9 +1714,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="card shadow-sm border-0 p-4 mb-4 bg-white" style={{ borderRadius: '16px' }}>
                   <div className="d-flex align-items-center justify-content-between mb-3">
                     <div className="d-flex align-items-center gap-3">
-                      <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold fs-4" style={{ width: '56px', height: '56px', backgroundColor: 'var(--pcc-blue)' }}>
-                        {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
-                      </div>
+                      {guest?.profilePicture ? (
+                        <img
+                          src={guest.profilePicture}
+                          alt={`${guest.firstName || 'Guest'} Avatar`}
+                          className="profile-avatar-img shadow-sm"
+                          style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '50%', border: '2px solid var(--pcc-blue)', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold fs-4 flex-shrink-0" style={{ width: '64px', height: '64px', backgroundColor: 'var(--pcc-blue)' }}>
+                          {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
+                        </div>
+                      )}
                       <div>
                         <h5 className="fw-bold mb-0 text-dark">{guest.firstName} {guest.lastName} <span className="badge bg-secondary text-white font-monospace ms-1" style={{ fontSize: '0.74rem' }}>User ID: #{guest.userID || guest.guestID}</span></h5>
                         <div className="text-muted small">{guest.email}</div>
