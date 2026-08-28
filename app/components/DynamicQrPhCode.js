@@ -60,8 +60,9 @@ export default function DynamicQrPhCode({
     <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mx-auto my-2 text-center w-100" style={{ maxWidth: '380px' }}>
       {/* PayMongo Official Header Badge */}
       <div className="d-flex align-items-center justify-content-center gap-2 mb-2 w-100 py-1.5 px-3 rounded-2 text-white shadow-xs" style={{ backgroundColor: '#005CE6', fontWeight: 600, fontSize: '0.88rem' }}>
+        <span className="badge bg-warning text-dark fw-bold" style={{ fontSize: '0.65rem', padding: '3px 6px' }}>TEST MODE</span>
         <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.65rem', padding: '3px 6px' }}>QR Ph</span>
-        <span>PayMongo Official QRPh Payment</span>
+        <span>PayMongo QRPh Test Payment</span>
       </div>
 
       {/* Option 1: Centered PayMongo QR Code Frame */}

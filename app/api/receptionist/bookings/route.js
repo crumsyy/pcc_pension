@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -166,8 +166,8 @@ export async function POST(request) {
           return NextResponse.json({ error: 'Check-out time must be later than check-in time.' }, { status: 400 });
         }
 
-        // Calculate required down payment based on selected percentage (25%, 50%, 100%)
-        const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 25) / 100;
+        // Calculate required down payment based on selected percentage (30%, 50%, 100%)
+        const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 50) / 100;
         const providedTotal = parseFloat(body.netTotalAmount || 0);
 
         let subtotalRoomCharge = providedTotal;
@@ -194,7 +194,7 @@ export async function POST(request) {
 
         if (downPaymentAmount < requiredDp - 0.05) {
           return NextResponse.json({ 
-            error: `Received down payment amount (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected down payment requirement of ₱${requiredDp.toFixed(2)} (${(dpPercentageNum * 100).toFixed(0)}%).` 
+            error: `Payment received (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected ${(dpPercentageNum * 100).toFixed(0)}% requirement of ₱${requiredDp.toFixed(2)}.` 
           }, { status: 400 });
         }
 
@@ -241,17 +241,20 @@ export async function POST(request) {
         const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
         const staffID = staffRes[0]?.staffID || null;
 
+        // Ensure testMode column schema
+        await ensureTestModeSchema();
+
         // Record Down Payment
         const [paymentInsert] = await conn.execute(
-          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID) 
-           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL)`,
+          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode) 
+           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL, 1)`,
           [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID]
         );
         const paymentID = paymentInsert.insertId;
 
         // Insert Transaction log
         await conn.execute(
-          "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+          "INSERT INTO transactions (transactionDateTime, billingID, paymentID, testMode) VALUES (?, ?, ?, 1)",
           [nowStr, billingID, paymentID]
         );
 

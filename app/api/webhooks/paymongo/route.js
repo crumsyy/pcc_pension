@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, ensureTestModeSchema } from '@/lib/db';
 import crypto from 'crypto';
 
 export async function POST(request) {
@@ -99,12 +99,14 @@ export async function POST(request) {
 
       console.log(`PayMongo Payment Paid: ${paymentID} - ₱${amountInPesos}`);
 
+      await ensureTestModeSchema();
+
       // Auto-notify Administrators
       const admins = await dbQuery("SELECT userID FROM user WHERE roleID = 1 AND status = 'Active'");
       for (const adm of admins) {
         await dbQuery(
-          "INSERT INTO notification (userID, title, message) VALUES (?, 'PayMongo Payment Received', ?)",
-          [adm.userID, `Online GCash Payment of ₱${amountInPesos.toFixed(2)} received via PayMongo.`]
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'PayMongo Test Payment Received', ?)",
+          [adm.userID, `Online GCash/QRPh Payment of ₱${amountInPesos.toFixed(2)} received via PayMongo Test Mode.`]
         );
       }
     }
