@@ -186,7 +186,7 @@ function BookingsClient() {
     const checkInFloor = new Date(toDbDate(updateCheckInDate) + 'T00:00:00');
 
     if (checkInFloor < todayFloor) {
-      showAlert('error', 'Validation Error', 'Past dates are not allowed for Check-In date.');
+      showAlert('error', 'Validation Error', 'Reservation or booking has already passed.');
       return;
     }
 

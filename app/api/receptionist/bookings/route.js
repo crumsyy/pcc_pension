@@ -309,6 +309,11 @@ export async function POST(request) {
       // Calculate stay nights (minimum 1 night)
       const inD = new Date(checkInDateTime.replace(' ', 'T'));
       const outD = new Date(checkOutDateTime.replace(' ', 'T'));
+
+      if (inD.getTime() < new Date().getTime() - 60000) {
+        return NextResponse.json({ error: 'Reservation or booking has already passed.' }, { status: 400 });
+      }
+
       let nights = 0;
       if (outD > inD) {
         nights = Math.round(Math.abs(outD - inD) / (1000 * 60 * 60 * 24));

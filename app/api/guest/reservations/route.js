@@ -101,8 +101,13 @@ export async function POST(request) {
     }
 
     if (checkOutDate) {
-      const checkInD = new Date(checkInDate + 'T00:00:00');
-      const checkOutD = new Date(checkOutDate + 'T00:00:00');
+      const checkInD = new Date(checkInDate + 'T14:00:00');
+      const checkOutD = new Date(checkOutDate + 'T12:00:00');
+      if (checkInD < new Date()) {
+        return NextResponse.json({
+          error: "Reservation or booking has already passed."
+        }, { status: 400 });
+      }
       if (checkOutD <= checkInD) {
         return NextResponse.json({
           error: "Check-out time must be later than check-in time."
@@ -117,7 +122,13 @@ export async function POST(request) {
     const maxDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
     const maxDateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`;
 
-    if (checkInDate < todayStr || checkInDate > maxDateStr) {
+    if (checkInDate < todayStr) {
+      return NextResponse.json({
+        error: "Reservation or booking has already passed."
+      }, { status: 400 });
+    }
+
+    if (checkInDate > maxDateStr) {
       return NextResponse.json({
         error: "Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum)."
       }, { status: 400 });

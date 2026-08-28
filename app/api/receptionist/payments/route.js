@@ -123,11 +123,14 @@ export async function POST(request) {
         billingID = billingInsert.insertId;
       }
 
+      const cashVal = parseFloat(cashReceived) || amount;
+      const changeVal = Math.max(0, Math.round((cashVal - amount) * 100) / 100);
+
       // 3. Insert payment
       const [paymentInsert] = await connection.execute(
         `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-        [amount, cashReceived, change, billingID, guestID, staffID, paymentMethodID, discountID]
+        [amount, cashVal, changeVal, billingID, guestID, staffID, paymentMethodID, discountID]
       );
       const paymentID = paymentInsert.insertId;
 

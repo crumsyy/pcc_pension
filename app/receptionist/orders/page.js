@@ -450,9 +450,9 @@ export default function ReceptionistOrders() {
                           setSelectedItemToAdd({ idAndType: '', quantity: 1 });
                         }}
                       >
-                        <option value="Product">Products</option>
-                        <option value="Amenity">Amenities</option>
-                        <option value="Meal">Cooked Meals (6:00 AM - 10:30 AM Only)</option>
+                        <option value="Product">Products (Deliverable Anytime)</option>
+                        <option value="Amenity">Amenities (Deliverable Anytime)</option>
+                        <option value="Meal">Cooked Meals (Scheduled Delivery Tracking)</option>
                       </select>
                     </div>
 
