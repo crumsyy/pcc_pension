@@ -658,6 +658,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     });
   };
 
+  const handleProceedToBooking = (reservation) => {
+    if (!reservation) return;
+    const roomMatch = (allRooms || []).find(r => String(r.roomID) === String(reservation.roomID));
+    if (roomMatch) {
+      setSelectedRoomForModal(roomMatch);
+      setFlowAction('book');
+      setCheckInDate(toUiDate(reservation.reservationDateTime?.substring(0, 10)));
+      setNumGuests(parseInt(reservation.numGuestsCount) || 1);
+      setActiveModal('book_form');
+    } else {
+      showAlert('info', 'Proceeding to Booking', 'Opening booking workspace for your reserved room...');
+      openBookingModal(reservation.roomTypeID);
+    }
+  };
+
   const handleCancelBooking = (bookingID) => {
     showConfirm('Cancel Booking', 'Are you sure you want to cancel this booking request?', async () => {
       try {
@@ -1286,9 +1301,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="small text-muted mb-2">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
                         {renderBookingStatusTimeline(activeReservation.status)}
                       </div>
-                      <button className="btn btn-sm btn-danger text-white fw-bold px-3 py-1.5 shadow-sm ms-2" onClick={() => handleCancelReservation(activeReservation.reservationID)}>
-                        Cancel
-                      </button>
+                      <div className="d-flex align-items-center gap-2 ms-2">
+                        <button 
+                          className="btn btn-sm btn-success text-white fw-bold px-3 py-1.5 shadow-sm d-inline-flex align-items-center" 
+                          onClick={() => handleProceedToBooking(activeReservation)}
+                        >
+                          <i className="bi bi-calendar-check me-1"></i>Proceed to Booking
+                        </button>
+                        <button className="btn btn-sm btn-outline-danger fw-bold px-3 py-1.5 shadow-sm" onClick={() => handleCancelReservation(activeReservation.reservationID)}>
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

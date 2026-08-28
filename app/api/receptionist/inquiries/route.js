@@ -61,6 +61,34 @@ export async function POST(request) {
     const staffRes = await dbQuery("SELECT firstName, lastName FROM staff WHERE userID = ?", [session.userID]);
     const staffName = staffRes.length > 0 ? `${staffRes[0].firstName} ${staffRes[0].lastName}` : 'Front Desk Staff';
 
+    if (action === 'reach_out') {
+      const { guestName, email, contactNumber, message, guestID } = body;
+      if (!guestName || !message) {
+        return NextResponse.json({ error: 'Guest name and message content are required.' }, { status: 400 });
+      }
+
+      // Create new inquiry record
+      const inqRes = await dbQuery(
+        `INSERT INTO inquiry (guestID, name, email, contactNumber, subject, message, status, unreadGuest, unreadReceptionist, createdAt)
+         VALUES (?, ?, ?, ?, 'Direct Staff Reach-Out', ?, 'Responded', 1, 0, ?)`,
+        [guestID || null, guestName, email || null, contactNumber || null, message, nowStr]
+      );
+      const newInquiryID = inqRes.insertId;
+
+      // Insert first message
+      await dbQuery(
+        `INSERT INTO inquiry_message (inquiryID, senderType, senderName, message, isRead, timestamp)
+         VALUES (?, 'Receptionist', ?, ?, 1, ?)`,
+        [newInquiryID, staffName, message, nowStr]
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: 'Direct reach-out message sent to guest successfully.',
+        inquiryID: newInquiryID
+      });
+    }
+
     if (action === 'respond') {
       const inquiryID = parseInt(body.inquiryID);
       const response = body.response?.trim();

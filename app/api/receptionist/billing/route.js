@@ -459,6 +459,15 @@ export async function POST(request) {
       }
     }
 
+    if (action === 'delete_incidental') {
+      const chargeID = parseInt(body.chargeID);
+      if (!chargeID) {
+        return NextResponse.json({ error: 'Charge ID is required.' }, { status: 400 });
+      }
+      await dbQuery("DELETE FROM incidental_charge WHERE chargeID = ?", [chargeID]);
+      return NextResponse.json({ success: true, message: 'Incidental charge deleted successfully.' });
+    }
+
     // Default: Update Guest Discounts
     const bookingID = parseInt(body.bookingID);
     const guests = body.guests;

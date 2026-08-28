@@ -15,6 +15,11 @@ export default function ReceptionistInquiries() {
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const chatMessagesRef = useRef(null);
 
+  // Reach Out to Guest Modal State
+  const [isReachOutModalOpen, setIsReachOutModalOpen] = useState(false);
+  const [registeredGuests, setRegisteredGuests] = useState([]);
+  const [reachOutForm, setReachOutForm] = useState({ guestID: '', guestName: '', email: '', contactNumber: '', message: '' });
+
   // Modal alert/confirm
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -200,6 +205,44 @@ export default function ReceptionistInquiries() {
     setReplyText(prev => prev + emoji);
   };
 
+  const openReachOutModal = async () => {
+    try {
+      const res = await fetch('/api/receptionist/bookings');
+      const data = await res.json();
+      if (data.guests) setRegisteredGuests(data.guests);
+    } catch (e) {
+      console.error(e);
+    }
+    setReachOutForm({ guestID: '', guestName: '', email: '', contactNumber: '', message: '' });
+    setIsReachOutModalOpen(true);
+  };
+
+  const handleReachOutSubmit = async (e) => {
+    e.preventDefault();
+    if (!reachOutForm.guestName || !reachOutForm.message) {
+      showAlert('error', 'Validation Error', 'Guest name and message content are required.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/receptionist/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reach_out',
+          ...reachOutForm
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reach out to guest');
+
+      showAlert('success', 'Success', 'Direct reach-out message sent to guest.');
+      setIsReachOutModalOpen(false);
+      fetchInquiries();
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    }
+  };
+
   // Filter inquiries by search & status
   const filteredInquiries = inquiries.filter(inq => {
     const matchesSearch = 
@@ -231,6 +274,14 @@ export default function ReceptionistInquiries() {
             <h2 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.5rem' }}>Guest Live Chat & Inquiry Management Desk</h2>
             <p className="text-muted mb-0 small">Real-time guest live chat support and inquiry ticket tracking.</p>
           </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-pcc-primary text-white fw-bold shadow-sm d-inline-flex align-items-center"
+            style={{ backgroundColor: '#2155B5' }}
+            onClick={openReachOutModal}
+          >
+            <i className="fa-solid fa-paper-plane me-2"></i>Reach Out to Guest
+          </button>
         </div>
 
         <div className="row g-3 flex-grow-1 overflow-hidden" style={{ minHeight: 0, paddingBottom: '10px' }}>
@@ -497,6 +548,106 @@ export default function ReceptionistInquiries() {
             </div>
           </div>
         </div>
+      {/* REACH OUT TO GUEST MODAL */}
+      {isReachOutModalOpen && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header text-white" style={{ background: '#2155B5' }}>
+                <h5 className="modal-title fw-bold">
+                  <i className="fa-solid fa-paper-plane me-2"></i>Reach Out to Guest
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setIsReachOutModalOpen(false)}></button>
+              </div>
+              <form onSubmit={handleReachOutSubmit}>
+                <div className="modal-body p-4">
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Select Registered Guest Account (Optional)</label>
+                    <select
+                      className="form-select form-select-sm"
+                      value={reachOutForm.guestID}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const g = registeredGuests.find(item => String(item.guestID) === String(id));
+                        setReachOutForm(prev => ({
+                          ...prev,
+                          guestID: id,
+                          guestName: g ? `${g.firstName} ${g.lastName}` : prev.guestName,
+                          email: g?.email || prev.email,
+                          contactNumber: g?.contact || prev.contactNumber
+                        }));
+                      }}
+                    >
+                      <option value="">-- Choose Registered Guest or Enter Below --</option>
+                      {registeredGuests.map(g => (
+                        <option key={g.guestID} value={g.guestID}>
+                          {g.firstName} {g.lastName} ({g.contact || g.email || 'No contact'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Guest Full Name *</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      required
+                      placeholder="e.g. Juan Cruz"
+                      value={reachOutForm.guestName}
+                      onChange={(e) => setReachOutForm({ ...reachOutForm, guestName: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="row g-2 mb-3">
+                    <div className="col-6">
+                      <label className="form-label small fw-semibold">Email Address</label>
+                      <input
+                        type="email"
+                        className="form-control form-control-sm"
+                        placeholder="guest@example.com"
+                        value={reachOutForm.email}
+                        onChange={(e) => setReachOutForm({ ...reachOutForm, email: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-6">
+                      <label className="form-label small fw-semibold">Contact / Mobile Number</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="09171234567"
+                        value={reachOutForm.contactNumber}
+                        onChange={(e) => setReachOutForm({ ...reachOutForm, contactNumber: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label small fw-semibold">Direct Message / Announcement *</label>
+                    <textarea
+                      className="form-control form-control-sm"
+                      rows="4"
+                      required
+                      placeholder="Type your message to the guest..."
+                      value={reachOutForm.message}
+                      onChange={(e) => setReachOutForm({ ...reachOutForm, message: e.target.value })}
+                    ></textarea>
+                  </div>
+                </div>
+
+                <div className="modal-footer bg-light px-4 py-3 d-flex justify-content-end gap-2">
+                  <button type="button" className="btn btn-secondary btn-sm fw-bold text-white" onClick={() => setIsReachOutModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-sm text-white fw-bold" style={{ backgroundColor: '#2155B5' }}>
+                    <i className="fa-solid fa-paper-plane me-1"></i>Send Reach-Out Message
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </>
   );
