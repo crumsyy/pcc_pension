@@ -91,9 +91,7 @@ function BookingsClient() {
     const selectedRoomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
     if (!selectedRoomObj) return;
 
-    const rate = breakfastOption === 'with'
-      ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
-      : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0));
+    const rate = parseFloat(selectedRoomObj.rate) || 0;
     const maxOccupancy = parseInt(selectedRoomObj.occupancyLimit) || 2;
 
     let nights = 0;
@@ -130,7 +128,7 @@ function BookingsClient() {
     if (reqDp >= 0) {
       setDownPayment(reqDp.toFixed(2));
     }
-  }, [formData.roomID, checkInDate, checkOutDate, numGuestsCount, downPaymentOption, breakfastOption, discountedGuests, rooms, availableDiscounts]);
+  }, [formData.roomID, checkInDate, checkOutDate, numGuestsCount, downPaymentOption, discountedGuests, rooms, availableDiscounts]);
 
   const handleCheckInDateChange = (val) => {
     if (val && isValidDate(val)) {
@@ -581,11 +579,7 @@ function BookingsClient() {
       });
     }
 
-    const rate = selectedRoom
-      ? (breakfastOption === 'with'
-          ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-          : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
-      : 0;
+    const rate = selectedRoom ? (parseFloat(selectedRoom.rate) || 0) : 0;
 
     let nights = 0;
     if (checkInDate && checkOutDate) {
@@ -1369,11 +1363,7 @@ function BookingsClient() {
 
                   {/* DYNAMIC BREAKDOWN MATH */}
                   {(() => {
-                    const rate = selectedRoomObj
-                      ? (breakfastOption === 'with'
-                          ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
-                          : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0)))
-                      : 0;
+                    const rate = selectedRoomObj ? (parseFloat(selectedRoomObj.rate) || 0) : 0;
                     const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
 
                     let nights = 0;
@@ -1415,7 +1405,7 @@ function BookingsClient() {
                             <div className="d-flex justify-content-between mb-1">
                               <span className="text-muted">Room Base Rate:</span>
                               <span className="fw-bold text-dark">
-                                ₱{rate.toFixed(2)}/night ({breakfastOption === 'with' ? 'With Breakfast' : 'Without Breakfast'})
+                                ₱{rate.toFixed(2)}/night
                               </span>
                             </div>
                             <div className="d-flex justify-content-between mb-1">
