@@ -281,6 +281,103 @@ export async function POST(request) {
       }
     }
 
+    if (action === 'update_booking') {
+      const bookingID = parseInt(body.bookingID);
+      const checkInDateTime = body.checkInDateTime;
+      const checkOutDateTime = body.checkOutDateTime;
+      const numGuestsCount = parseInt(body.numGuestsCount) || 1;
+
+      if (!bookingID) {
+        return NextResponse.json({ error: 'Booking ID is required.' }, { status: 400 });
+      }
+
+      // Retrieve old booking details
+      const oldRes = await dbQuery(`
+        SELECT b.bookingID, b.status, b.checkInDateTime, b.checkOutDateTime, b.roomID, r.occupancyLimit
+        FROM booking b
+        LEFT JOIN room r ON b.roomID = r.roomID
+        WHERE b.bookingID = ?
+      `, [bookingID]);
+
+      if (oldRes.length === 0) {
+        return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      }
+
+      const oldBooking = oldRes[0];
+      const maxOccupancy = parseInt(oldBooking.occupancyLimit) || 2;
+
+      // Calculate stay nights (minimum 1 night)
+      const inD = new Date(checkInDateTime.replace(' ', 'T'));
+      const outD = new Date(checkOutDateTime.replace(' ', 'T'));
+      let nights = 0;
+      if (outD > inD) {
+        nights = Math.round(Math.abs(outD - inD) / (1000 * 60 * 60 * 24));
+      }
+      nights = Math.max(1, nights);
+
+      // Extra guest fee calculation (₱100/night per extra guest)
+      const excessGuestsCount = Math.max(0, numGuestsCount - maxOccupancy);
+      const extraGuestFee = excessGuestsCount * 100 * nights;
+
+      const pool = await getDbConnection();
+      const conn = await pool.getConnection();
+
+      try {
+        await conn.beginTransaction();
+
+        // Update booking checkIn/Out timestamps
+        await conn.execute(
+          "UPDATE booking SET checkInDateTime = ?, checkOutDateTime = ? WHERE bookingID = ?",
+          [checkInDateTime, checkOutDateTime, bookingID]
+        );
+
+        // Record fee in incidental_charge if extra guest fee exists
+        if (extraGuestFee > 0) {
+          const feeDesc = `Extra Capacity Charge (${excessGuestsCount} Extra Pax @ ₱100.00/night x ${nights} Night(s))`;
+          
+          const existingInc = await conn.execute(
+            "SELECT chargeID FROM incidental_charge WHERE bookingID = ? AND description LIKE '%Extra Capacity Charge%'",
+            [bookingID]
+          );
+
+          if (existingInc[0].length > 0) {
+            await conn.execute(
+              "UPDATE incidental_charge SET amount = ?, description = ? WHERE chargeID = ?",
+              [extraGuestFee, feeDesc, existingInc[0][0].chargeID]
+            );
+          } else {
+            await conn.execute(
+              "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+              [bookingID, feeDesc, extraGuestFee]
+            );
+          }
+        }
+
+        // Record Audit Log in notification table
+        const staffID = session.userID || 'Staff';
+        const nowFormatted = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        const auditMsg = `Booking #BK${String(bookingID).padStart(5, '0')} updated by Staff ID #${staffID} at ${nowFormatted}. Status: ${oldBooking.status}. Schedule: [${oldBooking.checkInDateTime} -> ${checkInDateTime}], [${oldBooking.checkOutDateTime} -> ${checkOutDateTime}]. Guest Count: ${numGuestsCount}.`;
+
+        await conn.execute(
+          "INSERT INTO notification (userID, title, message, isRead) VALUES (?, 'Booking Rebooked / Updated', ?, 0)",
+          [session.userID || 1, auditMsg]
+        );
+
+        await conn.commit();
+        return NextResponse.json({
+          success: true,
+          message: extraGuestFee > 0
+            ? `Booking updated successfully. ₱${extraGuestFee.toFixed(2)} Extra Guest Fee added to incidental charges.`
+            : 'Booking updated successfully.'
+        });
+      } catch (e) {
+        await conn.rollback();
+        throw e;
+      } finally {
+        conn.release();
+      }
+    }
+
     if (action === 'update_guests') {
       const bookingID = parseInt(body.bookingID);
       const guests = body.guests || [];

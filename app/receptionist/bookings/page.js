@@ -130,6 +130,128 @@ function BookingsClient() {
   const [managingGuests, setManagingGuests] = useState([]);
   const [downPaymentReceipt, setDownPaymentReceipt] = useState(null);
 
+  // Update Booking Modal State
+  const [updatingBooking, setUpdatingBooking] = useState(null);
+  const [updateCheckInDate, setUpdateCheckInDate] = useState('');
+  const [updateCheckInTime, setUpdateCheckInTime] = useState('14:00');
+  const [updateCheckOutDate, setUpdateCheckOutDate] = useState('');
+  const [updateCheckOutTime, setUpdateCheckOutTime] = useState('12:00');
+  const [updateNumGuests, setUpdateNumGuests] = useState(1);
+
+  const openUpdateBookingModal = (b) => {
+    setUpdatingBooking(b);
+    const inStr = (b.checkInDateTime || '').replace(' ', 'T');
+    const outStr = (b.checkOutDateTime || '').replace(' ', 'T');
+    const inD = inStr ? new Date(inStr) : new Date();
+    const outD = outStr ? new Date(outStr) : new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+
+    const inUiDate = toUiDate(`${inD.getFullYear()}-${pad(inD.getMonth() + 1)}-${pad(inD.getDate())}`);
+    const outUiDate = toUiDate(`${outD.getFullYear()}-${pad(outD.getMonth() + 1)}-${pad(outD.getDate())}`);
+    const inTimeStr = `${pad(inD.getHours())}:${pad(inD.getMinutes())}`;
+    const outTimeStr = `${pad(outD.getHours())}:${pad(outD.getMinutes())}`;
+
+    setUpdateCheckInDate(inUiDate);
+    setUpdateCheckInTime(inTimeStr);
+    setUpdateCheckOutDate(outUiDate);
+    setUpdateCheckOutTime(outTimeStr);
+    setUpdateNumGuests(parseInt(b.guestCount || b.totalGuests || (b.registeredGuests ? b.registeredGuests.length : 1)) || 1);
+    setActiveModal('update_booking');
+  };
+
+  const handleUpdateBookingSubmit = async (e) => {
+    e.preventDefault();
+    if (!updatingBooking) return;
+
+    const newNumGuests = parseInt(updateNumGuests) || 1;
+    if (newNumGuests < 1) {
+      showAlert('error', 'Validation Error', 'Number of guests must be at least 1.');
+      return;
+    }
+
+    if (!isValidDate(updateCheckInDate) || !isValidDate(updateCheckOutDate)) {
+      showAlert('error', 'Validation Error', 'Please enter valid Check-In and Check-Out dates (MM/DD/YYYY).');
+      return;
+    }
+
+    const newInD = new Date(toDbDate(updateCheckInDate) + 'T' + updateCheckInTime + ':00');
+    const newOutD = new Date(toDbDate(updateCheckOutDate) + 'T' + updateCheckOutTime + ':00');
+
+    const todayFloor = new Date();
+    todayFloor.setHours(0, 0, 0, 0);
+    const checkInFloor = new Date(toDbDate(updateCheckInDate) + 'T00:00:00');
+
+    if (checkInFloor < todayFloor) {
+      showAlert('error', 'Validation Error', 'Past dates are not allowed for Check-In date.');
+      return;
+    }
+
+    if (newOutD <= newInD) {
+      showAlert('error', 'Validation Error', 'Check-out time must be later than check-in time.');
+      return;
+    }
+
+    const origInStr = (updatingBooking.checkInDateTime || '').replace(' ', 'T').substring(0, 16);
+    const origOutStr = (updatingBooking.checkOutDateTime || '').replace(' ', 'T').substring(0, 16);
+    const newInStr = (toDbDate(updateCheckInDate) + 'T' + updateCheckInTime).substring(0, 16);
+    const newOutStr = (toDbDate(updateCheckOutDate) + 'T' + updateCheckOutTime).substring(0, 16);
+
+    const datesChanged = (origInStr !== newInStr) || (origOutStr !== newOutStr);
+
+    const executeUpdate = async () => {
+      try {
+        const res = await fetch('/api/receptionist/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_booking',
+            bookingID: updatingBooking.bookingID,
+            checkInDateTime: toDbDate(updateCheckInDate) + ' ' + updateCheckInTime + ':00',
+            checkOutDateTime: toDbDate(updateCheckOutDate) + ' ' + updateCheckOutTime + ':00',
+            numGuestsCount: newNumGuests
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update booking');
+
+        showAlert('success', 'Success', data.message || 'Booking updated successfully');
+        setActiveModal(null);
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    };
+
+    if (datesChanged) {
+      const origInFormatted = updatingBooking.checkInDateTime || 'N/A';
+      const origOutFormatted = updatingBooking.checkOutDateTime || 'N/A';
+      const newInFormatted = `${updateCheckInDate} ${updateCheckInTime}`;
+      const newOutFormatted = `${updateCheckOutDate} ${updateCheckOutTime}`;
+
+      const confirmMessage = (
+        <div className="text-start">
+          <p className="mb-2 text-dark font-medium">Are you sure you want to rebook schedule this booking?</p>
+          <div className="p-3 bg-light rounded border text-start small mb-2">
+            <div className="text-muted fw-bold mb-2 text-uppercase" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>
+              Rebooking Audit Schedule Preview:
+            </div>
+            <div className="d-flex justify-content-between mb-1 pb-1 border-bottom">
+              <span className="text-muted">Original Schedule:</span>
+              <span className="fw-semibold text-danger">{origInFormatted} → {origOutFormatted}</span>
+            </div>
+            <div className="d-flex justify-content-between pt-1">
+              <span className="text-muted">New Rebooked Schedule:</span>
+              <span className="fw-bold text-success">{newInFormatted} → {newOutFormatted}</span>
+            </div>
+          </div>
+        </div>
+      );
+      showConfirm('Confirm Rebooking', confirmMessage, executeUpdate);
+    } else {
+      executeUpdate();
+    }
+  };
+
   // Auto-fill required down payment in Payment Received textfield
   useEffect(() => {
     if (!formData.roomID) return;
@@ -947,24 +1069,25 @@ function BookingsClient() {
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
                         <button
                           type="button"
-                          className="action-btn action-btn-edit"
+                          className="btn btn-sm btn-success text-white fw-bold me-1 d-inline-flex align-items-center justify-content-center"
                           data-bs-toggle="tooltip"
                           data-bs-placement="top"
-                          title={b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled' ? 'Cannot modify checked-out or cancelled stays' : 'Manage Room Guests'}
-                          aria-label="Manage Room Guests"
+                          title={b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled' ? 'Cannot modify checked-out or cancelled stays' : 'Update Booking'}
+                          aria-label="Update Booking"
                           disabled={b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled'}
                           style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '6px',
                             opacity: (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') ? 0.4 : 1,
                             cursor: (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') ? 'not-allowed' : 'pointer'
                           }}
                           onClick={() => {
                             if (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') return;
-                            setManagingBooking(b);
-                            setManagingGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(rg => ({ ...rg, discountID: rg.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
-                            setActiveModal('manage_guests');
+                            openUpdateBookingModal(b);
                           }}
                         >
-                          <i className="fa-solid fa-users"></i>
+                          <i className="fa-solid fa-sync-alt"></i>
                         </button>
 
                         {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'Booked' || b.status === 'Checked In') && (
@@ -1708,6 +1831,114 @@ function BookingsClient() {
                   </button>
                   <button type="submit" className="btn btn-danger text-white fw-bold">
                     Confirm Cancellation
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* UPDATE BOOKING MODAL */}
+      {activeModal === 'update_booking' && updatingBooking && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0">
+              <div className="modal-header text-white" style={{ background: '#2155B5' }}>
+                <h5 className="modal-title fw-bold d-flex align-items-center">
+                  <i className="fa-solid fa-edit me-2"></i>Update Booking #{`BK${String(updatingBooking.bookingID).padStart(5, '0')}`}
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+              </div>
+              <form onSubmit={handleUpdateBookingSubmit}>
+                <div className="modal-body p-4">
+                  <div className="p-3 bg-light rounded border mb-3 small">
+                    <div className="row g-2">
+                      <div className="col-6">
+                        <span className="text-muted d-block">Primary Guest:</span>
+                        <span className="fw-bold text-dark">{updatingBooking.firstName} {updatingBooking.lastName}</span>
+                      </div>
+                      <div className="col-6">
+                        <span className="text-muted d-block">Room Number:</span>
+                        <span className="fw-bold text-dark">{updatingBooking.roomNumber || 'Room N/A'} ({updatingBooking.roomType || 'Standard'})</span>
+                      </div>
+                      <div className="col-6">
+                        <span className="text-muted d-block">Room Capacity:</span>
+                        <span className="fw-semibold text-dark">{updatingBooking.occupancyLimit || 2} Pax</span>
+                      </div>
+                      <div className="col-6">
+                        <span className="text-muted d-block">Current Status:</span>
+                        <span className="badge bg-primary">{updatingBooking.status}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="row g-2 mb-3">
+                    <div className="col-md-7">
+                      <label className="form-label small fw-semibold">Check-In Date *</label>
+                      <DateInput
+                        value={updateCheckInDate}
+                        onChange={(val) => setUpdateCheckInDate(val)}
+                        placeholder="MM/DD/YYYY"
+                        required
+                      />
+                    </div>
+                    <div className="col-md-5">
+                      <label className="form-label small fw-semibold">Check-In Time *</label>
+                      <input
+                        type="time"
+                        className="form-control form-control-sm"
+                        required
+                        value={updateCheckInTime}
+                        onChange={(e) => setUpdateCheckInTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row g-2 mb-3">
+                    <div className="col-md-7">
+                      <label className="form-label small fw-semibold">Check-Out Date *</label>
+                      <DateInput
+                        value={updateCheckOutDate}
+                        onChange={(val) => setUpdateCheckOutDate(val)}
+                        placeholder="MM/DD/YYYY"
+                        required
+                      />
+                    </div>
+                    <div className="col-md-5">
+                      <label className="form-label small fw-semibold">Check-Out Time *</label>
+                      <input
+                        type="time"
+                        className="form-control form-control-sm"
+                        required
+                        value={updateCheckOutTime}
+                        onChange={(e) => setUpdateCheckOutTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label small fw-semibold">Number of Guests *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-control form-control-sm fw-bold"
+                      required
+                      value={updateNumGuests}
+                      onChange={(e) => setUpdateNumGuests(e.target.value)}
+                    />
+                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                      Extra guests beyond room capacity add ₱100/night per extra guest to incidental billing.
+                    </small>
+                  </div>
+                </div>
+
+                <div className="modal-footer bg-light px-4 py-3 d-flex justify-content-end gap-2">
+                  <button type="button" className="btn btn-secondary btn-sm fw-bold text-white" onClick={() => setActiveModal(null)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-success btn-sm text-white fw-bold">
+                    <i className="fa-solid fa-check me-1"></i>Save Changes
                   </button>
                 </div>
               </form>
