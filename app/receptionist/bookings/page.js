@@ -139,7 +139,11 @@ function BookingsClient() {
   const [updateNumGuests, setUpdateNumGuests] = useState(1);
 
   const openUpdateBookingModal = (b) => {
-    setUpdatingBooking(b);
+    const currentGuestCount = b.registeredGuests && b.registeredGuests.length > 0 
+      ? b.registeredGuests.length 
+      : (parseInt(b.guestCount || b.totalGuests) || 1);
+
+    setUpdatingBooking({ ...b, currentGuestCount });
     const inStr = (b.checkInDateTime || '').replace(' ', 'T');
     const outStr = (b.checkOutDateTime || '').replace(' ', 'T');
     const inD = inStr ? new Date(inStr) : new Date();
@@ -155,7 +159,7 @@ function BookingsClient() {
     setUpdateCheckInTime(inTimeStr);
     setUpdateCheckOutDate(outUiDate);
     setUpdateCheckOutTime(outTimeStr);
-    setUpdateNumGuests(parseInt(b.guestCount || b.totalGuests || (b.registeredGuests ? b.registeredGuests.length : 1)) || 1);
+    setUpdateNumGuests(currentGuestCount);
     setActiveModal('update_booking');
   };
 
@@ -1864,10 +1868,14 @@ function BookingsClient() {
                       </div>
                       <div className="col-6">
                         <span className="text-muted d-block">Room Capacity:</span>
-                        <span className="fw-semibold text-dark">{updatingBooking.occupancyLimit || 2} Pax</span>
+                        <span className="fw-bold text-dark">{updatingBooking.occupancyLimit || 4} Pax</span>
                       </div>
                       <div className="col-6">
-                        <span className="text-muted d-block">Current Status:</span>
+                        <span className="text-muted d-block">Current Booking Guests:</span>
+                        <span className="fw-bold text-primary">{updatingBooking.currentGuestCount || updateNumGuests || 1} Pax</span>
+                      </div>
+                      <div className="col-12 mt-1 pt-1 border-top d-flex justify-content-between align-items-center">
+                        <span className="text-muted small">Current Booking Status:</span>
                         <span className="badge bg-primary">{updatingBooking.status}</span>
                       </div>
                     </div>

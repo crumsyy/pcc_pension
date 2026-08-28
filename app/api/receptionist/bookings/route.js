@@ -25,7 +25,7 @@ export async function GET(request) {
       dbQuery(`
         SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
-               rm.roomNumber, rt.type as roomType
+               rm.roomNumber, rm.occupancyLimit, rt.type as roomType
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
