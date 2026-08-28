@@ -227,8 +227,20 @@ function BookingsClient() {
     };
 
     if (datesChanged) {
-      const origInFormatted = updatingBooking.checkInDateTime || 'N/A';
-      const origOutFormatted = updatingBooking.checkOutDateTime || 'N/A';
+      const formatDateTimeNice = (dtStr) => {
+        if (!dtStr) return 'N/A';
+        const str = dtStr.replace('T', ' ');
+        const parts = str.split(' ');
+        if (parts.length < 2) return str;
+        const dateParts = parts[0].split('-');
+        if (dateParts.length !== 3) return str;
+        const uiDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+        const timeParts = parts[1].substring(0, 5);
+        return `${uiDate} ${timeParts}`;
+      };
+
+      const origInFormatted = formatDateTimeNice(updatingBooking.checkInDateTime);
+      const origOutFormatted = formatDateTimeNice(updatingBooking.checkOutDateTime);
       const newInFormatted = `${updateCheckInDate} ${updateCheckInTime}`;
       const newOutFormatted = `${updateCheckOutDate} ${updateCheckOutTime}`;
 

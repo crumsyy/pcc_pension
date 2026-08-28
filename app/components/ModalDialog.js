@@ -86,9 +86,9 @@ export default function ModalDialog({
           </div>
           <div className="modal-body text-center p-4">
             <div className="mb-3">{getIcon()}</div>
-            <p className="mb-0 text-muted" style={{ fontSize: '0.95rem', whiteSpace: 'pre-line', fontWeight: '500' }}>
+            <div className="mb-0 text-muted" style={{ fontSize: '0.95rem', whiteSpace: 'pre-line', fontWeight: '500' }}>
               {message}
-            </p>
+            </div>
           </div>
           <div className="modal-footer border-0 justify-content-center pb-4 pt-0">
             {onConfirm && (
