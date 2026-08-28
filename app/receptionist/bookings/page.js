@@ -399,7 +399,7 @@ function BookingsClient() {
       nights = Math.max(1, nights);
 
       const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
-      const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
+      const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
       const rawSubtotal = (rate * (nights || 1)) + extraGuestFee;
 
       let totalApportionedDiscount = 0;
@@ -550,8 +550,8 @@ function BookingsClient() {
     }
     nights = Math.max(1, nights);
 
-    const excessGuestsCount = Math.max(0, numGuestsCount - maxOccupancy);
-    const extraGuestFee = excessGuestsCount * 200 * nights;
+    const excessGuestsCount = Math.max(0, (parseInt(numGuestsCount) || 1) - maxOccupancy);
+    const extraGuestFee = excessGuestsCount * 100 * nights;
     const rawSubtotal = (rate * nights) + extraGuestFee;
 
     let totalApportionedDiscount = 0;
@@ -568,15 +568,15 @@ function BookingsClient() {
     }
 
     const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
-    const dpPctNum = parseInt(downPaymentOption) || 25;
-    const requiredDownpayment = netTotalAmount * (dpPctNum / 100);
+    const dpPctNum = parseInt(downPaymentOption) || 50;
+    const requiredDownpayment = Math.round(netTotalAmount * (dpPctNum / 100) * 100) / 100;
 
     const dpAmount = parseFloat(downPayment);
     if (isNaN(dpAmount) || dpAmount <= 0) {
       showAlert('error', 'Validation Error', 'Please enter a valid payment received amount.');
       return;
     }
-    if (dpAmount < requiredDownpayment - 0.01) {
+    if (dpAmount < requiredDownpayment - 0.05) {
       showAlert('error', 'Validation Error', `Payment received (₱${dpAmount.toFixed(2)}) cannot be below the selected ${dpPctNum}% requirement of ₱${requiredDownpayment.toFixed(2)}.`);
       return;
     }
@@ -1151,7 +1151,7 @@ function BookingsClient() {
                         {selectedRoomObj && numGuestsCount > (selectedRoomObj.occupancyLimit || 2) && (
                           <div className="alert alert-warning py-1.5 mb-0 small fw-bold">
                             Excess Guests: {numGuestsCount - selectedRoomObj.occupancyLimit} Additional Guest(s)
-                            <div>Fee: ₱{(numGuestsCount - selectedRoomObj.occupancyLimit) * 200}/night applied.</div>
+                            <div>Fee: ₱{(numGuestsCount - selectedRoomObj.occupancyLimit) * 100}/night applied.</div>
                           </div>
                         )}
                       </div>
@@ -1339,8 +1339,8 @@ function BookingsClient() {
                     }
                     nights = Math.max(1, nights);
 
-                    const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
-                    const extraGuestFee = excessGuestsCount * 200 * (nights || 1);
+                    const excessGuestsCount = Math.max(0, (parseInt(numGuestsCount) || 1) - maxOccupancy);
+                    const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
                     const rawSubtotal = (rate * (nights || 1)) + extraGuestFee;
 
                     let totalApportionedDiscount = 0;
