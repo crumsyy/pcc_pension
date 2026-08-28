@@ -85,6 +85,53 @@ function BookingsClient() {
   const [checkOutDate, setCheckOutDate] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
 
+  // Auto-fill required down payment in Payment Received textfield
+  useEffect(() => {
+    if (!formData.roomID) return;
+    const selectedRoomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
+    if (!selectedRoomObj) return;
+
+    const rate = breakfastOption === 'with'
+      ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
+      : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0));
+    const maxOccupancy = parseInt(selectedRoomObj.occupancyLimit) || 2;
+
+    let nights = 0;
+    if (checkInDate && checkOutDate) {
+      const inD = new Date(toDbDate(checkInDate) + 'T00:00:00');
+      const outD = new Date(toDbDate(checkOutDate) + 'T00:00:00');
+      if (outD > inD) {
+        nights = Math.round(Math.abs(outD - inD) / (1000 * 60 * 60 * 24));
+      }
+    }
+    nights = Math.max(1, nights);
+
+    const excessGuestsCount = Math.max(0, (parseInt(numGuestsCount) || 1) - maxOccupancy);
+    const extraGuestFee = excessGuestsCount * 100 * nights;
+    const rawSubtotal = (rate * nights) + extraGuestFee;
+
+    let totalApportionedDiscount = 0;
+    if (discountedGuests.length > 0) {
+      const sharePerGuest = (rate * nights) / (parseInt(numGuestsCount) || 1);
+      discountedGuests.forEach(g => {
+        if (g.discountID) {
+          const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+          if (disc) {
+            totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
+          }
+        }
+      });
+    }
+
+    const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+    const dpPctNum = parseInt(downPaymentOption) || 50;
+    const reqDp = Math.round(netTotalAmount * (dpPctNum / 100) * 100) / 100;
+
+    if (reqDp >= 0) {
+      setDownPayment(reqDp.toFixed(2));
+    }
+  }, [formData.roomID, checkInDate, checkOutDate, numGuestsCount, downPaymentOption, breakfastOption, discountedGuests, rooms, availableDiscounts]);
+
   const handleCheckInDateChange = (val) => {
     if (val && isValidDate(val)) {
       const dbStr = toDbDate(val);
@@ -612,29 +659,29 @@ function BookingsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create booking');
 
-        const selectedRoom = rooms.find(r => r.roomID === parseInt(formData.roomID));
-        const guestObj = isWalkIn ? null : guests.find(g => g.guestID === parseInt(formData.guestID));
+        const roomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
+        const guestObj = isWalkIn ? null : guests.find(g => String(g.guestID) === String(formData.guestID));
         const guestName = isWalkIn 
           ? `${walkInForm.firstName} ${walkInForm.lastName}`.trim() 
           : (guestObj ? `${guestObj.firstName} ${guestObj.lastName}` : 'Guest');
 
         const pmObj = paymentMethods.find(m => String(m.paymentMethodID) === String(paymentMethodID));
-        const netTotalAmount = parseFloat(data.totalBookingAmount || dpAmount / (dpPctNum / 100) || 0);
+        const receiptTotalAmount = parseFloat(data.totalBookingAmount || dpAmount / (dpPctNum / 100) || netTotalAmount || 0);
 
         setDownPaymentReceipt({
           receiptNo: `DP-${Math.floor(Math.random() * 900000 + 100000)}`,
           bookingID: data.bookingID || 'N/A',
           date: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
           guestName,
-          roomNumber: selectedRoom?.roomNumber || 'N/A',
-          roomType: selectedRoom?.roomType || 'Standard',
-          totalRoomCharge: netTotalAmount,
+          roomNumber: roomObj?.roomNumber || 'N/A',
+          roomType: roomObj?.roomType || 'Standard',
+          totalRoomCharge: receiptTotalAmount,
           downPaymentPercentage: dpPctNum,
           requiredDownpayment: dpAmount,
           cashReceived: parseFloat(downPayment || dpAmount),
           change: Math.max(0, parseFloat(downPayment || 0) - dpAmount),
           amountPaid: dpAmount,
-          remainingBalance: Math.max(0, netTotalAmount - dpAmount),
+          remainingBalance: Math.max(0, receiptTotalAmount - dpAmount),
           paymentMethodName: pmObj?.paymentMethod || 'Cash'
         });
 
