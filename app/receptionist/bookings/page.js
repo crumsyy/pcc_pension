@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import SearchableSelect from '../../components/SearchableSelect';
+import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 
 function calculateAgeFromUiDate(uiDateStr) {
   if (!isValidDate(uiDateStr)) return '';
@@ -1631,6 +1632,22 @@ function BookingsClient() {
                             </small>
                           </div>
                         </div>
+
+                        {paymentMethodID === '2' && requiredDownpayment > 0 && (
+                          <div className="mb-3 p-3 bg-light rounded border text-center">
+                            <DynamicQrPhCode 
+                              amount={requiredDownpayment}
+                              refNumber={`BOOK-${selectedRoomObj?.roomNumber || 'WALK'}`}
+                              paymentStatus="Pending"
+                              showProceedBtn={false}
+                              showTestPayBtn={true}
+                              onSimulateTestPay={(simRef) => {
+                                setDownPayment(requiredDownpayment.toFixed(2));
+                                showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment amount auto-filled.`);
+                              }}
+                            />
+                          </div>
+                        )}
                       </>
                     );
                   })()}

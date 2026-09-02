@@ -468,6 +468,58 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Incidental charge deleted successfully.' });
     }
 
+    if (action === 'apply_manual_discount') {
+      const bookingID = parseInt(body.bookingID);
+      const { discountID, beneficiaryName, discountIdNumber } = body;
+
+      if (!bookingID) {
+        return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
+      }
+      if (!discountID) {
+        return NextResponse.json({ error: 'Please select a discount type.' }, { status: 400 });
+      }
+      if (!beneficiaryName || !beneficiaryName.trim()) {
+        return NextResponse.json({ error: 'Beneficiary name is required for verification.' }, { status: 400 });
+      }
+      if (!discountIdNumber || !discountIdNumber.trim()) {
+        return NextResponse.json({ error: 'ID card number is required for verification.' }, { status: 400 });
+      }
+
+      let dbDiscountID = null;
+      let dbPromotionID = null;
+      const rawDiscountID = String(discountID);
+      if (rawDiscountID.startsWith('disc-')) {
+        dbDiscountID = parseInt(rawDiscountID.replace('disc-', ''));
+      } else if (rawDiscountID.startsWith('promo-')) {
+        dbPromotionID = parseInt(rawDiscountID.replace('promo-', ''));
+      } else {
+        dbDiscountID = parseInt(rawDiscountID);
+      }
+
+      // Find or create booking_guest_details record
+      const existing = await dbQuery("SELECT bookingGuestID FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+      if (existing.length > 0) {
+        await dbQuery(
+          "UPDATE booking_guest_details SET fullName = ?, discountID = ?, promotionID = ?, discountIdNumber = ? WHERE bookingGuestID = ?",
+          [beneficiaryName.trim(), dbDiscountID, dbPromotionID, discountIdNumber.trim(), existing[0].bookingGuestID]
+        );
+      } else {
+        await dbQuery(
+          "INSERT INTO booking_guest_details (bookingID, fullName, discountID, promotionID, discountIdNumber) VALUES (?, ?, ?, ?, ?)",
+          [bookingID, beneficiaryName.trim(), dbDiscountID, dbPromotionID, discountIdNumber.trim()]
+        );
+      }
+
+      return NextResponse.json({ success: true, message: 'Discount applied to billing successfully.' });
+    }
+
+    if (action === 'remove_discount') {
+      const bookingID = parseInt(body.bookingID);
+      if (!bookingID) return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
+      await dbQuery("UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ?", [bookingID]);
+      return NextResponse.json({ success: true, message: 'Discount removed.' });
+    }
+
     // Default: Update Guest Discounts
     const bookingID = parseInt(body.bookingID);
     const guests = body.guests;

@@ -3,7 +3,21 @@ import { NextResponse } from 'next/server';
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { amount, description } = body;
+    const { amount, description, action } = body;
+
+    // Simulate payment in PayMongo test mode
+    if (action === 'simulate_test_pay') {
+      const refNumber = body.refNumber || `TEST-${Date.now()}`;
+      const amountPaid = parseFloat(body.amount) || 0;
+      return NextResponse.json({
+        success: true,
+        simulated: true,
+        testMode: true,
+        referenceNumber: refNumber,
+        amount: amountPaid,
+        message: 'Payment simulation successful via PayMongo Test Mode.'
+      });
+    }
 
     const parseAmt = parseFloat(amount) || 0;
     if (parseAmt <= 0) {
@@ -57,7 +71,9 @@ export async function POST(request) {
           attributes: {
             type: 'qrph',
             billing: {
-              email: 'guest@example.com'
+              name: body.billingName || 'PCC Guest User',
+              email: body.billingEmail || 'guest@example.com',
+              phone: '09171234567'
             }
           }
         }

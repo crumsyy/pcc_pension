@@ -17,7 +17,9 @@ export default function DynamicQrPhCode({
   onProceedToGCash = null,
   isRedirecting = false,
   showCheckStatusBtn = false,
-  onCheckStatus = null
+  onCheckStatus = null,
+  showTestPayBtn = true,
+  onSimulateTestPay = null
 }) {
   const parsedAmount = parseFloat(amount) || 0;
   const cleanRef = refNumber || `PCC-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -153,6 +155,37 @@ export default function DynamicQrPhCode({
           <span className="font-monospace text-dark">{cleanRef}</span>
         </div>
       </div>
+
+      {/* Test Pay Simulation Button (PayMongo Test Mode) */}
+      {showTestPayBtn && (
+        <button
+          type="button"
+          className="btn btn-warning btn-sm w-100 fw-bold mt-2 text-dark shadow-xs d-flex align-items-center justify-content-center gap-1"
+          style={{ fontSize: '0.82rem', borderRadius: '6px' }}
+          onClick={async () => {
+            const simRef = `TEST-${Date.now().toString().slice(-8)}`;
+            if (onSimulateTestPay) {
+              onSimulateTestPay(simRef);
+            } else {
+              try {
+                const res = await fetch('/api/payments/paymongo-qr', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'simulate_test_pay', amount: parsedAmount, refNumber: simRef })
+                });
+                const d = await res.json();
+                if (d.success && onCheckStatus) {
+                  onCheckStatus();
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }
+          }}
+        >
+          <i className="bi bi-play-circle-fill me-1"></i> Test Pay (Simulate Payment)
+        </button>
+      )}
 
       {/* Receptionist Check Payment Status Button */}
       {showCheckStatusBtn && onCheckStatus && (

@@ -445,6 +445,11 @@ function PaymentsClient() {
                       paymentStatus="Pending"
                       showProceedBtn={false}
                       showCheckStatusBtn={true}
+                      showTestPayBtn={true}
+                      onSimulateTestPay={(simRef) => {
+                        setPaymentForm(prev => ({ ...prev, cashReceived: payableAmount.toFixed(2) }));
+                        showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Payable amount auto-settled.`);
+                      }}
                       onCheckStatus={fetchInitialData}
                     />
                   )}

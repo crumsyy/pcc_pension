@@ -78,40 +78,80 @@ export default function ReceptionistBilling() {
       setLoadingBill(false);
     }
   };
+
+  const [manualDiscountForm, setManualDiscountForm] = useState({
+    discountID: '',
+    beneficiaryName: '',
+    discountIdNumber: ''
+  });
+
   const openEditDiscountsModal = () => {
     if (!billDetails) return;
-    const form = billDetails.guestsList.map(g => ({
-      bookingGuestID: g.bookingGuestID,
-      fullName: g.fullName,
-      age: g.age,
-      discountID: g.discountID || '',
-      discountIdNumber: g.discountIdNumber || ''
-    }));
-    setGuestDiscountsForm(form);
+    const existingBeneficiary = billDetails.guestsList?.find(g => g.discountID) || billDetails.guestsList?.[0];
+    setManualDiscountForm({
+      discountID: existingBeneficiary?.discountID || '',
+      beneficiaryName: existingBeneficiary?.fullName || `${billDetails.booking.firstName} ${billDetails.booking.lastName}`,
+      discountIdNumber: existingBeneficiary?.discountIdNumber || ''
+    });
     setIsEditingDiscounts(true);
   };
 
   const handleSaveDiscountsSubmit = async (e) => {
     e.preventDefault();
+    if (!manualDiscountForm.discountID) {
+      showAlert('warning', 'Discount Required', 'Please choose a discount type to apply.');
+      return;
+    }
+    if (!manualDiscountForm.beneficiaryName.trim() || !manualDiscountForm.discountIdNumber.trim()) {
+      showAlert('warning', 'Validation Error', 'Beneficiary full name and ID card number are required for verification.');
+      return;
+    }
+
     try {
       const res = await fetch('/api/receptionist/billing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'apply_manual_discount',
           bookingID: selectedBookingID,
-          guests: guestDiscountsForm
+          discountID: manualDiscountForm.discountID,
+          beneficiaryName: manualDiscountForm.beneficiaryName,
+          discountIdNumber: manualDiscountForm.discountIdNumber
         })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update guest discounts');
+      if (!res.ok) throw new Error(data.error || 'Failed to apply discount');
 
-      showAlert('success', 'Success', 'Guest discounts updated successfully.');
+      showAlert('success', 'Discount Applied', data.message || 'Discount applied to billing statement successfully.');
       setIsEditingDiscounts(false);
       fetchBillingDetails(selectedBookingID);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     }
+  };
+
+  const handleRemoveDiscountSubmit = async () => {
+    showConfirm('Remove Discount', 'Are you sure you want to remove the applied discount from this bill?', async () => {
+      try {
+        const res = await fetch('/api/receptionist/billing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'remove_discount',
+            bookingID: selectedBookingID
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to remove discount');
+
+        showAlert('success', 'Success', 'Discount removed from billing.');
+        setIsEditingDiscounts(false);
+        fetchBillingDetails(selectedBookingID);
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
   };
 
   const handleDeleteIncidentalSubmit = async (chargeID) => {
@@ -886,64 +926,64 @@ export default function ReceptionistBilling() {
                 <button type="button" className="btn-close btn-close-white" onClick={() => setIsEditingDiscounts(false)}></button>
               </div>
               <form onSubmit={handleSaveDiscountsSubmit}>
-                <div className="modal-body">
-                  <p className="text-muted small">Specify Senior Citizen, PWD, or other applicable discounts for each registered guest below.</p>
-                  
-                  <div className="d-flex flex-column gap-3">
-                    {guestDiscountsForm.map((g, idx) => (
-                      <div key={g.bookingGuestID} className="p-3 border rounded bg-light">
-                        <div className="row align-items-center g-2">
-                          <div className="col-md-4">
-                            <label className="fw-bold mb-0 text-dark" style={{ fontSize: '0.9rem' }}>{g.fullName}</label>
-                            <div className="text-muted small">Age: {g.age} years</div>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label small mb-1 fw-semibold">Select Discount</label>
-                            <select
-                              className="form-select form-select-sm"
-                              value={g.discountID}
-                              onChange={(e) => {
-                                const newID = e.target.value;
-                                const updated = [...guestDiscountsForm];
-                                updated[idx].discountID = newID;
-                                if (!newID) {
-                                  updated[idx].discountIdNumber = '';
-                                }
-                                setGuestDiscountsForm(updated);
-                              }}
-                            >
-                              <option value="">No Discount</option>
-                              {billDetails.discounts.map(d => (
-                                <option key={d.discountID} value={d.discountID}>
-                                  {d.name} ({d.percentage}%)
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label small mb-1 fw-semibold">Discount ID Card Number</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              required={!!g.discountID}
-                              disabled={!g.discountID}
-                              placeholder="e.g. OSCA-XXXXX"
-                              value={g.discountIdNumber}
-                              onChange={(e) => {
-                                const updated = [...guestDiscountsForm];
-                                updated[idx].discountIdNumber = e.target.value;
-                                setGuestDiscountsForm(updated);
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                <div className="modal-body p-4">
+                  <div className="alert alert-info py-2 small mb-3">
+                    Apply a discount (e.g. Senior Citizen, PWD, Student) to this stay by selecting the discount type and verifying the beneficiary details below.
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small">Discount Type *</label>
+                    <select
+                      className="form-select form-select-sm fw-bold text-pcc-blue"
+                      required
+                      value={manualDiscountForm.discountID}
+                      onChange={(e) => setManualDiscountForm({ ...manualDiscountForm, discountID: e.target.value })}
+                    >
+                      <option value="">-- Choose Discount / Promotion --</option>
+                      {billDetails.discounts.map(d => (
+                        <option key={d.discountID} value={d.discountID}>
+                          {d.name} ({d.percentage}% Off)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small">Beneficiary Full Name *</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      required
+                      placeholder="e.g. Juan Dela Cruz"
+                      value={manualDiscountForm.beneficiaryName}
+                      onChange={(e) => setManualDiscountForm({ ...manualDiscountForm, beneficiaryName: e.target.value })}
+                    />
+                    <small className="text-muted" style={{ fontSize: '0.74rem' }}>Enter the full name of the Senior, PWD, or Student beneficiary.</small>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small">Government / Student ID Number *</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      required
+                      placeholder="e.g. OSCA-123456 / PWD-98765"
+                      value={manualDiscountForm.discountIdNumber}
+                      onChange={(e) => setManualDiscountForm({ ...manualDiscountForm, discountIdNumber: e.target.value })}
+                    />
+                    <small className="text-muted" style={{ fontSize: '0.74rem' }}>Required for audit compliance and BIR senior/PWD deductions.</small>
                   </div>
                 </div>
-                <div className="modal-footer border-top-0">
-                  <button type="submit" className="btn btn-pcc-primary text-white">Save & Recalculate Bill</button>
-                  <button type="button" className="btn btn-secondary text-white" onClick={() => setIsEditingDiscounts(false)}>Cancel</button>
+                <div className="modal-footer border-top-0 d-flex justify-content-between">
+                  {billDetails.guestsList?.some(g => g.discountID) ? (
+                    <button type="button" className="btn btn-outline-danger btn-sm" onClick={handleRemoveDiscountSubmit}>
+                      <i className="bi bi-trash me-1"></i>Remove Discount
+                    </button>
+                  ) : <div />}
+                  <div className="d-flex gap-2">
+                    <button type="button" className="btn btn-secondary text-white" onClick={() => setIsEditingDiscounts(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Apply & Recalculate Bill</button>
+                  </div>
                 </div>
               </form>
             </div>

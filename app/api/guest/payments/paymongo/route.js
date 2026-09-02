@@ -22,9 +22,17 @@ export async function POST(request) {
     // Get guest details
     const guests = await dbQuery("SELECT guestID, firstName, lastName, contact, email FROM guest WHERE userID = ?", [session.userID]);
     const guest = guests[0] || {};
-    const guestName = `${guest.firstName || 'Guest'} ${guest.lastName || ''}`.trim();
+    let guestName = (body.billingName || `${guest.firstName || ''} ${guest.lastName || ''}`).trim();
+    if (!guestName) {
+      guestName = (session.fullName || session.email || 'Guest User').trim();
+    }
+    if (!guestName) {
+      return NextResponse.json({ error: 'Billing name is required for PayMongo payments.' }, { status: 400 });
+    }
+
     const guestEmail = guest.email || session?.email || 'guest@example.com';
-    const guestPhone = guest.contact || '09171234567';
+    let guestPhone = (guest.contact || body.phone || '09171234567').replace(/\D/g, '');
+    if (guestPhone.length !== 11) guestPhone = '09171234567';
 
     // Host URL calculation
     const host = request.headers.get('host') || 'localhost:3000';
