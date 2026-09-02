@@ -2244,14 +2244,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
-              <div className="modal-header text-white" style={{ backgroundColor: '#0d6efd' }}>
-                <h5 className="modal-title fw-bold">GCash Online Payment Options</h5>
+              <div className="modal-header text-white d-flex justify-content-between align-items-center" style={{ backgroundColor: '#0d6efd' }}>
+                <div className="d-flex align-items-center gap-2">
+                  <h5 className="modal-title fw-bold mb-0">GCash Online Payment Options</h5>
+                  <span className="badge bg-warning text-dark font-mono px-2 py-1" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+                    <i className="bi bi-flask me-1"></i>TEST MODE
+                  </span>
+                </div>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
               <form onSubmit={handleConfirmGCashBookingPayment}>
                 <div className="modal-body">
-                  <div className="alert alert-info py-2 small mb-3">
-                    Online payments are processed exclusively via <strong>GCash</strong>. Select downpayment percentage below.
+                  <div className="alert alert-info py-2 small mb-3 d-flex justify-content-between align-items-center">
+                    <span>Online payments are processed via <strong>GCash (PayMongo Test Mode)</strong>. Select downpayment below.</span>
+                    <span className="badge bg-warning text-dark ms-2">TEST MODE</span>
                   </div>
 
                   <div className="mb-3">

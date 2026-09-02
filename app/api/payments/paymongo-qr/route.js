@@ -28,8 +28,8 @@ export async function POST(request) {
           attributes: {
             amount: amountInCentavos,
             currency: 'PHP',
-            payment_method_allowed: ['qrph'],
-            description: description || 'PCC Suite Room Downpayment'
+            payment_method_allowed: ['gcash', 'qrph'],
+            description: description || 'PCC Suite Room Downpayment (GCash Test Mode)'
           }
         }
       })
@@ -116,7 +116,8 @@ export async function POST(request) {
       paymongoQrUrl,
       paymongoQrRaw,
       paymentIntentID,
-      amount: parseAmt
+      amount: parseAmt,
+      isTestMode: process.env.PAYMONGO_TEST_MODE !== 'false'
     });
 
   } catch (error) {

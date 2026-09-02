@@ -97,16 +97,28 @@ export async function POST(request) {
       const amountInPesos = amountInCentavos ? amountInCentavos / 100 : 0;
       const description = eventData.attributes?.description || '';
 
-      console.log(`PayMongo Payment Paid: ${paymentID} - ₱${amountInPesos}`);
+      console.log(`PayMongo GCash Payment Paid: ${paymentID} - ₱${amountInPesos}`);
 
       await ensureTestModeSchema();
 
-      // Auto-notify Administrators
-      const admins = await dbQuery("SELECT userID FROM user WHERE roleID = 1 AND status = 'Active'");
-      for (const adm of admins) {
+      // Extract booking ID if present in description e.g. "Booking #BK00001" or "BK00001"
+      let bookingIDMatch = description.match(/BK(\d+)/i);
+      let targetBookingID = bookingIDMatch ? parseInt(bookingIDMatch[1]) : null;
+
+      if (targetBookingID) {
+        // Auto-update booking status to Paid / Confirmed
         await dbQuery(
-          "INSERT INTO notification (userID, title, message) VALUES (?, 'PayMongo Test Payment Received', ?)",
-          [adm.userID, `Online GCash/QRPh Payment of ₱${amountInPesos.toFixed(2)} received via PayMongo Test Mode.`]
+          "UPDATE booking SET status = CASE WHEN status = 'Pending Check-in' THEN 'Pending Check-in' ELSE 'Confirmed' END WHERE bookingID = ?",
+          [targetBookingID]
+        );
+      }
+
+      // Auto-notify Administrators & Receptionists
+      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      for (const st of staffToNotify) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'PayMongo GCash Test Payment Received', ?)",
+          [st.userID, `Online GCash/QRPh Payment of ₱${amountInPesos.toFixed(2)} received (Test Mode = 1).`]
         );
       }
     }
