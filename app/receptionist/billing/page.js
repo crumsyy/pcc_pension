@@ -52,8 +52,8 @@ export default function ReceptionistBilling() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch active bookings');
       
-      // We can also fetch checked out bookings if they have unpaid balances, but here we load all active list
-      setActiveBookings(data.activeBookings || []);
+      // Load full stays list with settled and active statuses
+      setActiveBookings(data.allBillingStays || data.activeBookings || []);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -288,11 +288,21 @@ export default function ReceptionistBilling() {
     fetchBillingDetails(bID);
   };
 
+  const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'completed' | 'all'
+
   const filteredBookings = activeBookings.filter(b => {
     const fullName = `${b.firstName} ${b.lastName}`.toLowerCase();
     const room = String(b.roomNumber).toLowerCase();
     const query = searchQuery.toLowerCase();
-    return fullName.includes(query) || room.includes(query);
+    const matchesSearch = fullName.includes(query) || room.includes(query);
+    if (!matchesSearch) return false;
+
+    if (statusFilter === 'active') {
+      return b.status === 'Checked In';
+    } else if (statusFilter === 'completed') {
+      return b.status === 'Completed' || b.status === 'Checked Out';
+    }
+    return true; // 'all'
   });
 
   return (
@@ -305,10 +315,10 @@ export default function ReceptionistBilling() {
           </div>
         </div>
 
-        {/* Search Bar Card */}
+        {/* Search Bar & Status Filter Card */}
         <div className="card shadow-sm border-0 mb-3" style={{ borderRadius: '8px' }}>
           <div className="card-body py-3">
-            <div className="row align-items-center">
+            <div className="row align-items-center g-2">
               <div className="col-md-6">
                 <input
                   type="text"
@@ -318,6 +328,31 @@ export default function ReceptionistBilling() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{ borderRadius: '20px' }}
                 />
+              </div>
+              <div className="col-md-6 text-md-end">
+                <div className="btn-group btn-group-sm" role="group">
+                  <button
+                    type="button"
+                    className={`btn fw-semibold ${statusFilter === 'active' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    onClick={() => setStatusFilter('active')}
+                  >
+                    Active Stays (Checked In)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn fw-semibold ${statusFilter === 'completed' ? 'btn-success text-white' : 'btn-outline-secondary'}`}
+                    onClick={() => setStatusFilter('completed')}
+                  >
+                    Completed Stays (Settled)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn fw-semibold ${statusFilter === 'all' ? 'btn-dark' : 'btn-outline-secondary'}`}
+                    onClick={() => setStatusFilter('all')}
+                  >
+                    All Stays
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -376,7 +411,11 @@ export default function ReceptionistBilling() {
                           </small>
                         </td>
                         <td>
-                          <span className={`badge ${b.status === 'Checked In' ? 'bg-primary' : 'bg-info'} text-white`}>
+                          <span className={`badge ${
+                            b.status === 'Completed' ? 'bg-success text-white' :
+                            b.status === 'Checked In' ? 'bg-primary text-white' :
+                            'bg-secondary text-white'
+                          }`}>
                             {b.status}
                           </span>
                         </td>
@@ -893,7 +932,7 @@ export default function ReceptionistBilling() {
                             </span>
                           </div>
 
-                          {billDetails.chargesSummary.balance > 0 ? (
+                          {billDetails.chargesSummary.balance > 0.05 && billDetails.booking.status === 'Checked In' ? (
                             <a
                               href={`/receptionist/payments?bookingID=${selectedBookingID}`}
                               className="btn btn-pcc-primary text-white w-100 py-2 fw-semibold text-center d-block text-decoration-none"
@@ -901,8 +940,8 @@ export default function ReceptionistBilling() {
                               Go to Payment Checkout
                             </a>
                           ) : (
-                            <div className="alert alert-success text-center py-2 mb-0 fw-semibold">
-                              ✓ Bill fully settled.
+                            <div className="alert alert-success text-center py-2.5 mb-0 fw-semibold">
+                              <i className="bi bi-check-circle-fill me-1"></i> Bill fully settled & Guest Checked Out. Room is Available.
                             </div>
                           )}
                         </div>

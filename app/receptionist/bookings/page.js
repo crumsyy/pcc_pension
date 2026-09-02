@@ -868,24 +868,40 @@ function BookingsClient() {
   };
 
   const handleCheckOut = (id) => {
-    showConfirm('Process Check-Out', 'Check out this guest now and free up the room?', async () => {
+    const performCheckOut = async (isEarlyConfirmed = false) => {
       try {
         const res = await fetch('/api/receptionist/bookings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'checkout',
-            bookingID: id
+            bookingID: id,
+            confirmEarlyCheckOut: isEarlyConfirmed
           })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to check out');
 
-        showAlert('success', 'Success', 'Guest checked out successfully.');
+        if (data.requiresEarlyCheckOutConfirmation) {
+          showConfirm(
+            'Early Check-Out Confirmation',
+            data.message || "Are you sure you want to checkout even if it's still not the checkout time yet.",
+            async () => {
+              await performCheckOut(true);
+            }
+          );
+          return;
+        }
+
+        showAlert('success', 'Success', data.message || 'Guest checked out successfully.');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
+    };
+
+    showConfirm('Process Check-Out', 'Check out this guest now and free up the room?', async () => {
+      await performCheckOut(false);
     });
   };
 

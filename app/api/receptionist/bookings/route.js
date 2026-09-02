@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema, completeBookingAndFreeRoom } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -515,24 +515,23 @@ export async function POST(request) {
       const scheduledCheckOut = new Date(String(checkOutDateTime).replace(' ', 'T'));
 
       if (localNow < scheduledCheckOut && !confirmEarlyCheckOut) {
-        const scheduledFormatted = scheduledCheckOut.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
         return NextResponse.json({
           requiresEarlyCheckOutConfirmation: true,
-          message: `The scheduled check-out time for this guest is ${scheduledFormatted}. The guest is checking out early today. Are you sure you want to process early check-out now?`
+          message: "Are you sure you want to checkout even if it's still not the checkout time yet."
         });
       }
 
-      const pad = (num) => String(num).padStart(2, '0');
-      const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+      const checkoutRes = await completeBookingAndFreeRoom(bookingID);
+      if (checkoutRes.error) {
+        return NextResponse.json({ error: checkoutRes.error }, { status: 400 });
+      }
 
-      await dbQuery("UPDATE booking SET status = 'Checked Out', checkOutDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
-      await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
-      await dbQuery(
-        "UPDATE reservation SET status = 'Checked Out' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = (SELECT guestID FROM booking WHERE bookingID = ?) AND roomID = ? AND status IN ('Pending', 'Confirmed', 'Booked', 'Checked In'))",
-        [bookingID, bookingID, roomID]
-      );
-
-      return NextResponse.json({ success: true, message: 'Guest checked out successfully.' });
+      return NextResponse.json({
+        success: true,
+        message: 'Guest checked out successfully.',
+        bookingStatus: 'Completed',
+        roomStatus: 'Available'
+      });
     }
 
     if (action === 'extend_stay' || action === 'update_checkout') {
