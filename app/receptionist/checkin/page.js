@@ -128,7 +128,7 @@ function CheckInClient() {
     if (!loading && targetBookingID && bookings.length > 0) {
       const target = bookings.find(b => b.bookingID === parseInt(targetBookingID));
       if (target) {
-        if (target.status === 'Pending Check-in') {
+        if (target.status === 'Pending Check-in' || target.status === 'Overdue Check-In') {
           handleCheckIn(target.bookingID, target.firstName + ' ' + target.lastName);
         } else if (target.status === 'Checked In') {
           handleCheckOut(target.bookingID, target.firstName + ' ' + target.lastName);
@@ -231,7 +231,7 @@ function CheckInClient() {
     }
   };
 
-  const arrivals = bookings.filter(b => b.status === 'Pending Check-in');
+  const arrivals = bookings.filter(b => b.status === 'Pending Check-in' || b.status === 'Overdue Check-In');
   const departures = bookings.filter(b => b.status === 'Checked In');
 
   const filterList = (list) => {

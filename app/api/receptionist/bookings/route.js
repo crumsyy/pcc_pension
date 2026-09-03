@@ -23,7 +23,13 @@ export async function GET(request) {
   try {
     const [bookings, guests, rooms, guestsDetails, discounts, paymentMethods] = await Promise.all([
       dbQuery(`
-        SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
+        SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
+               CASE
+                 WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND NOW() >= b.checkInDateTime AND NOW() <= DATE_ADD(b.checkInDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
+                 WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND b.checkInDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 'No Show'
+                 ELSE b.status
+               END as status,
+               b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
                rm.roomNumber, rm.occupancyLimit, rt.type as roomType
         FROM booking b

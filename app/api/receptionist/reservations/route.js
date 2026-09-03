@@ -95,7 +95,12 @@ export async function GET(request) {
                DATE_FORMAT(r.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
                COALESCE(r.guestCount, 1) as guestCount, r.specialRequests,
                COALESCE(r.breakfastOption, 'with') as breakfastOption,
-               r.status, r.guestID, r.roomID,
+               CASE 
+                 WHEN r.status IN ('Confirmed', 'Pending') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
+                 WHEN r.status IN ('Confirmed', 'Pending') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
+                 ELSE r.status
+               END as status,
+               r.guestID, r.roomID,
                g.firstName, g.lastName, g.contact, g.email,
                rm.roomNumber, rt.type as roomType,
                rr1.rate as rateWithBreakfast, rr2.rate as rateWithoutBreakfast,

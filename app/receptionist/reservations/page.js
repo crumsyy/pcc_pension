@@ -652,11 +652,12 @@ function ReservationsClient() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Confirmed': return 'bg-success text-white';
-      case 'Pending': return 'bg-warning text-dark';
-      case 'Canceled':
-      case 'Cancelled': return 'bg-danger text-white';
-      case 'Expired': return 'bg-secondary text-white';
+      case 'Pending': return 'bg-info text-dark';
+      case 'Overdue Check-In': return 'bg-warning text-dark';
       case 'No Show': return 'bg-danger text-white';
+      case 'Canceled':
+      case 'Cancelled': return 'bg-secondary text-white';
+      case 'Expired': return 'bg-secondary text-white';
       default: return 'bg-primary text-white';
     }
   };
@@ -699,6 +700,7 @@ function ReservationsClient() {
               <option value="">All Statuses</option>
               <option value="Pending">Pending</option>
               <option value="Confirmed">Confirmed</option>
+              <option value="Overdue Check-In">Overdue Check-In</option>
               <option value="Booked">Booked</option>
               <option value="No Show">No Show</option>
               <option value="Cancelled">Cancelled</option>
@@ -756,7 +758,7 @@ function ReservationsClient() {
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
-                        {!r.bookingID && r.status === 'Pending' && (
+                        {!r.bookingID && (r.status === 'Pending' || r.status === 'Overdue Check-In') && (
                           <>
                             <button
                               type="button"

@@ -1051,10 +1051,11 @@ function BookingsClient() {
     switch (status) {
       case 'Checked In': return 'bg-success text-white';
       case 'Late Checkout': return 'bg-danger text-white';
-      case 'No Show': return 'bg-dark text-white';
+      case 'Overdue Check-In': return 'bg-warning text-dark';
+      case 'No Show': return 'bg-danger text-white';
       case 'Checked Out': return 'bg-secondary text-white';
-      case 'Pending Check-in': return 'bg-warning text-dark';
-      case 'Cancelled': return 'bg-danger text-white';
+      case 'Pending Check-in': return 'bg-info text-dark';
+      case 'Cancelled': return 'bg-secondary text-white';
       default: return 'bg-primary text-white';
     }
   };
@@ -1099,6 +1100,7 @@ function BookingsClient() {
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Booking Statuses</option>
               <option value="Pending Check-in">Pending Check-in</option>
+              <option value="Overdue Check-In">Overdue Check-In</option>
               <option value="Checked In">Checked In</option>
               <option value="Late Checkout">Late Checkout</option>
               <option value="Checked Out">Checked Out</option>
