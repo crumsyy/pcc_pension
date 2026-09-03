@@ -736,17 +736,17 @@ function ReservationsClient() {
                   <tr key={r.reservationID}>
                     <td>
                       <div className="fw-semibold text-dark">
-                        {r.middleName ? `${r.firstName} ${r.middleName.charAt(0).toUpperCase()}. ${r.lastName}` : `${r.firstName} ${r.lastName}`}
+                        {r.middleName ? `${r.firstName || ''} ${r.middleName.charAt(0).toUpperCase()}. ${r.lastName || ''}`.trim() : `${r.firstName || ''} ${r.lastName || ''}`.trim()}
                       </div>
-                      <small className="text-muted">{r.contact}</small>
+                      <small className="text-muted">{r.contact || 'No contact'}</small>
                     </td>
                     <td>
-                      <div className="fw-semibold text-dark">Room {r.roomNumber} ({r.roomType})</div>
+                      <div className="fw-semibold text-dark">Room {r.roomNumber || 'N/A'} ({r.roomType || 'Standard'})</div>
                       <small className="badge bg-light text-dark border">
                         {r.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast'}
                       </small>
                     </td>
-                    <td>{new Date(r.reservationDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                    <td>{r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
                     <td>
                       {r.bookingID ? (
                         <span className="badge bg-success text-white">Booked</span>
