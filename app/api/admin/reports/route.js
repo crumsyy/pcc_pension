@@ -20,7 +20,7 @@ export async function GET(request) {
     if (report === 'sales') {
       // 1. Fetch transactions in range
       const transactions = await dbQuery(`
-        SELECT t.transactionID, t.transactionDateTime, p.amount as netAmount, pm.paymentMethod, p.paymentID, p.discountID, p.billingID, bil.bookingID
+        SELECT t.transactionID, t.transactionDateTime, p.amount as netAmount, pm.paymentMethod, p.paymentID, p.discountID, p.billingID, bil.bookingID, COALESCE(p.testMode, 1) as testMode
         FROM transactions t
         JOIN payment p ON p.paymentID = t.paymentID
         LEFT JOIN payment_method pm ON pm.paymentMethodID = p.paymentMethodID

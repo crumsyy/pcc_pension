@@ -505,6 +505,11 @@ function PaymentsClient() {
                       paymentStatus="Pending"
                       showProceedBtn={false}
                       showCheckStatusBtn={true}
+                      showTestPayBtn={true}
+                      onSimulateTestPay={(simRef) => {
+                        setPaymentForm(prev => ({ ...prev, cashReceived: payableAmount.toFixed(2) }));
+                        showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Payable amount auto-settled.`);
+                      }}
                       onCheckStatus={fetchInitialData}
                       onPaymentSuccess={handlePaymentAutoSuccess}
                       bookingID={selectedBookingID}
@@ -739,9 +744,14 @@ function PaymentsClient() {
                               {h.bookingID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Booking #{h.bookingID}</small>}
                             </td>
                             <td>
-                              <span className={`badge ${h.paymentMethod === 'GCash' ? 'bg-primary text-white' : 'bg-success text-white'} px-2 py-1`} style={{ fontSize: '0.72rem' }}>
+                              <span className={`badge ${h.paymentMethod === 'GCash' ? 'bg-primary text-white' : 'bg-success text-white'} px-2 py-1 me-1`} style={{ fontSize: '0.72rem' }}>
                                 {h.paymentMethod}
                               </span>
+                              {h.paymentMethod === 'GCash' && (
+                                <span className="badge bg-warning text-dark font-mono px-1.5 py-0.5" style={{ fontSize: '0.68rem' }}>
+                                  TEST
+                                </span>
+                              )}
                             </td>
                             <td className="fw-bold text-success fs-6">₱{parseFloat(h.amount).toFixed(2)}</td>
                             <td><small className="text-muted">{h.processedBy || 'Front Desk'}</small></td>

@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import SearchableSelect from '../../components/SearchableSelect';
+import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 
 function calculateAgeFromUiDate(uiDateStr) {
   if (!isValidDate(uiDateStr)) return '';
@@ -872,24 +873,40 @@ function BookingsClient() {
   };
 
   const handleCheckOut = (id) => {
-    showConfirm('Process Check-Out', 'Check out this guest now and free up the room?', async () => {
+    const performCheckOut = async (isEarlyConfirmed = false) => {
       try {
         const res = await fetch('/api/receptionist/bookings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'checkout',
-            bookingID: id
+            bookingID: id,
+            confirmEarlyCheckOut: isEarlyConfirmed
           })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to check out');
 
-        showAlert('success', 'Success', 'Guest checked out successfully.');
+        if (data.requiresEarlyCheckOutConfirmation) {
+          showConfirm(
+            'Early Check-Out Confirmation',
+            data.message || "Are you sure you want to checkout even if it's still not the checkout time yet.",
+            async () => {
+              await performCheckOut(true);
+            }
+          );
+          return;
+        }
+
+        showAlert('success', 'Success', data.message || 'Guest checked out successfully.');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
+    };
+
+    showConfirm('Process Check-Out', 'Check out this guest now and free up the room?', async () => {
+      await performCheckOut(false);
     });
   };
 
@@ -1693,6 +1710,22 @@ function BookingsClient() {
                             </div>
                           )}
                         </div>
+
+                        {paymentMethodID === '2' && requiredDownpayment > 0 && (
+                          <div className="mb-3 p-3 bg-light rounded border text-center">
+                            <DynamicQrPhCode 
+                              amount={requiredDownpayment}
+                              refNumber={`BOOK-${selectedRoomObj?.roomNumber || 'WALK'}`}
+                              paymentStatus="Pending"
+                              showProceedBtn={false}
+                              showTestPayBtn={true}
+                              onSimulateTestPay={(simRef) => {
+                                setDownPayment(requiredDownpayment.toFixed(2));
+                                showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment amount auto-filled.`);
+                              }}
+                            />
+                          </div>
+                        )}
                       </>
                     );
                   })()}
