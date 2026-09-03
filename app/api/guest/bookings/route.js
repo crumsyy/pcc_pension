@@ -19,7 +19,13 @@ export async function GET() {
 
     // Fetch all bookings for this guest
     const bookings = await dbQuery(`
-      SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status, b.reservationID, b.roomID, b.cancelRemarks,
+      SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime,
+             CASE
+               WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND NOW() >= b.checkInDateTime AND NOW() <= DATE_ADD(b.checkInDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
+               WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND b.checkInDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 'No Show'
+               ELSE b.status
+             END as status,
+             b.reservationID, b.roomID, b.cancelRemarks,
              rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID, COALESCE(rr.rate, 1500) as rate
       FROM booking b
       JOIN room rm ON rm.roomID = b.roomID

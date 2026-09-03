@@ -16,7 +16,13 @@ export async function GET(request) {
 
     // Fetch guest reservations if guest profile exists
     const reservations = guestID > 0 ? await dbQuery(`
-      SELECT r.reservationID, r.reservationDateTime, r.status, r.roomID,
+      SELECT r.reservationID, r.reservationDateTime,
+             CASE 
+               WHEN r.status IN ('Confirmed', 'Pending') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
+               WHEN r.status IN ('Confirmed', 'Pending') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
+               ELSE r.status
+             END as status,
+             r.roomID,
              rm.roomNumber, rm.floorID, rt.type as roomType, fl.name as floor,
              COALESCE(rr.rate, 1500) as rate
       FROM reservation r

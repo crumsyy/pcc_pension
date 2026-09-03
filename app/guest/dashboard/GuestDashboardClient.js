@@ -849,10 +849,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         </div>
       );
     }
+    if (status === 'Overdue Check-In') {
+      return (
+        <div className="alert alert-warning py-1 px-2.5 mb-0 small fw-bold text-dark" style={{ fontSize: '0.75rem' }}>
+          ⏳ Status: Overdue Check-In (1-hour arrival grace period active)
+        </div>
+      );
+    }
     if (status === 'No Show') {
       return (
-        <div className="alert alert-dark py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
-          ⚠️ Status: No Show
+        <div className="alert alert-danger py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
+          ⚠️ Status: No Show (1-hour grace period expired — room hold released)
         </div>
       );
     }

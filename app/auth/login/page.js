@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import TestAccountsPanel from "@/app/components/TestAccountsPanel";
 
 function LoginContent() {
   const router = useRouter();
@@ -18,6 +19,16 @@ function LoginContent() {
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingDots, setLoadingDots] = useState(1);
+
+  const handleQuickFill = (testEmail, testPassword) => {
+    try {
+      setEmail(testEmail);
+      setPassword(testPassword);
+      setErrorMsg("");
+    } catch (err) {
+      console.error("Autofill error:", err);
+    }
+  };
 
   useEffect(() => {
     let interval;
@@ -194,6 +205,9 @@ function LoginContent() {
                   Don&apos;t have an account? <Link href="/auth/register" className="text-blue fw-semibold">Create one</Link>
                 </p>
               </form>
+
+              {/* QA TEST ACCOUNTS PANEL */}
+              <TestAccountsPanel onSelectAccount={handleQuickFill} />
             </div>
           </div>
         </div>
