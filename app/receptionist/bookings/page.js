@@ -158,10 +158,6 @@ function BookingsClient() {
 
   // Update Booking Modal State
   const [updatingBooking, setUpdatingBooking] = useState(null);
-  const [updateCheckInDate, setUpdateCheckInDate] = useState('');
-  const [updateCheckInTime, setUpdateCheckInTime] = useState('14:00');
-  const [updateCheckOutDate, setUpdateCheckOutDate] = useState('');
-  const [updateCheckOutTime, setUpdateCheckOutTime] = useState('12:00');
   const [updateNumGuests, setUpdateNumGuests] = useState(1);
 
   const openUpdateBookingModal = (b) => {

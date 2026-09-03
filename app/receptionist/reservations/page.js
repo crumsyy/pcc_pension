@@ -57,7 +57,6 @@ function ReservationsClient() {
   const [statusFilter, setStatusFilter] = useState('');
   const [todayUiDate, setTodayUiDate] = useState('');
   const [todayDbDate, setTodayDbDate] = useState('');
-  const [maxResDate, setMaxResDate] = useState('');
   const [currentTimeStr, setCurrentTimeStr] = useState('');
 
   useEffect(() => {
@@ -70,11 +69,6 @@ function ReservationsClient() {
     const tUi = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
     setTodayDbDate(tDb);
     setTodayUiDate(tUi);
-
-    const maxR = new Date();
-    maxR.setDate(maxR.getDate() + 2);
-    const mUi = `${pad(maxR.getMonth() + 1)}/${pad(maxR.getDate())}/${maxR.getFullYear()}`;
-    setMaxResDate(mUi);
 
     const updateCurrentTime = () => {
       const d = new Date();
