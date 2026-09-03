@@ -8,6 +8,27 @@ export default function DashboardClient({ userName }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetFeedback, setResetFeedback] = useState(null);
+
+  const handleExecuteReset = async () => {
+    setResetting(true);
+    try {
+      const res = await fetch('/api/admin/reset-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reset failed');
+      setResetFeedback(data);
+      await fetchDashboardStats();
+    } catch (err) {
+      alert('Error during reset: ' + err.message);
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -89,6 +110,15 @@ export default function DashboardClient({ userName }) {
           <div className="section-eyebrow">Administrator</div>
           <h2 className="section-title mb-0">Welcome, {userName || 'Admin'}!</h2>
           <small className="text-muted">{currentTime}</small>
+        </div>
+        <div>
+          <button 
+            type="button" 
+            className="btn btn-outline-danger btn-sm fw-bold d-flex align-items-center gap-1 shadow-xs"
+            onClick={() => { setResetFeedback(null); setShowResetModal(true); }}
+          >
+            <i className="bi bi-arrow-counterclockwise"></i> Reset Transaction Records
+          </button>
         </div>
       </div>
 
@@ -513,6 +543,115 @@ export default function DashboardClient({ userName }) {
           </div>
         </div>
       </div>
+
+      {/* RESET TRANSACTION RECORDS MODAL */}
+      {showResetModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '12px' }}>
+              <div className="modal-header bg-danger text-white">
+                <h5 className="modal-title fw-bold">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i> Clean Reset — Transaction Records Only
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowResetModal(false)} disabled={resetting}></button>
+              </div>
+              <div className="modal-body p-4">
+                {resetFeedback ? (
+                  <div className="text-center py-3">
+                    <div className="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '64px', height: '64px', fontSize: '2rem' }}>
+                      <i className="bi bi-check-lg"></i>
+                    </div>
+                    <h4 className="fw-bold text-success mb-2">Reset Completed Successfully!</h4>
+                    <p className="text-muted small mb-4">{resetFeedback.message}</p>
+
+                    <div className="row g-2 text-start p-3 bg-light rounded border mb-3" style={{ fontSize: '0.82rem' }}>
+                      <div className="col-6"><strong>Next Reservation ID:</strong> <span className="text-primary font-monospace">{resetFeedback.nextIDs?.reservationID}</span></div>
+                      <div className="col-6"><strong>Next Booking ID:</strong> <span className="text-primary font-monospace">{resetFeedback.nextIDs?.bookingID}</span></div>
+                      <div className="col-6"><strong>Next Transaction ID:</strong> <span className="text-primary font-monospace">{resetFeedback.nextIDs?.transactionID}</span></div>
+                      <div className="col-6"><strong>Next Order ID:</strong> <span className="text-primary font-monospace">{resetFeedback.nextIDs?.orderID}</span></div>
+                      <div className="col-12 mt-2 pt-2 border-top text-success fw-bold">
+                        ✓ {resetFeedback.roomsResetToAvailable} Rooms released back to Available. Master accounts & inventory intact.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="alert alert-warning py-2 small mb-3">
+                      <strong>Warning:</strong> This action will truncate all active/past <strong>reservations, bookings, billing statements, payments, orders, inquiries, and notifications</strong>, and reset their primary key counters to <strong>1</strong>.
+                    </div>
+
+                    <div className="row g-3 mb-3">
+                      <div className="col-md-6">
+                        <div className="p-3 bg-danger-subtle rounded border border-danger-subtle h-100" style={{ fontSize: '0.82rem' }}>
+                          <h6 className="fw-bold text-danger mb-2">Tables to Truncate (Reset to 1):</h6>
+                          <ul className="mb-0 ps-3 text-dark">
+                            <li>Reservations (starts at <code>RV00001</code>)</li>
+                            <li>Bookings (starts at <code>BK00001</code>)</li>
+                            <li>Payments (starts at <code>TRA00001</code>)</li>
+                            <li>Orders (starts at <code>ORD00001</code>)</li>
+                            <li>Billing Invoices & Line Items</li>
+                            <li>Borrow Transactions & Inquiries</li>
+                            <li>Occupied/Reserved rooms $\rightarrow$ <code>Available</code></li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="col-md-6">
+                        <div className="p-3 bg-success-subtle rounded border border-success-subtle h-100" style={{ fontSize: '0.82rem' }}>
+                          <h6 className="fw-bold text-success mb-2">Master Data Preserved (Unchanged):</h6>
+                          <ul className="mb-0 ps-3 text-dark">
+                            <li>User & Admin Logins</li>
+                            <li>Registered Guest & Staff Profiles</li>
+                            <li>Rooms, Room Types, & Rates</li>
+                            <li>Products & Cooked Meals Catalog</li>
+                            <li>Amenities Inventory & Categories</li>
+                            <li>Discounts & Promotions Settings</li>
+                            <li>Purchase Orders & Batch Records</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-muted small mb-0">
+                      Are you sure you want to perform a clean transactional reset? This is irreversible.
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                {resetFeedback ? (
+                  <button type="button" className="btn btn-primary text-white fw-bold" onClick={() => setShowResetModal(false)}>
+                    Done & View Dashboard
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" className="btn btn-secondary text-white" onClick={() => setShowResetModal(false)} disabled={resetting}>
+                      Cancel
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn btn-danger text-white fw-bold d-flex align-items-center gap-1"
+                      disabled={resetting}
+                      onClick={handleExecuteReset}
+                    >
+                      {resetting ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-1"></span>
+                          Resetting Tables...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-trash-fill"></i> Confirm Clean Reset
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
