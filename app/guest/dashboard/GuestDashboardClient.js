@@ -156,7 +156,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [selectedRoom, setSelectedRoom] = useState(null);
 
   // Form States
-  const [checkInDate, setCheckInDate] = useState(new Date().toISOString().substring(0, 10));
+  const nowObj = new Date();
+  const padNum = (n) => String(n).padStart(2, '0');
+  const todayDbStr = `${nowObj.getFullYear()}-${padNum(nowObj.getMonth() + 1)}-${padNum(nowObj.getDate())}`;
+
+  const maxResObj = new Date();
+  maxResObj.setDate(maxResObj.getDate() + 2);
+  const maxReserveDateStr = `${maxResObj.getFullYear()}-${padNum(maxResObj.getMonth() + 1)}-${padNum(maxResObj.getDate())}`;
+
+  const [checkInDate, setCheckInDate] = useState(todayDbStr);
   const [checkOutDate, setCheckOutDate] = useState(new Date(Date.now() + 86400000).toISOString().substring(0, 10));
 
   const handleCheckInDateChange = (val) => {
@@ -2049,7 +2057,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <input
                         type="date"
                         className="form-control form-control-sm"
-                        min={minReserveDateStr}
+                        min={todayDbStr}
                         max={maxReserveDateStr}
                         value={checkInDate}
                         onChange={(e) => handleCheckInDateChange(e.target.value)}
@@ -2058,7 +2066,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                     <div className="col-6">
                       <label className="form-label fw-semibold small">Check-Out Date *</label>
-                      <input type="date" className="form-control form-control-sm" min={checkInDate} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
+                      <input type="date" className="form-control form-control-sm" min={checkInDate || todayDbStr} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
                     </div>
                   </div>
 
@@ -2157,7 +2165,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           <input
                             type="date"
                             className="form-control form-control-sm"
-                            min={minBookDateStr}
+                            min={todayDbStr}
                             value={checkInDate}
                             onChange={(e) => handleCheckInDateChange(e.target.value)}
                             required
@@ -2165,7 +2173,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         </div>
                         <div className="mb-2">
                           <label className="form-label mb-0 small text-muted">Check-Out Date *</label>
-                          <input type="date" className="form-control form-control-sm" min={checkInDate} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
+                          <input type="date" className="form-control form-control-sm" min={checkInDate || todayDbStr} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
                         </div>
                         <div className="fw-bold text-primary small">Duration: {nightsCount} Night(s)</div>
                       </div>

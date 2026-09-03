@@ -58,12 +58,37 @@ function BookingsClient() {
   const [minDateTime, setMinDateTime] = useState('');
   const [maxDobStr, setMaxDobStr] = useState('');
 
+  const [todayUiDate, setTodayUiDate] = useState('');
+  const [todayDbDate, setTodayDbDate] = useState('');
+  const [currentTimeStr, setCurrentTimeStr] = useState('');
+
   useEffect(() => {
     const today = new Date();
-    const year18Ago = today.getFullYear() - 18;
     const pad = (n) => String(n).padStart(2, '0');
+    const year18Ago = today.getFullYear() - 18;
     setMaxDobStr(`${year18Ago}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
+
+    const tDb = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const tUi = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
+    setTodayDbDate(tDb);
+    setTodayUiDate(tUi);
+
+    const updateCurrentTime = () => {
+      const d = new Date();
+      setCurrentTimeStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    };
+    updateCurrentTime();
+    const interval = setInterval(updateCurrentTime, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const [updateCheckInDate, setUpdateCheckInDate] = useState('');
+  const [updateCheckInTime, setUpdateCheckInTime] = useState('14:00');
+  const [updateCheckOutDate, setUpdateCheckOutDate] = useState('');
+  const [updateCheckOutTime, setUpdateCheckOutTime] = useState('12:00');
+
+  const isCheckInToday = checkInDate === todayUiDate || (checkInDate && toDbDate(checkInDate) === todayDbDate);
+  const isUpdateToday = updateCheckInDate === todayUiDate || (updateCheckInDate && toDbDate(updateCheckInDate) === todayDbDate);
 
   const [formData, setFormData] = useState({
     guestID: '',
@@ -1507,11 +1532,23 @@ function BookingsClient() {
                     <div className="row g-2 mb-3 p-3 bg-light rounded border">
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Check-In Date *</label>
-                        <DateInput value={checkInDate} onChange={(e) => handleCheckInDateChange(e.target.value)} required min={toUiDate(new Date().toISOString().substring(0, 10))} />
+                        <DateInput value={checkInDate} onChange={(e) => handleCheckInDateChange(e.target.value)} required min={todayUiDate} />
                       </div>
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Check-In Time *</label>
-                        <input type="time" className="form-control form-control-sm" value={checkInTime} onChange={(e) => setCheckInTime(e.target.value)} required />
+                        <input
+                          type="time"
+                          className="form-control form-control-sm"
+                          value={checkInTime}
+                          min={isCheckInToday ? currentTimeStr : undefined}
+                          onChange={(e) => setCheckInTime(e.target.value)}
+                          required
+                        />
+                        {isCheckInToday && (
+                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                            Earliest selectable time today: {currentTimeStr}
+                          </small>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1519,7 +1556,7 @@ function BookingsClient() {
                   <div className="row g-2 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-Out Date *</label>
-                      <DateInput value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required min={checkInDate} />
+                      <DateInput value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required min={checkInDate || todayUiDate} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-Out Time *</label>
@@ -1995,6 +2032,7 @@ function BookingsClient() {
                         value={updateCheckInDate}
                         onChange={(val) => setUpdateCheckInDate(val)}
                         placeholder="MM/DD/YYYY"
+                        min={todayUiDate}
                         required
                       />
                     </div>
@@ -2005,8 +2043,14 @@ function BookingsClient() {
                         className="form-control form-control-sm"
                         required
                         value={updateCheckInTime}
+                        min={isUpdateToday ? currentTimeStr : undefined}
                         onChange={(e) => setUpdateCheckInTime(e.target.value)}
                       />
+                      {isUpdateToday && (
+                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                          Earliest selectable time today: {currentTimeStr}
+                        </small>
+                      )}
                     </div>
                   </div>
 
@@ -2017,6 +2061,7 @@ function BookingsClient() {
                         value={updateCheckOutDate}
                         onChange={(val) => setUpdateCheckOutDate(val)}
                         placeholder="MM/DD/YYYY"
+                        min={updateCheckInDate || todayUiDate}
                         required
                       />
                     </div>

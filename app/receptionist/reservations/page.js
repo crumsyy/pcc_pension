@@ -55,14 +55,38 @@ function ReservationsClient() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [maxDobStr, setMaxDobStr] = useState('');
+  const [todayUiDate, setTodayUiDate] = useState('');
+  const [todayDbDate, setTodayDbDate] = useState('');
+  const [maxResDate, setMaxResDate] = useState('');
+  const [currentTimeStr, setCurrentTimeStr] = useState('');
 
   useEffect(() => {
     const today = new Date();
-    const year18Ago = today.getFullYear() - 18;
     const pad = (n) => String(n).padStart(2, '0');
+    const year18Ago = today.getFullYear() - 18;
     setMaxDobStr(`${year18Ago}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
+
+    const tDb = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const tUi = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
+    setTodayDbDate(tDb);
+    setTodayUiDate(tUi);
+
+    const maxR = new Date();
+    maxR.setDate(maxR.getDate() + 2);
+    const mUi = `${pad(maxR.getMonth() + 1)}/${pad(maxR.getDate())}/${maxR.getFullYear()}`;
+    setMaxResDate(mUi);
+
+    const updateCurrentTime = () => {
+      const d = new Date();
+      setCurrentTimeStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    };
+    updateCurrentTime();
+    const interval = setInterval(updateCurrentTime, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const isResToday = resDate === todayUiDate || (resDate && toDbDate(resDate) === todayDbDate);
+  const isConvToday = convInDate === todayUiDate || (convInDate && toDbDate(convInDate) === todayDbDate);
 
   // Modals
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'convert' | null
@@ -962,7 +986,7 @@ function ReservationsClient() {
                         value={resDate}
                         onChange={(e) => handleResDateChange(e.target.value)}
                         required
-                        min={minResDate}
+                        min={todayUiDate}
                         max={maxResDate}
                       />
                     </div>
@@ -972,9 +996,15 @@ function ReservationsClient() {
                         type="time"
                         className="form-control form-control-sm"
                         value={resTime}
+                        min={isResToday ? currentTimeStr : undefined}
                         onChange={(e) => setResTime(e.target.value)}
                         required
                       />
+                      {isResToday && (
+                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                          Earliest selectable time today: {currentTimeStr}
+                        </small>
+                      )}
                     </div>
                   </div>
 
@@ -986,7 +1016,7 @@ function ReservationsClient() {
                         value={checkOutDate}
                         onChange={(e) => setCheckOutDate(e.target.value)}
                         required
-                        min={resDate || minResDate}
+                        min={resDate || todayUiDate}
                       />
                     </div>
                     <div className="col-md-6">
@@ -1098,18 +1128,30 @@ function ReservationsClient() {
                     <div className="row g-2 mb-3">
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Scheduled Check-In Date *</label>
-                        <DateInput className="form-control form-control-sm" value={convInDate} onChange={(e) => setConvInDate(e.target.value)} required />
+                        <DateInput className="form-control form-control-sm" value={convInDate} onChange={(e) => setConvInDate(e.target.value)} required min={todayUiDate} />
                       </div>
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Scheduled Check-In Time *</label>
-                        <input type="time" className="form-control form-control-sm" value={convInTime} onChange={(e) => setConvInTime(e.target.value)} required />
+                        <input
+                          type="time"
+                          className="form-control form-control-sm"
+                          value={convInTime}
+                          min={isConvToday ? currentTimeStr : undefined}
+                          onChange={(e) => setConvInTime(e.target.value)}
+                          required
+                        />
+                        {isConvToday && (
+                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                            Earliest selectable time today: {currentTimeStr}
+                          </small>
+                        )}
                       </div>
                     </div>
 
                     <div className="row g-2 mb-3">
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Check-Out Date *</label>
-                        <DateInput className="form-control form-control-sm" value={convOutDate} onChange={(e) => setConvOutDate(e.target.value)} required />
+                        <DateInput className="form-control form-control-sm" value={convOutDate} onChange={(e) => setConvOutDate(e.target.value)} required min={convInDate || todayUiDate} />
                       </div>
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Check-Out Time *</label>
