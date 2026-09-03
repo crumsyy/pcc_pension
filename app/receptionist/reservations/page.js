@@ -55,32 +55,10 @@ function ReservationsClient() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [maxDobStr, setMaxDobStr] = useState('');
   const [todayUiDate, setTodayUiDate] = useState('');
   const [todayDbDate, setTodayDbDate] = useState('');
   const [currentTimeStr, setCurrentTimeStr] = useState('');
-
-  useEffect(() => {
-    const today = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const year18Ago = today.getFullYear() - 18;
-    setMaxDobStr(`${year18Ago}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
-
-    const tDb = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-    const tUi = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
-    setTodayDbDate(tDb);
-    setTodayUiDate(tUi);
-
-    const updateCurrentTime = () => {
-      const d = new Date();
-      setCurrentTimeStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
-    };
-    updateCurrentTime();
-    const interval = setInterval(updateCurrentTime, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const isResToday = resDate === todayUiDate || (resDate && toDbDate(resDate) === todayDbDate);
-  const isConvToday = convInDate === todayUiDate || (convInDate && toDbDate(convInDate) === todayDbDate);
 
   // Modals
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'convert' | null
@@ -111,6 +89,41 @@ function ReservationsClient() {
   const [checkOutTime, setCheckOutTime] = useState('12:00');
   const [specialRequests, setSpecialRequests] = useState('');
 
+  // Room guests matching Booking form
+  const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+
+  // Convert/Confirm Booking States
+  const [downPaymentOption, setDownPaymentOption] = useState('25');
+  const [paymentMethodID, setPaymentMethodID] = useState('1');
+  const [downPayment, setDownPayment] = useState('');
+  const [convInDate, setConvInDate] = useState('');
+  const [convInTime, setConvInTime] = useState('14:00');
+  const [convOutDate, setConvOutDate] = useState('');
+  const [convOutTime, setConvOutTime] = useState('12:00');
+
+  useEffect(() => {
+    const today = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const year18Ago = today.getFullYear() - 18;
+    setMaxDobStr(`${year18Ago}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
+
+    const tDb = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const tUi = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
+    setTodayDbDate(tDb);
+    setTodayUiDate(tUi);
+
+    const updateCurrentTime = () => {
+      const d = new Date();
+      setCurrentTimeStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    };
+    updateCurrentTime();
+    const interval = setInterval(updateCurrentTime, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isResToday = resDate === todayUiDate || (resDate && toDbDate(resDate) === todayDbDate);
+  const isConvToday = convInDate === todayUiDate || (convInDate && toDbDate(convInDate) === todayDbDate);
+
   const handleResDateChange = (val) => {
     setResDate(val);
     if (val && isValidDate(val)) {
@@ -126,18 +139,6 @@ function ReservationsClient() {
       }
     }
   };
-
-  // Room guests matching Booking form
-  const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
-
-  // Convert/Confirm Booking States
-  const [downPaymentOption, setDownPaymentOption] = useState('25');
-  const [paymentMethodID, setPaymentMethodID] = useState('1');
-  const [downPayment, setDownPayment] = useState('');
-  const [convInDate, setConvInDate] = useState('');
-  const [convInTime, setConvInTime] = useState('14:00');
-  const [convOutDate, setConvOutDate] = useState('');
-  const [convOutTime, setConvOutTime] = useState('12:00');
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({

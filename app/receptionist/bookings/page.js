@@ -87,9 +87,6 @@ function BookingsClient() {
   const [updateCheckOutDate, setUpdateCheckOutDate] = useState('');
   const [updateCheckOutTime, setUpdateCheckOutTime] = useState('12:00');
 
-  const isCheckInToday = checkInDate === todayUiDate || (checkInDate && toDbDate(checkInDate) === todayDbDate);
-  const isUpdateToday = updateCheckInDate === todayUiDate || (updateCheckInDate && toDbDate(updateCheckInDate) === todayDbDate);
-
   const [formData, setFormData] = useState({
     guestID: '',
     roomID: '',
@@ -110,6 +107,9 @@ function BookingsClient() {
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutDate, setCheckOutDate] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
+
+  const isCheckInToday = checkInDate === todayUiDate || (checkInDate && toDbDate(checkInDate) === todayDbDate);
+  const isUpdateToday = updateCheckInDate === todayUiDate || (updateCheckInDate && toDbDate(updateCheckInDate) === todayDbDate);
 
   const handleCheckInDateChange = (val) => {
     if (val && isValidDate(val)) {
