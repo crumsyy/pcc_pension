@@ -1179,7 +1179,13 @@ function ReservationsClient() {
                           className="form-select form-select-sm"
                           required
                           value={paymentMethodID}
-                          onChange={(e) => setPaymentMethodID(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPaymentMethodID(val);
+                            if (String(val) === '2') {
+                              setDownPayment(requiredDownpayment.toFixed(2));
+                            }
+                          }}
                         >
                           {paymentMethods.map(pm => (
                             <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
@@ -1190,53 +1196,54 @@ function ReservationsClient() {
                       </div>
 
                       {String(paymentMethodID) === '1' ? (
-                      <div className="row g-2 mb-3">
-                        <div className="col-md-6">
-                          <label className="form-label small fw-semibold">Payment Received (₱) *</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="form-control form-control-sm fw-bold text-success"
-                            required
-                            placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
-                            value={downPayment}
-                            onChange={(e) => setDownPayment(e.target.value)}
-                          />
-                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                            Required: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
-                          </small>
-                        </div>
+                        <>
+                          <div className="col-md-4">
+                            <label className="form-label small fw-semibold">Payment Received (₱) *</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="form-control form-control-sm fw-bold text-success"
+                              required
+                              placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
+                              value={downPayment}
+                              onChange={(e) => setDownPayment(e.target.value)}
+                            />
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                              Required: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
+                            </small>
+                          </div>
 
-                        <div className="col-md-6">
-                          <label className="form-label small fw-semibold">Change to Give (₱)</label>
-                          <input
-                            type="text"
-                            readOnly
-                            className={`form-control form-control-sm fw-bold ${
-                              (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
-                            }`}
-                            value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
+                          <div className="col-md-4">
+                            <label className="form-label small fw-semibold">Change to Give (₱)</label>
+                            <input
+                              type="text"
+                              readOnly
+                              className={`form-control form-control-sm fw-bold ${
+                                (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
+                              }`}
+                              value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
+                            />
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                              Auto-calculated change
+                            </small>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="col-md-8">
+                          <DynamicQrPhCode 
+                            amount={requiredDownpayment}
+                            refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
+                            paymentStatus="Pending"
+                            showProceedBtn={false}
+                            showCheckStatusBtn={true}
+                            onCheckStatus={fetchData}
+                            onPaymentSuccess={() => {
+                              setDownPayment(requiredDownpayment.toFixed(2));
+                            }}
                           />
-                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                            Auto-calculated change
-                          </small>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="mb-3">
-                        <DynamicQrPhCode 
-                          amount={requiredDownpayment}
-                          refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
-                          paymentStatus="Pending"
-                          showProceedBtn={false}
-                          showCheckStatusBtn={true}
-                          onCheckStatus={fetchData}
-                          onPaymentSuccess={() => {
-                            setDownPayment(requiredDownpayment.toFixed(2));
-                          }}
-                        />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
 
                   <div className="modal-footer">
