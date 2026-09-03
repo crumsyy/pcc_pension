@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses } from '@/lib/db';
 
 function checkReservationLeadTime(checkInDateStr) {
   if (!checkInDateStr) return { valid: true };
@@ -85,6 +85,8 @@ export async function GET(request) {
   if (!session || (session.role !== 'Receptionist' && session.role !== 'Administrator')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await syncRoomStatuses();
 
   try {
     const [reservations, guests, rooms, paymentMethods, discounts] = await Promise.all([
@@ -377,6 +379,19 @@ export async function POST(request) {
       }
 
       return NextResponse.json({ success: true, message: 'Reservation cancelled successfully.' });
+    }
+
+    if (action === 'overrideStatus' || action === 'reinstate') {
+      const reservationID = parseInt(body.reservationID);
+      const newStatus = body.status || 'Confirmed';
+      if (!reservationID) {
+        return NextResponse.json({ error: 'Reservation ID is required.' }, { status: 400 });
+      }
+
+      await dbQuery("UPDATE reservation SET status = ? WHERE reservationID = ?", [newStatus, reservationID]);
+      await syncRoomStatuses();
+
+      return NextResponse.json({ success: true, message: `Reservation status updated to ${newStatus}.` });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

@@ -630,6 +630,25 @@ function ReservationsClient() {
     });
   };
 
+  const handleReinstate = (id) => {
+    showConfirm('Reinstate Reservation', 'Are you sure you want to reinstate this No Show reservation back to Confirmed?', async () => {
+      try {
+        const res = await fetch('/api/receptionist/reservations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'overrideStatus', reservationID: id, status: 'Confirmed' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to reinstate reservation');
+
+        showAlert('success', 'Success', 'Reservation reinstated to Confirmed.');
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Confirmed': return 'bg-success text-white';
@@ -637,6 +656,7 @@ function ReservationsClient() {
       case 'Canceled':
       case 'Cancelled': return 'bg-danger text-white';
       case 'Expired': return 'bg-secondary text-white';
+      case 'No Show': return 'bg-danger text-white';
       default: return 'bg-primary text-white';
     }
   };
@@ -680,6 +700,7 @@ function ReservationsClient() {
               <option value="Pending">Pending</option>
               <option value="Confirmed">Confirmed</option>
               <option value="Booked">Booked</option>
+              <option value="No Show">No Show</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
@@ -759,7 +780,18 @@ function ReservationsClient() {
                             </button>
                           </>
                         )}
-                        {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && (
+                        {!r.bookingID && r.status === 'No Show' && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-primary btn-sm py-0 px-2 fw-semibold"
+                            style={{ fontSize: '0.75rem' }}
+                            title="Reinstate to Confirmed"
+                            onClick={() => handleReinstate(r.reservationID)}
+                          >
+                            <i className="fa-solid fa-rotate-left me-1"></i> Reinstate
+                          </button>
+                        )}
+                        {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && r.status !== 'No Show' && (
                           <button
                             type="button"
                             className="action-btn action-btn-delete"
