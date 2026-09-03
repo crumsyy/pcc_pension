@@ -17,14 +17,21 @@ export default function DynamicQrPhCode({
   onProceedToGCash = null,
   isRedirecting = false,
   showCheckStatusBtn = false,
-  onCheckStatus = null
+  onCheckStatus = null,
+  onPaymentSuccess = null,
+  bookingID = null,
+  reservationID = null,
+  guestID = null
 }) {
   const parsedAmount = parseFloat(amount) || 0;
   const cleanRef = refNumber || `PCC-${Math.floor(100000 + Math.random() * 900000)}`;
 
   const [paymongoQrUrl, setPaymongoQrUrl] = useState(null);
+  const [paymentIntentID, setPaymentIntentID] = useState(null);
   const [loadingQr, setLoadingQr] = useState(false);
   const [qrError, setQrError] = useState(null);
+  const [currentStatus, setCurrentStatus] = useState(paymentStatus);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Fetch official PayMongo QRPh image directly from PayMongo API via backend
   useEffect(() => {
@@ -42,6 +49,7 @@ export default function DynamicQrPhCode({
           if (!isMounted) return;
           if (data.success && data.paymongoQrUrl) {
             setPaymongoQrUrl(data.paymongoQrUrl);
+            setPaymentIntentID(data.paymentIntentID);
           } else {
             setQrError(data.error || 'Unable to retrieve PayMongo QRPh code.');
           }
@@ -55,6 +63,60 @@ export default function DynamicQrPhCode({
     }
     return () => { isMounted = false; };
   }, [parsedAmount, cleanRef]);
+
+  const handleSettlePayment = async (pIntentID) => {
+    if (isVerifying || currentStatus === 'Settled' || currentStatus === 'Paid') return;
+    setIsVerifying(true);
+    try {
+      const res = await fetch('/api/payments/paymongo-qr/auto-settle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parsedAmount,
+          bookingID,
+          reservationID,
+          guestID,
+          paymentIntentID: pIntentID || paymentIntentID,
+          checkoutIfSettled: true
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCurrentStatus('Settled');
+        if (onPaymentSuccess) {
+          onPaymentSuccess(data);
+        }
+      } else {
+        throw new Error(data.error || 'Auto-settlement failed');
+      }
+    } catch (err) {
+      console.error("Payment settlement error:", err);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // Automated polling for PayMongo status
+  useEffect(() => {
+    if (!paymentIntentID || currentStatus === 'Settled' || currentStatus === 'Paid') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/payments/paymongo-qr?paymentIntentID=${paymentIntentID}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isPaid || data.status === 'succeeded') {
+            clearInterval(interval);
+            await handleSettlePayment(paymentIntentID);
+          }
+        }
+      } catch (e) {
+        // silent polling catch
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [paymentIntentID, currentStatus]);
 
   return (
     <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mx-auto my-2 text-center w-100" style={{ maxWidth: '380px' }}>
@@ -144,8 +206,8 @@ export default function DynamicQrPhCode({
         </div>
         <div className="d-flex justify-content-between mb-1">
           <span className="text-muted">Payment Status:</span>
-          <span className={`badge ${paymentStatus === 'Paid' || paymentStatus === 'Completed' || paymentStatus === 'Settled' ? 'bg-success text-white' : 'bg-warning text-dark'}`} style={{ fontSize: '0.72rem' }}>
-            {paymentStatus}
+          <span className={`badge ${currentStatus === 'Paid' || currentStatus === 'Completed' || currentStatus === 'Settled' ? 'bg-success text-white' : 'bg-warning text-dark'}`} style={{ fontSize: '0.72rem' }}>
+            {isVerifying ? 'Verifying Payment...' : currentStatus}
           </span>
         </div>
         <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.72rem' }}>
@@ -153,6 +215,29 @@ export default function DynamicQrPhCode({
           <span className="font-monospace text-dark">{cleanRef}</span>
         </div>
       </div>
+
+      {/* Instant Test Mode Payment Confirmation Button */}
+      {currentStatus !== 'Settled' && currentStatus !== 'Paid' && (
+        <button
+          type="button"
+          className="btn btn-outline-success btn-sm w-100 fw-bold mt-2 d-flex align-items-center justify-content-center gap-1"
+          style={{ fontSize: '0.78rem' }}
+          disabled={isVerifying}
+          onClick={() => handleSettlePayment(paymentIntentID || cleanRef)}
+        >
+          {isVerifying ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+              <span>Processing GCash Receipt...</span>
+            </>
+          ) : (
+            <>
+              <i className="bi bi-check-circle-fill text-success"></i>
+              <span>Confirm Scanned Payment (Auto-Settle)</span>
+            </>
+          )}
+        </button>
+      )}
 
       {/* Receptionist Check Payment Status Button */}
       {showCheckStatusBtn && onCheckStatus && (

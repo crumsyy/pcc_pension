@@ -446,7 +446,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   };
 
   const handleSelectRoomCard = (rm) => {
-    if (rm.status !== 'Available') return; // Disabled non-available rooms
+    if (rm.status === 'Under Maintenance' || rm.status === 'Maintenance') {
+      showAlert('warning', 'Room Under Maintenance', 'This room is currently under maintenance and cannot be booked.');
+      return;
+    }
 
     setSelectedRoom(rm);
     if (flowAction === 'reserve') {
@@ -556,11 +559,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   };
 
   const handleConfirmGCashBookingPayment = async (e) => {
-    e.preventDefault();
-    if (!gcashRef.trim()) {
-      showAlert('warning', 'GCash Reference Required', 'Please enter your GCash payment reference number.');
-      return;
-    }
+    if (e) e.preventDefault();
+    const refToUse = gcashRef.trim() || `GCASH-QR-${Date.now()}`;
     setProcessing(true);
 
     try {
@@ -589,7 +589,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         body: JSON.stringify({
           bookingID,
           paymentPercentage: `${paymentPctNumber}%`,
-          referenceNumber: gcashRef.trim(),
+          referenceNumber: refToUse,
           amountToPay: amountToPayNow
         })
       });
@@ -796,10 +796,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (status === 'Occupied') {
       return {
         badgeClass: 'bg-primary text-white',
-        label: 'Occupied',
+        label: 'Occupied (Future stays open)',
         bgColor: '#f0f7ff',
         borderLeft: '#0d6efd',
-        selectable: false
+        selectable: true
       };
     }
     if (status === 'Under Maintenance') {
@@ -814,10 +814,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (status === 'Booked' || status === 'Reserved') {
       return {
         badgeClass: 'bg-warning text-dark',
-        label: 'Booked',
+        label: 'Reserved (Other dates open)',
         bgColor: '#fffdf0',
         borderLeft: '#fd7e14',
-        selectable: false
+        selectable: true
       };
     }
     return {
@@ -840,12 +840,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
     let currentIdx = 0;
     if (status === 'Confirmed') currentIdx = 1;
-    if (status === 'Checked In') currentIdx = 2;
-    if (status === 'Completed') currentIdx = 3;
+    if (status === 'Checked In' || status === 'Late Checkout') currentIdx = 2;
+    if (status === 'Completed' || status === 'Checked Out') currentIdx = 3;
     if (status === 'Cancelled') {
       return (
         <div className="alert alert-danger py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
           ❌ Status: Cancelled
+        </div>
+      );
+    }
+    if (status === 'No Show') {
+      return (
+        <div className="alert alert-dark py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
+          ⚠️ Status: No Show
         </div>
       );
     }
@@ -1926,27 +1933,26 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     merchantName="JOHN LLOYD CASPILLO"
                     accountNumber="0948-825-1444"
                     refNumber={`SETTLE-${settleBooking.bookingID}`} 
+                    bookingID={settleBooking.bookingID}
+                    onPaymentSuccess={(autoData) => {
+                      showAlert('success', 'Balance Settled', 'Your balance has been verified and settled successfully!');
+                      setSettleBooking(null);
+                      setSettleGcashRef('');
+                      fetchRoomsAndStatus();
+                    }}
+                    showProceedBtn={false}
+                    showCheckStatusBtn={true}
+                    onCheckStatus={fetchRoomsAndStatus}
                   />
 
-                  <div className="p-3 border rounded bg-white text-center mb-3">
-                    <div className="mb-2">
-                      <label className="form-label fw-semibold small">Enter GCash Reference Number *</label>
-                      <input
-                        type="text"
-                        className="form-control text-center fw-bold"
-                        placeholder="e.g. 100293847561"
-                        value={settleGcashRef}
-                        onChange={(e) => setSettleGcashRef(e.target.value)}
-                        required
-                      />
-                    </div>
+                  <div className="p-2.5 border rounded bg-white text-center mb-3">
+                    <small className="text-muted d-block mb-1">
+                      Scan the QR code above with GCash to automatically settle your balance.
+                    </small>
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setSettleBooking(null)}>Cancel</button>
-                  <button type="submit" className="btn btn-success text-white fw-bold" disabled={settleProcessing || !settleGcashRef.trim()}>
-                    {settleProcessing ? 'Processing Payment...' : `Submit Payment (₱${parseFloat(settleBooking.remainingBalance).toFixed(2)})`}
-                  </button>
+                  <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setSettleBooking(null)}>Close</button>
                 </div>
               </form>
             </div>
@@ -2293,27 +2299,32 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     paymentStatus="Pending"
                     showProceedBtn={true}
                     onProceedToGCash={handlePayMongoCheckout}
+                    onPaymentSuccess={async (autoData) => {
+                      if (autoData?.transactionReference) {
+                        setGcashRef(autoData.transactionReference);
+                      }
+                      await handleConfirmGCashBookingPayment();
+                    }}
                     isRedirecting={processing}
                   />
 
                   <div className="p-3 border rounded bg-white text-center mb-3">
                     <div className="mb-2">
-                      <label className="form-label fw-semibold small">Enter GCash Reference Number *</label>
+                      <label className="form-label fw-semibold small">GCash Reference (Auto-verified via QR or manual input)</label>
                       <input
                         type="text"
                         className="form-control text-center fw-bold"
-                        placeholder="e.g. 100293847561"
+                        placeholder="Scan QR or enter reference"
                         value={gcashRef}
                         onChange={(e) => setGcashRef(e.target.value)}
-                        required
                       />
                     </div>
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('book_form')}>Back</button>
-                  <button type="submit" className="btn btn-success text-white fw-bold" disabled={processing || !gcashRef.trim()}>
-                    {processing ? 'Processing Payment...' : `Submit GCash Payment (₱${amountToPayNow.toFixed(2)})`}
+                  <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setActiveModal('book_form')}>Back</button>
+                  <button type="submit" className="btn btn-success text-white fw-bold" disabled={processing}>
+                    {processing ? 'Processing Payment...' : `Confirm Payment (₱${amountToPayNow.toFixed(2)})`}
                   </button>
                 </div>
               </form>

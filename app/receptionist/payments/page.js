@@ -222,6 +222,66 @@ function PaymentsClient() {
     });
   };
 
+  const handlePaymentAutoSuccess = (autoData) => {
+    if (!billData) return;
+    setReceipt({
+      guestName: billData.booking.firstName + ' ' + billData.booking.lastName,
+      roomNumber: billData.booking.roomNumber,
+      roomType: billData.booking.roomType,
+      nights: billData.booking.nights,
+      rate: billData.booking.rate,
+      subtotal,
+      earlyCheckIn: billData.chargesSummary.earlyCheckIn,
+      lateCheckOut: billData.chargesSummary.lateCheckOut,
+      discountName: discountAmount > 0 ? (billData.guestsList.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
+      discountAmount,
+      payableAmount,
+      cashReceived: payableAmount,
+      change: 0,
+      paymentMethodName: 'GCash / PayMongo QR',
+      checkoutChecked: autoData?.checkedOut || false,
+      date: new Date().toLocaleString()
+    });
+
+    // Reset forms
+    setSelectedBookingID('');
+    setBillData(null);
+    setPaymentForm({
+      paymentMethodID: '1',
+      discountID: '',
+      cashReceived: '',
+      shouldCheckout: true
+    });
+
+    fetchInitialData();
+    showAlert('success', 'Payment Settled', 'GCash payment verified and recorded successfully. Room checkout updated.');
+  };
+
+  const handleDirectCheckOut = async () => {
+    if (!selectedBookingID) return;
+    showConfirm('Complete Check-out', 'This stay is fully settled. Complete check-out and mark the room Available?', async () => {
+      try {
+        const res = await fetch('/api/receptionist/billing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'checkout',
+            bookingID: selectedBookingID
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to checkout');
+
+        showAlert('success', 'Check-out Completed', 'Guest check-out completed and room is now Available.');
+        setSelectedBookingID('');
+        setBillData(null);
+        fetchInitialData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
   const handlePrintReceipt = () => {
     if (!receipt) return;
     const printWindow = window.open('', '_blank', 'width=450,height=700');
@@ -446,21 +506,34 @@ function PaymentsClient() {
                       showProceedBtn={false}
                       showCheckStatusBtn={true}
                       onCheckStatus={fetchInitialData}
+                      onPaymentSuccess={handlePaymentAutoSuccess}
+                      bookingID={selectedBookingID}
+                      guestID={billData?.booking?.guestID}
                     />
                   )}
 
                   <div className="alert alert-info py-2 px-3 mb-2 mt-2" style={{ fontSize: '0.78rem' }}>
-                    ℹ Guest checkout and room release will occur automatically upon payment.
+                    ℹ Guest checkout and room release will occur automatically upon payment settlement.
                   </div>
 
-                  <button
-                    type="submit"
-                    className="btn btn-pcc-primary text-white w-100 py-2 fw-bold"
-                    style={{ fontSize: '0.95rem' }}
-                    disabled={!selectedBookingID || loadingBill}
-                  >
-                    Confirm & Settle Payment
-                  </button>
+                  {payableAmount <= 0 && selectedBookingID ? (
+                    <button
+                      type="button"
+                      className="btn btn-success text-white w-100 py-2.5 fw-bold shadow-sm"
+                      onClick={handleDirectCheckOut}
+                    >
+                      ✓ Complete Guest Check-out (Zero Balance)
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="btn btn-pcc-primary text-white w-100 py-2 fw-bold"
+                      style={{ fontSize: '0.95rem' }}
+                      disabled={!selectedBookingID || loadingBill || paymentForm.paymentMethodID === '2'}
+                    >
+                      {paymentForm.paymentMethodID === '2' ? 'Scan GCash QR Code Above' : 'Confirm & Settle Cash Payment'}
+                    </button>
+                  )}
                 </div>
               </form>
             </div>

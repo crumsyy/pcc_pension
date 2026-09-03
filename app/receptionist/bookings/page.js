@@ -693,6 +693,11 @@ function BookingsClient() {
       return;
     }
 
+    if (checkInScenario === 'later' && inDateObj < new Date()) {
+      showAlert('error', 'Validation Error', 'Scheduled Check-In time has already passed. Please select a valid future time or choose "Book & Check-In Now".');
+      return;
+    }
+
     if (outDateObj <= inDateObj) {
       showAlert('error', 'Validation Error', 'Check-out time must be later than check-in time.');
       return;
@@ -975,13 +980,44 @@ function BookingsClient() {
     return matchesSearch && matchesStatus;
   });
 
+  const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, scenario) => {
+    const room = rooms.find(r => String(r.roomID) === String(roomID));
+    if (!room) return false;
+    if (scenario === 'now') {
+      return room.status === 'Available';
+    }
+    if (!inDateStr || !outDateStr) {
+      return room.status === 'Available';
+    }
+    const inD = toDbDate(inDateStr);
+    const outD = toDbDate(outDateStr);
+    if (!inD || !outD) return room.status === 'Available';
+
+    const reqIn = new Date(`${inD}T14:00:00`);
+    const reqOut = new Date(`${outD}T12:00:00`);
+    if (isNaN(reqIn.getTime()) || isNaN(reqOut.getTime()) || reqOut <= reqIn) return room.status === 'Available';
+
+    const hasOverlap = bookings.some(b => {
+      if (String(b.roomID) !== String(roomID)) return false;
+      if (['Cancelled', 'Checked Out', 'No Show'].includes(b.status)) return false;
+      const bIn = new Date((b.checkInDateTime || '').replace(' ', 'T'));
+      const bOut = new Date((b.checkOutDateTime || '').replace(' ', 'T'));
+      if (isNaN(bIn.getTime()) || isNaN(bOut.getTime())) return false;
+      return bIn < reqOut && bOut > reqIn;
+    });
+
+    return !hasOverlap;
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Checked In': return 'bg-success';
-      case 'Checked Out': return 'bg-secondary';
+      case 'Checked In': return 'bg-success text-white';
+      case 'Late Checkout': return 'bg-danger text-white';
+      case 'No Show': return 'bg-dark text-white';
+      case 'Checked Out': return 'bg-secondary text-white';
       case 'Pending Check-in': return 'bg-warning text-dark';
-      case 'Cancelled': return 'bg-danger';
-      default: return 'bg-primary';
+      case 'Cancelled': return 'bg-danger text-white';
+      default: return 'bg-primary text-white';
     }
   };
 
@@ -1026,7 +1062,9 @@ function BookingsClient() {
               <option value="">All Booking Statuses</option>
               <option value="Pending Check-in">Pending Check-in</option>
               <option value="Checked In">Checked In</option>
+              <option value="Late Checkout">Late Checkout</option>
               <option value="Checked Out">Checked Out</option>
+              <option value="No Show">No Show</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
@@ -1262,10 +1300,10 @@ function BookingsClient() {
                           {selectedRoomType ? "Select Available Room" : "Choose Room Type first"}
                         </option>
                         {rooms
-                          .filter(rm => rm.roomType === selectedRoomType && rm.status === 'Available')
+                          .filter(rm => rm.roomType === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, checkInScenario))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
-                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax)
+                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
                             </option>
                           ))
                         }
@@ -1452,7 +1490,7 @@ function BookingsClient() {
                     <div className="row g-2 mb-3 p-3 bg-light rounded border">
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Check-In Date *</label>
-                        <DateInput value={checkInDate} onChange={(e) => handleCheckInDateChange(e.target.value)} required />
+                        <DateInput value={checkInDate} onChange={(e) => handleCheckInDateChange(e.target.value)} required min={toUiDate(new Date().toISOString().substring(0, 10))} />
                       </div>
                       <div className="col-md-6">
                         <label className="form-label small fw-semibold">Check-In Time *</label>
@@ -1590,7 +1628,13 @@ function BookingsClient() {
                               className="form-select form-select-sm"
                               required
                               value={paymentMethodID}
-                              onChange={(e) => setPaymentMethodID(e.target.value)}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setPaymentMethodID(val);
+                                if (String(val) === '2') {
+                                  setDownPayment(requiredDownpayment.toFixed(2));
+                                }
+                              }}
                             >
                               {paymentMethods.map(pm => (
                                 <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
@@ -1600,36 +1644,54 @@ function BookingsClient() {
                             </select>
                           </div>
 
-                          <div className="col-md-4">
-                            <label className="form-label small fw-semibold">Payment Received (₱) *</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              className="form-control form-control-sm fw-bold text-success"
-                              required
-                              placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
-                              value={downPayment}
-                              onChange={(e) => setDownPayment(e.target.value)}
-                            />
-                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                              Required Due: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
-                            </small>
-                          </div>
+                          {String(paymentMethodID) === '1' ? (
+                            <>
+                              <div className="col-md-4">
+                                <label className="form-label small fw-semibold">Payment Received (₱) *</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="form-control form-control-sm fw-bold text-success"
+                                  required
+                                  placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
+                                  value={downPayment}
+                                  onChange={(e) => setDownPayment(e.target.value)}
+                                />
+                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                                  Required Due: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
+                                </small>
+                              </div>
 
-                          <div className="col-md-4">
-                            <label className="form-label small fw-semibold">Change to Give (₱)</label>
-                            <input
-                              type="text"
-                              readOnly
-                              className={`form-control form-control-sm fw-bold ${
-                                (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
-                              }`}
-                              value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
-                            />
-                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                              Auto-calculated change
-                            </small>
-                          </div>
+                              <div className="col-md-4">
+                                <label className="form-label small fw-semibold">Change to Give (₱)</label>
+                                <input
+                                  type="text"
+                                  readOnly
+                                  className={`form-control form-control-sm fw-bold ${
+                                    (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
+                                  }`}
+                                  value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
+                                />
+                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                                  Auto-calculated change
+                                </small>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="col-md-8">
+                              <DynamicQrPhCode 
+                                amount={requiredDownpayment}
+                                refNumber={`DP-${formData.roomID || 'BOOK'}`}
+                                paymentStatus="Pending"
+                                showProceedBtn={false}
+                                showCheckStatusBtn={true}
+                                onCheckStatus={() => {}}
+                                onPaymentSuccess={(pData) => {
+                                  setDownPayment(requiredDownpayment.toFixed(2));
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       </>
                     );

@@ -23,8 +23,8 @@ export default async function ReceptionistDashboard() {
     guestInquiriesList,
     guestOrdersList
   ] = await Promise.all([
-    dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Checked Out')"),
-    dbQuery("SELECT COUNT(*) as count FROM booking WHERE status = 'Checked Out'"),
+    dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Late Checkout')"),
+    dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked Out'"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'"),
@@ -37,7 +37,7 @@ export default async function ReceptionistDashboard() {
       JOIN guest g ON g.guestID = b.guestID
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      WHERE b.status = 'Checked In'
+      WHERE b.status IN ('Checked In', 'Late Checkout')
       ORDER BY rm.roomNumber ASC
     `),
     dbQuery(`
@@ -73,7 +73,7 @@ export default async function ReceptionistDashboard() {
       LIMIT 10
     `),
     dbQuery(`
-      SELECT inquiryID, guestName, email, subject, status, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt
+      SELECT inquiryID, name as guestName, email, message as subject, status, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt
       FROM inquiry
       ORDER BY createdAt DESC
       LIMIT 6
@@ -83,7 +83,7 @@ export default async function ReceptionistDashboard() {
              g.firstName, g.lastName, rm.roomNumber
       FROM orders o
       JOIN guest g ON g.guestID = o.guestID
-      LEFT JOIN booking b ON b.guestID = g.guestID AND b.status = 'Checked In'
+      LEFT JOIN booking b ON b.guestID = g.guestID AND b.status IN ('Checked In', 'Late Checkout')
       LEFT JOIN room rm ON rm.roomID = b.roomID
       ORDER BY o.orderDateTime DESC
       LIMIT 6
@@ -125,8 +125,8 @@ export default async function ReceptionistDashboard() {
   };
 
   const stats = [
-    ["Total Check-ins", totalCheckIns, "#2155B5"],
-    ["Total Check-outs", totalCheckOuts, "#3FA34D"],
+    ["Active Stays", totalCheckIns, "#2155B5"],
+    ["Today's Check-outs", totalCheckOuts, "#3FA34D"],
     ["Rooms Occupied", occupiedRooms, "#e05c2a"],
     ["Rooms Available", availableRooms, "#3FA34D"],
     ["Pending Reserv.", pendingRes, "#f0a500"],

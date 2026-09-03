@@ -12,6 +12,14 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Check-in and Check-out dates are required.' }, { status: 400 });
   }
 
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  if (checkIn < todayStr) {
+    return NextResponse.json({ error: 'Check-in date cannot be in the past.' }, { status: 400 });
+  }
+
   if (checkIn === checkOut || new Date(checkOut + 'T00:00:00') <= new Date(checkIn + 'T00:00:00')) {
     return NextResponse.json({ error: 'Check-in date and Check-out date cannot be the same. Check-out date must be strictly after Check-in date.' }, { status: 400 });
   }
@@ -38,9 +46,16 @@ export async function GET(request) {
             AND b.checkInDateTime < ?
             AND b.checkOutDateTime > ?
         )
+        AND r.roomID NOT IN (
+          SELECT DISTINCT res.roomID
+          FROM reservation res
+          WHERE res.status = 'Pending'
+            AND res.reservationDateTime < ?
+            AND res.checkOutDateTime > ?
+        )
     `;
 
-    const params = [breakfastID, checkOutDateTime, checkInDateTime];
+    const params = [breakfastID, checkOutDateTime, checkInDateTime, checkOutDateTime, checkInDateTime];
 
     if (roomType !== 'Any room type') {
       query += " AND rt.type = ?";

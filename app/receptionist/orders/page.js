@@ -446,8 +446,12 @@ export default function ReceptionistOrders() {
                         className="form-select form-select-sm"
                         value={activeItemCategory}
                         onChange={(e) => {
-                          setActiveItemCategory(e.target.value);
+                          const val = e.target.value;
+                          setActiveItemCategory(val);
                           setSelectedItemToAdd({ idAndType: '', quantity: 1 });
+                          if (val === 'Meal' && !newOrderForm.deliveryTime) {
+                            setNewOrderForm(prev => ({ ...prev, deliveryTime: '07:30 AM' }));
+                          }
                         }}
                       >
                         <option value="Product">Products (Deliverable Anytime)</option>
@@ -455,6 +459,29 @@ export default function ReceptionistOrders() {
                         <option value="Meal">Cooked Meals (Scheduled Delivery Tracking)</option>
                       </select>
                     </div>
+
+                    {activeItemCategory === 'Meal' && (
+                      <div className="col-md-12 mb-2 p-2.5 bg-primary-subtle border border-primary-subtle rounded">
+                        <label className="form-label fw-bold text-primary small mb-1">
+                          Scheduled Delivery Time for Cooked Meal (6:30 AM - 10:30 AM) *
+                        </label>
+                        <select
+                          className="form-select form-select-sm fw-semibold"
+                          value={newOrderForm.deliveryTime || '07:30 AM'}
+                          onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
+                        >
+                          <option value="06:30 AM">06:30 AM</option>
+                          <option value="07:00 AM">07:00 AM</option>
+                          <option value="07:30 AM">07:30 AM</option>
+                          <option value="08:00 AM">08:00 AM</option>
+                          <option value="08:30 AM">08:30 AM</option>
+                          <option value="09:00 AM">09:00 AM</option>
+                          <option value="09:30 AM">09:30 AM</option>
+                          <option value="10:00 AM">10:00 AM</option>
+                          <option value="10:30 AM">10:30 AM</option>
+                        </select>
+                      </div>
+                    )}
 
                     <div className="col-md-7">
                       <label className="form-label fw-semibold">Select Item to Add</label>

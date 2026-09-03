@@ -124,3 +124,44 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Internal Server Error: ' + error.message }, { status: 500 });
   }
 }
+
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const paymentIntentID = searchParams.get('paymentIntentID');
+
+    if (!paymentIntentID) {
+      return NextResponse.json({ error: 'Missing paymentIntentID' }, { status: 400 });
+    }
+
+    const secretKey = process.env.PAYMONGO_SECRET_KEY || 'sk_test_GjYHQCNkKkxUuhQykSsSetrS';
+    const authHeader = 'Basic ' + Buffer.from(`${secretKey}:`).toString('base64');
+
+    const res = await fetch(`https://api.paymongo.com/v1/payment_intents/${paymentIntentID}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': authHeader
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.data) {
+      return NextResponse.json({ error: data.errors?.[0]?.detail || 'Failed to check status' }, { status: 400 });
+    }
+
+    const status = data.data.attributes?.status;
+    const isPaid = status === 'succeeded';
+
+    return NextResponse.json({
+      success: true,
+      status,
+      isPaid,
+      paymentIntentID
+    });
+  } catch (error) {
+    console.error("PayMongo status check error:", error);
+    return NextResponse.json({ error: 'Internal server error: ' + error.message }, { status: 500 });
+  }
+}
+

@@ -73,7 +73,7 @@ export async function GET(request) {
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
-        WHERE b.status = 'Checked In'
+        WHERE b.status IN ('Checked In', 'Late Checkout')
       `),
       dbQuery(`
         SELECT bt.*, COALESCE(a.name, p.name) as itemName, r.roomNumber
@@ -129,7 +129,7 @@ export async function POST(request) {
            FROM booking b 
            JOIN guest g ON g.guestID = b.guestID 
            JOIN room r ON r.roomID = b.roomID
-           WHERE g.guestID = ? AND b.status = 'Checked In' 
+           WHERE g.guestID = ? AND b.status IN ('Checked In', 'Late Checkout') 
            LIMIT 1`,
           [guestID]
         );
@@ -168,8 +168,13 @@ export async function POST(request) {
           }
         }
 
-        // Validate deliveryTime for cooked meals (must be between 6:30 AM and 10:30 AM)
-        if (containsCookedBreakfast && body.deliveryTime) {
+        // Validate deliveryTime for cooked meals
+        if (containsCookedBreakfast) {
+          if (!body.deliveryTime) {
+            return NextResponse.json({
+              error: "Please select a scheduled delivery time (between 6:30 AM and 10:30 AM) for cooked breakfast meals."
+            }, { status: 400 });
+          }
           const allowedTimes = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
           if (!allowedTimes.includes(body.deliveryTime)) {
             return NextResponse.json({

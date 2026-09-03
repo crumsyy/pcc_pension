@@ -18,7 +18,7 @@ export async function GET(request) {
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        WHERE b.status IN ('Checked In', 'Checked Out')
+        WHERE b.status IN ('Checked In', 'Late Checkout', 'Checked Out')
         ORDER BY rm.roomNumber
       `),
       dbQuery("SELECT discountID, name, percentage, eligibilityTypeID FROM discounts WHERE isArchived = 0"),
@@ -46,10 +46,10 @@ export async function GET(request) {
       `)
     ]);
 
-    // Filter activeBookings: Checked In guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
+    // Filter activeBookings: Checked In and Late Checkout guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
     const filteredActiveBookings = [];
     for (const b of activeBookings) {
-      if (b.status === 'Checked In') {
+      if (b.status === 'Checked In' || b.status === 'Late Checkout') {
         filteredActiveBookings.push(b);
       } else if (b.status === 'Checked Out') {
         const bal = await getBookingBalance(b.bookingID);
@@ -89,7 +89,7 @@ export async function POST(request) {
 
     const currentBalance = await getBookingBalance(bookingID);
     const isFullyPaid = (currentBalance - amount) <= 0.05;
-    const shouldCheckout = isFullyPaid && (bookingStatus === 'Checked In' || bookingStatus === 'Pending Check-in');
+    const shouldCheckout = isFullyPaid && (bookingStatus === 'Checked In' || bookingStatus === 'Late Checkout');
 
     if (!bookingID || !guestID || isNaN(amount) || amount < 0 || !paymentMethodID) {
       return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
@@ -202,7 +202,7 @@ export async function POST(request) {
         for (const admin of adminUsers) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Payment Received Alert', ?)",
-            [admin.userID, `Payment of ₱${parsedAmount.toFixed(2)} received for Booking #${bookingID} (Billing #${billingID}).`]
+            [admin.userID, `Payment of ₱${amount.toFixed(2)} received for Booking #${bookingID} (Billing #${billingID}).`]
           );
         }
       } catch (notifyErr) {

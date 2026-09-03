@@ -66,7 +66,7 @@ export async function POST(request) {
 
     // Find active checked-in or confirmed booking for this guest
     const bookings = await dbQuery(
-      "SELECT bookingID, roomID FROM booking WHERE guestID = ? AND status IN ('Checked In', 'Confirmed') ORDER BY checkInDateTime DESC LIMIT 1",
+      "SELECT bookingID, roomID FROM booking WHERE guestID = ? AND status IN ('Checked In', 'Late Checkout', 'Confirmed') ORDER BY checkInDateTime DESC LIMIT 1",
       [guest.guestID]
     );
 
@@ -88,8 +88,13 @@ export async function POST(request) {
       }
     }
 
-    // Validate deliveryTime for cooked meals (must be between 6:30 AM and 10:30 AM)
-    if (containsCookedMeal && body.deliveryTime) {
+    // Validate deliveryTime for cooked meals
+    if (containsCookedMeal) {
+      if (!body.deliveryTime) {
+        return NextResponse.json({
+          error: "Please select a scheduled delivery time (between 6:30 AM and 10:30 AM) for cooked breakfast meals."
+        }, { status: 400 });
+      }
       const allowedTimes = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
       if (!allowedTimes.includes(body.deliveryTime)) {
         return NextResponse.json({

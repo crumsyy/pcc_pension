@@ -442,6 +442,48 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     }
   };
 
+  const handleCreateInquiryTicket = async (e) => {
+    if (e) e.preventDefault();
+    setSubmittingRequest(true);
+
+    try {
+      const guestName = requestForm.name?.trim() || (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : 'Guest Visitor');
+      const guestEmail = requestForm.email?.trim() || currentUser?.email || (typeof window !== 'undefined' ? localStorage.getItem('pcc_guest_email') : null) || `visitor_${Date.now()}@pccsuite.com`;
+
+      const payload = {
+        name: guestName,
+        email: guestEmail,
+        contactNumber: requestForm.contactNumber?.trim() || null,
+        message: requestForm.message?.trim() || 'Guest requested receptionist assistance.'
+      };
+
+      if (typeof window !== 'undefined' && guestEmail) {
+        localStorage.setItem('pcc_guest_email', guestEmail);
+      }
+
+      const res = await fetch('/api/guest/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit inquiry ticket');
+
+      setDbInquiry(data.inquiry);
+      if (data.messages) {
+        setLiveMessages(data.messages);
+      }
+
+      setShowRequestForm(false);
+      setActiveTabMode('live');
+    } catch (err) {
+      alert(err.message || 'Failed to connect to receptionist. Please try again.');
+    } finally {
+      setSubmittingRequest(false);
+    }
+  };
+
   const handleOpenRequestForm = () => {
     if (currentUser && currentUser.email) {
       handleDirectReceptionistRequest();

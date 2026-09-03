@@ -136,6 +136,29 @@ export default function ReceptionistBilling() {
     });
   };
 
+  const handleCheckOutGuest = async () => {
+    showConfirm('Complete Check-out', 'Are you sure you want to complete check-out for this guest? The room will be released to Available status.', async () => {
+      try {
+        const res = await fetch('/api/receptionist/billing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'checkout',
+            bookingID: selectedBookingID
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to complete checkout');
+
+        showAlert('success', 'Check-out Completed', 'The guest has been successfully checked out and the room is now Available.');
+        fetchActiveBookings();
+        fetchBillingDetails(selectedBookingID);
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
   const handleAddIncidentalSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -860,9 +883,22 @@ export default function ReceptionistBilling() {
                             >
                               Go to Payment Checkout
                             </a>
+                          ) : billDetails.booking.status === 'Checked In' || billDetails.booking.status === 'Late Checkout' ? (
+                            <>
+                              <div className="alert alert-success text-center py-2 mb-2 fw-semibold">
+                                ✓ Bill fully settled.
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-success text-white w-100 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                                onClick={handleCheckOutGuest}
+                              >
+                                <i className="fa-solid fa-check"></i> Complete Guest Check-out
+                              </button>
+                            </>
                           ) : (
-                            <div className="alert alert-success text-center py-2 mb-0 fw-semibold">
-                              ✓ Bill fully settled.
+                            <div className="alert alert-secondary text-center py-2 mb-0 fw-semibold">
+                              ✓ Guest Checked Out (Bill Settled)
                             </div>
                           )}
                         </div>

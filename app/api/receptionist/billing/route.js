@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -27,165 +27,19 @@ export async function GET(request) {
   }
 
   try {
-    // 1. Fetch booking details
-    const bookingRes = await dbQuery(`
-      SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, 
-             DATE_FORMAT(b.checkInDateTime, '%Y-%m-%d %H:%i:%s') as dbCheckInDateTime,
-             DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status, b.guestID, b.roomID,
-             g.firstName, g.lastName, g.contact, g.email,
-             rm.roomNumber, rm.floorID, rm.occupancyLimit, rt.type as roomType, rt.roomTypeID
-      FROM booking b
-      JOIN guest g ON g.guestID = b.guestID
-      JOIN room rm ON rm.roomID = b.roomID
-      JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      WHERE b.bookingID = ?
-    `, [bookingID]);
-
-    if (bookingRes.length === 0) {
+    const details = await getBookingBalanceDetails(bookingID);
+    if (!details || !details.booking) {
       return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
     }
 
-    const booking = bookingRes[0];
-
+    const booking = details.booking;
     if (booking.status === 'Pending Check-in' || booking.status === 'Pending' || booking.status === 'Cancelled' || booking.status === 'Canceled') {
       return NextResponse.json({ error: 'Billing is only available for guests who have checked in or checked out.' }, { status: 400 });
     }
 
-    // 2. Fetch room rate
-    const rateRes = await dbQuery(
-      "SELECT rate FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = 1",
-      [booking.roomTypeID, booking.floorID]
-    );
-    const rate = rateRes[0]?.rate || 0;
+    const cleanCheckInDate = (booking.checkInDateTime || '').replace('T', ' ');
 
-    // Calculate nights (min 1)
-    const checkIn = new Date(booking.checkInDateTime);
-    const checkOut = new Date(booking.checkOutDateTime);
-    const diffTime = Math.abs(checkOut - checkIn);
-    const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-    
-    const maxOccupancy = parseInt(booking.occupancyLimit) || 2;
-    const extraGuestsCount = Math.max(0, (booking.guestCount || 1) - maxOccupancy);
-    const extraGuestFee = extraGuestsCount * 200 * nights;
-    const roomCharge = (rate * nights) + extraGuestFee;
-
-    // Fetch registered guest list for this booking
-    const guestsList = await dbQuery(`
-      SELECT bg.*, 
-             COALESCE(d.name, p.name) as discountName, 
-             COALESCE(d.percentage, p.percentage) as discountPercentage
-      FROM booking_guest_details bg
-      LEFT JOIN discounts d ON d.discountID = bg.discountID
-      LEFT JOIN promotions p ON p.promotionID = bg.promotionID
-      WHERE bg.bookingID = ?
-    `, [bookingID]);
-
-    let finalGuestsList = [...guestsList];
-    if (finalGuestsList.length === 0) {
-      finalGuestsList = [{
-        bookingGuestID: 0,
-        bookingID: bookingID,
-        fullName: `${booking.firstName} ${booking.lastName}`,
-        age: 30,
-        discountID: null,
-        promotionID: null,
-        discountIdNumber: null,
-        discountName: null,
-        discountPercentage: 0
-      }];
-    }
-
-    // Apportionment math: divide room charge equally and apply discount to senior/PWD shares
-    const totalGuestsCount = finalGuestsList.length;
-    const sharePerGuest = roomCharge / totalGuestsCount;
-    
-    finalGuestsList = finalGuestsList.map(g => {
-      const discountPercentage = g.discountPercentage ? parseInt(g.discountPercentage) : 0;
-      const discountAmount = sharePerGuest * (discountPercentage / 100);
-      return {
-        ...g,
-        discountID: g.discountID ? `disc-${g.discountID}` : (g.promotionID ? `promo-${g.promotionID}` : ''),
-        share: sharePerGuest,
-        discount: discountAmount,
-        netShare: sharePerGuest - discountAmount
-      };
-    });
-
-    const totalDiscount = finalGuestsList.reduce((sum, g) => sum + g.discount, 0);
-    const finalRoomCharge = roomCharge - totalDiscount;
-
-    // Early check-in fee (₱50 per hour early before 2:00 PM)
-    let earlyCheckInFee = 0;
-    const standardCheckInTime = new Date(checkIn);
-    standardCheckInTime.setHours(14, 0, 0, 0);
-    if (checkIn < standardCheckInTime && checkIn.toDateString() === standardCheckInTime.toDateString()) {
-      const earlyHours = Math.ceil((standardCheckInTime - checkIn) / (1000 * 60 * 60));
-      if (earlyHours > 0) {
-        earlyCheckInFee = earlyHours * 50;
-      }
-    }
-
-    // Late check-out fee (₱100 per hour extended within 22 hours; >22 hours counts as 1 full night room price)
-    let lateCheckOutFee = 0;
-    let lateHours = 0;
-    const standardCheckOutTime = new Date(checkOut);
-    standardCheckOutTime.setHours(12, 0, 0, 0);
-
-    // If guest is currently Checked In, evaluate against current time.
-    // If guest is Checked Out, evaluate against the actual checkout time recorded.
-    const endCheckoutTime = booking.status === 'Checked In' ? new Date() : new Date(booking.checkOutDateTime);
-
-    // Late Check-Out fees apply only within the same checkout calendar day
-    if (endCheckoutTime > standardCheckOutTime && endCheckoutTime.toDateString() === standardCheckOutTime.toDateString()) {
-      lateHours = Math.ceil((endCheckoutTime - standardCheckOutTime) / (1000 * 60 * 60));
-      if (lateHours > 0) {
-        if (lateHours <= 22) {
-          lateCheckOutFee = lateHours * 100; // ₱100/hr
-        } else {
-          // Exceeds 22 hours within the day -> 1 full night room price
-          lateCheckOutFee = roomRate;
-        }
-      }
-    }
-
-    const cleanCheckInDate = (booking.dbCheckInDateTime || booking.checkInDateTime || '').replace('T', ' ');
-
-    const [
-      productCharges,
-      amenityCharges,
-      incidentalCharges,
-      borrowItems,
-      nonConsumableList,
-      billingRes,
-      activeDiscounts,
-      activePromos
-    ] = await Promise.all([
-      dbQuery(`
-        SELECT op.orderProductID, op.quantity, p.name, 
-               CASE WHEN op.isComplimentary = 1 THEN 0 ELSE p.price END as price, 
-               CASE WHEN op.isComplimentary = 1 THEN 0 ELSE (op.quantity * p.price) END as subtotal
-        FROM order_product op
-        JOIN products p ON p.productID = op.productID
-        JOIN orders o ON o.orderID = op.orderID
-        WHERE o.guestID = ? 
-          AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
-          AND o.orderStatus != 'Canceled'
-          AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
-      `, [booking.guestID, cleanCheckInDate]),
-      dbQuery(`
-        SELECT oa.orderAmenityID, oa.quantity, a.name, a.price, (oa.quantity * a.price) as subtotal
-        FROM order_amenities oa
-        JOIN amenities a ON a.amenityID = oa.amenityID
-        JOIN orders o ON o.orderID = oa.orderID
-        WHERE o.guestID = ? 
-          AND o.orderDateTime >= DATE_SUB(?, INTERVAL 12 HOUR) 
-          AND o.orderStatus != 'Canceled'
-          AND o.orderID NOT IN (SELECT orderID FROM billing WHERE orderID IS NOT NULL)
-      `, [booking.guestID, cleanCheckInDate]),
-      dbQuery(
-        "SELECT chargeID, description, amount, createdAt FROM incidental_charge WHERE bookingID = ?",
-        [bookingID]
-      ),
+    const [borrowItems, nonConsumableList, activeDiscounts, activePromos] = await Promise.all([
       dbQuery(`
         SELECT bt.*, COALESCE(a.name, p.name) as itemName
         FROM borrow_transaction bt
@@ -207,17 +61,12 @@ export async function GET(request) {
         GROUP BY a.amenityID, a.name, a.sellingPrice, a.price, a.description
         ORDER BY a.name ASC
       `, [booking.guestID, cleanCheckInDate]),
-      dbQuery("SELECT billingID FROM billing WHERE bookingID = ?", [bookingID]),
       dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name"),
       dbQuery("SELECT promotionID, name, percentage FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name")
     ]);
 
-    const productTotal = productCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-    const amenityTotal = amenityCharges.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-    const incidentalTotal = incidentalCharges.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-
     const nonConsumableAmenities = nonConsumableList.map(a => {
-      const matchIncidental = incidentalCharges.find(ic => 
+      const matchIncidental = details.incidentalCharges.find(ic => 
         ic.description && ic.description.toLowerCase().includes(`missing/damaged non-consumable amenity: ${a.name.toLowerCase()}`)
       );
       const isReturned = !matchIncidental;
@@ -242,21 +91,6 @@ export async function GET(request) {
       };
     });
 
-    const subtotalCharges = finalRoomCharge + earlyCheckInFee + lateCheckOutFee + productTotal + amenityTotal + incidentalTotal;
-
-    let billingID = billingRes[0]?.billingID || null;
-    let paidTotal = 0;
-
-    if (billingID) {
-      const payments = await dbQuery(
-        "SELECT amount FROM payment WHERE billingID = ?",
-        [billingID]
-      );
-      paidTotal = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-    }
-
-    const balance = subtotalCharges - paidTotal;
-
     const discounts = [
       ...activeDiscounts.map(d => ({
         discountID: `disc-${d.discountID}`,
@@ -274,33 +108,34 @@ export async function GET(request) {
       success: true,
       booking: {
         ...booking,
-        nights,
-        rate,
-        originalRoomCharge: roomCharge,
-        roomCharge: finalRoomCharge
+        nights: details.nights,
+        rate: details.rate,
+        originalRoomCharge: details.roomCharge,
+        roomCharge: details.finalRoomCharge
       },
-      productCharges,
-      amenityCharges,
+      productCharges: details.productCharges,
+      amenityCharges: details.amenityCharges,
       nonConsumableAmenities,
-      incidentalCharges,
+      incidentalCharges: details.incidentalCharges,
       borrowItems,
+      borrowedItems: borrowItems,
       chargesSummary: {
-        room: finalRoomCharge,
-        originalRoomCharge: roomCharge,
-        totalDiscount: totalDiscount,
-        sharePerGuest: sharePerGuest,
-        totalGuests: totalGuestsCount,
-        earlyCheckIn: earlyCheckInFee,
-        lateCheckOut: lateCheckOutFee,
-        products: productTotal,
-        amenities: amenityTotal,
-        incidentals: incidentalTotal,
-        total: subtotalCharges,
-        paid: paidTotal,
-        balance: balance
+        room: details.finalRoomCharge,
+        originalRoomCharge: details.roomCharge,
+        totalDiscount: details.totalDiscount,
+        sharePerGuest: details.sharePerGuest,
+        totalGuests: details.totalGuestsCount,
+        earlyCheckIn: details.earlyCheckInFee,
+        lateCheckOut: details.lateCheckOutFee,
+        products: details.productTotal,
+        amenities: details.amenityTotal,
+        incidentals: details.incidentalTotal,
+        total: details.subtotal,
+        paid: details.paidTotal,
+        balance: details.balance
       },
-      guestsList: finalGuestsList,
-      billingID,
+      guestsList: details.finalGuestsList,
+      billingID: details.billingID,
       discounts
     });
 
@@ -319,6 +154,112 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { action } = body;
+
+    if (action === 'checkout') {
+      const bookingID = parseInt(body.bookingID);
+      if (!bookingID) {
+        return NextResponse.json({ error: 'Missing booking ID for checkout.' }, { status: 400 });
+      }
+
+      const balance = await getBookingBalance(bookingID);
+      if (balance > 0.05) {
+        return NextResponse.json({
+          error: `Cannot complete checkout. Outstanding balance of ₱${balance.toFixed(2)} must be settled first.`
+        }, { status: 400 });
+      }
+
+      const pool = await getDbConnection();
+      const conn = await pool.getConnection();
+
+      try {
+        await conn.beginTransaction();
+
+        const localNow = new Date();
+        const pad = (num) => String(num).padStart(2, '0');
+        const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
+        const [bookingData] = await conn.execute(
+          "SELECT b.roomID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID FROM booking b JOIN guest g ON g.guestID = b.guestID WHERE b.bookingID = ?",
+          [bookingID]
+        );
+
+        if (bookingData.length === 0) {
+          return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+        }
+
+        const roomID = bookingData[0].roomID;
+        const guestUserID = bookingData[0].guestUserID;
+        const guestName = `${bookingData[0].firstName} ${bookingData[0].lastName}`;
+
+        await conn.execute(
+          "UPDATE booking SET status = 'Checked Out', checkOutDateTime = ? WHERE bookingID = ?",
+          [nowStr, bookingID]
+        );
+
+        await conn.execute(
+          "UPDATE room SET status = 'Available' WHERE roomID = ?",
+          [roomID]
+        );
+
+        // Auto-return remaining borrowed amenities
+        const [borrows] = await conn.execute(
+          "SELECT * FROM borrow_transaction WHERE bookingID = ? AND status = 'Borrowed'",
+          [bookingID]
+        );
+        for (const borrow of borrows) {
+          await conn.execute(
+            `UPDATE borrow_transaction 
+             SET status = 'Returned', conditionUponReturn = 'Good', actualReturnDate = ?, remarks = 'Auto-returned upon checkout' 
+             WHERE borrowID = ?`,
+            [nowStr, borrow.borrowID]
+          );
+
+          const [batches] = await conn.execute(
+            "SELECT batchID FROM inventory_batch WHERE itemType = ? AND itemID = ? ORDER BY dateReceived DESC LIMIT 1",
+            [borrow.itemType, borrow.itemID]
+          );
+          const batchID = batches[0]?.batchID || null;
+          if (batchID) {
+            await conn.execute(
+              "UPDATE inventory_batch SET remainingQuantity = remainingQuantity + ? WHERE batchID = ?",
+              [borrow.quantity, batchID]
+            );
+          }
+
+          if (borrow.itemType === 'Amenity') {
+            await conn.execute("UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?", [borrow.quantity, borrow.itemID]);
+          } else {
+            await conn.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [borrow.quantity, borrow.itemID]);
+          }
+        }
+
+        await conn.commit();
+        await syncInventoryStock();
+
+        // Send notifications
+        if (guestUserID) {
+          await dbQuery(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'Checkout Completed', ?)",
+            [guestUserID, `Your stay for Booking #${bookingID} has been successfully checked out. Thank you for staying with PCC Pension House!`]
+          );
+        }
+
+        const staffList = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+        for (const s of staffList) {
+          await dbQuery(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checked Out', ?)",
+            [s.userID, `Booking #${bookingID} for ${guestName} has been checked out and Room has been marked Available.`]
+          );
+        }
+
+        return NextResponse.json({ success: true, message: 'Guest successfully checked out and room marked as Available.' });
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+    }
 
     if (action === 'add_incidental') {
       const bookingID = parseInt(body.bookingID);

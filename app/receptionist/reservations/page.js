@@ -555,14 +555,14 @@ function ReservationsClient() {
     const dpPct = parseInt(downPaymentOption) || 25;
     const requiredDownpayment = totalRoomCharge * (dpPct / 100);
 
-    const cashReceived = parseFloat(downPayment || 0);
+    const cashReceived = String(paymentMethodID) === '2' ? requiredDownpayment : parseFloat(downPayment || 0);
 
-    if (isNaN(cashReceived) || cashReceived < requiredDownpayment) {
+    if (String(paymentMethodID) === '1' && (isNaN(cashReceived) || cashReceived < requiredDownpayment)) {
       showAlert('error', 'Validation Error', `Minimum required down payment is ₱${requiredDownpayment.toFixed(2)} (${dpPct}% Tier).`);
       return;
     }
 
-    const change = cashReceived - requiredDownpayment;
+    const change = Math.max(0, cashReceived - requiredDownpayment);
 
     showConfirm('Confirm & Record Booking', 'Are you sure you want to confirm this reservation and record down payment?', async () => {
       try {
@@ -1189,46 +1189,53 @@ function ReservationsClient() {
                         </select>
                       </div>
 
-                      <div className="col-md-4">
-                        <label className="form-label small fw-semibold">Payment Received (₱) *</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="form-control form-control-sm fw-bold text-success"
-                          required
-                          placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
-                          value={downPayment}
-                          onChange={(e) => setDownPayment(e.target.value)}
-                        />
-                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                          Required Due: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
-                        </small>
-                      </div>
+                      {String(paymentMethodID) === '1' ? (
+                      <div className="row g-2 mb-3">
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold">Payment Received (₱) *</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="form-control form-control-sm fw-bold text-success"
+                            required
+                            placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
+                            value={downPayment}
+                            onChange={(e) => setDownPayment(e.target.value)}
+                          />
+                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                            Required: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
+                          </small>
+                        </div>
 
-                      <div className="col-md-4">
-                        <label className="form-label small fw-semibold">Change to Give (₱)</label>
-                        <input
-                          type="text"
-                          readOnly
-                          className={`form-control form-control-sm fw-bold ${(parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold">Change to Give (₱)</label>
+                          <input
+                            type="text"
+                            readOnly
+                            className={`form-control form-control-sm fw-bold ${
+                              (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
                             }`}
-                          value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
-                        />
-                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                          Auto-calculated change
-                        </small>
+                            value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
+                          />
+                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                            Auto-calculated change
+                          </small>
+                        </div>
                       </div>
-                    </div>
-
-                    {String(paymentMethodID) === '2' && (
-                      <DynamicQrPhCode 
-                        amount={requiredDownpayment}
-                        refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
-                        paymentStatus="Pending"
-                        showProceedBtn={false}
-                        showCheckStatusBtn={true}
-                        onCheckStatus={fetchData}
-                      />
+                    ) : (
+                      <div className="mb-3">
+                        <DynamicQrPhCode 
+                          amount={requiredDownpayment}
+                          refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
+                          paymentStatus="Pending"
+                          showProceedBtn={false}
+                          showCheckStatusBtn={true}
+                          onCheckStatus={fetchData}
+                          onPaymentSuccess={() => {
+                            setDownPayment(requiredDownpayment.toFixed(2));
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
 
