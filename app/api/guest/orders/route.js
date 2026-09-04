@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit, ensureOrdersSchema } from '@/lib/db';
 
 export async function GET() {
   const session = await getSession();
@@ -9,6 +9,7 @@ export async function GET() {
   }
 
   try {
+    await ensureOrdersSchema();
     const [products, amenities] = await Promise.all([
       dbQuery(`
         SELECT p.productID, p.name, p.price, p.productCategoryID,
@@ -51,6 +52,7 @@ export async function POST(request) {
   }
 
   try {
+    await ensureOrdersSchema();
     const body = await request.json();
     const { items } = body; // Array of { itemID, type: 'Product'|'Amenity', quantity, name }
 
@@ -88,7 +90,16 @@ export async function POST(request) {
       }
     }
 
-    // Validate deliveryTime for cooked meals
+    // Validate deliveryTime and deliveryDate for cooked meals
+    const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const todayManila = manilaDateFormatter.format(new Date()); // YYYY-MM-DD
+    const deliveryDate = body.deliveryDate ? String(body.deliveryDate).trim() : (containsCookedMeal ? todayManila : null);
+
     if (containsCookedMeal) {
       if (!body.deliveryTime) {
         return NextResponse.json({
@@ -102,29 +113,37 @@ export async function POST(request) {
         }, { status: 400 });
       }
 
-      // Check if delivery time is in the past for today's order
-      const manilaFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Asia/Manila',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      const parts = manilaFormatter.formatToParts(new Date());
-      const p = {};
-      parts.forEach(({ type, value }) => { p[type] = value; });
-      const currentManilaMinutes = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
-
-      const [timePart, meridiem] = body.deliveryTime.split(' ');
-      const [hrStr, minStr] = timePart.split(':');
-      let dHour = parseInt(hrStr, 10);
-      if (meridiem === 'PM' && dHour !== 12) dHour += 12;
-      if (meridiem === 'AM' && dHour === 12) dHour = 0;
-      const deliveryMinutes = dHour * 60 + parseInt(minStr, 10);
-
-      if (deliveryMinutes <= currentManilaMinutes) {
+      if (deliveryDate < todayManila) {
         return NextResponse.json({
-          error: `Cannot schedule delivery for ${body.deliveryTime} as that time has already passed today. Please select an upcoming delivery time slot.`
+          error: "Scheduled delivery date cannot be in the past. Please select today or a future date."
         }, { status: 400 });
+      }
+
+      // Check if delivery time is in the past ONLY if delivery date is today
+      if (deliveryDate === todayManila) {
+        const manilaFormatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Manila',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        const parts = manilaFormatter.formatToParts(new Date());
+        const p = {};
+        parts.forEach(({ type, value }) => { p[type] = value; });
+        const currentManilaMinutes = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+
+        const [timePart, meridiem] = body.deliveryTime.split(' ');
+        const [hrStr, minStr] = timePart.split(':');
+        let dHour = parseInt(hrStr, 10);
+        if (meridiem === 'PM' && dHour !== 12) dHour += 12;
+        if (meridiem === 'AM' && dHour === 12) dHour = 0;
+        const deliveryMinutes = dHour * 60 + parseInt(minStr, 10);
+
+        if (deliveryMinutes <= currentManilaMinutes) {
+          return NextResponse.json({
+            error: `Cannot schedule delivery for ${body.deliveryTime} as that time has already passed today. Please select an upcoming delivery time slot or choose a future date.`
+          }, { status: 400 });
+        }
       }
     }
 
@@ -162,8 +181,8 @@ export async function POST(request) {
       const deliveryTime = body.deliveryTime || null;
       // Create Order
       const [orderRes] = await connection.execute(
-        "INSERT INTO orders (orderDateTime, orderStatus, guestID, hasCookedMeal, deliveryTime) VALUES (?, 'Pending', ?, ?, ?)",
-        [nowStr, guest.guestID, containsCookedMeal ? 1 : 0, deliveryTime]
+        "INSERT INTO orders (orderDateTime, orderStatus, guestID, hasCookedMeal, deliveryTime, deliveryDate) VALUES (?, 'Pending', ?, ?, ?, ?)",
+        [nowStr, guest.guestID, containsCookedMeal ? 1 : 0, deliveryTime, deliveryDate]
       );
       const orderID = orderRes.insertId;
 

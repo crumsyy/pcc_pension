@@ -5,6 +5,20 @@ import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
 
 
+const getTodayManila = () => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+  } catch (e) {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  }
+};
+
 export default function ReceptionistOrders() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
@@ -23,7 +37,9 @@ export default function ReceptionistOrders() {
   // New Order Form state
   const [newOrderForm, setNewOrderForm] = useState({
     guestID: '',
-    items: [] // array of { itemID, type, quantity, name, price }
+    items: [], // array of { itemID, type, quantity, name, price }
+    deliveryDate: getTodayManila(),
+    deliveryTime: '07:30 AM'
   });
 
   const [selectedItemToAdd, setSelectedItemToAdd] = useState({
@@ -99,7 +115,9 @@ export default function ReceptionistOrders() {
     if (!activeModal) {
       setNewOrderForm({
         guestID: '',
-        items: []
+        items: [],
+        deliveryDate: getTodayManila(),
+        deliveryTime: '07:30 AM'
       });
       setSelectedItemToAdd({
         idAndType: '',
@@ -190,6 +208,7 @@ export default function ReceptionistOrders() {
             action: 'create',
             guestID: newOrderForm.guestID,
             items: newOrderForm.items,
+            deliveryDate: newOrderForm.deliveryDate || getTodayManila(),
             deliveryTime: newOrderForm.deliveryTime || '07:30 AM'
           })
         });
@@ -350,7 +369,7 @@ export default function ReceptionistOrders() {
                             {o.deliveryTime && (
                               <div className="mt-1">
                                 <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style={{ fontSize: '0.73rem' }}>
-                                  <i className="bi bi-clock me-1"></i>Scheduled Delivery: {o.deliveryTime}
+                                  <i className="bi bi-clock me-1"></i>Scheduled Delivery: {o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime}
                                 </span>
                               </div>
                             )}
@@ -503,6 +522,10 @@ export default function ReceptionistOrders() {
 
                   {(activeItemCategory === 'Meal' || newOrderForm.items.some(item => cookedMeals.some(m => m.productID === item.itemID))) && (() => {
                     const slots = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
+                    const todayManila = getTodayManila();
+                    const selectedDate = newOrderForm.deliveryDate || todayManila;
+                    const isToday = selectedDate === todayManila;
+
                     let currentMinutes = 0;
                     try {
                       const manilaFormatter = new Intl.DateTimeFormat('en-US', {
@@ -527,28 +550,60 @@ export default function ReceptionistOrders() {
                       if (meridiem === 'PM' && hr !== 12) hr += 12;
                       if (meridiem === 'AM' && hr === 12) hr = 0;
                       const slotMin = hr * 60 + parseInt(m, 10);
-                      return { slot, isPast: slotMin <= currentMinutes };
+                      // ONLY mark as passed if delivery is scheduled for TODAY and current time has elapsed
+                      const isPast = isToday && (slotMin <= currentMinutes);
+                      return { slot, isPast };
                     });
+
+                    const allTodayPassed = isToday && evaluatedSlots.every(s => s.isPast);
 
                     return (
                       <div className="mb-3 p-3 bg-primary-subtle border border-primary-subtle rounded">
-                        <label className="form-label fw-bold text-primary small mb-1">
-                          Scheduled Breakfast Delivery Time (6:30 AM - 10:30 AM) *
-                        </label>
-                        <select
-                          className="form-select form-select-sm fw-semibold"
-                          value={newOrderForm.deliveryTime || '07:30 AM'}
-                          onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
-                        >
-                          {evaluatedSlots.map(({ slot, isPast }) => (
-                            <option key={slot} value={slot} disabled={isPast}>
-                              {slot} {isPast ? '(Passed)' : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                          Advance breakfast orders can be placed for scheduled delivery between 6:30 AM and 10:30 AM. Past time slots are disabled.
-                        </small>
+                        <div className="row g-2">
+                          <div className="col-md-6">
+                            <label className="form-label fw-bold text-primary small mb-1">
+                              Delivery Date *
+                            </label>
+                            <input
+                              type="date"
+                              className="form-control form-control-sm fw-semibold"
+                              min={todayManila}
+                              value={newOrderForm.deliveryDate || todayManila}
+                              onChange={(e) => {
+                                const newDate = e.target.value;
+                                setNewOrderForm(prev => ({ ...prev, deliveryDate: newDate }));
+                              }}
+                            />
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.70rem' }}>
+                              Select today or schedule advance delivery for tomorrow or future dates.
+                            </small>
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label fw-bold text-primary small mb-1">
+                              Scheduled Breakfast Delivery Time (6:30 AM - 10:30 AM) *
+                            </label>
+                            <select
+                              className="form-select form-select-sm fw-semibold"
+                              value={newOrderForm.deliveryTime || '07:30 AM'}
+                              onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
+                            >
+                              {evaluatedSlots.map(({ slot, isPast }) => (
+                                <option key={slot} value={slot} disabled={isPast}>
+                                  {slot} {isPast ? '(Passed)' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.70rem' }}>
+                              Breakfast is prepared and delivered between 6:30 AM and 10:30 AM.
+                            </small>
+                          </div>
+                        </div>
+                        {allTodayPassed && (
+                          <div className="alert alert-warning py-1.5 px-2.5 mt-2 mb-0 d-flex align-items-center gap-1.5" style={{ fontSize: '0.75rem' }}>
+                            <i className="fa-solid fa-circle-info"></i>
+                            <span>All breakfast slots have passed for today. Select tomorrow or a future date to schedule advance breakfast delivery.</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -632,6 +687,12 @@ export default function ReceptionistOrders() {
                     <span className="text-muted">Order Date & Time:</span>
                     <span>{new Date(viewingOrder.orderDateTime || Date.now()).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                   </div>
+                  {viewingOrder.deliveryTime && (
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Scheduled Delivery:</span>
+                      <strong className="text-primary">{viewingOrder.deliveryDate ? `${viewingOrder.deliveryDate} ` : ''}{viewingOrder.deliveryTime}</strong>
+                    </div>
+                  )}
                   <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
                     <span className="text-muted">Status:</span>
                     <span className={`badge ${getStatusBadge(viewingOrder.orderStatus)} px-3 py-1.5 rounded-pill`}>

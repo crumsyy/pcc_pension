@@ -262,6 +262,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               name: pendingOrderPill.name
             }
           ],
+          deliveryDate: pendingOrderPill.deliveryDate || null,
           deliveryTime: pendingOrderPill.isCookedMeal ? (pendingOrderPill.deliveryTime || '08:00 AM') : null
         })
       });
@@ -308,21 +309,55 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     ]);
   };
 
+  const getManilaDateInfo = () => {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const timeFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const todayStr = formatter.format(new Date());
+      const tParts = timeFormatter.formatToParts(new Date());
+      const p = {};
+      tParts.forEach(({ type, value }) => { p[type] = value; });
+      const currentMins = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+      
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = formatter.format(tomorrow);
+
+      return { todayStr, tomorrowStr, currentMins };
+    } catch (e) {
+      const d = new Date();
+      const todayStr = d.toISOString().split('T')[0];
+      d.setDate(d.getDate() + 1);
+      const tomorrowStr = d.toISOString().split('T')[0];
+      return { todayStr, tomorrowStr, currentMins: 0 };
+    }
+  };
+
   const handleSelectOrderCategory = (cat) => {
     if (cat === 'Cooked Meals') {
-      const now = new Date();
-      const currentMins = now.getHours() * 60 + now.getMinutes();
-      if (currentMins < 360 || currentMins > 630) {
+      const { currentMins } = getManilaDateInfo();
+      if (currentMins > 630) {
+        setOrderWizard(prev => ({ ...prev, step: 'item', category: cat, isAdvanceTomorrow: true }));
         setBotMessages(prev => [
           ...prev,
           { sender: 'user', text: cat },
-          { sender: 'bot', text: '⚠️ Ordering Window Restricted: Cooked meals (breakfast) can only be ordered between 6:00 AM and 10:30 AM in the morning. Please select another category below:' }
+          { sender: 'bot', text: '🍽️ Advance Breakfast Order: Orders placed now will be scheduled for tomorrow morning (6:30 AM - 10:30 AM). Select an item below:' }
         ]);
         return;
       }
     }
 
-    setOrderWizard(prev => ({ ...prev, step: 'item', category: cat }));
+    setOrderWizard(prev => ({ ...prev, step: 'item', category: cat, isAdvanceTomorrow: false }));
     setBotMessages(prev => [
       ...prev,
       { sender: 'user', text: cat },
@@ -375,6 +410,18 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
   };
 
   const handleSelectDeliveryTime = (timeStr) => {
+    const { todayStr, tomorrowStr, currentMins } = getManilaDateInfo();
+    const [timePart, meridiem] = timeStr.split(' ');
+    const [h, m] = timePart.split(':');
+    let hr = parseInt(h, 10);
+    if (meridiem === 'PM' && hr !== 12) hr += 12;
+    if (meridiem === 'AM' && hr === 12) hr = 0;
+    const slotMin = hr * 60 + parseInt(m, 10);
+
+    const isTomorrow = orderWizard.isAdvanceTomorrow || (slotMin <= currentMins);
+    const targetDate = isTomorrow ? tomorrowStr : todayStr;
+    const targetDateLabel = isTomorrow ? `Tomorrow (${tomorrowStr})` : `Today (${todayStr})`;
+
     const price = parseFloat(orderWizard.selectedItem.price);
     const total = price * orderWizard.quantity;
     const pill = {
@@ -385,14 +432,15 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
       quantity: orderWizard.quantity,
       total,
       isCookedMeal: true,
+      deliveryDate: targetDate,
       deliveryTime: timeStr
     };
     setPendingOrderPill(pill);
-    setOrderWizard({ step: null, category: '', selectedItem: null, quantity: 1, deliveryTime: '08:00 AM' });
+    setOrderWizard({ step: null, category: '', selectedItem: null, quantity: 1, deliveryTime: '08:00 AM', isAdvanceTomorrow: false });
     setBotMessages(prev => [
       ...prev,
       { sender: 'user', text: `Delivery @ ${timeStr}` },
-      { sender: 'bot', text: `Breakfast order prepared for delivery at ${timeStr}! Please confirm below to add to your stay billing.` }
+      { sender: 'bot', text: `Breakfast order prepared for delivery ${targetDateLabel} at ${timeStr}! Please confirm below to add to your stay billing.` }
     ]);
   };
 
@@ -860,7 +908,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               </div>
               {pendingOrderPill.deliveryTime && (
                 <div className="text-primary fw-semibold small mb-2" style={{ fontSize: '0.74rem' }}>
-                  ⏰ Scheduled Delivery Time: {pendingOrderPill.deliveryTime}
+                  ⏰ Scheduled Delivery: {pendingOrderPill.deliveryDate ? `${pendingOrderPill.deliveryDate} ` : ''}{pendingOrderPill.deliveryTime}
                 </div>
               )}
               <div className="d-flex gap-2">
