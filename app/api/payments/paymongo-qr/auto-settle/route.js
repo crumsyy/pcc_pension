@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalance, syncInventoryStock, ensureTestModeSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalance, syncInventoryStock, ensureTestModeSchema, logBillingAudit } from '@/lib/db';
 
 export async function POST(request) {
   try {
@@ -112,6 +112,8 @@ export async function POST(request) {
         if (stRows.length > 0) staffID = stRows[0].staffID;
       }
 
+      const balanceBefore = targetBookingID ? await getBookingBalance(targetBookingID) : amount;
+
       // Insert GCash Payment (paymentMethodID = 2)
       const [paymentInsert] = await conn.execute(
         `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode)
@@ -175,6 +177,30 @@ export async function POST(request) {
             }
           }
         }
+      }
+
+      if (targetBookingID && billingID) {
+        const balanceAfter = Math.max(0, Math.round((balanceBefore - amount) * 100) / 100);
+        if (balanceAfter <= 0.05 || checkedOut) {
+          await conn.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
+          await conn.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
+        } else {
+          await conn.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
+        }
+
+        await logBillingAudit(conn, {
+          billingID,
+          bookingID: targetBookingID,
+          transactionType: checkedOut ? 'Checkout Settlement' : (balanceAfter <= 0.05 ? 'Subsequent Payment' : 'Down Payment'),
+          amount,
+          balanceBefore,
+          balanceAfter,
+          userID: session?.userID || null,
+          userName: 'PayMongo QR / GCash',
+          userRole: 'Guest',
+          description: `PayMongo QR Auto-Settlement (${paymentIntentID || 'QR Payment'})`,
+          referenceNumber: paymentIntentID || `PAY-${paymentID}`
+        });
       }
 
       await conn.commit();

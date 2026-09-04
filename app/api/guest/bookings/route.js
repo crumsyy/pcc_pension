@@ -135,17 +135,60 @@ export async function POST(request) {
       try {
         await connection.beginTransaction();
 
-        // Insert booking record with 'Confirmed' status
+        // 1. Conflict Detection: Verify room is not already booked for overlapping dates
+        const [conflictingBookings] = await connection.execute(`
+          SELECT bookingID
+          FROM booking
+          WHERE roomID = ?
+            AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+            AND checkInDateTime < ?
+            AND checkOutDateTime > ?
+        `, [roomID, checkOutDateTime, checkInDateTime]);
+
+        if (conflictingBookings.length > 0) {
+          await connection.rollback();
+          connection.release();
+          return NextResponse.json({
+            error: "This room is already booked by another guest for the selected dates."
+          }, { status: 409 });
+        }
+
+        // 2. Conflict Handling: Auto-cancel overlapping active reservations for this room
+        const convResID = reservationID ? parseInt(reservationID) : null;
+        const [competingReservations] = await connection.execute(`
+          SELECT r.reservationID, r.reservationDateTime, r.checkOutDateTime, r.guestID,
+                 g.userID, g.firstName, g.lastName,
+                 rm.roomNumber
+          FROM reservation r
+          JOIN room rm ON rm.roomID = r.roomID
+          JOIN guest g ON g.guestID = r.guestID
+          WHERE r.roomID = ?
+            AND r.status IN ('Pending', 'Confirmed')
+            AND (? IS NULL OR r.reservationID != ?)
+            AND r.reservationDateTime < ?
+            AND COALESCE(r.checkOutDateTime, DATE_ADD(r.reservationDateTime, INTERVAL 1 DAY)) > ?
+        `, [roomID, convResID, convResID, checkOutDateTime, checkInDateTime]);
+
+        for (const compRes of competingReservations) {
+          await connection.execute(`
+            UPDATE reservation
+            SET status = 'Cancelled',
+                specialRequests = CONCAT(COALESCE(specialRequests, ''), ' [Auto-cancelled: Room booked for conflicting dates]')
+            WHERE reservationID = ?
+          `, [compRes.reservationID]);
+        }
+
+        // 3. Insert booking record with 'Confirmed' status
         const [bookingRes] = await connection.execute(
           `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID)
            VALUES (?, ?, 'Confirmed', ?, ?, ?)`,
-          [checkInDateTime, checkOutDateTime, reservationID ? parseInt(reservationID) : null, guest.guestID, roomID]
+          [checkInDateTime, checkOutDateTime, convResID, guest.guestID, roomID]
         );
         const bookingID = bookingRes.insertId;
 
-        // If converted from a reservation, update reservation status to Confirmed
-        if (reservationID) {
-          await connection.execute("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [parseInt(reservationID)]);
+        // If converted from a reservation, update that reservation status to Confirmed
+        if (convResID) {
+          await connection.execute("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [convResID]);
         }
 
         // Insert registered guests
@@ -170,13 +213,36 @@ export async function POST(request) {
 
         await connection.commit();
 
-        // Notify staff
+        // Notify staff of new booking
         const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
         for (const r of staffToNotify) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'New Guest Booking Request', ?)",
             [r.userID, `Guest ${guest.firstName} ${guest.lastName} created Booking #${bookingID} for ${checkInDate}.`]
           );
+        }
+
+        // Auto-cancellation notifications for affected reservations
+        for (const compRes of competingReservations) {
+          if (compRes.userID) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Cancelled Due to Conflict', ?)",
+              [
+                compRes.userID,
+                `Your reservation request for Room ${compRes.roomNumber} on ${String(compRes.reservationDateTime).substring(0, 10)} was automatically cancelled because the room was booked for those dates.`
+              ]
+            );
+          }
+
+          for (const r of staffToNotify) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Auto-Cancelled (Booking Conflict)', ?)",
+              [
+                r.userID,
+                `Reservation #${compRes.reservationID} for Room ${compRes.roomNumber} (${compRes.firstName} ${compRes.lastName}) was automatically cancelled due to a confirmed booking conflict.`
+              ]
+            );
+          }
         }
 
         // Add guest notification

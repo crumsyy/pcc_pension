@@ -578,7 +578,17 @@ export default function ReceptionistBilling() {
                                 )}
                                 {billDetails.chargesSummary.lateCheckOut > 0 && (
                                   <tr>
-                                    <td colSpan="3">Late Check-Out / Extension Fee (₱100/hr after 12:00 PM)</td>
+                                    <td colSpan="3">
+                                      <div className="d-flex align-items-center gap-2 mb-0.5">
+                                        <span>Late Check-Out / Extension Fee ({billDetails.chargesSummary.lateHours || 1} hr{billDetails.chargesSummary.lateHours > 1 ? 's' : ''})</span>
+                                        <span className="badge bg-warning text-dark font-monospace" style={{ fontSize: '0.68rem' }}>
+                                          {billDetails.chargesSummary.lateCheckOutRule || '1-22 hrs: ₱100/hr | >22 hrs: Full room rate'}
+                                        </span>
+                                      </div>
+                                      <div className="text-muted small" style={{ fontSize: '0.70rem' }}>
+                                        * Policy: ₱100.00/hour for extensions up to 22 hours; exceeding 22 hours converts to standard daily room rate (₱{parseFloat(billDetails.booking.rate).toFixed(2)}).
+                                      </div>
+                                    </td>
                                     <td className="text-end fw-semibold text-danger">₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</td>
                                   </tr>
                                 )}
@@ -904,52 +914,64 @@ export default function ReceptionistBilling() {
                         </div>
                         <div className="card-body p-4" style={{ fontSize: '0.78rem' }}>
                           <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Room Rent:</span>
-                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</span>
+                            <span className="text-muted">Room Base Rent:</span>
+                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.baseRoomCharge || billDetails.chargesSummary.room).toFixed(2)}</span>
                           </div>
+                          {billDetails.chargesSummary.extraGuestFee > 0 && (
+                            <div className="d-flex justify-content-between mb-2 text-primary">
+                              <span>Extra Guests Fee ({billDetails.chargesSummary.extraGuests} Pax @ ₱100/night):</span>
+                              <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.extraGuestFee).toFixed(2)}</span>
+                            </div>
+                          )}
                           {billDetails.chargesSummary.earlyCheckIn > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-danger">
-                              <span>Early Check-in Fee:</span>
-                              <span>₱{parseFloat(billDetails.chargesSummary.earlyCheckIn).toFixed(2)}</span>
+                            <div className="d-flex justify-content-between mb-2 text-primary">
+                              <span>Early Check-in Fee (₱50/hr):</span>
+                              <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.earlyCheckIn).toFixed(2)}</span>
                             </div>
                           )}
                           {billDetails.chargesSummary.lateCheckOut > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-danger">
-                              <span>Late Check-out / Extension Fee:</span>
-                              <span>₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</span>
+                            <div className="d-flex justify-content-between mb-2 text-primary">
+                              <span>Late Check-out Fee:</span>
+                              <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {billDetails.chargesSummary.totalDiscount > 0 && (
+                            <div className="d-flex justify-content-between mb-2 text-success">
+                              <span>Discounts Applied:</span>
+                              <span className="fw-semibold">-₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}</span>
                             </div>
                           )}
                           <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Product charges:</span>
-                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.products).toFixed(2)}</span>
+                            <span className="text-muted">Orders (Products &amp; Meals):</span>
+                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.products || 0).toFixed(2)}</span>
                           </div>
                           <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Amenity charges:</span>
-                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.amenities).toFixed(2)}</span>
+                            <span className="text-muted">Orders (Amenities):</span>
+                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.amenities || 0).toFixed(2)}</span>
                           </div>
                           {parseFloat(billDetails.chargesSummary.incidentals || 0) > 0 && (
                             <div className="d-flex justify-content-between mb-3 text-danger">
-                              <span>Incidental charges:</span>
+                              <span>Incidental Charges (Damages/Penalties):</span>
                               <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.incidentals).toFixed(2)}</span>
                             </div>
                           )}
 
                           <hr className="mt-0" />
 
-                          <div className="d-flex justify-content-between align-items-center mb-3">
-                            <span className="fw-bold text-dark" style={{ fontSize: '1.05rem' }}>Grand Total Charges:</span>
-                            <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.25rem' }}>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>Subtotal:</span>
+                            <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.2rem' }}>
                               ₱{parseFloat(billDetails.chargesSummary.total).toFixed(2)}
                             </span>
                           </div>
 
                           <div className="d-flex justify-content-between mb-3 text-success">
-                            <span>Amount Paid:</span>
-                            <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.paid).toFixed(2)}</span>
+                            <span className="fw-semibold">Paid Total:</span>
+                            <span className="fw-bold">₱{parseFloat(billDetails.chargesSummary.paid).toFixed(2)}</span>
                           </div>
 
                           <div className="d-flex justify-content-between align-items-center p-3 bg-danger-subtle rounded border border-danger-subtle mb-4">
-                            <span className="fw-bold text-danger">Outstanding Balance:</span>
+                            <span className="fw-bold text-danger">Remaining Balance:</span>
                             <span className="fw-bold text-danger" style={{ fontSize: '1.3rem' }}>
                               ₱{parseFloat(billDetails.chargesSummary.balance).toFixed(2)}
                             </span>
@@ -978,6 +1000,54 @@ export default function ReceptionistBilling() {
                           ) : (
                             <div className="alert alert-success text-center py-2.5 mb-0 fw-semibold">
                               <i className="bi bi-check-circle-fill me-1"></i> Bill fully settled & Guest Checked Out. Room is Available.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* AUDIT TRAIL CARD */}
+                      <div className="card shadow-sm border-0 bg-white mt-3" style={{ borderRadius: '8px' }}>
+                        <div className="card-header bg-white border-0 py-2 border-bottom d-flex justify-content-between align-items-center">
+                          <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.86rem' }}>
+                            <i className="bi bi-clock-history me-1.5 text-primary"></i> Audit Trail (Ledger)
+                          </h6>
+                          <span className="badge bg-secondary font-monospace" style={{ fontSize: '0.68rem' }}>
+                            {billDetails.auditLogs?.length || 0} Events
+                          </span>
+                        </div>
+                        <div className="card-body p-3" style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                          {billDetails.auditLogs && billDetails.auditLogs.length > 0 ? (
+                            <div className="d-flex flex-column gap-2">
+                              {billDetails.auditLogs.map((log) => (
+                                <div key={log.auditID} className="p-2.5 rounded border bg-light small" style={{ fontSize: '0.74rem' }}>
+                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <span className={`badge ${
+                                      log.transactionType?.includes('Payment') || log.transactionType?.includes('Settlement') ? 'bg-success' :
+                                      log.transactionType?.includes('Discount') ? 'bg-info text-dark' :
+                                      log.transactionType?.includes('Incidental') ? 'bg-danger' :
+                                      log.transactionType?.includes('Order') ? 'bg-warning text-dark' : 'bg-primary'
+                                    }`}>
+                                      {log.transactionType}
+                                    </span>
+                                    <span className="text-muted font-monospace" style={{ fontSize: '0.68rem' }}>{log.createdAt}</span>
+                                  </div>
+                                  <div className="fw-semibold text-dark">{log.description || 'Transaction record'}</div>
+                                  <div className="d-flex justify-content-between align-items-center text-muted mt-1" style={{ fontSize: '0.70rem' }}>
+                                    <span>Amount: <strong className="text-dark">₱{parseFloat(log.amount).toFixed(2)}</strong></span>
+                                    <span>Bal: ₱{parseFloat(log.balanceBefore).toFixed(2)} → <strong className="text-primary">₱{parseFloat(log.balanceAfter).toFixed(2)}</strong></span>
+                                  </div>
+                                  {log.userName && (
+                                    <div className="text-muted mt-0.5" style={{ fontSize: '0.68rem' }}>
+                                      By: {log.userName} ({log.userRole || 'Staff'}) {log.referenceNumber ? `• Ref: ${log.referenceNumber}` : ''}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center text-muted py-3 small">
+                              <i className="bi bi-journal-text fs-4 d-block mb-1 opacity-50"></i>
+                              No audit events logged yet for this stay.
                             </div>
                           )}
                         </div>

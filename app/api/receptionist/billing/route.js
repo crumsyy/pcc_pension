@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock, logBillingAudit } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -264,16 +264,36 @@ export async function POST(request) {
     if (action === 'add_incidental') {
       const bookingID = parseInt(body.bookingID);
       const description = body.description?.trim();
-      const amount = parseFloat(body.amount || 0);
+      const amount = Math.round(parseFloat(body.amount || 0) * 100) / 100;
 
       if (!bookingID || !description || isNaN(amount) || amount <= 0) {
         return NextResponse.json({ error: 'Missing or invalid fields for incidental charge.' }, { status: 400 });
       }
 
+      const balanceBefore = await getBookingBalance(bookingID);
+
       await dbQuery(
-        "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+        "INSERT INTO incidental_charge (bookingID, description, amount, createdAt) VALUES (?, ?, ?, NOW())",
         [bookingID, description, amount]
       );
+
+      const balanceAfter = Math.round((balanceBefore + amount) * 100) / 100;
+      const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? LIMIT 1", [bookingID]);
+      const billingID = billingRes[0]?.billingID || null;
+
+      await logBillingAudit(null, {
+        billingID,
+        bookingID,
+        transactionType: 'Incidental Fee',
+        amount,
+        balanceBefore,
+        balanceAfter,
+        userID: session.userID,
+        userName: session.email || 'Receptionist',
+        userRole: session.role,
+        description: `Incidental Charge: ${description}`
+      });
+
       return NextResponse.json({ success: true, message: 'Incidental charge added successfully.' });
     }
 
@@ -298,10 +318,32 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Booking ID and Guest Name are required.' }, { status: 400 });
       }
 
+      const balanceBefore = await getBookingBalance(bookingID);
+
       await dbQuery(
         "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, ?, ?)",
         [bookingID, fullName, age, discountID, discountIdNumber]
       );
+
+      const balanceAfter = await getBookingBalance(bookingID);
+      const diffAmount = Math.max(0, Math.round((balanceAfter - balanceBefore) * 100) / 100);
+
+      const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? LIMIT 1", [bookingID]);
+      const billingID = billingRes[0]?.billingID || null;
+
+      await logBillingAudit(null, {
+        billingID,
+        bookingID,
+        transactionType: 'Additional Fee',
+        amount: diffAmount,
+        balanceBefore,
+        balanceAfter,
+        userID: session.userID,
+        userName: session.email || 'Receptionist',
+        userRole: session.role,
+        description: `Extra Guest Added: ${fullName} (Additional capacity fee: ₱${diffAmount.toFixed(2)})`
+      });
+
       return NextResponse.json({ success: true, message: 'Guest added to billing record successfully.' });
     }
 
@@ -437,6 +479,8 @@ export async function POST(request) {
         dbDiscountID = parseInt(rawDiscountID);
       }
 
+      const balanceBefore = await getBookingBalance(bookingID);
+
       // Find or create booking_guest_details record
       const existing = await dbQuery("SELECT bookingGuestID FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
       if (existing.length > 0) {
@@ -450,6 +494,24 @@ export async function POST(request) {
           [bookingID, beneficiaryName.trim(), dbDiscountID, dbPromotionID, discountIdNumber.trim()]
         );
       }
+
+      const balanceAfter = await getBookingBalance(bookingID);
+      const discountSaved = Math.max(0, Math.round((balanceBefore - balanceAfter) * 100) / 100);
+      const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? LIMIT 1", [bookingID]);
+      const billingID = billingRes[0]?.billingID || null;
+
+      await logBillingAudit(null, {
+        billingID,
+        bookingID,
+        transactionType: 'Discount Applied',
+        amount: discountSaved,
+        balanceBefore,
+        balanceAfter,
+        userID: session.userID,
+        userName: session.email || 'Receptionist',
+        userRole: session.role,
+        description: `Applied discount for ${beneficiaryName.trim()} (ID: ${discountIdNumber.trim()}). Savings: ₱${discountSaved.toFixed(2)}`
+      });
 
       return NextResponse.json({ success: true, message: 'Discount applied to billing successfully.' });
     }

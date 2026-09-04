@@ -8,6 +8,7 @@ import GuestBottomNav from './GuestBottomNav';
 import GuestSidebarNav from './GuestSidebarNav';
 import ThemeToggle from '../../components/ThemeToggle';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
+import DatePicker from '../../components/DatePicker';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
@@ -89,12 +90,13 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '200px' }) {
   );
 }
 
-export default function GuestDashboardClient({ initialGuest, initialReservations, initialBookings, initialActiveBill, initialAllRooms }) {
+export default function GuestDashboardClient({ initialGuest, initialReservations, initialBookings, initialActiveBill, initialAllRooms, initialRoomSchedules }) {
   const [guest, setGuest] = useState(initialGuest);
   const [reservations, setReservations] = useState(initialReservations || []);
   const [bookings, setBookings] = useState(initialBookings || []);
   const [activeBill, setActiveBill] = useState(initialActiveBill);
   const [allRooms, setAllRooms] = useState(initialAllRooms || []);
+  const [roomSchedules, setRoomSchedules] = useState(initialRoomSchedules || []);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [discounts, setDiscounts] = useState([]);
@@ -185,6 +187,29 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [receiptData, setReceiptData] = useState(null);
   const [processing, setProcessing] = useState(false);
 
+  // Live Billing & Audit Trail State
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [showAuditTrailModal, setShowAuditTrailModal] = useState(false);
+  const [detailedBill, setDetailedBill] = useState(initialActiveBill);
+  const [loadingBill, setLoadingBill] = useState(false);
+
+  const fetchDetailedBill = async (bookingID) => {
+    if (!bookingID) return;
+    setLoadingBill(true);
+    try {
+      const res = await fetch(`/api/billing?bookingID=${bookingID}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDetailedBill(data);
+        setActiveBill(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch detailed billing:", e);
+    } finally {
+      setLoadingBill(false);
+    }
+  };
+
   // Edit Profile Modal State
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -274,12 +299,52 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       if (res.ok) {
         if (data.allRooms) setAllRooms(data.allRooms);
         if (data.reservations) setReservations(data.reservations);
+        if (data.roomSchedules) setRoomSchedules(data.roomSchedules);
       }
     } catch (err) {
       console.error("Failed to load room data:", err);
     } finally {
       setLoadingRooms(false);
     }
+  };
+
+  const getDisabledDatesForRoom = (roomId) => {
+    if (!roomId || !roomSchedules || roomSchedules.length === 0) return [];
+    const disabledSet = new Set();
+    const pad = (n) => String(n).padStart(2, '0');
+    
+    roomSchedules.forEach(sched => {
+      if (String(sched.roomID) !== String(roomId)) return;
+      const inStr = (sched.checkInDateTime || '').substring(0, 10);
+      const outStr = (sched.checkOutDateTime || '').substring(0, 10);
+      if (!inStr) return;
+      
+      let cur = new Date(inStr + 'T00:00:00');
+      const end = outStr ? new Date(outStr + 'T00:00:00') : new Date(inStr + 'T00:00:00');
+      
+      while (cur <= end) {
+        const dStr = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
+        disabledSet.add(dStr);
+        cur.setDate(cur.getDate() + 1);
+      }
+    });
+    
+    return Array.from(disabledSet);
+  };
+
+  const checkScheduleConflict = (roomId, inDate, outDate) => {
+    if (!roomId || !inDate || !roomSchedules || roomSchedules.length === 0) return false;
+    const reqIn = new Date(`${inDate}T14:00:00`);
+    const reqOut = outDate ? new Date(`${outDate}T12:00:00`) : new Date(new Date(`${inDate}T14:00:00`).getTime() + 24 * 3600 * 1000);
+    if (isNaN(reqIn.getTime()) || isNaN(reqOut.getTime())) return false;
+    
+    return roomSchedules.some(sched => {
+      if (String(sched.roomID) !== String(roomId)) return false;
+      const sIn = new Date((sched.checkInDateTime || '').replace(' ', 'T'));
+      const sOut = new Date((sched.checkOutDateTime || '').replace(' ', 'T'));
+      if (isNaN(sIn.getTime()) || isNaN(sOut.getTime())) return false;
+      return sIn < reqOut && sOut > reqIn;
+    });
   };
 
   const fetchNotifications = async () => {
@@ -356,10 +421,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const [resResp, bookResp, notifResp] = await Promise.all([
+        const [resResp, bookResp, notifResp, billResp] = await Promise.all([
           fetch('/api/guest/reservations'),
           fetch('/api/guest/bookings'),
-          fetch('/api/notifications')
+          fetch('/api/notifications'),
+          fetch('/api/billing')
         ]);
         if (resResp.ok) {
           const rData = await resResp.json();
@@ -375,6 +441,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           if (nData.notifications) {
             setNotifications(nData.notifications);
             setUnreadCount(nData.notifications.filter(n => !n.isRead).length);
+          }
+        }
+        if (billResp.ok) {
+          const billData = await billResp.json();
+          if (billData.success) {
+            setActiveBill(billData);
+            setDetailedBill(billData);
           }
         }
       } catch (err) {
@@ -491,6 +564,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       return;
     }
 
+    if (selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate)) {
+      showAlert('error', 'Reservation Conflict', 'This room is already reserved or booked for the selected dates. Please choose an open date.');
+      return;
+    }
+
     setProcessing(true);
 
     try {
@@ -523,6 +601,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     e.preventDefault();
     if (checkOutDate && checkOutDate <= checkInDate) {
       showAlert('warning', 'Invalid Stay Dates', 'Check-out time must be later than check-in time.');
+      return;
+    }
+    if (selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate)) {
+      showAlert('error', 'Booking Conflict', 'This room is already booked for the selected dates. Please choose an open date.');
       return;
     }
     if (discountedGuests.some(g => !g.discountID || !g.discountIdNumber.trim())) {
@@ -1334,26 +1416,50 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="card shadow-sm border-0 border-start border-4 border-primary p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                     <div className="d-flex justify-content-between align-items-start mb-2">
                       <div className="w-100">
-                        <div className="d-flex justify-content-between align-items-center mb-1">
-                          <span className="badge bg-primary text-white">Active Stay Booking ({formatBookingID(activeBookingStay.bookingID)})</span>
-                          {parseFloat(activeBookingStay.remainingBalance || 0) > 0 && (
+                        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                          <span className="badge bg-primary text-white px-2.5 py-1">Active Stay Booking ({formatBookingID(activeBookingStay.bookingID)})</span>
+                          <div className="d-flex flex-wrap gap-1.5 align-items-center">
                             <button
-                              className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
-                              onClick={() => setSettleBooking(activeBookingStay)}
+                              type="button"
+                              className="btn btn-xs btn-outline-primary fw-semibold px-2 py-1"
+                              onClick={() => {
+                                fetchDetailedBill(activeBookingStay.bookingID);
+                                setShowBillModal(true);
+                              }}
                             >
-                              Pay (₱{parseFloat(activeBookingStay.remainingBalance).toFixed(2)})
+                              <i className="bi bi-receipt me-1"></i> Live Bill
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-outline-secondary fw-semibold px-2 py-1"
+                              onClick={() => {
+                                fetchDetailedBill(activeBookingStay.bookingID);
+                                setShowAuditTrailModal(true);
+                              }}
+                            >
+                              <i className="bi bi-clock-history me-1"></i> Audit Trail
+                            </button>
+                            {parseFloat(activeBookingStay.remainingBalance || 0) > 0 && (
+                              <button
+                                className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
+                                onClick={() => setSettleBooking(activeBookingStay)}
+                              >
+                                Pay (₱{parseFloat(activeBookingStay.remainingBalance).toFixed(2)})
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <h6 className="fw-bold mb-0 text-dark">Room {activeBookingStay.roomNumber} ({activeBookingStay.roomType})</h6>
-                        <div className="small text-muted mb-2">
-                          Remaining Balance: <strong className="text-danger">₱{parseFloat(activeBookingStay.remainingBalance || 0).toFixed(2)}</strong>
+                        <h6 className="fw-bold mb-1 text-dark">Room {activeBookingStay.roomNumber} ({activeBookingStay.roomType})</h6>
+                        <div className="d-flex flex-wrap gap-3 small text-muted mb-2 p-2 bg-light rounded border" style={{ fontSize: '0.78rem' }}>
+                          <span>Subtotal: <strong className="text-dark">₱{parseFloat(detailedBill?.balancing?.subtotal ?? detailedBill?.subtotal ?? activeBill?.subtotal ?? 0).toFixed(2)}</strong></span>
+                          <span>Paid Total: <strong className="text-success">₱{parseFloat(detailedBill?.balancing?.paidTotal ?? detailedBill?.paidTotal ?? activeBill?.paidTotal ?? 0).toFixed(2)}</strong></span>
+                          <span>Remaining Balance: <strong className={parseFloat(activeBookingStay.remainingBalance || 0) > 0 ? "text-danger" : "text-success"}>₱{parseFloat(activeBookingStay.remainingBalance || 0).toFixed(2)}</strong></span>
                         </div>
                         {activeBookingStay.incidentals && activeBookingStay.incidentals.length > 0 && (
                           <div className="mt-2 p-2.5 bg-light rounded border small mb-2">
                             <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.78rem' }}>Incidental Charges:</div>
                             {activeBookingStay.incidentals.map(inc => (
-                              <div key={inc.incidentalID} className="d-flex justify-content-between text-muted" style={{ fontSize: '0.75rem' }}>
+                              <div key={inc.incidentalID || inc.chargeID} className="d-flex justify-content-between text-muted" style={{ fontSize: '0.75rem' }}>
                                 <span>• {inc.description}</span>
                                 <span className="fw-semibold text-danger">₱{parseFloat(inc.amount).toFixed(2)}</span>
                               </div>
@@ -1561,19 +1667,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <div className="row g-3">
                         {filteredRooms.map((rm) => {
                           const meta = getRoomStatusMeta(rm.status);
-                          const isAvailable = rm.status === 'Available';
+                          const isBookable = rm.status !== 'Under Maintenance' && rm.status !== 'Maintenance';
 
                           return (
                             <div key={rm.roomID} className="col-12 col-md-6 col-lg-4">
                               <div 
-                                className={`card shadow-sm border-0 h-100 room-card-hover overflow-hidden ${isAvailable ? 'cursor-pointer' : 'opacity-85'}`}
+                                className={`card shadow-sm border-0 h-100 room-card-hover overflow-hidden ${isBookable ? 'cursor-pointer' : 'opacity-85'}`}
                                 style={{
                                   borderRadius: '12px',
                                   backgroundColor: meta.bgColor,
                                   borderLeft: `5px solid ${meta.borderLeft} !important`
                                 }}
                                 onClick={() => {
-                                  if (isAvailable) {
+                                  if (isBookable) {
                                     setSelectedRoom(rm);
                                     setFlowAction('book');
                                     setActiveModal('book_form');
@@ -1611,7 +1717,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     >
                                       Details
                                     </button>
-                                    {isAvailable ? (
+                                    {isBookable ? (
                                       <>
                                         <button
                                           type="button"
@@ -2050,24 +2156,29 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="small text-primary fw-semibold mt-1">Note: Selectable reservation check-in dates are Today, Tomorrow, and Day After Tomorrow (up to 2 days ahead).</div>
                   </div>
 
-                  <div className="row g-2 mb-3">
-                    <div className="col-6">
-                      <label className="form-label fw-semibold small">Check-In Date *</label>
-                      <input
-                        type="date"
-                        className="form-control form-control-sm"
-                        min={minReserveDateStr}
-                        max={maxReserveDateStr}
-                        value={checkInDate}
-                        onChange={(e) => handleCheckInDateChange(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="col-6">
-                      <label className="form-label fw-semibold small">Check-Out Date *</label>
-                      <input type="date" className="form-control form-control-sm" min={checkInDate || minReserveDateStr} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
-                    </div>
+                  <div className="mb-3">
+                    <DatePicker
+                      label="Select Check-In Date *"
+                      value={checkInDate}
+                      minDate={minReserveDateStr}
+                      maxDate={maxReserveDateStr}
+                      disabledDates={selectedRoom ? getDisabledDatesForRoom(selectedRoom.roomID) : []}
+                      onChange={(newDate) => handleCheckInDateChange(newDate)}
+                      helperText="Note: Greyed out dates ('Busy') are already reserved or booked. Reservations are accepted up to 2 days ahead."
+                    />
                   </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small">Check-Out Date *</label>
+                    <input type="date" className="form-control form-control-sm" min={checkInDate || minReserveDateStr} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
+                  </div>
+
+                  {selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate) && (
+                    <div className="alert alert-danger py-2 px-3 small mb-3">
+                      <i className="bi bi-exclamation-triangle-fill me-1.5 fw-bold"></i>
+                      <strong>Schedule Conflict:</strong> Room {selectedRoom.roomNumber} is already reserved or booked for the selected date(s). Please choose another date or room.
+                    </div>
+                  )}
 
                   <div className="mb-3">
                     <label className="form-label fw-semibold small">Number of Guests *</label>
@@ -2094,7 +2205,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
-                  <button type="submit" className="btn btn-success text-white fw-bold" disabled={processing}>
+                  <button
+                    type="submit"
+                    className="btn btn-success text-white fw-bold"
+                    disabled={processing || Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
+                  >
                     {processing ? 'Submitting...' : 'Submit Reservation Request'}
                   </button>
                 </div>
@@ -2159,15 +2274,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="col-md-6">
                       <div className="p-3 bg-light rounded border h-100">
                         <h6 className="fw-bold text-dark mb-2">Stay Schedule</h6>
-                        <div className="mb-2">
-                          <label className="form-label mb-0 small text-muted">Check-In Date *</label>
-                          <input
-                            type="date"
-                            className="form-control form-control-sm"
-                            min={minBookDateStr}
+                        <div className="mb-3">
+                          <DatePicker
+                            label="Check-In Date *"
                             value={checkInDate}
-                            onChange={(e) => handleCheckInDateChange(e.target.value)}
-                            required
+                            minDate={minBookDateStr}
+                            disabledDates={selectedRoom ? getDisabledDatesForRoom(selectedRoom.roomID) : []}
+                            onChange={(newDate) => handleCheckInDateChange(newDate)}
+                            helperText="Note: Dates marked as 'Busy' are already booked or reserved."
                           />
                         </div>
                         <div className="mb-2">
@@ -2178,6 +2292,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       </div>
                     </div>
                   </div>
+
+                  {selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate) && (
+                    <div className="alert alert-danger py-2 px-3 small mb-3">
+                      <i className="bi bi-exclamation-triangle-fill me-1.5 fw-bold"></i>
+                      <strong>Schedule Conflict:</strong> Room {selectedRoom.roomNumber} is already booked for the selected date(s). Please select an open date.
+                    </div>
+                  )}
 
                   {/* Room Occupancy & Breakfast Option */}
                   <div className="p-3 bg-white border rounded mb-3">
@@ -2242,7 +2363,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
-                  <button type="submit" className="btn btn-primary text-white fw-bold">
+                  <button
+                    type="submit"
+                    className="btn btn-primary text-white fw-bold"
+                    disabled={processing || Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
+                  >
                     Proceed to GCash Payment
                   </button>
                 </div>
@@ -2497,6 +2622,269 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LIVE BILL BREAKDOWN MODAL */}
+      {showBillModal && detailedBill && (
+        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1070 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+              <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue)' }}>
+                <div>
+                  <h5 className="modal-title fw-bold mb-0">
+                    <i className="bi bi-receipt-cutoff me-2"></i>Live Bill Breakdown
+                  </h5>
+                  <div className="small text-white text-opacity-75">
+                    Booking #{detailedBill.bookingID || detailedBill.booking?.bookingID} • Room {detailedBill.booking?.roomNumber} ({detailedBill.booking?.roomType})
+                  </div>
+                </div>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowBillModal(false)}></button>
+              </div>
+              <div className="modal-body p-4" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                {/* 1. ROOM CHARGES */}
+                <h6 className="fw-bold text-dark border-bottom pb-1 mb-2.5" style={{ fontSize: '0.86rem' }}>
+                  <i className="bi bi-door-open-fill me-1.5 text-primary"></i>Room Stay Charges
+                </h6>
+                <div className="table-responsive mb-3">
+                  <table className="table table-sm table-bordered align-middle mb-0" style={{ fontSize: '0.80rem' }}>
+                    <thead className="table-light">
+                      <tr>
+                        <th>Description</th>
+                        <th>Rate / Night</th>
+                        <th>Nights</th>
+                        <th className="text-end">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{detailedBill.booking?.roomType || 'Room'} (Base Rate)</td>
+                        <td>₱{parseFloat(detailedBill.rate || detailedBill.chargesBreakdown?.room?.rate || detailedBill.booking?.rate || 0).toFixed(2)}</td>
+                        <td>{detailedBill.nights || detailedBill.chargesBreakdown?.room?.nights || detailedBill.booking?.nights || 1}</td>
+                        <td className="text-end fw-bold">₱{parseFloat(detailedBill.baseRoomCharge || detailedBill.chargesBreakdown?.room?.baseRoomCharge || 0).toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 2. ADDITIONAL FEES */}
+                <h6 className="fw-bold text-dark border-bottom pb-1 mb-2.5" style={{ fontSize: '0.86rem' }}>
+                  <i className="bi bi-plus-circle-fill me-1.5 text-info"></i>Additional Fees
+                </h6>
+                <div className="table-responsive mb-3">
+                  <table className="table table-sm table-bordered align-middle mb-0" style={{ fontSize: '0.80rem' }}>
+                    <thead className="table-light">
+                      <tr>
+                        <th>Fee Type</th>
+                        <th>Calculation Details</th>
+                        <th className="text-end">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Extra Guests Fee</td>
+                        <td>{detailedBill.extraGuests || detailedBill.chargesBreakdown?.additionalFees?.extraGuestsCount || 0} Pax beyond limit @ ₱100/night</td>
+                        <td className="text-end fw-semibold">₱{parseFloat(detailedBill.extraGuestFee || detailedBill.chargesBreakdown?.additionalFees?.extraGuestFee || 0).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td>Early Check-In Fee</td>
+                        <td>Arrived before standard 2:00 PM check-in (₱50.00 / hour)</td>
+                        <td className="text-end fw-semibold">₱{parseFloat(detailedBill.earlyCheckInFee || detailedBill.chargesBreakdown?.additionalFees?.earlyCheckInFee || 0).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          Late Check-Out Fee
+                          <span className="badge bg-warning text-dark font-monospace ms-2" style={{ fontSize: '0.66rem' }}>
+                            {detailedBill.lateCheckOutRule || detailedBill.chargesBreakdown?.additionalFees?.lateCheckOutRule || '1-22 hrs: ₱100/hr | >22 hrs: Full room rate'}
+                          </span>
+                        </td>
+                        <td>
+                          {detailedBill.lateHours || detailedBill.chargesBreakdown?.additionalFees?.lateHours || 0} hour(s) past 12:00 PM checkout
+                          <div className="text-muted" style={{ fontSize: '0.70rem' }}>* ₱100/hr for extensions up to 22h; &gt;22h billed at full daily room rate.</div>
+                        </td>
+                        <td className="text-end fw-semibold">₱{parseFloat(detailedBill.lateCheckOutFee || detailedBill.chargesBreakdown?.additionalFees?.lateCheckOutFee || 0).toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 3. INCIDENTAL FEES */}
+                <h6 className="fw-bold text-dark border-bottom pb-1 mb-2.5" style={{ fontSize: '0.86rem' }}>
+                  <i className="bi bi-shield-exclamation me-1.5 text-danger"></i>Incidental Fees (Damages / Penalties)
+                </h6>
+                <div className="table-responsive mb-3">
+                  <table className="table table-sm table-bordered align-middle mb-0" style={{ fontSize: '0.80rem' }}>
+                    <thead className="table-light">
+                      <tr>
+                        <th>Charge Description</th>
+                        <th>Date Recorded</th>
+                        <th className="text-end">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(detailedBill.incidentalCharges || detailedBill.chargesBreakdown?.incidentalFees?.charges || []).length > 0 ? (
+                        (detailedBill.incidentalCharges || detailedBill.chargesBreakdown?.incidentalFees?.charges || []).map((inc, i) => (
+                          <tr key={i}>
+                            <td>{inc.description}</td>
+                            <td>{inc.createdAt || 'During Stay'}</td>
+                            <td className="text-end fw-bold text-danger">₱{parseFloat(inc.amount).toFixed(2)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="3" className="text-center text-muted py-2">No incidental charges recorded in this stay.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 4. ORDERS (PRODUCTS, COOKED MEALS, AMENITIES) */}
+                <h6 className="fw-bold text-dark border-bottom pb-1 mb-2.5" style={{ fontSize: '0.86rem' }}>
+                  <i className="bi bi-bag-check-fill me-1.5 text-success"></i>Orders (Products, Cooked Meals &amp; Amenities)
+                </h6>
+                <div className="table-responsive mb-3">
+                  <table className="table table-sm table-bordered align-middle mb-0" style={{ fontSize: '0.80rem' }}>
+                    <thead className="table-light">
+                      <tr>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th className="text-end">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {((detailedBill.productCharges || detailedBill.chargesBreakdown?.orders?.products || []).concat(detailedBill.amenityCharges || detailedBill.chargesBreakdown?.orders?.amenities || [])).length > 0 ? (
+                        (detailedBill.productCharges || detailedBill.chargesBreakdown?.orders?.products || []).concat(detailedBill.amenityCharges || detailedBill.chargesBreakdown?.orders?.amenities || []).map((item, idx) => (
+                          <tr key={idx}>
+                            <td>{item.name}</td>
+                            <td>{item.quantity}</td>
+                            <td>₱{parseFloat(item.price).toFixed(2)}</td>
+                            <td className="text-end fw-semibold">₱{parseFloat(item.subtotal).toFixed(2)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="4" className="text-center text-muted py-2">No room orders submitted during this stay.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 5. APPORTIONED DISCOUNTS */}
+                {(detailedBill.totalDiscount || detailedBill.chargesBreakdown?.discounts?.total || 0) > 0 && (
+                  <div className="alert alert-success py-2.5 px-3 mb-3 d-flex justify-content-between align-items-center" style={{ fontSize: '0.82rem' }}>
+                    <span>
+                      <i className="bi bi-tag-fill me-1.5"></i>
+                      Discounts / Promotions Applied (Senior Citizen, PWD, Promo):
+                    </span>
+                    <strong className="fs-6">-₱{parseFloat(detailedBill.totalDiscount || detailedBill.chargesBreakdown?.discounts?.total).toFixed(2)}</strong>
+                  </div>
+                )}
+
+                {/* 6. FINANCIAL BALANCING CARD */}
+                <div className="p-3 bg-light rounded border">
+                  <div className="d-flex justify-content-between align-items-center mb-1.5 small">
+                    <span className="text-muted">Subtotal (Room + Addl Fees + Incidentals + Orders - Discounts):</span>
+                    <strong className="text-dark fs-6">₱{parseFloat(detailedBill.subtotal || detailedBill.balancing?.subtotal || detailedBill.chargesSummary?.total || 0).toFixed(2)}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center mb-2 small text-success">
+                    <span>Paid Total (Down Payment + Subsequent Payments):</span>
+                    <strong className="fs-6">₱{parseFloat(detailedBill.paidTotal || detailedBill.balancing?.paidTotal || detailedBill.chargesSummary?.paid || 0).toFixed(2)}</strong>
+                  </div>
+                  <hr className="my-2" />
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="fw-bold text-danger fs-6">Remaining Balance:</span>
+                    <span className="fw-bold text-danger fs-5">₱{parseFloat(detailedBill.balance ?? detailedBill.remainingBalance ?? detailedBill.balancing?.remainingBalance ?? 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer bg-light border-top d-flex justify-content-between p-3">
+                <button type="button" className="btn btn-secondary text-white fw-bold px-4" onClick={() => setShowBillModal(false)}>
+                  Close
+                </button>
+                {parseFloat(detailedBill.balance ?? detailedBill.remainingBalance ?? detailedBill.balancing?.remainingBalance ?? 0) > 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn-success text-white fw-bold px-4 shadow-sm"
+                    onClick={() => {
+                      setShowBillModal(false);
+                      setSettleBooking(activeBookingStay);
+                    }}
+                  >
+                    <i className="bi bi-credit-card me-1.5"></i>Pay Balance Online (GCash)
+                  </button>
+                ) : (
+                  <span className="badge bg-success px-3 py-2 fs-6">
+                    <i className="bi bi-check-circle-fill me-1"></i>Fully Paid &amp; Settled
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AUDIT TRAIL MODAL */}
+      {showAuditTrailModal && detailedBill && (
+        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1070 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+              <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue)' }}>
+                <div>
+                  <h5 className="modal-title fw-bold mb-0">
+                    <i className="bi bi-clock-history me-2"></i>Financial Audit Trail
+                  </h5>
+                  <div className="small text-white text-opacity-75">
+                    Real-time transaction history for Booking #{detailedBill.bookingID || detailedBill.booking?.bookingID}
+                  </div>
+                </div>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowAuditTrailModal(false)}></button>
+              </div>
+              <div className="modal-body p-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                {detailedBill.auditLogs && detailedBill.auditLogs.length > 0 ? (
+                  <div className="d-flex flex-column gap-2.5">
+                    {detailedBill.auditLogs.map((log) => (
+                      <div key={log.auditID} className="p-3 rounded border bg-light small" style={{ fontSize: '0.80rem' }}>
+                        <div className="d-flex justify-content-between align-items-center mb-1.5">
+                          <span className={`badge px-2 py-1 ${
+                            log.transactionType?.includes('Payment') || log.transactionType?.includes('Settlement') ? 'bg-success text-white' :
+                            log.transactionType?.includes('Discount') ? 'bg-info text-dark' :
+                            log.transactionType?.includes('Incidental') ? 'bg-danger text-white' :
+                            log.transactionType?.includes('Order') ? 'bg-warning text-dark' : 'bg-primary text-white'
+                          }`}>
+                            {log.transactionType}
+                          </span>
+                          <span className="text-muted font-monospace" style={{ fontSize: '0.72rem' }}>{log.createdAt}</span>
+                        </div>
+                        <div className="fw-semibold text-dark mb-1">{log.description || 'Transaction logged'}</div>
+                        <div className="d-flex justify-content-between align-items-center text-muted mb-1" style={{ fontSize: '0.76rem' }}>
+                          <span>Transaction Amount: <strong className="text-dark">₱{parseFloat(log.amount).toFixed(2)}</strong></span>
+                          <span>Balance Progression: ₱{parseFloat(log.balanceBefore).toFixed(2)} → <strong className="text-primary">₱{parseFloat(log.balanceAfter).toFixed(2)}</strong></span>
+                        </div>
+                        {log.userName && (
+                          <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                            Initiated By: <strong>{log.userName}</strong> ({log.userRole || 'Guest'}) {log.referenceNumber ? `• Reference #${log.referenceNumber}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-muted py-4">
+                    <i className="bi bi-clock-history fs-1 d-block mb-2 opacity-50"></i>
+                    No financial audit events recorded yet for this booking.
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer bg-light border-top p-3">
+                <button type="button" className="btn btn-secondary text-white fw-bold px-4" onClick={() => setShowAuditTrailModal(false)}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

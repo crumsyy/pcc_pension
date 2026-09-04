@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom, logBillingAudit } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -116,8 +116,18 @@ export async function POST(request) {
     try {
       await connection.beginTransaction();
 
-      // 2. Ensure billing record exists
-      const [billingCheck] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ?", [bookingID]);
+      // Row lock booking and billing
+      const [bookingLock] = await connection.execute(
+        "SELECT bookingID, status, roomID FROM booking WHERE bookingID = ? FOR UPDATE",
+        [bookingID]
+      );
+      if (bookingLock.length === 0) {
+        await connection.rollback();
+        return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      }
+
+      // 2. Ensure billing record exists with lock
+      const [billingCheck] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ? FOR UPDATE", [bookingID]);
       let billingID;
 
       if (billingCheck.length > 0) {
@@ -129,6 +139,8 @@ export async function POST(request) {
         );
         billingID = billingInsert.insertId;
       }
+
+      const balanceBefore = await getBookingBalance(bookingID);
 
       const cashVal = parseFloat(cashReceived) || amount;
       const changeVal = Math.max(0, Math.round((cashVal - amount) * 100) / 100);
@@ -146,6 +158,30 @@ export async function POST(request) {
         "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
         [nowStr, billingID, paymentID]
       );
+
+      const balanceAfter = Math.max(0, Math.round((balanceBefore - amount) * 100) / 100);
+
+      // Update billing status
+      if (balanceAfter <= 0.05) {
+        await connection.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
+        await connection.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
+      } else {
+        await connection.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
+      }
+
+      // Log billing audit
+      await logBillingAudit(connection, {
+        billingID,
+        bookingID,
+        transactionType: shouldCheckout ? 'Checkout Settlement' : 'Subsequent Payment',
+        amount,
+        balanceBefore,
+        balanceAfter,
+        userID: session.userID,
+        userName: session.email || 'Receptionist',
+        userRole: session.role,
+        description: `Front Desk Payment (Method #${paymentMethodID})${shouldCheckout ? ' - Checkout Settlement' : ''}`
+      });
 
       // 5. If checkout requested or bill settled, complete booking and free room
       if (shouldCheckout) {

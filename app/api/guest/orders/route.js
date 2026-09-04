@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit } from '@/lib/db';
 
 export async function GET() {
   const session = await getSession();
@@ -112,6 +112,13 @@ export async function POST(request) {
 
     try {
       await connection.beginTransaction();
+
+      // Concurrency lock on booking
+      await connection.execute(
+        "SELECT bookingID, status FROM booking WHERE bookingID = ? FOR UPDATE",
+        [booking.bookingID]
+      );
+      const balanceBefore = await getBookingBalance(booking.bookingID);
 
       // Prevent duplicate order creation within 10 seconds for the same guest
       const [recentOrderCheck] = await connection.execute(
@@ -230,6 +237,24 @@ export async function POST(request) {
           }
         }
       }
+
+      const balanceAfter = Math.round((balanceBefore + totalOrderAmount) * 100) / 100;
+      const [billRows] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ?", [booking.bookingID]);
+      const billingID = billRows[0]?.billingID || null;
+
+      await logBillingAudit(connection, {
+        billingID,
+        bookingID: booking.bookingID,
+        transactionType: 'Order',
+        amount: totalOrderAmount,
+        balanceBefore,
+        balanceAfter,
+        userID: session.userID,
+        userName: `${guest.firstName} ${guest.lastName}`,
+        userRole: 'Guest',
+        description: `Order #${orderID}: ${orderSummaryList.join(', ')}`,
+        referenceNumber: `ORD-${orderID}`
+      });
 
       await connection.commit();
 

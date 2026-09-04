@@ -11,7 +11,8 @@ export default function DateInput({
   name,
   disabled = false,
   min,
-  max
+  max,
+  disabledDates = []
 }) {
   // Convert incoming value ("MM/DD/YYYY" or "YYYY-MM-DD") to HTML5 date format ("YYYY-MM-DD")
   const uiToInputValue = (val) => {
@@ -56,20 +57,28 @@ export default function DateInput({
   const inputValue = uiToInputValue(value);
   const minInputValue = uiToInputValue(min);
   const maxInputValue = uiToInputValue(max);
+  const isConflict = Boolean(inputValue && disabledDates && disabledDates.includes(inputValue));
 
   return (
-    <input
-      type="date"
-      id={id}
-      name={name}
-      className={className}
-      required={required}
-      value={inputValue}
-      onChange={handleChange}
-      disabled={disabled}
-      min={minInputValue || undefined}
-      max={maxInputValue || undefined}
-    />
+    <div>
+      <input
+        type="date"
+        id={id}
+        name={name}
+        className={`${className} ${isConflict ? 'is-invalid border-danger' : ''}`}
+        required={required}
+        value={inputValue}
+        onChange={handleChange}
+        disabled={disabled}
+        min={minInputValue || undefined}
+        max={maxInputValue || undefined}
+      />
+      {isConflict && (
+        <small className="text-danger fw-semibold d-block mt-0.5" style={{ fontSize: '0.72rem' }}>
+          ⚠️ Unavailable: date is reserved or booked
+        </small>
+      )}
+    </div>
   );
 }
 

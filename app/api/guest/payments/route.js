@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalance } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit } from '@/lib/db';
 
 export async function POST(request) {
   const session = await getSession();
@@ -13,7 +13,7 @@ export async function POST(request) {
     const { bookingID, paymentPercentage, referenceNumber, amountToPay } = body;
 
     const parsedBookingID = parseInt(bookingID);
-    const parsedAmount = parseFloat(amountToPay);
+    const parsedAmount = Math.round(parseFloat(amountToPay) * 100) / 100;
 
     if (!parsedBookingID || isNaN(parsedAmount) || parsedAmount <= 0) {
       return NextResponse.json({ error: 'Valid Booking ID and amount are required.' }, { status: 400 });
@@ -23,80 +23,164 @@ export async function POST(request) {
       return NextResponse.json({ error: 'GCash Reference Number is required.' }, { status: 400 });
     }
 
+    const cleanRef = referenceNumber.trim();
+
     const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
     if (guests.length === 0) {
       return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
     }
     const guest = guests[0];
 
-    // Find billing record for this booking
-    let billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ?", [parsedBookingID]);
-    let billingID;
-    if (billingRes.length === 0) {
-      const insBilling = await dbQuery("INSERT INTO billing (billingDate, status, bookingID) VALUES (NOW(), 'Unpaid', ?)", [parsedBookingID]);
-      billingID = insBilling.insertId;
-    } else {
-      billingID = billingRes[0].billingID;
-    }
+    const pool = await getDbConnection();
+    const connection = await pool.getConnection();
 
-    // Get GCash payment method ID (usually ID 2 for Online/GCash)
-    const pmRes = await dbQuery("SELECT paymentMethodID FROM payment_method WHERE LOWER(paymentMethod) LIKE '%gcash%' OR LOWER(paymentMethod) LIKE '%online%' LIMIT 1");
-    const paymentMethodID = pmRes[0]?.paymentMethodID || 2;
+    try {
+      await connection.beginTransaction();
 
-    const localNow = new Date();
-    const pad = (num) => String(num).padStart(2, '0');
-    const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
-
-    // Record payment
-    const paymentInsert = await dbQuery(
-      `INSERT INTO payment (amount, paymentDate, isFullyPaid, billingID, paymentMethodID)
-       VALUES (?, ?, 0, ?, ?)`,
-      [parsedAmount, nowStr, billingID, paymentMethodID]
-    );
-
-    const remainingBalance = await getBookingBalance(parsedBookingID);
-
-    // Update billing status
-    if (remainingBalance <= 0) {
-      await dbQuery("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
-      await dbQuery("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentInsert.insertId]);
-    } else {
-      await dbQuery("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
-    }
-
-    // Notify guest
-    await dbQuery(
-      "INSERT INTO notification (userID, title, message) VALUES (?, 'GCash Payment Received', ?)",
-      [session.userID, `GCash payment of ₱${parsedAmount.toFixed(2)} for Booking #${parsedBookingID} recorded. Ref #${referenceNumber.trim()}.`]
-    );
-
-    // Notify active receptionists
-    const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
-    for (const r of staffToNotify) {
-      await dbQuery(
-        "INSERT INTO notification (userID, title, message) VALUES (?, 'New GCash Online Payment', ?)",
-        [r.userID, `GCash payment of ₱${parsedAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} (Ref #${referenceNumber.trim()}).`]
+      // Row-level lock on booking
+      const [bookingRows] = await connection.execute(
+        "SELECT bookingID, status, guestID FROM booking WHERE bookingID = ? AND guestID = ? FOR UPDATE",
+        [parsedBookingID, guest.guestID]
       );
-    }
 
-    // Return receipt payload for printing / downloading
-    return NextResponse.json({
-      success: true,
-      message: 'GCash payment recorded and verified successfully!',
-      receipt: {
-        paymentID: paymentInsert.insertId,
-        bookingID: parsedBookingID,
-        guestName: `${guest.firstName} ${guest.lastName}`,
-        paymentMethod: 'GCash Online',
-        referenceNumber: referenceNumber.trim(),
-        paymentPercentage: paymentPercentage || (remainingBalance <= 0 ? '100%' : 'Downpayment'),
-        amountPaid: parsedAmount,
-        remainingBalance: Math.max(0, remainingBalance),
-        timestamp: nowStr
+      if (bookingRows.length === 0) {
+        await connection.rollback();
+        return NextResponse.json({ error: 'Booking record not found or access denied.' }, { status: 404 });
       }
-    });
+
+      // Prevent duplicate charging by checking reference number in recent payments
+      const [existingPayment] = await connection.execute(
+        "SELECT paymentID FROM payment WHERE billingID IN (SELECT billingID FROM billing WHERE bookingID = ?) AND paymentDate >= DATE_SUB(NOW(), INTERVAL 5 MINUTE) AND amount = ?",
+        [parsedBookingID, parsedAmount]
+      );
+      // Also check transactions or billing_audit for referenceNumber duplication
+      const [existingRef] = await connection.execute(
+        "SELECT auditID FROM billing_audit WHERE referenceNumber = ? LIMIT 1",
+        [cleanRef]
+      );
+      if (existingRef.length > 0) {
+        await connection.rollback();
+        return NextResponse.json({
+          error: `Payment with Reference #${cleanRef} has already been recorded.`
+        }, { status: 400 });
+      }
+
+      // Find or create billing record with lock
+      const [billingRows] = await connection.execute(
+        "SELECT billingID FROM billing WHERE bookingID = ? FOR UPDATE",
+        [parsedBookingID]
+      );
+
+      let billingID;
+      if (billingRows.length === 0) {
+        const [insBilling] = await connection.execute(
+          "INSERT INTO billing (billingDate, status, bookingID) VALUES (NOW(), 'Unpaid', ?)",
+          [parsedBookingID]
+        );
+        billingID = insBilling.insertId;
+      } else {
+        billingID = billingRows[0].billingID;
+      }
+
+      const balanceBefore = await getBookingBalance(parsedBookingID);
+
+      // Get GCash payment method ID
+      const [pmRows] = await connection.execute(
+        "SELECT paymentMethodID FROM payment_method WHERE LOWER(paymentMethod) LIKE '%gcash%' OR LOWER(paymentMethod) LIKE '%online%' LIMIT 1"
+      );
+      const paymentMethodID = pmRows[0]?.paymentMethodID || 2;
+
+      const localNow = new Date();
+      const pad = (num) => String(num).padStart(2, '0');
+      const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
+      // Insert payment record
+      const [paymentInsert] = await connection.execute(
+        `INSERT INTO payment (amount, cashReceived, \`change\`, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID)
+         VALUES (?, ?, 0, ?, 0, ?, ?, ?)`,
+        [parsedAmount, parsedAmount, nowStr, billingID, guest.guestID, paymentMethodID]
+      );
+      const paymentID = paymentInsert.insertId;
+
+      // Insert transaction record
+      await connection.execute(
+        "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+        [nowStr, billingID, paymentID]
+      );
+
+      const balanceAfter = Math.max(0, Math.round((balanceBefore - parsedAmount) * 100) / 100);
+
+      // Determine transaction type
+      let txType = 'Subsequent Payment';
+      if (paymentPercentage?.includes('30')) txType = 'Down Payment (30%)';
+      else if (paymentPercentage?.includes('50')) txType = 'Down Payment (50%)';
+      else if (paymentPercentage?.includes('100')) txType = 'Down Payment (100%)';
+      else if (balanceAfter <= 0.05) txType = 'Checkout Settlement';
+
+      // Update billing status
+      if (balanceAfter <= 0.05) {
+        await connection.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
+        await connection.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
+      } else {
+        await connection.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
+      }
+
+      // Log into billing_audit
+      await logBillingAudit(connection, {
+        billingID,
+        bookingID: parsedBookingID,
+        transactionType: txType,
+        amount: parsedAmount,
+        balanceBefore,
+        balanceAfter,
+        userID: session.userID,
+        userName: `${guest.firstName} ${guest.lastName}`,
+        userRole: 'Guest',
+        description: `GCash Online Payment (Ref #${cleanRef})`,
+        referenceNumber: cleanRef
+      });
+
+      await connection.commit();
+
+      // Notifications
+      try {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'GCash Payment Received', ?)",
+          [session.userID, `GCash payment of ₱${parsedAmount.toFixed(2)} for Booking #${parsedBookingID} recorded. Ref #${cleanRef}.`]
+        );
+
+        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+        for (const r of staffToNotify) {
+          await dbQuery(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'New GCash Online Payment', ?)",
+            [r.userID, `GCash payment of ₱${parsedAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${parsedBookingID} (Ref #${cleanRef}).`]
+          );
+        }
+      } catch (notifErr) {}
+
+      return NextResponse.json({
+        success: true,
+        message: 'GCash payment recorded and verified successfully!',
+        receipt: {
+          paymentID,
+          bookingID: parsedBookingID,
+          guestName: `${guest.firstName} ${guest.lastName}`,
+          paymentMethod: 'GCash Online',
+          referenceNumber: cleanRef,
+          paymentPercentage: paymentPercentage || (balanceAfter <= 0 ? '100%' : 'Partial'),
+          amountPaid: parsedAmount,
+          remainingBalance: balanceAfter,
+          timestamp: nowStr
+        }
+      });
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error("Failed to process guest GCash payment:", error);
-    return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Payment processing error: ' + error.message }, { status: 500 });
   }
 }

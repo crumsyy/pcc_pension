@@ -53,7 +53,26 @@ export async function GET(request) {
 
     const availableRooms = allRooms.filter(r => r.status === 'Available');
 
-    return NextResponse.json({ success: true, reservations, allRooms, availableRooms });
+    // Fetch all active room schedules (bookings & reservations) to allow client-side conflict avoidance & slot grey-out
+    const activeBookings = await dbQuery(`
+      SELECT bookingID, roomID, checkInDateTime, checkOutDateTime, status, 'booking' as type
+      FROM booking
+      WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        AND checkOutDateTime >= CURDATE()
+    `);
+
+    const activeReservations = await dbQuery(`
+      SELECT reservationID, roomID, reservationDateTime as checkInDateTime,
+             COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) as checkOutDateTime,
+             status, 'reservation' as type
+      FROM reservation
+      WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        AND reservationDateTime >= CURDATE()
+    `);
+
+    const roomSchedules = [...activeBookings, ...activeReservations];
+
+    return NextResponse.json({ success: true, reservations, allRooms, availableRooms, roomSchedules });
   } catch (error) {
     console.error("Failed to fetch guest reservations:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -153,14 +172,54 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // Conflict Detection: check overlapping active bookings or reservations
+    const checkInD = new Date(checkInDate + 'T14:00:00');
+    let checkOutD;
+    if (checkOutDate) {
+      checkOutD = new Date(checkOutDate + 'T12:00:00');
+    } else {
+      checkOutD = new Date(checkInD.getTime() + 24 * 60 * 60 * 1000);
+      checkOutD.setHours(12, 0, 0, 0);
+    }
+    const checkOutDateTimeFormatted = checkOutDate ? `${checkOutDate} 12:00:00` : null;
+    const reqCheckOutSql = `${checkOutD.getFullYear()}-${pad(checkOutD.getMonth() + 1)}-${pad(checkOutD.getDate())} 12:00:00`;
+    const reservationDateTime = `${checkInDate} 14:00:00`;
+
+    const conflictingBookings = await dbQuery(`
+      SELECT bookingID, checkInDateTime, checkOutDateTime
+      FROM booking
+      WHERE roomID = ?
+        AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        AND checkInDateTime < ?
+        AND checkOutDateTime > ?
+    `, [roomID, reqCheckOutSql, reservationDateTime]);
+
+    if (conflictingBookings.length > 0) {
+      return NextResponse.json({
+        error: "This room is already booked for the selected dates. Please choose another date or room."
+      }, { status: 409 });
+    }
+
+    const conflictingReservations = await dbQuery(`
+      SELECT reservationID, reservationDateTime, checkOutDateTime
+      FROM reservation
+      WHERE roomID = ?
+        AND status IN ('Pending', 'Confirmed')
+        AND reservationDateTime < ?
+        AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?
+    `, [roomID, reqCheckOutSql, reservationDateTime]);
+
+    if (conflictingReservations.length > 0) {
+      return NextResponse.json({
+        error: "This room already has an active reservation request for the selected dates. Please choose another date or room."
+      }, { status: 409 });
+    }
+
     const roomRes = await dbQuery(
       "SELECT r.roomNumber, rt.type as roomType FROM room r JOIN room_type rt ON rt.roomTypeID = r.roomTypeID WHERE r.roomID = ?",
       [roomID]
     );
     const roomInfo = roomRes[0] || { roomNumber: 'N/A', roomType: 'Room' };
-
-    const reservationDateTime = `${checkInDate} 14:00:00`;
-    const checkOutDateTimeFormatted = checkOutDate ? `${checkOutDate} 12:00:00` : null;
 
     const insertRes = await dbQuery(
       "INSERT INTO reservation (reservationDateTime, checkOutDateTime, guestCount, specialRequests, status, guestID, roomID) VALUES (?, ?, ?, ?, 'Pending', ?, ?)",

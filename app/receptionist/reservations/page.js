@@ -93,7 +93,7 @@ function ReservationsClient() {
   const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
 
   // Convert/Confirm Booking States
-  const [downPaymentOption, setDownPaymentOption] = useState('25');
+  const [downPaymentOption, setDownPaymentOption] = useState('30');
   const [paymentMethodID, setPaymentMethodID] = useState('1');
   const [downPayment, setDownPayment] = useState('');
   const [convInDate, setConvInDate] = useState('');
@@ -395,7 +395,7 @@ function ReservationsClient() {
       setConvOutTime('12:00');
     }
 
-    setDownPaymentOption('25');
+    setDownPaymentOption('30');
     setPaymentMethodID('1');
     setDownPayment('');
     setActiveModal('convert');
@@ -571,7 +571,7 @@ function ReservationsClient() {
     const diff = Math.abs(outDateObj - inDateObj);
     const nights = Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
     const totalRoomCharge = rate * nights;
-    const dpPct = parseInt(downPaymentOption) || 25;
+    const dpPct = parseInt(downPaymentOption) || 30;
     const requiredDownpayment = totalRoomCharge * (dpPct / 100);
 
     const cashReceived = String(paymentMethodID) === '2' ? requiredDownpayment : parseFloat(downPayment || 0);
@@ -1105,7 +1105,7 @@ function ReservationsClient() {
         nights = Math.max(1, nights);
 
         const totalRoomCharge = rate * nights;
-        const dpPctNum = parseInt(downPaymentOption) || 25;
+        const dpPctNum = parseInt(downPaymentOption) || 30;
         const requiredDownpayment = totalRoomCharge * (dpPctNum / 100);
         const remainingBal = totalRoomCharge - requiredDownpayment;
 
@@ -1194,10 +1194,10 @@ function ReservationsClient() {
                       <div className="btn-group w-100" role="group">
                         <button
                           type="button"
-                          className={`btn ${downPaymentOption === '25' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-                          onClick={() => setDownPaymentOption('25')}
+                          className={`btn ${downPaymentOption === '30' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                          onClick={() => setDownPaymentOption('30')}
                         >
-                          25% Down Payment
+                          30% Down Payment
                         </button>
                         <button
                           type="button"
