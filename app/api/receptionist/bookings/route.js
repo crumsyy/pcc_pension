@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema, completeBookingAndFreeRoom } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema, ensurePaymentSchema, logBillingAudit, completeBookingAndFreeRoom } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -204,6 +204,12 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
+        // Validation for GCash down payment: If paymentMethod = GCash and payment status != Settled, block booking save
+        if (parseInt(paymentMethodID) === 2 && body.paymentStatus !== 'Settled' && !body.isGcashSettled) {
+          await conn.rollback();
+          return NextResponse.json({ error: "Cannot proceed: GCash payment not settled." }, { status: 400 });
+        }
+
         // Check for duplicate booking for same guest, same room, and same check-in date
         const [dupCheck] = await conn.execute(
           `SELECT bookingID, status FROM booking 
@@ -283,14 +289,15 @@ export async function POST(request) {
         const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
         const staffID = staffRes[0]?.staffID || null;
 
-        // Ensure testMode column schema
-        await ensureTestModeSchema();
+        // Ensure payment schema
+        await ensurePaymentSchema();
 
-        // Record Down Payment
+        // Record Down Payment with 'Settled' status and referenceNumber
+        const refNumber = body.referenceNumber || (parseInt(paymentMethodID) === 2 ? `GCASH-BK-${bookingID}` : `CASH-${Date.now().toString().slice(-6)}`);
         const [paymentInsert] = await conn.execute(
-          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode) 
-           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL, 1)`,
-          [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID]
+          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
+           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
+          [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID, refNumber]
         );
         const paymentID = paymentInsert.insertId;
 
@@ -299,6 +306,22 @@ export async function POST(request) {
           "INSERT INTO transactions (transactionDateTime, billingID, paymentID, testMode) VALUES (?, ?, ?, 1)",
           [nowStr, billingID, paymentID]
         );
+
+        // Log to billing_audit
+        await logBillingAudit(conn, {
+          billingID,
+          bookingID,
+          transactionType: 'Down Payment',
+          status: 'Settled',
+          amount: downPaymentAmount,
+          balanceBefore: 0,
+          balanceAfter: 0,
+          userID: session?.userID || null,
+          userName: session?.fullName || 'Receptionist',
+          userRole: session?.role || 'Receptionist',
+          description: `Down payment recorded upon booking creation (${status})`,
+          referenceNumber: refNumber
+        });
 
         // Notify Administrators (roleID = 1) of down payment
         try {

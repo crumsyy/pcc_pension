@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, ensurePaymentSchema, logBillingAudit } from '@/lib/db';
 
 function checkReservationLeadTime(checkInDateStr) {
   if (!checkInDateStr) return { valid: true };
@@ -271,6 +271,11 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Valid stay dates and down payment are required to convert reservation.' }, { status: 400 });
       }
 
+      // GCash Down Payment Settlement Validation
+      if (paymentMethodID === 2 && body.paymentStatus !== 'Settled' && !body.isGcashSettled) {
+        return NextResponse.json({ error: "Cannot proceed: GCash payment not settled." }, { status: 400 });
+      }
+
       const inD = new Date(checkInDateTime.replace(' ', 'T'));
       const outD = new Date(checkOutDateTime.replace(' ', 'T'));
       if (!isNaN(inD.getTime()) && !isNaN(outD.getTime()) && outD <= inD) {
@@ -288,14 +293,24 @@ export async function POST(request) {
 
       try {
         await conn.beginTransaction();
+        await ensurePaymentSchema();
+
+        const localNow = new Date();
+        const pad = (num) => String(num).padStart(2, '0');
+        const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
+        const checkInNow = Boolean(body.checkInNow);
+        const bookingStatus = checkInNow ? 'Checked In' : 'Pending Check-in';
+        const roomStatus = checkInNow ? 'Occupied' : 'Reserved';
+        const finalCheckInDateTime = checkInNow ? nowStr : checkInDateTime;
 
         // 1. Update reservation status to Converted to Booking
         await conn.execute("UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?", [reservationID]);
 
-        // 2. Insert booking with Pending Check-in status
+        // 2. Insert booking with appropriate status ('Checked In' if Book and Check-In Now, else 'Pending Check-in')
         const [insertBookingRes] = await conn.execute(
-          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, 'Pending Check-in', ?, ?, ?)",
-          [checkInDateTime, checkOutDateTime, reservationID, guestID, roomID]
+          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, ?, ?, ?, ?)",
+          [finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID]
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -308,9 +323,6 @@ export async function POST(request) {
         );
 
         // 4. Create Billing Record
-        const localNow = new Date();
-        const pad = (num) => String(num).padStart(2, '0');
-        const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         const [billingInsert] = await conn.execute(
           "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (?, ?, ?, NULL)",
           [nowStr, guestID, bookingID]
@@ -321,28 +333,53 @@ export async function POST(request) {
         const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
         const staffID = staffRes[0]?.staffID || null;
 
-        // 6. Record Down Payment
+        // 6. Record Down Payment with 'Settled' status & referenceNumber
+        const refNumber = body.referenceNumber || (paymentMethodID === 2 ? `GCASH-RES-${reservationID}` : `CASH-${Date.now().toString().slice(-6)}`);
         const [paymentInsert] = await conn.execute(
-          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL)`,
-          [downPaymentAmount, cashReceived, change, billingID, guestID, staffID, paymentMethodID]
+          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
+          [downPaymentAmount, cashReceived, change, billingID, guestID, staffID, paymentMethodID, refNumber]
         );
         const paymentID = paymentInsert.insertId;
 
         // 7. Insert Transaction log
         await conn.execute(
-          "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+          "INSERT INTO transactions (transactionDateTime, billingID, paymentID, testMode) VALUES (?, ?, ?, 1)",
           [nowStr, billingID, paymentID]
         );
 
-        // 8. Update Room status to Reserved
-        await conn.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+        // 8. Update Room status ('Occupied' if Book and Check-In Now, else 'Reserved')
+        await conn.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
 
         // 9. Requirement 7: Resolution of Reservation Conflicts
         await resolveReservationConflicts(conn, roomID, reservationID);
 
+        // 10. Log to billing_audit
+        await logBillingAudit(conn, {
+          billingID,
+          bookingID,
+          transactionType: 'Down Payment',
+          status: 'Settled',
+          amount: downPaymentAmount,
+          balanceBefore: 0,
+          balanceAfter: 0,
+          userID: session?.userID || null,
+          userName: session?.fullName || 'Receptionist',
+          userRole: session?.role || 'Receptionist',
+          description: `Down payment recorded upon reservation conversion (${checkInNow ? 'Checked In Immediately' : 'Pending Check-in'})`,
+          referenceNumber: refNumber
+        });
+
         await conn.commit();
-        return NextResponse.json({ success: true, message: 'Reservation successfully converted to Booking.', bookingID, billingID, paymentID });
+        return NextResponse.json({
+          success: true,
+          message: checkInNow ? 'Reservation confirmed and guest checked in successfully.' : 'Reservation successfully converted to Booking.',
+          bookingID,
+          billingID,
+          paymentID,
+          bookingStatus,
+          roomStatus
+        });
       } catch (e) {
         await conn.rollback();
         throw e;

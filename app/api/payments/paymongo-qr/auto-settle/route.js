@@ -113,12 +113,13 @@ export async function POST(request) {
       }
 
       const balanceBefore = targetBookingID ? await getBookingBalance(targetBookingID) : amount;
+      const refNumberToRecord = paymentIntentID || body.referenceNumber || `PAY-${Date.now().toString().slice(-8)}`;
 
-      // Insert GCash Payment (paymentMethodID = 2)
+      // Insert GCash Payment (paymentMethodID = 2) with status = 'Settled' and referenceNumber
       const [paymentInsert] = await conn.execute(
-        `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode)
-         VALUES (?, ?, 0, ?, ?, ?, 2, NULL, NULL, 1)`,
-        [amount, amount, billingID, guestID, staffID]
+        `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber)
+         VALUES (?, ?, 0, ?, ?, ?, 2, NULL, NULL, 1, 'Settled', ?)`,
+        [amount, amount, billingID, guestID, staffID, refNumberToRecord]
       );
       const paymentID = paymentInsert.insertId;
 
@@ -183,7 +184,7 @@ export async function POST(request) {
         const balanceAfter = Math.max(0, Math.round((balanceBefore - amount) * 100) / 100);
         if (balanceAfter <= 0.05 || checkedOut) {
           await conn.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
-          await conn.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
+          await conn.execute("UPDATE payment SET isFullyPaid = 1, status = 'Settled' WHERE paymentID = ?", [paymentID]);
         } else {
           await conn.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
         }
@@ -192,14 +193,15 @@ export async function POST(request) {
           billingID,
           bookingID: targetBookingID,
           transactionType: checkedOut ? 'Checkout Settlement' : (balanceAfter <= 0.05 ? 'Subsequent Payment' : 'Down Payment'),
+          status: 'Settled',
           amount,
           balanceBefore,
           balanceAfter,
           userID: session?.userID || null,
           userName: 'PayMongo QR / GCash',
           userRole: 'Guest',
-          description: `PayMongo QR Auto-Settlement (${paymentIntentID || 'QR Payment'})`,
-          referenceNumber: paymentIntentID || `PAY-${paymentID}`
+          description: `PayMongo QR Auto-Settlement (${refNumberToRecord})`,
+          referenceNumber: refNumberToRecord
         });
       }
 
@@ -225,6 +227,9 @@ export async function POST(request) {
         bookingID: targetBookingID,
         billingID,
         paymentID,
+        paymentStatus: 'Settled',
+        isSettled: true,
+        referenceNumber: refNumberToRecord,
         checkedOut
       });
     } catch (err) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom, logBillingAudit } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom, logBillingAudit, ensurePaymentSchema } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -145,17 +145,20 @@ export async function POST(request) {
       const cashVal = parseFloat(cashReceived) || amount;
       const changeVal = Math.max(0, Math.round((cashVal - amount) * 100) / 100);
 
+      await ensurePaymentSchema();
+      const refNumber = body.referenceNumber || (parseInt(paymentMethodID) === 2 ? (body.gcashRef || `GCASH-BK-${bookingID}`) : `CASH-${Date.now().toString().slice(-6)}`);
+
       // 3. Insert payment
       const [paymentInsert] = await connection.execute(
-        `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-        [amount, cashVal, changeVal, billingID, guestID, staffID, paymentMethodID, discountID]
+        `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1, 'Settled', ?)`,
+        [amount, cashVal, changeVal, billingID, guestID, staffID, paymentMethodID, discountID, refNumber]
       );
       const paymentID = paymentInsert.insertId;
 
       // 4. Insert transaction log
       await connection.execute(
-        "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+        "INSERT INTO transactions (transactionDateTime, billingID, paymentID, testMode) VALUES (?, ?, ?, 1)",
         [nowStr, billingID, paymentID]
       );
 
@@ -174,13 +177,15 @@ export async function POST(request) {
         billingID,
         bookingID,
         transactionType: shouldCheckout ? 'Checkout Settlement' : 'Subsequent Payment',
+        status: 'Settled',
         amount,
         balanceBefore,
         balanceAfter,
         userID: session.userID,
         userName: session.email || 'Receptionist',
         userRole: session.role,
-        description: `Front Desk Payment (Method #${paymentMethodID})${shouldCheckout ? ' - Checkout Settlement' : ''}`
+        description: `Front Desk Payment (Method #${paymentMethodID})${shouldCheckout ? ' - Checkout Settlement' : ''}`,
+        referenceNumber: refNumber
       });
 
       // 5. If checkout requested or bill settled, complete booking and free room

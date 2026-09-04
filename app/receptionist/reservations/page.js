@@ -100,6 +100,10 @@ function ReservationsClient() {
   const [convInTime, setConvInTime] = useState('14:00');
   const [convOutDate, setConvOutDate] = useState('');
   const [convOutTime, setConvOutTime] = useState('12:00');
+  const [isGcashSettled, setIsGcashSettled] = useState(false);
+  const [convertCheckInNow, setConvertCheckInNow] = useState(false);
+  const [gcashInlineError, setGcashInlineError] = useState('');
+  const [settledPaymentRef, setSettledPaymentRef] = useState('');
 
   useEffect(() => {
     const today = new Date();
@@ -398,6 +402,10 @@ function ReservationsClient() {
     setDownPaymentOption('30');
     setPaymentMethodID('1');
     setDownPayment('');
+    setIsGcashSettled(false);
+    setConvertCheckInNow(false);
+    setGcashInlineError('');
+    setSettledPaymentRef('');
     setActiveModal('convert');
   };
 
@@ -581,9 +589,19 @@ function ReservationsClient() {
       return;
     }
 
-    const change = Math.max(0, cashReceived - requiredDownpayment);
+    if (String(paymentMethodID) === '2' && !isGcashSettled) {
+      setGcashInlineError('Cannot proceed: GCash payment not settled. Please scan and verify the QR payment before saving.');
+      showAlert('error', 'Payment Unsettled', 'Cannot proceed: GCash payment not settled. Please scan and verify the QR payment before saving.');
+      return;
+    }
 
-    showConfirm('Confirm & Record Booking', 'Are you sure you want to confirm this reservation and record down payment?', async () => {
+    const change = Math.max(0, cashReceived - requiredDownpayment);
+    const actionTitle = convertCheckInNow ? 'Book and Check‑In Now' : 'Confirm & Record Booking';
+    const actionMsg = convertCheckInNow
+      ? 'Are you sure you want to convert this reservation and check-in the guest immediately?'
+      : 'Are you sure you want to confirm this reservation and record down payment?';
+
+    showConfirm(actionTitle, actionMsg, async () => {
       try {
         const res = await fetch('/api/receptionist/reservations', {
           method: 'POST',
@@ -596,13 +614,17 @@ function ReservationsClient() {
             downPaymentAmount: requiredDownpayment,
             cashReceived: cashReceived,
             change: change,
-            paymentMethodID: parseInt(paymentMethodID)
+            paymentMethodID: parseInt(paymentMethodID),
+            checkInNow: convertCheckInNow,
+            paymentStatus: String(paymentMethodID) === '2' ? 'Settled' : 'Settled',
+            isGcashSettled: isGcashSettled,
+            referenceNumber: settledPaymentRef || null
           })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to convert reservation to booking');
 
-        showAlert('success', 'Success', 'Reservation confirmed and converted to booking successfully.');
+        showAlert('success', 'Success', data.message || (convertCheckInNow ? 'Reservation confirmed and guest checked in successfully.' : 'Reservation confirmed and converted to booking successfully.'));
         setActiveModal(null);
         fetchData();
       } catch (err) {
@@ -1301,14 +1323,42 @@ function ReservationsClient() {
                         </>
                       ) : (
                         <div className="col-md-8">
+                          {gcashInlineError && (
+                            <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mb-2">
+                              <i className="bi bi-exclamation-octagon-fill"></i>
+                              <span>{gcashInlineError}</span>
+                            </div>
+                          )}
+                          {!isGcashSettled ? (
+                            <div className="alert alert-warning py-1.5 px-2.5 small d-flex align-items-center gap-2 mb-2" style={{ fontSize: '0.78rem' }}>
+                              <i className="bi bi-exclamation-triangle-fill text-warning"></i>
+                              <span>GCash payment has not been settled yet. Scan QR code or confirm auto-settlement below.</span>
+                            </div>
+                          ) : (
+                            <div className="alert alert-success py-1.5 px-2.5 small d-flex align-items-center gap-2 mb-2 text-success fw-bold" style={{ fontSize: '0.78rem' }}>
+                              <i className="bi bi-check-circle-fill"></i>
+                              <span>GCash payment verified and settled.</span>
+                            </div>
+                          )}
                           <DynamicQrPhCode 
                             amount={requiredDownpayment}
                             refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
-                            paymentStatus="Pending"
+                            paymentStatus={isGcashSettled ? "Settled" : "Pending"}
                             showProceedBtn={false}
                             showCheckStatusBtn={true}
+                            showTestPayBtn={true}
+                            onSimulateTestPay={(simRef) => {
+                              setIsGcashSettled(true);
+                              setGcashInlineError('');
+                              setSettledPaymentRef(simRef);
+                              setDownPayment(requiredDownpayment.toFixed(2));
+                              showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment settled.`);
+                            }}
                             onCheckStatus={fetchData}
-                            onPaymentSuccess={() => {
+                            onPaymentSuccess={(pData) => {
+                              setIsGcashSettled(true);
+                              setGcashInlineError('');
+                              if (pData?.referenceNumber) setSettledPaymentRef(pData.referenceNumber);
                               setDownPayment(requiredDownpayment.toFixed(2));
                             }}
                           />
@@ -1317,9 +1367,24 @@ function ReservationsClient() {
                     </div>
                   </div>
 
-                  <div className="modal-footer">
+                  <div className="modal-footer d-flex justify-content-between">
                     <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                    <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Booking & Record Down Payment</button>
+                    <div className="d-flex gap-2">
+                      <button 
+                        type="submit" 
+                        className="btn btn-outline-primary fw-bold"
+                        onClick={() => setConvertCheckInNow(false)}
+                      >
+                        Confirm Booking (Pending Check-In)
+                      </button>
+                      <button 
+                        type="submit" 
+                        className="btn btn-success text-white fw-bold d-flex align-items-center gap-1 shadow-sm"
+                        onClick={() => setConvertCheckInNow(true)}
+                      >
+                        <i className="bi bi-box-arrow-in-right"></i> Book and Check‑In Now
+                      </button>
+                    </div>
                   </div>
                 </form>
               </div>

@@ -189,6 +189,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const [paymentOption, setPaymentOption] = useState('50'); // '25' | '50' | '100'
   const [gcashRef, setGcashRef] = useState('');
+  const [isGuestGcashSettled, setIsGuestGcashSettled] = useState(false);
+  const [guestGcashInlineError, setGuestGcashInlineError] = useState('');
   const [registeredGuests, setRegisteredGuests] = useState([
     { fullName: `${initialGuest.firstName || 'Guest'} ${initialGuest.lastName || ''}`.trim(), age: 30, discountID: '', discountIdNumber: '' }
   ]);
@@ -690,13 +692,22 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
   };
 
-  const handleConfirmGCashBookingPayment = async (e) => {
+  const handleConfirmGCashBookingPayment = async (e, verifiedRef = null) => {
     if (e) e.preventDefault();
-    const refToUse = gcashRef.trim() || `GCASH-QR-${Date.now()}`;
+    const refToUse = (verifiedRef || gcashRef.trim());
+
+    if (!refToUse && !isGuestGcashSettled) {
+      setGuestGcashInlineError('Cannot proceed: GCash payment not settled. Please scan the QR code to verify payment or enter your reference number.');
+      showAlert('error', 'Payment Required', 'Cannot proceed: GCash payment not settled. Please scan the QR code to verify payment or enter your reference number.');
+      return;
+    }
+
+    const finalRef = refToUse || `GCASH-${Date.now()}`;
+    setGuestGcashInlineError('');
     setProcessing(true);
 
     try {
-      // 1. Create Online Booking
+      // 1. Create Online Booking with settled payment validation info
       const bookRes = await fetch('/api/guest/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -705,7 +716,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           roomID: selectedRoom.roomID,
           checkInDate,
           checkOutDate,
-          registeredGuests
+          registeredGuests,
+          paymentMethod: 'GCash',
+          paymentStatus: 'Settled',
+          isGcashSettled: true,
+          referenceNumber: finalRef
         })
       });
 
@@ -714,14 +729,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
       const bookingID = bookData.bookingID;
 
-      // 2. Submit GCash Payment
+      // 2. Submit GCash Payment with verified reference
       const payRes = await fetch('/api/guest/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingID,
           paymentPercentage: `${paymentPctNumber}%`,
-          referenceNumber: refToUse,
+          referenceNumber: finalRef,
           amountToPay: amountToPayNow
         })
       });
@@ -731,6 +746,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
       setReceiptData(payData.receipt);
       setActiveModal('receipt');
+      setIsGuestGcashSettled(false);
+      setGcashRef('');
       fetchRoomsAndStatus();
     } catch (err) {
       showAlert('error', 'Payment Error', err.message);
@@ -2466,7 +2483,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <i className="bi bi-flask me-1"></i>TEST MODE
                   </span>
                 </div>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
+                <button type="button" className="btn-close btn-close-white" onClick={() => {
+                  setIsGuestGcashSettled(false);
+                  setGuestGcashInlineError('');
+                  setGcashRef('');
+                  setActiveModal('none');
+                }}></button>
               </div>
               <form onSubmit={handleConfirmGCashBookingPayment}>
                 <div className="modal-body">
@@ -2511,17 +2533,35 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <DynamicQrPhCode 
                     amount={amountToPayNow} 
                     refNumber={`BOOK-${selectedRoom?.roomID || 'PAY'}`}
-                    paymentStatus="Pending"
+                    paymentStatus={isGuestGcashSettled ? 'Settled' : 'Pending'}
                     showProceedBtn={true}
                     onProceedToGCash={handlePayMongoCheckout}
                     onPaymentSuccess={async (autoData) => {
-                      if (autoData?.transactionReference) {
-                        setGcashRef(autoData.transactionReference);
-                      }
-                      await handleConfirmGCashBookingPayment();
+                      const ref = autoData?.transactionReference || autoData?.referenceNumber || `GCASH-QR-${Date.now()}`;
+                      setIsGuestGcashSettled(true);
+                      setGcashRef(ref);
+                      setGuestGcashInlineError('');
+                      await handleConfirmGCashBookingPayment(null, ref);
                     }}
                     isRedirecting={processing}
                   />
+
+                  {guestGcashInlineError ? (
+                    <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                      <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
+                      <span>{guestGcashInlineError}</span>
+                    </div>
+                  ) : isGuestGcashSettled ? (
+                    <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                      <i className="bi bi-check-circle-fill text-success fs-6"></i>
+                      <span><strong>GCash Payment Verified:</strong> Reference #{gcashRef}. You may confirm booking.</span>
+                    </div>
+                  ) : (
+                    <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                      <i className="bi bi-info-circle-fill text-warning fs-6"></i>
+                      <span><strong>Payment Verification Required:</strong> Please scan QR code with GCash or enter reference number before confirming.</span>
+                    </div>
+                  )}
 
                   <div className="p-3 border rounded bg-white text-center mb-3">
                     <div className="mb-2">
@@ -2531,13 +2571,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         className="form-control text-center fw-bold"
                         placeholder="Scan QR or enter reference"
                         value={gcashRef}
-                        onChange={(e) => setGcashRef(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setGcashRef(val);
+                          if (val.trim().length >= 6) {
+                            setIsGuestGcashSettled(true);
+                            setGuestGcashInlineError('');
+                          } else {
+                            setIsGuestGcashSettled(false);
+                          }
+                        }}
                       />
                     </div>
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setActiveModal('book_form')}>Back</button>
+                  <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => {
+                    setIsGuestGcashSettled(false);
+                    setGuestGcashInlineError('');
+                    setGcashRef('');
+                    setActiveModal('book_form');
+                  }}>Back</button>
                   <button type="submit" className="btn btn-success text-white fw-bold" disabled={processing}>
                     {processing ? 'Processing Payment...' : `Confirm Payment (₱${amountToPayNow.toFixed(2)})`}
                   </button>

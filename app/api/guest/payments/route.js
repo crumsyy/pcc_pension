@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema } from '@/lib/db';
 
 export async function POST(request) {
   const session = await getSession();
@@ -94,17 +94,19 @@ export async function POST(request) {
       const pad = (num) => String(num).padStart(2, '0');
       const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
 
+      await ensurePaymentSchema();
+
       // Insert payment record
       const [paymentInsert] = await connection.execute(
-        `INSERT INTO payment (amount, cashReceived, \`change\`, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID)
-         VALUES (?, ?, 0, ?, 0, ?, ?, ?)`,
-        [parsedAmount, parsedAmount, nowStr, billingID, guest.guestID, paymentMethodID]
+        `INSERT INTO payment (amount, cashReceived, \`change\`, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID, testMode, status, referenceNumber)
+         VALUES (?, ?, 0, ?, 0, ?, ?, ?, 1, 'Settled', ?)`,
+        [parsedAmount, parsedAmount, nowStr, billingID, guest.guestID, paymentMethodID, cleanRef]
       );
       const paymentID = paymentInsert.insertId;
 
       // Insert transaction record
       await connection.execute(
-        "INSERT INTO transactions (transactionDateTime, billingID, paymentID) VALUES (?, ?, ?)",
+        "INSERT INTO transactions (transactionDateTime, billingID, paymentID, testMode) VALUES (?, ?, ?, 1)",
         [nowStr, billingID, paymentID]
       );
 
@@ -130,6 +132,7 @@ export async function POST(request) {
         billingID,
         bookingID: parsedBookingID,
         transactionType: txType,
+        status: 'Settled',
         amount: parsedAmount,
         balanceBefore,
         balanceAfter,

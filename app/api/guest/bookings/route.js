@@ -126,6 +126,11 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Room selection, Check-In, and Check-Out dates are required.' }, { status: 400 });
       }
 
+      // GCash Down Payment Settlement Validation
+      if ((body.paymentMethod === 'GCash' || parseInt(body.paymentMethodID) === 2) && body.paymentStatus !== 'Settled' && !body.isGcashSettled && !body.referenceNumber) {
+        return NextResponse.json({ error: "Cannot proceed: GCash payment not settled." }, { status: 400 });
+      }
+
       const checkInDateTime = `${checkInDate} 14:00:00`;
       const checkOutDateTime = `${checkOutDate} 12:00:00`;
 
