@@ -23,7 +23,7 @@ export async function POST(request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Admin transactional reset failed:", error);
+    console.error("Admin extended transactional reset failed:", error);
     return NextResponse.json({ error: 'Reset failed: ' + error.message }, { status: 500 });
   }
 }

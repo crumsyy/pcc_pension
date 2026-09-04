@@ -102,6 +102,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [discounts, setDiscounts] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [resetBannerDismissed, setResetBannerDismissed] = useState(true);
+
+  useEffect(() => {
+    try {
+      const dismissed = sessionStorage.getItem('pcc_guest_reset_banner_dismissed');
+      setResetBannerDismissed(dismissed === '1');
+    } catch (e) {
+      setResetBannerDismissed(false);
+    }
+  }, []);
 
   // Responsive Breakpoint State (1024px)
   const [isDesktop, setIsDesktop] = useState(false);
@@ -436,25 +446,36 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         if (resResp.ok) {
           const rData = await resResp.json();
           if (rData.allRooms) setAllRooms(rData.allRooms);
-          if (rData.reservations) setReservations(rData.reservations);
+          setReservations(rData.reservations || []);
+          if (rData.roomSchedules) setRoomSchedules(rData.roomSchedules || []);
         }
         if (bookResp.ok) {
           const bData = await bookResp.json();
-          if (bData.bookings) setBookings(bData.bookings);
+          const nextBookings = bData.bookings || [];
+          setBookings(nextBookings);
+          if (nextBookings.length === 0) {
+            setActiveBill(null);
+            setDetailedBill(null);
+          }
         }
         if (notifResp.ok) {
           const nData = await notifResp.json();
-          if (nData.notifications) {
-            setNotifications(nData.notifications);
-            setUnreadCount(nData.notifications.filter(n => !n.isRead).length);
-          }
+          const nextNotifs = nData.notifications || [];
+          setNotifications(nextNotifs);
+          setUnreadCount(nextNotifs.filter(n => !n.isRead).length);
         }
         if (billResp.ok) {
           const billData = await billResp.json();
           if (billData.success) {
             setActiveBill(billData);
             setDetailedBill(billData);
+          } else {
+            setActiveBill(null);
+            setDetailedBill(null);
           }
+        } else {
+          setActiveBill(null);
+          setDetailedBill(null);
         }
       } catch (err) {
         // silent polling
@@ -1950,7 +1971,34 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                   <h6 className="fw-bold text-dark mb-3">My Bookings History &amp; Status Timeline</h6>
                   {bookings.length === 0 ? (
-                    <p className="text-muted small mb-0">No booking records found.</p>
+                    !resetBannerDismissed ? (
+                      <div className="alert alert-info py-3 px-3 border-0 bg-info-subtle rounded-3 mb-0">
+                        <div className="d-flex justify-content-between align-items-start gap-2">
+                          <div className="d-flex align-items-start gap-2">
+                            <i className="bi bi-info-circle-fill text-info mt-0.5 fs-5"></i>
+                            <div>
+                              <div className="fw-bold text-dark mb-0.5">Your booking history has been cleared for testing purposes.</div>
+                              <div className="small text-secondary">
+                                You can now test new reservations or bookings with fresh ID sequences.
+                              </div>
+                            </div>
+                          </div>
+                          <button 
+                            type="button" 
+                            className="btn btn-sm btn-outline-secondary py-0 px-2 small"
+                            style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                            onClick={() => {
+                              try { sessionStorage.setItem('pcc_guest_reset_banner_dismissed', '1'); } catch (e) {}
+                              setResetBannerDismissed(true);
+                            }}
+                          >
+                            Dismiss Notice &times;
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-muted small mb-0">No booking records found.</p>
+                    )
                   ) : (
                     <div className="d-flex flex-column gap-3">
                       {bookings.map((b) => {

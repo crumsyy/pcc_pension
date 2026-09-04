@@ -15,10 +15,16 @@ export default function DashboardClient({ userName }) {
   const handleExecuteReset = async () => {
     setResetting(true);
     try {
-      const res = await fetch('/api/admin/reset-transactions', {
+      let res = await fetch('/api/admin/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
+      if (res.status === 404) {
+        res = await fetch('/api/admin/reset-transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Reset failed');
       setResetFeedback(data);
@@ -576,8 +582,13 @@ export default function DashboardClient({ userName }) {
                   </div>
                 ) : (
                   <>
-                    <div className="alert alert-warning py-2 small mb-3">
-                      <strong>Warning:</strong> This action will truncate all active/past <strong>reservations, bookings, billing statements, payments, orders, inquiries, and notifications</strong>, and reset their primary key counters to <strong>1</strong>.
+                    <div className="alert alert-warning py-3 small mb-3 border-start border-warning border-4">
+                      <div className="fw-bold mb-1 text-dark">
+                        <i className="bi bi-exclamation-triangle-fill text-warning me-1"></i> System Reset Confirmation
+                      </div>
+                      <div className="text-dark">
+                        This will clear all Admin and Guest transactions. User accounts, products, and amenities will remain intact.
+                      </div>
                     </div>
 
                     <div className="row g-3 mb-3">
