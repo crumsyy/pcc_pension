@@ -1136,7 +1136,9 @@ function ReservationsClient() {
             <div className="modal-dialog modal-dialog-centered modal-lg">
               <div className="modal-content border-0 shadow-lg">
                 <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
-                  <h5 className="modal-title fw-bold">Confirm Reservation & Record Booking</h5>
+                  <h5 className="modal-title fw-bold">
+                    {convertCheckInNow ? 'Confirm Reservation & Book / Check‑In Now' : 'Confirm Reservation & Record Booking'}
+                  </h5>
                   <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
                 </div>
                 <form onSubmit={handleConvertSubmit}>
@@ -1160,43 +1162,97 @@ function ReservationsClient() {
                       </div>
                     </div>
 
-                    {/* CHECK-IN SCENARIO (Locked to Check-In Later for Reservations) */}
+                    {/* CHECK-IN SCENARIO SELECTOR */}
                     <div className="mb-3">
                       <label className="form-label fw-bold">Check-In Scenario *</label>
                       <div className="btn-group w-100" role="group">
-                        <button type="button" className="btn btn-outline-secondary" disabled>
+                        <button
+                          type="button"
+                          className={`btn ${convertCheckInNow ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
+                          onClick={() => {
+                            setConvertCheckInNow(true);
+                            const now = new Date();
+                            const pad = (n) => String(n).padStart(2, '0');
+                            const todayUi = toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+                            setConvInDate(todayUi);
+                            setConvInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+
+                            const tomorrow = new Date(now);
+                            tomorrow.setDate(tomorrow.getDate() + 1);
+                            setConvOutDate(toUiDate(`${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`));
+                            setConvOutTime('12:00');
+                          }}
+                        >
                           Book & Check-In Now (Current System Time)
                         </button>
-                        <button type="button" className="btn btn-primary text-white fw-bold active">
+                        <button
+                          type="button"
+                          className={`btn ${!convertCheckInNow ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                          onClick={() => {
+                            setConvertCheckInNow(false);
+                            if (selectedRes) {
+                              const inDateOnly = selectedRes.reservationDateTime ? String(selectedRes.reservationDateTime).substring(0, 10) : '';
+                              const inTimeOnly = selectedRes.reservationDateTime ? String(selectedRes.reservationDateTime).substring(11, 16) : '14:00';
+                              const outDateOnly = selectedRes.checkOutDateTime ? String(selectedRes.checkOutDateTime).substring(0, 10) : '';
+                              const outTimeOnly = selectedRes.checkOutDateTime ? String(selectedRes.checkOutDateTime).substring(11, 16) : '12:00';
+
+                              setConvInDate(inDateOnly ? toUiDate(inDateOnly) : todayUiDate);
+                              setConvInTime(inTimeOnly);
+                              if (outDateOnly) {
+                                setConvOutDate(toUiDate(outDateOnly));
+                                setConvOutTime(outTimeOnly);
+                              } else {
+                                setConvOutDate(getTomorrowUiDate());
+                                setConvOutTime('12:00');
+                              }
+                            }
+                          }}
+                        >
                           Book Now, Check-In Later
                         </button>
                       </div>
-                      <small className="text-muted d-block mt-1">
-                        Reservations are scheduled for check-in on the reservation date.
-                      </small>
-                    </div>
-
-                    <div className="row g-2 mb-3">
-                      <div className="col-md-6">
-                        <label className="form-label small fw-semibold">Scheduled Check-In Date *</label>
-                        <DateInput className="form-control form-control-sm" value={convInDate} onChange={(e) => setConvInDate(e.target.value)} required min={todayUiDate} />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label small fw-semibold">Scheduled Check-In Time *</label>
-                        <input
-                          type="time"
-                          className="form-control form-control-sm"
-                          value={convInTime}
-                          min={isConvToday ? currentTimeStr : undefined}
-                          onChange={(e) => setConvInTime(e.target.value)}
-                          required
-                        />
-                        {isConvToday && (
-                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                            Earliest selectable time today: {currentTimeStr}
+                      {convertCheckInNow ? (
+                        <div className="alert alert-success py-2 px-3 small mt-2 mb-3 d-flex align-items-center justify-content-between" style={{ fontSize: '0.82rem' }}>
+                          <div className="d-flex align-items-center gap-2">
+                            <i className="bi bi-box-arrow-in-right fs-5 text-success"></i>
+                            <div>
+                              <strong>Immediate Check-In:</strong> Check-in timestamp will be recorded as <strong>{convInDate} {convInTime} (Current System Time)</strong>.
+                              <div className="text-muted" style={{ fontSize: '0.74rem' }}>
+                                Booking status: <span className="badge bg-success">Checked In</span> &bull; Room {selectedRes.roomNumber}: <span className="badge bg-danger">Occupied</span>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="badge bg-success-subtle text-success border border-success fw-bold px-2 py-1">ACTIVE NOW</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="row g-2 my-2">
+                            <div className="col-md-6">
+                              <label className="form-label small fw-semibold">Scheduled Check-In Date *</label>
+                              <DateInput className="form-control form-control-sm" value={convInDate} onChange={(e) => setConvInDate(e.target.value)} required min={todayUiDate} />
+                            </div>
+                            <div className="col-md-6">
+                              <label className="form-label small fw-semibold">Scheduled Check-In Time *</label>
+                              <input
+                                type="time"
+                                className="form-control form-control-sm"
+                                value={convInTime}
+                                min={isConvToday ? currentTimeStr : undefined}
+                                onChange={(e) => setConvInTime(e.target.value)}
+                                required
+                              />
+                              {isConvToday && (
+                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                                  Earliest selectable time today: {currentTimeStr}
+                                </small>
+                              )}
+                            </div>
+                          </div>
+                          <small className="text-muted d-block mb-3" style={{ fontSize: '0.74rem' }}>
+                            Reservations are scheduled for check-in on the selected reservation date (Status: <strong>Pending Check-In</strong>, Room: <strong>Reserved</strong>).
                           </small>
-                        )}
-                      </div>
+                        </>
+                      )}
                     </div>
 
                     <div className="row g-2 mb-3">
@@ -1367,24 +1423,11 @@ function ReservationsClient() {
                     </div>
                   </div>
 
-                  <div className="modal-footer d-flex justify-content-between">
+                  <div className="modal-footer">
                     <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                    <div className="d-flex gap-2">
-                      <button 
-                        type="submit" 
-                        className="btn btn-outline-primary fw-bold"
-                        onClick={() => setConvertCheckInNow(false)}
-                      >
-                        Confirm Booking (Pending Check-In)
-                      </button>
-                      <button 
-                        type="submit" 
-                        className="btn btn-success text-white fw-bold d-flex align-items-center gap-1 shadow-sm"
-                        onClick={() => setConvertCheckInNow(true)}
-                      >
-                        <i className="bi bi-box-arrow-in-right"></i> Book and Check‑In Now
-                      </button>
-                    </div>
+                    <button type="submit" className="btn btn-pcc-primary text-white fw-bold">
+                      {convertCheckInNow ? 'Save Booking & Check-In Now' : 'Save Booking & Record Down Payment'}
+                    </button>
                   </div>
                 </form>
               </div>

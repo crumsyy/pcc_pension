@@ -295,9 +295,18 @@ export async function POST(request) {
         await conn.beginTransaction();
         await ensurePaymentSchema();
 
-        const localNow = new Date();
-        const pad = (num) => String(num).padStart(2, '0');
-        const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+        const manilaParts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Manila',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }).formatToParts(new Date());
+        const getPart = (type) => manilaParts.find(p => p.type === type)?.value || '00';
+        const nowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
 
         const checkInNow = Boolean(body.checkInNow);
         const bookingStatus = checkInNow ? 'Checked In' : 'Pending Check-in';
