@@ -5,7 +5,7 @@
  * Displays hardcoded test credentials for Receptionist, Admin, and Guest.
  * Can be easily removed when testing is complete.
  */
-export default function TestAccountsPanel({ onSelectAccount }) {
+function TestAccountsPanel({ onSelectAccount }) {
   const accounts = [
     {
       role: 'Receptionist',
@@ -101,3 +101,5 @@ export default function TestAccountsPanel({ onSelectAccount }) {
     </div>
   );
 }
+
+export default TestAccountsPanel;
