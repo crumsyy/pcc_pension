@@ -101,6 +101,31 @@ export async function POST(request) {
           error: "Breakfast delivery time must be scheduled between 6:30 AM and 10:30 AM."
         }, { status: 400 });
       }
+
+      // Check if delivery time is in the past for today's order
+      const manilaFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const parts = manilaFormatter.formatToParts(new Date());
+      const p = {};
+      parts.forEach(({ type, value }) => { p[type] = value; });
+      const currentManilaMinutes = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+
+      const [timePart, meridiem] = body.deliveryTime.split(' ');
+      const [hrStr, minStr] = timePart.split(':');
+      let dHour = parseInt(hrStr, 10);
+      if (meridiem === 'PM' && dHour !== 12) dHour += 12;
+      if (meridiem === 'AM' && dHour === 12) dHour = 0;
+      const deliveryMinutes = dHour * 60 + parseInt(minStr, 10);
+
+      if (deliveryMinutes <= currentManilaMinutes) {
+        return NextResponse.json({
+          error: `Cannot schedule delivery for ${body.deliveryTime} as that time has already passed today. Please select an upcoming delivery time slot.`
+        }, { status: 400 });
+      }
     }
 
     const db = await getDbConnection();

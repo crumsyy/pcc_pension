@@ -146,8 +146,8 @@ export async function POST(request) {
       });
     }
 
-    // Receptionist/Admin actions
-    if (session.role !== 'Receptionist' && session.role !== 'Administrator') {
+    // Incidental fees and discounts require Receptionist/Admin
+    if ((action === 'add_incidental' || action === 'apply_discount') && session.role !== 'Receptionist' && session.role !== 'Administrator') {
       return NextResponse.json({ error: 'Unauthorized action.' }, { status: 403 });
     }
 
@@ -286,6 +286,42 @@ export async function POST(request) {
             remainingBalance: updatedDetails.balance
           },
           chargesSummary: updatedDetails.chargesSummary
+        });
+      }
+
+      if (action === 'complete_checkout' || action === 'checkout') {
+        const balance = await getBookingBalance(bookingID);
+        if (balance > 0.05) {
+          await conn.rollback();
+          return NextResponse.json({
+            error: `Cannot complete check-out. Outstanding balance of ₱${balance.toFixed(2)} must be settled before checkout.`
+          }, { status: 400 });
+        }
+
+        await conn.commit();
+        const checkoutRes = await completeBookingAndFreeRoom(bookingID);
+        if (checkoutRes.error) {
+          return NextResponse.json({ error: checkoutRes.error }, { status: 400 });
+        }
+
+        await logBillingAudit(pool, {
+          billingID,
+          bookingID,
+          transactionType: 'Checkout Settlement',
+          amount: 0,
+          balanceBefore: balance,
+          balanceAfter: 0,
+          userID: session.userID,
+          userName: session.email || (session.role === 'Guest' ? 'Guest' : 'Receptionist'),
+          userRole: session.role,
+          description: `Guest check-out completed and room freed to Available.`
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: 'Guest check-out completed successfully. The room is now Available.',
+          roomStatus: 'Available',
+          bookingStatus: 'Completed'
         });
       }
 

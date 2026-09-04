@@ -233,6 +233,22 @@ export async function POST(request) {
           }
         }
 
+        const [billingRows] = await conn.execute("SELECT billingID FROM billing WHERE bookingID = ?", [bookingID]);
+        const billingID = billingRows[0]?.billingID || null;
+
+        await logBillingAudit(conn, {
+          billingID,
+          bookingID,
+          transactionType: 'Checkout Settlement',
+          amount: 0,
+          balanceBefore: balance,
+          balanceAfter: 0,
+          userID: session.userID,
+          userName: session.email || 'Receptionist',
+          userRole: session.role,
+          description: `Guest check-out completed and room freed to Available.`
+        });
+
         await conn.commit();
         await syncInventoryStock();
 

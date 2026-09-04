@@ -322,10 +322,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       let cur = new Date(inStr + 'T00:00:00');
       const end = outStr ? new Date(outStr + 'T00:00:00') : new Date(inStr + 'T00:00:00');
       
-      while (cur <= end) {
+      // Free the checkout date (cur < end) so incoming guests can check in at 2:00 PM after checkout
+      if (cur.getTime() === end.getTime()) {
         const dStr = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
         disabledSet.add(dStr);
-        cur.setDate(cur.getDate() + 1);
+      } else {
+        while (cur < end) {
+          const dStr = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
+          disabledSet.add(dStr);
+          cur.setDate(cur.getDate() + 1);
+        }
       }
     });
     
@@ -480,14 +486,37 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const amountToPayNow = Math.round(netTotalAmount * (paymentPctNumber / 100) * 100) / 100;
   const remainingBalanceAfterPay = Math.max(0, Math.round((netTotalAmount - amountToPayNow) * 100) / 100);
 
-  // Early Check-In Fee Preview Calculation
+  // Early Check-In Fee Preview Calculation (strictly on arrival day before 2:00 PM)
   const calculateEarlyCheckInPreview = () => {
     if (!checkInDate) return { isEarly: false, earlyHours: 0, earlyFee: 0 };
     const now = new Date();
-    const scheduledStandard = new Date(`${checkInDate}T14:00:00`);
-    if (now < scheduledStandard) {
-      const diffMs = scheduledStandard - now;
-      const earlyHours = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
+    const pad = (n) => String(n).padStart(2, '0');
+    let manilaHour = now.getHours();
+    let manilaMinute = now.getMinutes();
+    let todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    try {
+      const manilaFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const parts = manilaFormatter.formatToParts(now);
+      const p = {};
+      parts.forEach(({ type, value }) => { p[type] = value; });
+      todayStr = `${p.year}-${p.month}-${p.day}`;
+      manilaHour = parseInt(p.hour, 10);
+      manilaMinute = parseInt(p.minute, 10);
+    } catch (e) {}
+
+    // Early check-in applies strictly on the day of arrival before 2:00 PM (14:00)
+    if (checkInDate === todayStr && manilaHour < 14) {
+      const exactRemainingMinutes = (14 * 60) - (manilaHour * 60 + manilaMinute);
+      const earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
       const earlyFee = earlyHours * 50;
       return { isEarly: true, earlyHours, earlyFee };
     }

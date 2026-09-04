@@ -1730,13 +1730,18 @@ function BookingsClient() {
                               </div>
                             </>
                           ) : (
-                            <div className="col-md-8">
+                            <div className="col-md-12 d-flex justify-content-center">
                               <DynamicQrPhCode 
                                 amount={requiredDownpayment}
-                                refNumber={`DP-${formData.roomID || 'BOOK'}`}
+                                refNumber={`BOOK-${selectedRoomObj?.roomNumber || formData.roomID || 'WALK'}`}
                                 paymentStatus="Pending"
                                 showProceedBtn={false}
                                 showCheckStatusBtn={true}
+                                showTestPayBtn={true}
+                                onSimulateTestPay={(simRef) => {
+                                  setDownPayment(requiredDownpayment.toFixed(2));
+                                  showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment amount auto-filled.`);
+                                }}
                                 onCheckStatus={() => {}}
                                 onPaymentSuccess={(pData) => {
                                   setDownPayment(requiredDownpayment.toFixed(2));
@@ -1745,22 +1750,6 @@ function BookingsClient() {
                             </div>
                           )}
                         </div>
-
-                        {paymentMethodID === '2' && requiredDownpayment > 0 && (
-                          <div className="mb-3 p-3 bg-light rounded border text-center">
-                            <DynamicQrPhCode 
-                              amount={requiredDownpayment}
-                              refNumber={`BOOK-${selectedRoomObj?.roomNumber || 'WALK'}`}
-                              paymentStatus="Pending"
-                              showProceedBtn={false}
-                              showTestPayBtn={true}
-                              onSimulateTestPay={(simRef) => {
-                                setDownPayment(requiredDownpayment.toFixed(2));
-                                showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment amount auto-filled.`);
-                              }}
-                            />
-                          </div>
-                        )}
                       </>
                     );
                   })()}

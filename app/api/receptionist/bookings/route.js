@@ -204,12 +204,48 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
+        // Check for duplicate booking for same guest, same room, and same check-in date
+        const [dupCheck] = await conn.execute(
+          `SELECT bookingID, status FROM booking 
+           WHERE guestID = ? AND roomID = ? 
+             AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+             AND DATE(checkInDateTime) = DATE(?)`,
+          [guestID, roomID, checkInDateTime]
+        );
+        if (dupCheck.length > 0) {
+          return NextResponse.json({
+            error: `A booking already exists for this guest in this room on ${inDateOnlyStr}. Duplicate booking blocked.`
+          }, { status: 409 });
+        }
+
+        const convReservationID = body.reservationID ? parseInt(body.reservationID) : null;
+
+        // Auto-cancel any competing active reservations for this room overlapping the stay
+        const [compRes] = await conn.execute(
+          `SELECT reservationID, guestID FROM reservation 
+           WHERE roomID = ? AND status IN ('Pending', 'Confirmed')
+             ${convReservationID ? 'AND reservationID != ' + convReservationID : ''}
+             AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?`,
+          [roomID, checkOutDateTime, checkInDateTime]
+        );
+        for (const c of compRes) {
+          await conn.execute(
+            `UPDATE reservation SET status = 'Cancelled', specialRequests = CONCAT(COALESCE(specialRequests, ''), ' [Auto-cancelled: Room booked for conflicting dates]') WHERE reservationID = ?`,
+            [c.reservationID]
+          );
+        }
+
         // Insert booking
         const [insertBookingRes] = await conn.execute(
-          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, ?, NULL, ?, ?)",
-          [checkInDateTime, checkOutDateTime, status, guestID, roomID]
+          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, ?, ?, ?, ?)",
+          [checkInDateTime, checkOutDateTime, status, convReservationID, guestID, roomID]
         );
         const bookingID = insertBookingRes.insertId;
+
+        // If converted from a reservation, update its status
+        if (convReservationID) {
+          await conn.execute("UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?", [convReservationID]);
+        }
 
         // Update room status
         const roomStatus = status === 'Checked In' ? 'Occupied' : 'Reserved';
@@ -457,18 +493,32 @@ export async function POST(request) {
       }
       const { roomID, scheduledCheckInDate } = res[0];
 
-      const localNow = new Date();
-      const pad = (num) => String(num).padStart(2, '0');
-      const todayDateStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())}`;
+      // Get Philippine Time (UTC+8)
+      const manilaFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      const parts = manilaFormatter.formatToParts(new Date());
+      const p = {};
+      parts.forEach(({ type, value }) => { p[type] = value; });
+      const manilaDateStr = `${p.year}-${p.month}-${p.day}`;
+      const manilaHour = parseInt(p.hour, 10);
+      const manilaMinute = parseInt(p.minute, 10);
 
-      // Check if current time is before standard check-in time (2:00 PM on scheduled check-in date)
-      const scheduledCheckInTime = new Date(`${scheduledCheckInDate}T14:00:00`);
       let earlyHours = 0;
       let earlyFee = 0;
 
-      if (localNow < scheduledCheckInTime) {
-        const diffMs = scheduledCheckInTime - localNow;
-        earlyHours = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60)));
+      // Early check-in applies strictly on the scheduled check-in date before 2:00 PM (14:00)
+      if (manilaDateStr === scheduledCheckInDate && manilaHour < 14) {
+        // Difference from standard 2:00 PM (14:00) check-in time
+        const exactRemainingMinutes = (14 * 60) - (manilaHour * 60 + manilaMinute);
+        earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
         earlyFee = earlyHours * 50;
 
         if (!confirmEarlyCheckIn) {
@@ -481,7 +531,7 @@ export async function POST(request) {
         }
       }
 
-      const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+      const nowStr = `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
 
       // If early check-in confirmed, record fee in incidental charges
       if (confirmEarlyCheckIn && earlyFee > 0) {

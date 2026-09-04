@@ -460,29 +460,6 @@ export default function ReceptionistOrders() {
                       </select>
                     </div>
 
-                    {activeItemCategory === 'Meal' && (
-                      <div className="col-md-12 mb-2 p-2.5 bg-primary-subtle border border-primary-subtle rounded">
-                        <label className="form-label fw-bold text-primary small mb-1">
-                          Scheduled Delivery Time for Cooked Meal (6:30 AM - 10:30 AM) *
-                        </label>
-                        <select
-                          className="form-select form-select-sm fw-semibold"
-                          value={newOrderForm.deliveryTime || '07:30 AM'}
-                          onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
-                        >
-                          <option value="06:30 AM">06:30 AM</option>
-                          <option value="07:00 AM">07:00 AM</option>
-                          <option value="07:30 AM">07:30 AM</option>
-                          <option value="08:00 AM">08:00 AM</option>
-                          <option value="08:30 AM">08:30 AM</option>
-                          <option value="09:00 AM">09:00 AM</option>
-                          <option value="09:30 AM">09:30 AM</option>
-                          <option value="10:00 AM">10:00 AM</option>
-                          <option value="10:30 AM">10:30 AM</option>
-                        </select>
-                      </div>
-                    )}
-
                     <div className="col-md-7">
                       <label className="form-label fw-semibold">Select Item to Add</label>
                       <SearchableSelect
@@ -524,31 +501,57 @@ export default function ReceptionistOrders() {
                     </div>
                   </div>
 
-                  {newOrderForm.items.some(item => cookedMeals.some(m => m.productID === item.itemID)) && (
-                    <div className="mb-3 p-3 bg-primary-subtle border border-primary-subtle rounded">
-                      <label className="form-label fw-bold text-primary small mb-1">
-                        Scheduled Breakfast Delivery Time (6:30 AM - 10:30 AM) *
-                      </label>
-                      <select
-                        className="form-select form-select-sm fw-semibold"
-                        value={newOrderForm.deliveryTime || '07:30 AM'}
-                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
-                      >
-                        <option value="06:30 AM">06:30 AM</option>
-                        <option value="07:00 AM">07:00 AM</option>
-                        <option value="07:30 AM">07:30 AM</option>
-                        <option value="08:00 AM">08:00 AM</option>
-                        <option value="08:30 AM">08:30 AM</option>
-                        <option value="09:00 AM">09:00 AM</option>
-                        <option value="09:30 AM">09:30 AM</option>
-                        <option value="10:00 AM">10:00 AM</option>
-                        <option value="10:30 AM">10:30 AM</option>
-                      </select>
-                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                        Advance breakfast orders can be placed at any time for scheduled delivery between 6:30 AM and 10:30 AM.
-                      </small>
-                    </div>
-                  )}
+                  {(activeItemCategory === 'Meal' || newOrderForm.items.some(item => cookedMeals.some(m => m.productID === item.itemID))) && (() => {
+                    const slots = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
+                    let currentMinutes = 0;
+                    try {
+                      const manilaFormatter = new Intl.DateTimeFormat('en-US', {
+                        timeZone: 'Asia/Manila',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                      });
+                      const parts = manilaFormatter.formatToParts(new Date());
+                      const p = {};
+                      parts.forEach(({ type, value }) => { p[type] = value; });
+                      currentMinutes = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+                    } catch (e) {
+                      const d = new Date();
+                      currentMinutes = d.getHours() * 60 + d.getMinutes();
+                    }
+
+                    const evaluatedSlots = slots.map(slot => {
+                      const [timePart, meridiem] = slot.split(' ');
+                      const [h, m] = timePart.split(':');
+                      let hr = parseInt(h, 10);
+                      if (meridiem === 'PM' && hr !== 12) hr += 12;
+                      if (meridiem === 'AM' && hr === 12) hr = 0;
+                      const slotMin = hr * 60 + parseInt(m, 10);
+                      return { slot, isPast: slotMin <= currentMinutes };
+                    });
+
+                    return (
+                      <div className="mb-3 p-3 bg-primary-subtle border border-primary-subtle rounded">
+                        <label className="form-label fw-bold text-primary small mb-1">
+                          Scheduled Breakfast Delivery Time (6:30 AM - 10:30 AM) *
+                        </label>
+                        <select
+                          className="form-select form-select-sm fw-semibold"
+                          value={newOrderForm.deliveryTime || '07:30 AM'}
+                          onChange={(e) => setNewOrderForm(prev => ({ ...prev, deliveryTime: e.target.value }))}
+                        >
+                          {evaluatedSlots.map(({ slot, isPast }) => (
+                            <option key={slot} value={slot} disabled={isPast}>
+                              {slot} {isPast ? '(Passed)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                          Advance breakfast orders can be placed for scheduled delivery between 6:30 AM and 10:30 AM. Past time slots are disabled.
+                        </small>
+                      </div>
+                    );
+                  })()}
 
                   <h6 className="fw-bold text-dark mt-4 mb-2">Order Items Bucket:</h6>
                   <div className="table-responsive border rounded mb-3 bg-white" style={{ maxHeight: '200px' }}>

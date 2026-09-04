@@ -82,6 +82,21 @@ export async function POST(request) {
         [newInquiryID, staffName, message, nowStr]
       );
 
+      // Dispatch in-app notification to the guest if guestID is available
+      if (guestID) {
+        try {
+          const gRows = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [guestID]);
+          if (gRows.length > 0 && gRows[0].userID) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'New Message from Front Desk', ?)",
+              [gRows[0].userID, `The front desk sent you a message: "${message.length > 80 ? message.substring(0, 80) + '...' : message}"`]
+            );
+          }
+        } catch (notifErr) {
+          console.error("Failed to send in-app notification to reached out guest:", notifErr);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         message: 'Direct reach-out message sent to guest successfully.',

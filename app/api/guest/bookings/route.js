@@ -135,6 +135,22 @@ export async function POST(request) {
       try {
         await connection.beginTransaction();
 
+        // Check for duplicate booking for same guest, same room, and same check-in date
+        const [dupCheck] = await connection.execute(
+          `SELECT bookingID, status FROM booking 
+           WHERE guestID = ? AND roomID = ? 
+             AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+             AND DATE(checkInDateTime) = DATE(?)`,
+          [guest.guestID, roomID, checkInDateTime]
+        );
+        if (dupCheck.length > 0) {
+          await connection.rollback();
+          connection.release();
+          return NextResponse.json({
+            error: "You already have an active booking for this room on the selected check-in date. Duplicate booking blocked."
+          }, { status: 409 });
+        }
+
         // 1. Conflict Detection: Verify room is not already booked for overlapping dates
         const [conflictingBookings] = await connection.execute(`
           SELECT bookingID
@@ -186,9 +202,9 @@ export async function POST(request) {
         );
         const bookingID = bookingRes.insertId;
 
-        // If converted from a reservation, update that reservation status to Confirmed
+        // If converted from a reservation, update that reservation status to 'Converted to Booking'
         if (convResID) {
-          await connection.execute("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [convResID]);
+          await connection.execute("UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?", [convResID]);
         }
 
         // Insert registered guests

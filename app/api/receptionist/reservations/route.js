@@ -289,8 +289,8 @@ export async function POST(request) {
       try {
         await conn.beginTransaction();
 
-        // 1. Update reservation status to Confirmed
-        await conn.execute("UPDATE reservation SET status = 'Confirmed' WHERE reservationID = ?", [reservationID]);
+        // 1. Update reservation status to Converted to Booking
+        await conn.execute("UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?", [reservationID]);
 
         // 2. Insert booking with Pending Check-in status
         const [insertBookingRes] = await conn.execute(
