@@ -20,7 +20,7 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [loadingDots, setLoadingDots] = useState(1);
 
-  const handleQuickFill = (testEmail, testPassword) => {
+  const autofillLogin = (testEmail, testPassword) => {
     try {
       setEmail(testEmail);
       setPassword(testPassword);
@@ -29,6 +29,7 @@ function LoginContent() {
       console.error("Autofill error:", err);
     }
   };
+  const handleQuickFill = autofillLogin;
 
   useEffect(() => {
     let interval;
@@ -208,7 +209,7 @@ function LoginContent() {
 
               {/* QA TEST ACCOUNTS PANEL (development / testing only) */}
               {(process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_SHOW_TEST_ACCOUNTS === "true") && (
-                <TestAccountsPanel onSelectAccount={handleQuickFill} />
+                <TestAccountsPanel onSelectAccount={autofillLogin} />
               )}
             </div>
           </div>
