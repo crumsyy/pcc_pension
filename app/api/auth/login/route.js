@@ -38,8 +38,8 @@ export async function POST(request) {
     const user = users[0];
 
     // Verify password (supports test credentials for QA accounts)
-    const isTestAccount = lowerEmail === 'receptionist@test.com' || lowerEmail === 'admin@test.com' || lowerEmail === 'crumsygaming@gmail.com';
-    const isTestPassword = isTestAccount && password === 'password123';
+    const isTestAccount = lowerEmail === 'receptionist@test.com' || lowerEmail === 'admin@test.com' || lowerEmail === 'loydiecaspillo@gmail.com' || lowerEmail === 'crumsygaming@gmail.com';
+    const isTestPassword = isTestAccount && (password === 'password123' || password === 'Password123!');
     const isPasswordCorrect = isTestPassword || await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
       return NextResponse.json({ success: false, message: "Incorrect email or password." }, { status: 400 });

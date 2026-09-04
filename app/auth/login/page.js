@@ -206,8 +206,10 @@ function LoginContent() {
                 </p>
               </form>
 
-              {/* QA TEST ACCOUNTS PANEL */}
-              <TestAccountsPanel onSelectAccount={handleQuickFill} />
+              {/* QA TEST ACCOUNTS PANEL (development / testing only) */}
+              {(process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_SHOW_TEST_ACCOUNTS === "true") && (
+                <TestAccountsPanel onSelectAccount={handleQuickFill} />
+              )}
             </div>
           </div>
         </div>

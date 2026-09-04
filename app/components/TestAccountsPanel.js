@@ -23,8 +23,8 @@ export default function TestAccountsPanel({ onSelectAccount }) {
     },
     {
       role: 'Guest',
-      email: 'crumsygaming@gmail.com',
-      password: 'password123',
+      email: 'loydiecaspillo@gmail.com',
+      password: 'Password123!',
       badgeClass: 'bg-success text-white',
       desc: 'Customer: book stays, reserve rooms, profile'
     }

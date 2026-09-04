@@ -893,8 +893,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const secondFloorRooms = allRooms.filter(r => String(r.floorID) === '2' || r.floorName?.toLowerCase().includes('second') || r.floorName?.toLowerCase().includes('upper') || String(r.roomNumber).startsWith('2'));
   const fallbackRooms = allRooms.filter(r => !groundFloorRooms.some(g => g.roomID === r.roomID) && !secondFloorRooms.some(s => s.roomID === r.roomID));
 
-  const activeReservation = reservations.find(r => r.status === 'Pending' || r.status === 'Confirmed');
-  const activeBookingStay = bookings.find(b => b.status === 'Pending' || b.status === 'Confirmed' || b.status === 'Checked In');
+  const activeReservation = reservations.find(r => r.status === 'Pending' || r.status === 'Confirmed' || r.status === 'Overdue Check-In');
+  const activeBookingStay = bookings.find(b => b.status === 'Pending' || b.status === 'Confirmed' || b.status === 'Overdue Check-In' || b.status === 'Checked In');
 
   return (
     <>
