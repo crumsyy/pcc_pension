@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import GuestLayout from '@/app/components/GuestLayout';
+import GuestLayout from '../GuestLayout';
 
-export default function GuestOrdersPage() {
-  const [guest, setGuest] = useState(null);
+export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
+  const [guest, setGuest] = useState(initialGuest);
   const [products, setProducts] = useState([]);
   const [cookedMeals, setCookedMeals] = useState([]);
   const [amenities, setAmenities] = useState([]);
@@ -315,7 +315,7 @@ export default function GuestOrdersPage() {
       {/* MAIN CONTENT AREA: CATALOG + CART */}
       <div className="row g-4">
         {/* CATALOG COLUMN */}
-        <div className="col-12 col-lg-7 col-xl-8">
+        <div className="col-12 col-md-7 col-lg-7 col-xl-8">
           {activeCategory === 'history' ? (
             /* ORDER HISTORY VIEW */
             <div className="card border-0 shadow-sm rounded-3 bg-white p-4">
@@ -511,7 +511,7 @@ export default function GuestOrdersPage() {
         </div>
 
         {/* ORDER TRAY / CART COLUMN */}
-        <div className="col-12 col-lg-5 col-xl-4">
+        <div className="col-12 col-md-5 col-lg-5 col-xl-4">
           <div className="card border-0 shadow-sm rounded-3 bg-white p-4 sticky-top" style={{ top: '20px' }}>
             <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
@@ -668,6 +668,7 @@ export default function GuestOrdersPage() {
           </div>
         </div>
       </div>
+    </div>
     </GuestLayout>
   );
 }
