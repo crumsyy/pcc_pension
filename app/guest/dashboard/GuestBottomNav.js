@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { NAV_ITEMS } from './navConfig';
 
 export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotificationsCount = 0 }) {
@@ -11,6 +12,32 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
       {NAV_ITEMS.map((tab) => {
         const isActive = activeTab === tab.id;
         const isNotification = tab.id === 'notifications';
+
+        if (tab.href) {
+          return (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              className="btn border-0 d-flex flex-column align-items-center justify-content-center p-1 nav-tab-item text-decoration-none"
+              style={{
+                flex: 1,
+                color: 'rgba(255, 255, 255, 0.85)',
+                backgroundColor: 'transparent',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease-in-out',
+                position: 'relative'
+              }}
+            >
+              <div>
+                <i className={`bi ${tab.icon}`} style={{ fontSize: '1.2rem' }}></i>
+              </div>
+              <span style={{ fontSize: '0.72rem', fontWeight: '500', marginTop: '2px' }}>
+                {tab.label}
+              </span>
+            </Link>
+          );
+        }
+
         return (
           <button
             key={tab.id}

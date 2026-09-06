@@ -809,17 +809,26 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleProceedToBooking = (reservation) => {
     if (!reservation) return;
-    const roomMatch = (allRooms || []).find(r => String(r.roomID) === String(reservation.roomID));
-    if (roomMatch) {
-      setSelectedRoomForModal(roomMatch);
-      setFlowAction('book');
-      setCheckInDate(toUiDate(reservation.reservationDateTime?.substring(0, 10)));
-      setNumGuests(parseInt(reservation.numGuestsCount) || 1);
-      setActiveModal('book_form');
-    } else {
-      showAlert('info', 'Proceeding to Booking', 'Opening booking workspace for your reserved room...');
-      openBookingModal(reservation.roomTypeID);
-    }
+    showConfirm(
+      'Proceed to Booking',
+      `Would you like to officially convert your reservation for Room ${reservation.roomNumber} (${reservation.roomType}) into a confirmed booking?`,
+      async () => {
+        try {
+          const res = await fetch('/api/guest/reservations/convert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reservationID: reservation.reservationID })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to convert reservation');
+
+          showAlert('success', 'Booking Confirmed', data.message || 'Your reservation has been successfully converted into an official booking!');
+          await fetchRoomsAndStatus();
+        } catch (err) {
+          showAlert('error', 'Conversion Error', err.message);
+        }
+      }
+    );
   };
 
   const handleCancelBooking = (bookingID) => {
@@ -1044,6 +1053,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const activeReservation = reservations.find(r => r.status === 'Pending' || r.status === 'Confirmed' || r.status === 'Overdue Check-In');
   const activeBookingStay = bookings.find(b => b.status === 'Pending' || b.status === 'Confirmed' || b.status === 'Overdue Check-In' || b.status === 'Checked In');
+
+  useEffect(() => {
+    if (activeBookingStay?.bookingID) {
+      fetchDetailedBill(activeBookingStay.bookingID);
+    }
+  }, [activeBookingStay?.bookingID]);
 
   return (
     <>
@@ -1486,6 +1501,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                           <span className="badge bg-primary text-white px-2.5 py-1">Active Stay Booking ({formatBookingID(activeBookingStay.bookingID)})</span>
                           <div className="d-flex flex-wrap gap-1.5 align-items-center">
+                            <Link
+                              href="/guest/orders"
+                              className="btn btn-xs btn-outline-warning text-dark fw-semibold px-2 py-1 text-decoration-none shadow-xs"
+                            >
+                              <i className="bi bi-cup-hot me-1 text-warning"></i> Order Food
+                            </Link>
                             <button
                               type="button"
                               className="btn btn-xs btn-outline-primary fw-semibold px-2 py-1"
@@ -1517,22 +1538,183 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           </div>
                         </div>
                         <h6 className="fw-bold mb-1 text-dark">Room {activeBookingStay.roomNumber} ({activeBookingStay.roomType})</h6>
-                        <div className="d-flex flex-wrap gap-3 small text-muted mb-2 p-2 bg-light rounded border" style={{ fontSize: '0.78rem' }}>
-                          <span>Subtotal: <strong className="text-dark">₱{parseFloat(detailedBill?.balancing?.subtotal ?? detailedBill?.subtotal ?? activeBill?.subtotal ?? 0).toFixed(2)}</strong></span>
-                          <span>Paid Total: <strong className="text-success">₱{parseFloat(detailedBill?.balancing?.paidTotal ?? detailedBill?.paidTotal ?? activeBill?.paidTotal ?? 0).toFixed(2)}</strong></span>
-                          <span>Remaining Balance: <strong className={parseFloat(activeBookingStay.remainingBalance || 0) > 0 ? "text-danger" : "text-success"}>₱{parseFloat(activeBookingStay.remainingBalance || 0).toFixed(2)}</strong></span>
-                        </div>
-                        {activeBookingStay.incidentals && activeBookingStay.incidentals.length > 0 && (
-                          <div className="mt-2 p-2.5 bg-light rounded border small mb-2">
-                            <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.78rem' }}>Incidental Charges:</div>
-                            {activeBookingStay.incidentals.map(inc => (
-                              <div key={inc.incidentalID || inc.chargeID} className="d-flex justify-content-between text-muted" style={{ fontSize: '0.75rem' }}>
-                                <span>• {inc.description}</span>
-                                <span className="fw-semibold text-danger">₱{parseFloat(inc.amount).toFixed(2)}</span>
-                              </div>
-                            ))}
+
+                        {/* GUEST BILLING BREAKDOWN CARD */}
+                        <div className="card border rounded-3 p-3 bg-light-subtle my-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2.5 pb-2 border-bottom">
+                            <div className="fw-bold text-dark d-flex align-items-center gap-2" style={{ fontSize: '0.90rem' }}>
+                              <i className="bi bi-receipt-cutoff text-primary fs-6"></i>
+                              <span>Stay Billing Breakdown</span>
+                            </div>
+                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1" style={{ fontSize: '0.74rem' }}>
+                              {detailedBill?.booking?.status || activeBookingStay.status}
+                            </span>
                           </div>
-                        )}
+
+                          {loadingBill ? (
+                            <div className="text-center py-3 text-muted small">
+                              <span className="spinner-border spinner-border-sm text-primary me-2"></span>
+                              <span>Loading itemized billing details...</span>
+                            </div>
+                          ) : (
+                            <div className="d-flex flex-column gap-2" style={{ fontSize: '0.82rem' }}>
+                              {/* 1. Room Charges */}
+                              <div className="p-2.5 bg-white rounded border">
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                  <span className="fw-semibold text-dark">
+                                    <i className="bi bi-door-closed me-1.5 text-primary"></i>
+                                    {detailedBill?.booking?.roomType || activeBookingStay.roomType || 'Room'} ({detailedBill?.nights || detailedBill?.chargesBreakdown?.room?.nights || 1} Night(s))
+                                  </span>
+                                  <span className="fw-bold text-dark">
+                                    ₱{parseFloat(detailedBill?.chargesBreakdown?.room?.finalRoomCharge || detailedBill?.finalRoomCharge || (activeBookingStay.rate * (detailedBill?.nights || 1)) || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="text-muted small d-flex flex-wrap gap-2" style={{ fontSize: '0.74rem' }}>
+                                  <span>Rate: ₱{parseFloat(detailedBill?.chargesBreakdown?.room?.rate || activeBookingStay.rate || 0).toFixed(2)}/night</span>
+                                  <span>• Breakfast: <strong className="text-dark">{detailedBill?.booking?.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast Included'}</strong></span>
+                                  {(detailedBill?.chargesBreakdown?.additionalFees?.extraGuestsCount > 0) && (
+                                    <span>• Extra Pax: {detailedBill.chargesBreakdown.additionalFees.extraGuestsCount} (₱{parseFloat(detailedBill.chargesBreakdown.additionalFees.extraGuestFee).toFixed(2)})</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* 2. Cooked Meals */}
+                              {((detailedBill?.chargesBreakdown?.orders?.products || []).some(p => p.productCategoryID === 3 || (p.name && p.name.toLowerCase().includes('breakfast')))) && (
+                                <div className="p-2.5 bg-white rounded border">
+                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <span className="fw-semibold text-dark">
+                                      <i className="bi bi-cup-hot me-1.5 text-warning"></i>Cooked Breakfast Meals
+                                    </span>
+                                    <span className="fw-bold text-dark">
+                                      ₱{parseFloat(
+                                        (detailedBill?.chargesBreakdown?.orders?.products || [])
+                                          .filter(p => p.productCategoryID === 3 || (p.name && p.name.toLowerCase().includes('breakfast')))
+                                          .reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0)
+                                      ).toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="d-flex flex-column gap-0.5" style={{ fontSize: '0.74rem' }}>
+                                    {(detailedBill?.chargesBreakdown?.orders?.products || [])
+                                      .filter(p => p.productCategoryID === 3 || (p.name && p.name.toLowerCase().includes('breakfast')))
+                                      .map((m, idx) => (
+                                        <div key={idx} className="d-flex justify-content-between text-muted">
+                                          <span>{m.quantity}x {m.name}</span>
+                                          <span>₱{(parseFloat(m.price) * m.quantity).toFixed(2)}</span>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 3. Products & Amenities */}
+                              {(((detailedBill?.chargesBreakdown?.orders?.products || []).some(p => p.productCategoryID !== 3 && (!p.name || !p.name.toLowerCase().includes('breakfast')))) ||
+                                ((detailedBill?.chargesBreakdown?.orders?.amenities || []).length > 0)) && (
+                                <div className="p-2.5 bg-white rounded border">
+                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <span className="fw-semibold text-dark">
+                                      <i className="bi bi-bag-check me-1.5 text-info"></i>Products & Amenities Ordered
+                                    </span>
+                                    <span className="fw-bold text-dark">
+                                      ₱{parseFloat(
+                                        ((detailedBill?.chargesBreakdown?.orders?.products || [])
+                                          .filter(p => p.productCategoryID !== 3 && (!p.name || !p.name.toLowerCase().includes('breakfast')))
+                                          .reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0)) +
+                                        ((detailedBill?.chargesBreakdown?.orders?.amenities || [])
+                                          .reduce((sum, a) => sum + (parseFloat(a.price) * a.quantity), 0))
+                                      ).toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="d-flex flex-column gap-0.5" style={{ fontSize: '0.74rem' }}>
+                                    {(detailedBill?.chargesBreakdown?.orders?.products || [])
+                                      .filter(p => p.productCategoryID !== 3 && (!p.name || !p.name.toLowerCase().includes('breakfast')))
+                                      .map((p, idx) => (
+                                        <div key={`p-${idx}`} className="d-flex justify-content-between text-muted">
+                                          <span>{p.quantity}x {p.name}</span>
+                                          <span>₱{(parseFloat(p.price) * p.quantity).toFixed(2)}</span>
+                                        </div>
+                                      ))}
+                                    {(detailedBill?.chargesBreakdown?.orders?.amenities || []).map((a, idx) => (
+                                      <div key={`a-${idx}`} className="d-flex justify-content-between text-muted">
+                                        <span>{a.quantity}x {a.name}</span>
+                                        <span>₱{(parseFloat(a.price) * a.quantity).toFixed(2)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 4. Incidental Charges */}
+                              <div className="p-2.5 bg-white rounded border">
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <span className="fw-semibold text-dark">
+                                    <i className="bi bi-shield-exclamation me-1.5 text-danger"></i>Incidental Fees & Damages
+                                  </span>
+                                  <span className="fw-bold text-dark">
+                                    ₱{parseFloat(detailedBill?.chargesBreakdown?.incidentalFees?.total || detailedBill?.regularIncidentalTotal || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                                {(detailedBill?.chargesBreakdown?.incidentalFees?.charges || []).length > 0 ? (
+                                  <div className="d-flex flex-column gap-0.5 mt-1" style={{ fontSize: '0.74rem' }}>
+                                    {(detailedBill?.chargesBreakdown?.incidentalFees?.charges || []).map((inc, idx) => (
+                                      <div key={idx} className="d-flex justify-content-between text-danger">
+                                        <span>• {inc.description}</span>
+                                        <span>₱{parseFloat(inc.amount).toFixed(2)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-muted small" style={{ fontSize: '0.72rem' }}>₱0.00 - No incidental damages or penalty charges.</div>
+                                )}
+                              </div>
+
+                              {/* 5. Totals & Balance Due Summary */}
+                              <div className="p-3 bg-white rounded border mt-1">
+                                <div className="d-flex justify-content-between mb-1 text-muted">
+                                  <span>Gross Total Charges:</span>
+                                  <span className="fw-semibold text-dark">
+                                    ₱{parseFloat(detailedBill?.balancing?.subtotal || detailedBill?.subtotal || activeBill?.subtotal || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                                {(parseFloat(detailedBill?.chargesBreakdown?.discounts?.total || detailedBill?.totalDiscount || 0) > 0) && (
+                                  <div className="d-flex justify-content-between mb-1 text-success">
+                                    <span>Discounts Applied:</span>
+                                    <span>-₱{parseFloat(detailedBill?.chargesBreakdown?.discounts?.total || detailedBill?.totalDiscount || 0).toFixed(2)}</span>
+                                  </div>
+                                )}
+                                <div className="d-flex justify-content-between mb-1">
+                                  <span className="text-muted">Down Payment / Paid Total:</span>
+                                  <span className="text-success fw-bold">
+                                    ₱{parseFloat(detailedBill?.balancing?.paidTotal || detailedBill?.paidTotal || activeBill?.paidTotal || 0).toFixed(2)}
+                                    <span className="badge bg-success-subtle text-success ms-1.5" style={{ fontSize: '0.68rem' }}>Settled</span>
+                                  </span>
+                                </div>
+                                <div className="d-flex justify-content-between align-items-center pt-2 border-top">
+                                  <div>
+                                    <span className="fw-bold text-dark fs-6">Balance Due:</span>
+                                    <div className="text-muted small" style={{ fontSize: '0.70rem' }}>Payable online or upon checkout</div>
+                                  </div>
+                                  <div className="text-end">
+                                    <span className={`fw-bold fs-5 ${parseFloat(activeBookingStay.remainingBalance || detailedBill?.balancing?.remainingBalance || 0) > 0 ? 'text-danger' : 'text-success'}`}>
+                                      ₱{parseFloat(activeBookingStay.remainingBalance || detailedBill?.balancing?.remainingBalance || 0).toFixed(2)}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {parseFloat(activeBookingStay.remainingBalance || detailedBill?.balancing?.remainingBalance || 0) > 0 && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-primary w-100 mt-2.5 fw-bold py-2 shadow-xs d-flex align-items-center justify-content-center gap-2"
+                                    style={{ backgroundColor: '#005CE6', borderColor: '#005CE6', borderRadius: '8px', fontSize: '0.88rem' }}
+                                    onClick={() => setSettleBooking(activeBookingStay)}
+                                  >
+                                    <i className="bi bi-credit-card"></i>
+                                    <span>Proceed to Pay (₱{parseFloat(activeBookingStay.remainingBalance || detailedBill?.balancing?.remainingBalance || 0).toFixed(2)})</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         {/* REQ165a TIMELINE */}
                         {renderBookingStatusTimeline(activeBookingStay.status)}
                       </div>
@@ -1543,7 +1725,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 {/* QUICK ACTION BUTTONS */}
                 <h6 className="fw-bold text-dark mb-2.5">Quick Actions</h6>
                 <div className="row g-2 mb-4">
-                  <div className="col-6 col-lg-3">
+                  <div className="col-6 col-lg-2">
                     <button
                       className="btn btn-success text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={handleStartReserveFlow}
@@ -1551,7 +1733,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       Reserve Room
                     </button>
                   </div>
-                  <div className="col-6 col-lg-3">
+                  <div className="col-6 col-lg-2">
                     <button
                       className="btn btn-primary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={handleStartBookFlow}
@@ -1560,6 +1742,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </button>
                   </div>
                   <div className="col-6 col-lg-3">
+                    <Link
+                      href="/guest/orders"
+                      className="btn btn-warning text-dark fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center gap-1"
+                    >
+                      <i className="bi bi-cup-hot-fill"></i>
+                      <span>Room Service Orders</span>
+                    </Link>
+                  </div>
+                  <div className="col-6 col-lg-2">
                     <button
                       className="btn btn-secondary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={() => setActiveTab('account')}
@@ -1567,7 +1758,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       My Bookings
                     </button>
                   </div>
-                  <div className="col-6 col-lg-3">
+                  <div className="col-12 col-lg-3">
                     <button
                       className="btn btn-info text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={() => setActiveTab('notifications')}
@@ -2147,9 +2338,31 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       setSettleGcashRef('');
                       fetchRoomsAndStatus();
                     }}
-                    showProceedBtn={false}
-                    showCheckStatusBtn={true}
-                    onCheckStatus={fetchRoomsAndStatus}
+                    showProceedBtn={true}
+                    showCheckStatusBtn={false}
+                    showTestPayBtn={true}
+                    onProceedToGCash={() => {
+                      fetch('/api/payments/paymongo/test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          bookingID: settleBooking.bookingID,
+                          amount: parseFloat(settleBooking.remainingBalance || 0),
+                          referenceNumber: `SETTLE-${settleBooking.bookingID}-${Date.now().toString().slice(-4)}`
+                        })
+                      })
+                      .then(r => r.json())
+                      .then(d => {
+                        if (d.success) {
+                          showAlert('success', 'Balance Settled', 'Your payment has been authorized and settled successfully!');
+                          setSettleBooking(null);
+                          fetchRoomsAndStatus();
+                        } else {
+                          showAlert('error', 'Payment Error', d.error || 'Failed to process payment');
+                        }
+                      })
+                      .catch(e => showAlert('error', 'Payment Error', e.message));
+                    }}
                   />
 
                   <div className="p-2.5 border rounded bg-white text-center mb-3">

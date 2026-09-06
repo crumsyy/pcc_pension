@@ -183,13 +183,13 @@ export async function POST(request) {
         if (containsCookedBreakfast) {
           if (!body.deliveryTime) {
             return NextResponse.json({
-              error: "Please select a scheduled delivery time (between 6:30 AM and 10:30 AM) for cooked breakfast meals."
+              error: "Please select a scheduled delivery time (between 6:00 AM and 10:30 AM) for cooked breakfast meals."
             }, { status: 400 });
           }
-          const allowedTimes = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
+          const allowedTimes = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
           if (!allowedTimes.includes(body.deliveryTime)) {
             return NextResponse.json({
-              error: "Breakfast delivery time must be scheduled between 6:30 AM and 10:30 AM."
+              error: "Breakfast delivery time must be scheduled between 6:00 AM and 10:30 AM."
             }, { status: 400 });
           }
 

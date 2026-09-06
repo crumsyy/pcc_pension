@@ -33,11 +33,53 @@ export async function GET() {
     const activeProducts = products.filter(p => p.productCategoryID !== 3);
     const cookedMeals = products.filter(p => p.productCategoryID === 3);
 
+    // Fetch guest order history
+    const guests = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
+    const guestID = guests.length > 0 ? guests[0].guestID : 0;
+
+    let orders = [];
+    if (guestID > 0) {
+      const ordersRaw = await dbQuery(`
+        SELECT o.*, 
+               COALESCE(r.roomNumber, 'N/A') as roomNumber
+        FROM orders o
+        LEFT JOIN booking b ON b.bookingID = o.bookingID
+        LEFT JOIN room r ON r.roomID = b.roomID
+        WHERE o.guestID = ?
+        ORDER BY o.orderDateTime DESC
+      `, [guestID]);
+
+      const [orderProducts, orderAmenities] = await Promise.all([
+        dbQuery(`
+          SELECT op.orderID, op.quantity, op.isComplimentary, p.productID as itemID, p.name, p.price, 'Product' as type
+          FROM order_product op
+          JOIN products p ON p.productID = op.productID
+          WHERE op.orderID IN (SELECT orderID FROM orders WHERE guestID = ?)
+        `, [guestID]),
+        dbQuery(`
+          SELECT oa.orderID, oa.quantity, a.amenityID as itemID, a.name, a.price, 'Amenity' as type
+          FROM order_amenities oa
+          JOIN amenities a ON a.amenityID = oa.amenityID
+          WHERE oa.orderID IN (SELECT orderID FROM orders WHERE guestID = ?)
+        `, [guestID])
+      ]);
+
+      orders = ordersRaw.map(o => {
+        const p = orderProducts.filter(op => op.orderID === o.orderID);
+        const a = orderAmenities.filter(oa => oa.orderID === o.orderID);
+        return {
+          ...o,
+          items: [...p, ...a]
+        };
+      });
+    }
+
     return NextResponse.json({
       success: true,
       products: activeProducts,
       cookedMeals,
-      amenities
+      amenities,
+      orders
     });
   } catch (error) {
     console.error("Failed to fetch guest order catalog:", error);
@@ -103,13 +145,13 @@ export async function POST(request) {
     if (containsCookedMeal) {
       if (!body.deliveryTime) {
         return NextResponse.json({
-          error: "Please select a scheduled delivery time (between 6:30 AM and 10:30 AM) for cooked breakfast meals."
+          error: "Please select a scheduled delivery time (between 6:00 AM and 10:30 AM) for cooked breakfast meals."
         }, { status: 400 });
       }
-      const allowedTimes = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
+      const allowedTimes = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
       if (!allowedTimes.includes(body.deliveryTime)) {
         return NextResponse.json({
-          error: "Breakfast delivery time must be scheduled between 6:30 AM and 10:30 AM."
+          error: "Breakfast delivery time must be scheduled between 6:00 AM and 10:30 AM."
         }, { status: 400 });
       }
 

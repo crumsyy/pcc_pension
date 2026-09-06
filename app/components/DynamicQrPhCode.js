@@ -163,15 +163,9 @@ export default function DynamicQrPhCode({
         </small>
       </div>
 
-      {/* Option 2: Proceed to GCash Button (GUEST PANEL ONLY!) */}
+      {/* Proceed to Pay Button (GUEST & CLIENT FLOW) */}
       {showProceedBtn && (
         <div className="my-2 w-100">
-          <div className="d-flex align-items-center justify-content-center gap-2 text-muted small mb-1" style={{ fontSize: '0.72rem' }}>
-            <hr className="flex-grow-1 my-0" />
-            <span className="fw-bold text-uppercase">OR</span>
-            <hr className="flex-grow-1 my-0" />
-          </div>
-
           <button
             type="button"
             className="btn btn-primary w-100 fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm"
@@ -186,12 +180,12 @@ export default function DynamicQrPhCode({
             {isRedirecting ? (
               <>
                 <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                <span>Connecting to PayMongo... Redirecting to GCash...</span>
+                <span>Connecting to PayMongo... Redirecting to Payment...</span>
               </>
             ) : (
               <>
-                <i className="bi bi-box-arrow-up-right fs-6"></i>
-                <span>Option 2: Proceed to GCash (₱{parsedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                <i className="bi bi-credit-card-fill fs-6"></i>
+                <span>Proceed to Pay (₱{parsedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
               </>
             )}
           </button>
@@ -230,7 +224,7 @@ export default function DynamicQrPhCode({
           {isVerifying ? (
             <>
               <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-              <span>Processing GCash Receipt...</span>
+              <span>Processing Payment Receipt...</span>
             </>
           ) : (
             <>
@@ -241,7 +235,7 @@ export default function DynamicQrPhCode({
         </button>
       )}
 
-      {/* Test Pay Simulation Button (PayMongo Test Mode) */}
+      {/* Test Pay Authorization Button (PayMongo Test Mode) */}
       {showTestPayBtn && (
         <button
           type="button"
@@ -253,14 +247,15 @@ export default function DynamicQrPhCode({
               onSimulateTestPay(simRef);
             } else {
               try {
-                const res = await fetch('/api/payments/paymongo-qr', {
+                const res = await fetch('/api/payments/paymongo/test', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: 'simulate_test_pay', amount: parsedAmount, refNumber: simRef })
+                  body: JSON.stringify({ amount: parsedAmount, referenceNumber: simRef, bookingID })
                 });
                 const d = await res.json();
-                if (d.success && onCheckStatus) {
-                  onCheckStatus();
+                if (d.success) {
+                  setCurrentStatus('Settled');
+                  if (onPaymentSuccess) onPaymentSuccess(d);
                 }
               } catch (e) {
                 console.error(e);
@@ -268,19 +263,7 @@ export default function DynamicQrPhCode({
             }
           }}
         >
-          <i className="bi bi-play-circle-fill me-1"></i> Test Pay (Simulate Payment)
-        </button>
-      )}
-
-      {/* Receptionist Check Payment Status Button */}
-      {showCheckStatusBtn && onCheckStatus && (
-        <button
-          type="button"
-          className="btn btn-outline-primary btn-sm w-100 fw-bold mt-2"
-          style={{ fontSize: '0.78rem' }}
-          onClick={onCheckStatus}
-        >
-          <i className="bi bi-arrow-clockwise me-1"></i> Check Payment Status
+          <i className="bi bi-lightning-charge-fill me-1"></i> Test Pay Authorization
         </button>
       )}
     </div>
