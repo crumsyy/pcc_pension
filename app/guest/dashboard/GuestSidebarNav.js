@@ -43,12 +43,12 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
               {item.href ? (
                 <Link
                   href={item.href}
-                  className="nav-link text-white d-flex align-items-center justify-content-between gap-2 mb-1 px-3 py-2 w-100 border-0 text-start text-decoration-none"
+                  className={`nav-link text-white d-flex align-items-center justify-content-between gap-2 mb-1 px-3 py-2 w-100 border-0 text-start text-decoration-none ${isActive ? 'active' : ''}`}
                   style={{
                     borderRadius: '8px',
                     fontSize: '0.9rem',
-                    backgroundColor: 'transparent',
-                    fontWeight: '500',
+                    backgroundColor: isActive ? 'rgba(255,255,255,0.22)' : 'transparent',
+                    fontWeight: isActive ? '700' : '500',
                     transition: 'all 0.15s ease-in-out'
                   }}
                 >
@@ -57,7 +57,7 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
                     <span className="text-nowrap" style={{ letterSpacing: '0.01em' }}>{item.label}</span>
                   </div>
                 </Link>
-              ) : (
+              ) : setActiveTab ? (
                 <button
                   type="button"
                   onClick={() => setActiveTab(item.id)}
@@ -80,6 +80,28 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
                     </span>
                   )}
                 </button>
+              ) : (
+                <Link
+                  href={item.id === 'home' ? '/guest/dashboard' : `/guest/dashboard?tab=${item.id}`}
+                  className={`nav-link text-white d-flex align-items-center justify-content-between gap-2 mb-1 px-3 py-2 w-100 border-0 text-start text-decoration-none ${isActive ? 'active' : ''}`}
+                  style={{
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    backgroundColor: isActive ? 'rgba(255,255,255,0.22)' : 'transparent',
+                    fontWeight: isActive ? '700' : '500',
+                    transition: 'all 0.15s ease-in-out'
+                  }}
+                >
+                  <div className="d-flex align-items-center gap-3">
+                    <i className={`bi ${item.icon} me-1`} style={{ fontSize: '1.1rem' }}></i>
+                    <span className="text-nowrap" style={{ letterSpacing: '0.01em' }}>{item.label}</span>
+                  </div>
+                  {isNotification && unreadNotificationsCount > 0 && (
+                    <span className="badge bg-danger text-white rounded-pill" style={{ fontSize: '0.68rem' }}>
+                      {unreadNotificationsCount}
+                    </span>
+                  )}
+                </Link>
               )}
             </li>
           );

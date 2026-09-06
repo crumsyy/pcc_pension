@@ -33,9 +33,10 @@ export async function GET() {
     const activeProducts = products.filter(p => p.productCategoryID !== 3);
     const cookedMeals = products.filter(p => p.productCategoryID === 3);
 
-    // Fetch guest order history
-    const guests = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
-    const guestID = guests.length > 0 ? guests[0].guestID : 0;
+    // Fetch guest profile & order history
+    const guests = await dbQuery("SELECT guestID, firstName, lastName, profilePicture, userID FROM guest WHERE userID = ?", [session.userID]);
+    const guest = guests.length > 0 ? guests[0] : null;
+    const guestID = guest ? guest.guestID : 0;
 
     let orders = [];
     if (guestID > 0) {
@@ -76,6 +77,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
+      guest,
       products: activeProducts,
       cookedMeals,
       amenities,

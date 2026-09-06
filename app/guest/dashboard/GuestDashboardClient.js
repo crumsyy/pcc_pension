@@ -153,6 +153,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   // Active Navigation Tab: 'home' | 'rooms' | 'chat' | 'notifications' | 'account'
   const [activeTab, setActiveTab] = useState('home');
 
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam && ['home', 'rooms', 'chat', 'notifications', 'account'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    } catch (e) {}
+  }, []);
+
   // Room Search & Filtering States
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [selectedFloorFilter, setSelectedFloorFilter] = useState('All');

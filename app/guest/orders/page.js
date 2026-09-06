@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import GuestLayout from '@/app/components/GuestLayout';
 
 export default function GuestOrdersPage() {
+  const [guest, setGuest] = useState(null);
   const [products, setProducts] = useState([]);
   const [cookedMeals, setCookedMeals] = useState([]);
   const [amenities, setAmenities] = useState([]);
@@ -77,6 +78,7 @@ export default function GuestOrdersPage() {
       setCookedMeals(data.cookedMeals || []);
       setAmenities(data.amenities || []);
       setOrderHistory(data.orders || []);
+      if (data.guest) setGuest(data.guest);
     } catch (err) {
       setFeedback({ type: 'danger', message: err.message });
     } finally {
@@ -225,29 +227,25 @@ export default function GuestOrdersPage() {
   const filteredAmenities = amenities.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="container-fluid py-4 px-md-5" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      {/* TOP HEADER */}
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2 border-bottom pb-3">
-        <div>
-          <div className="d-flex align-items-center gap-2 mb-1">
-            <span className="badge text-white px-2.5 py-1 fw-bold" style={{ backgroundColor: 'var(--pcc-blue)' }}>
-              Room Service & Store
-            </span>
-            <span className="badge bg-success text-white px-2 py-1">Guest Portal</span>
+    <GuestLayout activeTab="orders" guest={guest}>
+      <div className="container-fluid py-4 px-3 px-md-4 px-lg-5">
+        {/* TOP HEADER */}
+        <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2 border-bottom pb-3">
+          <div>
+            <div className="d-flex align-items-center gap-2 mb-1">
+              <span className="badge text-white px-2.5 py-1 fw-bold" style={{ backgroundColor: 'var(--pcc-blue)' }}>
+                Room Service & Store
+              </span>
+              <span className="badge bg-success text-white px-2 py-1">Guest Portal</span>
+            </div>
+            <h2 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>
+              Room Orders & Cooked Meals
+            </h2>
+            <p className="text-muted small mb-0">
+              Order fresh breakfast meals, refreshments, beverages, and extra amenities directly to your room.
+            </p>
           </div>
-          <h2 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>
-            Room Orders & Cooked Meals
-          </h2>
-          <p className="text-muted small mb-0">
-            Order fresh breakfast meals, refreshments, beverages, and extra amenities directly to your room.
-          </p>
         </div>
-        <div className="d-flex gap-2">
-          <Link href="/guest/dashboard" className="btn btn-outline-primary fw-semibold btn-sm shadow-xs d-flex align-items-center gap-1.5">
-            <i className="bi bi-arrow-left"></i>Back to Guest Dashboard
-          </Link>
-        </div>
-      </div>
 
       {feedback.message && (
         <div className={`alert alert-${feedback.type} alert-dismissible fade show shadow-xs mb-4`} role="alert">
@@ -317,7 +315,7 @@ export default function GuestOrdersPage() {
       {/* MAIN CONTENT AREA: CATALOG + CART */}
       <div className="row g-4">
         {/* CATALOG COLUMN */}
-        <div className="col-lg-8">
+        <div className="col-12 col-lg-7 col-xl-8">
           {activeCategory === 'history' ? (
             /* ORDER HISTORY VIEW */
             <div className="card border-0 shadow-sm rounded-3 bg-white p-4">
@@ -402,7 +400,7 @@ export default function GuestOrdersPage() {
                   </div>
                   <div className="row g-3">
                     {filteredMeals.map(m => (
-                      <div key={m.productID} className="col-md-6 col-xl-4">
+                      <div key={m.productID} className="col-12 col-sm-6 col-xl-4">
                         <div className="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 d-flex flex-column justify-content-between">
                           <div>
                             <div className="d-flex justify-content-between align-items-start mb-2">
@@ -441,7 +439,7 @@ export default function GuestOrdersPage() {
                   </div>
                   <div className="row g-3">
                     {filteredProducts.map(p => (
-                      <div key={p.productID} className="col-md-6 col-xl-4">
+                      <div key={p.productID} className="col-12 col-sm-6 col-xl-4">
                         <div className="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 d-flex flex-column justify-content-between">
                           <div>
                             <div className="d-flex justify-content-between align-items-start mb-2">
@@ -481,7 +479,7 @@ export default function GuestOrdersPage() {
                   </div>
                   <div className="row g-3">
                     {filteredAmenities.map(a => (
-                      <div key={a.amenityID} className="col-md-6 col-xl-4">
+                      <div key={a.amenityID} className="col-12 col-sm-6 col-xl-4">
                         <div className="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 d-flex flex-column justify-content-between">
                           <div>
                             <div className="d-flex justify-content-between align-items-start mb-2">
@@ -513,7 +511,7 @@ export default function GuestOrdersPage() {
         </div>
 
         {/* ORDER TRAY / CART COLUMN */}
-        <div className="col-lg-4">
+        <div className="col-12 col-lg-5 col-xl-4">
           <div className="card border-0 shadow-sm rounded-3 bg-white p-4 sticky-top" style={{ top: '20px' }}>
             <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
@@ -670,6 +668,6 @@ export default function GuestOrdersPage() {
           </div>
         </div>
       </div>
-    </div>
+    </GuestLayout>
   );
 }
