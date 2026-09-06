@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit, ensureOrdersSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit, ensureOrdersSchema, ensureProfilePictureSchema } from '@/lib/db';
 
 export async function GET() {
   const session = await getSession();
@@ -10,6 +10,7 @@ export async function GET() {
 
   try {
     await ensureOrdersSchema();
+    await ensureProfilePictureSchema();
     const [products, amenities] = await Promise.all([
       dbQuery(`
         SELECT p.productID, p.name, p.price, p.productCategoryID,
@@ -33,9 +34,31 @@ export async function GET() {
     const activeProducts = products.filter(p => p.productCategoryID !== 3);
     const cookedMeals = products.filter(p => p.productCategoryID === 3);
 
-    // Fetch guest profile & order history
-    const guests = await dbQuery("SELECT guestID, firstName, lastName, profilePicture, userID FROM guest WHERE userID = ?", [session.userID]);
-    const guest = guests.length > 0 ? guests[0] : null;
+    // Fetch guest profile & order history safely
+    let guest = null;
+    try {
+      const guests = await dbQuery("SELECT * FROM guest WHERE userID = ?", [session.userID]);
+      if (guests.length > 0) {
+        guest = guests[0];
+      }
+    } catch (e) {
+      const guests = await dbQuery("SELECT guestID, firstName, lastName, userID FROM guest WHERE userID = ?", [session.userID]);
+      if (guests.length > 0) {
+        guest = guests[0];
+      }
+    }
+
+    if (guest && !guest.profilePicture) {
+      try {
+        const userRows = await dbQuery("SELECT profilePicture FROM user WHERE userID = ?", [session.userID]);
+        if (userRows.length > 0 && userRows[0].profilePicture) {
+          guest.profilePicture = userRows[0].profilePicture;
+        }
+      } catch (e) {
+        // Safe fallback if column does not exist on user table
+      }
+    }
+
     const guestID = guest ? guest.guestID : 0;
 
     let orders = [];
