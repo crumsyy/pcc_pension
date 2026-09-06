@@ -540,7 +540,12 @@ export default function ReceptionistBilling() {
                               </thead>
                               <tbody>
                                 <tr>
-                                  <td>{billDetails.booking.roomType} (Room {billDetails.booking.roomNumber})</td>
+                                  <td>
+                                    <div>{billDetails.booking.roomType} (Room {billDetails.booking.roomNumber})</div>
+                                    <div className="text-muted small">
+                                      {billDetails.chargesSummary.breakfastOption === 'with' ? 'Package: With Breakfast' : 'Package: Room Only'} • {billDetails.chargesSummary.totalGuests} Registered Pax
+                                    </div>
+                                  </td>
                                   <td>₱{parseFloat(billDetails.booking.rate).toFixed(2)}</td>
                                   <td>{billDetails.booking.nights}</td>
                                   <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.originalRoomCharge || billDetails.booking.originalRoomCharge || billDetails.booking.roomCharge).toFixed(2)}</td>
@@ -564,10 +569,41 @@ export default function ReceptionistBilling() {
                                     </td>
                                   </tr>
                                 )}
-                                {billDetails.chargesSummary.totalDiscount > 0 && (
-                                  <tr className="table-light">
-                                    <td colSpan="3" className="fw-semibold">Final Room Charge Due</td>
-                                    <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</td>
+                                <tr className="table-light">
+                                  <td colSpan="3" className="fw-semibold">Net Room Stay Charges</td>
+                                  <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</td>
+                                </tr>
+                                {billDetails.chargesSummary.downPaymentPaid > 0 && (
+                                  <tr>
+                                    <td colSpan="3" className="text-success fw-semibold">
+                                      Down Payment Paid ({billDetails.chargesSummary.downPaymentPercentage}% of Room Charges)
+                                    </td>
+                                    <td className="text-end fw-bold text-success">
+                                      -₱{parseFloat(billDetails.chargesSummary.downPaymentPaid).toFixed(2)}
+                                    </td>
+                                  </tr>
+                                )}
+                                <tr>
+                                  <td colSpan="3" className="fw-bold text-pcc-blue">
+                                    Remaining Room Balance
+                                  </td>
+                                  <td className="text-end fw-bold text-pcc-blue">
+                                    ₱{parseFloat(billDetails.chargesSummary.roomBalance || 0).toFixed(2)}
+                                  </td>
+                                </tr>
+                                {billDetails.chargesSummary.extraGuestFee > 0 && (
+                                  <tr className="table-secondary-subtle">
+                                    <td colSpan="3">
+                                      <div className="d-flex align-items-center gap-2">
+                                        <span className="fw-semibold">Additional Guest Fee ({billDetails.chargesSummary.extraGuests} Extra Pax × {billDetails.booking.nights} Night{billDetails.booking.nights > 1 ? 's' : ''} @ ₱100/night)</span>
+                                        <span className="badge bg-secondary text-white font-monospace" style={{ fontSize: '0.68rem' }}>
+                                          Final Billing Only
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td className="text-end fw-bold text-secondary">
+                                      +₱{parseFloat(billDetails.chargesSummary.extraGuestFee).toFixed(2)}
+                                    </td>
                                   </tr>
                                 )}
                                 {billDetails.chargesSummary.earlyCheckIn > 0 && (
@@ -914,13 +950,33 @@ export default function ReceptionistBilling() {
                         </div>
                         <div className="card-body p-4" style={{ fontSize: '0.78rem' }}>
                           <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Room Base Rent:</span>
+                            <span className="text-muted">Room Base Rent ({billDetails.chargesSummary.breakfastOption === 'with' ? 'With Breakfast' : 'Room Only'}):</span>
                             <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.baseRoomCharge || billDetails.chargesSummary.room).toFixed(2)}</span>
                           </div>
+                          {billDetails.chargesSummary.totalDiscount > 0 && (
+                            <div className="d-flex justify-content-between mb-2 text-success">
+                              <span>Room Discounts Applied:</span>
+                              <span className="fw-semibold">-₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {billDetails.chargesSummary.downPaymentPaid > 0 && (
+                            <div className="d-flex justify-content-between mb-2 text-success">
+                              <span>Down Payment Paid ({billDetails.chargesSummary.downPaymentPercentage}%):</span>
+                              <span className="fw-semibold">-₱{parseFloat(billDetails.chargesSummary.downPaymentPaid).toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                            <span className="fw-semibold text-dark">Remaining Room Balance:</span>
+                            <span className="fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.roomBalance || 0).toFixed(2)}</span>
+                          </div>
+
                           {billDetails.chargesSummary.extraGuestFee > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-primary">
-                              <span>Extra Guests Fee ({billDetails.chargesSummary.extraGuests} Pax @ ₱100/night):</span>
-                              <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.extraGuestFee).toFixed(2)}</span>
+                            <div className="d-flex justify-content-between mb-2 text-secondary align-items-center">
+                              <span>
+                                Extra Guests Fee ({billDetails.chargesSummary.extraGuests} Pax @ ₱100/night):
+                                <span className="badge bg-secondary-subtle text-secondary ms-1.5" style={{ fontSize: '0.68rem' }}>Final Billing Only</span>
+                              </span>
+                              <span className="fw-semibold text-dark">+₱{parseFloat(billDetails.chargesSummary.extraGuestFee).toFixed(2)}</span>
                             </div>
                           )}
                           {billDetails.chargesSummary.earlyCheckIn > 0 && (
@@ -933,12 +989,6 @@ export default function ReceptionistBilling() {
                             <div className="d-flex justify-content-between mb-2 text-primary">
                               <span>Late Check-out Fee:</span>
                               <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</span>
-                            </div>
-                          )}
-                          {billDetails.chargesSummary.totalDiscount > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-success">
-                              <span>Discounts Applied:</span>
-                              <span className="fw-semibold">-₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}</span>
                             </div>
                           )}
                           <div className="d-flex justify-content-between mb-2">
@@ -971,7 +1021,10 @@ export default function ReceptionistBilling() {
                           </div>
 
                           <div className="d-flex justify-content-between align-items-center p-3 bg-danger-subtle rounded border border-danger-subtle mb-4">
-                            <span className="fw-bold text-danger">Remaining Balance:</span>
+                            <div>
+                              <span className="fw-bold text-danger d-block">Total Balance Due:</span>
+                              <span className="text-muted" style={{ fontSize: '0.70rem' }}>Room Bal + Extra Guests + Orders + Fees</span>
+                            </div>
                             <span className="fw-bold text-danger" style={{ fontSize: '1.3rem' }}>
                               ₱{parseFloat(billDetails.chargesSummary.balance).toFixed(2)}
                             </span>

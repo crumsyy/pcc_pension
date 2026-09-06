@@ -1401,7 +1401,7 @@ function ReservationsClient() {
                             refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
                             paymentStatus={isGcashSettled ? "Settled" : "Pending"}
                             showProceedBtn={false}
-                            showCheckStatusBtn={true}
+                            showCheckStatusBtn={false}
                             showTestPayBtn={true}
                             onSimulateTestPay={(simRef) => {
                               setIsGcashSettled(true);

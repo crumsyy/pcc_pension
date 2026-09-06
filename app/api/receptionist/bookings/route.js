@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema, ensurePaymentSchema, logBillingAudit, completeBookingAndFreeRoom } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -172,37 +172,55 @@ export async function POST(request) {
           return NextResponse.json({ error: 'Check-out time must be later than check-in time.' }, { status: 400 });
         }
 
-        // Calculate required down payment based on selected percentage (30%, 50%, 100%)
-        const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 50) / 100;
-        const providedTotal = parseFloat(body.netTotalAmount || 0);
+        // Calculate required down payment based on room stay charges strictly (excluding extra guest fees)
+        await ensureBookingBillingSchema();
 
-        let subtotalRoomCharge = providedTotal;
-        if (subtotalRoomCharge <= 0) {
+        const inDateStr = (checkInDateTime || '').split(' ')[0] || (checkInDateTime || '').split('T')[0];
+        const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
+        const inDateD = new Date(inDateStr + 'T00:00:00');
+        const outDateD = new Date(outDateStr + 'T00:00:00');
+        const diffDays = Math.max(1, Math.round(Math.abs(outDateD - inDateD) / (1000 * 60 * 60 * 24)));
+
+        const breakfastOption = body.breakfastOption === 'with' ? 'with' : 'without';
+        const breakfastID = breakfastOption === 'with' ? 2 : 1;
+
+        let roomRate = parseFloat(body.roomRate || 0);
+        if (!roomRate || isNaN(roomRate) || roomRate <= 0) {
           const [roomData] = await conn.execute(
-            "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
-            [roomID]
+            "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ? WHERE r.roomID = ?",
+            [breakfastID, roomID]
           );
-          const roomRate = roomData.length > 0 ? parseFloat(roomData[0].rate || 0) : 0;
-          const maxOccupancy = roomData.length > 0 ? (parseInt(roomData[0].occupancyLimit) || 2) : 2;
-          const inDateStr = (checkInDateTime || '').split(' ')[0] || (checkInDateTime || '').split('T')[0];
-          const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
-          const checkInD = new Date(inDateStr + 'T00:00:00');
-          const checkOutD = new Date(outDateStr + 'T00:00:00');
-          const diffDays = Math.max(1, Math.round(Math.abs(checkOutD - checkInD) / (1000 * 60 * 60 * 24)));
-
-          const totalGuestCount = Math.max(1, guests.length);
-          const extraGuestsCount = Math.max(0, totalGuestCount - maxOccupancy);
-          const extraGuestFee = extraGuestsCount * 100 * diffDays;
-          subtotalRoomCharge = (roomRate * diffDays) + extraGuestFee;
+          roomRate = roomData.length > 0 && roomData[0].rate ? parseFloat(roomData[0].rate) : 1500;
         }
 
-        const requiredDp = Math.round((subtotalRoomCharge * dpPercentageNum) * 100) / 100;
+        const rawRoomCharge = roomRate * diffDays;
+        let roomDiscountAmount = 0;
+        if (guests.length > 0) {
+          const sharePerGuest = rawRoomCharge / guests.length;
+          for (const g of guests) {
+            if (g.discountID) {
+              const [discRes] = await conn.execute("SELECT percentage FROM discounts WHERE discountID = ?", [g.discountID]);
+              if (discRes.length > 0) {
+                const pct = parseFloat(discRes[0].percentage || 0);
+                roomDiscountAmount += sharePerGuest * (pct / 100);
+              }
+            }
+          }
+        }
+        const finalRoomCharge = Math.max(0, Math.round((rawRoomCharge - roomDiscountAmount) * 100) / 100);
+
+        // Down payment applies STRICTLY to room stay charges; extra guest fees are EXCLUDED
+        const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 50) / 100;
+        const dpPercentageInt = parseInt(body.downPaymentPercentage) || 50;
+        const requiredDp = Math.round((finalRoomCharge * dpPercentageNum) * 100) / 100;
 
         if (downPaymentAmount < requiredDp - 0.05) {
           return NextResponse.json({ 
-            error: `Payment received (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected ${(dpPercentageNum * 100).toFixed(0)}% requirement of ₱${requiredDp.toFixed(2)}.` 
+            error: `Payment received (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected ${dpPercentageInt}% requirement of ₱${requiredDp.toFixed(2)} on room stay charges.` 
           }, { status: 400 });
         }
+
+        const initialBalance = Math.max(0, Math.round((finalRoomCharge - downPaymentAmount) * 100) / 100);
 
         // Validation for GCash down payment: If paymentMethod = GCash and payment status != Settled, block booking save
         if (parseInt(paymentMethodID) === 2 && body.paymentStatus !== 'Settled' && !body.isGcashSettled) {
@@ -241,10 +259,11 @@ export async function POST(request) {
           );
         }
 
-        // Insert booking
+        // Insert booking with roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption
         const [insertBookingRes] = await conn.execute(
-          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, ?, ?, ?, ?)",
-          [checkInDateTime, checkOutDateTime, status, convReservationID, guestID, roomID]
+          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [checkInDateTime, checkOutDateTime, status, convReservationID, guestID, roomID, roomRate, finalRoomCharge, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption]
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -314,12 +333,12 @@ export async function POST(request) {
           transactionType: 'Down Payment',
           status: 'Settled',
           amount: downPaymentAmount,
-          balanceBefore: 0,
-          balanceAfter: 0,
+          balanceBefore: finalRoomCharge,
+          balanceAfter: initialBalance,
           userID: session?.userID || null,
           userName: session?.fullName || 'Receptionist',
           userRole: session?.role || 'Receptionist',
-          description: `Down payment recorded upon booking creation (${status})`,
+          description: `Down payment recorded upon booking creation (${status}) - ${dpPercentageInt}% on Room Charges`,
           referenceNumber: refNumber
         });
 

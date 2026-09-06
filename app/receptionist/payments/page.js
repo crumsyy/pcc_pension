@@ -504,7 +504,7 @@ function PaymentsClient() {
                       refNumber={`PAY-${selectedBookingID || 'POS'}`}
                       paymentStatus="Pending"
                       showProceedBtn={false}
-                      showCheckStatusBtn={true}
+                      showCheckStatusBtn={false}
                       showTestPayBtn={true}
                       onSimulateTestPay={(simRef) => {
                         setPaymentForm(prev => ({ ...prev, cashReceived: payableAmount.toFixed(2) }));
@@ -561,19 +561,35 @@ function PaymentsClient() {
                   <div>
                     <h6 className="fw-bold text-dark mb-3">Room {billData.booking.roomNumber} ({billData.booking.roomType}) - {billData.booking.lastName}, {billData.booking.firstName}</h6>
                     <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Room Rent (Original):</span>
-                      <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.originalRoomCharge).toFixed(2)}</span>
+                      <span className="text-muted">Room Base Rent ({billData.chargesSummary.breakfastOption === 'with' ? 'With Breakfast' : 'Room Only'}):</span>
+                      <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.baseRoomCharge || billData.chargesSummary.room).toFixed(2)}</span>
                     </div>
                     {discountAmount > 0 && (
                       <div className="d-flex justify-content-between mb-2 text-danger">
-                        <span>Applied Discounts:</span>
+                        <span>Room Discounts Applied:</span>
                         <span className="fw-semibold">-₱{discountAmount.toFixed(2)}</span>
                       </div>
                     )}
-                    <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Room Rent (Net):</span>
-                      <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.room).toFixed(2)}</span>
+                    {billData.chargesSummary.downPaymentPaid > 0 && (
+                      <div className="d-flex justify-content-between mb-2 text-success">
+                        <span>Down Payment Paid ({billData.chargesSummary.downPaymentPercentage}%):</span>
+                        <span className="fw-semibold">-₱{parseFloat(billData.chargesSummary.downPaymentPaid).toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                      <span className="fw-semibold text-dark">Remaining Room Balance:</span>
+                      <span className="fw-bold text-dark">₱{parseFloat(billData.chargesSummary.roomBalance || 0).toFixed(2)}</span>
                     </div>
+
+                    {billData.chargesSummary.extraGuestFee > 0 && (
+                      <div className="d-flex justify-content-between mb-2 text-secondary align-items-center">
+                        <span>
+                          Extra Guests Fee ({billData.chargesSummary.extraGuests} Pax @ ₱100/night):
+                          <span className="badge bg-secondary-subtle text-secondary ms-1.5" style={{ fontSize: '0.68rem' }}>Final Billing Only</span>
+                        </span>
+                        <span className="fw-semibold text-dark">+₱{parseFloat(billData.chargesSummary.extraGuestFee).toFixed(2)}</span>
+                      </div>
+                    )}
                     {billData.chargesSummary.earlyCheckIn > 0 && (
                       <div className="d-flex justify-content-between mb-2 text-danger">
                         <span>Early Check-In Fee:</span>
@@ -608,7 +624,10 @@ function PaymentsClient() {
 
                     <div className="p-3 bg-light rounded mb-3">
                       <div className="d-flex justify-content-between align-items-center mb-1">
-                        <span className="fw-bold text-dark" style={{ fontSize: '1rem' }}>Net Amount Payable:</span>
+                        <div>
+                          <span className="fw-bold text-dark d-block" style={{ fontSize: '1rem' }}>Total Amount Payable:</span>
+                          <span className="text-muted" style={{ fontSize: '0.70rem' }}>Room Bal + Extra Guests + Orders + Fees</span>
+                        </div>
                         <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.25rem' }}>
                           ₱{payableAmount.toFixed(2)}
                         </span>

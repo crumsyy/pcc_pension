@@ -18,8 +18,16 @@ export default function GuestOrdersPage() {
   // Cart / Order Tray State: array of { itemID, type, name, price, quantity, isCookedMeal }
   const [cart, setCart] = useState([]);
 
-  // Delivery Scheduling State for Cooked Meals
-  const getManilaDateInfo = () => {
+  // Delivery Scheduling State for Cooked Meals (Safely populated on client mount to prevent Vercel prerender errors)
+  const [todayStr, setTodayStr] = useState('');
+  const [tomorrowStr, setTomorrowStr] = useState('');
+  const [currentMins, setCurrentMins] = useState(0);
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliveryTime, setDeliveryTime] = useState('07:30 AM');
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [isClientMounted, setIsClientMounted] = useState(false);
+
+  useEffect(() => {
     try {
       const dateFmt = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Manila',
@@ -33,32 +41,30 @@ export default function GuestOrdersPage() {
         minute: '2-digit',
         hour12: false
       });
-      const todayStr = dateFmt.format(new Date());
-      const tParts = timeFmt.formatToParts(new Date());
+      const now = new Date();
+      const today = dateFmt.format(now);
+      const tParts = timeFmt.formatToParts(now);
       const p = {};
       tParts.forEach(({ type, value }) => { p[type] = value; });
-      const currentMins = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+      const mins = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
 
-      const d = new Date();
+      const d = new Date(now);
       d.setDate(d.getDate() + 1);
-      const tomorrowStr = dateFmt.format(d);
+      const tomorrow = dateFmt.format(d);
 
-      return { todayStr, tomorrowStr, currentMins };
+      setTodayStr(today);
+      setTomorrowStr(tomorrow);
+      setCurrentMins(mins);
+      setDeliveryDate(mins > 630 ? tomorrow : today);
+      setIsClientMounted(true);
     } catch (e) {
       const d = new Date();
-      const todayStr = d.toISOString().split('T')[0];
-      d.setDate(d.getDate() + 1);
-      const tomorrowStr = d.toISOString().split('T')[0];
-      return { todayStr, tomorrowStr, currentMins: 0 };
+      const today = d.toISOString().split('T')[0];
+      setTodayStr(today);
+      setDeliveryDate(today);
+      setIsClientMounted(true);
     }
-  };
-
-  const { todayStr, tomorrowStr, currentMins } = getManilaDateInfo();
-
-  // If ordering in afternoon/evening (>10:30 AM / 630 min), default deliveryDate to tomorrow
-  const [deliveryDate, setDeliveryDate] = useState(currentMins > 630 ? tomorrowStr : todayStr);
-  const [deliveryTime, setDeliveryTime] = useState('07:30 AM');
-  const [feedback, setFeedback] = useState({ type: '', message: '' });
+  }, []);
 
   const fetchCatalogAndOrders = async () => {
     setLoading(true);
@@ -132,9 +138,10 @@ export default function GuestOrdersPage() {
 
   // Delivery Slots Evaluation (between 06:00 AM and 10:30 AM)
   const allowedSlots = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
-  const isSelectedDateToday = deliveryDate === todayStr;
+  const isSelectedDateToday = isClientMounted && Boolean(todayStr) && (deliveryDate === todayStr);
 
   const evaluatedSlots = allowedSlots.map(slot => {
+    if (!isClientMounted) return { slot, isPast: false };
     const [timePart, meridiem] = slot.split(' ');
     const [h, m] = timePart.split(':');
     let hr = parseInt(h, 10);
@@ -146,7 +153,7 @@ export default function GuestOrdersPage() {
     return { slot, isPast };
   });
 
-  const allTodaySlotsPassed = isSelectedDateToday && evaluatedSlots.every(s => s.isPast);
+  const allTodaySlotsPassed = isClientMounted && isSelectedDateToday && evaluatedSlots.every(s => s.isPast);
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
@@ -169,6 +176,7 @@ export default function GuestOrdersPage() {
     setFeedback({ type: '', message: '' });
 
     try {
+      const targetDate = deliveryDate || todayStr;
       const res = await fetch('/api/guest/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -179,7 +187,7 @@ export default function GuestOrdersPage() {
             quantity: item.quantity,
             name: item.name
           })),
-          deliveryDate: hasCookedMealsInCart ? deliveryDate : null,
+          deliveryDate: hasCookedMealsInCart ? targetDate : null,
           deliveryTime: hasCookedMealsInCart ? deliveryTime : null
         })
       });

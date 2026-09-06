@@ -620,11 +620,12 @@ function BookingsClient() {
 
       const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
       const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
-      const rawSubtotal = (rate * (nights || 1)) + extraGuestFee;
+      // Down payment applies strictly to room stay charges; extra guest fees are excluded
+      const rawRoomStayCharge = rate * (nights || 1);
 
       let totalApportionedDiscount = 0;
       if (roomGuests.length > 0 && selectedRoom) {
-        const sharePerGuest = (rate * (nights || 1)) / roomGuests.length;
+        const sharePerGuest = rawRoomStayCharge / roomGuests.length;
         roomGuests.forEach(g => {
           if (g.discountID) {
             const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
@@ -635,9 +636,9 @@ function BookingsClient() {
         });
       }
 
-      const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+      const netRoomStayCharge = Math.max(0, rawRoomStayCharge - totalApportionedDiscount);
       const dpPctNum = parseInt(downPaymentOption) || 30;
-      const requiredDp = netTotalAmount * (dpPctNum / 100);
+      const requiredDp = netRoomStayCharge * (dpPctNum / 100);
       setDownPayment(requiredDp.toFixed(2));
     }
   }, [
@@ -759,7 +760,11 @@ function BookingsClient() {
       });
     }
 
-    const rate = selectedRoom ? (parseFloat(selectedRoom.rate) || 0) : 0;
+    const rate = selectedRoom
+      ? (breakfastOption === 'with'
+          ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
+          : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
+      : 0;
 
     let nights = 0;
     if (checkInDate && checkOutDate) {
@@ -773,7 +778,8 @@ function BookingsClient() {
 
     const excessGuestsCount = Math.max(0, (parseInt(numGuestsCount) || 1) - maxOccupancy);
     const extraGuestFee = excessGuestsCount * 100 * nights;
-    const rawSubtotal = (rate * nights) + extraGuestFee;
+    // Down payment applies strictly to room stay charges; extra guest fees are excluded!
+    const rawRoomStayCharge = rate * nights;
 
     let totalApportionedDiscount = 0;
     if (numGuestsCount > 0 && selectedRoom && discountedGuests.length > 0) {
@@ -788,9 +794,9 @@ function BookingsClient() {
       });
     }
 
-    const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+    const netRoomStayCharge = Math.max(0, rawRoomStayCharge - totalApportionedDiscount);
     const dpPctNum = parseInt(downPaymentOption) || 50;
-    const requiredDownpayment = Math.round(netTotalAmount * (dpPctNum / 100) * 100) / 100;
+    const requiredDownpayment = Math.round(netRoomStayCharge * (dpPctNum / 100) * 100) / 100;
 
     const dpAmount = parseFloat(downPayment);
     if (isNaN(dpAmount) || dpAmount <= 0) {
@@ -798,7 +804,7 @@ function BookingsClient() {
       return;
     }
     if (dpAmount < requiredDownpayment - 0.05) {
-      showAlert('error', 'Validation Error', `Payment received (₱${dpAmount.toFixed(2)}) cannot be below the selected ${dpPctNum}% requirement of ₱${requiredDownpayment.toFixed(2)}.`);
+      showAlert('error', 'Validation Error', `Payment received (₱${dpAmount.toFixed(2)}) cannot be below the selected ${dpPctNum}% requirement of ₱${requiredDownpayment.toFixed(2)} on room charges.`);
       return;
     }
 
@@ -829,7 +835,10 @@ function BookingsClient() {
             checkInDateTime: finalCheckInDateTime,
             checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
             status: checkInScenario === 'now' ? 'Checked In' : 'Pending Check-in',
-            netTotalAmount,
+            roomRate: rate,
+            roomCharge: netRoomStayCharge,
+            breakfastOption,
+            netTotalAmount: netRoomStayCharge,
             downPaymentAmount: dpAmount,
             downPaymentPercentage: dpPctNum,
             paymentMethodID: parseInt(paymentMethodID),
@@ -1616,7 +1625,11 @@ function BookingsClient() {
 
                   {/* DYNAMIC BREAKDOWN MATH */}
                   {(() => {
-                    const rate = selectedRoomObj ? (parseFloat(selectedRoomObj.rate) || 0) : 0;
+                    const rate = selectedRoomObj
+                      ? (breakfastOption === 'with'
+                          ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
+                          : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0)))
+                      : 0;
                     const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
 
                     let nights = 0;
@@ -1629,13 +1642,11 @@ function BookingsClient() {
                     }
                     nights = Math.max(1, nights);
 
-                    const excessGuestsCount = Math.max(0, (parseInt(numGuestsCount) || 1) - maxOccupancy);
-                    const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
-                    const rawSubtotal = (rate * (nights || 1)) + extraGuestFee;
+                    const baseRoomStayCharges = rate * (nights || 1);
 
                     let totalApportionedDiscount = 0;
                     if (roomGuests.length > 0 && selectedRoomObj) {
-                      const sharePerGuest = (rate * (nights || 1)) / roomGuests.length;
+                      const sharePerGuest = baseRoomStayCharges / roomGuests.length;
                       roomGuests.forEach(g => {
                         if (g.discountID) {
                           const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
@@ -1646,17 +1657,20 @@ function BookingsClient() {
                       });
                     }
 
-                    const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+                    const netRoomStayCharge = Math.max(0, baseRoomStayCharges - totalApportionedDiscount);
                     const dpPctNum = parseInt(downPaymentOption) || 30;
-                    const requiredDownpayment = netTotalAmount * (dpPctNum / 100);
-                    const remainingBalance = netTotalAmount - requiredDownpayment;
+                    const requiredDownpayment = netRoomStayCharge * (dpPctNum / 100);
+                    const remainingRoomBalance = Math.max(0, netRoomStayCharge - requiredDownpayment);
+
+                    const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
+                    const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
 
                     return (
                       <>
                         {rate > 0 && (
                           <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
                             <div className="d-flex justify-content-between mb-1">
-                              <span className="text-muted">Room Base Rate:</span>
+                              <span className="text-muted">Room Base Rate ({breakfastOption === 'with' ? 'With Breakfast' : 'Room Only'}):</span>
                               <span className="fw-bold text-dark">
                                 ₱{rate.toFixed(2)}/night
                               </span>
@@ -1665,35 +1679,42 @@ function BookingsClient() {
                               <span className="text-muted">Stay Duration:</span>
                               <span className="fw-semibold">{nights} Night(s)</span>
                             </div>
-
-                            {excessGuestsCount > 0 && (
-                              <div className="d-flex justify-content-between mb-1 text-warning-emphasis fw-bold">
-                                <span>Additional Guest Fee ({excessGuestsCount} Extra Pax):</span>
-                                <span>+₱{extraGuestFee.toFixed(2)}</span>
-                              </div>
-                            )}
+                            <div className="d-flex justify-content-between mb-1">
+                              <span className="text-muted">Room Stay Charges:</span>
+                              <span className="fw-semibold">₱{baseRoomStayCharges.toFixed(2)}</span>
+                            </div>
 
                             {totalApportionedDiscount > 0 && (
                               <div className="d-flex justify-content-between mb-1 text-danger">
-                                <span>Applied Discounts:</span>
+                                <span>Applied Room Discounts:</span>
                                 <span>-₱{totalApportionedDiscount.toFixed(2)}</span>
                               </div>
                             )}
 
-                            <div className="d-flex justify-content-between border-top pt-1.5 mb-1 fw-bold text-pcc-blue" style={{ fontSize: '1rem' }}>
-                              <span>Net Total Booking Amount:</span>
-                              <span>₱{netTotalAmount.toFixed(2)}</span>
+                            <div className="d-flex justify-content-between border-top pt-1.5 mb-1 fw-bold text-pcc-blue" style={{ fontSize: '0.95rem' }}>
+                              <span>Net Room Stay Charge:</span>
+                              <span>₱{netRoomStayCharge.toFixed(2)}</span>
                             </div>
 
                             <div className="d-flex justify-content-between text-success fw-bold">
-                              <span>Required Down Payment ({dpPctNum}% Tier):</span>
+                              <span>Required Down Payment ({dpPctNum}% of Room Charges):</span>
                               <span className="fs-6">₱{requiredDownpayment.toFixed(2)}</span>
                             </div>
 
-                            <div className="d-flex justify-content-between text-muted small">
-                              <span>Remaining Balance at Check-in:</span>
-                              <span>₱{remainingBalance.toFixed(2)}</span>
+                            <div className="d-flex justify-content-between text-muted small mb-2">
+                              <span>Remaining Room Balance:</span>
+                              <span className="fw-semibold">₱{remainingRoomBalance.toFixed(2)}</span>
                             </div>
+
+                            {excessGuestsCount > 0 && (
+                              <div className="d-flex justify-content-between pt-1 border-top align-items-center">
+                                <span className="text-muted small">
+                                  Additional Guest Fee ({excessGuestsCount} Extra Pax × {nights} Night{nights > 1 ? 's' : ''}):
+                                  <span className="badge bg-secondary-subtle text-secondary ms-2">Final Billing Only</span>
+                                </span>
+                                <span className="fw-bold text-secondary small">+₱{extraGuestFee.toFixed(2)}</span>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -1779,7 +1800,7 @@ function BookingsClient() {
                                 refNumber={`BOOK-${selectedRoomObj?.roomNumber || formData.roomID || 'WALK'}`}
                                 paymentStatus={isGcashSettled ? 'Settled' : 'Pending'}
                                 showProceedBtn={false}
-                                showCheckStatusBtn={true}
+                                showCheckStatusBtn={false}
                                 showTestPayBtn={true}
                                 onSimulateTestPay={(simRef) => {
                                   setIsGcashSettled(true);
