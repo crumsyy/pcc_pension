@@ -32,7 +32,8 @@ export async function GET(request) {
     const breakfastID = breakfast === 'With Breakfast' ? 2 : 1;
 
     let query = `
-      SELECT r.roomID, r.roomNumber, rt.type as roomType, rt.description, rr.rate, fl.name as floor
+      SELECT r.roomID, r.roomNumber, rt.type as roomType, rt.description, rr.rate, fl.name as floor,
+             r.breakfastRate, r.image, r.occupancyLimit
       FROM room r
       JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
       JOIN floor fl ON fl.floorID = r.floorID

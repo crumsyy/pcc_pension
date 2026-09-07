@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, syncRoomStatuses } from '@/lib/db';
+import { dbQuery, syncRoomStatuses, ensureBreakfastRateSchema } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -9,6 +9,7 @@ export async function GET(request) {
   }
 
   await syncRoomStatuses();
+  await ensureBreakfastRateSchema();
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
@@ -61,6 +62,7 @@ export async function POST(request) {
   }
 
   try {
+    await ensureBreakfastRateSchema();
     const body = await request.json();
     const { action } = body;
 
@@ -74,6 +76,7 @@ export async function POST(request) {
       const description = (body.description || '').trim();
       const occupancyLimit = parseInt(body.occupancyLimit) || 4;
       const image = (body.image || '').trim() || null;
+      const breakfastRate = body.breakfastRate !== undefined && body.breakfastRate !== '' && body.breakfastRate !== null ? parseFloat(body.breakfastRate) : null;
 
       if (status === 'Occupied') {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
@@ -89,8 +92,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "INSERT INTO room(roomNumber,status,floorID,roomTypeID,description,occupancyLimit,image) VALUES(?,?,?,?,?,?,?)",
-        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image]
+        "INSERT INTO room(roomNumber,status,floorID,roomTypeID,description,occupancyLimit,image,breakfastRate) VALUES(?,?,?,?,?,?,?,?)",
+        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image, breakfastRate]
       );
 
       // Upsert rates
@@ -124,6 +127,7 @@ export async function POST(request) {
       const description = (body.description || '').trim();
       const occupancyLimit = parseInt(body.occupancyLimit) || 4;
       const image = (body.image || '').trim() || null;
+      const breakfastRate = body.breakfastRate !== undefined && body.breakfastRate !== '' && body.breakfastRate !== null ? parseFloat(body.breakfastRate) : null;
 
       if (status === 'Occupied') {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
@@ -145,8 +149,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=?, description=?, occupancyLimit=?, image=? WHERE roomID=?",
-        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image, roomID]
+        "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=?, description=?, occupancyLimit=?, image=?, breakfastRate=? WHERE roomID=?",
+        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image, breakfastRate, roomID]
       );
 
       // Upsert rates

@@ -21,20 +21,21 @@ export async function GET(request) {
     await ensureProfilePictureSchema();
 
     const now = Date.now();
-    let products, amenities;
+    let activeProducts, cookedMeals, amenities;
 
     if (catalogCache && (now - catalogCacheTime < CATALOG_CACHE_TTL)) {
-      products = catalogCache.products;
+      activeProducts = catalogCache.products;
+      cookedMeals = catalogCache.cookedMeals;
       amenities = catalogCache.amenities;
     } else {
-      [products, amenities] = await Promise.all([
+      const [productsRaw, amenitiesRaw] = await Promise.all([
         dbQuery(`
           SELECT p.productID, p.name, p.price, p.productCategoryID, p.image,
                  CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(SUM(ib.remainingQuantity), 0) END as availableQty
           FROM products p
           LEFT JOIN inventory_batch ib ON ib.itemType = 'Product' AND ib.itemID = p.productID AND ib.status IN ('Active', 'Low Stock')
           WHERE p.isArchived = 0 AND p.isAvailable = 1
-          GROUP BY p.productID
+          GROUP BY p.productID, p.name, p.price, p.productCategoryID, p.image
           ORDER BY p.name ASC
         `),
         dbQuery(`
@@ -42,22 +43,23 @@ export async function GET(request) {
           FROM amenities a
           LEFT JOIN inventory_batch ib ON ib.itemType = 'Amenity' AND ib.itemID = a.amenityID AND ib.status IN ('Active', 'Low Stock')
           WHERE a.isArchived = 0
-          GROUP BY a.amenityID
+          GROUP BY a.amenityID, a.name, a.price, a.image
           ORDER BY a.name ASC
         `)
       ]);
 
-      catalogCache = { products, amenities };
+      activeProducts = productsRaw.filter(p => p.productCategoryID !== 3);
+      cookedMeals = productsRaw.filter(p => p.productCategoryID === 3);
+      amenities = amenitiesRaw;
+
+      catalogCache = { products: activeProducts, cookedMeals, amenities };
       catalogCacheTime = now;
     }
-
-    const activeProducts = products.filter(p => p.productCategoryID !== 3);
-    const cookedMeals = products.filter(p => p.productCategoryID === 3);
 
     // Fetch guest profile & order history safely
     let guest = null;
     try {
-      const guests = await dbQuery("SELECT * FROM guest WHERE userID = ?", [session.userID]);
+      const guests = await dbQuery("SELECT guestID, firstName, lastName, userID, profilePicture FROM guest WHERE userID = ?", [session.userID]);
       if (guests.length > 0) {
         guest = guests[0];
       }
@@ -85,7 +87,7 @@ export async function GET(request) {
     // Only fetch full order history if explicitly requested (Lazy-load optimization)
     if (includeHistory && guestID > 0) {
       const ordersRaw = await dbQuery(`
-        SELECT o.*, 
+        SELECT o.orderID, o.guestID, o.bookingID, o.orderDateTime, o.orderStatus, o.deliveryTime, o.deliveryDate,
                COALESCE(r.roomNumber, 'N/A') as roomNumber
         FROM orders o
         LEFT JOIN booking b ON b.bookingID = o.bookingID

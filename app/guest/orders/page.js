@@ -5,6 +5,157 @@ import GuestLayout from '../GuestLayout';
 import LoadingButton from '@/app/components/LoadingButton';
 import GuestChatBubble from '@/app/components/GuestChatBubble';
 
+const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCookedMeal, onAdd }) {
+  const isAvailable = isCookedMeal || (item.availableQty === undefined || item.availableQty > 0);
+  const badgeLabel = isCookedMeal ? 'Cooked Meal' : type === 'Amenity' ? 'Amenity' : 'Minibar / Store';
+  const badgeClass = isCookedMeal ? 'bg-warning-subtle text-dark border-warning-subtle' : type === 'Amenity' ? 'bg-secondary-subtle text-dark border-secondary-subtle' : 'bg-info-subtle text-dark border-info-subtle';
+  const descText = isCookedMeal 
+    ? 'Freshly prepared breakfast meal served with scheduled room delivery tracking.'
+    : type === 'Amenity'
+    ? 'Extra guest room amenity delivered directly by front desk staff.'
+    : 'Available for prompt delivery to your hotel room.';
+
+  return (
+    <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card">
+      <div>
+        {item.image ? (
+          <div style={{ height: '130px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#f1f5f9' }}>
+            <img
+              src={item.image}
+              alt={item.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              loading="lazy"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+            <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}>
+              <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
+              <span>Image Unavailable</span>
+            </div>
+          </div>
+        ) : (
+          <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600 }}>
+            <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
+            <span>Image Unavailable</span>
+          </div>
+        )}
+        <div className="p-3 pb-0">
+          <div className="d-flex justify-content-between align-items-start mb-2">
+            <span className={`badge border small ${badgeClass}`}>{badgeLabel}</span>
+            <span className="fw-bold text-success fs-6">₱{parseFloat(item.price).toFixed(2)}</span>
+          </div>
+          <h6 className="fw-bold text-dark mb-1">{item.name}</h6>
+          <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
+            {descText}
+          </p>
+        </div>
+      </div>
+      <div className="p-3 pt-0">
+        <button
+          type="button"
+          className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs ${isAvailable ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
+          style={{ backgroundColor: isAvailable ? 'var(--pcc-blue)' : undefined, borderColor: isAvailable ? 'var(--pcc-blue)' : undefined, borderRadius: '6px' }}
+          disabled={!isAvailable}
+          onClick={() => onAdd(item, type, isCookedMeal)}
+        >
+          <i className="bi bi-cart-plus"></i>{isAvailable ? 'Add to Order Tray' : 'Out of Stock'}
+        </button>
+      </div>
+    </div>
+  );
+});
+
+const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loading, onBrowse }) {
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Pending': return 'bg-warning text-dark';
+      case 'Preparing': return 'bg-info text-white';
+      case 'Served': return 'bg-primary text-white';
+      case 'Completed': return 'bg-success text-white';
+      case 'Canceled': return 'bg-danger text-white';
+      default: return 'bg-secondary text-white';
+    }
+  };
+
+  return (
+    <div className="card border-0 shadow-sm rounded-3 bg-white p-4">
+      <h5 className="fw-bold text-dark border-bottom pb-2 mb-3 d-flex align-items-center justify-content-between">
+        <span><i className="bi bi-clock-history me-2 text-primary"></i>My Order History</span>
+        <span className="badge bg-light text-muted fw-normal">{orders.length} total orders</span>
+      </h5>
+
+      {loading ? (
+        <div className="py-5 text-center">
+          <div className="spinner-border text-pcc-blue mb-2" role="status"></div>
+          <div className="text-muted small">Loading your orders...</div>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="text-center py-5 text-muted">
+          <i className="bi bi-receipt fs-1 d-block mb-2 text-secondary opacity-50"></i>
+          <h6 className="fw-bold">No orders recorded yet</h6>
+          <p className="small">Items you order during your stay will appear here with real-time preparation tracking.</p>
+          <button className="btn btn-sm btn-outline-primary fw-semibold mt-1" onClick={onBrowse}>
+            Browse Catalog
+          </button>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <table className="table align-middle mb-0" style={{ fontSize: '0.86rem' }}>
+            <thead className="table-light">
+              <tr>
+                <th>Order #</th>
+                <th>Date &amp; Time</th>
+                <th>Items</th>
+                <th>Scheduled Delivery</th>
+                <th>Total</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(o => {
+                const totalAmt = (o.items || []).reduce((sum, it) => sum + (parseFloat(it.price) * it.quantity), 0);
+                return (
+                  <tr key={o.orderID}>
+                    <td className="fw-bold text-muted">#{o.orderID}</td>
+                    <td>{new Date(o.orderDateTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
+                    <td>
+                      <div className="d-flex flex-column gap-0.5">
+                        {(o.items || []).map((it, idx) => (
+                          <div key={idx} className="small">
+                            <span className="fw-bold text-dark">{it.quantity}x</span> {it.name}
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      {o.deliveryTime ? (
+                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
+                          <i className="bi bi-clock me-1"></i>{o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime}
+                        </span>
+                      ) : (
+                        <span className="text-muted small">Standard Immediate Delivery</span>
+                      )}
+                    </td>
+                    <td className="fw-bold text-success">₱{totalAmt.toFixed(2)}</td>
+                    <td>
+                      <span className={`badge ${getStatusBadge(o.orderStatus)} px-2.5 py-1 rounded-pill`} style={{ fontSize: '0.75rem' }}>
+                        {o.orderStatus}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+});
+
 export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
   const [guest, setGuest] = useState(initialGuest);
   const [products, setProducts] = useState([]);
@@ -108,12 +259,12 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
     fetchCatalog();
   }, []);
 
-  const handleSelectCategory = (cat) => {
+  const handleSelectCategory = useCallback((cat) => {
     setActiveCategory(cat);
     if (cat === 'history' && !historyLoaded) {
       fetchOrderHistory();
     }
-  };
+  }, [historyLoaded]);
 
   const hasCookedMealsInCart = useMemo(() => cart.some(item => item.isCookedMeal), [cart]);
 
@@ -352,79 +503,11 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
         {/* CATALOG COLUMN */}
         <div className="col-12 col-md-7 col-lg-7 col-xl-8">
           {activeCategory === 'history' ? (
-            /* ORDER HISTORY VIEW */
-            <div className="card border-0 shadow-sm rounded-3 bg-white p-4">
-              <h5 className="fw-bold text-dark border-bottom pb-2 mb-3 d-flex align-items-center justify-content-between">
-                <span><i className="bi bi-clock-history me-2 text-primary"></i>My Order History</span>
-                <span className="badge bg-light text-muted fw-normal">{orderHistory.length} total orders</span>
-              </h5>
-
-              {loadingHistory ? (
-                <div className="py-5 text-center">
-                  <div className="spinner-border text-pcc-blue mb-2" role="status"></div>
-                  <div className="text-muted small">Loading your orders...</div>
-                </div>
-              ) : orderHistory.length === 0 ? (
-                <div className="text-center py-5 text-muted">
-                  <i className="bi bi-receipt fs-1 d-block mb-2 text-secondary opacity-50"></i>
-                  <h6 className="fw-bold">No orders recorded yet</h6>
-                  <p className="small">Items you order during your stay will appear here with real-time preparation tracking.</p>
-                  <button className="btn btn-sm btn-outline-primary fw-semibold mt-1" onClick={() => setActiveCategory('all')}>
-                    Browse Catalog
-                  </button>
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table align-middle mb-0" style={{ fontSize: '0.86rem' }}>
-                    <thead className="table-light">
-                      <tr>
-                        <th>Order #</th>
-                        <th>Date & Time</th>
-                        <th>Items</th>
-                        <th>Scheduled Delivery</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orderHistory.map(o => {
-                        const totalAmt = (o.items || []).reduce((sum, it) => sum + (parseFloat(it.price) * it.quantity), 0);
-                        return (
-                          <tr key={o.orderID}>
-                            <td className="fw-bold text-muted">#{o.orderID}</td>
-                            <td>{new Date(o.orderDateTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
-                            <td>
-                              <div className="d-flex flex-column gap-0.5">
-                                {(o.items || []).map((it, idx) => (
-                                  <div key={idx} className="small">
-                                    <span className="fw-bold text-dark">{it.quantity}x</span> {it.name}
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                            <td>
-                              {o.deliveryTime ? (
-                                <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
-                                  <i className="bi bi-clock me-1"></i>{o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime}
-                                </span>
-                              ) : (
-                                <span className="text-muted small">Standard Immediate Delivery</span>
-                              )}
-                            </td>
-                            <td className="fw-bold text-success">₱{totalAmt.toFixed(2)}</td>
-                            <td>
-                              <span className={`badge ${getStatusBadge(o.orderStatus)} px-2.5 py-1 rounded-pill`} style={{ fontSize: '0.75rem' }}>
-                                {o.orderStatus}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <OrderHistoryTable
+              orders={orderHistory}
+              loading={loadingHistory}
+              onBrowse={() => handleSelectCategory('all')}
+            />
           ) : (
             /* CATALOG ITEMS GRID */
             loading ? (
@@ -444,210 +527,82 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                 ))}
               </div>
             ) : (
-            <div className="d-flex flex-column gap-4">
-              {/* COOKED MEALS SECTION */}
-              {(activeCategory === 'all' || activeCategory === 'meals') && filteredMeals.length > 0 && (
-                <div>
-                  <div className="d-flex align-items-center justify-content-between mb-2">
-                    <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <span className="p-1 px-2 rounded bg-warning-subtle text-dark small fw-bold">Breakfast</span>
-                      <span>Cooked Meals (Scheduled Delivery)</span>
-                    </h5>
-                    <small className="text-muted">Available slots: 6:00 AM – 10:30 AM</small>
-                  </div>
-                  <div className="row g-3">
-                    {filteredMeals.map(m => (
-                      <div key={m.productID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card">
-                          <div>
-                            {m.image ? (
-                              <div style={{ height: '130px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#f1f5f9' }}>
-                                <img
-                                  src={m.image}
-                                  alt={m.name}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                  loading="lazy"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                    const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
-                                    if (fallback) fallback.style.display = 'flex';
-                                  }}
-                                />
-                                <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}>
-                                  <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-                                  <span>Image Unavailable</span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600 }}>
-                                <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-                                <span>Image Unavailable</span>
-                              </div>
-                            )}
-                            <div className="p-3 pb-0">
-                              <div className="d-flex justify-content-between align-items-start mb-2">
-                                <span className="badge bg-warning-subtle text-dark border border-warning-subtle small">Cooked Meal</span>
-                                <span className="fw-bold text-success fs-6">₱{parseFloat(m.price).toFixed(2)}</span>
-                              </div>
-                              <h6 className="fw-bold text-dark mb-1">{m.name}</h6>
-                              <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
-                                Freshly prepared breakfast meal served with scheduled room delivery tracking.
-                              </p>
-                            </div>
-                          </div>
-                          <div className="p-3 pt-0">
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs"
-                              style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', borderRadius: '6px' }}
-                              onClick={() => handleAddToCart(m, 'Product', true)}
-                            >
-                              <i className="bi bi-cart-plus"></i>Add to Order Tray
-                            </button>
-                          </div>
+              <div className="d-flex flex-column gap-4">
+                {/* COOKED MEALS SECTION */}
+                {(activeCategory === 'all' || activeCategory === 'meals') && filteredMeals.length > 0 && (
+                  <div>
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <span className="p-1 px-2 rounded bg-warning-subtle text-dark small fw-bold">Breakfast</span>
+                        <span>Cooked Meals (Scheduled Delivery)</span>
+                      </h5>
+                      <small className="text-muted">Available slots: 6:00 AM – 10:30 AM</small>
+                    </div>
+                    <div className="row g-3">
+                      {filteredMeals.map(m => (
+                        <div key={m.productID} className="col-12 col-sm-6 col-xl-4">
+                          <CatalogItemCard
+                            item={m}
+                            type="Product"
+                            isCookedMeal={true}
+                            onAdd={handleAddToCart}
+                          />
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* PRODUCTS SECTION */}
-              {(activeCategory === 'all' || activeCategory === 'products') && filteredProducts.length > 0 && (
-                <div>
-                  <div className="d-flex align-items-center justify-content-between mb-2">
-                    <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <span className="p-1 px-2 rounded bg-info-subtle text-dark small fw-bold">Minibar / Store</span>
-                      <span>Beverages & Snacks</span>
-                    </h5>
-                    <small className="text-muted">Immediate room delivery</small>
-                  </div>
-                  <div className="row g-3">
-                    {filteredProducts.map(p => (
-                      <div key={p.productID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card">
-                          <div>
-                            {p.image ? (
-                              <div style={{ height: '130px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#f1f5f9' }}>
-                                <img
-                                  src={p.image}
-                                  alt={p.name}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                  loading="lazy"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                    const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
-                                    if (fallback) fallback.style.display = 'flex';
-                                  }}
-                                />
-                                <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}>
-                                  <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-                                  <span>Image Unavailable</span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600 }}>
-                                <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-                                <span>Image Unavailable</span>
-                              </div>
-                            )}
-                            <div className="p-3 pb-0">
-                              <div className="d-flex justify-content-between align-items-start mb-2">
-                                <span className="badge bg-light text-muted border small">Stock: {p.availableQty || 0}</span>
-                                <span className="fw-bold text-success fs-6">₱{parseFloat(p.price).toFixed(2)}</span>
-                              </div>
-                              <h6 className="fw-bold text-dark mb-1">{p.name}</h6>
-                              <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
-                                Available for prompt delivery to your hotel room.
-                              </p>
-                            </div>
-                          </div>
-                          <div className="p-3 pt-0">
-                            <button
-                              type="button"
-                              className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs ${p.availableQty > 0 ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
-                              style={{ backgroundColor: p.availableQty > 0 ? 'var(--pcc-blue)' : undefined, borderColor: p.availableQty > 0 ? 'var(--pcc-blue)' : undefined, borderRadius: '6px' }}
-                              disabled={p.availableQty <= 0}
-                              onClick={() => handleAddToCart(p, 'Product', false)}
-                            >
-                              <i className="bi bi-cart-plus"></i>{p.availableQty > 0 ? 'Add to Order Tray' : 'Out of Stock'}
-                            </button>
-                          </div>
+                {/* PRODUCTS SECTION */}
+                {(activeCategory === 'all' || activeCategory === 'products') && filteredProducts.length > 0 && (
+                  <div>
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <span className="p-1 px-2 rounded bg-info-subtle text-dark small fw-bold">Minibar / Store</span>
+                        <span>Beverages &amp; Snacks</span>
+                      </h5>
+                      <small className="text-muted">Immediate room delivery</small>
+                    </div>
+                    <div className="row g-3">
+                      {filteredProducts.map(p => (
+                        <div key={p.productID} className="col-12 col-sm-6 col-xl-4">
+                          <CatalogItemCard
+                            item={p}
+                            type="Product"
+                            isCookedMeal={false}
+                            onAdd={handleAddToCart}
+                          />
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* AMENITIES SECTION */}
-              {(activeCategory === 'all' || activeCategory === 'amenities') && filteredAmenities.length > 0 && (
-                <div>
-                  <div className="d-flex align-items-center justify-content-between mb-2">
-                    <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <span className="p-1 px-2 rounded bg-secondary-subtle text-dark small fw-bold">Guest Service</span>
-                      <span>Hotel Amenities</span>
-                    </h5>
-                    <small className="text-muted">Towels, toiletries & extra amenities</small>
-                  </div>
-                  <div className="row g-3">
-                    {filteredAmenities.map(a => (
-                      <div key={a.amenityID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card">
-                          <div>
-                            {a.image ? (
-                              <div style={{ height: '130px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#f1f5f9' }}>
-                                <img
-                                  src={a.image}
-                                  alt={a.name}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                  loading="lazy"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                    const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
-                                    if (fallback) fallback.style.display = 'flex';
-                                  }}
-                                />
-                                <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}>
-                                  <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-                                  <span>Image Unavailable</span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600 }}>
-                                <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-                                <span>Image Unavailable</span>
-                              </div>
-                            )}
-                            <div className="p-3 pb-0">
-                              <div className="d-flex justify-content-between align-items-start mb-2">
-                                <span className="badge bg-light text-muted border small">Available: {a.availableQty || 0}</span>
-                                <span className="fw-bold text-success fs-6">₱{parseFloat(a.price).toFixed(2)}</span>
-                              </div>
-                              <h6 className="fw-bold text-dark mb-1">{a.name}</h6>
-                              <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
-                                Extra guest room amenity delivered directly by front desk staff.
-                              </p>
-                            </div>
-                          </div>
-                          <div className="p-3 pt-0">
-                            <button
-                              type="button"
-                              className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs ${a.availableQty > 0 ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
-                              style={{ backgroundColor: a.availableQty > 0 ? 'var(--pcc-blue)' : undefined, borderColor: a.availableQty > 0 ? 'var(--pcc-blue)' : undefined, borderRadius: '6px' }}
-                              disabled={a.availableQty <= 0}
-                              onClick={() => handleAddToCart(a, 'Amenity', false)}
-                            >
-                              <i className="bi bi-cart-plus"></i>{a.availableQty > 0 ? 'Add to Order Tray' : 'Unavailable'}
-                            </button>
-                          </div>
+                {/* AMENITIES SECTION */}
+                {(activeCategory === 'all' || activeCategory === 'amenities') && filteredAmenities.length > 0 && (
+                  <div>
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                        <span className="p-1 px-2 rounded bg-secondary-subtle text-dark small fw-bold">Guest Service</span>
+                        <span>Hotel Amenities</span>
+                      </h5>
+                      <small className="text-muted">Towels, toiletries &amp; extra amenities</small>
+                    </div>
+                    <div className="row g-3">
+                      {filteredAmenities.map(a => (
+                        <div key={a.amenityID} className="col-12 col-sm-6 col-xl-4">
+                          <CatalogItemCard
+                            item={a}
+                            type="Amenity"
+                            isCookedMeal={false}
+                            onAdd={handleAddToCart}
+                          />
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
             )
           )}
         </div>
