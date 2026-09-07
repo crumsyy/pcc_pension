@@ -41,19 +41,40 @@ export async function PUT(request) {
   }
 
   try {
+    await ensureProfilePictureSchema();
     const body = await request.json();
-    const { firstName, middleName, lastName, contact, gender, city, province } = body;
+    const { firstName, middleName, lastName, contact, gender, city, province, profilePicture } = body;
+
+    // Direct profile picture update or removal
+    if (profilePicture !== undefined && (!firstName || !lastName)) {
+      const picVal = (profilePicture || '').trim() || null;
+      await dbQuery("UPDATE guest SET profilePicture = ? WHERE userID = ?", [picVal, session.userID]);
+      await dbQuery("UPDATE user SET profilePicture = ? WHERE userID = ?", [picVal, session.userID]);
+      return NextResponse.json({ success: true, profilePicture: picVal, message: picVal ? 'Profile picture updated!' : 'Profile picture removed.' });
+    }
 
     if (!firstName || !lastName || !contact) {
       return NextResponse.json({ error: 'First Name, Last Name, and Contact Number are required.' }, { status: 400 });
     }
 
-    await dbQuery(
-      `UPDATE guest 
-       SET firstName = ?, middleName = ?, lastName = ?, contact = ?, gender = ?, city = ?, province = ?
-       WHERE userID = ?`,
-      [firstName.trim(), middleName ? middleName.trim() : '', lastName.trim(), contact.trim(), gender || 'Other', city ? city.trim() : '', province ? province.trim() : '', session.userID]
-    );
+    const picVal = profilePicture !== undefined ? ((profilePicture || '').trim() || null) : undefined;
+
+    if (picVal !== undefined) {
+      await dbQuery(
+        `UPDATE guest 
+         SET firstName = ?, middleName = ?, lastName = ?, contact = ?, gender = ?, city = ?, province = ?, profilePicture = ?
+         WHERE userID = ?`,
+        [firstName.trim(), middleName ? middleName.trim() : '', lastName.trim(), contact.trim(), gender || 'Other', city ? city.trim() : '', province ? province.trim() : '', picVal, session.userID]
+      );
+      await dbQuery("UPDATE user SET profilePicture = ? WHERE userID = ?", [picVal, session.userID]);
+    } else {
+      await dbQuery(
+        `UPDATE guest 
+         SET firstName = ?, middleName = ?, lastName = ?, contact = ?, gender = ?, city = ?, province = ?
+         WHERE userID = ?`,
+        [firstName.trim(), middleName ? middleName.trim() : '', lastName.trim(), contact.trim(), gender || 'Other', city ? city.trim() : '', province ? province.trim() : '', session.userID]
+      );
+    }
 
     return NextResponse.json({ success: true, message: 'Profile updated successfully!' });
   } catch (error) {

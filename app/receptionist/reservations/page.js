@@ -47,16 +47,7 @@ const calculateAgeFromDbDate = (dateStr) => {
   return age >= 0 ? age : '';
 };
 
-const defaultRoomImages = {
-  'Standard Single Room': 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&auto=format&fit=crop&q=80',
-  'Standard Double Room': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=600&auto=format&fit=crop&q=80',
-  'Family Suite': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80',
-  'Deluxe Room': 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600&auto=format&fit=crop&q=80',
-  'Suite': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80',
-};
-const defaultFallbackRoomImg = 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&auto=format&fit=crop&q=80';
-
-function getRoomDisplayImage(imgVal, roomType) {
+function getRoomDisplayImage(imgVal) {
   if (imgVal && typeof imgVal === 'string' && imgVal.trim()) {
     const trimmed = imgVal.trim();
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
@@ -68,7 +59,7 @@ function getRoomDisplayImage(imgVal, roomType) {
     const first = trimmed.split(',')[0].trim();
     if (first) return first;
   }
-  return defaultRoomImages[roomType] || defaultFallbackRoomImg;
+  return null;
 }
 
 function ReservationsClient() {
@@ -805,16 +796,22 @@ function ReservationsClient() {
                     </td>
                     <td>
                       <div className="d-flex align-items-center gap-2">
-                        <img
-                          src={getRoomDisplayImage(r.image, r.roomType)}
-                          alt={`Room ${r.roomNumber}`}
-                          className="rounded border"
-                          style={{ width: '40px', height: '32px', objectFit: 'cover' }}
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = defaultFallbackRoomImg;
-                          }}
-                        />
+                        {getRoomDisplayImage(r.image) ? (
+                          <img
+                            src={getRoomDisplayImage(r.image)}
+                            alt={`Room ${r.roomNumber}`}
+                            className="rounded border"
+                            style={{ width: '40px', height: '32px', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
+                              if (fb) fb.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5" style={{ width: '40px', height: '32px', fontSize: '0.55rem', lineHeight: 1.1, display: getRoomDisplayImage(r.image) ? 'none' : 'flex' }}>
+                          No Image
+                        </div>
                         <div>
                           <div className="fw-semibold text-dark">Room {r.roomNumber || 'N/A'} ({r.roomType || 'Standard'})</div>
                           <small className="badge bg-light text-dark border">
@@ -1064,16 +1061,23 @@ function ReservationsClient() {
                   {selectedRoomObj && (
                     <div className="p-3 mb-3 border rounded bg-light d-flex align-items-center justify-content-between flex-wrap gap-3">
                       <div className="d-flex align-items-center gap-3">
-                        <img
-                          src={getRoomDisplayImage(selectedRoomObj.image, selectedRoomObj.roomType)}
-                          alt={`Room ${selectedRoomObj.roomNumber}`}
-                          className="rounded border"
-                          style={{ width: '75px', height: '55px', objectFit: 'cover' }}
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = defaultFallbackRoomImg;
-                          }}
-                        />
+                        {getRoomDisplayImage(selectedRoomObj.image) ? (
+                          <img
+                            src={getRoomDisplayImage(selectedRoomObj.image)}
+                            alt={`Room ${selectedRoomObj.roomNumber}`}
+                            className="rounded border"
+                            style={{ width: '75px', height: '55px', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-card');
+                              if (fb) fb.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className="image-fallback-card rounded border bg-white text-muted flex-column align-items-center justify-content-center text-center p-1" style={{ width: '75px', height: '55px', fontSize: '0.65rem', lineHeight: 1.1, display: getRoomDisplayImage(selectedRoomObj.image) ? 'none' : 'flex' }}>
+                          <i className="bi bi-image mb-0.5"></i>
+                          <span>Image Unavailable</span>
+                        </div>
                         <div>
                           <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
                             Room {selectedRoomObj.roomNumber} ({selectedRoomObj.roomType || 'Standard'})

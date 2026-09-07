@@ -241,6 +241,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   // Edit Profile Modal State
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingModalPic, setUploadingModalPic] = useState(false);
   const [editProfileForm, setEditProfileForm] = useState({
     firstName: '',
     middleName: '',
@@ -248,8 +249,42 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     contact: '',
     gender: 'Other',
     city: '',
-    province: ''
+    province: '',
+    profilePicture: ''
   });
+
+  const handleModalProfilePicUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showAlert('error', 'Error', 'Please select an image file smaller than 2MB.');
+      return;
+    }
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+      showAlert('error', 'Error', 'Please upload a valid JPG, PNG, or WebP image.');
+      return;
+    }
+
+    setUploadingModalPic(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'profile');
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to upload photo');
+      setEditProfileForm(prev => ({ ...prev, profilePicture: data.url }));
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    } finally {
+      setUploadingModalPic(false);
+    }
+  };
+
+  const handleModalRemoveProfilePic = () => {
+    setEditProfileForm(prev => ({ ...prev, profilePicture: '' }));
+  };
 
   const handleSaveProfileSubmit = async (e) => {
     e.preventDefault();
@@ -1962,8 +1997,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               >
                                 {(() => {
                                   const imgList = parseRoomImages(rm.image);
-                                  const defaultImg = defaultRoomImages[rm.roomType] || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
-                                  const roomPic = imgList.length > 0 ? imgList[0] : defaultImg;
+                                  const roomPic = imgList.length > 0 ? imgList[0] : null;
+                                  if (!roomPic) {
+                                    return (
+                                      <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', fontSize: '0.82rem', fontWeight: 600 }}>
+                                        <i className="bi bi-image fs-3 mb-1 opacity-50"></i>
+                                        <span>Image Unavailable</span>
+                                      </div>
+                                    );
+                                  }
                                   return (
                                     <div style={{ height: '140px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#e2e8f0' }}>
                                       <img
@@ -1971,7 +2013,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                         alt={`Room ${rm.roomNumber}`}
                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         loading="lazy"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = 'none';
+                                          const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
+                                          if (fallback) fallback.style.display = 'flex';
+                                        }}
                                       />
+                                      <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', fontSize: '0.82rem', fontWeight: 600, display: 'none' }}>
+                                        <i className="bi bi-image fs-3 mb-1 opacity-50"></i>
+                                        <span>Image Unavailable</span>
+                                      </div>
                                     </div>
                                   );
                                 })()}
@@ -2287,7 +2338,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         contact: guest.contact || '',
                         gender: guest.gender || 'Other',
                         city: guest.city || '',
-                        province: guest.province || ''
+                        province: guest.province || '',
+                        profilePicture: guest.profilePicture || ''
                       });
                       setShowEditProfileModal(true);
                     }}
@@ -2903,6 +2955,58 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               </div>
               <form onSubmit={handleSaveProfileSubmit}>
                 <div className="modal-body p-4">
+                  {/* PROFILE PICTURE SECTION */}
+                  <div className="d-flex align-items-center gap-3 p-3 bg-light rounded border mb-3">
+                    <div className="position-relative">
+                      <img
+                        src={editProfileForm.profilePicture || "/assets/images/logo.jpg"}
+                        alt="Profile Preview"
+                        className="rounded-circle border"
+                        style={{ width: '64px', height: '64px', objectFit: 'cover', border: '2px solid var(--pcc-blue)' }}
+                      />
+                      <label
+                        htmlFor="dashboardModalAvatarInput"
+                        className="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm cursor-pointer"
+                        style={{ width: '24px', height: '24px', border: '1.5px solid #ffffff' }}
+                        title="Upload Photo"
+                      >
+                        <i className="bi bi-camera-fill" style={{ fontSize: '0.7rem' }}></i>
+                      </label>
+                      <input
+                        type="file"
+                        id="dashboardModalAvatarInput"
+                        accept="image/png, image/jpeg, image/jpg, image/webp"
+                        className="d-none"
+                        onChange={handleModalProfilePicUpload}
+                        disabled={uploadingModalPic}
+                      />
+                    </div>
+                    <div>
+                      <div className="fw-bold text-dark small">Profile Photo</div>
+                      <div className="text-muted" style={{ fontSize: '0.72rem' }}>JPG or PNG under 2MB.</div>
+                      <div className="d-flex gap-2 mt-1">
+                        <label
+                          htmlFor="dashboardModalAvatarInput"
+                          className="btn btn-xs btn-outline-primary py-0.5 px-2 fw-semibold"
+                          style={{ fontSize: '0.72rem' }}
+                        >
+                          {uploadingModalPic ? 'Uploading...' : 'Change Photo'}
+                        </label>
+                        {editProfileForm.profilePicture && (
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-outline-danger py-0.5 px-2 fw-semibold"
+                            onClick={handleModalRemoveProfilePic}
+                            disabled={uploadingModalPic}
+                            style={{ fontSize: '0.72rem' }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="row g-3 mb-3">
                     <div className="col-md-4">
                       <label className="form-label small fw-semibold">First Name *</label>

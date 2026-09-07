@@ -87,10 +87,40 @@ export default function EditProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to upload profile picture.');
 
-      setProfilePicture(data.url);
+      const uploadedUrl = data.url;
+      setProfilePicture(uploadedUrl);
+
+      // Persist directly to DB
+      await fetch('/api/guest/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profilePicture: uploadedUrl })
+      });
+
       showAlert('success', 'Profile Picture Updated', 'Your profile picture has been uploaded and saved!');
     } catch (err) {
       showAlert('error', 'Upload Failed', err.message);
+    } finally {
+      setUploadingPic(false);
+    }
+  };
+
+  const handleRemoveProfilePicture = async () => {
+    if (!profilePicture) return;
+    setUploadingPic(true);
+    try {
+      const res = await fetch('/api/guest/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profilePicture: '' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to remove profile picture.');
+
+      setProfilePicture('');
+      showAlert('success', 'Profile Picture Removed', 'Your profile picture has been removed.');
+    } catch (err) {
+      showAlert('error', 'Remove Failed', err.message);
     } finally {
       setUploadingPic(false);
     }
@@ -373,12 +403,24 @@ export default function EditProfilePage() {
                   <p className="text-muted small mb-2">
                     Square image (1:1 ratio) recommended — 400×400px. JPG or PNG under 2MB.
                   </p>
-                  <label
-                    htmlFor="avatarInput"
-                    className="btn btn-sm btn-pcc-outline fw-semibold"
-                  >
-                    {uploadingPic ? 'Uploading...' : 'Upload New Photo'}
-                  </label>
+                  <div className="d-flex flex-wrap gap-2">
+                    <label
+                      htmlFor="avatarInput"
+                      className="btn btn-sm btn-pcc-outline fw-semibold"
+                    >
+                      {uploadingPic ? 'Uploading...' : 'Upload New Photo'}
+                    </label>
+                    {profilePicture && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger fw-semibold"
+                        onClick={handleRemoveProfilePicture}
+                        disabled={uploadingPic}
+                      >
+                        <i className="bi bi-trash3 me-1"></i>Remove Photo
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

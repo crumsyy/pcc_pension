@@ -362,16 +362,22 @@ export default function ReceptionistOrders() {
                             <div className="d-flex flex-column gap-1">
                               {o.items.map((item, idx) => (
                                 <div key={idx} className="d-flex align-items-center gap-1.5" style={{ fontSize: '0.85rem' }}>
-                                  <img
-                                    src={item.image || (item.type === 'Amenity' ? 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80')}
-                                    alt={item.name}
-                                    className="rounded border flex-shrink-0"
-                                    style={{ width: '22px', height: '22px', objectFit: 'cover' }}
-                                    onError={(e) => {
-                                      e.currentTarget.onerror = null;
-                                      e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80';
-                                    }}
-                                  />
+                                  {item.image ? (
+                                    <img
+                                      src={item.image}
+                                      alt={item.name}
+                                      className="rounded border flex-shrink-0"
+                                      style={{ width: '22px', height: '22px', objectFit: 'cover' }}
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-xs');
+                                        if (fb) fb.style.display = 'inline-flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className="image-fallback-xs rounded border bg-light text-muted flex-shrink-0 align-items-center justify-content-center" style={{ width: '22px', height: '22px', fontSize: '0.55rem', display: item.image ? 'none' : 'inline-flex' }}>
+                                    <i className="bi bi-image"></i>
+                                  </div>
                                   <span><span className="text-muted">{item.quantity}x</span> {item.name}</span>
                                   <span className="text-muted ms-1">(₱{parseFloat(item.price).toFixed(2)})</span>
                                 </div>
@@ -542,13 +548,23 @@ export default function ReceptionistOrders() {
                       return (
                         <div className="col-12 mt-2">
                           <div className="d-flex align-items-center gap-3 p-2 bg-white rounded border">
-                            <img
-                              src={found.image || fallback}
-                              alt={found.name}
-                              className="rounded border"
-                              style={{ width: '46px', height: '46px', objectFit: 'cover' }}
-                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = fallback; }}
-                            />
+                            {found.image ? (
+                              <img
+                                src={found.image}
+                                alt={found.name}
+                                className="rounded border flex-shrink-0"
+                                style={{ width: '46px', height: '46px', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-card');
+                                  if (fb) fb.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div className="image-fallback-card rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center flex-shrink-0" style={{ width: '46px', height: '46px', fontSize: '0.62rem', lineHeight: 1.1, display: found.image ? 'none' : 'flex' }}>
+                              <i className="bi bi-image mb-0.5" style={{ fontSize: '0.75rem' }}></i>
+                              No Image
+                            </div>
                             <div>
                               <div className="fw-bold text-dark">{found.name}</div>
                               <div className="small text-muted">
@@ -674,16 +690,23 @@ export default function ReceptionistOrders() {
                             <tr key={idx}>
                               <td className="ps-3 fw-bold">
                                 <div className="d-flex align-items-center gap-2">
-                                  <img
-                                    src={item.image || (item.type === 'Amenity' ? 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80')}
-                                    alt={item.name}
-                                    className="rounded border"
-                                    style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-                                    onError={(e) => {
-                                      e.currentTarget.onerror = null;
-                                      e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80';
-                                    }}
-                                  />
+                                  {item.image ? (
+                                    <img
+                                      src={item.image}
+                                      alt={item.name}
+                                      className="rounded border flex-shrink-0"
+                                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
+                                        if (fb) fb.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '32px', height: '32px', fontSize: '0.52rem', lineHeight: 1.1, display: item.image ? 'none' : 'flex' }}>
+                                    <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
+                                    No Image
+                                  </div>
                                   <span>{item.name}</span>
                                 </div>
                               </td>
@@ -772,16 +795,23 @@ export default function ReceptionistOrders() {
                         <tr key={i}>
                           <td className="fw-semibold text-dark">
                             <div className="d-flex align-items-center gap-2">
-                              <img
-                                src={it.image || (it.type === 'Amenity' ? 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80')}
-                                alt={it.name}
-                                className="rounded border"
-                                style={{ width: '30px', height: '30px', objectFit: 'cover' }}
-                                onError={(e) => {
-                                  e.currentTarget.onerror = null;
-                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80';
-                                }}
-                              />
+                              {it.image ? (
+                                <img
+                                  src={it.image}
+                                  alt={it.name}
+                                  className="rounded border flex-shrink-0"
+                                  style={{ width: '30px', height: '30px', objectFit: 'cover' }}
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
+                                    if (fb) fb.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '30px', height: '30px', fontSize: '0.52rem', lineHeight: 1.1, display: it.image ? 'none' : 'flex' }}>
+                                <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
+                                No Image
+                              </div>
                               <span>{it.name}</span>
                             </div>
                           </td>

@@ -359,7 +359,12 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                 <span className="badge bg-light text-muted fw-normal">{orderHistory.length} total orders</span>
               </h5>
 
-              {orderHistory.length === 0 ? (
+              {loadingHistory ? (
+                <div className="py-5 text-center">
+                  <div className="spinner-border text-pcc-blue mb-2" role="status"></div>
+                  <div className="text-muted small">Loading your orders...</div>
+                </div>
+              ) : orderHistory.length === 0 ? (
                 <div className="text-center py-5 text-muted">
                   <i className="bi bi-receipt fs-1 d-block mb-2 text-secondary opacity-50"></i>
                   <h6 className="fw-bold">No orders recorded yet</h6>
@@ -422,6 +427,23 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
             </div>
           ) : (
             /* CATALOG ITEMS GRID */
+            loading ? (
+              <div className="row g-3">
+                {[1, 2, 3, 4, 5, 6].map(n => (
+                  <div key={n} className="col-12 col-sm-6 col-xl-4">
+                    <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 overflow-hidden bg-white">
+                      <div className="pcc-skeleton-box" style={{ height: '130px', width: '100%' }}></div>
+                      <div className="p-3">
+                        <div className="pcc-skeleton-box mb-2" style={{ height: '16px', width: '40%' }}></div>
+                        <div className="pcc-skeleton-box mb-2" style={{ height: '20px', width: '75%' }}></div>
+                        <div className="pcc-skeleton-box mb-3" style={{ height: '12px', width: '55%' }}></div>
+                        <div className="pcc-skeleton-box" style={{ height: '32px', width: '100%', borderRadius: '6px' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className="d-flex flex-column gap-4">
               {/* COOKED MEALS SECTION */}
               {(activeCategory === 'all' || activeCategory === 'meals') && filteredMeals.length > 0 && (
@@ -436,16 +458,32 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                   <div className="row g-3">
                     {filteredMeals.map(m => (
                       <div key={m.productID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between">
+                        <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card">
                           <div>
-                            <div style={{ height: '130px', width: '100%', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
-                              <img
-                                src={m.image || 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=500&q=80'}
-                                alt={m.name}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                loading="lazy"
-                              />
-                            </div>
+                            {m.image ? (
+                              <div style={{ height: '130px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#f1f5f9' }}>
+                                <img
+                                  src={m.image}
+                                  alt={m.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                                <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}>
+                                  <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
+                                  <span>Image Unavailable</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600 }}>
+                                <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
+                                <span>Image Unavailable</span>
+                              </div>
+                            )}
                             <div className="p-3 pb-0">
                               <div className="d-flex justify-content-between align-items-start mb-2">
                                 <span className="badge bg-warning-subtle text-dark border border-warning-subtle small">Cooked Meal</span>
@@ -487,16 +525,32 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                   <div className="row g-3">
                     {filteredProducts.map(p => (
                       <div key={p.productID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between">
+                        <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card">
                           <div>
-                            <div style={{ height: '130px', width: '100%', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
-                              <img
-                                src={p.image || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=500&q=80'}
-                                alt={p.name}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                loading="lazy"
-                              />
-                            </div>
+                            {p.image ? (
+                              <div style={{ height: '130px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#f1f5f9' }}>
+                                <img
+                                  src={p.image}
+                                  alt={p.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                                <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}>
+                                  <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
+                                  <span>Image Unavailable</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600 }}>
+                                <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
+                                <span>Image Unavailable</span>
+                              </div>
+                            )}
                             <div className="p-3 pb-0">
                               <div className="d-flex justify-content-between align-items-start mb-2">
                                 <span className="badge bg-light text-muted border small">Stock: {p.availableQty || 0}</span>
@@ -539,16 +593,32 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                   <div className="row g-3">
                     {filteredAmenities.map(a => (
                       <div key={a.amenityID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between">
+                        <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card">
                           <div>
-                            <div style={{ height: '130px', width: '100%', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
-                              <img
-                                src={a.image || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=500&q=80'}
-                                alt={a.name}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                loading="lazy"
-                              />
-                            </div>
+                            {a.image ? (
+                              <div style={{ height: '130px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#f1f5f9' }}>
+                                <img
+                                  src={a.image}
+                                  alt={a.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
+                                    if (fallback) fallback.style.display = 'flex';
+                                  }}
+                                />
+                                <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}>
+                                  <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
+                                  <span>Image Unavailable</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600 }}>
+                                <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
+                                <span>Image Unavailable</span>
+                              </div>
+                            )}
                             <div className="p-3 pb-0">
                               <div className="d-flex justify-content-between align-items-start mb-2">
                                 <span className="badge bg-light text-muted border small">Available: {a.availableQty || 0}</span>
@@ -578,12 +648,13 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                 </div>
               )}
             </div>
+            )
           )}
         </div>
 
         {/* ORDER TRAY / CART COLUMN */}
         <div className="col-12 col-md-5 col-lg-5 col-xl-4">
-          <div className="card border-0 shadow-sm rounded-3 bg-white p-4 sticky-top" style={{ top: '20px' }}>
+          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 sticky-top pcc-order-tray" style={{ top: '20px' }}>
             <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                 <i className="bi bi-cart3 text-primary"></i>
@@ -606,10 +677,29 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                 <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: '220px', overflowY: 'auto' }}>
                   {cart.map((item, idx) => (
                     <div key={idx} className="p-2.5 bg-light rounded-2 border d-flex align-items-center justify-content-between" style={{ fontSize: '0.84rem' }}>
-                      <div>
-                        <div className="fw-bold text-dark">{item.name}</div>
-                        <div className="text-muted small">
-                          ₱{item.price.toFixed(2)} each {item.isCookedMeal && <span className="badge bg-warning-subtle text-dark ms-1" style={{ fontSize: '0.65rem' }}>Meal</span>}
+                      <div className="d-flex align-items-center gap-2">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="rounded border flex-shrink-0"
+                            style={{ width: '36px', height: '36px', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
+                              if (fb) fb.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '36px', height: '36px', fontSize: '0.52rem', lineHeight: 1.1, display: item.image ? 'none' : 'flex' }}>
+                          <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
+                          No Image
+                        </div>
+                        <div>
+                          <div className="fw-bold text-dark">{item.name}</div>
+                          <div className="text-muted small">
+                            ₱{item.price.toFixed(2)} each {item.isCookedMeal && <span className="badge bg-warning-subtle text-dark ms-1" style={{ fontSize: '0.65rem' }}>Meal</span>}
+                          </div>
                         </div>
                       </div>
                       <div className="d-flex align-items-center gap-2">
@@ -736,6 +826,43 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
 
     {/* FLOATING GUEST CHAT BUBBLE WIDGET */}
     <GuestChatBubble bottomOffset="24px" />
+
+    <style jsx global>{`
+      @keyframes pccPulse {
+        0% { opacity: 0.6; }
+        50% { opacity: 0.25; }
+        100% { opacity: 0.6; }
+      }
+      .pcc-skeleton-box {
+        background-color: #e2e8f0;
+        animation: pccPulse 1.5s ease-in-out infinite;
+        border-radius: 4px;
+      }
+      [data-bs-theme="dark"] .pcc-skeleton-box {
+        background-color: #334155 !important;
+      }
+      [data-bs-theme="dark"] .order-item-card {
+        background-color: #1e293b !important;
+        border-color: rgba(255, 255, 255, 0.15) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45) !important;
+      }
+      [data-bs-theme="dark"] .order-item-card:hover {
+        border-color: var(--pcc-blue, #2155b5) !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6) !important;
+      }
+      [data-bs-theme="dark"] .pcc-order-tray,
+      [data-bs-theme="dark"] .pcc-order-history-card {
+        background-color: #1e293b !important;
+        border-color: rgba(255, 255, 255, 0.15) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45) !important;
+      }
+      [data-bs-theme="dark"] .image-fallback,
+      [data-bs-theme="dark"] .image-fallback-sm {
+        background-color: #0f172a !important;
+        color: #94a3b8 !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+      }
+    `}</style>
     </GuestLayout>
   );
 }

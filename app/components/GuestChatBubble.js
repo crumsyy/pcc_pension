@@ -38,6 +38,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     message: ''
   });
   const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   const checkSession = async () => {
     try {
@@ -120,7 +121,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
         }
       });
     });
-  }, [botMessages, liveMessages, activeTabMode, isOpen, showRequestForm, pendingOrderPill]);
+  }, [botMessages, liveMessages, activeTabMode, isOpen, showRequestForm, pendingOrderPill, isSendingMessage]);
 
   const knowledgeBase = {
     rates: "PCC Room Rates Per Night:\n" +
@@ -215,6 +216,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
 
     setBotMessages(prev => [...prev, { sender: 'user', text }]);
     setInput('');
+    setIsSendingMessage(true);
 
     // Check if message is an ordering request
     const detectedOrder = parseOrderIntent(text);
@@ -225,7 +227,8 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
             sender: 'bot',
             text: `⚠️ Ordering Window Restricted: Cooked meals (breakfast) can only be ordered between 6:00 AM and 10:30 AM.`
           }]);
-        }, 350);
+          setIsSendingMessage(false);
+        }, 400);
         return;
       }
 
@@ -235,14 +238,16 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
           sender: 'bot',
           text: `I detected your order request for ${detectedOrder.quantity}x ${detectedOrder.name}. Please confirm below to add it to your stay billing.`
         }]);
-      }, 350);
+        setIsSendingMessage(false);
+      }, 400);
       return;
     }
 
     setTimeout(() => {
       const reply = getBotReply(text);
       setBotMessages(prev => [...prev, { sender: 'bot', text: reply }]);
-    }, 350);
+      setIsSendingMessage(false);
+    }, 400);
   };
 
   const handleConfirmOrder = async () => {
@@ -288,9 +293,11 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
 
   const handleQuickOption = (key, label) => {
     setBotMessages(prev => [...prev, { sender: 'user', text: label }]);
+    setIsSendingMessage(true);
     setTimeout(() => {
       const reply = knowledgeBase[key];
       setBotMessages(prev => [...prev, { sender: 'bot', text: reply }]);
+      setIsSendingMessage(false);
     }, 350);
   };
 
@@ -542,9 +549,10 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
 
   const handleSendLiveMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isSendingMessage) return;
     const msgToSend = input.trim();
     setInput('');
+    setIsSendingMessage(true);
 
     // Check if guest typed an order during live chat
     const detectedOrder = parseOrderIntent(msgToSend);
@@ -556,7 +564,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     const tempMsg = {
       messageID: Date.now(),
       senderType: 'Guest',
-      senderName: requestForm.name || 'You',
+      senderName: requestForm.name || (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : 'You') || 'You',
       message: msgToSend,
       timestamp: new Date().toISOString(),
       isRead: 0
@@ -584,6 +592,8 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
       }
     } catch (err) {
       console.error("Failed to send live message:", err);
+    } finally {
+      setIsSendingMessage(false);
     }
   };
 
@@ -598,7 +608,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
         style={{
           position: 'fixed',
           bottom: bottomOffset,
-          right: '24px',
+          right: 'max(16px, calc(env(safe-area-inset-right, 0px) + 16px))',
           width: '58px',
           height: '58px',
           borderRadius: '50%',
@@ -609,10 +619,12 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1050,
+          zIndex: 1060,
           cursor: 'pointer',
-          boxShadow: '0 4px 14px rgba(33,85,181,0.35)'
+          boxShadow: '0 4px 14px rgba(33,85,181,0.35)',
+          touchAction: 'manipulation'
         }}
+        aria-label="Guest Assistant & Live Chat"
         title="Guest Assistant & Live Chat"
       >
         {isOpen ? (
@@ -635,9 +647,11 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
         style={{
           position: 'fixed',
           bottom: `calc(${bottomOffset} + 68px)`,
-          right: '24px',
-          width: '360px',
+          right: '16px',
+          width: 'min(360px, calc(100vw - 32px))',
+          maxWidth: 'calc(100vw - 32px)',
           height: '520px',
+          maxHeight: 'calc(100vh - 120px)',
           zIndex: 1050,
           borderRadius: '14px',
           backgroundColor: '#fff',
@@ -763,10 +777,17 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   </button>
                   <button
                     type="submit"
-                    className="btn btn-sm btn-pcc-primary text-white fw-bold"
+                    className="btn btn-sm btn-pcc-primary text-white fw-bold d-flex align-items-center gap-1.5"
                     disabled={submittingRequest}
                   >
-                    {submittingRequest ? 'Sending...' : 'Send Request'}
+                    {submittingRequest ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Sending Request...
+                      </>
+                    ) : (
+                      'Send Request'
+                    )}
                   </button>
                 </div>
               </form>
@@ -777,11 +798,18 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               <div className="text-center py-5 text-muted" style={{ fontSize: '0.8rem' }}>
                 <p className="mb-2">No active live conversation ticket found.</p>
                 <button
-                  className="btn btn-sm btn-outline-primary rounded-pill fw-bold"
+                  className="btn btn-sm btn-outline-primary rounded-pill fw-bold d-inline-flex align-items-center gap-1.5"
                   onClick={handleDirectReceptionistRequest}
                   disabled={submittingRequest}
                 >
-                  {submittingRequest ? 'Connecting...' : 'Request Receptionist Now'}
+                  {submittingRequest ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      Connecting...
+                    </>
+                  ) : (
+                    'Request Receptionist Now'
+                  )}
                 </button>
               </div>
             ) : (
@@ -805,6 +833,19 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   >
                     {m.message}
                   </div>
+                  {m.senderType === 'Guest' && (
+                    <div className="text-end px-1 mt-0.5" style={{ fontSize: '0.65rem' }}>
+                      {m.isRead ? (
+                        <span className="text-primary fw-semibold" title="Read by Receptionist">
+                          ✓✓ Read
+                        </span>
+                      ) : (
+                        <span className="text-muted" title="Delivered to Receptionist">
+                          ✓ Delivered
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))
             )
@@ -813,7 +854,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
             botMessages.map((m, idx) => (
               <div
                 key={idx}
-                className={`d-flex ${m.sender === 'user' ? 'justify-content-end' : 'justify-content-start'}`}
+                className={`d-flex flex-column ${m.sender === 'user' ? 'align-items-end' : 'align-items-start'}`}
               >
                 <div
                   className={`p-2.5 px-3 rounded shadow-sm ${m.sender !== 'user' ? 'chat-bubble-received' : 'chat-bubble-sent'}`}
@@ -827,8 +868,25 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                 >
                   {m.text}
                 </div>
+                {m.sender === 'user' && (
+                  <div className="text-end px-1 mt-0.5" style={{ fontSize: '0.65rem' }}>
+                    <span className="text-muted">✓ Delivered</span>
+                  </div>
+                )}
               </div>
             ))
+          )}
+
+          {/* INTERACTIVE SENDING / TYPING ANIMATION */}
+          {isSendingMessage && (
+            <div className="d-flex align-items-center gap-1.5 p-2 px-3 rounded-pill bg-white shadow-sm border align-self-start animate__animated animate__fadeIn" style={{ width: 'fit-content', fontSize: '0.75rem' }}>
+              <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: '0.45rem', height: '0.45rem' }} role="status"></span>
+              <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: '0.45rem', height: '0.45rem', animationDelay: '0.15s' }} role="status"></span>
+              <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: '0.45rem', height: '0.45rem', animationDelay: '0.3s' }} role="status"></span>
+              <span className="text-muted ms-1 small" style={{ fontSize: '0.72rem' }}>
+                {activeTabMode === 'live' ? 'Sending message...' : 'Assistant is replying...'}
+              </span>
+            </div>
           )}
 
           {/* INTERACTIVE STEP-BY-STEP ORDERING CHOICES */}
@@ -967,11 +1025,19 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   Location
                 </button>
                 <button
-                  className="btn btn-xs btn-pcc-primary py-1 px-2 rounded-pill text-white fw-bold w-100 mt-1"
+                  className="btn btn-xs btn-pcc-primary py-1 px-2 rounded-pill text-white fw-bold w-100 mt-1 d-flex align-items-center justify-content-center gap-1.5"
                   onClick={handleOpenRequestForm}
+                  disabled={submittingRequest}
                   style={{ fontSize: '0.75rem' }}
                 >
-                  Request Receptionist
+                  {submittingRequest ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      Connecting to Receptionist...
+                    </>
+                  ) : (
+                    'Request Receptionist'
+                  )}
                 </button>
               </div>
             )}
@@ -994,10 +1060,15 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               />
               <button
                 type="submit"
-                className="btn btn-sm btn-pcc-primary px-3 text-white fw-semibold"
-                style={{ fontSize: '0.8rem' }}
+                className="btn btn-sm btn-pcc-primary px-3 text-white fw-semibold d-flex align-items-center justify-content-center"
+                disabled={isSendingMessage}
+                style={{ fontSize: '0.8rem', minWidth: '60px' }}
               >
-                Send
+                {isSendingMessage ? (
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                ) : (
+                  'Send'
+                )}
               </button>
             </form>
           </div>
