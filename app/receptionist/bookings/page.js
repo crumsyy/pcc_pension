@@ -44,6 +44,30 @@ function calculateAgeFromDbDate(dbDateStr) {
   return age;
 }
 
+const defaultRoomImages = {
+  'Standard Single Room': 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&auto=format&fit=crop&q=80',
+  'Standard Double Room': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=600&auto=format&fit=crop&q=80',
+  'Family Suite': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80',
+  'Deluxe Room': 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600&auto=format&fit=crop&q=80',
+  'Suite': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80',
+};
+const defaultFallbackRoomImg = 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&auto=format&fit=crop&q=80';
+
+function getRoomDisplayImage(imgVal, roomType) {
+  if (imgVal && typeof imgVal === 'string' && imgVal.trim()) {
+    const trimmed = imgVal.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const arr = JSON.parse(trimmed);
+        if (Array.isArray(arr) && arr.length > 0 && arr[0]) return arr[0];
+      } catch (e) {}
+    }
+    const first = trimmed.split(',')[0].trim();
+    if (first) return first;
+  }
+  return defaultRoomImages[roomType] || defaultFallbackRoomImg;
+}
+
 function BookingsClient() {
   const searchParams = useSearchParams();
   const [bookings, setBookings] = useState([]);
@@ -1195,9 +1219,23 @@ function BookingsClient() {
                       <small className="text-muted">{b.contact || 'No Contact'}</small>
                     </td>
                     <td>
-                      <span className="fw-bold text-pcc-blue">Room {b.roomNumber}</span>
-                      <br />
-                      <small className="text-muted">{b.roomType}</small>
+                      <div className="d-flex align-items-center gap-2">
+                        <img
+                          src={getRoomDisplayImage(b.image, b.roomType)}
+                          alt={`Room ${b.roomNumber}`}
+                          className="rounded border"
+                          style={{ width: '40px', height: '32px', objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = defaultFallbackRoomImg;
+                          }}
+                        />
+                        <div>
+                          <span className="fw-bold text-pcc-blue">Room {b.roomNumber}</span>
+                          <br />
+                          <small className="text-muted">{b.roomType}</small>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       <div className="text-dark" style={{ fontSize: '0.85rem' }}>
@@ -1416,18 +1454,33 @@ function BookingsClient() {
 
                   {/* ROOM OCCUPANCY & PRICE DISPLAY */}
                   {selectedRoomObj && (
-                    <div className="p-3 mb-3 border rounded bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
-                      <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
-                          Room Base Price: <span className="text-pcc-blue fw-bold fs-6">₱{(
-                            breakfastOption === 'with'
-                              ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
-                              : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0))
-                          ).toFixed(2)}</span> / night
+                    <div className="p-3 mb-3 border rounded bg-light d-flex align-items-center justify-content-between flex-wrap gap-3">
+                      <div className="d-flex align-items-center gap-3">
+                        <img
+                          src={getRoomDisplayImage(selectedRoomObj.image, selectedRoomObj.roomType)}
+                          alt={`Room ${selectedRoomObj.roomNumber}`}
+                          className="rounded border"
+                          style={{ width: '75px', height: '55px', objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = defaultFallbackRoomImg;
+                          }}
+                        />
+                        <div>
+                          <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
+                            Room {selectedRoomObj.roomNumber} ({selectedRoomObj.roomType || 'Standard'})
+                          </div>
+                          <div className="text-muted small">
+                            Base Price: <span className="text-pcc-blue fw-bold">₱{(
+                              breakfastOption === 'with'
+                                ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
+                                : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0))
+                            ).toFixed(2)}</span> / night
+                          </div>
+                          <small className="text-muted">
+                            ({breakfastOption === 'with' ? 'Daily Breakfast Included' : 'Standard Stay Without Breakfast'})
+                          </small>
                         </div>
-                        <small className="text-muted">
-                          ({breakfastOption === 'with' ? 'Daily Breakfast Included' : 'Standard Stay Without Breakfast'})
-                        </small>
                       </div>
                       <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
                         Maximum Occupancy: {selectedRoomObj.occupancyLimit || 2} Guests

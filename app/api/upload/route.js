@@ -13,7 +13,7 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
-    const uploadType = formData.get('type') || 'rooms'; // 'profile' or 'rooms'
+    const uploadType = formData.get('type') || 'rooms';
 
     if (!file || typeof file === 'string') {
       return NextResponse.json({ error: 'No image file uploaded.' }, { status: 400 });
@@ -37,7 +37,14 @@ export async function POST(request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const subFolder = uploadType === 'profile' ? 'profile-pictures' : 'rooms';
+    const subFolderMap = {
+      profile: 'profile-pictures',
+      rooms: 'rooms',
+      products: 'products',
+      amenities: 'amenities',
+      meals: 'cooked-meals'
+    };
+    const subFolder = subFolderMap[uploadType] || 'catalog';
     const filename = `${uploadType}-${Date.now()}-${Math.floor(Math.random() * 1000)}${ext}`;
 
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', subFolder);

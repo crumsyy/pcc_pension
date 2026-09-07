@@ -26,6 +26,12 @@ function parseRoomImages(imgVal) {
   return [];
 }
 
+const defaultRoomImages = {
+  'Standard Matrimonial': 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80',
+  'Twin Matrimonial': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80',
+  'Deluxe Matrimonial': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+};
+
 function RoomImageCarousel({ images, fallbackImg, alt, height = '200px' }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
@@ -1954,6 +1960,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   }
                                 }}
                               >
+                                {(() => {
+                                  const imgList = parseRoomImages(rm.image);
+                                  const defaultImg = defaultRoomImages[rm.roomType] || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
+                                  const roomPic = imgList.length > 0 ? imgList[0] : defaultImg;
+                                  return (
+                                    <div style={{ height: '140px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#e2e8f0' }}>
+                                      <img
+                                        src={roomPic}
+                                        alt={`Room ${rm.roomNumber}`}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        loading="lazy"
+                                      />
+                                    </div>
+                                  );
+                                })()}
                                 <div className="card-body p-3 d-flex flex-column">
                                   <div className="d-flex justify-content-between align-items-start mb-2">
                                     <div>
@@ -1976,7 +1997,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     </div>
                                   </div>
 
-                                  <div className="mt-auto pt-2 d-flex gap-1.5 align-items-center">
+                                  <div className="mt-auto pt-2 d-flex gap-2 align-items-center">
                                     <button
                                       type="button"
                                       className="btn btn-xs btn-secondary text-white fw-bold py-1.5 px-2"

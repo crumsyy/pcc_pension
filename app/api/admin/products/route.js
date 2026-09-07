@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, ensureCatalogImageSchema } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
   if (!session || session.role !== 'Administrator') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await ensureCatalogImageSchema();
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
@@ -54,6 +56,8 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  await ensureCatalogImageSchema();
+
   try {
     const body = await request.json();
     const { action } = body;
@@ -68,6 +72,7 @@ export async function POST(request) {
       const itemType = body.itemType || 'Consumable';
       const unit = body.unit ? body.unit.trim() : 'pcs';
       const description = body.description ? body.description.trim() : null;
+      const image = body.image ? body.image.trim() : null;
 
       const existing = await dbQuery("SELECT productID FROM products WHERE LOWER(TRIM(name)) = LOWER(?)", [name]);
       if (existing.length > 0) {
@@ -75,8 +80,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "INSERT INTO products(name, price, basePrice, sellingPrice, quantity, productCategoryID, minStock, itemType, unit, description) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
-        [name, price, basePrice, sellingPrice, productCategoryID, minStock, itemType, unit, description]
+        "INSERT INTO products(name, price, basePrice, sellingPrice, quantity, productCategoryID, minStock, itemType, unit, description, image) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)",
+        [name, price, basePrice, sellingPrice, productCategoryID, minStock, itemType, unit, description, image]
       );
       return NextResponse.json({ success: true, message: 'Product created successfully.' });
     }
@@ -92,6 +97,7 @@ export async function POST(request) {
       const itemType = body.itemType || 'Consumable';
       const unit = body.unit ? body.unit.trim() : 'pcs';
       const description = body.description ? body.description.trim() : null;
+      const image = body.image ? body.image.trim() : null;
 
       const existing = await dbQuery("SELECT productID FROM products WHERE LOWER(TRIM(name)) = LOWER(?) AND productID != ?", [name, productID]);
       if (existing.length > 0) {
@@ -99,8 +105,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "UPDATE products SET name=?, price=?, basePrice=?, sellingPrice=?, productCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE productID=?",
-        [name, price, basePrice, sellingPrice, productCategoryID, minStock, itemType, unit, description, productID]
+        "UPDATE products SET name=?, price=?, basePrice=?, sellingPrice=?, productCategoryID=?, minStock=?, itemType=?, unit=?, description=?, image=? WHERE productID=?",
+        [name, price, basePrice, sellingPrice, productCategoryID, minStock, itemType, unit, description, image, productID]
       );
       return NextResponse.json({ success: true, message: 'Product updated successfully.' });
     }

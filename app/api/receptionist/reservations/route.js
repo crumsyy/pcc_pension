@@ -102,7 +102,7 @@ export async function GET(request) {
                END as status,
                r.guestID, r.roomID,
                g.firstName, g.lastName, g.contact, g.email,
-               rm.roomNumber, rt.type as roomType,
+               rm.roomNumber, rt.type as roomType, rm.image,
                rr1.rate as rateWithBreakfast, rr2.rate as rateWithoutBreakfast,
                COALESCE(rr1.rate, rr2.rate, 0) as rate,
                b.bookingID, b.status as bookingStatus
@@ -118,7 +118,7 @@ export async function GET(request) {
       `),
       dbQuery("SELECT guestID, firstName, lastName, contact, email FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, r.occupancyLimit,
+        SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, r.occupancyLimit, r.image,
                rr1.rate as rateWithBreakfast,
                rr2.rate as rateWithoutBreakfast,
                COALESCE(rr1.rate, rr2.rate, 0) as rate

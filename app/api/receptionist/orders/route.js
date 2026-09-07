@@ -29,12 +29,12 @@ export async function GET(request) {
     // 2. Fetch order items (products and amenities)
     const [orderProducts, orderAmenities] = await Promise.all([
       dbQuery(`
-        SELECT op.orderID, op.quantity, p.productID as itemID, p.name, p.price, 'Product' as type
+        SELECT op.orderID, op.quantity, p.productID as itemID, p.name, p.price, p.image, 'Product' as type
         FROM order_product op
         JOIN products p ON p.productID = op.productID
       `),
       dbQuery(`
-        SELECT oa.orderID, oa.quantity, a.amenityID as itemID, a.name, a.price, 'Amenity' as type
+        SELECT oa.orderID, oa.quantity, a.amenityID as itemID, a.name, a.price, a.image, 'Amenity' as type
         FROM order_amenities oa
         JOIN amenities a ON a.amenityID = oa.amenityID
       `)
@@ -52,21 +52,21 @@ export async function GET(request) {
     // 3. Fetch products, amenities and active bookings for dropdowns
     const [products, amenities, activeBookings, borrowLogs] = await Promise.all([
       dbQuery(`
-        SELECT p.productID, p.name, p.price, 
+        SELECT p.productID, p.name, p.price, p.image,
                CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(SUM(ib.remainingQuantity), 0) END as quantity,
                p.productCategoryID
         FROM products p 
         LEFT JOIN inventory_batch ib ON ib.itemType = 'Product' AND ib.itemID = p.productID AND ib.status IN ('Active', 'Low Stock', 'Expired')
         WHERE p.isArchived = 0 AND p.isAvailable = 1
-        GROUP BY p.productID
+        GROUP BY p.productID, p.name, p.price, p.image, p.productCategoryID
         ORDER BY p.name
       `),
       dbQuery(`
-        SELECT a.amenityID, a.name, a.price, COALESCE(SUM(ib.remainingQuantity), 0) as quantity 
+        SELECT a.amenityID, a.name, a.price, a.image, COALESCE(SUM(ib.remainingQuantity), 0) as quantity 
         FROM amenities a 
         LEFT JOIN inventory_batch ib ON ib.itemType = 'Amenity' AND ib.itemID = a.amenityID AND ib.status IN ('Active', 'Low Stock', 'Expired')
         WHERE a.isArchived = 0
-        GROUP BY a.amenityID
+        GROUP BY a.amenityID, a.name, a.price, a.image
         ORDER BY a.name
       `),
       dbQuery(`

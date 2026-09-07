@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, ensureCatalogImageSchema } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
   if (!session || session.role !== 'Administrator') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await ensureCatalogImageSchema();
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
@@ -54,6 +56,8 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  await ensureCatalogImageSchema();
+
   try {
     const body = await request.json();
     const { action } = body;
@@ -68,6 +72,7 @@ export async function POST(request) {
       const itemType = body.itemType || 'Consumable';
       const unit = body.unit ? body.unit.trim() : 'pcs';
       const description = body.description ? body.description.trim() : null;
+      const image = body.image ? body.image.trim() : null;
 
       const existing = await dbQuery("SELECT amenityID FROM amenities WHERE LOWER(TRIM(name)) = LOWER(?)", [name]);
       if (existing.length > 0) {
@@ -75,8 +80,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "INSERT INTO amenities(name, price, basePrice, sellingPrice, quantity, amenityCategoryID, minStock, itemType, unit, description) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
-        [name, price, basePrice, sellingPrice, amenityCategoryID, minStock, itemType, unit, description]
+        "INSERT INTO amenities(name, price, basePrice, sellingPrice, quantity, amenityCategoryID, minStock, itemType, unit, description, image) VALUES(?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)",
+        [name, price, basePrice, sellingPrice, amenityCategoryID, minStock, itemType, unit, description, image]
       );
       return NextResponse.json({ success: true, message: 'Amenity created successfully.' });
     }
@@ -92,6 +97,7 @@ export async function POST(request) {
       const itemType = body.itemType || 'Consumable';
       const unit = body.unit ? body.unit.trim() : 'pcs';
       const description = body.description ? body.description.trim() : null;
+      const image = body.image ? body.image.trim() : null;
 
       const existing = await dbQuery("SELECT amenityID FROM amenities WHERE LOWER(TRIM(name)) = LOWER(?) AND amenityID != ?", [name, amenityID]);
       if (existing.length > 0) {
@@ -99,8 +105,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "UPDATE amenities SET name=?, price=?, basePrice=?, sellingPrice=?, amenityCategoryID=?, minStock=?, itemType=?, unit=?, description=? WHERE amenityID=?",
-        [name, price, basePrice, sellingPrice, amenityCategoryID, minStock, itemType, unit, description, amenityID]
+        "UPDATE amenities SET name=?, price=?, basePrice=?, sellingPrice=?, amenityCategoryID=?, minStock=?, itemType=?, unit=?, description=?, image=? WHERE amenityID=?",
+        [name, price, basePrice, sellingPrice, amenityCategoryID, minStock, itemType, unit, description, image, amenityID]
       );
       return NextResponse.json({ success: true, message: 'Amenity updated successfully.' });
     }

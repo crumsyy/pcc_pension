@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import GuestLayout from '../GuestLayout';
 import LoadingButton from '@/app/components/LoadingButton';
+import GuestChatBubble from '@/app/components/GuestChatBubble';
 
 export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
   const [guest, setGuest] = useState(initialGuest);
@@ -435,25 +436,37 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                   <div className="row g-3">
                     {filteredMeals.map(m => (
                       <div key={m.productID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 d-flex flex-column justify-content-between">
+                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between">
                           <div>
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <span className="badge bg-warning-subtle text-dark border border-warning-subtle small">Cooked Meal</span>
-                              <span className="fw-bold text-success fs-6">₱{parseFloat(m.price).toFixed(2)}</span>
+                            <div style={{ height: '130px', width: '100%', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+                              <img
+                                src={m.image || 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=500&q=80'}
+                                alt={m.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                loading="lazy"
+                              />
                             </div>
-                            <h6 className="fw-bold text-dark mb-1">{m.name}</h6>
-                            <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
-                              Freshly prepared breakfast meal served with scheduled room delivery tracking.
-                            </p>
+                            <div className="p-3 pb-0">
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <span className="badge bg-warning-subtle text-dark border border-warning-subtle small">Cooked Meal</span>
+                                <span className="fw-bold text-success fs-6">₱{parseFloat(m.price).toFixed(2)}</span>
+                              </div>
+                              <h6 className="fw-bold text-dark mb-1">{m.name}</h6>
+                              <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
+                                Freshly prepared breakfast meal served with scheduled room delivery tracking.
+                              </p>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs"
-                            style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', borderRadius: '6px' }}
-                            onClick={() => handleAddToCart(m, 'Product', true)}
-                          >
-                            <i className="bi bi-cart-plus"></i>Add to Order Tray
-                          </button>
+                          <div className="p-3 pt-0">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs"
+                              style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', borderRadius: '6px' }}
+                              onClick={() => handleAddToCart(m, 'Product', true)}
+                            >
+                              <i className="bi bi-cart-plus"></i>Add to Order Tray
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -474,26 +487,38 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                   <div className="row g-3">
                     {filteredProducts.map(p => (
                       <div key={p.productID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 d-flex flex-column justify-content-between">
+                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between">
                           <div>
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <span className="badge bg-light text-muted border small">Stock: {p.availableQty || 0}</span>
-                              <span className="fw-bold text-success fs-6">₱{parseFloat(p.price).toFixed(2)}</span>
+                            <div style={{ height: '130px', width: '100%', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+                              <img
+                                src={p.image || 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=500&q=80'}
+                                alt={p.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                loading="lazy"
+                              />
                             </div>
-                            <h6 className="fw-bold text-dark mb-1">{p.name}</h6>
-                            <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
-                              Available for prompt delivery to your hotel room.
-                            </p>
+                            <div className="p-3 pb-0">
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <span className="badge bg-light text-muted border small">Stock: {p.availableQty || 0}</span>
+                                <span className="fw-bold text-success fs-6">₱{parseFloat(p.price).toFixed(2)}</span>
+                              </div>
+                              <h6 className="fw-bold text-dark mb-1">{p.name}</h6>
+                              <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
+                                Available for prompt delivery to your hotel room.
+                              </p>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs"
-                            style={{ borderRadius: '6px' }}
-                            disabled={p.availableQty <= 0}
-                            onClick={() => handleAddToCart(p, 'Product', false)}
-                          >
-                            <i className="bi bi-cart-plus"></i>{p.availableQty > 0 ? 'Add to Order Tray' : 'Out of Stock'}
-                          </button>
+                          <div className="p-3 pt-0">
+                            <button
+                              type="button"
+                              className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs ${p.availableQty > 0 ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
+                              style={{ backgroundColor: p.availableQty > 0 ? 'var(--pcc-blue)' : undefined, borderColor: p.availableQty > 0 ? 'var(--pcc-blue)' : undefined, borderRadius: '6px' }}
+                              disabled={p.availableQty <= 0}
+                              onClick={() => handleAddToCart(p, 'Product', false)}
+                            >
+                              <i className="bi bi-cart-plus"></i>{p.availableQty > 0 ? 'Add to Order Tray' : 'Out of Stock'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -514,26 +539,38 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                   <div className="row g-3">
                     {filteredAmenities.map(a => (
                       <div key={a.amenityID} className="col-12 col-sm-6 col-xl-4">
-                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 d-flex flex-column justify-content-between">
+                        <div className="card h-100 border-0 shadow-sm rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between">
                           <div>
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <span className="badge bg-light text-muted border small">Available: {a.availableQty || 0}</span>
-                              <span className="fw-bold text-success fs-6">₱{parseFloat(a.price).toFixed(2)}</span>
+                            <div style={{ height: '130px', width: '100%', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+                              <img
+                                src={a.image || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=500&q=80'}
+                                alt={a.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                loading="lazy"
+                              />
                             </div>
-                            <h6 className="fw-bold text-dark mb-1">{a.name}</h6>
-                            <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
-                              Extra guest room amenity delivered directly by front desk staff.
-                            </p>
+                            <div className="p-3 pb-0">
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <span className="badge bg-light text-muted border small">Available: {a.availableQty || 0}</span>
+                                <span className="fw-bold text-success fs-6">₱{parseFloat(a.price).toFixed(2)}</span>
+                              </div>
+                              <h6 className="fw-bold text-dark mb-1">{a.name}</h6>
+                              <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
+                                Extra guest room amenity delivered directly by front desk staff.
+                              </p>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-secondary w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs"
-                            style={{ borderRadius: '6px' }}
-                            disabled={a.availableQty <= 0}
-                            onClick={() => handleAddToCart(a, 'Amenity', false)}
-                          >
-                            <i className="bi bi-cart-plus"></i>{a.availableQty > 0 ? 'Add to Order Tray' : 'Unavailable'}
-                          </button>
+                          <div className="p-3 pt-0">
+                            <button
+                              type="button"
+                              className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs ${a.availableQty > 0 ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
+                              style={{ backgroundColor: a.availableQty > 0 ? 'var(--pcc-blue)' : undefined, borderColor: a.availableQty > 0 ? 'var(--pcc-blue)' : undefined, borderRadius: '6px' }}
+                              disabled={a.availableQty <= 0}
+                              onClick={() => handleAddToCart(a, 'Amenity', false)}
+                            >
+                              <i className="bi bi-cart-plus"></i>{a.availableQty > 0 ? 'Add to Order Tray' : 'Unavailable'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -696,6 +733,9 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
         </div>
       </div>
     </div>
+
+    {/* FLOATING GUEST CHAT BUBBLE WIDGET */}
+    <GuestChatBubble bottomOffset="24px" />
     </GuestLayout>
   );
 }

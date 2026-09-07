@@ -167,7 +167,8 @@ export default function ReceptionistOrders() {
         type,
         quantity: qty,
         name: details.name,
-        price: parseFloat(details.price)
+        price: parseFloat(details.price),
+        image: details.image || null
       });
     }
 
@@ -360,9 +361,19 @@ export default function ReceptionistOrders() {
                           <td>
                             <div className="d-flex flex-column gap-1">
                               {o.items.map((item, idx) => (
-                                <div key={idx} style={{ fontSize: '0.85rem' }}>
-                                  <span className="text-muted">{item.quantity}x</span> {item.name} 
-                                  <span className="text-muted ms-2">(₱{parseFloat(item.price).toFixed(2)})</span>
+                                <div key={idx} className="d-flex align-items-center gap-1.5" style={{ fontSize: '0.85rem' }}>
+                                  <img
+                                    src={item.image || (item.type === 'Amenity' ? 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80')}
+                                    alt={item.name}
+                                    className="rounded border flex-shrink-0"
+                                    style={{ width: '22px', height: '22px', objectFit: 'cover' }}
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80';
+                                    }}
+                                  />
+                                  <span><span className="text-muted">{item.quantity}x</span> {item.name}</span>
+                                  <span className="text-muted ms-1">(₱{parseFloat(item.price).toFixed(2)})</span>
                                 </div>
                               ))}
                             </div>
@@ -518,6 +529,36 @@ export default function ReceptionistOrders() {
                         Add
                       </button>
                     </div>
+
+                    {(() => {
+                      if (!selectedItemToAdd.idAndType) return null;
+                      const [itemIDStr, type] = selectedItemToAdd.idAndType.split('-');
+                      const id = parseInt(itemIDStr);
+                      const found = type === 'Product' 
+                        ? (products.find(p => p.productID === id) || cookedMeals.find(m => m.productID === id))
+                        : amenities.find(a => a.amenityID === id);
+                      if (!found) return null;
+                      const fallback = type === 'Amenity' ? 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80';
+                      return (
+                        <div className="col-12 mt-2">
+                          <div className="d-flex align-items-center gap-3 p-2 bg-white rounded border">
+                            <img
+                              src={found.image || fallback}
+                              alt={found.name}
+                              className="rounded border"
+                              style={{ width: '46px', height: '46px', objectFit: 'cover' }}
+                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = fallback; }}
+                            />
+                            <div>
+                              <div className="fw-bold text-dark">{found.name}</div>
+                              <div className="small text-muted">
+                                Price: <strong className="text-pcc-blue">₱{parseFloat(found.price).toFixed(2)}</strong> | Stock: {found.quantity ?? 'Available'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {(activeItemCategory === 'Meal' || newOrderForm.items.some(item => cookedMeals.some(m => m.productID === item.itemID))) && (() => {
@@ -631,7 +672,21 @@ export default function ReceptionistOrders() {
                         ) : (
                           newOrderForm.items.map((item, idx) => (
                             <tr key={idx}>
-                              <td className="ps-3 fw-bold">{item.name}</td>
+                              <td className="ps-3 fw-bold">
+                                <div className="d-flex align-items-center gap-2">
+                                  <img
+                                    src={item.image || (item.type === 'Amenity' ? 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80')}
+                                    alt={item.name}
+                                    className="rounded border"
+                                    style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80';
+                                    }}
+                                  />
+                                  <span>{item.name}</span>
+                                </div>
+                              </td>
                               <td><span className="badge bg-secondary-subtle text-secondary">{item.type}</span></td>
                               <td>₱{item.price.toFixed(2)}</td>
                               <td>{item.quantity}</td>
@@ -715,7 +770,21 @@ export default function ReceptionistOrders() {
                     <tbody>
                       {viewingOrder.items.map((it, i) => (
                         <tr key={i}>
-                          <td className="fw-semibold text-dark">{it.name}</td>
+                          <td className="fw-semibold text-dark">
+                            <div className="d-flex align-items-center gap-2">
+                              <img
+                                src={it.image || (it.type === 'Amenity' ? 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=200&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80')}
+                                alt={it.name}
+                                className="rounded border"
+                                style={{ width: '30px', height: '30px', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80';
+                                }}
+                              />
+                              <span>{it.name}</span>
+                            </div>
+                          </td>
                           <td className="text-center">{it.quantity}x</td>
                           <td className="text-end">₱{parseFloat(it.price).toFixed(2)}</td>
                           <td className="text-end fw-bold">₱{(parseFloat(it.price) * it.quantity).toFixed(2)}</td>

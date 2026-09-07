@@ -31,7 +31,7 @@ export async function GET(request) {
                END as status,
                b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
-               rm.roomNumber, rm.occupancyLimit, rt.type as roomType
+               rm.roomNumber, rm.occupancyLimit, rt.type as roomType, rm.image
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
@@ -41,7 +41,7 @@ export async function GET(request) {
       `),
       dbQuery("SELECT guestID, firstName, lastName, contact, dateOfBirth FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, rt.type as roomType,
+        SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, rt.type as roomType,
                MAX(COALESCE(rr_with.rate, rr_default.rate, 1500)) as rateWithBreakfast,
                MAX(COALESCE(rr_without.rate, rr_with.rate - 200, 1300)) as rateWithoutBreakfast,
                MAX(COALESCE(rr_with.rate, rr_default.rate, 1500)) as rate
@@ -51,7 +51,7 @@ export async function GET(request) {
         LEFT JOIN room_rate rr_without ON rr_without.roomTypeID = r.roomTypeID AND rr_without.floorID = r.floorID AND rr_without.breakfastID = 1
         LEFT JOIN room_rate rr_default ON rr_default.roomTypeID = r.roomTypeID AND rr_default.floorID = r.floorID
         WHERE r.isArchived = 0 
-        GROUP BY r.roomID, r.roomNumber, r.status, r.occupancyLimit, rt.type
+        GROUP BY r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, rt.type
         ORDER BY r.roomNumber
       `),
       dbQuery(`

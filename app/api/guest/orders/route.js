@@ -29,7 +29,7 @@ export async function GET(request) {
     } else {
       [products, amenities] = await Promise.all([
         dbQuery(`
-          SELECT p.productID, p.name, p.price, p.productCategoryID,
+          SELECT p.productID, p.name, p.price, p.productCategoryID, p.image,
                  CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(SUM(ib.remainingQuantity), 0) END as availableQty
           FROM products p
           LEFT JOIN inventory_batch ib ON ib.itemType = 'Product' AND ib.itemID = p.productID AND ib.status IN ('Active', 'Low Stock')
@@ -38,7 +38,7 @@ export async function GET(request) {
           ORDER BY p.name ASC
         `),
         dbQuery(`
-          SELECT a.amenityID, a.name, a.price, COALESCE(SUM(ib.remainingQuantity), 0) as availableQty
+          SELECT a.amenityID, a.name, a.price, a.image, COALESCE(SUM(ib.remainingQuantity), 0) as availableQty
           FROM amenities a
           LEFT JOIN inventory_batch ib ON ib.itemType = 'Amenity' AND ib.itemID = a.amenityID AND ib.status IN ('Active', 'Low Stock')
           WHERE a.isArchived = 0

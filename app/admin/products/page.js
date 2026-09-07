@@ -27,7 +27,9 @@ export default function AdminProducts() {
     itemType: 'Consumable',
     unit: 'pcs',
     description: '',
+    image: '',
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
@@ -263,6 +265,32 @@ export default function AdminProducts() {
     });
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const dataForm = new FormData();
+      dataForm.append('file', file);
+      dataForm.append('type', activeTab === 'meals' ? 'meals' : 'products');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: dataForm
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to upload image');
+      if (data.url) {
+        setFormData(prev => ({ ...prev, image: data.url }));
+      }
+    } catch (err) {
+      showAlert('error', 'Upload Failed', err.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const openCreateModal = () => {
     setFormData({
       name: '',
@@ -273,6 +301,7 @@ export default function AdminProducts() {
       itemType: 'Consumable',
       unit: activeTab === 'meals' ? 'serving' : 'pcs',
       description: '',
+      image: '',
     });
     setActiveModal('create');
   };
@@ -289,6 +318,7 @@ export default function AdminProducts() {
       itemType: isMeal ? 'Consumable' : (product.itemType || 'Consumable'),
       unit: product.unit || (isMeal ? 'serving' : 'pcs'),
       description: product.description || '',
+      image: product.image || '',
     });
     setActiveModal('edit');
   };
@@ -451,7 +481,16 @@ export default function AdminProducts() {
                     <tr key={p.productID}>
                       <td>{index + 1}</td>
                       <td>
-                        <strong>{p.name}</strong>
+                        <div className="d-flex align-items-center gap-2">
+                          {p.image ? (
+                            <img src={p.image} alt={p.name} style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px' }} />
+                          ) : (
+                            <div className="bg-light text-muted d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', borderRadius: '4px', fontSize: '0.85rem' }}>
+                              {p.productCategoryID === 3 ? '🍳' : '🥤'}
+                            </div>
+                          )}
+                          <strong>{p.name}</strong>
+                        </div>
                       </td>
                       <td>{p.catName}</td>
                       <td>
@@ -583,6 +622,33 @@ export default function AdminProducts() {
                       onChange={handleInputChange}
                     />
                   </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold">Item Photo</label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                    />
+                    {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
+                    {formData.image && (
+                      <div className="mt-2 d-flex align-items-center gap-2">
+                        <img
+                          src={formData.image}
+                          alt="Item preview"
+                          style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px' }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="row g-2">
                     <div className={activeTab === 'meals' ? 'col-md-6' : 'col-md-4'}>
                       <label className="form-label">Base Price (₱) *</label>
@@ -709,6 +775,33 @@ export default function AdminProducts() {
                         value={formData.description}
                         onChange={handleInputChange}
                       />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">Item Photo</label>
+                      <input
+                        type="file"
+                        className="form-control"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                      />
+                      {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
+                      {formData.image && (
+                        <div className="mt-2 d-flex align-items-center gap-2">
+                          <img
+                            src={formData.image}
+                            alt="Item preview"
+                            style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px' }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="row g-2">
                       <div className={isMeal ? 'col-md-6' : 'col-md-4'}>
