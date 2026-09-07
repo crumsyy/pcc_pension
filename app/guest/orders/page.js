@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import GuestLayout from '../GuestLayout';
+import LoadingButton from '@/app/components/LoadingButton';
 
 export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
   const [guest, setGuest] = useState(initialGuest);
@@ -10,6 +11,8 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
   const [amenities, setAmenities] = useState([]);
   const [orderHistory, setOrderHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Active Category Filter: 'all' | 'meals' | 'products' | 'amenities' | 'history'
@@ -67,7 +70,7 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
     }
   }, []);
 
-  const fetchCatalogAndOrders = async () => {
+  const fetchCatalog = async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/guest/orders');
@@ -77,7 +80,6 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
       setProducts(data.products || []);
       setCookedMeals(data.cookedMeals || []);
       setAmenities(data.amenities || []);
-      setOrderHistory(data.orders || []);
       if (data.guest) setGuest(data.guest);
     } catch (err) {
       setFeedback({ type: 'danger', message: err.message });
@@ -86,26 +88,48 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
     }
   };
 
+  const fetchOrderHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch('/api/guest/orders?history=true');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load order history');
+      setOrderHistory(data.orders || []);
+      setHistoryLoaded(true);
+    } catch (err) {
+      setFeedback({ type: 'danger', message: err.message });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
-    fetchCatalogAndOrders();
+    fetchCatalog();
   }, []);
 
-  const hasCookedMealsInCart = cart.some(item => item.isCookedMeal);
+  const handleSelectCategory = (cat) => {
+    setActiveCategory(cat);
+    if (cat === 'history' && !historyLoaded) {
+      fetchOrderHistory();
+    }
+  };
 
-  const handleAddToCart = (item, type, isCookedMeal = false) => {
+  const hasCookedMealsInCart = useMemo(() => cart.some(item => item.isCookedMeal), [cart]);
+
+  const handleAddToCart = useCallback((item, type, isCookedMeal = false) => {
     const itemID = type === 'Product' ? item.productID : item.amenityID;
-    const existsIndex = cart.findIndex(c => c.itemID === itemID && c.type === type);
-
-    if (existsIndex >= 0) {
-      const updated = [...cart];
-      if (!isCookedMeal && item.availableQty && updated[existsIndex].quantity + 1 > item.availableQty) {
-        setFeedback({ type: 'warning', message: `Only ${item.availableQty} units available in inventory for ${item.name}.` });
-        return;
+    setCart(prev => {
+      const existsIndex = prev.findIndex(c => c.itemID === itemID && c.type === type);
+      if (existsIndex >= 0) {
+        if (!isCookedMeal && item.availableQty && prev[existsIndex].quantity + 1 > item.availableQty) {
+          setFeedback({ type: 'warning', message: `Only ${item.availableQty} units available in inventory for ${item.name}.` });
+          return prev;
+        }
+        const updated = [...prev];
+        updated[existsIndex] = { ...updated[existsIndex], quantity: updated[existsIndex].quantity + 1 };
+        return updated;
       }
-      updated[existsIndex].quantity += 1;
-      setCart(updated);
-    } else {
-      setCart(prev => [
+      return [
         ...prev,
         {
           itemID,
@@ -115,28 +139,30 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
           quantity: 1,
           isCookedMeal
         }
-      ]);
-    }
+      ];
+    });
     setFeedback({ type: 'success', message: `Added 1x ${item.name} to your Order Tray.` });
-  };
+  }, []);
 
-  const handleUpdateQty = (index, newQty) => {
+  const handleUpdateQty = useCallback((index, newQty) => {
     if (newQty <= 0) {
-      handleRemoveFromCart(index);
+      setCart(prev => prev.filter((_, i) => i !== index));
       return;
     }
-    const updated = [...cart];
-    updated[index].quantity = newQty;
-    setCart(updated);
-  };
+    setCart(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], quantity: newQty };
+      return updated;
+    });
+  }, []);
 
-  const handleRemoveFromCart = (index) => {
-    const updated = [...cart];
-    updated.splice(index, 1);
-    setCart(updated);
-  };
+  const handleRemoveFromCart = useCallback((index) => {
+    setCart(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const cartTotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }, [cart]);
 
   // Delivery Slots Evaluation (between 06:00 AM and 10:30 AM)
   const allowedSlots = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
@@ -202,7 +228,7 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
         message: 'Order placed successfully! Your items have been added to your stay billing.'
       });
       setCart([]);
-      fetchCatalogAndOrders();
+      fetchOrderHistory();
       setActiveCategory('history');
     } catch (err) {
       setFeedback({ type: 'danger', message: err.message });
@@ -222,9 +248,17 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
     }
   };
 
-  const filteredMeals = cookedMeals.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredAmenities = amenities.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredMeals = useMemo(() => {
+    return cookedMeals.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [cookedMeals, searchTerm]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [products, searchTerm]);
+
+  const filteredAmenities = useMemo(() => {
+    return amenities.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [amenities, searchTerm]);
 
   return (
     <GuestLayout activeTab="orders" guest={guest}>
@@ -264,35 +298,35 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
             <button
               type="button"
               className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'all' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
-              onClick={() => setActiveCategory('all')}
+              onClick={() => handleSelectCategory('all')}
             >
               All Items
             </button>
             <button
               type="button"
               className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'meals' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
-              onClick={() => setActiveCategory('meals')}
+              onClick={() => handleSelectCategory('meals')}
             >
               🍳 Cooked Meals ({cookedMeals.length})
             </button>
             <button
               type="button"
               className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'products' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
-              onClick={() => setActiveCategory('products')}
+              onClick={() => handleSelectCategory('products')}
             >
               🥤 Products & Drinks ({products.length})
             </button>
             <button
               type="button"
               className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'amenities' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
-              onClick={() => setActiveCategory('amenities')}
+              onClick={() => handleSelectCategory('amenities')}
             >
               🛎️ Amenities ({amenities.length})
             </button>
             <button
               type="button"
               className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'history' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
-              onClick={() => setActiveCategory('history')}
+              onClick={() => handleSelectCategory('history')}
             >
               📋 My Orders ({orderHistory.length})
             </button>
@@ -644,25 +678,18 @@ export default function GuestOrdersPage({ guest: initialGuest = null } = {}) {
                   </div>
                 </div>
 
-                {/* SUBMIT BUTTON */}
-                <button
+                {/* SUBMIT BUTTON WITH LOADING STATE */}
+                <LoadingButton
                   type="submit"
-                  className="btn btn-primary w-100 py-2.5 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
+                  isLoading={submitting}
+                  loadingText="Placing Room Order..."
+                  className="btn btn-primary w-100 py-2.5 fw-bold shadow-sm"
                   style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', borderRadius: '8px' }}
-                  disabled={submitting || (hasCookedMealsInCart && allTodaySlotsPassed && isSelectedDateToday)}
+                  disabled={hasCookedMealsInCart && allTodaySlotsPassed && isSelectedDateToday}
                 >
-                  {submitting ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" role="status"></span>
-                      <span>Placing Room Order...</span>
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-send-fill"></i>
-                      <span>Submit Room Order</span>
-                    </>
-                  )}
-                </button>
+                  <i className="bi bi-send-fill me-1.5"></i>
+                  <span>Submit Room Order</span>
+                </LoadingButton>
               </form>
             )}
           </div>

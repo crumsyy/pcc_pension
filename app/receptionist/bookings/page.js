@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import CalendarDatePicker from '../../components/CalendarDatePicker';
+import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 
@@ -98,18 +100,28 @@ function BookingsClient() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [downPayment, setDownPayment] = useState('');
   const [paymentMethodID, setPaymentMethodID] = useState('1');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUpdatingBooking, setIsUpdatingBooking] = useState(false);
   const [isGcashSettled, setIsGcashSettled] = useState(false);
   const [gcashInlineError, setGcashInlineError] = useState('');
   const [settledPaymentRef, setSettledPaymentRef] = useState('');
-
-  // Check-in Scenario & Downpayment Tiers
-  const [checkInScenario, setCheckInScenario] = useState('now'); // 'now' | 'later'
-  const [downPaymentOption, setDownPaymentOption] = useState('30'); // '30' | '50' | '100'
-
+  const [roomFilterStatus, setRoomFilterStatus] = useState('Available');
+  const [downPaymentOption, setDownPaymentOption] = useState('30');
+  const [checkInScenario, setCheckInScenario] = useState('now');
   const [checkInDate, setCheckInDate] = useState('');
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutDate, setCheckOutDate] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
+
+  const calculateBookingNights = (inDateVal = checkInDate, outDateVal = checkOutDate) => {
+    const dbIn = toDbDate(inDateVal);
+    const dbOut = toDbDate(outDateVal);
+    if (!dbIn || !dbOut) return 1;
+    const inD = new Date(dbIn + 'T00:00:00');
+    const outD = new Date(dbOut + 'T00:00:00');
+    if (isNaN(inD.getTime()) || isNaN(outD.getTime()) || outD <= inD) return 1;
+    return Math.max(1, Math.round((outD - inD) / (1000 * 60 * 60 * 24)));
+  };
 
   const isCheckInToday = checkInDate === todayUiDate || (checkInDate && toDbDate(checkInDate) === todayDbDate);
   const isUpdateToday = updateCheckInDate === todayUiDate || (updateCheckInDate && toDbDate(updateCheckInDate) === todayDbDate);
@@ -228,6 +240,7 @@ function BookingsClient() {
     const datesChanged = (origInStr !== newInStr) || (origOutStr !== newOutStr);
 
     const executeUpdate = async () => {
+      setIsUpdatingBooking(true);
       try {
         const res = await fetch('/api/receptionist/bookings', {
           method: 'POST',
@@ -248,6 +261,8 @@ function BookingsClient() {
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setIsUpdatingBooking(false);
       }
     };
 
@@ -822,7 +837,8 @@ function BookingsClient() {
       finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
     }
 
-    showConfirm('Create Booking', 'Are you sure you want to create this booking and record the payment?', async () => {
+    showConfirm('Create Booking', 'Are you sure you want to save this booking and record the down payment?', async () => {
+      setIsSubmitting(true);
       try {
         const res = await fetch('/api/receptionist/bookings', {
           method: 'POST',
@@ -881,6 +897,8 @@ function BookingsClient() {
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setIsSubmitting(false);
       }
     });
   };
@@ -1559,39 +1577,72 @@ function BookingsClient() {
                     </div>
                   </div>
 
-                  {checkInScenario === 'later' && (
-                    <div className="row g-2 mb-3 p-3 bg-light rounded border">
+                  {/* STAY SCHEDULE & CALENDAR DATES */}
+                  <div className="row g-3 mb-3">
+                    {checkInScenario === 'later' && (
                       <div className="col-md-6">
-                        <label className="form-label small fw-semibold">Check-In Date *</label>
-                        <DateInput value={checkInDate} onChange={(e) => handleCheckInDateChange(e.target.value)} required min={todayUiDate} />
+                        <CalendarDatePicker
+                          label="Select Check-In Date *"
+                          value={checkInDate}
+                          onChange={(val) => handleCheckInDateChange(val)}
+                          minDate={todayDbDate}
+                          helperText="Select the guest's arrival date"
+                        />
+                        <div className="mt-2">
+                          <label className="form-label small fw-semibold">Check-In Time *</label>
+                          <input
+                            type="time"
+                            className="form-control form-control-sm"
+                            value={checkInTime}
+                            min={isCheckInToday ? currentTimeStr : undefined}
+                            onChange={(e) => setCheckInTime(e.target.value)}
+                            required
+                          />
+                          {isCheckInToday && (
+                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                              Earliest selectable time today: {currentTimeStr}
+                            </small>
+                          )}
+                        </div>
                       </div>
-                      <div className="col-md-6">
-                        <label className="form-label small fw-semibold">Check-In Time *</label>
+                    )}
+
+                    <div className={checkInScenario === 'later' ? "col-md-6" : "col-12"}>
+                      <CalendarDatePicker
+                        label="Select Check-Out Date *"
+                        value={checkOutDate}
+                        onChange={(val) => setCheckOutDate(val)}
+                        minDate={checkInDate ? toDbDate(checkInDate) : todayDbDate}
+                        helperText="Select the guest's departure date"
+                      />
+                      <div className="mt-2">
+                        <label className="form-label small fw-semibold">Check-Out Time *</label>
                         <input
                           type="time"
                           className="form-control form-control-sm"
-                          value={checkInTime}
-                          min={isCheckInToday ? currentTimeStr : undefined}
-                          onChange={(e) => setCheckInTime(e.target.value)}
+                          value={checkOutTime}
+                          onChange={(e) => setCheckOutTime(e.target.value)}
                           required
                         />
-                        {isCheckInToday && (
-                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                            Earliest selectable time today: {currentTimeStr}
-                          </small>
-                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
 
-                  <div className="row g-2 mb-3">
-                    <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Check-Out Date *</label>
-                      <DateInput value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required min={checkInDate || todayUiDate} />
+                  {/* DYNAMIC STAY DURATION & NIGHTS SUMMARY BADGE */}
+                  <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                      <div className="fw-bold text-primary small d-flex align-items-center gap-1">
+                        <i className="fa-solid fa-moon me-1"></i>
+                        <span>Stay Duration</span>
+                      </div>
+                      <div className="text-muted small mt-1">
+                        {toDbDate(checkInDate) || 'Check-in'} → {toDbDate(checkOutDate) || 'Check-out'}
+                      </div>
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Check-Out Time *</label>
-                      <input type="time" className="form-control form-control-sm" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} required />
+                    <div className="text-end">
+                      <span className="badge bg-primary text-white fs-6 px-3 py-1 shadow-xs">
+                        {calculateBookingNights()} {calculateBookingNights() === 1 ? 'Night' : 'Nights'}
+                      </span>
                     </div>
                   </div>
 
@@ -1826,7 +1877,14 @@ function BookingsClient() {
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Booking & Record Down Payment</button>
+                  <LoadingButton
+                    type="submit"
+                    isLoading={isSubmitting}
+                    loadingText="Saving Booking..."
+                    className="btn btn-pcc-primary text-white fw-bold"
+                  >
+                    Save Booking & Record Down Payment
+                  </LoadingButton>
                 </div>
               </form>
             </div>
@@ -2082,55 +2140,69 @@ function BookingsClient() {
                     </div>
                   </div>
 
-                  <div className="row g-2 mb-3">
-                    <div className="col-md-7">
-                      <label className="form-label small fw-semibold">Check-In Date *</label>
-                      <DateInput
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <CalendarDatePicker
+                        label="Check-In Date *"
                         value={updateCheckInDate}
                         onChange={(val) => setUpdateCheckInDate(val)}
-                        placeholder="MM/DD/YYYY"
-                        min={todayUiDate}
-                        required
+                        minDate={todayDbDate}
+                        helperText="Select new arrival date"
                       />
+                      <div className="mt-2">
+                        <label className="form-label small fw-semibold">Check-In Time *</label>
+                        <input
+                          type="time"
+                          className="form-control form-control-sm"
+                          required
+                          value={updateCheckInTime}
+                          min={isUpdateToday ? currentTimeStr : undefined}
+                          onChange={(e) => setUpdateCheckInTime(e.target.value)}
+                        />
+                        {isUpdateToday && (
+                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                            Earliest selectable time today: {currentTimeStr}
+                          </small>
+                        )}
+                      </div>
                     </div>
-                    <div className="col-md-5">
-                      <label className="form-label small fw-semibold">Check-In Time *</label>
-                      <input
-                        type="time"
-                        className="form-control form-control-sm"
-                        required
-                        value={updateCheckInTime}
-                        min={isUpdateToday ? currentTimeStr : undefined}
-                        onChange={(e) => setUpdateCheckInTime(e.target.value)}
+
+                    <div className="col-md-6">
+                      <CalendarDatePicker
+                        label="Check-Out Date *"
+                        value={updateCheckOutDate}
+                        onChange={(val) => setUpdateCheckOutDate(val)}
+                        minDate={updateCheckInDate ? toDbDate(updateCheckInDate) : todayDbDate}
+                        helperText="Select new departure date"
                       />
-                      {isUpdateToday && (
-                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                          Earliest selectable time today: {currentTimeStr}
-                        </small>
-                      )}
+                      <div className="mt-2">
+                        <label className="form-label small fw-semibold">Check-Out Time *</label>
+                        <input
+                          type="time"
+                          className="form-control form-control-sm"
+                          required
+                          value={updateCheckOutTime}
+                          onChange={(e) => setUpdateCheckOutTime(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="row g-2 mb-3">
-                    <div className="col-md-7">
-                      <label className="form-label small fw-semibold">Check-Out Date *</label>
-                      <DateInput
-                        value={updateCheckOutDate}
-                        onChange={(val) => setUpdateCheckOutDate(val)}
-                        placeholder="MM/DD/YYYY"
-                        min={updateCheckInDate || todayUiDate}
-                        required
-                      />
+                  {/* DYNAMIC STAY DURATION & NIGHTS SUMMARY BADGE */}
+                  <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                      <div className="fw-bold text-primary small d-flex align-items-center gap-1">
+                        <i className="fa-solid fa-moon me-1"></i>
+                        <span>New Stay Duration</span>
+                      </div>
+                      <div className="text-muted small mt-1">
+                        {toDbDate(updateCheckInDate) || 'Check-in'} → {toDbDate(updateCheckOutDate) || 'Check-out'}
+                      </div>
                     </div>
-                    <div className="col-md-5">
-                      <label className="form-label small fw-semibold">Check-Out Time *</label>
-                      <input
-                        type="time"
-                        className="form-control form-control-sm"
-                        required
-                        value={updateCheckOutTime}
-                        onChange={(e) => setUpdateCheckOutTime(e.target.value)}
-                      />
+                    <div className="text-end">
+                      <span className="badge bg-primary text-white fs-6 px-3 py-1 shadow-xs">
+                        {calculateBookingNights(updateCheckInDate, updateCheckOutDate)} {calculateBookingNights(updateCheckInDate, updateCheckOutDate) === 1 ? 'Night' : 'Nights'}
+                      </span>
                     </div>
                   </div>
 
@@ -2154,9 +2226,14 @@ function BookingsClient() {
                   <button type="button" className="btn btn-secondary btn-sm fw-bold text-white" onClick={() => setActiveModal(null)}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-success btn-sm text-white fw-bold">
+                  <LoadingButton
+                    type="submit"
+                    isLoading={isUpdatingBooking}
+                    loadingText="Saving Changes..."
+                    className="btn btn-success btn-sm text-white fw-bold"
+                  >
                     <i className="fa-solid fa-check me-1"></i>Save Changes
-                  </button>
+                  </LoadingButton>
                 </div>
               </form>
             </div>

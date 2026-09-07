@@ -84,33 +84,47 @@ export default function DateInput({
 
 export function isValidDate(str) {
   if (!str) return false;
-  const parts = str.split('/');
+  const clean = String(str).trim();
+  if (clean.includes('-')) {
+    const parts = clean.substring(0, 10).split('-');
+    if (parts.length !== 3) return false;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return false;
+    if (m < 1 || m > 12) return false;
+    if (y < 1000 || y > 9999) return false;
+    const daysInMonth = [31, (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return d >= 1 && d <= daysInMonth[m - 1];
+  }
+  const parts = clean.split('/');
   if (parts.length !== 3) return false;
   const m = parseInt(parts[0], 10);
   const d = parseInt(parts[1], 10);
   const y = parseInt(parts[2], 10);
-  
   if (isNaN(m) || isNaN(d) || isNaN(y)) return false;
   if (m < 1 || m > 12) return false;
-  if (y < 1000 || y > 9999) return false; // exactly 4-digit year limit
-  
+  if (y < 1000 || y > 9999) return false;
   const daysInMonth = [31, (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  if (d < 1 || d > daysInMonth[m - 1]) return false;
-  
-  return true;
+  return d >= 1 && d <= daysInMonth[m - 1];
 }
 
 export function toDbDate(str) {
   if (!str) return '';
-  const parts = str.split('/');
-  if (parts.length !== 3) return str;
+  const clean = String(str).trim();
+  if (clean.includes('-')) return clean.substring(0, 10);
+  const parts = clean.split('/');
+  if (parts.length !== 3) return clean;
   return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
 }
 
 export function toUiDate(str) {
   if (!str) return '';
-  const dateOnly = str.substring(0, 10);
+  const clean = String(str).trim();
+  if (clean.includes('/')) return clean;
+  const dateOnly = clean.substring(0, 10);
   const parts = dateOnly.split('-');
-  if (parts.length !== 3) return str;
-  return `${parts[1]}/${parts[2]}/${parts[0]}`;
+  if (parts.length !== 3) return clean;
+  return `${parts[1].padStart(2, '0')}/${parts[2].padStart(2, '0')}/${parts[0]}`;
 }
+

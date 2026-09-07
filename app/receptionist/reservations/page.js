@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import CalendarDatePicker from '../../components/CalendarDatePicker';
+import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 
@@ -104,6 +106,19 @@ function ReservationsClient() {
   const [convertCheckInNow, setConvertCheckInNow] = useState(false);
   const [gcashInlineError, setGcashInlineError] = useState('');
   const [settledPaymentRef, setSettledPaymentRef] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dynamic Nights Calculation for Reservations
+  const calculateReservationNights = (inDateVal = resDate, outDateVal = checkOutDate) => {
+    if (!inDateVal || !outDateVal) return 1;
+    const dbIn = toDbDate(inDateVal);
+    const dbOut = toDbDate(outDateVal);
+    if (!dbIn || !dbOut) return 1;
+    const inD = new Date(dbIn + 'T00:00:00');
+    const outD = new Date(dbOut + 'T00:00:00');
+    if (isNaN(inD.getTime()) || isNaN(outD.getTime()) || outD <= inD) return 1;
+    return Math.max(1, Math.round((outD - inD) / (1000 * 60 * 60 * 24)));
+  };
 
   useEffect(() => {
     const today = new Date();
@@ -1028,57 +1043,76 @@ function ReservationsClient() {
                     </div>
                   )}
 
-                  {/* RESERVATION CHECK-IN & CHECK-OUT DATES */}
-                  <div className="row g-2 mb-3 p-3 bg-light rounded border">
+                  {/* RESERVATION CHECK-IN & CHECK-OUT CALENDARS */}
+                  <div className="row g-3 mb-3">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Reservation Check-In Date *</label>
-                      <DateInput
-                        className="form-control form-control-sm"
+                      <CalendarDatePicker
+                        label="Check-In Date *"
                         value={resDate}
-                        onChange={(e) => handleResDateChange(e.target.value)}
-                        required
-                        min={todayUiDate}
-                        max={maxResDate}
+                        onChange={(val) => handleResDateChange(val)}
+                        minDate={todayDbDate}
+                        maxDate={maxResDate}
+                        helperText="Select the scheduled arrival date"
                       />
+                      <div className="mt-2">
+                        <label className="form-label small fw-semibold">Check-In Time *</label>
+                        <input
+                          type="time"
+                          className="form-control form-control-sm"
+                          value={resTime}
+                          min={isResToday ? currentTimeStr : undefined}
+                          onChange={(e) => setResTime(e.target.value)}
+                          required
+                        />
+                        {isResToday && (
+                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                            Earliest selectable time today: {currentTimeStr}
+                          </small>
+                        )}
+                      </div>
                     </div>
+
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Reservation Check-In Time *</label>
-                      <input
-                        type="time"
-                        className="form-control form-control-sm"
-                        value={resTime}
-                        min={isResToday ? currentTimeStr : undefined}
-                        onChange={(e) => setResTime(e.target.value)}
-                        required
+                      <CalendarDatePicker
+                        label="Check-Out Date *"
+                        value={checkOutDate}
+                        onChange={(val) => setCheckOutDate(val)}
+                        minDate={resDate ? toDbDate(resDate) : todayDbDate}
+                        helperText="Select the scheduled departure date"
                       />
-                      {isResToday && (
-                        <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                          Earliest selectable time today: {currentTimeStr}
-                        </small>
-                      )}
+                      <div className="mt-2">
+                        <label className="form-label small fw-semibold">Check-Out Time *</label>
+                        <input
+                          type="time"
+                          className="form-control form-control-sm"
+                          value={checkOutTime}
+                          onChange={(e) => setCheckOutTime(e.target.value)}
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="row g-2 mb-3">
-                    <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Check-Out Date *</label>
-                      <DateInput
-                        className="form-control form-control-sm"
-                        value={checkOutDate}
-                        onChange={(e) => setCheckOutDate(e.target.value)}
-                        required
-                        min={resDate || todayUiDate}
-                      />
+                  {/* DYNAMIC STAY DURATION & NIGHTS SUMMARY BADGE */}
+                  <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                      <div className="fw-bold text-primary small d-flex align-items-center gap-1.5">
+                        <i className="bi bi-moon-stars-fill"></i>
+                        <span>Stay Duration</span>
+                      </div>
+                      <div className="text-muted small mt-0.5">
+                        {toDbDate(resDate) || 'Check-in'} → {toDbDate(checkOutDate) || 'Check-out'}
+                      </div>
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Check-Out Time *</label>
-                      <input
-                        type="time"
-                        className="form-control form-control-sm"
-                        value={checkOutTime}
-                        onChange={(e) => setCheckOutTime(e.target.value)}
-                        required
-                      />
+                    <div className="text-end">
+                      <span className="badge bg-primary text-white fs-6 px-3 py-1.5 shadow-xs">
+                        {calculateReservationNights()} {calculateReservationNights() === 1 ? 'Night' : 'Nights'}
+                      </span>
+                      {selectedRoom && (
+                        <div className="small fw-bold text-dark mt-1">
+                          ₱{((parseFloat(selectedRoom.rate) || 0) * calculateReservationNights()).toFixed(2)} Est. Room Charge
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1096,9 +1130,14 @@ function ReservationsClient() {
 
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold">
+                  <LoadingButton
+                    type="submit"
+                    isLoading={isSubmitting}
+                    loadingText={activeModal === 'create' ? 'Saving Reservation...' : 'Updating Reservation...'}
+                    className="btn btn-pcc-primary text-white fw-bold"
+                  >
                     {activeModal === 'create' ? 'Save Reservation' : 'Update Reservation'}
-                  </button>
+                  </LoadingButton>
                 </div>
               </form>
             </div>
@@ -1226,45 +1265,62 @@ function ReservationsClient() {
                         </div>
                       ) : (
                         <>
-                          <div className="row g-2 my-2">
-                            <div className="col-md-6">
-                              <label className="form-label small fw-semibold">Scheduled Check-In Date *</label>
-                              <DateInput className="form-control form-control-sm" value={convInDate} onChange={(e) => setConvInDate(e.target.value)} required min={todayUiDate} />
-                            </div>
-                            <div className="col-md-6">
-                              <label className="form-label small fw-semibold">Scheduled Check-In Time *</label>
-                              <input
-                                type="time"
-                                className="form-control form-control-sm"
-                                value={convInTime}
-                                min={isConvToday ? currentTimeStr : undefined}
-                                onChange={(e) => setConvInTime(e.target.value)}
-                                required
-                              />
-                              {isConvToday && (
-                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                                  Earliest selectable time today: {currentTimeStr}
-                                </small>
-                              )}
-                            </div>
+                      {/* SCHEDULED CHECK-IN & CHECK-OUT CALENDARS */}
+                      <div className="row g-3 mb-3">
+                        <div className="col-md-6">
+                          <CalendarDatePicker
+                            label="Scheduled Check-In Date *"
+                            value={convInDate}
+                            onChange={(val) => {
+                              setConvInDate(val);
+                              if (val) {
+                                const inD = new Date(toDbDate(val) + 'T00:00:00');
+                                inD.setDate(inD.getDate() + 1);
+                                const pad = (n) => String(n).padStart(2, '0');
+                                setConvOutDate(toUiDate(`${inD.getFullYear()}-${pad(inD.getMonth() + 1)}-${pad(inD.getDate())}`));
+                              }
+                            }}
+                            minDate={todayDbDate}
+                            helperText="Guest check-in date"
+                          />
+                          <div className="mt-2">
+                            <label className="form-label small fw-semibold">Scheduled Check-In Time *</label>
+                            <input
+                              type="time"
+                              className="form-control form-control-sm"
+                              value={convInTime}
+                              min={isConvToday ? currentTimeStr : undefined}
+                              onChange={(e) => setConvInTime(e.target.value)}
+                              required
+                            />
+                            {isConvToday && (
+                              <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                                Earliest selectable time today: {currentTimeStr}
+                              </small>
+                            )}
                           </div>
-                          <small className="text-muted d-block mb-3" style={{ fontSize: '0.74rem' }}>
-                            Reservations are scheduled for check-in on the selected reservation date (Status: <strong>Pending Check-In</strong>, Room: <strong>Reserved</strong>).
-                          </small>
-                        </>
-                      )}
-                    </div>
+                        </div>
 
-                    <div className="row g-2 mb-3">
-                      <div className="col-md-6">
-                        <label className="form-label small fw-semibold">Check-Out Date *</label>
-                        <DateInput className="form-control form-control-sm" value={convOutDate} onChange={(e) => setConvOutDate(e.target.value)} required min={convInDate || todayUiDate} />
+                        <div className="col-md-6">
+                          <CalendarDatePicker
+                            label="Check-Out Date *"
+                            value={convOutDate}
+                            onChange={(val) => setConvOutDate(val)}
+                            minDate={convInDate ? toDbDate(convInDate) : todayDbDate}
+                            helperText="Guest departure date"
+                          />
+                          <div className="mt-2">
+                            <label className="form-label small fw-semibold">Check-Out Time *</label>
+                            <input type="time" className="form-control form-control-sm" value={convOutTime} onChange={(e) => setConvOutTime(e.target.value)} required />
+                          </div>
+                        </div>
                       </div>
-                      <div className="col-md-6">
-                        <label className="form-label small fw-semibold">Check-Out Time *</label>
-                        <input type="time" className="form-control form-control-sm" value={convOutTime} onChange={(e) => setConvOutTime(e.target.value)} required />
-                      </div>
-                    </div>
+                      <small className="text-muted d-block mb-3" style={{ fontSize: '0.74rem' }}>
+                        Reservations are scheduled for check-in on the selected reservation date (Status: <strong>Pending Check-In</strong>, Room: <strong>Reserved</strong>).
+                      </small>
+                    </>
+                  )}
+                </div>
 
                     {/* REQUIRED DOWN PAYMENT TIER */}
                     <div className="mb-3">
@@ -1425,9 +1481,14 @@ function ReservationsClient() {
 
                   <div className="modal-footer">
                     <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                    <button type="submit" className="btn btn-pcc-primary text-white fw-bold">
+                    <LoadingButton
+                      type="submit"
+                      isLoading={isSubmitting}
+                      loadingText="Processing Booking..."
+                      className="btn btn-pcc-primary text-white fw-bold"
+                    >
                       {convertCheckInNow ? 'Save Booking & Check-In Now' : 'Save Booking & Record Down Payment'}
-                    </button>
+                    </LoadingButton>
                   </div>
                 </form>
               </div>

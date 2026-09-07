@@ -2,34 +2,54 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit, ensureOrdersSchema, ensureProfilePictureSchema } from '@/lib/db';
 
-export async function GET() {
+// In-memory catalog cache with 30s TTL
+let catalogCache = null;
+let catalogCacheTime = 0;
+const CATALOG_CACHE_TTL = 30000;
+
+export async function GET(request) {
   const session = await getSession();
   if (!session || session.role !== 'Guest') {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const includeHistory = searchParams.get('history') === 'true';
+
   try {
     await ensureOrdersSchema();
     await ensureProfilePictureSchema();
-    const [products, amenities] = await Promise.all([
-      dbQuery(`
-        SELECT p.productID, p.name, p.price, p.productCategoryID,
-               CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(SUM(ib.remainingQuantity), 0) END as availableQty
-        FROM products p
-        LEFT JOIN inventory_batch ib ON ib.itemType = 'Product' AND ib.itemID = p.productID AND ib.status IN ('Active', 'Low Stock')
-        WHERE p.isArchived = 0 AND p.isAvailable = 1
-        GROUP BY p.productID
-        ORDER BY p.name ASC
-      `),
-      dbQuery(`
-        SELECT a.amenityID, a.name, a.price, COALESCE(SUM(ib.remainingQuantity), 0) as availableQty
-        FROM amenities a
-        LEFT JOIN inventory_batch ib ON ib.itemType = 'Amenity' AND ib.itemID = a.amenityID AND ib.status IN ('Active', 'Low Stock')
-        WHERE a.isArchived = 0
-        GROUP BY a.amenityID
-        ORDER BY a.name ASC
-      `)
-    ]);
+
+    const now = Date.now();
+    let products, amenities;
+
+    if (catalogCache && (now - catalogCacheTime < CATALOG_CACHE_TTL)) {
+      products = catalogCache.products;
+      amenities = catalogCache.amenities;
+    } else {
+      [products, amenities] = await Promise.all([
+        dbQuery(`
+          SELECT p.productID, p.name, p.price, p.productCategoryID,
+                 CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(SUM(ib.remainingQuantity), 0) END as availableQty
+          FROM products p
+          LEFT JOIN inventory_batch ib ON ib.itemType = 'Product' AND ib.itemID = p.productID AND ib.status IN ('Active', 'Low Stock')
+          WHERE p.isArchived = 0 AND p.isAvailable = 1
+          GROUP BY p.productID
+          ORDER BY p.name ASC
+        `),
+        dbQuery(`
+          SELECT a.amenityID, a.name, a.price, COALESCE(SUM(ib.remainingQuantity), 0) as availableQty
+          FROM amenities a
+          LEFT JOIN inventory_batch ib ON ib.itemType = 'Amenity' AND ib.itemID = a.amenityID AND ib.status IN ('Active', 'Low Stock')
+          WHERE a.isArchived = 0
+          GROUP BY a.amenityID
+          ORDER BY a.name ASC
+        `)
+      ]);
+
+      catalogCache = { products, amenities };
+      catalogCacheTime = now;
+    }
 
     const activeProducts = products.filter(p => p.productCategoryID !== 3);
     const cookedMeals = products.filter(p => p.productCategoryID === 3);
@@ -62,7 +82,8 @@ export async function GET() {
     const guestID = guest ? guest.guestID : 0;
 
     let orders = [];
-    if (guestID > 0) {
+    // Only fetch full order history if explicitly requested (Lazy-load optimization)
+    if (includeHistory && guestID > 0) {
       const ordersRaw = await dbQuery(`
         SELECT o.*, 
                COALESCE(r.roomNumber, 'N/A') as roomNumber
@@ -71,31 +92,34 @@ export async function GET() {
         LEFT JOIN room r ON r.roomID = b.roomID
         WHERE o.guestID = ?
         ORDER BY o.orderDateTime DESC
+        LIMIT 50
       `, [guestID]);
 
-      const [orderProducts, orderAmenities] = await Promise.all([
-        dbQuery(`
-          SELECT op.orderID, op.quantity, op.isComplimentary, p.productID as itemID, p.name, p.price, 'Product' as type
-          FROM order_product op
-          JOIN products p ON p.productID = op.productID
-          WHERE op.orderID IN (SELECT orderID FROM orders WHERE guestID = ?)
-        `, [guestID]),
-        dbQuery(`
-          SELECT oa.orderID, oa.quantity, a.amenityID as itemID, a.name, a.price, 'Amenity' as type
-          FROM order_amenities oa
-          JOIN amenities a ON a.amenityID = oa.amenityID
-          WHERE oa.orderID IN (SELECT orderID FROM orders WHERE guestID = ?)
-        `, [guestID])
-      ]);
+      if (ordersRaw.length > 0) {
+        const [orderProducts, orderAmenities] = await Promise.all([
+          dbQuery(`
+            SELECT op.orderID, op.quantity, op.isComplimentary, p.productID as itemID, p.name, p.price, 'Product' as type
+            FROM order_product op
+            JOIN products p ON p.productID = op.productID
+            WHERE op.orderID IN (SELECT orderID FROM orders WHERE guestID = ?)
+          `, [guestID]),
+          dbQuery(`
+            SELECT oa.orderID, oa.quantity, a.amenityID as itemID, a.name, a.price, 'Amenity' as type
+            FROM order_amenities oa
+            JOIN amenities a ON a.amenityID = oa.amenityID
+            WHERE oa.orderID IN (SELECT orderID FROM orders WHERE guestID = ?)
+          `, [guestID])
+        ]);
 
-      orders = ordersRaw.map(o => {
-        const p = orderProducts.filter(op => op.orderID === o.orderID);
-        const a = orderAmenities.filter(oa => oa.orderID === o.orderID);
-        return {
-          ...o,
-          items: [...p, ...a]
-        };
-      });
+        orders = ordersRaw.map(o => {
+          const p = orderProducts.filter(op => op.orderID === o.orderID);
+          const a = orderAmenities.filter(oa => oa.orderID === o.orderID);
+          return {
+            ...o,
+            items: [...p, ...a]
+          };
+        });
+      }
     }
 
     return NextResponse.json({
@@ -368,6 +392,7 @@ export async function POST(request) {
       });
 
       await connection.commit();
+      catalogCache = null; // Invalidate cache so quantities update immediately
 
       // Trigger sync inventory quantities
       syncInventoryStock();
