@@ -81,24 +81,278 @@ const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCook
   );
 });
 
-const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loading, onBrowse }) {
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Pending': return 'bg-warning text-dark';
-      case 'Preparing': return 'bg-info text-white';
-      case 'Served': return 'bg-primary text-white';
-      case 'Completed': return 'bg-success text-white';
-      case 'Canceled': return 'bg-danger text-white';
-      default: return 'bg-secondary text-white';
+function DeliveryTimeline({ deliveryType, currentStatus }) {
+  const isScheduled = deliveryType === 'scheduled';
+  const steps = isScheduled
+    ? [
+        { key: 'Placed', label: 'Placed' },
+        { key: 'Scheduled', label: 'Scheduled' },
+        { key: 'Preparing', label: 'Preparing' },
+        { key: 'Out for Delivery', label: 'Out for Delivery' },
+        { key: 'Completed', label: 'Completed' }
+      ]
+    : [
+        { key: 'Placed', label: 'Placed' },
+        { key: 'Preparing', label: 'Preparing' },
+        { key: 'Out for Delivery', label: 'Out for Delivery' },
+        { key: 'Completed', label: 'Completed' }
+      ];
+
+  const getStepIndex = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('cancel')) return -1;
+    if (isScheduled) {
+      if (s.includes('complete') || s === 'delivered') return 4;
+      if (s.includes('out for delivery') || s === 'served') return 3;
+      if (s.includes('prepar')) return 2;
+      if (s.includes('schedul')) return 1;
+      return 0;
+    } else {
+      if (s.includes('complete') || s === 'delivered') return 3;
+      if (s.includes('out for delivery') || s === 'served') return 2;
+      if (s.includes('prepar')) return 1;
+      return 0;
     }
+  };
+
+  const currentIdx = getStepIndex(currentStatus);
+  const isCanceled = (currentStatus || '').toLowerCase().includes('cancel');
+
+  if (isCanceled) {
+    return (
+      <div className="py-2 text-center">
+        <span className="badge bg-danger text-white px-3 py-1 rounded-pill" style={{ fontSize: '0.74rem' }}>
+          <i className="bi bi-x-circle me-1"></i>Order Canceled
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-2 px-1 w-100">
+      <div className="d-flex align-items-center justify-content-between position-relative">
+        <div
+          style={{
+            position: 'absolute',
+            top: '12px',
+            left: '24px',
+            right: '24px',
+            height: '3px',
+            backgroundColor: '#e2e8f0',
+            zIndex: 1
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            top: '12px',
+            left: '24px',
+            width: steps.length > 1 && currentIdx >= 0 ? `${(Math.min(currentIdx, steps.length - 1) / (steps.length - 1)) * 100}%` : '0%',
+            maxWidth: 'calc(100% - 48px)',
+            height: '3px',
+            backgroundColor: '#2155B5',
+            zIndex: 2,
+            transition: 'width 0.4s ease'
+          }}
+        />
+
+        {steps.map((step, idx) => {
+          const isDone = idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          return (
+            <div
+              key={step.key}
+              className="d-flex flex-column align-items-center text-center"
+              style={{ zIndex: 3, minWidth: '56px' }}
+            >
+              <div
+                className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${
+                  isDone
+                    ? 'bg-primary text-white'
+                    : isCurrent
+                    ? 'bg-primary text-white'
+                    : 'bg-white text-muted border'
+                }`}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  fontSize: '0.65rem',
+                  border: isCurrent ? '2px solid #2155B5' : isDone ? 'none' : '2px solid #cbd5e1',
+                  boxShadow: isCurrent ? '0 0 0 3px rgba(33,85,181,0.25)' : 'none'
+                }}
+              >
+                {isDone ? '✓' : idx + 1}
+              </div>
+              <span
+                className={`mt-1.5 text-center ${
+                  isCurrent
+                    ? 'fw-bold text-pcc-blue'
+                    : isDone
+                    ? 'fw-semibold text-dark'
+                    : 'text-muted'
+                }`}
+                style={{ fontSize: '0.67rem', lineHeight: 1.15, maxWidth: '68px' }}
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loading, onBrowse }) {
+  const [historyFilter, setHistoryFilter] = useState('all');
+
+  const getStatusBadge = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('cancel')) return 'bg-danger text-white';
+    if (s.includes('complete') || s === 'delivered') return 'bg-success text-white';
+    if (s.includes('out for delivery') || s === 'served') return 'bg-primary text-white';
+    if (s.includes('prepar')) return 'bg-info text-dark';
+    if (s.includes('schedul')) return 'bg-secondary text-white';
+    return 'bg-warning text-dark';
+  };
+
+  const getItemStatusBadge = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('cancel')) return 'bg-danger-subtle text-danger border border-danger-subtle';
+    if (s.includes('complete') || s === 'delivered') return 'bg-success-subtle text-success border border-success-subtle';
+    if (s.includes('out for delivery') || s === 'served') return 'bg-primary-subtle text-primary border border-primary-subtle';
+    if (s.includes('prepar')) return 'bg-info-subtle text-info-emphasis border border-info-subtle';
+    if (s.includes('schedul')) return 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+    return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+  };
+
+  const immediateOrders = useMemo(() => {
+    return (orders || []).filter(o => o.deliveryType === 'immediate' || (!o.deliveryType && !o.deliveryTime));
+  }, [orders]);
+
+  const scheduledOrders = useMemo(() => {
+    return (orders || []).filter(o => o.deliveryType === 'scheduled' || Boolean(o.deliveryTime));
+  }, [orders]);
+
+  const renderOrderCard = (o) => {
+    const totalAmt = (o.items || []).reduce((sum, it) => sum + (parseFloat(it.price) * it.quantity), 0);
+    const isScheduled = o.deliveryType === 'scheduled' || Boolean(o.deliveryTime);
+
+    return (
+      <div key={o.orderID} className="card border shadow-xs rounded-3 mb-3 overflow-hidden">
+        <div className="card-header bg-white py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div className="d-flex align-items-center gap-2">
+            <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>Order #{o.orderID}</span>
+            <span className="text-muted small">
+              {new Date(o.orderDateTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+            </span>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            {isScheduled ? (
+              <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
+                <i className="bi bi-clock-history me-1"></i>{o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime || 'Breakfast'}
+              </span>
+            ) : (
+              <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
+                <i className="bi bi-lightning-charge me-1"></i>Immediate Delivery
+              </span>
+            )}
+            <span className={`badge ${getStatusBadge(o.orderStatus)} px-2.5 py-1 rounded-pill`} style={{ fontSize: '0.75rem' }}>
+              {o.orderStatus}
+            </span>
+          </div>
+        </div>
+
+        <div className="card-body p-3">
+          <div className="mb-3 p-2.5 bg-light rounded-3 border">
+            <DeliveryTimeline deliveryType={isScheduled ? 'scheduled' : 'immediate'} currentStatus={o.orderStatus} />
+          </div>
+
+          <div className="table-responsive">
+            <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
+              <thead className="table-light">
+                <tr>
+                  <th>Item</th>
+                  <th className="text-center">Delivery Mode</th>
+                  <th className="text-center">Item Status</th>
+                  <th className="text-end">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(o.items || []).map((it, idx) => {
+                  const itDelType = it.deliveryType || (isScheduled ? 'scheduled' : 'immediate');
+                  const itStatus = it.itemStatus || o.orderStatus;
+                  return (
+                    <tr key={idx}>
+                      <td>
+                        <div className="fw-semibold text-dark">{it.quantity}x {it.name}</div>
+                        <div className="text-muted small" style={{ fontSize: '0.72rem' }}>₱{parseFloat(it.price).toFixed(2)} each</div>
+                      </td>
+                      <td className="text-center">
+                        <span className="badge bg-light text-muted border px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
+                          {itDelType === 'scheduled' ? '⏰ With Breakfast' : '⚡ Deliver Now'}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <span className={`badge ${getItemStatusBadge(itStatus)} px-2 py-0.5 rounded-pill`} style={{ fontSize: '0.70rem' }}>
+                          {itStatus}
+                        </span>
+                      </td>
+                      <td className="text-end fw-bold text-dark">
+                        ₱{(parseFloat(it.price) * it.quantity).toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="card-footer bg-light py-2 px-3 border-top d-flex justify-content-between align-items-center">
+          <small className="text-muted">Charged to Stay Billing</small>
+          <div>
+            <span className="text-muted small me-2">Order Total:</span>
+            <strong className="text-success fs-6">₱{totalAmt.toFixed(2)}</strong>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="card border-0 shadow-sm rounded-3 bg-white p-4">
-      <h5 className="fw-bold text-dark border-bottom pb-2 mb-3 d-flex align-items-center justify-content-between">
-        <span><i className="bi bi-clock-history me-2 text-primary"></i>My Order History</span>
-        <span className="badge bg-light text-muted fw-normal">{orders.length} total orders</span>
-      </h5>
+      <div className="border-bottom pb-3 mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+          <h5 className="fw-bold text-dark mb-0 d-flex align-items-center">
+            <i className="bi bi-clock-history me-2 text-primary"></i>My Order History
+          </h5>
+          <span className="text-muted small">Real-time status tracking for immediate dispatches and scheduled meals.</span>
+        </div>
+        <div className="btn-group btn-group-sm" role="group">
+          <button
+            type="button"
+            className={`btn btn-sm ${historyFilter === 'all' ? 'btn-primary fw-bold' : 'btn-outline-secondary'}`}
+            onClick={() => setHistoryFilter('all')}
+          >
+            All Orders ({orders.length})
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
+            onClick={() => setHistoryFilter('immediate')}
+          >
+            ⚡ Immediate ({immediateOrders.length})
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${historyFilter === 'scheduled' ? 'btn-info text-dark fw-bold' : 'btn-outline-secondary'}`}
+            onClick={() => setHistoryFilter('scheduled')}
+          >
+            ⏰ Scheduled ({scheduledOrders.length})
+          </button>
+        </div>
+      </div>
 
       {loading ? (
         <div className="py-5 text-center">
@@ -115,54 +369,46 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           </button>
         </div>
       ) : (
-        <div className="table-responsive">
-          <table className="table align-middle mb-0" style={{ fontSize: '0.86rem' }}>
-            <thead className="table-light">
-              <tr>
-                <th>Order #</th>
-                <th>Date &amp; Time</th>
-                <th>Items</th>
-                <th>Scheduled Delivery</th>
-                <th>Total</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map(o => {
-                const totalAmt = (o.items || []).reduce((sum, it) => sum + (parseFloat(it.price) * it.quantity), 0);
-                return (
-                  <tr key={o.orderID}>
-                    <td className="fw-bold text-muted">#{o.orderID}</td>
-                    <td>{new Date(o.orderDateTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
-                    <td>
-                      <div className="d-flex flex-column gap-0.5">
-                        {(o.items || []).map((it, idx) => (
-                          <div key={idx} className="small">
-                            <span className="fw-bold text-dark">{it.quantity}x</span> {it.name}
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      {o.deliveryTime ? (
-                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
-                          <i className="bi bi-clock me-1"></i>{o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime}
-                        </span>
-                      ) : (
-                        <span className="text-muted small">Standard Immediate Delivery</span>
-                      )}
-                    </td>
-                    <td className="fw-bold text-success">₱{totalAmt.toFixed(2)}</td>
-                    <td>
-                      <span className={`badge ${getStatusBadge(o.orderStatus)} px-2.5 py-1 rounded-pill`} style={{ fontSize: '0.75rem' }}>
-                        {o.orderStatus}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div>
+          {/* IMMEDIATE DELIVERIES SECTION */}
+          {(historyFilter === 'all' || historyFilter === 'immediate') && immediateOrders.length > 0 && (
+            <div className="mb-4">
+              <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                  <span className="badge bg-success-subtle text-success border border-success-subtle p-1 px-2">
+                    <i className="bi bi-lightning-charge-fill me-1"></i>Immediate Deliveries
+                  </span>
+                  <span className="text-muted small fw-normal">({immediateOrders.length})</span>
+                </h6>
+                <small className="text-muted">Dispatched right away</small>
+              </div>
+              {immediateOrders.map(renderOrderCard)}
+            </div>
+          )}
+
+          {/* SCHEDULED DELIVERIES SECTION */}
+          {(historyFilter === 'all' || historyFilter === 'scheduled') && scheduledOrders.length > 0 && (
+            <div className="mb-3">
+              <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                  <span className="badge bg-primary-subtle text-primary border border-primary-subtle p-1 px-2">
+                    <i className="bi bi-clock-history me-1"></i>Scheduled Deliveries
+                  </span>
+                  <span className="text-muted small fw-normal">({scheduledOrders.length})</span>
+                </h6>
+                <small className="text-muted">Breakfast advance orders</small>
+              </div>
+              {scheduledOrders.map(renderOrderCard)}
+            </div>
+          )}
+
+          {historyFilter !== 'all' && (
+            historyFilter === 'immediate' ? immediateOrders.length === 0 : scheduledOrders.length === 0
+          ) && (
+            <div className="text-center py-4 text-muted">
+              <small>No {historyFilter} orders found.</small>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -284,10 +530,11 @@ export default function GuestOrdersContent({ guest }) {
     }
   }, [historyLoaded]);
 
-  const hasCookedMealsInCart = useMemo(() => cart.some(item => item.isCookedMeal), [cart]);
+  const hasScheduledItemsInCart = useMemo(() => cart.some(item => item.deliveryType === 'scheduled'), [cart]);
 
   const handleAddToCart = useCallback((item, type, isCookedMeal = false) => {
     const itemID = type === 'Product' ? item.productID : item.amenityID;
+    const defaultDeliveryType = isCookedMeal ? 'scheduled' : 'immediate';
     setCart(prev => {
       const existsIndex = prev.findIndex(c => c.itemID === itemID && c.type === type);
       if (existsIndex >= 0) {
@@ -307,11 +554,23 @@ export default function GuestOrdersContent({ guest }) {
           name: item.name,
           price: parseFloat(item.price),
           quantity: 1,
-          isCookedMeal
+          isCookedMeal,
+          image: item.image,
+          deliveryType: defaultDeliveryType
         }
       ];
     });
     setFeedback({ type: 'success', message: `Added 1x ${item.name} to your Order Tray.` });
+  }, []);
+
+  const handleToggleItemDelivery = useCallback((index, newDeliveryType) => {
+    setCart(prev => {
+      const updated = [...prev];
+      if (updated[index]) {
+        updated[index] = { ...updated[index], deliveryType: newDeliveryType };
+      }
+      return updated;
+    });
   }, []);
 
   const handleUpdateQty = useCallback((index, newQty) => {
@@ -359,7 +618,7 @@ export default function GuestOrdersContent({ guest }) {
       return;
     }
 
-    if (hasCookedMealsInCart) {
+    if (hasScheduledItemsInCart) {
       if (allTodaySlotsPassed && isSelectedDateToday) {
         setFeedback({
           type: 'danger',
@@ -382,10 +641,12 @@ export default function GuestOrdersContent({ guest }) {
             itemID: item.itemID,
             type: item.type,
             quantity: item.quantity,
-            name: item.name
+            name: item.name,
+            isCookedMeal: item.isCookedMeal,
+            deliveryType: item.deliveryType || (item.isCookedMeal ? 'scheduled' : 'immediate')
           })),
-          deliveryDate: hasCookedMealsInCart ? targetDate : null,
-          deliveryTime: hasCookedMealsInCart ? deliveryTime : null
+          deliveryDate: hasScheduledItemsInCart ? targetDate : null,
+          deliveryTime: hasScheduledItemsInCart ? deliveryTime : null
         })
       });
 
@@ -446,72 +707,97 @@ export default function GuestOrdersContent({ guest }) {
     return (
       <form onSubmit={handleSubmitOrder}>
         {/* ITEMS LIST */}
-        <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: isMobileModal ? '350px' : '220px', overflowY: 'auto' }}>
+        <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: isMobileModal ? '350px' : '280px', overflowY: 'auto' }}>
           {cart.map((item, idx) => (
-            <div key={idx} className="p-2.5 bg-light rounded-2 border d-flex align-items-center justify-content-between" style={{ fontSize: '0.84rem' }}>
-              <div className="d-flex align-items-center gap-2">
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="rounded border flex-shrink-0"
-                    style={{ width: '36px', height: '36px', objectFit: 'cover' }}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
-                      if (fb) fb.style.display = 'flex';
-                    }}
-                  />
-                ) : null}
-                <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '36px', height: '36px', fontSize: '0.52rem', lineHeight: 1.1, display: item.image ? 'none' : 'flex' }}>
-                  <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
-                  No Image
-                </div>
-                <div>
-                  <div className="fw-bold text-dark">{item.name}</div>
-                  <div className="text-muted small">
-                    ₱{item.price.toFixed(2)} each {item.isCookedMeal && <span className="badge bg-warning-subtle text-dark ms-1" style={{ fontSize: '0.65rem' }}>Meal</span>}
+            <div key={idx} className="p-2.5 bg-light rounded-2 border d-flex flex-column gap-2" style={{ fontSize: '0.84rem' }}>
+              <div className="d-flex align-items-center justify-content-between">
+                <div className="d-flex align-items-center gap-2">
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="rounded border flex-shrink-0"
+                      style={{ width: '36px', height: '36px', objectFit: 'cover' }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
+                        if (fb) fb.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '36px', height: '36px', fontSize: '0.52rem', lineHeight: 1.1, display: item.image ? 'none' : 'flex' }}>
+                    <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
+                    No Image
+                  </div>
+                  <div>
+                    <div className="fw-bold text-dark">{item.name}</div>
+                    <div className="text-muted small">
+                      ₱{item.price.toFixed(2)} each {item.isCookedMeal && <span className="badge bg-warning-subtle text-dark ms-1" style={{ fontSize: '0.65rem' }}>Meal</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <div className="input-group input-group-sm" style={{ width: '90px' }}>
+                <div className="d-flex align-items-center gap-2">
+                  <div className="input-group input-group-sm" style={{ width: '90px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary px-2"
+                      onClick={() => handleUpdateQty(idx, item.quantity - 1)}
+                    >
+                      -
+                    </button>
+                    <input
+                      type="text"
+                      readOnly
+                      className="form-control text-center fw-bold bg-white"
+                      value={item.quantity}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary px-2"
+                      onClick={() => handleUpdateQty(idx, item.quantity + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    className="btn btn-outline-secondary px-2"
-                    onClick={() => handleUpdateQty(idx, item.quantity - 1)}
+                    className="btn btn-link text-danger p-0 ms-1"
+                    onClick={() => handleRemoveFromCart(idx)}
+                    title="Remove item"
                   >
-                    -
-                  </button>
-                  <input
-                    type="text"
-                    readOnly
-                    className="form-control text-center fw-bold bg-white"
-                    value={item.quantity}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary px-2"
-                    onClick={() => handleUpdateQty(idx, item.quantity + 1)}
-                  >
-                    +
+                    <i className="bi bi-trash"></i>
                   </button>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-link text-danger p-0 ms-1"
-                  onClick={() => handleRemoveFromCart(idx)}
-                  title="Remove item"
-                >
-                  <i className="bi bi-trash"></i>
-                </button>
+              </div>
+
+              {/* PER-ITEM DELIVERY TIMING SELECTOR */}
+              <div className="d-flex align-items-center justify-content-between pt-1.5 border-top" style={{ fontSize: '0.74rem' }}>
+                <span className="text-muted fw-semibold">Delivery:</span>
+                <div className="btn-group btn-group-sm" role="group">
+                  <button
+                    type="button"
+                    className={`btn btn-xs py-0.5 px-2 ${item.deliveryType !== 'scheduled' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary text-muted'}`}
+                    style={{ fontSize: '0.68rem' }}
+                    onClick={() => handleToggleItemDelivery(idx, 'immediate')}
+                  >
+                    ⚡ Deliver now
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-xs py-0.5 px-2 ${item.deliveryType === 'scheduled' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary text-muted'}`}
+                    style={{ fontSize: '0.68rem' }}
+                    onClick={() => handleToggleItemDelivery(idx, 'scheduled')}
+                  >
+                    ⏰ With breakfast
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* COOKED MEAL DELIVERY TIME RESTRICTION & PICKER */}
-        {hasCookedMealsInCart && (
+        {/* COOKED MEAL / SCHEDULED DELIVERY TIME RESTRICTION & PICKER */}
+        {hasScheduledItemsInCart ? (
           <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3">
             <div className="d-flex align-items-center gap-1.5 mb-2 text-primary fw-bold small">
               <i className="bi bi-clock-history"></i>
@@ -548,16 +834,24 @@ export default function GuestOrdersContent({ guest }) {
                 ))}
               </select>
               <small className="text-muted" style={{ fontSize: '0.70rem' }}>
-                Cooked meals are prepared and delivered between 6:00 AM and 10:30 AM.
+                Items marked "With breakfast" will be prepared and delivered during this time window.
               </small>
             </div>
 
-            {allTodaySlotsPassed && (
+            {allTodaySlotsPassed && isSelectedDateToday && (
               <div className="alert alert-warning py-1.5 px-2 mt-2 mb-0 d-flex align-items-center gap-1 text-dark" style={{ fontSize: '0.74rem' }}>
                 <i className="bi bi-exclamation-circle-fill text-warning"></i>
                 <span>Today's breakfast slots have passed. Please select tomorrow to schedule advance breakfast.</span>
               </div>
             )}
+          </div>
+        ) : (
+          <div className="p-2.5 bg-success-subtle border border-success-subtle rounded-3 mb-3 d-flex align-items-center gap-2 text-success small">
+            <i className="bi bi-lightning-charge-fill fs-5 text-success"></i>
+            <div>
+              <div className="fw-bold">Immediate Room Delivery</div>
+              <div className="text-muted" style={{ fontSize: '0.72rem' }}>All items in tray will be prepared and dispatched immediately to your room.</div>
+            </div>
           </div>
         )}
 
@@ -584,7 +878,7 @@ export default function GuestOrdersContent({ guest }) {
           loadingText="Placing Room Order..."
           className="btn btn-primary w-100 py-2.5 fw-bold shadow-sm"
           style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', borderRadius: '8px' }}
-          disabled={hasCookedMealsInCart && allTodaySlotsPassed && isSelectedDateToday}
+          disabled={hasScheduledItemsInCart && allTodaySlotsPassed && isSelectedDateToday}
         >
           <i className="bi bi-send-fill me-1.5"></i>
           <span>Submit Room Order</span>

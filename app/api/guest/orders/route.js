@@ -84,6 +84,7 @@ export async function GET(request) {
     if (includeHistory && guestID > 0) {
       const ordersRaw = await dbQuery(`
         SELECT o.orderID, o.guestID, o.bookingID, o.orderDateTime, o.orderStatus, o.deliveryTime, o.deliveryDate,
+               COALESCE(o.deliveryType, CASE WHEN o.deliveryTime IS NOT NULL THEN 'scheduled' ELSE 'immediate' END) as deliveryType,
                COALESCE(r.roomNumber, 'N/A') as roomNumber
         FROM orders o
         LEFT JOIN booking b ON b.bookingID = o.bookingID
@@ -96,13 +97,19 @@ export async function GET(request) {
       if (ordersRaw.length > 0) {
         const [orderProducts, orderAmenities] = await Promise.all([
           dbQuery(`
-            SELECT op.orderID, op.quantity, op.isComplimentary, p.productID as itemID, p.name, p.price, 'Product' as type
+            SELECT op.orderID, op.quantity, op.isComplimentary,
+                   COALESCE(op.deliveryType, 'immediate') as deliveryType,
+                   COALESCE(op.itemStatus, 'Placed') as itemStatus,
+                   p.productID as itemID, p.name, p.price, 'Product' as type
             FROM order_product op
             JOIN products p ON p.productID = op.productID
             WHERE op.orderID IN (SELECT orderID FROM orders WHERE guestID = ?)
           `, [guestID]),
           dbQuery(`
-            SELECT oa.orderID, oa.quantity, a.amenityID as itemID, a.name, a.price, 'Amenity' as type
+            SELECT oa.orderID, oa.quantity,
+                   COALESCE(oa.deliveryType, 'immediate') as deliveryType,
+                   COALESCE(oa.itemStatus, 'Placed') as itemStatus,
+                   a.amenityID as itemID, a.name, a.price, 'Amenity' as type
             FROM order_amenities oa
             JOIN amenities a ON a.amenityID = oa.amenityID
             WHERE oa.orderID IN (SELECT orderID FROM orders WHERE guestID = ?)
@@ -267,42 +274,118 @@ export async function POST(request) {
         });
       }
 
-      const deliveryTime = body.deliveryTime || null;
-      // Create Order
-      const [orderRes] = await connection.execute(
-        "INSERT INTO orders (orderDateTime, orderStatus, guestID, hasCookedMeal, deliveryTime, deliveryDate) VALUES (?, 'Pending', ?, ?, ?, ?)",
-        [nowStr, guest.guestID, containsCookedMeal ? 1 : 0, deliveryTime, deliveryDate]
-      );
-      const orderID = orderRes.insertId;
+      // Separate items into Immediate vs Scheduled groups
+      const immediateItems = items.filter(it => (it.deliveryType || 'immediate') !== 'scheduled');
+      const scheduledItems = items.filter(it => it.deliveryType === 'scheduled');
 
-      let totalOrderAmount = 0;
-      const orderSummaryList = [];
+      const orderGroups = [];
+      if (immediateItems.length > 0) {
+        orderGroups.push({
+          deliveryType: 'immediate',
+          orderStatus: 'Pending',
+          deliveryTime: null,
+          deliveryDate: null,
+          items: immediateItems
+        });
+      }
+      if (scheduledItems.length > 0) {
+        orderGroups.push({
+          deliveryType: 'scheduled',
+          orderStatus: 'Scheduled',
+          deliveryTime: body.deliveryTime || '07:30 AM',
+          deliveryDate: deliveryDate || nowStr.split(' ')[0],
+          items: scheduledItems
+        });
+      }
 
-      for (const item of items) {
-        const itemID = parseInt(item.itemID);
-        const qty = parseInt(item.quantity);
-        const itemType = item.type; // 'Product' or 'Amenity'
+      let grandTotalOrderAmount = 0;
+      const createdOrderIDs = [];
+      const allOrderSummaries = [];
 
-        if (!itemID || isNaN(qty) || qty <= 0) continue;
+      const [billRows] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ?", [booking.bookingID]);
+      const billingID = billRows[0]?.billingID || null;
 
-        if (itemType === 'Product') {
-          const [pRes] = await connection.execute("SELECT name, price, productCategoryID FROM products WHERE productID = ?", [itemID]);
-          if (pRes.length > 0) {
-            const p = pRes[0];
-            const price = parseFloat(p.price);
-            totalOrderAmount += price * qty;
-            orderSummaryList.push(`${qty}x ${p.name}`);
+      for (const group of orderGroups) {
+        const groupHasCookedMeal = group.items.some(it => it.type === 'Product' && (it.isCookedMeal || it.productCategoryID === 3));
+        const [orderRes] = await connection.execute(
+          "INSERT INTO orders (orderDateTime, orderStatus, guestID, bookingID, hasCookedMeal, deliveryTime, deliveryDate, deliveryType) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          [nowStr, group.orderStatus, guest.guestID, booking.bookingID, groupHasCookedMeal ? 1 : 0, group.deliveryTime, group.deliveryDate, group.deliveryType]
+        );
+        const orderID = orderRes.insertId;
+        createdOrderIDs.push(orderID);
 
-            await connection.execute(
-              "INSERT INTO order_product (quantity, orderID, productID) VALUES (?, ?, ?)",
-              [qty, orderID, itemID]
-            );
+        let groupTotal = 0;
+        const groupSummaryList = [];
 
-            // FIFO Inventory deduction if not cooked meal (productCategoryID !== 3)
-            if (p.productCategoryID !== 3) {
+        for (const item of group.items) {
+          const itemID = parseInt(item.itemID);
+          const qty = parseInt(item.quantity);
+          const itemType = item.type; // 'Product' or 'Amenity'
+          const itemDelType = group.deliveryType;
+          const initialItemStatus = group.deliveryType === 'scheduled' ? 'Scheduled' : 'Placed';
+
+          if (!itemID || isNaN(qty) || qty <= 0) continue;
+
+          if (itemType === 'Product') {
+            const [pRes] = await connection.execute("SELECT name, price, productCategoryID FROM products WHERE productID = ?", [itemID]);
+            if (pRes.length > 0) {
+              const p = pRes[0];
+              const price = parseFloat(p.price);
+              groupTotal += price * qty;
+              groupSummaryList.push(`${qty}x ${p.name}`);
+
+              await connection.execute(
+                "INSERT INTO order_product (quantity, orderID, productID, deliveryType, itemStatus) VALUES (?, ?, ?, ?, ?)",
+                [qty, orderID, itemID, itemDelType, initialItemStatus]
+              );
+
+              // FIFO Inventory deduction if not cooked meal (productCategoryID !== 3)
+              if (p.productCategoryID !== 3) {
+                const [batches] = await connection.execute(
+                  `SELECT batchID, remainingQuantity FROM inventory_batch
+                   WHERE itemType = 'Product' AND itemID = ? AND status IN ('Active', 'Low Stock') AND remainingQuantity > 0
+                   ORDER BY createdAt ASC`,
+                  [itemID]
+                );
+
+                let needed = qty;
+                for (const b of batches) {
+                  if (needed <= 0) break;
+                  const deduct = Math.min(b.remainingQuantity, needed);
+                  const newRem = b.remainingQuantity - deduct;
+                  needed -= deduct;
+
+                  await connection.execute(
+                    "UPDATE inventory_batch SET remainingQuantity = ?, status = ? WHERE batchID = ?",
+                    [newRem, newRem === 0 ? 'Consumed' : 'Active', b.batchID]
+                  );
+
+                  // Insert movement log
+                  await connection.execute(
+                    `INSERT INTO inventory_movement (movementType, quantity, referenceID, notes, itemType, itemID, createdAt)
+                     VALUES ('OUT', ?, ?, 'Order through Chat/Guest Portal', 'Product', ?, ?)`,
+                    [deduct, orderID, itemID, nowStr]
+                  );
+                }
+              }
+            }
+          } else if (itemType === 'Amenity') {
+            const [aRes] = await connection.execute("SELECT name, price FROM amenities WHERE amenityID = ?", [itemID]);
+            if (aRes.length > 0) {
+              const a = aRes[0];
+              const price = parseFloat(a.price);
+              groupTotal += price * qty;
+              groupSummaryList.push(`${qty}x ${a.name}`);
+
+              await connection.execute(
+                "INSERT INTO order_amenities (quantity, orderID, amenityID, deliveryType, itemStatus) VALUES (?, ?, ?, ?, ?)",
+                [qty, orderID, itemID, itemDelType, initialItemStatus]
+              );
+
+              // FIFO Inventory deduction for amenities
               const [batches] = await connection.execute(
                 `SELECT batchID, remainingQuantity FROM inventory_batch
-                 WHERE itemType = 'Product' AND itemID = ? AND status IN ('Active', 'Low Stock') AND remainingQuantity > 0
+                 WHERE itemType = 'Amenity' AND itemID = ? AND status IN ('Active', 'Low Stock') AND remainingQuantity > 0
                  ORDER BY createdAt ASC`,
                 [itemID]
               );
@@ -319,74 +402,34 @@ export async function POST(request) {
                   [newRem, newRem === 0 ? 'Consumed' : 'Active', b.batchID]
                 );
 
-                // Insert movement log
                 await connection.execute(
                   `INSERT INTO inventory_movement (movementType, quantity, referenceID, notes, itemType, itemID, createdAt)
-                   VALUES ('OUT', ?, ?, 'Order through Chat/Guest Portal', 'Product', ?, ?)`,
+                   VALUES ('OUT', ?, ?, 'Amenity Order through Chat/Guest Portal', 'Amenity', ?, ?)`,
                   [deduct, orderID, itemID, nowStr]
                 );
               }
             }
           }
-        } else if (itemType === 'Amenity') {
-          const [aRes] = await connection.execute("SELECT name, price FROM amenities WHERE amenityID = ?", [itemID]);
-          if (aRes.length > 0) {
-            const a = aRes[0];
-            const price = parseFloat(a.price);
-            totalOrderAmount += price * qty;
-            orderSummaryList.push(`${qty}x ${a.name}`);
-
-            await connection.execute(
-              "INSERT INTO order_amenities (quantity, orderID, amenityID) VALUES (?, ?, ?)",
-              [qty, orderID, itemID]
-            );
-
-            // FIFO Inventory deduction for amenities
-            const [batches] = await connection.execute(
-              `SELECT batchID, remainingQuantity FROM inventory_batch
-               WHERE itemType = 'Amenity' AND itemID = ? AND status IN ('Active', 'Low Stock') AND remainingQuantity > 0
-               ORDER BY createdAt ASC`,
-              [itemID]
-            );
-
-            let needed = qty;
-            for (const b of batches) {
-              if (needed <= 0) break;
-              const deduct = Math.min(b.remainingQuantity, needed);
-              const newRem = b.remainingQuantity - deduct;
-              needed -= deduct;
-
-              await connection.execute(
-                "UPDATE inventory_batch SET remainingQuantity = ?, status = ? WHERE batchID = ?",
-                [newRem, newRem === 0 ? 'Consumed' : 'Active', b.batchID]
-              );
-
-              await connection.execute(
-                `INSERT INTO inventory_movement (movementType, quantity, referenceID, notes, itemType, itemID, createdAt)
-                 VALUES ('OUT', ?, ?, 'Amenity Order through Chat/Guest Portal', 'Amenity', ?, ?)`,
-                [deduct, orderID, itemID, nowStr]
-              );
-            }
-          }
         }
+
+        grandTotalOrderAmount += groupTotal;
+        allOrderSummaries.push(`Order #${orderID} (${group.deliveryType === 'scheduled' ? `Scheduled • ${group.deliveryTime}` : 'Immediate'}): ${groupSummaryList.join(', ')}`);
       }
 
-      const balanceAfter = Math.round((balanceBefore + totalOrderAmount) * 100) / 100;
-      const [billRows] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ?", [booking.bookingID]);
-      const billingID = billRows[0]?.billingID || null;
+      const balanceAfter = Math.round((balanceBefore + grandTotalOrderAmount) * 100) / 100;
 
       await logBillingAudit(connection, {
         billingID,
         bookingID: booking.bookingID,
         transactionType: 'Order',
-        amount: totalOrderAmount,
+        amount: grandTotalOrderAmount,
         balanceBefore,
         balanceAfter,
         userID: session.userID,
         userName: `${guest.firstName} ${guest.lastName}`,
         userRole: 'Guest',
-        description: `Order #${orderID}: ${orderSummaryList.join(', ')}`,
-        referenceNumber: `ORD-${orderID}`
+        description: allOrderSummaries.join(' | '),
+        referenceNumber: `ORD-${createdOrderIDs.join('-')}`
       });
 
       await connection.commit();

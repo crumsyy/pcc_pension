@@ -471,6 +471,8 @@ export async function POST(request) {
         }
 
         await connection.execute("UPDATE orders SET orderStatus = ? WHERE orderID = ?", [newStatus, orderID]);
+        await connection.execute("UPDATE order_product SET itemStatus = ? WHERE orderID = ?", [newStatus, orderID]).catch(() => {});
+        await connection.execute("UPDATE order_amenities SET itemStatus = ? WHERE orderID = ?", [newStatus, orderID]).catch(() => {});
 
         await connection.commit();
         await syncInventoryStock();

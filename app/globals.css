@@ -596,7 +596,7 @@ h4,
 @media (max-width: 576px) {
   .chatbot-toggle {
     right: 16px !important;
-    bottom: 80px !important;
+    bottom: var(--chatbot-bottom, 80px) !important;
     width: 54px !important;
     height: 54px !important;
     font-size: 1.3rem !important;
@@ -1135,7 +1135,7 @@ table td {
 @media (max-width: 991px) {
   .chatbot-toggle {
     right: 16px !important;
-    bottom: 80px !important;
+    bottom: var(--chatbot-bottom, 80px) !important;
   }
   .chatbot-window {
     right: 10px !important;

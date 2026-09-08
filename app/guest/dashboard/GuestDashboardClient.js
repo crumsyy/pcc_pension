@@ -28,32 +28,46 @@ function parseRoomImages(imgVal) {
   return [];
 }
 
-const defaultRoomImages = {
-  'Standard Matrimonial': 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80',
-  'Twin Matrimonial': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80',
-  'Deluxe Matrimonial': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
-};
-
 function RoomImageCarousel({ images, fallbackImg, alt, height = '200px' }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
+  const list = images && images.length > 0 ? images.filter(Boolean) : (fallbackImg ? [fallbackImg] : []);
+
   useEffect(() => {
-    if (!images || images.length <= 1) return;
+    if (!list || list.length <= 1) return;
     const timer = setInterval(() => {
-      setActiveIdx((prev) => (prev + 1) % images.length);
+      setActiveIdx((prev) => (prev + 1) % list.length);
     }, 3500);
     return () => clearInterval(timer);
-  }, [images]);
+  }, [list]);
 
-  const list = images && images.length > 0 ? images : [fallbackImg];
-
-  if (list.length <= 1) {
+  if (list.length === 0) {
     return (
-      <img
-        src={list[0]}
-        alt={alt}
-        style={{ width: '100%', height: height, objectFit: 'cover' }}
-      />
+      <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: height, width: '100%', fontSize: '0.82rem', fontWeight: 600 }}>
+        <i className="bi bi-image fs-2 mb-1 opacity-50"></i>
+        <span>Image Unavailable</span>
+      </div>
+    );
+  }
+
+  if (list.length === 1) {
+    return (
+      <div style={{ height: height, width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#e2e8f0' }}>
+        <img
+          src={list[0]}
+          alt={alt}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            const fb = e.currentTarget.parentElement?.querySelector('.carousel-err-fb');
+            if (fb) fb.style.display = 'flex';
+          }}
+        />
+        <div className="carousel-err-fb d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: height, width: '100%', fontSize: '0.82rem', fontWeight: 600, display: 'none' }}>
+          <i className="bi bi-image fs-2 mb-1 opacity-50"></i>
+          <span>Image Unavailable</span>
+        </div>
+      </div>
     );
   }
 
@@ -1998,9 +2012,38 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   {allRooms.slice(0, 4).map((rm) => (
                     <div key={rm.roomID} className="col-12 col-md-6 col-lg-3">
                       <div className="card shadow-sm border-0 h-100 room-card-hover overflow-hidden" style={{ borderRadius: '12px' }}>
-                        <div style={{ height: '140px', background: '#e2e8f0' }} className="d-flex align-items-center justify-content-center text-muted fw-bold">
-                          🏨 Room {rm.roomNumber} ({rm.roomType})
-                        </div>
+                        {(() => {
+                          const imgList = parseRoomImages(rm.image);
+                          const roomPic = imgList.length > 0 ? imgList[0] : null;
+                          if (!roomPic) {
+                            return (
+                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', fontSize: '0.82rem', fontWeight: 600 }}>
+                                <i className="bi bi-image fs-3 mb-1 opacity-50"></i>
+                                <span>Image Unavailable</span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div style={{ height: '140px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#e2e8f0' }}>
+                              <img
+                                src={roomPic}
+                                alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                              />
+                              <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', fontSize: '0.82rem', fontWeight: 600, display: 'none' }}>
+                                <i className="bi bi-image fs-3 mb-1 opacity-50"></i>
+                                <span>Image Unavailable</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                         <div className="card-body p-3">
                           <div className="d-flex justify-content-between align-items-start mb-2">
                             <div>
@@ -2009,7 +2052,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             </div>
                             <span className="fw-bold text-pcc-blue" style={{ fontSize: '1rem' }}>₱{parseFloat(rm.rate).toFixed(2)}/night</span>
                           </div>
-                          <p className="small text-muted mb-3">Aircon, Hot Shower, Free Wi-Fi, and 24/7 Front Desk Service.</p>
+                          <p className="small text-muted mb-3 text-truncate" title={rm.description || `${rm.roomType} • Max Occupancy: ${rm.occupancyLimit || 2} Pax`}>
+                            {rm.description || `${rm.roomType} • Max Occupancy: ${rm.occupancyLimit || 2} Pax`}
+                          </p>
                           <div className="d-flex gap-2">
                             <button className="btn btn-sm btn-secondary text-white fw-bold w-50" onClick={() => handleOpenRoomDetails(rm)}>Details</button>
                             <button className="btn btn-sm btn-primary text-white w-50" onClick={handleStartBookFlow}>Book Now</button>
@@ -2654,8 +2699,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
       {/* FLOATING AI CHATBOT BUTTON */}
       <GuestChatBubble
-        hideFloating={false}
-        bottomOffset={isDesktop ? '24px' : '85px'}
+        hideFloating={activeTab === 'chat'}
+        bottomOffset={isDesktop ? '24px' : (activeTab === 'orders' ? '135px' : '85px')}
       />
 
       {/* SETTLE REMAINING BALANCE MODAL (REQ167c) */}
@@ -2755,7 +2800,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="position-relative overflow-hidden" style={{ borderRadius: '0', maxHeight: '220px' }}>
                   <RoomImageCarousel
                     images={parseRoomImages(selectedRoom.image)}
-                    fallbackImg="https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80"
+                    fallbackImg={null}
                     alt={`Room ${selectedRoom.roomNumber}`}
                     height="200px"
                   />
@@ -2794,23 +2839,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="text-muted">Maximum Occupancy:</span>
                     <strong className="text-dark">Up to {selectedRoom.occupancyLimit} Pax</strong>
                   </div>
-                  <div className="d-flex justify-content-between mb-1.5 py-0.5">
-                    <span className="text-muted">Air Conditioning:</span>
-                    <strong>{selectedRoom.isAircon ? 'Included' : 'Fan Only'}</strong>
-                  </div>
                   <div className="d-flex justify-content-between py-0.5">
-                    <span className="text-muted">Hot Shower:</span>
-                    <strong>{selectedRoom.hasHotShower ? 'Available' : 'Standard'}</strong>
+                    <span className="text-muted">Status:</span>
+                    <span className={`badge ${selectedRoom.status === 'Available' ? 'bg-success' : 'bg-secondary'}`}>{selectedRoom.status}</span>
                   </div>
                 </div>
 
-                  <h6 className="fw-bold text-dark mb-1">Included Amenities &amp; Policies</h6>
-                  <ul className="small text-muted mb-0">
-                    <li>Free High-Speed Wi-Fi connection</li>
-                    <li>Clean towels and basic toiletries included</li>
-                    <li>Check-in: 2:00 PM | Check-out: 12:00 PM</li>
-                    <li>No smoking allowed inside rooms</li>
-                  </ul>
+                {selectedRoom.description ? (
+                  <div className="p-3 bg-light rounded border mb-0">
+                    <h6 className="fw-bold text-dark mb-1">Room Description</h6>
+                    <p className="small text-muted mb-0" style={{ whiteSpace: 'pre-line' }}>{selectedRoom.description}</p>
+                  </div>
+                ) : null}
                 </div>
               </div>
               <div className="modal-footer">
