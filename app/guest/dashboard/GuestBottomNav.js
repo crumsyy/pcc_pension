@@ -18,6 +18,7 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
             <Link
               key={tab.id}
               href={tab.href}
+              prefetch={false}
               className={`btn border-0 d-flex flex-column align-items-center justify-content-center p-1 nav-tab-item text-decoration-none ${isActive ? 'active' : ''}`}
               style={{
                 flex: 1,
@@ -75,6 +76,7 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
           <Link
             key={tab.id}
             href={tab.id === 'home' ? '/guest/dashboard' : `/guest/dashboard?tab=${tab.id}`}
+            prefetch={false}
             className={`btn border-0 d-flex flex-column align-items-center justify-content-center p-1 nav-tab-item text-decoration-none ${isActive ? 'active' : ''}`}
             style={{
               flex: 1,

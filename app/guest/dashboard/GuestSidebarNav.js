@@ -20,6 +20,7 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
       <div className="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
         <Link 
           href="/guest/dashboard" 
+          prefetch={false}
           onClick={() => setActiveTab && setActiveTab('home')}
           className="d-flex align-items-center gap-2 text-decoration-none cursor-pointer" 
           title="Guest Dashboard Home"
@@ -43,6 +44,7 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
               {item.href ? (
                 <Link
                   href={item.href}
+                  prefetch={false}
                   className={`nav-link text-white d-flex align-items-center justify-content-between gap-2 mb-1 px-3 py-2 w-100 border-0 text-start text-decoration-none ${isActive ? 'active' : ''}`}
                   style={{
                     borderRadius: '8px',
@@ -83,6 +85,7 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
               ) : (
                 <Link
                   href={item.id === 'home' ? '/guest/dashboard' : `/guest/dashboard?tab=${item.id}`}
+                  prefetch={false}
                   className={`nav-link text-white d-flex align-items-center justify-content-between gap-2 mb-1 px-3 py-2 w-100 border-0 text-start text-decoration-none ${isActive ? 'active' : ''}`}
                   style={{
                     borderRadius: '8px',

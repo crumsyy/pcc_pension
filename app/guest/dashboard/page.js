@@ -94,16 +94,20 @@ export default async function GuestDashboard() {
       `)
     ]);
 
-    // Attach accurate live remaining balances only for active/open bookings to avoid N+1 query overhead
-    const bookings = await Promise.all(rawBookings.map(async b => {
-      const isActive = ['Checked In', 'Late Checkout', 'Confirmed', 'Pending', 'Booked', 'Pending Check-in'].includes(b.status);
-      if (isActive) {
-        const remainingBalance = await getBookingBalance(b.bookingID);
-        const incidentals = await dbQuery("SELECT chargeID, description, amount FROM incidental_charge WHERE bookingID = ?", [b.bookingID]);
+    // Calculate live detailed balance only once for the primary active stay booking to ensure instant page load
+    const activeBookingRaw = rawBookings.find(b => b.status === "Checked In" || b.status === "Late Checkout") || rawBookings.find(b => ['Confirmed', 'Pending', 'Booked', 'Pending Check-in'].includes(b.status));
+    let activeBill = null;
+
+    if (activeBookingRaw) {
+      activeBill = await getBookingBalanceDetails(activeBookingRaw.bookingID);
+    }
+
+    const bookings = rawBookings.map(b => {
+      if (activeBill && b.bookingID === activeBill.bookingID) {
         return {
           ...b,
-          remainingBalance,
-          incidentals: incidentals || []
+          remainingBalance: activeBill.remainingBalance || 0,
+          incidentals: activeBill.incidentals || []
         };
       }
       return {
@@ -111,14 +115,7 @@ export default async function GuestDashboard() {
         remainingBalance: 0,
         incidentals: []
       };
-    }));
-
-    const activeBooking = bookings.find(b => b.status === "Checked In" || b.status === "Late Checkout") || bookings.find(b => b.status === "Confirmed" || b.status === "Pending");
-    let activeBill = null;
-
-    if (activeBooking) {
-      activeBill = await getBookingBalanceDetails(activeBooking.bookingID);
-    }
+    });
 
     // Safely serialize all props to prevent Next.js Server Component Date/Decimal serialization errors
     return (

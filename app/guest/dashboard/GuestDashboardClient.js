@@ -9,6 +9,7 @@ import GuestSidebarNav from './GuestSidebarNav';
 import ThemeToggle from '../../components/ThemeToggle';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import DatePicker from '../../components/DatePicker';
+import GuestOrdersContent from './GuestOrdersContent';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
@@ -156,14 +157,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     };
   }, []);
 
-  // Active Navigation Tab: 'home' | 'rooms' | 'chat' | 'notifications' | 'account'
+  // Active Navigation Tab: 'home' | 'rooms' | 'orders' | 'chat' | 'notifications' | 'account'
   const [activeTab, setActiveTab] = useState('home');
 
   useEffect(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
-      if (tabParam && ['home', 'rooms', 'chat', 'notifications', 'account'].includes(tabParam)) {
+      if (tabParam && ['home', 'rooms', 'orders', 'chat', 'notifications', 'account'].includes(tabParam)) {
         setActiveTab(tabParam);
       }
     } catch (e) {}
@@ -1606,12 +1607,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                           <span className="badge bg-primary text-white px-2.5 py-1">Active Stay Booking ({formatBookingID(activeBookingStay.bookingID)})</span>
                           <div className="d-flex flex-wrap gap-1.5 align-items-center">
-                            <Link
-                              href="/guest/orders"
+                            <button
+                              type="button"
                               className="btn btn-xs btn-outline-warning text-dark fw-semibold px-2 py-1 text-decoration-none shadow-xs"
+                              onClick={() => setActiveTab('orders')}
                             >
                               <i className="bi bi-cup-hot me-1 text-warning"></i> Order Food
-                            </Link>
+                            </button>
                             <button
                               type="button"
                               className="btn btn-xs btn-outline-primary fw-semibold px-2 py-1"
@@ -1847,13 +1849,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </button>
                   </div>
                   <div className="col-6 col-lg-3">
-                    <Link
-                      href="/guest/orders"
+                    <button
+                      type="button"
                       className="btn btn-warning text-dark fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center gap-1"
+                      onClick={() => setActiveTab('orders')}
                     >
                       <i className="bi bi-cup-hot-fill"></i>
                       <span>Room Service Orders</span>
-                    </Link>
+                    </button>
                   </div>
                   <div className="col-6 col-lg-2">
                     <button
@@ -2178,6 +2181,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   })()
                 )}
               </div>
+            )}
+
+            {/* TAB: ORDERS TAB */}
+            {activeTab === 'orders' && (
+              <GuestOrdersContent guest={guest} />
             )}
 
             {/* TAB 3: CHAT TAB */}

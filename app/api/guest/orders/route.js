@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit, ensureOrdersSchema, ensureProfilePictureSchema } from '@/lib/db';
 
-// In-memory catalog cache with 30s TTL
+// In-memory catalog cache with 60s TTL
 let catalogCache = null;
 let catalogCacheTime = 0;
-const CATALOG_CACHE_TTL = 30000;
+const CATALOG_CACHE_TTL = 60000;
 
 export async function GET(request) {
   const session = await getSession();
@@ -31,19 +31,15 @@ export async function GET(request) {
       const [productsRaw, amenitiesRaw] = await Promise.all([
         dbQuery(`
           SELECT p.productID, p.name, p.price, p.productCategoryID, p.image,
-                 CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(SUM(ib.remainingQuantity), 0) END as availableQty
+                 CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(p.quantity, 0) END as availableQty
           FROM products p
-          LEFT JOIN inventory_batch ib ON ib.itemType = 'Product' AND ib.itemID = p.productID AND ib.status IN ('Active', 'Low Stock')
           WHERE p.isArchived = 0 AND p.isAvailable = 1
-          GROUP BY p.productID, p.name, p.price, p.productCategoryID, p.image
           ORDER BY p.name ASC
         `),
         dbQuery(`
-          SELECT a.amenityID, a.name, a.price, a.image, COALESCE(SUM(ib.remainingQuantity), 0) as availableQty
+          SELECT a.amenityID, a.name, a.price, a.image, COALESCE(a.quantity, 0) as availableQty
           FROM amenities a
-          LEFT JOIN inventory_batch ib ON ib.itemType = 'Amenity' AND ib.itemID = a.amenityID AND ib.status IN ('Active', 'Low Stock')
           WHERE a.isArchived = 0
-          GROUP BY a.amenityID, a.name, a.price, a.image
           ORDER BY a.name ASC
         `)
       ]);
@@ -413,6 +409,9 @@ export async function POST(request) {
           [r.userID, `Guest ${guest.firstName} ${guest.lastName} placed Order #${orderID}: ${orderSummaryList.join(', ')} (₱${totalOrderAmount.toFixed(2)}).`]
         );
       }
+
+      // Invalidate catalog cache so next fetch gets updated stock immediately
+      catalogCacheTime = 0;
 
       return NextResponse.json({
         success: true,
