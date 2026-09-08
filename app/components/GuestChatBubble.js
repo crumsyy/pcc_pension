@@ -612,7 +612,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     <>
       {/* FLOATING ACTION TRIGGER BUTTON */}
       <button
-        className="chatbot-toggle shadow-lg"
+        className={`chatbot-toggle shadow-lg ${isOpen ? 'd-none d-md-flex' : 'd-flex'}`}
         onClick={() => setIsOpen(!isOpen)}
         style={{
           position: 'fixed',

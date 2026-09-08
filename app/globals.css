@@ -596,7 +596,7 @@ h4,
 @media (max-width: 576px) {
   .chatbot-toggle {
     right: 16px !important;
-    bottom: 16px !important;
+    bottom: 80px !important;
     width: 54px !important;
     height: 54px !important;
     font-size: 1.3rem !important;
@@ -1592,7 +1592,7 @@ body.dark-theme aside * {
     width: calc(100vw - 24px) !important;
     right: 12px !important;
     left: 12px !important;
-    bottom: 70px !important;
+    bottom: 75px !important;
     height: calc(100vh - 130px) !important;
     max-height: 520px !important;
   }

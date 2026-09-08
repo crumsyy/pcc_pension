@@ -185,6 +185,7 @@ export default function GuestOrdersContent({ guest }) {
 
   // Cart / Order Tray State: array of { itemID, type, name, price, quantity, isCookedMeal }
   const [cart, setCart] = useState([]);
+  const [showMobileOrderModal, setShowMobileOrderModal] = useState(false);
 
   // Delivery Scheduling State for Cooked Meals
   const [todayStr, setTodayStr] = useState('');
@@ -396,6 +397,7 @@ export default function GuestOrdersContent({ guest }) {
         message: 'Order placed successfully! Your items have been added to your stay billing.'
       });
       setCart([]);
+      setShowMobileOrderModal(false);
       fetchOrderHistory();
       setActiveCategory('history');
       // Invalidate client cache to refresh quantities
@@ -419,6 +421,177 @@ export default function GuestOrdersContent({ guest }) {
   const filteredAmenities = useMemo(() => {
     return amenities.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [amenities, searchTerm]);
+
+  const renderOrderTrayContent = (isMobileModal = false) => {
+    if (cart.length === 0) {
+      return (
+        <div className="text-center py-4 text-muted">
+          <i className="bi bi-cart-x fs-1 d-block mb-1 text-secondary opacity-50"></i>
+          <small className="d-block">Your order tray is currently empty.</small>
+          <small className="text-muted" style={{ fontSize: '0.72rem' }}>Click "Add to Order Tray" on any item to build your room order.</small>
+          {isMobileModal && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm rounded-pill mt-3 px-4 fw-bold"
+              style={{ backgroundColor: 'var(--pcc-blue)' }}
+              onClick={() => setShowMobileOrderModal(false)}
+            >
+              Browse Menu
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <form onSubmit={handleSubmitOrder}>
+        {/* ITEMS LIST */}
+        <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: isMobileModal ? '350px' : '220px', overflowY: 'auto' }}>
+          {cart.map((item, idx) => (
+            <div key={idx} className="p-2.5 bg-light rounded-2 border d-flex align-items-center justify-content-between" style={{ fontSize: '0.84rem' }}>
+              <div className="d-flex align-items-center gap-2">
+                {item.image ? (
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="rounded border flex-shrink-0"
+                    style={{ width: '36px', height: '36px', objectFit: 'cover' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
+                      if (fb) fb.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '36px', height: '36px', fontSize: '0.52rem', lineHeight: 1.1, display: item.image ? 'none' : 'flex' }}>
+                  <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
+                  No Image
+                </div>
+                <div>
+                  <div className="fw-bold text-dark">{item.name}</div>
+                  <div className="text-muted small">
+                    ₱{item.price.toFixed(2)} each {item.isCookedMeal && <span className="badge bg-warning-subtle text-dark ms-1" style={{ fontSize: '0.65rem' }}>Meal</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="d-flex align-items-center gap-2">
+                <div className="input-group input-group-sm" style={{ width: '90px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary px-2"
+                    onClick={() => handleUpdateQty(idx, item.quantity - 1)}
+                  >
+                    -
+                  </button>
+                  <input
+                    type="text"
+                    readOnly
+                    className="form-control text-center fw-bold bg-white"
+                    value={item.quantity}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary px-2"
+                    onClick={() => handleUpdateQty(idx, item.quantity + 1)}
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-link text-danger p-0 ms-1"
+                  onClick={() => handleRemoveFromCart(idx)}
+                  title="Remove item"
+                >
+                  <i className="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* COOKED MEAL DELIVERY TIME RESTRICTION & PICKER */}
+        {hasCookedMealsInCart && (
+          <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3">
+            <div className="d-flex align-items-center gap-1.5 mb-2 text-primary fw-bold small">
+              <i className="bi bi-clock-history"></i>
+              <span>Breakfast Delivery Scheduling</span>
+            </div>
+
+            <div className="mb-2">
+              <label className="form-label mb-1 text-muted small fw-semibold">Delivery Date *</label>
+              <input
+                type="date"
+                className="form-control form-control-sm fw-semibold"
+                min={todayStr}
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+                required
+              />
+              <small className="text-muted" style={{ fontSize: '0.70rem' }}>
+                Advance orders can be scheduled for tomorrow morning.
+              </small>
+            </div>
+
+            <div className="mb-1">
+              <label className="form-label mb-1 text-muted small fw-semibold">Delivery Time Slot (6:00 AM – 10:30 AM) *</label>
+              <select
+                className="form-select form-select-sm fw-semibold"
+                value={deliveryTime}
+                onChange={(e) => setDeliveryTime(e.target.value)}
+                required
+              >
+                {evaluatedSlots.map(({ slot, isPast }) => (
+                  <option key={slot} value={slot} disabled={isPast}>
+                    {slot} {isPast ? '(Passed)' : ''}
+                  </option>
+                ))}
+              </select>
+              <small className="text-muted" style={{ fontSize: '0.70rem' }}>
+                Cooked meals are prepared and delivered between 6:00 AM and 10:30 AM.
+              </small>
+            </div>
+
+            {allTodaySlotsPassed && (
+              <div className="alert alert-warning py-1.5 px-2 mt-2 mb-0 d-flex align-items-center gap-1 text-dark" style={{ fontSize: '0.74rem' }}>
+                <i className="bi bi-exclamation-circle-fill text-warning"></i>
+                <span>Today's breakfast slots have passed. Please select tomorrow to schedule advance breakfast.</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TOTAL SUMMARY */}
+        <div className="p-3 bg-light rounded-2 border mb-3">
+          <div className="d-flex justify-content-between mb-1 small text-muted">
+            <span>Subtotal:</span>
+            <span>₱{cartTotal.toFixed(2)}</span>
+          </div>
+          <div className="d-flex justify-content-between mb-1 small text-muted">
+            <span>Delivery / Room Service Fee:</span>
+            <span className="text-success fw-bold">FREE</span>
+          </div>
+          <div className="d-flex justify-content-between pt-2 border-top fw-bold text-dark">
+            <span>Total Charge to Room:</span>
+            <span className="text-primary fs-5">₱{cartTotal.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* SUBMIT BUTTON WITH LOADING STATE */}
+        <LoadingButton
+          type="submit"
+          isLoading={submitting}
+          loadingText="Placing Room Order..."
+          className="btn btn-primary w-100 py-2.5 fw-bold shadow-sm"
+          style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', borderRadius: '8px' }}
+          disabled={hasCookedMealsInCart && allTodaySlotsPassed && isSelectedDateToday}
+        >
+          <i className="bi bi-send-fill me-1.5"></i>
+          <span>Submit Room Order</span>
+        </LoadingButton>
+      </form>
+    );
+  };
 
   return (
     <div className="animate__animated animate__fadeIn">
@@ -508,7 +681,7 @@ export default function GuestOrdersContent({ guest }) {
       {/* MAIN CONTENT AREA: CATALOG + CART */}
       <div className="row g-4">
         {/* CATALOG COLUMN */}
-        <div className="col-12 col-md-7 col-lg-7 col-xl-8">
+        <div className={`col-12 col-md-7 col-lg-7 col-xl-8 ${cart.length > 0 ? 'pb-5 mb-4' : ''}`}>
           {activeCategory === 'history' ? (
             <OrderHistoryTable
               orders={orderHistory}
@@ -613,8 +786,8 @@ export default function GuestOrdersContent({ guest }) {
           )}
         </div>
 
-        {/* ORDER TRAY / CART COLUMN */}
-        <div className="col-12 col-md-5 col-lg-5 col-xl-4">
+        {/* ORDER TRAY / CART COLUMN (DESKTOP) */}
+        <div className="col-12 col-md-5 col-lg-5 col-xl-4 d-none d-md-block">
           <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 sticky-top pcc-order-tray" style={{ top: '20px' }}>
             <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
@@ -625,163 +798,88 @@ export default function GuestOrdersContent({ guest }) {
                 {cart.reduce((s, it) => s + it.quantity, 0)} Items
               </span>
             </div>
-
-            {cart.length === 0 ? (
-              <div className="text-center py-4 text-muted">
-                <i className="bi bi-cart-x fs-1 d-block mb-1 text-secondary opacity-50"></i>
-                <small className="d-block">Your order tray is currently empty.</small>
-                <small className="text-muted" style={{ fontSize: '0.72rem' }}>Click "Add to Order Tray" on any item to build your room order.</small>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitOrder}>
-                {/* ITEMS LIST */}
-                <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: '220px', overflowY: 'auto' }}>
-                  {cart.map((item, idx) => (
-                    <div key={idx} className="p-2.5 bg-light rounded-2 border d-flex align-items-center justify-content-between" style={{ fontSize: '0.84rem' }}>
-                      <div className="d-flex align-items-center gap-2">
-                        {item.image ? (
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="rounded border flex-shrink-0"
-                            style={{ width: '36px', height: '36px', objectFit: 'cover' }}
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
-                              if (fb) fb.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '36px', height: '36px', fontSize: '0.52rem', lineHeight: 1.1, display: item.image ? 'none' : 'flex' }}>
-                          <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
-                          No Image
-                        </div>
-                        <div>
-                          <div className="fw-bold text-dark">{item.name}</div>
-                          <div className="text-muted small">
-                            ₱{item.price.toFixed(2)} each {item.isCookedMeal && <span className="badge bg-warning-subtle text-dark ms-1" style={{ fontSize: '0.65rem' }}>Meal</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="d-flex align-items-center gap-2">
-                        <div className="input-group input-group-sm" style={{ width: '90px' }}>
-                          <button
-                            type="button"
-                            className="btn btn-outline-secondary px-2"
-                            onClick={() => handleUpdateQty(idx, item.quantity - 1)}
-                          >
-                            -
-                          </button>
-                          <input
-                            type="text"
-                            readOnly
-                            className="form-control text-center fw-bold bg-white"
-                            value={item.quantity}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-outline-secondary px-2"
-                            onClick={() => handleUpdateQty(idx, item.quantity + 1)}
-                          >
-                            +
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-link text-danger p-0 ms-1"
-                          onClick={() => handleRemoveFromCart(idx)}
-                          title="Remove item"
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* COOKED MEAL DELIVERY TIME RESTRICTION & PICKER */}
-                {hasCookedMealsInCart && (
-                  <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3">
-                    <div className="d-flex align-items-center gap-1.5 mb-2 text-primary fw-bold small">
-                      <i className="bi bi-clock-history"></i>
-                      <span>Breakfast Delivery Scheduling</span>
-                    </div>
-
-                    <div className="mb-2">
-                      <label className="form-label mb-1 text-muted small fw-semibold">Delivery Date *</label>
-                      <input
-                        type="date"
-                        className="form-control form-control-sm fw-semibold"
-                        min={todayStr}
-                        value={deliveryDate}
-                        onChange={(e) => setDeliveryDate(e.target.value)}
-                        required
-                      />
-                      <small className="text-muted" style={{ fontSize: '0.70rem' }}>
-                        Advance orders can be scheduled for tomorrow morning.
-                      </small>
-                    </div>
-
-                    <div className="mb-1">
-                      <label className="form-label mb-1 text-muted small fw-semibold">Delivery Time Slot (6:00 AM – 10:30 AM) *</label>
-                      <select
-                        className="form-select form-select-sm fw-semibold"
-                        value={deliveryTime}
-                        onChange={(e) => setDeliveryTime(e.target.value)}
-                        required
-                      >
-                        {evaluatedSlots.map(({ slot, isPast }) => (
-                          <option key={slot} value={slot} disabled={isPast}>
-                            {slot} {isPast ? '(Passed)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <small className="text-muted" style={{ fontSize: '0.70rem' }}>
-                        Cooked meals are prepared and delivered between 6:00 AM and 10:30 AM.
-                      </small>
-                    </div>
-
-                    {allTodaySlotsPassed && (
-                      <div className="alert alert-warning py-1.5 px-2 mt-2 mb-0 d-flex align-items-center gap-1 text-dark" style={{ fontSize: '0.74rem' }}>
-                        <i className="bi bi-exclamation-circle-fill text-warning"></i>
-                        <span>Today's breakfast slots have passed. Please select tomorrow to schedule advance breakfast.</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* TOTAL SUMMARY */}
-                <div className="p-3 bg-light rounded-2 border mb-3">
-                  <div className="d-flex justify-content-between mb-1 small text-muted">
-                    <span>Subtotal:</span>
-                    <span>₱{cartTotal.toFixed(2)}</span>
-                  </div>
-                  <div className="d-flex justify-content-between mb-1 small text-muted">
-                    <span>Delivery / Room Service Fee:</span>
-                    <span className="text-success fw-bold">FREE</span>
-                  </div>
-                  <div className="d-flex justify-content-between pt-2 border-top fw-bold text-dark">
-                    <span>Total Charge to Room:</span>
-                    <span className="text-primary fs-5">₱{cartTotal.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* SUBMIT BUTTON WITH LOADING STATE */}
-                <LoadingButton
-                  type="submit"
-                  isLoading={submitting}
-                  loadingText="Placing Room Order..."
-                  className="btn btn-primary w-100 py-2.5 fw-bold shadow-sm"
-                  style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', borderRadius: '8px' }}
-                  disabled={hasCookedMealsInCart && allTodaySlotsPassed && isSelectedDateToday}
-                >
-                  <i className="bi bi-send-fill me-1.5"></i>
-                  <span>Submit Room Order</span>
-                </LoadingButton>
-              </form>
-            )}
+            {renderOrderTrayContent(false)}
           </div>
         </div>
+      </div>
+
+      {/* MOBILE FLOATING "VIEW YOUR ORDER" BAR (Foodpanda Style) */}
+      {cart.length > 0 && (
+        <div
+          className="fixed-bottom d-md-none px-3 py-2 animate__animated animate__fadeInUp"
+          style={{
+            bottom: '70px',
+            zIndex: 1035
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowMobileOrderModal(true)}
+            className="btn w-100 py-2.5 px-3 rounded-pill shadow-lg d-flex align-items-center justify-content-between text-white border-0"
+            style={{
+              backgroundColor: 'var(--pcc-blue)',
+              boxShadow: '0 4px 18px rgba(33, 85, 181, 0.45)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <div className="d-flex align-items-center gap-2">
+              <span
+                className="rounded-circle bg-white text-pcc-blue fw-bold d-inline-flex align-items-center justify-content-center"
+                style={{ width: '28px', height: '28px', fontSize: '0.85rem' }}
+              >
+                {cart.reduce((s, it) => s + it.quantity, 0)}
+              </span>
+              <span className="fw-bold" style={{ fontSize: '0.95rem' }}>View your order</span>
+            </div>
+            <span className="fw-bold fs-6">₱{cartTotal.toFixed(2)}</span>
+          </button>
+        </div>
+      )}
+
+      {/* MOBILE ORDER MODAL DRAWER (Foodpanda Cart View) */}
+      {showMobileOrderModal && (
+        <div
+          className="modal d-block tab-modal-backdrop d-md-none animate__animated animate__fadeIn"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 1060 }}
+        >
+          <div className="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down m-0" style={{ minHeight: '100%' }}>
+            <div className="modal-content border-0 rounded-0" style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+              {/* Header */}
+              <div
+                className="modal-header text-white px-3 py-3 border-0 sticky-top"
+                style={{ backgroundColor: 'var(--pcc-blue)' }}
+              >
+                <div className="d-flex align-items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-link text-white p-0 me-1 text-decoration-none"
+                    onClick={() => setShowMobileOrderModal(false)}
+                    aria-label="Back to Menu"
+                  >
+                    <i className="bi bi-arrow-left fs-5"></i>
+                  </button>
+                  <div>
+                    <h6 className="modal-title fw-bold mb-0" style={{ fontSize: '1rem' }}>Your Room Order</h6>
+                    <small className="text-white-50" style={{ fontSize: '0.72rem' }}>PCC Home Suite • Koronadal</small>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => setShowMobileOrderModal(false)}
+                  aria-label="Close"
+                ></button>
+              </div>
+
+              {/* Body */}
+              <div className="modal-body p-3">
+                {renderOrderTrayContent(true)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
       <style jsx global>{`

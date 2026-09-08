@@ -11,6 +11,7 @@ import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import DatePicker from '../../components/DatePicker';
 import GuestOrdersContent from './GuestOrdersContent';
 import LoadingButton from '../../components/LoadingButton';
+import NotificationBell from '../../components/NotificationBell';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
@@ -1080,13 +1081,36 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     return (
       <div className="w-100 my-2">
         <div className="d-flex align-items-center justify-content-between position-relative px-1">
+          {/* Status Connecting Line Track */}
+          <div
+            className="position-absolute"
+            style={{
+              top: '12px',
+              left: '12.5%',
+              right: '12.5%',
+              height: '3px',
+              backgroundColor: '#e2e8f0',
+              zIndex: 0,
+              transform: 'translateY(-50%)'
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${(currentIdx / (steps.length - 1)) * 100}%`,
+                backgroundColor: 'var(--pcc-blue, #0d6efd)',
+                transition: 'width 0.3s ease'
+              }}
+            />
+          </div>
+
           {steps.map((step, idx) => {
             const isDone = idx <= currentIdx;
             return (
               <div key={step.id} className="d-flex flex-column align-items-center" style={{ flex: 1, zIndex: 1 }}>
                 <div
-                  className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${isDone ? 'bg-primary text-white shadow-sm' : 'bg-light text-muted border'}`}
-                  style={{ width: '24px', height: '24px', fontSize: '0.68rem' }}
+                  className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${isDone ? 'bg-primary text-white shadow-sm' : 'bg-white text-muted border'}`}
+                  style={{ width: '24px', height: '24px', fontSize: '0.68rem', position: 'relative', zIndex: 2 }}
                 >
                   {isDone ? '✓' : idx + 1}
                 </div>
@@ -1190,6 +1214,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
               </Link>
               <div className="d-flex align-items-center gap-2">
+                <NotificationBell />
                 <span className="fw-semibold text-white px-2.5 py-1 rounded-pill d-flex align-items-center gap-1.5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
                   {guest?.profilePicture ? (
                     <img
@@ -1860,7 +1885,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 {/* QUICK ACTION BUTTONS */}
                 <h6 className="fw-bold text-dark mb-2.5">Quick Actions</h6>
                 <div className="row g-2 mb-4">
-                  <div className="col-6 col-lg-2">
+                  <div className="col-6 col-md-3">
                     <button
                       className="btn btn-success text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={handleStartReserveFlow}
@@ -1868,7 +1893,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       Reserve Room
                     </button>
                   </div>
-                  <div className="col-6 col-lg-2">
+                  <div className="col-6 col-md-3">
                     <button
                       className="btn btn-primary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={handleStartBookFlow}
@@ -1876,30 +1901,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       Book Room
                     </button>
                   </div>
-                  <div className="col-6 col-lg-3">
+                  <div className="col-6 col-md-3">
                     <button
                       type="button"
-                      className="btn btn-warning text-dark fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center gap-1"
+                      className="btn btn-warning text-dark fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center"
                       onClick={() => setActiveTab('orders')}
                     >
-                      <i className="bi bi-cup-hot-fill"></i>
-                      <span>Room Service Orders</span>
+                      <span>Orders</span>
                     </button>
                   </div>
-                  <div className="col-6 col-lg-2">
+                  <div className="col-6 col-md-3">
                     <button
                       className="btn btn-secondary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={() => setActiveTab('account')}
                     >
                       My Bookings
-                    </button>
-                  </div>
-                  <div className="col-12 col-lg-3">
-                    <button
-                      className="btn btn-info text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
-                      onClick={() => setActiveTab('notifications')}
-                    >
-                      Alerts ({unreadCount})
                     </button>
                   </div>
                 </div>

@@ -8,38 +8,36 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Staff notification access (Administrator & Receptionist)
-  if (session.role !== 'Administrator' && session.role !== 'Receptionist') {
-    return NextResponse.json({ success: true, notifications: [] });
-  }
-
   const userID = session.userID;
+  const isStaff = session.role === 'Administrator' || session.role === 'Receptionist';
 
   try {
     // 1. Auto-generate Low Inventory Alerts (quantity <= reorderLevel) for Staff
-    try {
-      const lowStockItems = await dbQuery(`
-        SELECT i.inventoryID, p.name as productName, i.quantity, COALESCE(i.reorderLevel, 5) as reorderLevel
-        FROM inventory i
-        JOIN products p ON p.productID = i.productID
-        WHERE i.quantity <= COALESCE(i.reorderLevel, 5) AND i.isArchived = 0
-      `);
+    if (isStaff) {
+      try {
+        const lowStockItems = await dbQuery(`
+          SELECT i.inventoryID, p.name as productName, i.quantity, COALESCE(i.reorderLevel, 5) as reorderLevel
+          FROM inventory i
+          JOIN products p ON p.productID = i.productID
+          WHERE i.quantity <= COALESCE(i.reorderLevel, 5) AND i.isArchived = 0
+        `);
 
-      for (const item of lowStockItems) {
-        const alertMsg = `Low Inventory Alert: ${item.productName} stock has dropped to ${item.quantity} units (Threshold: ${item.reorderLevel} units).`;
-        const alreadyNotified = await dbQuery(
-          "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
-          [userID, alertMsg]
-        );
-        if (alreadyNotified.length === 0) {
-          await dbQuery(
-            "INSERT INTO notification (userID, title, message) VALUES (?, 'Low Inventory Alert', ?)",
+        for (const item of lowStockItems) {
+          const alertMsg = `Low Inventory Alert: ${item.productName} stock has dropped to ${item.quantity} units (Threshold: ${item.reorderLevel} units).`;
+          const alreadyNotified = await dbQuery(
+            "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
             [userID, alertMsg]
           );
+          if (alreadyNotified.length === 0) {
+            await dbQuery(
+              "INSERT INTO notification (userID, title, message) VALUES (?, 'Low Inventory Alert', ?)",
+              [userID, alertMsg]
+            );
+          }
         }
+      } catch (invErr) {
+        console.error("Low inventory notification check failed:", invErr);
       }
-    } catch (invErr) {
-      console.error("Low inventory notification check failed:", invErr);
     }
 
     // 2. Auto-generate Pre-Check-in (3h), Pre-Check-out (2h), and Exceeded Check-out Alerts

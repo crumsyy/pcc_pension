@@ -108,10 +108,20 @@ export default function NotificationBell() {
         <i className="bi bi-bell-fill fs-6"></i>
         {unreadCount > 0 && (
           <span
-            className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white"
-            style={{ fontSize: "0.6rem", padding: "0.22em 0.45em" }}
+            className="position-absolute badge rounded-pill bg-danger border border-white d-inline-flex align-items-center justify-content-center shadow-sm"
+            style={{
+              top: "-2px",
+              right: "-4px",
+              fontSize: "0.62rem",
+              fontWeight: "700",
+              minWidth: "18px",
+              height: "18px",
+              padding: "0 4px",
+              lineHeight: 1,
+              zIndex: 5
+            }}
           >
-            {unreadCount}
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>

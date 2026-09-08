@@ -5,6 +5,7 @@ import Link from 'next/link';
 import GuestSidebarNav from '../guest/dashboard/GuestSidebarNav';
 import GuestBottomNav from '../guest/dashboard/GuestBottomNav';
 import LoadingButton from './LoadingButton';
+import NotificationBell from './NotificationBell';
 
 export default function GuestLayout({ children, activeTab = 'orders', guest: propGuest }) {
   const [isDesktop, setIsDesktop] = useState(false);
@@ -82,6 +83,7 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
               <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
             </Link>
             <div className="d-flex align-items-center gap-2">
+              <NotificationBell />
               <span className="fw-semibold text-white px-2.5 py-1 rounded-pill d-flex align-items-center gap-1.5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
                 {guest?.profilePicture ? (
                   <img
