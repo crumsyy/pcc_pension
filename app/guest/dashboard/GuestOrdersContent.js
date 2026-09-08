@@ -17,52 +17,64 @@ const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCook
     : 'Available for prompt delivery to your hotel room.';
 
   return (
-    <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card">
+    <div 
+      className="card h-100 shadow-sm border border-secondary-subtle rounded-3 bg-white overflow-hidden d-flex flex-column justify-content-between order-item-card"
+      tabIndex="0"
+    >
       <div>
         {item.image ? (
-          <div style={{ height: '130px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#f1f5f9' }}>
+          <div className="catalog-img-wrap">
             <img
               src={item.image}
-              alt={item.name}
+              alt={`${item.name} - ${badgeLabel}`}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               loading="lazy"
+              decoding="async"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
                 if (fallback) fallback.style.display = 'flex';
               }}
             />
-            <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}>
-              <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-              <span>Image Unavailable</span>
+            <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom w-100 h-100" style={{ fontSize: '0.75rem', fontWeight: 600, display: 'none' }}>
+              <i className="bi bi-image fs-5 fs-sm-4 mb-1 opacity-50"></i>
+              <span className="d-none d-sm-inline">Image Unavailable</span>
+              <span className="d-sm-none" style={{ fontSize: '0.6rem' }}>No Image</span>
             </div>
           </div>
         ) : (
-          <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '130px', width: '100%', fontSize: '0.8rem', fontWeight: 600 }}>
-            <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-            <span>Image Unavailable</span>
+          <div className="image-fallback catalog-img-wrap d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+            <i className="bi bi-image fs-5 fs-sm-4 mb-1 opacity-50"></i>
+            <span className="d-none d-sm-inline">Image Unavailable</span>
+            <span className="d-sm-none" style={{ fontSize: '0.6rem' }}>No Image</span>
           </div>
         )}
-        <div className="p-3 pb-0">
-          <div className="d-flex justify-content-between align-items-start mb-2">
-            <span className={`badge border small ${badgeClass}`}>{badgeLabel}</span>
-            <span className="fw-bold text-success fs-6">₱{parseFloat(item.price).toFixed(2)}</span>
+        <div className="p-2 p-sm-3 pb-0 flex-grow-1 d-flex flex-column">
+          <div className="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
+            <span className={`badge border small ${badgeClass} d-none d-sm-inline-block`} style={{ fontSize: '0.68rem' }}>{badgeLabel}</span>
+            <span className={`badge border ${badgeClass} d-sm-none p-1`} style={{ fontSize: '0.58rem' }}>
+              {isCookedMeal ? 'Meal' : type === 'Amenity' ? 'Amenity' : 'Store'}
+            </span>
+            <span className="fw-bold text-success" style={{ fontSize: '0.88rem' }}>₱{parseFloat(item.price).toFixed(2)}</span>
           </div>
-          <h6 className="fw-bold text-dark mb-1">{item.name}</h6>
-          <p className="text-muted small mb-3" style={{ fontSize: '0.76rem' }}>
+          <h6 className="fw-bold text-dark mb-1 catalog-item-title" title={item.name}>{item.name}</h6>
+          <p className="text-muted small mb-2 d-none d-sm-block" style={{ fontSize: '0.76rem', lineHeight: '1.3' }}>
             {descText}
           </p>
         </div>
       </div>
-      <div className="p-3 pt-0">
+      <div className="p-2 p-sm-3 pt-1 pt-sm-0 mt-auto">
         <button
           type="button"
-          className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs ${isAvailable ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
+          className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs catalog-add-btn ${isAvailable ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
           style={{ backgroundColor: isAvailable ? 'var(--pcc-blue)' : undefined, borderColor: isAvailable ? 'var(--pcc-blue)' : undefined, borderRadius: '6px' }}
           disabled={!isAvailable}
           onClick={() => onAdd(item, type, isCookedMeal)}
+          aria-label={isAvailable ? `Add ${item.name} to Order Tray` : `${item.name} is Out of Stock`}
         >
-          <i className="bi bi-cart-plus"></i>{isAvailable ? 'Add to Order Tray' : 'Out of Stock'}
+          <i className="bi bi-cart-plus"></i>
+          <span className="d-none d-sm-inline">{isAvailable ? 'Add to Order Tray' : 'Out of Stock'}</span>
+          <span className="d-sm-none">{isAvailable ? 'Add' : 'Out'}</span>
         </button>
       </div>
     </div>
@@ -506,16 +518,15 @@ export default function GuestOrdersContent({ guest }) {
           ) : (
             /* CATALOG ITEMS GRID */
             loading ? (
-              <div className="row g-3">
+              <div className="row g-2 g-md-3">
                 {[1, 2, 3, 4, 5, 6].map(n => (
-                  <div key={n} className="col-12 col-sm-6 col-xl-4">
+                  <div key={n} className="col-4 col-sm-6 col-xl-4">
                     <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 overflow-hidden bg-white">
-                      <div className="pcc-skeleton-box" style={{ height: '130px', width: '100%' }}></div>
-                      <div className="p-3">
-                        <div className="pcc-skeleton-box mb-2" style={{ height: '16px', width: '40%' }}></div>
-                        <div className="pcc-skeleton-box mb-2" style={{ height: '20px', width: '75%' }}></div>
-                        <div className="pcc-skeleton-box mb-3" style={{ height: '12px', width: '55%' }}></div>
-                        <div className="pcc-skeleton-box" style={{ height: '32px', width: '100%', borderRadius: '6px' }}></div>
+                      <div className="pcc-skeleton-box catalog-img-wrap" style={{ width: '100%' }}></div>
+                      <div className="p-2 p-sm-3">
+                        <div className="pcc-skeleton-box mb-1.5" style={{ height: '14px', width: '50%' }}></div>
+                        <div className="pcc-skeleton-box mb-2" style={{ height: '18px', width: '80%' }}></div>
+                        <div className="pcc-skeleton-box" style={{ height: '28px', width: '100%', borderRadius: '6px' }}></div>
                       </div>
                     </div>
                   </div>
@@ -531,11 +542,11 @@ export default function GuestOrdersContent({ guest }) {
                         <span className="p-1 px-2 rounded bg-warning-subtle text-dark small fw-bold">Breakfast</span>
                         <span>Cooked Meals (Scheduled Delivery)</span>
                       </h5>
-                      <small className="text-muted">Available slots: 6:00 AM – 10:30 AM</small>
+                      <small className="text-muted d-none d-sm-inline">Available slots: 6:00 AM – 10:30 AM</small>
                     </div>
-                    <div className="row g-3">
+                    <div className="row g-2 g-md-3">
                       {filteredMeals.map(m => (
-                        <div key={m.productID} className="col-12 col-sm-6 col-xl-4">
+                        <div key={m.productID} className="col-4 col-sm-6 col-xl-4">
                           <CatalogItemCard
                             item={m}
                             type="Product"
@@ -556,11 +567,11 @@ export default function GuestOrdersContent({ guest }) {
                         <span className="p-1 px-2 rounded bg-info-subtle text-dark small fw-bold">Minibar / Store</span>
                         <span>Beverages &amp; Snacks</span>
                       </h5>
-                      <small className="text-muted">Immediate room delivery</small>
+                      <small className="text-muted d-none d-sm-inline">Immediate room delivery</small>
                     </div>
-                    <div className="row g-3">
+                    <div className="row g-2 g-md-3">
                       {filteredProducts.map(p => (
-                        <div key={p.productID} className="col-12 col-sm-6 col-xl-4">
+                        <div key={p.productID} className="col-4 col-sm-6 col-xl-4">
                           <CatalogItemCard
                             item={p}
                             type="Product"
@@ -581,11 +592,11 @@ export default function GuestOrdersContent({ guest }) {
                         <span className="p-1 px-2 rounded bg-secondary-subtle text-dark small fw-bold">Guest Service</span>
                         <span>Hotel Amenities</span>
                       </h5>
-                      <small className="text-muted">Towels, toiletries &amp; extra amenities</small>
+                      <small className="text-muted d-none d-sm-inline">Towels, toiletries &amp; extra amenities</small>
                     </div>
-                    <div className="row g-3">
+                    <div className="row g-2 g-md-3">
                       {filteredAmenities.map(a => (
-                        <div key={a.amenityID} className="col-12 col-sm-6 col-xl-4">
+                        <div key={a.amenityID} className="col-4 col-sm-6 col-xl-4">
                           <CatalogItemCard
                             item={a}
                             type="Amenity"
@@ -774,6 +785,55 @@ export default function GuestOrdersContent({ guest }) {
       </div>
 
       <style jsx global>{`
+        .catalog-img-wrap {
+          height: 75px;
+          width: 100%;
+          overflow: hidden;
+          position: relative;
+          background-color: #f1f5f9;
+        }
+        @media (min-width: 576px) {
+          .catalog-img-wrap {
+            height: 130px;
+          }
+        }
+        .catalog-item-title {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          min-height: 2.2em;
+          font-size: 0.78rem;
+          line-height: 1.25;
+        }
+        @media (min-width: 576px) {
+          .catalog-item-title {
+            font-size: 0.92rem;
+            min-height: auto;
+          }
+        }
+        .catalog-add-btn {
+          font-size: 0.72rem;
+          padding: 0.25rem 0.35rem;
+        }
+        @media (min-width: 576px) {
+          .catalog-add-btn {
+            font-size: 0.84rem;
+            padding: 0.375rem 0.75rem;
+          }
+        }
+        .order-item-card {
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .order-item-card:hover,
+        .order-item-card:focus-within {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.09) !important;
+          border-color: var(--pcc-blue, #2155b5) !important;
+        }
+        .order-item-card:active {
+          transform: scale(0.98);
+        }
         @keyframes pccPulse {
           0% { opacity: 0.6; }
           50% { opacity: 0.25; }

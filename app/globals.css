@@ -1250,11 +1250,21 @@ body.dark-theme .table th,
 body.dark-theme .p-3.bg-light,
 [data-bs-theme="dark"] .p-2.bg-light,
 body.dark-theme .p-2.bg-light,
+[data-bs-theme="dark"] .room-rate-panel,
+body.dark-theme .room-rate-panel,
 [data-bs-theme="dark"] div[style*="background: '#f8fafc'"],
 body.dark-theme div[style*="background: '#f8fafc'"] {
   background-color: #0f172a !important;
   color: #cbd5e1 !important;
   border-color: #334155 !important;
+}
+
+.room-rate-panel {
+  padding: 0.75rem 0.95rem !important;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 /* Typography Colors */

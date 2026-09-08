@@ -1312,23 +1312,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               </span>
                             </div>
 
-                            <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
-                              <div className="d-flex justify-content-between">
-                                <span>Capacity:</span>
+                            <div className="my-2.5 p-3 rounded border small room-rate-panel" style={{ fontSize: '0.8rem', padding: '0.75rem 0.95rem' }}>
+                              <div className="d-flex justify-content-between mb-1 py-0.5">
+                                <span className="text-muted">Max Occupancy:</span>
                                 <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
                               </div>
-                              <div className="d-flex justify-content-between">
-                                <span>Without Bfast:</span>
+                              <div className="d-flex justify-content-between mb-1 py-0.5">
+                                <span className="text-muted">Without Breakfast:</span>
                                 <strong className="text-dark">₱{parseFloat(rm.rateWithoutBreakfast || rm.rate).toFixed(2)}</strong>
                               </div>
-                              <div className="d-flex justify-content-between">
-                                <span>With Bfast:</span>
-                                <strong className="text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
+                              <div className="d-flex justify-content-between mb-1 py-0.5">
+                                <span className="text-muted">With Breakfast:</span>
+                                <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
                               </div>
-                              <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.74rem' }}>
-                                <span>Breakfast:</span>
+                              <div className="d-flex justify-content-between align-items-center pt-1.5 mt-1 border-top" style={{ fontSize: '0.76rem' }}>
+                                <span className="text-muted">Breakfast Rate:</span>
                                 {rm.breakfastRate !== null && rm.breakfastRate !== undefined && parseFloat(rm.breakfastRate) === 0 ? (
-                                  <strong className="text-success">Included (Free)</strong>
+                                  <strong className="text-success"><i className="bi bi-cup-hot me-1"></i>Free / Included</strong>
                                 ) : (
                                   <strong className="text-success">
                                     ₱{parseFloat(
@@ -1341,21 +1341,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               </div>
                             </div>
 
-                            <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                            <div className="mt-auto pt-2.5 d-flex justify-content-between align-items-center gap-2">
                               <button
                                 type="button"
-                                className="btn btn-xs btn-outline-secondary py-1 px-2"
+                                className="btn btn-xs btn-outline-secondary py-1.5 px-2.5 shadow-xs"
                                 onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                                style={{ fontSize: '0.75rem' }}
+                                style={{ fontSize: '0.76rem', borderRadius: '6px' }}
+                                aria-label={`View details for Room ${rm.roomNumber}`}
                               >
                                 Details
                               </button>
                               {meta.selectable ? (
-                                <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                                <button
+                                  type="button"
+                                  className={`btn btn-xs fw-bold py-1.5 px-3 shadow-xs ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`}
+                                  style={{ borderRadius: '6px', fontSize: '0.76rem' }}
+                                  aria-label={`${flowAction === 'reserve' ? 'Reserve' : 'Book'} Room ${rm.roomNumber}`}
+                                >
                                   {flowAction === 'reserve' ? 'Reserve' : 'Book'}
                                 </button>
                               ) : (
-                                <span className="badge bg-secondary text-white">Disabled</span>
+                                <span className="badge bg-secondary text-white py-1.5 px-2">Disabled</span>
                               )}
                             </div>
                           </div>
@@ -1394,23 +1400,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               </span>
                             </div>
 
-                            <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
-                              <div className="d-flex justify-content-between">
-                                <span>Capacity:</span>
+                            <div className="my-2.5 p-3 rounded border small room-rate-panel" style={{ fontSize: '0.8rem', padding: '0.75rem 0.95rem' }}>
+                              <div className="d-flex justify-content-between mb-1 py-0.5">
+                                <span className="text-muted">Max Occupancy:</span>
                                 <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
                               </div>
-                              <div className="d-flex justify-content-between">
-                                <span>Without Bfast:</span>
+                              <div className="d-flex justify-content-between mb-1 py-0.5">
+                                <span className="text-muted">Without Breakfast:</span>
                                 <strong className="text-dark">₱{parseFloat(rm.rateWithoutBreakfast || rm.rate).toFixed(2)}</strong>
                               </div>
-                              <div className="d-flex justify-content-between">
-                                <span>With Bfast:</span>
-                                <strong className="text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
+                              <div className="d-flex justify-content-between mb-1 py-0.5">
+                                <span className="text-muted">With Breakfast:</span>
+                                <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
                               </div>
-                              <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.74rem' }}>
-                                <span>Breakfast:</span>
+                              <div className="d-flex justify-content-between align-items-center pt-1.5 mt-1 border-top" style={{ fontSize: '0.76rem' }}>
+                                <span className="text-muted">Breakfast Rate:</span>
                                 {rm.breakfastRate !== null && rm.breakfastRate !== undefined && parseFloat(rm.breakfastRate) === 0 ? (
-                                  <strong className="text-success">Included (Free)</strong>
+                                  <strong className="text-success"><i className="bi bi-cup-hot me-1"></i>Free / Included</strong>
                                 ) : (
                                   <strong className="text-success">
                                     ₱{parseFloat(
@@ -1423,21 +1429,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               </div>
                             </div>
 
-                            <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                            <div className="mt-auto pt-2.5 d-flex justify-content-between align-items-center gap-2">
                               <button
                                 type="button"
-                                className="btn btn-xs btn-outline-secondary py-1 px-2"
+                                className="btn btn-xs btn-outline-secondary py-1.5 px-2.5 shadow-xs"
                                 onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                                style={{ fontSize: '0.75rem' }}
+                                style={{ fontSize: '0.76rem', borderRadius: '6px' }}
+                                aria-label={`View details for Room ${rm.roomNumber}`}
                               >
                                 Details
                               </button>
                               {meta.selectable ? (
-                                <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                                <button
+                                  type="button"
+                                  className={`btn btn-xs fw-bold py-1.5 px-3 shadow-xs ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`}
+                                  style={{ borderRadius: '6px', fontSize: '0.76rem' }}
+                                  aria-label={`${flowAction === 'reserve' ? 'Reserve' : 'Book'} Room ${rm.roomNumber}`}
+                                >
                                   {flowAction === 'reserve' ? 'Reserve' : 'Book'}
                                 </button>
                               ) : (
-                                <span className="badge bg-secondary text-white">Disabled</span>
+                                <span className="badge bg-secondary text-white py-1.5 px-2">Disabled</span>
                               )}
                             </div>
                           </div>
@@ -1476,23 +1488,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 </span>
                               </div>
 
-                              <div className="my-2 p-2 bg-light rounded" style={{ fontSize: '0.8rem' }}>
-                                <div className="d-flex justify-content-between">
-                                  <span>Capacity:</span>
+                              <div className="my-2.5 p-3 rounded border small room-rate-panel" style={{ fontSize: '0.8rem', padding: '0.75rem 0.95rem' }}>
+                                <div className="d-flex justify-content-between mb-1 py-0.5">
+                                  <span className="text-muted">Max Occupancy:</span>
                                   <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
                                 </div>
-                                <div className="d-flex justify-content-between">
-                                  <span>Without Bfast:</span>
+                                <div className="d-flex justify-content-between mb-1 py-0.5">
+                                  <span className="text-muted">Without Breakfast:</span>
                                   <strong className="text-dark">₱{parseFloat(rm.rateWithoutBreakfast || rm.rate).toFixed(2)}</strong>
                                 </div>
-                                <div className="d-flex justify-content-between">
-                                  <span>With Bfast:</span>
-                                  <strong className="text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
+                                <div className="d-flex justify-content-between mb-1 py-0.5">
+                                  <span className="text-muted">With Breakfast:</span>
+                                  <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
                                 </div>
-                                <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.74rem' }}>
-                                  <span>Breakfast:</span>
+                                <div className="d-flex justify-content-between align-items-center pt-1.5 mt-1 border-top" style={{ fontSize: '0.76rem' }}>
+                                  <span className="text-muted">Breakfast Rate:</span>
                                   {rm.breakfastRate !== null && rm.breakfastRate !== undefined && parseFloat(rm.breakfastRate) === 0 ? (
-                                    <strong className="text-success">Included (Free)</strong>
+                                    <strong className="text-success"><i className="bi bi-cup-hot me-1"></i>Free / Included</strong>
                                   ) : (
                                     <strong className="text-success">
                                       ₱{parseFloat(
@@ -1505,21 +1517,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 </div>
                               </div>
 
-                              <div className="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                              <div className="mt-auto pt-2.5 d-flex justify-content-between align-items-center gap-2">
                                 <button
                                   type="button"
-                                  className="btn btn-xs btn-outline-secondary py-1 px-2"
+                                  className="btn btn-xs btn-outline-secondary py-1.5 px-2.5 shadow-xs"
                                   onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                                  style={{ fontSize: '0.75rem' }}
+                                  style={{ fontSize: '0.76rem', borderRadius: '6px' }}
+                                  aria-label={`View details for Room ${rm.roomNumber}`}
                                 >
                                   Details
                                 </button>
                                 {meta.selectable ? (
-                                  <button className={`btn btn-xs fw-bold px-3 ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`} style={{ borderRadius: '6px' }}>
+                                  <button
+                                    type="button"
+                                    className={`btn btn-xs fw-bold py-1.5 px-3 shadow-xs ${flowAction === 'reserve' ? 'btn-success text-white' : 'btn-primary text-white'}`}
+                                    style={{ borderRadius: '6px', fontSize: '0.76rem' }}
+                                    aria-label={`${flowAction === 'reserve' ? 'Reserve' : 'Book'} Room ${rm.roomNumber}`}
+                                  >
                                     {flowAction === 'reserve' ? 'Reserve' : 'Book'}
                                   </button>
                                 ) : (
-                                  <span className="badge bg-secondary text-white">Disabled</span>
+                                  <span className="badge bg-secondary text-white py-1.5 px-2">Disabled</span>
                                 )}
                               </div>
                             </div>
@@ -2067,9 +2085,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     <div style={{ height: '140px', width: '100%', overflow: 'hidden', position: 'relative', backgroundColor: '#e2e8f0' }}>
                                       <img
                                         src={roomPic}
-                                        alt={`Room ${rm.roomNumber}`}
+                                        alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         loading="lazy"
+                                        decoding="async"
                                         onError={(e) => {
                                           e.currentTarget.style.display = 'none';
                                           const fallback = e.currentTarget.parentElement?.querySelector('.image-fallback-err');
@@ -2094,20 +2113,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     </span>
                                   </div>
 
-                                  <div className="my-2 p-2.5 bg-white rounded border small">
-                                    <div className="d-flex justify-content-between mb-1">
+                                  <div className="my-2.5 p-3 rounded border small room-rate-panel" style={{ padding: '0.75rem 0.95rem' }}>
+                                    <div className="d-flex justify-content-between mb-1.5 py-0.5">
                                       <span className="text-muted">Max Occupancy:</span>
                                       <strong className="text-dark">Up to {rm.occupancyLimit || 2} Pax</strong>
                                     </div>
-                                    <div className="d-flex justify-content-between mb-1">
+                                    <div className="d-flex justify-content-between mb-1.5 py-0.5">
                                       <span className="text-muted">Without Breakfast:</span>
                                       <strong className="text-dark">₱{parseFloat(rm.rateWithoutBreakfast || rm.rate || 0).toFixed(2)}</strong>
                                     </div>
-                                    <div className="d-flex justify-content-between mb-1">
+                                    <div className="d-flex justify-content-between mb-1.5 py-0.5">
                                       <span className="text-muted">With Breakfast:</span>
                                       <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate || 0) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate || 0))).toFixed(2)}</strong>
                                     </div>
-                                    <div className="d-flex justify-content-between align-items-center pt-1 border-top">
+                                    <div className="d-flex justify-content-between align-items-center pt-1.5 mt-1 border-top">
                                       <span className="text-muted">Breakfast Rate:</span>
                                       {rm.breakfastRate !== null && rm.breakfastRate !== undefined && parseFloat(rm.breakfastRate) === 0 ? (
                                         <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">
@@ -2125,12 +2144,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     </div>
                                   </div>
 
-                                  <div className="mt-auto pt-2 d-flex gap-2 align-items-center">
+                                  <div className="mt-auto pt-3 d-flex gap-2.5 align-items-center" style={{ gap: '8px' }}>
                                     <button
                                       type="button"
-                                      className="btn btn-xs btn-secondary text-white fw-bold py-1.5 px-2"
+                                      className="btn btn-xs btn-secondary text-white fw-bold py-2 px-2.5 shadow-xs"
                                       onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
-                                      style={{ fontSize: '0.76rem' }}
+                                      style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                                      aria-label={`View details for Room ${rm.roomNumber}`}
                                     >
                                       Details
                                     </button>
@@ -2138,7 +2158,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                       <>
                                         <button
                                           type="button"
-                                          className="btn btn-xs btn-success text-white fw-bold py-1.5 px-2.5 flex-grow-1"
+                                          className="btn btn-xs btn-success text-white fw-bold py-2 px-2.5 flex-grow-1 shadow-xs"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedRoom(rm);
@@ -2146,13 +2166,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                             handleCheckInDateChange(minReserveDateStr);
                                             setActiveModal('reserve_form');
                                           }}
-                                          style={{ fontSize: '0.78rem' }}
+                                          style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                                          aria-label={`Reserve Room ${rm.roomNumber}`}
                                         >
                                           Reserve
                                         </button>
                                         <button
                                           type="button"
-                                          className="btn btn-xs btn-primary text-white fw-bold py-1.5 px-2.5 flex-grow-1"
+                                          className="btn btn-xs btn-primary text-white fw-bold py-2 px-2.5 flex-grow-1 shadow-xs"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedRoom(rm);
@@ -2160,14 +2181,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                             handleCheckInDateChange(minBookDateStr);
                                             setActiveModal('book_form');
                                           }}
-                                          style={{ fontSize: '0.78rem' }}
+                                          style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                                          aria-label={`Book Room ${rm.roomNumber}`}
                                         >
                                           Book
                                         </button>
                                       </>
                                     ) : (
-                                      <button type="button" className="btn btn-xs btn-secondary text-white w-100" disabled style={{ fontSize: '0.78rem' }}>
-                                        {rm.status}
+                                      <button
+                                        type="button"
+                                        className="btn btn-xs btn-outline-secondary py-2 px-2.5 flex-grow-1"
+                                        disabled
+                                        style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                                        aria-label={`Room ${rm.roomNumber} is ${meta.label}`}
+                                      >
+                                        {meta.label}
                                       </button>
                                     )}
                                   </div>
@@ -2327,15 +2355,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
 
                 {/* THEME & APPEARANCE SETTINGS CARD */}
-                <div className="card shadow-sm border-0 p-3.5 mb-4 bg-white" style={{ borderRadius: '14px' }}>
-                  <div className="d-flex align-items-center justify-content-between">
-                    <div>
-                      <h6 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <div className="card shadow-sm border-0 p-4 mb-4 bg-white" style={{ borderRadius: '14px', padding: '1.25rem 1.5rem' }}>
+                  <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 gap-md-4">
+                    <div className="flex-grow-1 pe-sm-3">
+                      <h6 className="fw-bold text-dark mb-1.5 d-flex align-items-center gap-2 fs-6">
                         <i className="bi bi-moon-stars-fill text-primary"></i> Theme &amp; Display Setup
                       </h6>
-                      <div className="text-muted small">Switch between Light Mode and Night Mode for comfortable viewing across devices.</div>
+                      <p className="text-muted small mb-0 lh-base">
+                        Switch between Light Mode and Night Mode for comfortable viewing across devices.
+                      </p>
                     </div>
-                    <ThemeToggle />
+                    <div className="flex-shrink-0">
+                      <ThemeToggle />
+                    </div>
                   </div>
                 </div>
 
@@ -2570,16 +2602,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="text-muted small">Floor: {selectedRoom.floorName}</div>
                   </div>
 
-                <div className="p-3 border rounded mb-3" style={{ fontSize: '0.88rem' }}>
-                  <div className="d-flex justify-content-between mb-1">
+                <div className="p-3 border rounded mb-3 room-rate-panel" style={{ fontSize: '0.88rem', padding: '0.85rem 1rem' }}>
+                  <div className="d-flex justify-content-between mb-1.5 py-0.5">
                     <span className="text-muted">Rate Without Breakfast:</span>
                     <strong className="text-dark">₱{parseFloat(selectedRoom.rateWithoutBreakfast || selectedRoom.rate).toFixed(2)} / night</strong>
                   </div>
-                  <div className="d-flex justify-content-between mb-1">
+                  <div className="d-flex justify-content-between mb-1.5 py-0.5">
                     <span className="text-muted">Rate With Breakfast:</span>
                     <strong className="text-pcc-blue fw-bold">₱{parseFloat(selectedRoom.rateWithBreakfast || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate))).toFixed(2)} / night</strong>
                   </div>
-                  <div className="d-flex justify-content-between mb-1">
+                  <div className="d-flex justify-content-between mb-1.5 py-0.5">
                     <span className="text-muted">Breakfast Add-on Rate:</span>
                     {selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined && parseFloat(selectedRoom.breakfastRate) === 0 ? (
                       <strong className="text-success"><i className="bi bi-cup-hot me-1"></i>Breakfast Included (Free)</strong>
@@ -2593,15 +2625,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       </strong>
                     )}
                   </div>
-                  <div className="d-flex justify-content-between mb-1">
+                  <div className="d-flex justify-content-between mb-1.5 py-0.5">
                     <span className="text-muted">Maximum Occupancy:</span>
                     <strong className="text-dark">Up to {selectedRoom.occupancyLimit} Pax</strong>
                   </div>
-                  <div className="d-flex justify-content-between mb-1">
+                  <div className="d-flex justify-content-between mb-1.5 py-0.5">
                     <span className="text-muted">Air Conditioning:</span>
                     <strong>{selectedRoom.isAircon ? 'Included' : 'Fan Only'}</strong>
                   </div>
-                  <div className="d-flex justify-content-between">
+                  <div className="d-flex justify-content-between py-0.5">
                     <span className="text-muted">Hot Shower:</span>
                     <strong>{selectedRoom.hasHotShower ? 'Available' : 'Standard'}</strong>
                   </div>
