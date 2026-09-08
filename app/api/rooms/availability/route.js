@@ -33,7 +33,19 @@ export async function GET(request) {
 
     let query = `
       SELECT r.roomID, r.roomNumber, rt.type as roomType, rt.description, rr.rate, fl.name as floor,
-             r.breakfastRate, r.image, r.occupancyLimit
+             r.breakfastRate, r.image, r.occupancyLimit,
+             (
+               SELECT rr1.rate
+               FROM room_rate rr1
+               WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1
+               LIMIT 1
+             ) as rateWithoutBreakfast,
+             (
+               SELECT rr2.rate
+               FROM room_rate rr2
+               WHERE rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2
+               LIMIT 1
+             ) as rateWithBreakfast
       FROM room r
       JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
       JOIN floor fl ON fl.floorID = r.floorID

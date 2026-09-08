@@ -6,14 +6,14 @@ export async function GET(request) {
     const [roomCountRes, roomsList, activePromotions] = await Promise.all([
       dbQuery("SELECT COUNT(*) as totalRooms FROM room WHERE isArchived = 0"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, r.description, r.image, r.occupancyLimit,
-               rt.roomTypeID, rt.type as roomType, rt.description as typeDescription,
-               fl.floorID, fl.name as floorName,
+        SELECT r.roomID, r.roomNumber, r.status, r.description, r.image, r.occupancyLimit, r.breakfastRate,
+               rt.roomTypeID, COALESCE(rt.type, 'Standard Room') as roomType, rt.description as typeDescription,
+               fl.floorID, COALESCE(fl.name, 'Ground Floor') as floorName,
                COALESCE(rr1.rate, 0) as rateWithoutBreakfast,
                COALESCE(rr2.rate, 0) as rateWithBreakfast
         FROM room r
-        JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
-        JOIN floor fl ON fl.floorID = r.floorID
+        LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
+        LEFT JOIN floor fl ON fl.floorID = r.floorID
         LEFT JOIN room_rate rr1 ON rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1
         LEFT JOIN room_rate rr2 ON rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2
         WHERE r.isArchived = 0

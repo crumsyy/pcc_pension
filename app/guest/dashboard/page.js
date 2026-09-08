@@ -94,14 +94,22 @@ export default async function GuestDashboard() {
       `)
     ]);
 
-    // Attach accurate live remaining balances to bookings
+    // Attach accurate live remaining balances only for active/open bookings to avoid N+1 query overhead
     const bookings = await Promise.all(rawBookings.map(async b => {
-      const remainingBalance = await getBookingBalance(b.bookingID);
-      const incidentals = await dbQuery("SELECT chargeID, description, amount FROM incidental_charge WHERE bookingID = ?", [b.bookingID]);
+      const isActive = ['Checked In', 'Late Checkout', 'Confirmed', 'Pending', 'Booked', 'Pending Check-in'].includes(b.status);
+      if (isActive) {
+        const remainingBalance = await getBookingBalance(b.bookingID);
+        const incidentals = await dbQuery("SELECT chargeID, description, amount FROM incidental_charge WHERE bookingID = ?", [b.bookingID]);
+        return {
+          ...b,
+          remainingBalance,
+          incidentals: incidentals || []
+        };
+      }
       return {
         ...b,
-        remainingBalance,
-        incidentals: incidentals || []
+        remainingBalance: 0,
+        incidentals: []
       };
     }));
 

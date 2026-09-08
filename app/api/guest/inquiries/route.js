@@ -38,9 +38,11 @@ export async function GET(request) {
 
     const inquiry = inquiries[0];
 
-    // Mark guest unread count as 0
-    await dbQuery("UPDATE inquiry SET unreadGuest = 0 WHERE inquiryID = ?", [inquiry.inquiryID]);
-    await dbQuery("UPDATE inquiry_message SET isRead = 1 WHERE inquiryID = ? AND senderType = 'Receptionist'", [inquiry.inquiryID]);
+    // Mark guest unread count as 0 only if there are unread messages
+    if (inquiry.unreadGuest > 0) {
+      await dbQuery("UPDATE inquiry SET unreadGuest = 0 WHERE inquiryID = ?", [inquiry.inquiryID]);
+      await dbQuery("UPDATE inquiry_message SET isRead = 1 WHERE inquiryID = ? AND senderType = 'Receptionist'", [inquiry.inquiryID]);
+    }
 
     // Fetch message history thread
     const messages = await dbQuery(

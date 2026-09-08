@@ -102,15 +102,24 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
 
   useEffect(() => {
     checkSession();
-    fetchCatalog();
   }, []);
 
-  // Continuous polling for real-time live chat responses
+  useEffect(() => {
+    if (isOpen) {
+      if (catalog.products.length === 0) {
+        fetchCatalog();
+      }
+      fetchLiveInquiry();
+    }
+  }, [isOpen]);
+
+  // Polling for live chat responses with adaptive frequency
   useEffect(() => {
     fetchLiveInquiry();
-    const interval = setInterval(fetchLiveInquiry, 1200);
+    const intervalTime = !isOpen ? 25000 : (activeTabMode === 'live' ? 3500 : 15000);
+    const interval = setInterval(fetchLiveInquiry, intervalTime);
     return () => clearInterval(interval);
-  }, [currentUser, requestForm.email]);
+  }, [currentUser, requestForm.email, isOpen, activeTabMode]);
 
   useEffect(() => {
     if (!chatBodyRef.current) return;

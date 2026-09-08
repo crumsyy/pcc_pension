@@ -36,8 +36,8 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
     if (propGuest) {
       setGuest(propGuest);
     } else if (!guest) {
-      // Fallback fetch guest profile if not supplied by parent
-      fetch('/api/guest/orders')
+      // Fetch lightweight guest profile if not supplied by parent
+      fetch('/api/guest/profile')
         .then(res => res.json())
         .then(data => {
           if (data && data.guest) {

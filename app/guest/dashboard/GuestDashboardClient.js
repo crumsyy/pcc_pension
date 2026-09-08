@@ -548,8 +548,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const nightsCount = calculateNights();
   const roomRate = selectedRoom
     ? (breakfastOption === 'with'
-        ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-        : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
+        ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate)) || 0)
+        : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
     : 0;
   const extraGuestsCount = selectedRoom ? Math.max(0, (parseInt(numGuests) || 1) - (parseInt(selectedRoom.occupancyLimit) || 2)) : 0;
   const extraGuestFee = extraGuestsCount * 100 * nightsCount;
@@ -1317,21 +1317,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
                               </div>
                               <div className="d-flex justify-content-between">
-                                <span>Rate:</span>
-                                <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                                <span>Without Bfast:</span>
+                                <strong className="text-dark">₱{parseFloat(rm.rateWithoutBreakfast || rm.rate).toFixed(2)}</strong>
+                              </div>
+                              <div className="d-flex justify-content-between">
+                                <span>With Bfast:</span>
+                                <strong className="text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
                               </div>
                               <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.74rem' }}>
                                 <span>Breakfast:</span>
-                                {rm.breakfastRate !== null && rm.breakfastRate !== undefined ? (
-                                  parseFloat(rm.breakfastRate) === 0 ? (
-                                    <strong className="text-success">Included</strong>
-                                  ) : (
-                                    <strong className="text-success">₱{parseFloat(rm.breakfastRate).toFixed(2)}</strong>
-                                  )
-                                ) : (rm.rateWithBreakfast && rm.rateWithoutBreakfast && parseFloat(rm.rateWithBreakfast) > parseFloat(rm.rateWithoutBreakfast)) ? (
-                                  <strong className="text-success">₱{(parseFloat(rm.rateWithBreakfast) - parseFloat(rm.rateWithoutBreakfast)).toFixed(2)}</strong>
+                                {rm.breakfastRate !== null && rm.breakfastRate !== undefined && parseFloat(rm.breakfastRate) === 0 ? (
+                                  <strong className="text-success">Included (Free)</strong>
                                 ) : (
-                                  <span className="text-muted">None</span>
+                                  <strong className="text-success">
+                                    ₱{parseFloat(
+                                      rm.breakfastRate !== null && rm.breakfastRate !== undefined
+                                        ? rm.breakfastRate
+                                        : (rm.rateWithBreakfast && rm.rateWithoutBreakfast ? parseFloat(rm.rateWithBreakfast) - parseFloat(rm.rateWithoutBreakfast) : 0)
+                                    ).toFixed(2)}
+                                  </strong>
                                 )}
                               </div>
                             </div>
@@ -1395,21 +1399,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
                               </div>
                               <div className="d-flex justify-content-between">
-                                <span>Rate:</span>
-                                <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                                <span>Without Bfast:</span>
+                                <strong className="text-dark">₱{parseFloat(rm.rateWithoutBreakfast || rm.rate).toFixed(2)}</strong>
+                              </div>
+                              <div className="d-flex justify-content-between">
+                                <span>With Bfast:</span>
+                                <strong className="text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
                               </div>
                               <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.74rem' }}>
                                 <span>Breakfast:</span>
-                                {rm.breakfastRate !== null && rm.breakfastRate !== undefined ? (
-                                  parseFloat(rm.breakfastRate) === 0 ? (
-                                    <strong className="text-success">Included</strong>
-                                  ) : (
-                                    <strong className="text-success">₱{parseFloat(rm.breakfastRate).toFixed(2)}</strong>
-                                  )
-                                ) : (rm.rateWithBreakfast && rm.rateWithoutBreakfast && parseFloat(rm.rateWithBreakfast) > parseFloat(rm.rateWithoutBreakfast)) ? (
-                                  <strong className="text-success">₱{(parseFloat(rm.rateWithBreakfast) - parseFloat(rm.rateWithoutBreakfast)).toFixed(2)}</strong>
+                                {rm.breakfastRate !== null && rm.breakfastRate !== undefined && parseFloat(rm.breakfastRate) === 0 ? (
+                                  <strong className="text-success">Included (Free)</strong>
                                 ) : (
-                                  <span className="text-muted">None</span>
+                                  <strong className="text-success">
+                                    ₱{parseFloat(
+                                      rm.breakfastRate !== null && rm.breakfastRate !== undefined
+                                        ? rm.breakfastRate
+                                        : (rm.rateWithBreakfast && rm.rateWithoutBreakfast ? parseFloat(rm.rateWithBreakfast) - parseFloat(rm.rateWithoutBreakfast) : 0)
+                                    ).toFixed(2)}
+                                  </strong>
                                 )}
                               </div>
                             </div>
@@ -1473,21 +1481,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   <strong className="text-dark">Up to {rm.occupancyLimit} Pax</strong>
                                 </div>
                                 <div className="d-flex justify-content-between">
-                                  <span>Rate:</span>
-                                  <strong className="text-pcc-blue">₱{parseFloat(rm.rate).toFixed(2)}/night</strong>
+                                  <span>Without Bfast:</span>
+                                  <strong className="text-dark">₱{parseFloat(rm.rateWithoutBreakfast || rm.rate).toFixed(2)}</strong>
+                                </div>
+                                <div className="d-flex justify-content-between">
+                                  <span>With Bfast:</span>
+                                  <strong className="text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate))).toFixed(2)}</strong>
                                 </div>
                                 <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.74rem' }}>
                                   <span>Breakfast:</span>
-                                  {rm.breakfastRate !== null && rm.breakfastRate !== undefined ? (
-                                    parseFloat(rm.breakfastRate) === 0 ? (
-                                      <strong className="text-success">Included</strong>
-                                    ) : (
-                                      <strong className="text-success">₱{parseFloat(rm.breakfastRate).toFixed(2)}</strong>
-                                    )
-                                  ) : (rm.rateWithBreakfast && rm.rateWithoutBreakfast && parseFloat(rm.rateWithBreakfast) > parseFloat(rm.rateWithoutBreakfast)) ? (
-                                    <strong className="text-success">₱{(parseFloat(rm.rateWithBreakfast) - parseFloat(rm.rateWithoutBreakfast)).toFixed(2)}</strong>
+                                  {rm.breakfastRate !== null && rm.breakfastRate !== undefined && parseFloat(rm.breakfastRate) === 0 ? (
+                                    <strong className="text-success">Included (Free)</strong>
                                   ) : (
-                                    <span className="text-muted">None</span>
+                                    <strong className="text-success">
+                                      ₱{parseFloat(
+                                        rm.breakfastRate !== null && rm.breakfastRate !== undefined
+                                          ? rm.breakfastRate
+                                          : (rm.rateWithBreakfast && rm.rateWithoutBreakfast ? parseFloat(rm.rateWithBreakfast) - parseFloat(rm.rateWithoutBreakfast) : 0)
+                                      ).toFixed(2)}
+                                    </strong>
                                   )}
                                 </div>
                               </div>
@@ -2085,27 +2097,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                       <strong className="text-dark">Up to {rm.occupancyLimit || 2} Pax</strong>
                                     </div>
                                     <div className="d-flex justify-content-between mb-1">
-                                      <span className="text-muted">Base Rate:</span>
-                                      <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rate || 0).toFixed(2)} / night</strong>
+                                      <span className="text-muted">Without Breakfast:</span>
+                                      <strong className="text-dark">₱{parseFloat(rm.rateWithoutBreakfast || rm.rate || 0).toFixed(2)}</strong>
+                                    </div>
+                                    <div className="d-flex justify-content-between mb-1">
+                                      <span className="text-muted">With Breakfast:</span>
+                                      <strong className="text-pcc-blue fw-bold">₱{parseFloat(rm.rateWithBreakfast || (rm.breakfastRate !== null && rm.breakfastRate !== undefined ? parseFloat(rm.rate || 0) + parseFloat(rm.breakfastRate) : parseFloat(rm.rate || 0))).toFixed(2)}</strong>
                                     </div>
                                     <div className="d-flex justify-content-between align-items-center pt-1 border-top">
-                                      <span className="text-muted">Breakfast:</span>
-                                      {rm.breakfastRate !== null && rm.breakfastRate !== undefined ? (
-                                        parseFloat(rm.breakfastRate) === 0 ? (
-                                          <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">
-                                            <i className="bi bi-cup-hot me-1"></i>Breakfast Included
-                                          </span>
-                                        ) : (
-                                          <span className="text-success fw-bold">
-                                            Breakfast Rate: ₱{parseFloat(rm.breakfastRate).toFixed(2)}
-                                          </span>
-                                        )
-                                      ) : (rm.rateWithBreakfast && rm.rateWithoutBreakfast && parseFloat(rm.rateWithBreakfast) > parseFloat(rm.rateWithoutBreakfast)) ? (
-                                        <span className="text-success fw-bold">
-                                          Breakfast Rate: ₱{(parseFloat(rm.rateWithBreakfast) - parseFloat(rm.rateWithoutBreakfast)).toFixed(2)}
+                                      <span className="text-muted">Breakfast Rate:</span>
+                                      {rm.breakfastRate !== null && rm.breakfastRate !== undefined && parseFloat(rm.breakfastRate) === 0 ? (
+                                        <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">
+                                          <i className="bi bi-cup-hot me-1"></i>Free / Included
                                         </span>
                                       ) : (
-                                        <span className="text-muted">Not Included</span>
+                                        <span className="text-success fw-bold">
+                                          ₱{parseFloat(
+                                            rm.breakfastRate !== null && rm.breakfastRate !== undefined
+                                              ? rm.breakfastRate
+                                              : (rm.rateWithBreakfast && rm.rateWithoutBreakfast ? parseFloat(rm.rateWithBreakfast) - parseFloat(rm.rateWithoutBreakfast) : 0)
+                                          ).toFixed(2)}
+                                        </span>
                                       )}
                                     </div>
                                   </div>
@@ -2552,21 +2564,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 <div className="p-3 border rounded mb-3" style={{ fontSize: '0.88rem' }}>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Standard Rate:</span>
-                    <strong className="text-pcc-blue">₱{parseFloat(selectedRoom.rate).toFixed(2)} / night</strong>
+                    <span className="text-muted">Rate Without Breakfast:</span>
+                    <strong className="text-dark">₱{parseFloat(selectedRoom.rateWithoutBreakfast || selectedRoom.rate).toFixed(2)} / night</strong>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Breakfast Policy:</span>
-                    {selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? (
-                      parseFloat(selectedRoom.breakfastRate) === 0 ? (
-                        <strong className="text-success"><i className="bi bi-cup-hot me-1"></i>Breakfast Included (Free)</strong>
-                      ) : (
-                        <strong className="text-success">Breakfast Rate: ₱{parseFloat(selectedRoom.breakfastRate).toFixed(2)}</strong>
-                      )
-                    ) : (selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast && parseFloat(selectedRoom.rateWithBreakfast) > parseFloat(selectedRoom.rateWithoutBreakfast)) ? (
-                      <strong className="text-success">Breakfast Rate: ₱{(parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast)).toFixed(2)}</strong>
+                    <span className="text-muted">Rate With Breakfast:</span>
+                    <strong className="text-pcc-blue fw-bold">₱{parseFloat(selectedRoom.rateWithBreakfast || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate))).toFixed(2)} / night</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Breakfast Add-on Rate:</span>
+                    {selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined && parseFloat(selectedRoom.breakfastRate) === 0 ? (
+                      <strong className="text-success"><i className="bi bi-cup-hot me-1"></i>Breakfast Included (Free)</strong>
                     ) : (
-                      <strong className="text-muted">Not Included</strong>
+                      <strong className="text-success">
+                        ₱{parseFloat(
+                          selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined
+                            ? selectedRoom.breakfastRate
+                            : (selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast ? parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast) : 0)
+                        ).toFixed(2)}
+                      </strong>
                     )}
                   </div>
                   <div className="d-flex justify-content-between mb-1">
@@ -2618,18 +2634,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="modal-body">
                   <div className="p-3 bg-light rounded border mb-3">
                     <h6 className="fw-bold text-success mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h6>
-                    <div className="small text-muted">Floor: {selectedRoom.floorName} • Rate: ₱{parseFloat(selectedRoom.rate).toFixed(2)}/night</div>
+                    <div className="small text-muted">Floor: {selectedRoom.floorName} • Without Bfast: ₱{parseFloat(selectedRoom.rateWithoutBreakfast || selectedRoom.rate).toFixed(2)} • With Bfast: ₱{parseFloat(selectedRoom.rateWithBreakfast || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate))).toFixed(2)}/night</div>
                     <div className="small text-success fw-semibold mt-1">
-                      {selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? (
-                        parseFloat(selectedRoom.breakfastRate) === 0 ? (
-                          <span><i className="bi bi-cup-hot me-1"></i>Breakfast Included</span>
-                        ) : (
-                          <span>Breakfast Rate: ₱{parseFloat(selectedRoom.breakfastRate).toFixed(2)}</span>
-                        )
-                      ) : (selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast && parseFloat(selectedRoom.rateWithBreakfast) > parseFloat(selectedRoom.rateWithoutBreakfast)) ? (
-                        <span>Breakfast Rate: ₱{(parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast)).toFixed(2)}</span>
+                      {selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined && parseFloat(selectedRoom.breakfastRate) === 0 ? (
+                        <span><i className="bi bi-cup-hot me-1"></i>Breakfast Included (Free)</span>
                       ) : (
-                        <span>Breakfast: Standard Rate</span>
+                        <span>
+                          Breakfast Rate: ₱{parseFloat(
+                            selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined
+                              ? selectedRoom.breakfastRate
+                              : (selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast ? parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast) : 0)
+                          ).toFixed(2)}
+                        </span>
                       )}
                     </div>
                     <div className="small text-primary fw-semibold mt-1">Note: Selectable reservation check-in dates are Today, Tomorrow, and Day After Tomorrow (up to 2 days ahead).</div>
@@ -2747,18 +2763,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <div className="p-3 bg-light rounded border h-100">
                         <h6 className="fw-bold text-primary mb-2">Room {selectedRoom.roomNumber} - {selectedRoom.roomType}</h6>
                         <div className="small text-muted mb-1">Floor: <strong>{selectedRoom.floorName}</strong></div>
-                        <div className="small text-muted mb-1">Standard Rate: <strong>₱{parseFloat(selectedRoom.rate).toFixed(2)} / night</strong></div>
+                        <div className="small text-muted mb-1">Rate Without Breakfast: <strong>₱{parseFloat(selectedRoom.rateWithoutBreakfast || selectedRoom.rate).toFixed(2)} / night</strong></div>
+                        <div className="small text-muted mb-1">Rate With Breakfast: <strong className="text-primary">₱{parseFloat(selectedRoom.rateWithBreakfast || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate))).toFixed(2)} / night</strong></div>
                         <div className="small text-muted">
-                          Breakfast: {selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? (
-                            parseFloat(selectedRoom.breakfastRate) === 0 ? (
-                              <span className="badge bg-success-subtle text-success border border-success-subtle"><i className="bi bi-cup-hot me-1"></i>Breakfast Included</span>
-                            ) : (
-                              <span className="text-success fw-bold">Breakfast Rate: ₱{parseFloat(selectedRoom.breakfastRate).toFixed(2)}</span>
-                            )
-                          ) : (selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast && parseFloat(selectedRoom.rateWithBreakfast) > parseFloat(selectedRoom.rateWithoutBreakfast)) ? (
-                            <span className="text-success fw-bold">Breakfast Rate: ₱{(parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast)).toFixed(2)}</span>
+                          Breakfast Rate: {selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined && parseFloat(selectedRoom.breakfastRate) === 0 ? (
+                            <span className="badge bg-success-subtle text-success border border-success-subtle"><i className="bi bi-cup-hot me-1"></i>Breakfast Included (Free)</span>
                           ) : (
-                            <span className="text-muted">Not Included</span>
+                            <span className="text-success fw-bold">
+                              ₱{parseFloat(
+                                selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined
+                                  ? selectedRoom.breakfastRate
+                                  : (selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast ? parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast) : 0)
+                              ).toFixed(2)}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -2808,13 +2825,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           onChange={(e) => setBreakfastOption(e.target.value)}
                         >
                           <option value="with">
-                            With Breakfast {selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? (
-                              parseFloat(selectedRoom.breakfastRate) === 0 ? '(Included / Free)' : `(+₱${parseFloat(selectedRoom.breakfastRate).toFixed(2)})`
-                            ) : (selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast && parseFloat(selectedRoom.rateWithBreakfast) > parseFloat(selectedRoom.rateWithoutBreakfast)) ? (
-                              `(+₱${(parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast)).toFixed(2)})`
-                            ) : ''}
+                            With Breakfast (₱{parseFloat(selectedRoom.rateWithBreakfast || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate))).toFixed(2)}/night{selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined && parseFloat(selectedRoom.breakfastRate) === 0 ? ' - Free' : ''})
                           </option>
-                          <option value="without">Without Breakfast</option>
+                          <option value="without">
+                            Without Breakfast (₱{parseFloat(selectedRoom.rateWithoutBreakfast || selectedRoom.rate).toFixed(2)}/night)
+                          </option>
                         </select>
                       </div>
                       <div className="col-md-6">

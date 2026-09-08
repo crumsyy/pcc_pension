@@ -24,6 +24,7 @@ function parseRoomImages(imgVal) {
 
 function RoomImageCarousel({ images, fallbackImg, alt, height = '210px' }) {
   const [activeIdx, setActiveIdx] = useState(0);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!images || images.length <= 1) return;
@@ -33,13 +34,26 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '210px' }) {
     return () => clearInterval(timer);
   }, [images]);
 
-  const list = images && images.length > 0 ? images : [fallbackImg];
+  const list = images && images.length > 0 ? images : (fallbackImg ? [fallbackImg] : []);
+
+  if (list.length === 0 || hasError) {
+    return (
+      <div
+        className="d-flex flex-column align-items-center justify-content-center bg-light text-muted w-100"
+        style={{ height: height, border: '1px dashed #cbd5e1' }}
+      >
+        <i className="bi bi-image" style={{ fontSize: '2rem', color: '#94a3b8' }}></i>
+        <span className="small fw-semibold mt-1" style={{ color: '#64748b' }}>Image Unavailable</span>
+      </div>
+    );
+  }
 
   if (list.length <= 1) {
     return (
       <img
         src={list[0]}
         alt={alt}
+        onError={() => setHasError(true)}
         style={{ width: '100%', height: height, objectFit: 'cover' }}
       />
     );
@@ -52,6 +66,7 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '210px' }) {
           key={idx}
           src={img}
           alt={`${alt} slide ${idx + 1}`}
+          onError={() => { if (idx === 0 && list.length === 1) setHasError(true); }}
           className={`position-absolute top-0 start-0 w-100 h-100 ${idx === activeIdx ? 'opacity-100' : 'opacity-0'}`}
           style={{ objectFit: 'cover', transition: 'opacity 0.6s ease-in-out' }}
         />
@@ -422,60 +437,100 @@ export default function Home() {
           </div>
 
           {landingData.rooms && landingData.rooms.length > 0 ? (
-            <div className="row g-4">
-              {landingData.rooms.map((rm) => {
-                const parsedImages = parseRoomImages(rm.image);
-                const defaultImg = defaultRoomImages[rm.roomType] || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80';
-                return (
-                  <div key={rm.roomID} className="col-md-6 col-lg-4">
-                    <div className="card h-100 border-0 shadow-sm overflow-hidden room-card-hover" style={{ borderRadius: '12px', backgroundColor: '#fff' }}>
-                      <div style={{ height: '210px', overflow: 'hidden', position: 'relative' }}>
-                        <RoomImageCarousel
-                          images={parsedImages}
-                          fallbackImg={defaultImg}
-                          alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
-                        />
-                        <span className="badge bg-dark text-white position-absolute top-0 start-0 m-3 px-3 py-1 shadow-sm" style={{ fontSize: '0.82rem', zIndex: 6 }}>
-                          {rm.floorName}
-                        </span>
-                        <span className={`badge ${rm.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'} position-absolute top-0 end-0 m-3 px-3 py-1 shadow-sm`} style={{ fontSize: '0.82rem', zIndex: 6 }}>
-                          Room {rm.roomNumber} • {rm.status}
-                        </span>
-                      </div>
-                      <div className="card-body p-4 d-flex flex-column justify-content-between">
-                        <div>
-                          <h5 className="fw-bold text-pcc-blue mb-1">{rm.roomType} (Room {rm.roomNumber})</h5>
-                          <small className="text-muted d-block mb-2">Max Occupancy: {rm.occupancyLimit || 4} Guests</small>
-                          <p className="text-muted small mb-3">{rm.description || rm.typeDescription || 'Comfortable stay with essential amenities and daily housekeeping.'}</p>
-                        </div>
-                        <div>
-                          <div className="p-2.5 bg-light rounded mb-3" style={{ fontSize: '0.82rem' }}>
-                            <div className="d-flex justify-content-between mb-1">
-                              <span className="text-muted">Without Breakfast:</span>
-                              <span className="fw-bold text-dark">₱{parseFloat(rm.rateWithoutBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            (() => {
+              const roomsByFloor = (landingData.rooms || []).reduce((acc, rm) => {
+                const floorKey = rm.floorName || (rm.floorID === 2 ? 'Second Floor' : 'Ground Floor');
+                if (!acc[floorKey]) acc[floorKey] = [];
+                acc[floorKey].push(rm);
+                return acc;
+              }, {});
+
+              return Object.entries(roomsByFloor).map(([floorName, floorRooms], fIdx) => (
+                <div key={floorName} className={`floor-block ${fIdx === Object.keys(roomsByFloor).length - 1 ? 'mb-0' : 'mb-5'}`}>
+                  <div className="floor-label mb-3">
+                    <div className="floor-number">{String(fIdx + 1).padStart(2, '0')}</div>
+                    <div>
+                      <div className="display-font text-blue" style={{ fontSize: "1.2rem", fontWeight: "bold" }}>{floorName}</div>
+                      <div className="floor-name text-muted small">{floorRooms.length} room{floorRooms.length > 1 ? 's' : ''} available on this floor</div>
+                    </div>
+                    <hr />
+                  </div>
+                  <div className="row g-4">
+                    {floorRooms.map((rm) => {
+                      const parsedImages = parseRoomImages(rm.image);
+                      const defaultImg = defaultRoomImages[rm.roomType] || null;
+                      const hasCustomBreakfast = rm.breakfastRate !== null && rm.breakfastRate !== undefined;
+                      const isBreakfastFree = hasCustomBreakfast && parseFloat(rm.breakfastRate) === 0;
+                      const breakfastDiff = hasCustomBreakfast
+                        ? parseFloat(rm.breakfastRate)
+                        : (parseFloat(rm.rateWithBreakfast || 0) - parseFloat(rm.rateWithoutBreakfast || 0));
+
+                      return (
+                        <div key={rm.roomID} className="col-md-6 col-lg-4">
+                          <div className="card h-100 border-0 shadow-sm overflow-hidden room-card-hover" style={{ borderRadius: '12px', backgroundColor: '#fff' }}>
+                            <div style={{ height: '210px', overflow: 'hidden', position: 'relative' }}>
+                              <RoomImageCarousel
+                                images={parsedImages}
+                                fallbackImg={defaultImg}
+                                alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
+                              />
+                              <span className="badge bg-dark text-white position-absolute top-0 start-0 m-3 px-3 py-1 shadow-sm" style={{ fontSize: '0.82rem', zIndex: 6 }}>
+                                {rm.floorName || floorName}
+                              </span>
+                              <span className={`badge ${rm.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'} position-absolute top-0 end-0 m-3 px-3 py-1 shadow-sm`} style={{ fontSize: '0.82rem', zIndex: 6 }}>
+                                Room {rm.roomNumber} • {rm.status}
+                              </span>
                             </div>
-                            <div className="d-flex justify-content-between">
-                              <span className="text-muted">With Breakfast:</span>
-                              <span className="fw-bold text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <div className="card-body p-4 d-flex flex-column justify-content-between">
+                              <div>
+                                <h5 className="fw-bold text-pcc-blue mb-1">{rm.roomType} (Room {rm.roomNumber})</h5>
+                                <small className="text-muted d-block mb-2">Max Occupancy: {rm.occupancyLimit || 4} Guests</small>
+                                <p className="text-muted small mb-3">{rm.description || rm.typeDescription || 'Comfortable stay with essential amenities and daily housekeeping.'}</p>
+                              </div>
+                              <div>
+                                <div className="p-2.5 bg-light rounded mb-3" style={{ fontSize: '0.82rem' }}>
+                                  <div className="d-flex justify-content-between mb-1">
+                                    <span className="text-muted">Without Breakfast:</span>
+                                    <span className="fw-bold text-dark">₱{parseFloat(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div className="d-flex justify-content-between mb-1">
+                                    <span className="text-muted">With Breakfast:</span>
+                                    <span className="fw-bold text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.78rem' }}>
+                                    <span className="text-muted">Breakfast Option:</span>
+                                    {isBreakfastFree ? (
+                                      <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">
+                                        <i className="bi bi-cup-hot me-1"></i>Free / Included
+                                      </span>
+                                    ) : (
+                                      <span className="text-success fw-bold">
+                                        ₱{breakfastDiff.toFixed(2)} add-on
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRoomType(rm.roomType);
+                                    setCheckIn(minCheckIn);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  className="btn btn-pcc-primary btn-sm text-white w-100 fw-bold"
+                                >
+                                  Check Availability &amp; Reserve
+                                </button>
+                              </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => {
-                              setSelectedRoomType(rm.roomType);
-                              setCheckIn(minCheckIn);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            className="btn btn-pcc-primary btn-sm text-white w-100 fw-bold"
-                          >
-                            Check Availability
-                          </button>
                         </div>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              ));
+            })()
           ) : (
             <>
               {/* Ground Floor Fallback */}
