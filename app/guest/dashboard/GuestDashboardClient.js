@@ -11,7 +11,6 @@ import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import DatePicker from '../../components/DatePicker';
 import GuestOrdersContent from './GuestOrdersContent';
 import LoadingButton from '../../components/LoadingButton';
-import NotificationBell from '../../components/NotificationBell';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
@@ -464,6 +463,80 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     } catch (err) {
       console.error("Failed to mark notification read:", err);
     }
+  };
+
+  const handleNotificationClick = (n) => {
+    if (!n.isRead) {
+      handleMarkSingleNotificationRead(n.notificationID);
+    }
+
+    const title = (n.title || '').toLowerCase();
+    const msg = (n.message || '').toLowerCase();
+
+    // 1. Reservation -> direct to active reservation or reservation history
+    if (title.includes('reservation') || msg.includes('reservation')) {
+      if (activeReservation) {
+        setActiveTab('home');
+        setTimeout(() => {
+          const el = document.getElementById('active-reservation-card');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
+      } else {
+        setActiveTab('account');
+        setTimeout(() => {
+          const el = document.getElementById('reservations-history-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
+      }
+      return;
+    }
+
+    // 2. Booking / Stay / Check-In / Check-Out -> direct to active booking or booking history
+    if (title.includes('booking') || title.includes('check-in') || title.includes('check-out') || title.includes('checkout') || msg.includes('booking') || msg.includes('check-in') || msg.includes('check-out')) {
+      if (activeBookingStay) {
+        setActiveTab('home');
+        setTimeout(() => {
+          const el = document.getElementById('active-booking-card');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
+      } else {
+        setActiveTab('account');
+        setTimeout(() => {
+          const el = document.getElementById('bookings-history-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
+      }
+      return;
+    }
+
+    // 3. Room Service Orders -> direct to orders
+    if (title.includes('order') || title.includes('room service') || msg.includes('order')) {
+      setActiveTab('orders');
+      return;
+    }
+
+    // 4. Payment / Billing / GCash / Balance -> direct to billing breakdown or account
+    if (title.includes('payment') || title.includes('billing') || title.includes('gcash') || title.includes('soa') || msg.includes('payment') || msg.includes('balance')) {
+      if (activeBookingStay) {
+        setActiveTab('home');
+        setTimeout(() => {
+          const el = document.getElementById('stay-billing-breakdown');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
+      } else {
+        setActiveTab('account');
+      }
+      return;
+    }
+
+    // 5. Inquiries / Chat / Front Desk Messages
+    if (title.includes('message') || title.includes('inquiry') || title.includes('front desk') || title.includes('chat') || msg.includes('message')) {
+      setActiveTab('chat');
+      return;
+    }
+
+    // Fallback: Home tab
+    setActiveTab('home');
   };
 
   const getNotificationIcon = (title = '') => {
@@ -1214,7 +1287,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
               </Link>
               <div className="d-flex align-items-center gap-2">
-                <NotificationBell />
                 <span className="fw-semibold text-white px-2.5 py-1 rounded-pill d-flex align-items-center gap-1.5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
                   {guest?.profilePicture ? (
                     <img
@@ -1630,7 +1702,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {/* ACTIVE STAY / STATUS CARDS */}
                 {activeReservation && (
-                  <div className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                  <div id="active-reservation-card" className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                     <div className="d-flex justify-content-between align-items-center">
                       <div>
                         <span className="badge bg-success text-white mb-1">Active Reservation Request</span>
@@ -1654,7 +1726,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 )}
 
                 {activeBookingStay && (
-                  <div className="card shadow-sm border-0 border-start border-4 border-primary p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                  <div id="active-booking-card" className="card shadow-sm border-0 border-start border-4 border-primary p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                     <div className="d-flex justify-content-between align-items-start mb-2">
                       <div className="w-100">
                         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
@@ -1700,7 +1772,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <h6 className="fw-bold mb-1 text-dark">Room {activeBookingStay.roomNumber} ({activeBookingStay.roomType})</h6>
 
                         {/* GUEST BILLING BREAKDOWN CARD */}
-                        <div className="card border rounded-3 p-3 bg-light-subtle my-3">
+                        <div id="stay-billing-breakdown" className="card border rounded-3 p-3 bg-light-subtle my-3">
                           <div className="d-flex justify-content-between align-items-center mb-2.5 pb-2 border-bottom">
                             <div className="fw-bold text-dark d-flex align-items-center gap-2" style={{ fontSize: '0.90rem' }}>
                               <i className="bi bi-receipt-cutoff text-primary fs-6"></i>
@@ -2264,7 +2336,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <h4 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                       <i className="bi bi-bell-fill text-primary"></i> Notifications
                     </h4>
-                    <span className="text-muted small">Stay updated on your stay reservations, bookings, and SOA payments.</span>
+                    <span className="text-muted small">Stay updated on your stay reservations, bookings, and room orders. Click any notification to view details.</span>
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     {unreadCount > 0 && (
@@ -2286,38 +2358,61 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="card shadow-sm border-0 p-5 text-center text-muted bg-white" style={{ borderRadius: '16px' }}>
                     <i className="bi bi-bell-slash text-secondary display-3 mb-2 opacity-50"></i>
                     <h6 className="fw-bold text-dark mb-1">No notifications yet</h6>
-                    <p className="mb-0 small">Real-time alerts regarding your room bookings and SOA payments will appear here.</p>
+                    <p className="mb-0 small">Real-time alerts regarding your room reservations, bookings, and orders will appear here.</p>
                   </div>
                 ) : (
-                  <div className="d-flex flex-column gap-2.5">
+                  <div className="d-flex flex-column gap-3">
                     {notifications.map((n) => (
                       <div
                         key={n.notificationID}
-                        onClick={() => !n.isRead && handleMarkSingleNotificationRead(n.notificationID)}
-                        className={`card shadow-sm border-0 p-3.5 transition-all ${
-                          !n.isRead ? 'border-start border-4 border-pcc-blue bg-light shadow-sm cursor-pointer' : 'bg-white text-muted'
+                        onClick={() => handleNotificationClick(n)}
+                        className={`card shadow-sm border-0 transition-all ${
+                          !n.isRead ? 'border-start border-4 border-pcc-blue bg-light' : 'bg-white text-muted'
                         }`}
-                        style={{ borderRadius: '14px', cursor: !n.isRead ? 'pointer' : 'default' }}
+                        style={{
+                          borderRadius: '14px',
+                          cursor: 'pointer',
+                          padding: '1.25rem 1.5rem',
+                          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                          boxShadow: !n.isRead ? '0 4px 14px rgba(33, 85, 181, 0.08)' : '0 2px 6px rgba(0,0,0,0.03)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 18px rgba(0, 0, 0, 0.08)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = !n.isRead ? '0 4px 14px rgba(33, 85, 181, 0.08)' : '0 2px 6px rgba(0,0,0,0.03)';
+                        }}
                       >
-                        <div className="d-flex align-items-start gap-3">
-                          <div className="rounded-circle p-2.5 d-flex align-items-center justify-content-center bg-white shadow-xs" style={{ width: '42px', height: '42px', flexShrink: 0 }}>
-                            <i className={`bi ${getNotificationIcon(n.title)} fs-5`}></i>
-                          </div>
-                          <div className="flex-grow-1">
-                            <div className="d-flex justify-content-between align-items-center mb-1">
-                              <h6 className={`fw-bold mb-0 ${!n.isRead ? 'text-dark' : 'text-secondary'}`} style={{ fontSize: '0.92rem' }}>
-                                {n.title}
-                              </h6>
-                              <div className="d-flex align-items-center gap-2">
-                                {!n.isRead && (
-                                  <span className="badge bg-primary text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.65rem' }}>NEW</span>
-                                )}
+                        <div className="d-flex align-items-center justify-content-between gap-3">
+                          <div className="d-flex align-items-start flex-grow-1 min-w-0" style={{ gap: '1rem' }}>
+                            <div
+                              className="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-xs flex-shrink-0"
+                              style={{ width: '44px', height: '44px', border: '1px solid #e2e8f0' }}
+                            >
+                              <i className={`bi ${getNotificationIcon(n.title)} fs-5`}></i>
+                            </div>
+                            <div className="flex-grow-1 min-w-0">
+                              <div className="d-flex flex-wrap justify-content-between align-items-center gap-1 mb-1">
+                                <div className="d-flex align-items-center gap-2">
+                                  <h6 className={`fw-bold mb-0 ${!n.isRead ? 'text-dark' : 'text-secondary'}`} style={{ fontSize: '0.94rem' }}>
+                                    {n.title}
+                                  </h6>
+                                  {!n.isRead && (
+                                    <span className="badge bg-primary text-white rounded-pill px-2 py-0.5" style={{ fontSize: '0.65rem' }}>NEW</span>
+                                  )}
+                                </div>
                                 <span className="text-muted" style={{ fontSize: '0.74rem' }}>
                                   {new Date(n.createdAt).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
                                 </span>
                               </div>
+                              <p className="text-secondary small mb-0" style={{ lineHeight: '1.5', fontSize: '0.84rem' }}>{n.message}</p>
                             </div>
-                            <p className="text-secondary small mb-0" style={{ lineHeight: '1.45' }}>{n.message}</p>
+                          </div>
+                          <div className="flex-shrink-0 text-muted ps-2 d-none d-sm-flex align-items-center gap-1" style={{ fontSize: '0.78rem' }}>
+                            <span className="text-primary fw-semibold">View</span>
+                            <i className="bi bi-chevron-right fs-6 text-primary"></i>
                           </div>
                         </div>
                       </div>
@@ -2397,8 +2492,52 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
 
+                {/* MY RESERVATIONS HISTORY */}
+                <div id="reservations-history-section" className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                  <h6 className="fw-bold text-dark mb-3">My Reservations History &amp; Status Timeline</h6>
+                  {reservations.length === 0 ? (
+                    <p className="text-muted small mb-0">No reservation records found.</p>
+                  ) : (
+                    <div className="d-flex flex-column gap-3">
+                      {reservations.map((r) => (
+                        <div key={r.reservationID} className="p-3 border rounded bg-light">
+                          <div className="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                              <h6 className="fw-bold mb-0 text-dark">
+                                Reservation #{formatReservationID(r.reservationID)} — Room {r.roomNumber} ({r.roomType || 'Room'})
+                              </h6>
+                              <span className="small text-muted">
+                                Check-in Date: <strong>{formatDate(r.reservationDateTime)}</strong>
+                              </span>
+                            </div>
+                            <div className="d-flex gap-1.5 align-items-center">
+                              {(r.status === 'Pending' || r.status === 'Confirmed') && (
+                                <>
+                                  <button
+                                    className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
+                                    onClick={() => handleProceedToBooking(r)}
+                                  >
+                                    Proceed to Booking
+                                  </button>
+                                  <button
+                                    className="btn btn-xs btn-danger text-white fw-bold px-2.5 py-1"
+                                    onClick={() => handleCancelReservation(r.reservationID)}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {renderBookingStatusTimeline(r.status)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* MY BOOKINGS HISTORY */}
-                <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                <div id="bookings-history-section" className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                   <h6 className="fw-bold text-dark mb-3">My Bookings History &amp; Status Timeline</h6>
                   {bookings.length === 0 ? (
                     !resetBannerDismissed ? (
