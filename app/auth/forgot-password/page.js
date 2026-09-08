@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import LoadingButton from "@/app/components/LoadingButton";
 
 function ForgotPasswordContent() {
   const router = useRouter();
@@ -177,9 +178,14 @@ function ForgotPasswordContent() {
                       autoFocus
                     />
                   </div>
-                  <button type="submit" className="btn btn-pcc-primary w-100" disabled={loading}>
-                    {loading ? "Sending Code..." : "Send Reset Code"}
-                  </button>
+                  <LoadingButton
+                    type="submit"
+                    className="btn btn-pcc-primary w-100 fw-bold"
+                    isLoading={loading}
+                    loadingText="Sending Code..."
+                  >
+                    Send Reset Code
+                  </LoadingButton>
                 </form>
               )}
 
@@ -201,9 +207,14 @@ function ForgotPasswordContent() {
                       autoFocus
                     />
                   </div>
-                  <button type="submit" className="btn btn-pcc-primary w-100" disabled={loading}>
-                    {loading ? "Verifying..." : "Verify Code"}
-                  </button>
+                  <LoadingButton
+                    type="submit"
+                    className="btn btn-pcc-primary w-100 fw-bold"
+                    isLoading={loading}
+                    loadingText="Verifying..."
+                  >
+                    Verify Code
+                  </LoadingButton>
                   <button 
                     type="button" 
                     className="btn btn-link w-100 text-blue mt-2" 
@@ -264,9 +275,14 @@ function ForgotPasswordContent() {
                       required
                     />
                   </div>
-                  <button type="submit" className="btn btn-pcc-primary w-100" disabled={loading}>
-                    {loading ? "Resetting Password..." : "Set New Password"}
-                  </button>
+                  <LoadingButton
+                    type="submit"
+                    className="btn btn-pcc-primary w-100 fw-bold"
+                    isLoading={loading}
+                    loadingText="Resetting Password..."
+                  >
+                    Set New Password
+                  </LoadingButton>
                 </form>
               )}
             </div>

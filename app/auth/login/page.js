@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import TestAccountsPanel from "@/app/components/TestAccountsPanel";
+import LoadingButton from "@/app/components/LoadingButton";
 
 function LoginContent() {
   const router = useRouter();
@@ -18,7 +19,6 @@ function LoginContent() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingDots, setLoadingDots] = useState(1);
 
   const autofillLogin = (testEmail, testPassword) => {
     try {
@@ -29,19 +29,6 @@ function LoginContent() {
       console.error("Autofill error:", err);
     }
   };
-  const handleQuickFill = autofillLogin;
-
-  useEffect(() => {
-    let interval;
-    if (loading) {
-      interval = setInterval(() => {
-        setLoadingDots((prev) => (prev % 3) + 1);
-      }, 400);
-    } else {
-      setLoadingDots(1);
-    }
-    return () => clearInterval(interval);
-  }, [loading]);
 
   // Check URL parameters for notices
   useEffect(() => {
@@ -199,9 +186,14 @@ function LoginContent() {
                     Forgot password?
                   </Link>
                 </div>
-                <button type="submit" className="btn btn-pcc-primary w-100" disabled={loading}>
-                  {loading ? `Logging in${'.'.repeat(loadingDots)}` : "Log In"}
-                </button>
+                <LoadingButton
+                  type="submit"
+                  className="btn btn-pcc-primary w-100 fw-bold"
+                  isLoading={loading}
+                  loadingText="Logging in..."
+                >
+                  Log In
+                </LoadingButton>
                 <p className="text-center mt-3 mb-0" style={{ fontSize: "0.9rem" }}>
                   Don&apos;t have an account? <Link href="/auth/register" className="text-blue fw-semibold">Create one</Link>
                 </p>

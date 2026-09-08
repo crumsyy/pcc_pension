@@ -5,25 +5,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
+import LoadingButton from './LoadingButton';
 
 export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
   const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutDots, setLogoutDots] = useState(1);
-
-  useEffect(() => {
-    let interval;
-    if (loggingOut) {
-      interval = setInterval(() => {
-        setLogoutDots((prev) => (prev % 3) + 1);
-      }, 400);
-    } else {
-      setLogoutDots(1);
-    }
-    return () => clearInterval(interval);
-  }, [loggingOut]);
 
   // SVG Icons
   const icons = {
@@ -260,10 +248,11 @@ export default function SidebarClient({ session, role, children }) {
                   >
                     Cancel
                   </button>
-                  <button 
+                  <LoadingButton 
                     type="button" 
                     className="btn btn-pcc-primary text-white w-100 fw-semibold"
-                    disabled={loggingOut}
+                    isLoading={loggingOut}
+                    loadingText="Logging out..."
                     onClick={async () => {
                       setLoggingOut(true);
                       try {
@@ -275,8 +264,8 @@ export default function SidebarClient({ session, role, children }) {
                       }
                     }}
                   >
-                    {loggingOut ? `Logging out${'.'.repeat(logoutDots)}` : 'Log Out'}
-                  </button>
+                    Log Out
+                  </LoadingButton>
                 </div>
               </div>
             </div>

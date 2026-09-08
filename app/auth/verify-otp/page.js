@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import LoadingButton from "@/app/components/LoadingButton";
 
 function VerifyOtpContent() {
   const router = useRouter();
@@ -145,18 +146,28 @@ function VerifyOtpContent() {
                     autoFocus
                   />
                 </div>
-                <button type="submit" className="btn btn-pcc-primary w-100" disabled={loading}>
-                  {loading ? "Verifying..." : "Verify Account"}
-                </button>
+                <LoadingButton
+                  type="submit"
+                  className="btn btn-pcc-primary w-100 fw-bold"
+                  isLoading={loading}
+                  loadingText="Verifying..."
+                >
+                  Verify Account
+                </LoadingButton>
               </form>
 
               <form onSubmit={handleResend} className="text-center mt-3">
                 <p className="mb-1 style-font" style={{ fontSize: "0.9rem", color: "var(--pcc-muted)" }}>
                   Didn&apos;t receive the code?
                 </p>
-                <button type="submit" className="btn btn-pcc-outline btn-sm" disabled={resending}>
-                  {resending ? "Resending..." : "Resend Code"}
-                </button>
+                <LoadingButton
+                  type="submit"
+                  className="btn btn-pcc-outline btn-sm fw-semibold"
+                  isLoading={resending}
+                  loadingText="Resending..."
+                >
+                  Resend Code
+                </LoadingButton>
               </form>
             </div>
           </div>

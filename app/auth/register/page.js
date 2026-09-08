@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DateInput, { isValidDate, toDbDate } from "@/app/components/DateInput";
 import ThemeToggle from "@/app/components/ThemeToggle";
+import LoadingButton from "@/app/components/LoadingButton";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -414,9 +415,14 @@ export default function RegisterPage() {
                   </div>
 
                   <div className="col-12">
-                    <button type="submit" className="btn btn-pcc-primary w-100 py-2" disabled={loading}>
-                      {loading ? "Registering..." : "Create Account"}
-                    </button>
+                    <LoadingButton
+                      type="submit"
+                      className="btn btn-pcc-primary w-100 py-2 fw-bold"
+                      isLoading={loading}
+                      loadingText="Registering..."
+                    >
+                      Create Account
+                    </LoadingButton>
                     <p className="text-center mt-3 mb-0" style={{ fontSize: "0.9rem" }}>
                       Already have an account? <Link href="/auth/login" className="text-blue fw-semibold">Log in</Link>
                     </p>

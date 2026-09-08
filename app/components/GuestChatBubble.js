@@ -987,12 +987,19 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   Cancel
                 </button>
                 <button
-                  className="btn btn-xs btn-success text-white flex-grow-1 fw-bold"
+                  className="btn btn-xs btn-success text-white flex-grow-1 fw-bold d-inline-flex align-items-center justify-content-center gap-1.5"
                   onClick={handleConfirmOrder}
                   disabled={placingOrder}
                   style={{ fontSize: '0.72rem' }}
                 >
-                  {placingOrder ? 'Processing...' : 'Confirm & Place Order'}
+                  {placingOrder ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '0.8rem', height: '0.8rem', borderWidth: '1.5px' }}></span>
+                      Processing...
+                    </>
+                  ) : (
+                    'Confirm & Place Order'
+                  )}
                 </button>
               </div>
             </div>

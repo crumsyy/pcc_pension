@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
+import LoadingButton from '../../components/LoadingButton';
 
 export default function EditProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -507,9 +508,14 @@ export default function EditProfilePage() {
                 </div>
 
                 <div className="mt-4 pt-3 border-top d-flex justify-content-end">
-                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold px-4 py-2" disabled={saving}>
-                    {saving ? 'Saving Changes...' : 'Save Profile Details'}
-                  </button>
+                  <LoadingButton
+                    type="submit"
+                    className="btn btn-pcc-primary text-white fw-bold px-4 py-2"
+                    isLoading={saving}
+                    loadingText="Saving Changes..."
+                  >
+                    Save Profile Details
+                  </LoadingButton>
                 </div>
               </form>
             </div>
@@ -529,13 +535,15 @@ export default function EditProfilePage() {
                 <span className="badge bg-secondary text-white px-2.5 py-1.5">Verified</span>
               </div>
 
-              <button
+              <LoadingButton
+                type="button"
                 className="btn btn-pcc-primary text-white fw-bold w-100 py-2.5"
                 onClick={handleStartEmailChange}
-                disabled={emailProcessing}
+                isLoading={emailProcessing}
+                loadingText="Sending Verification OTP..."
               >
-                {emailProcessing ? 'Sending Verification OTP...' : 'Change Email Address (Requires 2-Step OTP)'}
-              </button>
+                Change Email Address (Requires 2-Step OTP)
+              </LoadingButton>
             </div>
 
             {/* CARD 3: PASSWORD & SECURITY (Locked - Requires OTP) */}
@@ -545,13 +553,15 @@ export default function EditProfilePage() {
                 <p className="text-muted small mb-0">Password updates require OTP verification sent to your current email.</p>
               </div>
 
-              <button
+              <LoadingButton
+                type="button"
                 className="btn btn-danger text-white fw-bold w-100 py-2.5 shadow-sm"
                 onClick={handleStartPasswordChange}
-                disabled={passwordProcessing}
+                isLoading={passwordProcessing}
+                loadingText="Sending Password OTP..."
               >
-                {passwordProcessing ? 'Sending Password OTP...' : 'Change Account Password (Required OTP)'}
-              </button>
+                Change Account Password (Required OTP)
+              </LoadingButton>
             </div>
           </div>
         )}
@@ -587,9 +597,14 @@ export default function EditProfilePage() {
                     </div>
                     <div className="d-flex gap-2">
                       <button type="button" className="btn btn-danger text-white w-50 fw-bold" onClick={() => setEmailStep(0)}>Cancel</button>
-                      <button type="submit" className="btn btn-primary text-white fw-bold w-50" disabled={emailProcessing}>
-                        {emailProcessing ? 'Verifying...' : 'Next Step'}
-                      </button>
+                      <LoadingButton
+                        type="submit"
+                        className="btn btn-primary text-white fw-bold w-50"
+                        isLoading={emailProcessing}
+                        loadingText="Verifying..."
+                      >
+                        Next Step
+                      </LoadingButton>
                     </div>
                   </form>
                 )}
@@ -613,9 +628,14 @@ export default function EditProfilePage() {
                     </div>
                     <div className="d-flex gap-2">
                       <button type="button" className="btn btn-danger text-white w-50 fw-bold" onClick={() => setEmailStep(0)}>Cancel</button>
-                      <button type="submit" className="btn btn-primary text-white fw-bold w-50" disabled={emailProcessing}>
-                        {emailProcessing ? 'Sending...' : 'Send OTP to New Email'}
-                      </button>
+                      <LoadingButton
+                        type="submit"
+                        className="btn btn-primary text-white fw-bold w-50"
+                        isLoading={emailProcessing}
+                        loadingText="Sending..."
+                      >
+                        Send OTP to New Email
+                      </LoadingButton>
                     </div>
                   </form>
                 )}
@@ -640,9 +660,14 @@ export default function EditProfilePage() {
                     </div>
                     <div className="d-flex gap-2">
                       <button type="button" className="btn btn-danger text-white w-50 fw-bold" onClick={() => setEmailStep(0)}>Cancel</button>
-                      <button type="submit" className="btn btn-success text-white fw-bold w-50" disabled={emailProcessing}>
-                        {emailProcessing ? 'Updating...' : 'Confirm & Update Email'}
-                      </button>
+                      <LoadingButton
+                        type="submit"
+                        className="btn btn-success text-white fw-bold w-50"
+                        isLoading={emailProcessing}
+                        loadingText="Updating..."
+                      >
+                        Confirm & Update Email
+                      </LoadingButton>
                     </div>
                   </form>
                 )}
@@ -706,9 +731,14 @@ export default function EditProfilePage() {
 
                   <div className="d-flex gap-2 pt-2">
                     <button type="button" className="btn btn-danger text-white w-50 fw-bold" onClick={() => setPasswordStep(0)}>Cancel</button>
-                    <button type="submit" className="btn btn-danger text-white fw-bold w-50" disabled={passwordProcessing}>
-                      {passwordProcessing ? 'Resetting...' : 'Update Password'}
-                    </button>
+                    <LoadingButton
+                      type="submit"
+                      className="btn btn-danger text-white fw-bold w-50"
+                      isLoading={passwordProcessing}
+                      loadingText="Resetting..."
+                    >
+                      Update Password
+                    </LoadingButton>
                   </div>
                 </form>
               </div>

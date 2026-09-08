@@ -10,6 +10,7 @@ import ThemeToggle from '../../components/ThemeToggle';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import DatePicker from '../../components/DatePicker';
 import GuestOrdersContent from './GuestOrdersContent';
+import LoadingButton from '../../components/LoadingButton';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
@@ -109,6 +110,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [discounts, setDiscounts] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [resetBannerDismissed, setResetBannerDismissed] = useState(true);
 
   useEffect(() => {
@@ -642,6 +644,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   };
 
   const handleConfirmLogout = () => {
+    setLoggingOut(true);
     window.location.href = '/api/auth/logout';
   };
 
@@ -1139,12 +1142,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <p className="text-secondary small mb-4">Are you sure you want to log out of your guest account?</p>
 
                 <div className="d-flex gap-2 justify-content-center">
-                  <button className="btn btn-danger text-white px-4 py-2 fw-semibold" onClick={() => setShowLogoutModal(false)} style={{ borderRadius: '8px' }}>
+                  <button className="btn btn-secondary text-white px-4 py-2 fw-semibold" onClick={() => setShowLogoutModal(false)} style={{ borderRadius: '8px' }}>
                     Cancel
                   </button>
-                  <button className="btn btn-danger text-white px-4 py-2 fw-bold" onClick={handleConfirmLogout} style={{ borderRadius: '8px' }}>
+                  <LoadingButton 
+                    type="button"
+                    className="btn btn-danger text-white px-4 py-2 fw-bold" 
+                    isLoading={loggingOut}
+                    loadingText="Logging out..."
+                    onClick={handleConfirmLogout} 
+                    style={{ borderRadius: '8px' }}
+                  >
                     Logout <i className="bi bi-box-arrow-right ms-1"></i>
-                  </button>
+                  </LoadingButton>
                 </div>
               </div>
             </div>
@@ -2740,13 +2750,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
-                  <button
+                  <LoadingButton
                     type="submit"
                     className="btn btn-success text-white fw-bold"
-                    disabled={processing || Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
+                    isLoading={processing}
+                    loadingText="Submitting..."
+                    disabled={Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
                   >
-                    {processing ? 'Submitting...' : 'Submit Reservation Request'}
-                  </button>
+                    Submit Reservation Request
+                  </LoadingButton>
                 </div>
               </form>
             </div>
@@ -2921,13 +2933,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
-                  <button
+                  <LoadingButton
                     type="submit"
                     className="btn btn-primary text-white fw-bold"
-                    disabled={processing || Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
+                    isLoading={processing}
+                    loadingText="Proceeding..."
+                    disabled={Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
                   >
                     Proceed to GCash Payment
-                  </button>
+                  </LoadingButton>
                 </div>
               </form>
             </div>
@@ -3056,9 +3070,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     setGcashRef('');
                     setActiveModal('book_form');
                   }}>Back</button>
-                  <button type="submit" className="btn btn-success text-white fw-bold" disabled={processing}>
-                    {processing ? 'Processing Payment...' : `Confirm Payment (₱${amountToPayNow.toFixed(2)})`}
-                  </button>
+                  <LoadingButton 
+                    type="submit" 
+                    className="btn btn-success text-white fw-bold" 
+                    isLoading={processing}
+                    loadingText="Processing Payment..."
+                  >
+                    Confirm Payment (₱{amountToPayNow.toFixed(2)})
+                  </LoadingButton>
                 </div>
               </form>
             </div>

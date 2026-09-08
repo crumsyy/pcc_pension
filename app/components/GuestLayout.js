@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import GuestSidebarNav from '../guest/dashboard/GuestSidebarNav';
 import GuestBottomNav from '../guest/dashboard/GuestBottomNav';
+import LoadingButton from './LoadingButton';
 
 export default function GuestLayout({ children, activeTab = 'orders', guest: propGuest }) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [guest, setGuest] = useState(propGuest || null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
   }, [propGuest]);
 
   const handleLogout = async () => {
+    setLoggingOut(true);
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/auth/login';
@@ -147,9 +150,15 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
                 <button type="button" className="btn btn-secondary px-3" onClick={() => setShowLogoutModal(false)}>
                   Cancel
                 </button>
-                <button type="button" className="btn btn-danger px-4 fw-bold" onClick={handleLogout}>
+                <LoadingButton
+                  type="button"
+                  className="btn btn-danger px-4 fw-bold"
+                  isLoading={loggingOut}
+                  loadingText="Logging out..."
+                  onClick={handleLogout}
+                >
                   Log Out
-                </button>
+                </LoadingButton>
               </div>
             </div>
           </div>
