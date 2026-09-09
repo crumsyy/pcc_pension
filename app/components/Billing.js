@@ -35,14 +35,59 @@ export default function Billing({ detailedBill, onOpenPaymentHistory }) {
     detailedBill.storedDownPaymentPercentage ||
     30;
 
+  // Standard Check-in and Check-out times
+  const standardCheckInTime = detailedBill.standardCheckInTime || '14:00';
+  const standardCheckOutTime = detailedBill.standardCheckOutTime || '12:00';
+
+  const rawCheckInTime = detailedBill.checkInTime ||
+    (detailedBill.checkInDateTime ? String(detailedBill.checkInDateTime).substring(11, 16) :
+    (detailedBill.booking?.checkInDateTime ? String(detailedBill.booking.checkInDateTime).substring(11, 16) : ''));
+
+  const rawCheckOutTime = detailedBill.checkOutTime ||
+    (detailedBill.checkOutDateTime ? String(detailedBill.checkOutDateTime).substring(11, 16) :
+    (detailedBill.booking?.checkOutDateTime ? String(detailedBill.booking.checkOutDateTime).substring(11, 16) : ''));
+
   // Additional Charges: Incidentals + Early Check-In + Late Check-Out + Cooked Meals/Orders + Extra Guests
   const incidentalTotal = parseFloat(
     detailedBill.regularIncidentalTotal ||
     detailedBill.incidentalTotal ||
     0
   );
-  const earlyCheckInFee = parseFloat(detailedBill.earlyCheckInFee || 0);
-  const lateCheckOutFee = parseFloat(detailedBill.lateCheckOutFee || 0);
+
+  let earlyCheckInFee = parseFloat(
+    detailedBill.earlyCheckInFee ||
+    detailedBill.chargesSummary?.earlyCheckIn ||
+    0
+  );
+
+  let lateCheckOutFee = parseFloat(
+    detailedBill.lateCheckOutFee ||
+    detailedBill.chargesSummary?.lateCheckOut ||
+    0
+  );
+
+  // Dynamic time-based early check-in calculation if not explicitly provided
+  if (!earlyCheckInFee && rawCheckInTime && rawCheckInTime < standardCheckInTime) {
+    const [cHour, cMin] = rawCheckInTime.split(':').map(Number);
+    const [sHour, sMin] = standardCheckInTime.split(':').map(Number);
+    const earlyMinutes = ((sHour || 14) * 60 + (sMin || 0)) - ((cHour || 0) * 60 + (cMin || 0));
+    if (earlyMinutes > 0) {
+      const earlyHours = Math.max(1, Math.ceil(earlyMinutes / 60));
+      earlyCheckInFee = earlyHours * (parseFloat(detailedBill.earlyCheckInHourlyRate) || 50);
+    }
+  }
+
+  // Dynamic time-based late check-out calculation if not explicitly provided
+  if (!lateCheckOutFee && rawCheckOutTime && rawCheckOutTime > standardCheckOutTime) {
+    const [cHour, cMin] = rawCheckOutTime.split(':').map(Number);
+    const [sHour, sMin] = standardCheckOutTime.split(':').map(Number);
+    const lateMinutes = ((cHour || 0) * 60 + (cMin || 0)) - ((sHour || 12) * 60 + (sMin || 0));
+    if (lateMinutes > 0) {
+      const lateHours = Math.max(1, Math.ceil(lateMinutes / 60));
+      lateCheckOutFee = lateHours * (parseFloat(detailedBill.lateCheckOutHourlyRate) || 100);
+    }
+  }
+
   const extraGuestFee = parseFloat(detailedBill.extraGuestFee || detailedBill.chargesSummary?.extraGuestFee || 0);
   const ordersTotal = parseFloat(detailedBill.ordersTotal || 0);
 

@@ -18,7 +18,8 @@ export default function DatePicker({
   disabledDates = [], // Array of 'YYYY-MM-DD' strings
   disabledTimeSlots = [], // Optional time slots
   helperText = "",
-  className = ""
+  className = "",
+  readOnlyVisual = false
 }) {
   const parseDateParts = (str) => {
     if (!str) return null;
@@ -151,7 +152,7 @@ export default function DatePicker({
       </div>
 
       {/* Days Grid */}
-      <div className="d-grid gap-1 text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+      <div className={`d-grid gap-1 text-center ${readOnlyVisual ? 'calendar-visual' : ''}`} style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
         {days.map((dateStr, idx) => {
           if (!dateStr) {
             return <div key={`empty-${idx}`} className="p-1" />;

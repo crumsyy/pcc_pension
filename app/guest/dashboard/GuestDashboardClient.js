@@ -9,6 +9,9 @@ import GuestSidebarNav from './GuestSidebarNav';
 import ThemeToggle from '../../components/ThemeToggle';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import DatePicker from '../../components/DatePicker';
+import ReservationCalendar from '../../components/ReservationCalendar';
+import ReservationForm from '../../components/ReservationForm';
+import BookingForm from '../../components/BookingForm';
 import GuestOrdersContent from './GuestOrdersContent';
 import LoadingButton from '../../components/LoadingButton';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
@@ -204,6 +207,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   // Form States
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().substring(0, 10));
   const [checkOutDate, setCheckOutDate] = useState(new Date(Date.now() + 86400000).toISOString().substring(0, 10));
+  const [checkInTime, setCheckInTime] = useState('14:00');
+  const [checkOutTime, setCheckOutTime] = useState('12:00');
 
   const handleCheckInDateChange = (val) => {
     setCheckInDate(val);
@@ -692,9 +697,22 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const amountToPayNow = Math.round(netTotalAmount * (paymentPctNumber / 100) * 100) / 100;
   const remainingBalanceAfterPay = Math.max(0, Math.round((netTotalAmount - amountToPayNow) * 100) / 100);
 
-  // Early Check-In Fee Preview Calculation (strictly on arrival day before 2:00 PM)
+  // Early Check-In Fee Preview Calculation (based on selected checkInTime < 14:00 or current arrival day)
   const calculateEarlyCheckInPreview = () => {
     if (!checkInDate) return { isEarly: false, earlyHours: 0, earlyFee: 0 };
+    
+    // Check if user selected checkInTime earlier than standard 2:00 PM (14:00)
+    if (checkInTime && checkInTime < '14:00') {
+      const [ch, cm] = checkInTime.split(':').map(Number);
+      const inMinutes = (ch || 0) * 60 + (cm || 0);
+      const earlyMinutes = (14 * 60) - inMinutes;
+      if (earlyMinutes > 0) {
+        const earlyHours = Math.max(1, Math.ceil(earlyMinutes / 60));
+        const earlyFee = earlyHours * 50;
+        return { isEarly: true, earlyHours, earlyFee };
+      }
+    }
+
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     let manilaHour = now.getHours();
@@ -729,6 +747,22 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     return { isEarly: false, earlyHours: 0, earlyFee: 0 };
   };
   const earlyCheckInInfo = calculateEarlyCheckInPreview();
+
+  // Late Check-Out Fee Preview Calculation (based on selected checkOutTime > 12:00 @ ₱100/hr)
+  const calculateLateCheckOutPreview = () => {
+    if (!checkOutTime || checkOutTime <= '12:00') return { isLate: false, lateHours: 0, lateFee: 0 };
+    const [ch, cm] = checkOutTime.split(':').map(Number);
+    const outMinutes = (ch || 0) * 60 + (cm || 0);
+    const standardOutMinutes = 12 * 60;
+    const lateMinutes = outMinutes - standardOutMinutes;
+    if (lateMinutes > 0) {
+      const lateHours = Math.max(1, Math.ceil(lateMinutes / 60));
+      const lateFee = lateHours * 100;
+      return { isLate: true, lateHours, lateFee };
+    }
+    return { isLate: false, lateHours: 0, lateFee: 0 };
+  };
+  const lateCheckOutInfo = calculateLateCheckOutPreview();
 
   // Dashboard Metrics
   const totalStaysCount = bookings.length;
@@ -815,6 +849,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           roomID: selectedRoom.roomID,
           checkInDate,
           checkOutDate,
+          checkInTime,
+          checkOutTime,
+          checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
+          checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
           numGuests,
           specialRequests
         })
@@ -900,6 +938,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           roomID: selectedRoom.roomID,
           checkInDate,
           checkOutDate,
+          checkInTime,
+          checkOutTime,
+          checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
+          checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
           registeredGuests,
           paymentMethod: 'GCash',
           paymentStatus: 'Settled',
@@ -3489,20 +3531,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
 
                   <div className="mb-3">
-                    <DatePicker
-                      label="Select Check-In Date *"
-                      value={checkInDate}
+                    <ReservationForm
+                      checkInDate={checkInDate}
+                      onChangeCheckInDate={(newDate) => handleCheckInDateChange(newDate)}
+                      checkOutDate={checkOutDate}
+                      onChangeCheckOutDate={(newDate) => setCheckOutDate(newDate)}
+                      checkInTime={checkInTime}
+                      onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
+                      checkOutTime={checkOutTime}
+                      onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
                       minDate={minReserveDateStr}
                       maxDate={maxReserveDateStr}
-                      disabledDates={selectedRoom ? getDisabledDatesForRoom(selectedRoom.roomID) : []}
-                      onChange={(newDate) => handleCheckInDateChange(newDate)}
-                      helperText="Note: Greyed out dates ('Busy') are already reserved or booked. Reservations are accepted up to 2 days ahead."
+                      selectedRoom={selectedRoom}
+                      roomSchedules={roomSchedules}
                     />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold small">Check-Out Date *</label>
-                    <input type="date" className="form-control form-control-sm" min={checkInDate || minReserveDateStr} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
                   </div>
 
                   {selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate) && (
@@ -3622,21 +3664,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="col-md-6">
                       <div className="p-3 bg-light rounded border h-100">
                         <h6 className="fw-bold text-dark mb-2">Stay Schedule</h6>
-                        <div className="mb-3">
-                          <DatePicker
-                            label="Check-In Date *"
-                            value={checkInDate}
-                            minDate={minBookDateStr}
-                            disabledDates={selectedRoom ? getDisabledDatesForRoom(selectedRoom.roomID) : []}
-                            onChange={(newDate) => handleCheckInDateChange(newDate)}
-                            helperText="Note: Dates marked as 'Busy' are already booked or reserved."
-                          />
-                        </div>
-                        <div className="mb-2">
-                          <label className="form-label mb-0 small text-muted">Check-Out Date *</label>
-                          <input type="date" className="form-control form-control-sm" min={checkInDate || minBookDateStr} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} required />
-                        </div>
-                        <div className="fw-bold text-primary small">Duration: {nightsCount} Night(s)</div>
+                        <BookingForm
+                          checkInDate={checkInDate}
+                          onChangeCheckInDate={(newDate) => handleCheckInDateChange(newDate)}
+                          checkOutDate={checkOutDate}
+                          onChangeCheckOutDate={(newDate) => setCheckOutDate(newDate)}
+                          checkInTime={checkInTime}
+                          onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
+                          checkOutTime={checkOutTime}
+                          onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
+                          minDate={minBookDateStr}
+                          nightsCount={nightsCount}
+                          selectedRoom={selectedRoom}
+                          roomSchedules={roomSchedules}
+                          showCalendar={true}
+                        />
                       </div>
                     </div>
                   </div>
@@ -3698,6 +3740,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="alert alert-warning py-2 px-3 small mb-3">
                       <i className="bi bi-clock-history me-1.5 fw-bold"></i>
                       <strong>Early Arrival Note:</strong> Standard check-in is 2:00 PM. Arriving before 2:00 PM will incur an estimated early check-in fee of <strong>₱{earlyCheckInInfo.earlyFee.toFixed(2)}</strong> ({earlyCheckInInfo.earlyHours} hr(s) @ ₱50/hr) added upon check-in.
+                    </div>
+                  )}
+
+                  {lateCheckOutInfo.isLate && (
+                    <div className="alert alert-danger py-2 px-3 small mb-3">
+                      <i className="bi bi-clock-history me-1.5 fw-bold"></i>
+                      <strong>Late Departure Note:</strong> Standard check-out is 12:00 PM. Departing past 12:00 PM will incur an estimated late check-out fee of <strong>₱{lateCheckOutInfo.lateFee.toFixed(2)}</strong> ({lateCheckOutInfo.lateHours} hr(s) @ ₱100/hr) added upon check-out.
                     </div>
                   )}
 

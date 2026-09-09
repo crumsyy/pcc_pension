@@ -19,7 +19,8 @@ export default function CalendarDatePicker({
   disabledDates = [], // Array of 'YYYY-MM-DD' or 'MM/DD/YYYY' strings
   helperText = "",
   className = "",
-  returnFormat = "auto" // 'auto' (matches input format), 'YYYY-MM-DD', or 'MM/DD/YYYY'
+  returnFormat = "auto", // 'auto' (matches input format), 'YYYY-MM-DD', or 'MM/DD/YYYY'
+  readOnlyVisual = false
 }) {
   const pad = (n) => String(n).padStart(2, '0');
 
@@ -198,7 +199,7 @@ export default function CalendarDatePicker({
       </div>
 
       {/* Days Grid */}
-      <div className="d-grid gap-1 text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+      <div className={`d-grid gap-1 text-center ${readOnlyVisual ? 'calendar-visual' : ''}`} style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
         {days.map((dateStr, idx) => {
           if (!dateStr) {
             return <div key={`empty-${idx}`} className="p-1" />;

@@ -1959,3 +1959,40 @@ body.dark-theme .qr-payment-container h4 {
 .billing-breakdown .total-row {
   font-weight: bold;
 }
+
+/* Visual Calendar & Date-Time Pickers Styling Standards */
+.calendar-visual {
+  pointer-events: none; /* disables interaction */
+  opacity: 0.95;
+}
+
+.form-control[type="date"],
+.form-control[type="time"],
+.form-control[type="datetime-local"] {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+}
+
+.calendar-status-reserved {
+  background-color: #fff3cd !important;
+  border: 1px solid #ffc107 !important;
+  color: #856404 !important;
+}
+
+.calendar-status-booked {
+  background-color: #d1e7dd !important;
+  border: 1px solid #198754 !important;
+  color: #0f5132 !important;
+}
+
+.calendar-status-occupied {
+  background-color: #f8d7da !important;
+  border: 1px solid #dc3545 !important;
+  color: #842029 !important;
+}
+
+.calendar-status-maintenance {
+  background-color: #e2e3e5 !important;
+  border: 1px solid #6c757d !important;
+  color: #41464b !important;
+}

@@ -1638,12 +1638,21 @@ function BookingsClient() {
                   <div className="row g-3 mb-3">
                     {checkInScenario === 'later' && (
                       <div className="col-md-6">
+                        <label className="form-label small fw-semibold">Check-In Date *</label>
+                        <input
+                          type="date"
+                          className="form-control form-control-sm mb-2"
+                          value={toDbDate(checkInDate)}
+                          min={todayDbDate}
+                          onChange={(e) => handleCheckInDateChange(e.target.value)}
+                          required
+                        />
                         <CalendarDatePicker
-                          label="Select Check-In Date *"
+                          label="Room Availability (Read-Only)"
                           value={checkInDate}
-                          onChange={(val) => handleCheckInDateChange(val)}
+                          readOnlyVisual={true}
                           minDate={todayDbDate}
-                          helperText="Select the guest's arrival date"
+                          helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
                         />
                         <div className="mt-2">
                           <label className="form-label small fw-semibold">Check-In Time *</label>
@@ -1665,12 +1674,21 @@ function BookingsClient() {
                     )}
 
                     <div className={checkInScenario === 'later' ? "col-md-6" : "col-12"}>
+                      <label className="form-label small fw-semibold">Check-Out Date *</label>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm mb-2"
+                        value={toDbDate(checkOutDate)}
+                        min={checkInDate ? toDbDate(checkInDate) : todayDbDate}
+                        onChange={(e) => setCheckOutDate(e.target.value)}
+                        required
+                      />
                       <CalendarDatePicker
-                        label="Select Check-Out Date *"
+                        label="Room Availability (Read-Only)"
                         value={checkOutDate}
-                        onChange={(val) => setCheckOutDate(val)}
+                        readOnlyVisual={true}
                         minDate={checkInDate ? toDbDate(checkInDate) : todayDbDate}
-                        helperText="Select the guest's departure date"
+                        helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
                       />
                       <div className="mt-2">
                         <label className="form-label small fw-semibold">Check-Out Time *</label>
