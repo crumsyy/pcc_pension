@@ -1884,3 +1884,43 @@ body.dark-theme .image-fallback-sm {
   color: #94a3b8 !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
+
+/* =====================================================================
+   Guest-Facing & Dual Monitor QR Payment Display
+   ===================================================================== */
+.qr-payment-container {
+  max-width: 450px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.qr-image {
+  max-width: 250px;
+  width: 100%;
+  height: auto;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+}
+
+.qr-payment-container h4 {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+}
+
+[data-bs-theme="dark"] .qr-payment-container,
+body.dark-theme .qr-payment-container {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-bs-theme="dark"] .qr-payment-container h4,
+body.dark-theme .qr-payment-container h4 {
+  color: #f8fafc !important;
+}

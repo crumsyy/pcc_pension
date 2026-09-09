@@ -460,13 +460,25 @@ function CheckInClient() {
                         )}
 
                         {b.status === 'Final Billing Updated' && (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-primary fw-bold d-inline-flex align-items-center gap-1"
-                            onClick={() => setFinalBillModal({ isOpen: true, booking: b, singleDesc: '', singleAmount: '' })}
-                          >
-                            <i className="fa-solid fa-plus"></i> Add Extra Incidentals
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary fw-bold d-inline-flex align-items-center gap-1"
+                              onClick={() => setFinalBillModal({ isOpen: true, booking: b, singleDesc: '', singleAmount: '' })}
+                            >
+                              <i className="fa-solid fa-plus"></i> Add Extra Incidentals
+                            </button>
+                            <a
+                              href={`/receptionist/qr-payment?bookingId=${b.bookingID}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-sm btn-primary text-white fw-bold d-inline-flex align-items-center gap-1"
+                              title="Open Guest-Facing QR Payment Tab"
+                              aria-label="Show QR Code"
+                            >
+                              <i className="fa-solid fa-qrcode"></i> Show QR Code
+                            </a>
+                          </>
                         )}
 
                         {(b.status === 'Payment Completed' || b.status === 'Checked In' || b.status === 'Active Stay') && (

@@ -9,6 +9,12 @@ import LoadingButton from './LoadingButton';
 
 export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
+
+  // If this is the guest-facing dual-monitor QR payment page, render standalone view without receptionist controls
+  if (pathname?.startsWith('/receptionist/qr-payment')) {
+    return <>{children}</>;
+  }
+
   const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);

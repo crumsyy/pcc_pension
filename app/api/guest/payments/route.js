@@ -4,7 +4,7 @@ import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePay
 
 export async function POST(request) {
   const session = await getSession();
-  if (!session || session.role !== 'Guest') {
+  if (!session || !['Guest', 'Receptionist', 'Administrator'].includes(session.role)) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
 
@@ -12,8 +12,13 @@ export async function POST(request) {
     const body = await request.json();
 
     if (body.action === 'test_failed') {
+      const parsedBookingID = parseInt(body.bookingID);
+      if (parsedBookingID) {
+        await dbQuery("UPDATE booking SET status = 'Payment Declined' WHERE bookingID = ?", [parsedBookingID]);
+      }
       return NextResponse.json({
         success: false,
+        bookingStatus: 'Payment Declined',
         error: 'Payment authorization declined by user in PayMongo test mode.'
       }, { status: 400 });
     }
@@ -37,11 +42,23 @@ export async function POST(request) {
 
     const { paymentPercentage } = body;
 
-    const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
-    if (guests.length === 0) {
-      return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
+    let guest;
+    if (session.role === 'Guest') {
+      const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
+      if (guests.length === 0) {
+        return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
+      }
+      guest = guests[0];
+    } else {
+      const bookingGuests = await dbQuery(
+        "SELECT b.guestID, g.firstName, g.lastName FROM booking b JOIN guest g ON g.guestID = b.guestID WHERE b.bookingID = ?",
+        [parsedBookingID]
+      );
+      if (bookingGuests.length === 0) {
+        return NextResponse.json({ error: 'Booking guest not found.' }, { status: 404 });
+      }
+      guest = bookingGuests[0];
     }
-    const guest = guests[0];
 
     const pool = await getDbConnection();
     const connection = await pool.getConnection();
@@ -51,11 +68,11 @@ export async function POST(request) {
 
       // Row-level lock on booking
       const [bookingRows] = await connection.execute(
-        "SELECT bookingID, status, guestID FROM booking WHERE bookingID = ? AND guestID = ? FOR UPDATE",
-        [parsedBookingID, guest.guestID]
+        "SELECT bookingID, status, guestID FROM booking WHERE bookingID = ? FOR UPDATE",
+        [parsedBookingID]
       );
 
-      if (bookingRows.length === 0) {
+      if (bookingRows.length === 0 || (session.role === 'Guest' && bookingRows[0].guestID !== guest.guestID)) {
         await connection.rollback();
         return NextResponse.json({ error: 'Booking record not found or access denied.' }, { status: 404 });
       }
