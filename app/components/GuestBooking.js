@@ -15,6 +15,18 @@ export function calculateDownPayment(roomPrice, downPaymentRate = 0.30) {
 }
 
 /**
+ * Correct extra guest fee logic: only guests exceeding base pax are charged ₱100 each.
+ * e.g., basePax = 4, inputPax = 5 => extraGuests = 1, extraGuestFee = ₱100.
+ */
+export function calculateExtraGuestFee(booking = {}) {
+  const basePax = parseInt(booking.roomBasePax || booking.occupancyLimit || booking.basePax || 4);
+  const inputPax = parseInt(booking.guestCount || booking.numGuests || booking.totalGuests || 1);
+  const extraGuests = Math.max(0, inputPax - basePax);
+  const extraGuestFee = extraGuests * 100; // ₱100 per extra guest
+  return { basePax, inputPax, extraGuests, extraGuestFee };
+}
+
+/**
  * Calculates full booking charges breakdown from admin rates and incidentals.
  */
 export function calculateBookingBreakdown({
@@ -23,6 +35,8 @@ export function calculateBookingBreakdown({
   downPaymentRate = 0.30,
   downPaymentPaid = 0,
   extraGuestFees = 0,
+  roomBasePax = 4,
+  guestCount = 1,
   incidentals = 0,
   earlyCheckInFee = 0,
   lateCheckOutFee = 0,
@@ -35,8 +49,15 @@ export function calculateBookingBreakdown({
   const requiredDownPayment = calculateDownPayment(baseRoomCharge, downPaymentRate);
   const effectiveDownPayment = parseFloat(downPaymentPaid) || 0;
 
+  // Calculate extra guest fee from basePax and input guestCount if not explicitly provided
+  let computedExtraGuestFee = parseFloat(extraGuestFees) || 0;
+  if (!extraGuestFees && (guestCount > 0 || roomBasePax > 0)) {
+    const { extraGuestFee } = calculateExtraGuestFee({ roomBasePax, guestCount });
+    computedExtraGuestFee = extraGuestFee * Math.max(1, parseInt(nights));
+  }
+
   const additionalCharges = Math.round(
-    (parseFloat(extraGuestFees) +
+    (computedExtraGuestFee +
       parseFloat(incidentals) +
       parseFloat(earlyCheckInFee) +
       parseFloat(lateCheckOutFee) +
@@ -52,6 +73,7 @@ export function calculateBookingBreakdown({
     netRoomCharge,
     requiredDownPayment,
     effectiveDownPayment,
+    extraGuestFee: computedExtraGuestFee,
     additionalCharges,
     subtotal,
     totalPaid,

@@ -46,8 +46,12 @@ export default function Billing({ detailedBill, onOpenPaymentHistory }) {
   const extraGuestFee = parseFloat(detailedBill.extraGuestFee || detailedBill.chargesSummary?.extraGuestFee || 0);
   const ordersTotal = parseFloat(detailedBill.ordersTotal || 0);
 
+  const otherCharges = Math.round(
+    (incidentalTotal + earlyCheckInFee + lateCheckOutFee + ordersTotal) * 100
+  ) / 100;
+
   const additionalCharges = Math.round(
-    (incidentalTotal + earlyCheckInFee + lateCheckOutFee + extraGuestFee + ordersTotal) * 100
+    (extraGuestFee + otherCharges) * 100
   ) / 100;
 
   const totalDiscount = parseFloat(
@@ -56,11 +60,9 @@ export default function Billing({ detailedBill, onOpenPaymentHistory }) {
     0
   );
 
-  const totalBalance = parseFloat(
-    detailedBill.balance ??
-    detailedBill.remainingBalance ??
-    detailedBill.chargesSummary?.remainingBalance ??
-    0
+  const totalBalance = Math.max(
+    0,
+    Math.round((roomRate + extraGuestFee + otherCharges - totalDiscount - downPaymentPaid) * 100) / 100
   );
 
   return (
@@ -93,8 +95,14 @@ export default function Billing({ detailedBill, onOpenPaymentHistory }) {
       </div>
 
       {/* Additional Charges Details Collapsible or Sub-items */}
-      {(incidentalTotal > 0 || earlyCheckInFee > 0 || lateCheckOutFee > 0 || ordersTotal > 0) && (
+      {(extraGuestFee > 0 || incidentalTotal > 0 || earlyCheckInFee > 0 || lateCheckOutFee > 0 || ordersTotal > 0) && (
         <div className="ps-3 py-1 mb-1 border-start border-2 border-secondary small text-muted" style={{ fontSize: '0.75rem' }}>
+          {extraGuestFee > 0 && (
+            <p className="mb-1 text-dark d-flex justify-content-between">
+              <span>• Extra Guest Fee:</span>
+              <strong className="text-secondary">₱{extraGuestFee.toFixed(2)}</strong>
+            </p>
+          )}
           {incidentalTotal > 0 && (
             <div className="d-flex justify-content-between">
               <span>• Incidentals / Damages:</span>

@@ -945,16 +945,16 @@ export default function GuestOrdersContent({ guest }) {
           </p>
         </div>
         <div className="d-flex align-items-center gap-2">
-          {orderHistory.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-outline-primary btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
-              onClick={() => handleSelectCategory('history')}
-            >
-              <i className="bi bi-receipt"></i>
-              <span>View Orders ({orderHistory.length})</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn-outline-primary d-flex align-items-center gap-2"
+            onClick={() => handleSelectCategory('history')}
+          >
+            <span className="badge rounded-circle bg-danger text-white">
+              {orderHistory.length}
+            </span>
+            View Orders
+          </button>
         </div>
       </div>
 

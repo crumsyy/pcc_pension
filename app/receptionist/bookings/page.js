@@ -330,7 +330,7 @@ function BookingsClient() {
     if (!selectedRoomObj) return;
 
     const rate = parseFloat(selectedRoomObj.rate) || 0;
-    const maxOccupancy = parseInt(selectedRoomObj.occupancyLimit) || 2;
+    const maxOccupancy = parseInt(selectedRoomObj.roomBasePax || selectedRoomObj.occupancyLimit) || 4;
 
     let nights = 0;
     if (checkInDate && checkOutDate) {
@@ -636,7 +636,7 @@ function BookingsClient() {
             ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
             : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
         : 0;
-      const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
+      const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit) || 4) : 4;
 
       let nights = 0;
       if (checkInDate && checkOutDate) {
@@ -772,7 +772,7 @@ function BookingsClient() {
     }
 
     const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
-    const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit) || 2) : 2;
+    const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit) || 4) : 4;
 
     const preparedGuests = [];
     const primaryName = isWalkIn

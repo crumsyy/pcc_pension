@@ -395,7 +395,7 @@ export async function POST(request) {
       }
 
       const oldBooking = oldRes[0];
-      const maxOccupancy = parseInt(oldBooking.occupancyLimit) || 2;
+      const maxOccupancy = parseInt(oldBooking.roomBasePax || oldBooking.occupancyLimit) || 4;
 
       // Calculate stay nights (minimum 1 night)
       const inD = new Date(checkInDateTime.replace(' ', 'T'));

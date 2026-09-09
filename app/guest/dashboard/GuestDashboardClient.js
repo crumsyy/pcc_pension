@@ -681,7 +681,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate)) || 0)
         : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
     : 0;
-  const extraGuestsCount = selectedRoom ? Math.max(0, (parseInt(numGuests) || 1) - (parseInt(selectedRoom.occupancyLimit) || 2)) : 0;
+  const roomBasePax = selectedRoom ? parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit || 4) : 4;
+  const inputPax = parseInt(numGuests) || 1;
+  const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
   const extraGuestFee = extraGuestsCount * 100 * nightsCount;
   const originalTotal = (roomRate * nightsCount) + extraGuestFee;
   const totalDiscount = 0;
@@ -3521,9 +3523,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       onChange={(e) => setNumGuests(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
                       required
                     />
-                    {selectedRoom && (parseInt(numGuests) || 1) > selectedRoom.occupancyLimit && (
+                    {selectedRoom && (parseInt(numGuests) || 1) > roomBasePax && (
                       <small className="text-primary fw-semibold mt-1 d-block" style={{ fontSize: '0.75rem' }}>
-                        ℹ Extra Guest Fee: ₱100/night per guest applied for {(parseInt(numGuests) || 1) - selectedRoom.occupancyLimit} guest(s) exceeding capacity ({selectedRoom.occupancyLimit}).
+                        ℹ Extra Guest Fee: ₱100/night per guest applied for {(parseInt(numGuests) || 1) - roomBasePax} guest(s) exceeding capacity ({roomBasePax}).
                       </small>
                     )}
                   </div>
@@ -3681,7 +3683,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           required
                         />
                         <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
-                          Standard Room Capacity: <strong>Up to {selectedRoom.occupancyLimit} Pax</strong>
+                          Standard Room Capacity: <strong>Up to {roomBasePax} Pax</strong>
                           {extraGuestsCount > 0 && (
                             <span className="text-primary fw-bold ms-1">
                               (+₱{(extraGuestFee).toFixed(2)} for {extraGuestsCount} extra guest(s))
