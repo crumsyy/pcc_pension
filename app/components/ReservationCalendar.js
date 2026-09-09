@@ -136,7 +136,7 @@ export default function ReservationCalendar({
   }
 
   return (
-    <div className={`reservation-calendar-card card border rounded-3 p-2.5 bg-white shadow-xs ${className}`}>
+    <div className={`reservation-calendar-card card border rounded-3 p-3 bg-white shadow-xs ${className}`}>
       {/* Header with Title and Room Info */}
       <div className="d-flex justify-content-between align-items-center mb-2">
         <h6 className="fw-bold mb-0 text-dark d-flex align-items-center gap-1.5" style={{ fontSize: '0.86rem' }}>
@@ -175,57 +175,60 @@ export default function ReservationCalendar({
         </button>
       </div>
 
-      {/* Weekdays Header */}
-      <div className="d-grid text-center mb-1 text-muted fw-semibold" style={{ gridTemplateColumns: 'repeat(7, 1fr)', fontSize: '0.72rem', padding: '0 1rem', gap: '0.5rem' }}>
-        {dayLabels.map(d => (
-          <div key={d} className="py-1">{d}</div>
-        ))}
+      {/* Calendar Dates Section with Side Gaps (Side DATES Side) */}
+      <div className="calendar-dates-container px-2 px-sm-3">
+        {/* Weekdays Header */}
+        <div className="d-grid text-center mb-1 text-muted fw-semibold" style={{ gridTemplateColumns: 'repeat(7, 1fr)', fontSize: '0.72rem', gap: '3px' }}>
+          {dayLabels.map(d => (
+            <div key={d} className="py-1">{d}</div>
+          ))}
+        </div>
+
+        {/* Days Grid: Non-interactive Visual Overview */}
+        <div className="calendar-visual d-grid text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
+          {days.map((dateStr, idx) => {
+            if (!dateStr) {
+              return <div key={`empty-${idx}`} className="p-1" />;
+            }
+
+            const dayNumber = parseInt(dateStr.split('-')[2], 10);
+            const statusInfo = dateStatusMap[dateStr];
+            const hasStatus = !!statusInfo;
+
+            return (
+              <div
+                key={dateStr}
+                className={`calendar-cell p-1 d-flex flex-column align-items-center justify-content-center ${
+                  hasStatus ? statusInfo.className : 'bg-light border text-dark'
+                }`}
+                style={{
+                  height: '38px',
+                  fontSize: '0.75rem',
+                  userSelect: 'none'
+                }}
+                title={hasStatus ? `${dateStr}: ${statusInfo.status}` : `${dateStr}: Available`}
+              >
+                <span className="fw-semibold" style={{ lineHeight: 1 }}>{dayNumber}</span>
+                {hasStatus ? (
+                  <span
+                    className="fw-bold mt-0.5 text-truncate"
+                    style={{ fontSize: '0.52rem', lineHeight: 1, maxWidth: '100%' }}
+                  >
+                    {statusInfo.label}
+                  </span>
+                ) : (
+                  <span className="text-muted mt-0.5" style={{ fontSize: '0.50rem', lineHeight: 1 }}>
+                    Open
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Days Grid: Non-interactive Visual Overview */}
-      <div className="calendar-visual calendar-grid d-grid text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
-        {days.map((dateStr, idx) => {
-          if (!dateStr) {
-            return <div key={`empty-${idx}`} className="calendar-cell p-1" />;
-          }
-
-          const dayNumber = parseInt(dateStr.split('-')[2], 10);
-          const statusInfo = dateStatusMap[dateStr];
-          const hasStatus = !!statusInfo;
-
-          return (
-            <div
-              key={dateStr}
-              className={`calendar-cell p-1 d-flex flex-column align-items-center justify-content-center ${
-                hasStatus ? statusInfo.className : 'bg-light border text-dark'
-              }`}
-              style={{
-                height: '38px',
-                fontSize: '0.75rem',
-                userSelect: 'none'
-              }}
-              title={hasStatus ? `${dateStr}: ${statusInfo.status}` : `${dateStr}: Available`}
-            >
-              <span className="fw-semibold" style={{ lineHeight: 1 }}>{dayNumber}</span>
-              {hasStatus ? (
-                <span
-                  className="fw-bold mt-0.5 text-truncate"
-                  style={{ fontSize: '0.52rem', lineHeight: 1, maxWidth: '100%' }}
-                >
-                  {statusInfo.label}
-                </span>
-              ) : (
-                <span className="text-muted mt-0.5" style={{ fontSize: '0.50rem', lineHeight: 1 }}>
-                  Open
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Visual Status Legend */}
-      <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mt-2 pt-2 border-top" style={{ fontSize: '0.68rem', padding: '0 0.5rem' }}>
+      {/* Visual Status Legend with Side Gaps */}
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mt-2.5 pt-2 border-top mx-2 mx-sm-3" style={{ fontSize: '0.68rem' }}>
         <div className="d-flex align-items-center gap-1">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fd7e14', border: '1px solid #d9480f' }}></span>
           <span className="text-muted">Reserved</span>
@@ -243,9 +246,13 @@ export default function ReservationCalendar({
           <span className="text-muted">Under Maint.</span>
         </div>
       </div>
-      <small className="text-muted text-center d-block mt-1 fst-italic" style={{ fontSize: '0.66rem' }}>
-        Visual schedule reference (Read-only). Select dates below using the date pickers.
-      </small>
+
+      {/* Helper Text Below with Side Gaps */}
+      <div className="px-3 px-sm-4 text-center mt-1.5">
+        <small className="text-muted d-block fst-italic" style={{ fontSize: '0.68rem', lineHeight: '1.4' }}>
+          Visual schedule reference (Read-only). Select dates below using the date pickers.
+        </small>
+      </div>
     </div>
   );
 }
