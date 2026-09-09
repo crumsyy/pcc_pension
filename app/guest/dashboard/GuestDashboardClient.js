@@ -1311,7 +1311,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     />
                   ) : (
                     <div
-                      className="rounded-circle bg-white text-pcc-blue fw-bold d-flex align-items-center justify-content-center flex-shrink-0"
+                      className="profile-avatar-initial flex-shrink-0"
                       style={{ width: '22px', height: '22px', fontSize: '0.65rem' }}
                     >
                       {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
@@ -1684,7 +1684,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <span className="fw-bold mb-2 d-inline-block px-3 py-1 rounded-pill" style={{ backgroundColor: 'rgba(255, 255, 255, 0.25)', color: '#ffffff', fontSize: '0.78rem', border: '1px solid rgba(255, 255, 255, 0.4)' }}>
                         Hotel Guest Portal
                       </span>
-                      <h3 className="fw-bold mb-1">Welcome, {guest.firstName}! <span className="fs-6 font-monospace opacity-75 fw-normal">(User ID: #{guest.userID || guest.guestID})</span></h3>
+                      <div className="welcome-header mb-1">
+                        <div className="welcome-header-mobile d-md-none">
+                          <div className="fw-bold fs-5">Welcome, {guest.firstName} {guest.lastName || ''}!</div>
+                          <div className="opacity-75 font-monospace small">(UserID: #{guest.userID || guest.guestID})</div>
+                        </div>
+                        <h3 className="fw-bold mb-0 d-none d-md-block">
+                          Welcome, {guest.firstName} {guest.lastName || ''}! <span className="fs-6 font-monospace opacity-75 fw-normal">(UserID: #{guest.userID || guest.guestID})</span>
+                        </h3>
+                      </div>
                       <p className="mb-0 text-white-50 small">Experience comfort and convenience at PCC Home Suite Home.</p>
                     </div>
                   </div>
@@ -2482,7 +2490,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '50%', border: '2px solid var(--pcc-blue)', flexShrink: 0 }}
                         />
                       ) : (
-                        <div className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold fs-4 flex-shrink-0" style={{ width: '64px', height: '64px', backgroundColor: 'var(--pcc-blue)' }}>
+                        <div
+                          className="profile-avatar-initial shadow-sm flex-shrink-0"
+                          style={{ width: '64px', height: '64px', fontSize: '1.6rem' }}
+                        >
                           {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
                         </div>
                       )}

@@ -1647,6 +1647,49 @@ body.dark-theme aside * {
   }
 }
 
+/* Profile Avatar Initials (Theme-Aware Contrast) */
+.profile-avatar-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 1rem;
+  background-color: var(--avatar-bg, #6c757d);
+  color: var(--avatar-text, #fff) !important;
+  user-select: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+[data-bs-theme="light"] .profile-avatar-initial,
+body.light-theme .profile-avatar-initial {
+  background-color: #6c757d !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .profile-avatar-initial,
+body.dark-theme .profile-avatar-initial {
+  background-color: #343a40 !important;
+  color: #ffffff !important;
+}
+
+/* Dashboard Header Responsive Wrapping */
+.welcome-header {
+  word-break: break-word;
+}
+
+.welcome-header-mobile {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.welcome-header-mobile div {
+  margin-bottom: 2px;
+}
+
 /* =====================================================================
    Guest Orders & Room Service Catalog Styling
    ===================================================================== */

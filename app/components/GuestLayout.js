@@ -92,7 +92,7 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
                   />
                 ) : (
                   <div
-                    className="rounded-circle bg-white text-pcc-blue fw-bold d-flex align-items-center justify-content-center flex-shrink-0"
+                    className="profile-avatar-initial flex-shrink-0"
                     style={{ width: '22px', height: '22px', fontSize: '0.65rem' }}
                   >
                     {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}

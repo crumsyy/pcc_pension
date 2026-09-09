@@ -123,7 +123,7 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
             />
           ) : (
             <div
-              className="rounded-circle bg-white text-pcc-blue fw-bold d-flex align-items-center justify-content-center shadow-sm flex-shrink-0"
+              className="profile-avatar-initial shadow-sm flex-shrink-0"
               style={{ width: '36px', height: '36px', fontSize: '0.85rem' }}
             >
               {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
