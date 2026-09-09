@@ -163,13 +163,22 @@ export default function ReceptionistReservationForm({
               />
             </div>
             <div className="col-md-6">
-              <label className="form-label small fw-semibold mb-1">Email</label>
+              <label className="form-label small fw-semibold mb-1">
+                Email Address {isCourtesyHold ? <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span> : <span className="text-muted">(Optional)</span>}
+              </label>
               <input
                 type="email"
-                className="form-control form-control-sm"
+                className={`form-control form-control-sm ${isCourtesyHold && !walkInForm.email ? 'border-warning' : ''}`}
+                placeholder={isCourtesyHold ? "Required for expiry alerts" : "Optional email"}
                 value={walkInForm.email || ''}
+                required={isCourtesyHold}
                 onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
               />
+              {isCourtesyHold && (
+                <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
+                  Required to dispatch 12h/6h expiration alerts and release notices.
+                </div>
+              )}
             </div>
           </div>
         </div>

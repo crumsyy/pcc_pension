@@ -232,7 +232,6 @@ export async function POST(request) {
         return NextResponse.json({ error: dupCheck.message }, { status: 400 });
       }
 
-      const isCourtesyHold = Boolean(body.isCourtesyHold);
       const validDurations = [24, 48, 72];
       const holdDurationHours = validDurations.includes(parseInt(body.holdDurationHours)) ? parseInt(body.holdDurationHours) : 48;
       let holdExpiryDateTime = null;
