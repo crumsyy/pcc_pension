@@ -331,6 +331,44 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [settleBooking, setSettleBooking] = useState(null);
   const [settleGcashRef, setSettleGcashRef] = useState('');
   const [settleProcessing, setSettleProcessing] = useState(false);
+  const [paymongoQrUrl, setPaymongoQrUrl] = useState(null);
+  const [loadingPaymongoQr, setLoadingPaymongoQr] = useState(false);
+  const [qrErrorMessage, setQrErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (!settleBooking) {
+      setPaymongoQrUrl(null);
+      setQrErrorMessage('');
+      return;
+    }
+    const amt = parseFloat(settleBooking.remainingBalance || 0);
+    if (amt > 0) {
+      setLoadingPaymongoQr(true);
+      setQrErrorMessage('');
+      fetch('/api/payments/paymongo-qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amt,
+          description: `Final Bill Settle Room ${settleBooking.roomNumber} (Booking #${settleBooking.bookingID})`
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.paymongoQrUrl) {
+          setPaymongoQrUrl(data.paymongoQrUrl);
+        } else {
+          setQrErrorMessage(data.error || 'Live QR generation unavailable in sandbox mode.');
+        }
+      })
+      .catch(() => {
+        setQrErrorMessage('Network connection issue. You can still authenticate payment using the test buttons below.');
+      })
+      .finally(() => {
+        setLoadingPaymongoQr(false);
+      });
+    }
+  }, [settleBooking]);
 
   // Alert Dialog State
   const [modalConfig, setModalConfig] = useState({
@@ -998,27 +1036,102 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (!booking) return;
     showConfirm(
       'Request Checkout & Room Verification',
-      `Are you ready to request checkout for Room ${booking.roomNumber}? Housekeeping and front desk will be notified to inspect the room and update your final billing statement.`,
+      `Are you ready to request checkout for Room ${booking.roomNumber}? Housekeeping and front desk will be notified to inspect the room condition and finalize your incidental fees.`,
       async () => {
         try {
-          const res = await fetch('/api/guest/bookings', {
+          const res = await fetch('/api/receptionist/bookings/checkout-request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              action: 'request_checkout',
               bookingID: booking.bookingID
             })
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to request checkout');
 
-          showAlert('success', 'Checkout Requested', data.message || 'Staff notified to inspect room.');
+          showAlert('success', 'Checkout Requested', data.message || 'Front desk has been notified. Staff are now inspecting your room.');
           fetchRoomsAndStatus();
         } catch (err) {
           showAlert('error', 'Error', err.message);
         }
       }
     );
+  };
+
+  const handleAuthenticateTestPayment = async () => {
+    if (!settleBooking) return;
+    setSettleProcessing(true);
+    try {
+      const ref = `PM-AUTH-${Date.now().toString().slice(-8)}`;
+      const res = await fetch('/api/guest/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'test_authenticate',
+          bookingID: settleBooking.bookingID,
+          amountToPay: parseFloat(settleBooking.remainingBalance || 0),
+          referenceNumber: ref
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to authenticate test payment.');
+      }
+      showAlert('success', 'Payment Authenticated', 'Your test payment has been authorized and settled successfully! Booking status is now Payment Completed.');
+      setSettleBooking(null);
+      await fetchRoomsAndStatus();
+    } catch (err) {
+      showAlert('error', 'Authentication Error', err.message || 'Network error occurred while authenticating payment. Please try again.');
+    } finally {
+      setSettleProcessing(false);
+    }
+  };
+
+  const handleFailTestPayment = async () => {
+    setSettleProcessing(true);
+    try {
+      const res = await fetch('/api/guest/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'test_failed',
+          bookingID: settleBooking?.bookingID
+        })
+      });
+      const data = await res.json();
+      showAlert('error', 'Payment Failed', data.error || 'Payment was declined or failed in test mode.');
+    } catch (err) {
+      showAlert('error', 'Payment Failed', 'Network connection error or payment declined in test mode.');
+    } finally {
+      setSettleProcessing(false);
+    }
+  };
+
+  const handleProceedToSandboxGCash = async () => {
+    if (!settleBooking) return;
+    setSettleProcessing(true);
+    try {
+      const res = await fetch('/api/payments/paymongo/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingID: settleBooking.bookingID,
+          amount: parseFloat(settleBooking.remainingBalance || 0),
+          referenceNumber: `GCASH-TEST-${Date.now().toString().slice(-8)}`
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Sandbox connection error.');
+      }
+      showAlert('success', 'GCash Test Sandbox Authorized', 'Simulated GCash authorization completed successfully! Booking status updated to Payment Completed.');
+      setSettleBooking(null);
+      await fetchRoomsAndStatus();
+    } catch (err) {
+      showAlert('error', 'Sandbox Error', err.message || 'Unable to connect to PayMongo sandbox.');
+    } finally {
+      setSettleProcessing(false);
+    }
   };
 
   const getStatusBadgeClass = (status) => {
@@ -1032,6 +1145,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       case 'Checked In':
       case 'Active Stay':
         return 'bg-info-subtle text-info-emphasis border border-info';
+      case 'Pending Room Verification':
       case 'Pending Checkout':
         return 'bg-warning-subtle text-warning-emphasis border border-warning';
       case 'Room Verified':
@@ -1193,14 +1307,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const renderBookingStatusTimeline = (status) => {
     // If booking is in checked-in or checkout workflow
     const isCheckoutFlow = [
-      'Checked In', 'Active Stay', 'Pending Checkout', 'Room Verified', 
+      'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 
       'Final Billing Updated', 'Payment Completed', 'Checked Out', 'Completed'
     ].includes(status);
 
     if (isCheckoutFlow) {
       const checkoutSteps = [
         { id: 'Active Stay', label: 'Active Stay' },
-        { id: 'Pending Checkout', label: 'Verify Room' },
+        { id: 'Pending Room Verification', label: 'Verify Room' },
         { id: 'Room Verified', label: 'Room OK' },
         { id: 'Final Billing Updated', label: 'Bill Ready' },
         { id: 'Payment Completed', label: 'Paid' },
@@ -1208,7 +1322,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       ];
 
       let currentIdx = 0;
-      if (status === 'Pending Checkout') currentIdx = 1;
+      if (status === 'Pending Room Verification' || status === 'Pending Checkout') currentIdx = 1;
       if (status === 'Room Verified') currentIdx = 2;
       if (status === 'Final Billing Updated') currentIdx = 3;
       if (status === 'Payment Completed') currentIdx = 4;
@@ -1350,7 +1464,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const fallbackRooms = allRooms.filter(r => !groundFloorRooms.some(g => g.roomID === r.roomID) && !secondFloorRooms.some(s => s.roomID === r.roomID));
 
   const activeReservation = reservations.find(r => r.status === 'Pending' || r.status === 'Confirmed' || r.status === 'Overdue Check-In');
-  const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'].includes(b.status));
+  const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'].includes(b.status));
 
   useEffect(() => {
     if (activeBookingStay?.bookingID) {
@@ -1432,28 +1546,34 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
                 <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
               </Link>
-              <div className="d-flex align-items-center gap-2">
-                <span className="fw-semibold text-white px-2.5 py-1 rounded-pill d-flex align-items-center gap-1.5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
+              <div className="d-flex align-items-center gap-2 gap-sm-3">
+                <span 
+                  className="guest-mobile-user-badge"
+                  title={guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
+                >
                   {guest?.profilePicture ? (
                     <img
                       src={guest.profilePicture}
                       alt="Avatar"
                       className="rounded-circle border border-white flex-shrink-0"
-                      style={{ width: '22px', height: '22px', objectFit: 'cover' }}
+                      style={{ width: '24px', height: '24px', objectFit: 'cover' }}
                     />
                   ) : (
                     <div
                       className="profile-avatar-initial flex-shrink-0"
-                      style={{ width: '22px', height: '22px', fontSize: '0.65rem' }}
+                      style={{ width: '24px', height: '24px', fontSize: '0.7rem' }}
                     >
                       {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
                     </div>
                   )}
-                  {guest.firstName} {guest.lastName}
+                  <span className="user-name">
+                    {guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
+                  </span>
                 </span>
                 <button
-                  className="btn btn-sm text-white border-0"
+                  className="btn btn-sm text-white border-0 px-2 py-1"
                   title="Log Out"
+                  aria-label="Log Out"
                   onClick={() => setShowLogoutModal(true)}
                 >
                   <i className="bi bi-power fs-5"></i>
@@ -2611,8 +2731,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             {activeTab === 'account' && (
               <div className="animate__animated animate__fadeIn">
                 {/* PROFILE CARD */}
-                <div className="card shadow-sm border-0 p-4 mb-4 bg-white" style={{ borderRadius: '16px' }}>
-                  <div className="d-flex align-items-center justify-content-between mb-3">
+                <div className="card profile-card shadow-sm border-0 p-4 mb-4 bg-white" style={{ borderRadius: '16px' }}>
+                  <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 mb-3">
                     <div className="d-flex align-items-center gap-3">
                       {guest?.profilePicture ? (
                         <img
@@ -2630,8 +2750,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         </div>
                       )}
                       <div>
-                        <h5 className="fw-bold mb-0 text-dark">{guest.firstName} {guest.lastName} <span className="badge bg-secondary text-white font-monospace ms-1" style={{ fontSize: '0.74rem' }}>User ID: #{guest.userID || guest.guestID}</span></h5>
-                        <div className="text-muted small">{guest.email}</div>
+                        <h5 className="fw-bold mb-1 text-dark">{guest.firstName} {guest.lastName}</h5>
+                        <p className="text-muted mb-0">UserID: #{guest.userID || guest.guestID}</p>
                       </div>
                     </div>
                     <span className="badge bg-success text-white px-3 py-1.5 rounded-pill">Active Guest</span>
@@ -2794,12 +2914,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               {/* TIMELINE */}
                               {renderBookingStatusTimeline(b.status)}
 
+                              {/* INSPECTION STATUS BANNER */}
+                              {(b.status === 'Pending Room Verification' || b.status === 'Pending Checkout') && (
+                                <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
+                                  <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
+                                  <div>
+                                    <strong>Room Inspection in Progress:</strong> Front desk and housekeeping staff are currently verifying your room condition and checking for incidental charges. Your final billing will be updated here shortly.
+                                  </div>
+                                </div>
+                              )}
+
                               {/* ACTION BUTTONS */}
                               <div className="booking-card-actions">
                                 <button 
                                   type="button" 
                                   className="btn btn-outline-primary"
                                   onClick={() => setViewBillingBooking(b)}
+                                  aria-label="View Billing Breakdown"
                                 >
                                   <i className="bi bi-receipt"></i> View Billing
                                 </button>
@@ -2809,19 +2940,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     type="button" 
                                     className="btn btn-outline-secondary"
                                     onClick={() => handleRequestCheckout(b)}
+                                    aria-label="Request Checkout"
                                   >
                                     <i className="bi bi-box-arrow-right"></i> Request Checkout
                                   </button>
                                 )}
 
-                                {b.status === 'Pending Checkout' && (
-                                  <button type="button" className="btn btn-outline-warning text-dark" disabled>
-                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Pending Inspection
+                                {(b.status === 'Pending Room Verification' || b.status === 'Pending Checkout') && (
+                                  <button type="button" className="btn btn-outline-warning text-dark" disabled aria-label="Pending Room Verification">
+                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Pending Room Verification
                                   </button>
                                 )}
 
                                 {b.status === 'Room Verified' && (
-                                  <button type="button" className="btn btn-outline-info text-dark" disabled>
+                                  <button type="button" className="btn btn-outline-info text-dark" disabled aria-label="Room Verified">
                                     <i className="bi bi-check-circle me-1"></i> Room Verified (Preparing Bill)
                                   </button>
                                 )}
@@ -2831,13 +2963,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     type="button" 
                                     className="btn btn-primary fw-bold text-white shadow-sm"
                                     onClick={() => setSettleBooking(b)}
+                                    aria-label="Proceed to Payment"
                                   >
-                                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Pay (₱{remBal.toFixed(2)})
+                                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment
                                   </button>
                                 )}
 
                                 {b.status === 'Payment Completed' && (
-                                  <button type="button" className="btn btn-success text-white" disabled>
+                                  <button type="button" className="btn btn-success text-white" disabled aria-label="Payment Completed">
                                     <i className="bi bi-check2-all me-1"></i> Payment Completed
                                   </button>
                                 )}
@@ -2847,6 +2980,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     type="button" 
                                     className="btn btn-outline-danger" 
                                     onClick={() => handleCancelBooking(b.bookingID)}
+                                    aria-label="Cancel Booking"
                                   >
                                     <i className="bi bi-x-circle"></i> Cancel
                                   </button>
@@ -2913,85 +3047,125 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         bottomOffset={isDesktop ? '24px' : (activeTab === 'orders' ? '135px' : '85px')}
       />
 
-      {/* SETTLE REMAINING BALANCE MODAL (REQ167c) */}
+      {/* PAYMONGO TEST MODE PAYMENT MODAL */}
       {settleBooking && (
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0">
-              <div className="modal-header text-white" style={{ backgroundColor: '#198754' }}>
-                <h5 className="modal-title fw-bold">Settle Remaining Balance — Booking #{settleBooking.bookingID}</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setSettleBooking(null)}></button>
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px' }}>
+              <div className="modal-header text-white border-bottom-0 py-3" style={{ backgroundColor: '#005ce6' }}>
+                <div className="d-flex align-items-center gap-2">
+                  <span className="badge bg-warning text-dark fw-bold" style={{ fontSize: '0.65rem' }}>SANDBOX</span>
+                  <h5 className="modal-title fw-bold mb-0 text-white">PayMongo Test Mode Payment</h5>
+                </div>
+                <button type="button" className="btn-close btn-close-white" aria-label="Close" onClick={() => setSettleBooking(null)}></button>
               </div>
-              <form onSubmit={handleConfirmPayBalance}>
-                <div className="modal-body">
-                  <div className="alert alert-success py-2 small mb-3">
-                    Enter your GCash payment reference number below to settle the remaining balance of <strong>₱{parseFloat(settleBooking.remainingBalance).toFixed(2)}</strong>.
+
+              <div className="modal-body text-center p-4">
+                <div className="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between mb-3 text-start">
+                  <div>
+                    <strong>Room {settleBooking.roomNumber}</strong> (Booking #{settleBooking.bookingID})<br />
+                    <span className="text-muted">Final Balance to Settle:</span>
                   </div>
-
-                  <div className="p-3 bg-light rounded border mb-3">
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">Target Booking:</span>
-                      <strong className="text-dark">Booking #{settleBooking.bookingID}</strong>
-                    </div>
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">Room Number:</span>
-                      <strong className="text-dark">Room {settleBooking.roomNumber}</strong>
-                    </div>
-                    <div className="d-flex justify-content-between mb-1 text-danger fw-bold fs-6">
-                      <span>Amount Due Now:</span>
-                      <span>₱{parseFloat(settleBooking.remainingBalance).toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <DynamicQrPhCode 
-                    amount={settleBooking.remainingBalance} 
-                    merchantName="JOHN LLOYD CASPILLO"
-                    accountNumber="0948-825-1444"
-                    refNumber={`SETTLE-${settleBooking.bookingID}`} 
-                    bookingID={settleBooking.bookingID}
-                    onPaymentSuccess={(autoData) => {
-                      showAlert('success', 'Balance Settled', 'Your balance has been verified and settled successfully!');
-                      setSettleBooking(null);
-                      setSettleGcashRef('');
-                      fetchRoomsAndStatus();
-                    }}
-                    showProceedBtn={true}
-                    showCheckStatusBtn={false}
-                    showTestPayBtn={true}
-                    onProceedToGCash={() => {
-                      fetch('/api/payments/paymongo/test', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          bookingID: settleBooking.bookingID,
-                          amount: parseFloat(settleBooking.remainingBalance || 0),
-                          referenceNumber: `SETTLE-${settleBooking.bookingID}-${Date.now().toString().slice(-4)}`
-                        })
-                      })
-                      .then(r => r.json())
-                      .then(d => {
-                        if (d.success) {
-                          showAlert('success', 'Balance Settled', 'Your payment has been authorized and settled successfully!');
-                          setSettleBooking(null);
-                          fetchRoomsAndStatus();
-                        } else {
-                          showAlert('error', 'Payment Error', d.error || 'Failed to process payment');
-                        }
-                      })
-                      .catch(e => showAlert('error', 'Payment Error', e.message));
-                    }}
-                  />
-
-                  <div className="p-2.5 border rounded bg-white text-center mb-3">
-                    <small className="text-muted d-block mb-1">
-                      Scan the QR code above with GCash to automatically settle your balance.
-                    </small>
+                  <div className="fw-bold fs-5 text-primary">
+                    ₱{parseFloat(settleBooking.remainingBalance || 0).toFixed(2)}
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setSettleBooking(null)}>Close</button>
+
+                {/* PayMongo QR Code Image Frame */}
+                <div className="d-flex flex-column align-items-center justify-content-center my-3">
+                  <div 
+                    className="p-3 bg-white rounded-3 border shadow-sm d-flex align-items-center justify-content-center position-relative" 
+                    style={{ border: '2px solid #005ce6', width: '230px', height: '230px', maxWidth: '100%' }}
+                  >
+                    {loadingPaymongoQr ? (
+                      <div className="d-flex flex-column align-items-center justify-content-center">
+                        <span className="spinner-border spinner-border-sm text-primary mb-2" role="status"></span>
+                        <small className="text-muted fw-semibold" style={{ fontSize: '0.78rem' }}>Generating PayMongo QR...</small>
+                      </div>
+                    ) : paymongoQrUrl ? (
+                      <img 
+                        src={paymongoQrUrl} 
+                        alt="GCash QR" 
+                        className="img-fluid mb-0" 
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <div className="text-center p-2">
+                        <i className="bi bi-qr-code text-primary fs-1 d-block mb-1"></i>
+                        <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>
+                          {qrErrorMessage || 'PayMongo Test QR Ready'}
+                        </small>
+                      </div>
+                    )}
+                  </div>
+                  <small className="text-muted mt-2 fw-semibold" style={{ fontSize: '0.78rem' }}>
+                    Scan with payment app, or use test sandbox buttons below:
+                  </small>
                 </div>
-              </form>
+
+                {/* Test Action Buttons */}
+                <div className="d-flex justify-content-center gap-3 my-3">
+                  <button 
+                    type="button"
+                    className="btn btn-success fw-bold d-inline-flex align-items-center justify-content-center gap-2 py-2"
+                    style={{ flex: 1, minWidth: '120px' }}
+                    aria-label="Authenticate Payment"
+                    disabled={settleProcessing}
+                    onClick={handleAuthenticateTestPayment}
+                  >
+                    {settleProcessing ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status"></span>
+                        <span>Authenticating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-check-circle-fill"></i>
+                        <span>Authenticate Payment</span>
+                      </>
+                    )}
+                  </button>
+                  <button 
+                    type="button"
+                    className="btn btn-danger fw-bold d-inline-flex align-items-center justify-content-center gap-2 py-2"
+                    style={{ flex: 1, minWidth: '120px' }}
+                    aria-label="Payment Failed"
+                    disabled={settleProcessing}
+                    onClick={handleFailTestPayment}
+                  >
+                    <i className="bi bi-x-circle-fill"></i>
+                    <span>Payment Failed</span>
+                  </button>
+                </div>
+
+                {/* Proceed to GCash (Test Mode) */}
+                <button
+                  type="button"
+                  className="btn btn-primary w-100 fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm mb-2 text-white"
+                  style={{ backgroundColor: '#005ce6', borderColor: '#005ce6', borderRadius: '8px' }}
+                  aria-label="Proceed to GCash in Test Mode"
+                  disabled={settleProcessing}
+                  onClick={handleProceedToSandboxGCash}
+                >
+                  <i className="bi bi-wallet2 fs-6"></i>
+                  <span>Proceed to GCash (Test Mode)</span>
+                </button>
+
+                <small className="text-muted d-block small mt-2">
+                  Sandbox Test Mode: Test buttons simulate PayMongo authentication and failure states without charging real accounts.
+                </small>
+              </div>
+
+              <div className="modal-footer bg-light border-top py-2 px-3">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary btn-sm" 
+                  aria-label="Close Payment Modal"
+                  onClick={() => setSettleBooking(null)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3187,13 +3361,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <button
                     type="button"
                     className="btn btn-primary fw-bold px-4 text-white shadow-sm"
+                    aria-label="Proceed to Payment"
                     onClick={() => {
                       const target = viewBillingBooking;
                       setViewBillingBooking(null);
                       setSettleBooking(target);
                     }}
                   >
-                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Pay (₱{parseFloat(viewBillingBooking.remainingBalance || 0).toFixed(2)})
+                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment
                   </button>
                 )}
               </div>

@@ -10,20 +10,32 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { bookingID, paymentPercentage, referenceNumber, amountToPay } = body;
 
-    const parsedBookingID = parseInt(bookingID);
-    const parsedAmount = Math.round(parseFloat(amountToPay) * 100) / 100;
+    if (body.action === 'test_failed') {
+      return NextResponse.json({
+        success: false,
+        error: 'Payment authorization declined by user in PayMongo test mode.'
+      }, { status: 400 });
+    }
+
+    const isTestAuth = body.action === 'test_authenticate';
+    const parsedBookingID = parseInt(body.bookingID);
+    let parsedAmount = Math.round(parseFloat(body.amountToPay || body.amount || 0) * 100) / 100;
+
+    if (isTestAuth && (isNaN(parsedAmount) || parsedAmount <= 0) && parsedBookingID) {
+      parsedAmount = await getBookingBalance(parsedBookingID);
+    }
 
     if (!parsedBookingID || isNaN(parsedAmount) || parsedAmount <= 0) {
       return NextResponse.json({ error: 'Valid Booking ID and amount are required.' }, { status: 400 });
     }
 
-    if (!referenceNumber || !referenceNumber.trim()) {
-      return NextResponse.json({ error: 'GCash Reference Number is required.' }, { status: 400 });
+    const cleanRef = (body.referenceNumber && String(body.referenceNumber).trim()) || (isTestAuth ? `PM-AUTH-${Date.now().toString().slice(-8)}` : '');
+    if (!cleanRef) {
+      return NextResponse.json({ error: 'Payment Reference Number is required.' }, { status: 400 });
     }
 
-    const cleanRef = referenceNumber.trim();
+    const { paymentPercentage } = body;
 
     const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
     if (guests.length === 0) {

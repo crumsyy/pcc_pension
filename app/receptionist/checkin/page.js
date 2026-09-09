@@ -48,6 +48,7 @@ function CheckInClient() {
       case 'Checked In':
       case 'Active Stay':
         return 'bg-info-subtle text-info-emphasis border border-info';
+      case 'Pending Room Verification':
       case 'Pending Checkout':
         return 'bg-warning text-dark fw-bold';
       case 'Room Verified':
@@ -326,7 +327,7 @@ function CheckInClient() {
 
   const arrivals = bookings.filter(b => b.status === 'Pending Check-in' || b.status === 'Overdue Check-In');
   const departures = bookings.filter(b => [
-    'Checked In', 'Active Stay', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'
+    'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'
   ].includes(b.status));
 
   const filterList = (list) => {
@@ -437,11 +438,12 @@ function CheckInClient() {
 
                       {/* WORKFLOW ACTION BUTTONS */}
                       <div className="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top">
-                        {b.status === 'Pending Checkout' && (
+                        {(b.status === 'Pending Room Verification' || b.status === 'Pending Checkout') && (
                           <button
                             type="button"
                             className="btn btn-sm btn-warning text-dark fw-bold d-inline-flex align-items-center gap-1"
                             onClick={() => handleVerifyRoom(b.bookingID, b.roomNumber, b.firstName + ' ' + b.lastName)}
+                            aria-label="Verify Room Condition"
                           >
                             <i className="fa-solid fa-clipboard-check"></i> Verify Room
                           </button>

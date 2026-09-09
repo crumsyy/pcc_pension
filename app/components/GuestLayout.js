@@ -108,6 +108,7 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
               <button
                 className="btn btn-sm text-white border-0 px-2 py-1"
                 title="Log Out"
+                aria-label="Log Out"
                 onClick={() => setShowLogoutModal(true)}
               >
                 <i className="bi bi-power fs-5"></i>

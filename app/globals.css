@@ -1694,23 +1694,36 @@ body.dark-theme .profile-avatar-initial {
 .guest-mobile-user-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
+  gap: 10px;
+  padding: 5px 16px 5px 8px;
   background-color: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 50rem;
   font-size: 0.82rem;
   font-weight: 600;
   color: #ffffff;
-  max-width: 175px;
+  max-width: 170px;
   transition: background-color 0.15s ease-in-out;
 }
 
 .guest-mobile-user-badge .user-name {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: inline-block;
+  padding-right: 4px;
+}
+
+/* Guest Account Tab Profile Card */
+.profile-card {
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.profile-card h5 {
+  margin-bottom: 0.25rem;
 }
 
 /* Interactive Booking Cards & Action Buttons */

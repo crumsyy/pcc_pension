@@ -111,7 +111,7 @@ export async function POST(request) {
 
       await ensureBookingBillingSchema();
       await dbQuery(
-        "UPDATE booking SET status = 'Pending Checkout', checkoutRequestedAt = NOW() WHERE bookingID = ?",
+        "UPDATE booking SET status = 'Pending Room Verification', checkoutRequestedAt = NOW() WHERE bookingID = ?",
         [bookingID]
       );
 
@@ -120,20 +120,20 @@ export async function POST(request) {
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checkout Requested', ?)",
-          [r.userID, `Guest ${guest.firstName} ${guest.lastName} in Room ${booking.roomNumber} (Booking #${bookingID}) has requested checkout. Room inspection and billing verification required.`]
+          [r.userID, `Guest ${guest.firstName} ${guest.lastName} in Room ${booking.roomNumber} (Booking #${bookingID}) has requested checkout. Room inspection and incidental fee verification required.`]
         );
       }
 
       // Notify guest
       await dbQuery(
-        "INSERT INTO notification (userID, title, message) VALUES (?, 'Checkout Requested', ?)",
+        "INSERT INTO notification (userID, title, message) VALUES (?, 'Checkout Requested — Inspection in Progress', ?)",
         [session.userID, `Your checkout request for Room ${booking.roomNumber} has been received. Our team will inspect your room and update your final billing statement shortly.`]
       );
 
       return NextResponse.json({
         success: true,
         message: 'Checkout request submitted. Front desk has been notified to verify your room and finalize your billing.',
-        bookingStatus: 'Pending Checkout'
+        bookingStatus: 'Pending Room Verification'
       });
     }
 
