@@ -5,6 +5,16 @@ import InactivityTimeout from "./components/InactivityTimeout";
 export const metadata = {
   title: "PCC Home Suite Home | Koronadal City",
   description: "PCC Home Suite Home offers comfortable, affordable, and well-kept rooms in Koronadal City.",
+  icons: {
+    icon: [
+      { url: '/assets/images/logo.jpg', type: 'image/jpeg' },
+      { url: '/icon.jpg', type: 'image/jpeg' }
+    ],
+    shortcut: ['/assets/images/logo.jpg'],
+    apple: [
+      { url: '/assets/images/logo.jpg' }
+    ]
+  }
 };
 
 export default function RootLayout({ children }) {
