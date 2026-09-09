@@ -80,8 +80,8 @@ export async function GET(request) {
     const guestID = guest ? guest.guestID : 0;
 
     let orders = [];
-    // Only fetch full order history if explicitly requested (Lazy-load optimization)
-    if (includeHistory && guestID > 0) {
+    // Fetch full order history so guest orders persist across navigation
+    if (guestID > 0) {
       const ordersRaw = await dbQuery(`
         SELECT o.orderID, o.guestID, o.bookingID, o.orderDateTime, o.orderStatus, o.deliveryTime, o.deliveryDate,
                COALESCE(o.deliveryType, CASE WHEN o.deliveryTime IS NOT NULL THEN 'scheduled' ELSE 'immediate' END) as deliveryType,
@@ -181,7 +181,12 @@ export async function POST(request) {
         const pCheck = await dbQuery("SELECT productCategoryID FROM products WHERE productID = ?", [parseInt(item.itemID)]);
         if (pCheck.length > 0 && pCheck[0].productCategoryID === 3) {
           containsCookedMeal = true;
-          break;
+          if (item.deliveryType === 'immediate') {
+            return NextResponse.json({
+              error: "Cooked breakfast meals cannot be ordered with 'Deliver Now'. They must be scheduled between 6:00 AM and 10:30 AM."
+            }, { status: 400 });
+          }
+          item.deliveryType = 'scheduled';
         }
       }
     }

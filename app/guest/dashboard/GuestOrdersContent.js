@@ -5,6 +5,7 @@ import LoadingButton from '@/app/components/LoadingButton';
 
 // Fast client-side module cache so switching tabs preserves catalog and renders at 0ms
 let cachedOrdersCatalog = null;
+let cachedOrderHistory = null;
 
 const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCookedMeal, onAdd }) {
   const isAvailable = isCookedMeal || (item.availableQty === undefined || item.availableQty > 0);
@@ -239,7 +240,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
     const isScheduled = o.deliveryType === 'scheduled' || Boolean(o.deliveryTime);
 
     return (
-      <div key={o.orderID} className="card border shadow-xs rounded-3 mb-3 overflow-hidden">
+      <div key={o.orderID} className="card order-card border shadow-xs rounded-3 mb-3 overflow-hidden">
         <div className="card-header bg-white py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
           <div className="d-flex align-items-center gap-2">
             <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>Order #{o.orderID}</span>
@@ -419,10 +420,10 @@ export default function GuestOrdersContent({ guest }) {
   const [products, setProducts] = useState(cachedOrdersCatalog?.products || []);
   const [cookedMeals, setCookedMeals] = useState(cachedOrdersCatalog?.cookedMeals || []);
   const [amenities, setAmenities] = useState(cachedOrdersCatalog?.amenities || []);
-  const [orderHistory, setOrderHistory] = useState([]);
+  const [orderHistory, setOrderHistory] = useState(cachedOrderHistory || []);
   const [loading, setLoading] = useState(!cachedOrdersCatalog);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(Boolean(cachedOrderHistory));
   const [submitting, setSubmitting] = useState(false);
 
   // Active Category Filter: 'all' | 'meals' | 'products' | 'amenities' | 'history'
@@ -504,31 +505,56 @@ export default function GuestOrdersContent({ guest }) {
     }
   };
 
-  const fetchOrderHistory = async () => {
+  const fetchOrderHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
       const res = await fetch('/api/guest/orders?history=true');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load order history');
-      setOrderHistory(data.orders || []);
+      const ordersList = data.orders || [];
+      setOrderHistory(ordersList);
+      cachedOrderHistory = ordersList;
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('pcc_guest_orders_cache', JSON.stringify(ordersList));
+        }
+      } catch (e) {}
       setHistoryLoaded(true);
     } catch (err) {
       setFeedback({ type: 'danger', message: err.message });
     } finally {
       setLoadingHistory(false);
     }
-  };
+  }, []);
 
+  // Restore cached orders from localStorage if available
+  useEffect(() => {
+    if (!cachedOrderHistory && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('pcc_guest_orders_cache');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setOrderHistory(parsed);
+            cachedOrderHistory = parsed;
+          }
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  // Persist orders and reload from database when guest navigates or guestID changes
   useEffect(() => {
     fetchCatalog();
-  }, []);
+    fetchOrderHistory();
+  }, [guest?.guestID, fetchOrderHistory]);
 
   const handleSelectCategory = useCallback((cat) => {
     setActiveCategory(cat);
-    if (cat === 'history' && !historyLoaded) {
+    if (cat === 'history') {
       fetchOrderHistory();
     }
-  }, [historyLoaded]);
+  }, [fetchOrderHistory]);
 
   const hasScheduledItemsInCart = useMemo(() => cart.some(item => item.deliveryType === 'scheduled'), [cart]);
 
@@ -567,6 +593,10 @@ export default function GuestOrdersContent({ guest }) {
     setCart(prev => {
       const updated = [...prev];
       if (updated[index]) {
+        // Cooked meals are strictly scheduled only
+        if (updated[index].isCookedMeal || updated[index].type === 'CookedMeal') {
+          return prev;
+        }
         updated[index] = { ...updated[index], deliveryType: newDeliveryType };
       }
       return updated;
@@ -771,27 +801,36 @@ export default function GuestOrdersContent({ guest }) {
               </div>
 
               {/* PER-ITEM DELIVERY TIMING SELECTOR */}
-              <div className="d-flex align-items-center justify-content-between pt-1.5 border-top" style={{ fontSize: '0.74rem' }}>
-                <span className="text-muted fw-semibold">Delivery:</span>
-                <div className="btn-group btn-group-sm" role="group">
-                  <button
-                    type="button"
-                    className={`btn btn-xs py-0.5 px-2 ${item.deliveryType !== 'scheduled' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary text-muted'}`}
-                    style={{ fontSize: '0.68rem' }}
-                    onClick={() => handleToggleItemDelivery(idx, 'immediate')}
-                  >
-                    ⚡ Deliver now
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn btn-xs py-0.5 px-2 ${item.deliveryType === 'scheduled' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary text-muted'}`}
-                    style={{ fontSize: '0.68rem' }}
-                    onClick={() => handleToggleItemDelivery(idx, 'scheduled')}
-                  >
-                    ⏰ With breakfast
-                  </button>
+              {item.isCookedMeal || item.type === 'CookedMeal' ? (
+                <div className="d-flex align-items-center justify-content-between pt-1.5 border-top" style={{ fontSize: '0.74rem' }}>
+                  <span className="text-muted fw-semibold">Delivery:</span>
+                  <span className="badge bg-warning-subtle text-dark border border-warning-subtle py-1 px-2 fw-semibold" style={{ fontSize: '0.70rem' }}>
+                    <i className="bi bi-clock-history me-1 text-warning-emphasis"></i>Scheduled (6:00 AM – 10:30 AM)
+                  </span>
                 </div>
-              </div>
+              ) : (
+                <div className="d-flex align-items-center justify-content-between pt-1.5 border-top" style={{ fontSize: '0.74rem' }}>
+                  <span className="text-muted fw-semibold">Delivery:</span>
+                  <div className="btn-group btn-group-sm" role="group">
+                    <button
+                      type="button"
+                      className={`btn btn-xs py-0.5 px-2 ${item.deliveryType !== 'scheduled' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary text-muted'}`}
+                      style={{ fontSize: '0.68rem' }}
+                      onClick={() => handleToggleItemDelivery(idx, 'immediate')}
+                    >
+                      ⚡ Deliver now
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-xs py-0.5 px-2 ${item.deliveryType === 'scheduled' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary text-muted'}`}
+                      style={{ fontSize: '0.68rem' }}
+                      onClick={() => handleToggleItemDelivery(idx, 'scheduled')}
+                    >
+                      ⏰ With breakfast
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -904,6 +943,18 @@ export default function GuestOrdersContent({ guest }) {
           <p className="text-muted small mb-0">
             Order fresh breakfast meals, refreshments, beverages, and extra amenities directly to your room.
           </p>
+        </div>
+        <div className="d-flex align-items-center gap-2">
+          {orderHistory.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs"
+              onClick={() => handleSelectCategory('history')}
+            >
+              <i className="bi bi-receipt"></i>
+              <span>View Orders ({orderHistory.length})</span>
+            </button>
+          )}
         </div>
       </div>
 

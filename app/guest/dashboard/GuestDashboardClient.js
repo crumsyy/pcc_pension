@@ -4237,19 +4237,54 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 )}
 
                 {/* 6. FINANCIAL BALANCING CARD */}
-                <div className="p-3 bg-light rounded border">
+                <div className="billing-breakdown p-3 bg-light rounded-3 border mb-3">
                   <div className="d-flex justify-content-between align-items-center mb-1.5 small">
-                    <span className="text-muted">Subtotal (Room + Addl Fees + Incidentals + Orders - Discounts):</span>
-                    <strong className="text-dark fs-6">₱{parseFloat(detailedBill.subtotal || detailedBill.balancing?.subtotal || detailedBill.chargesSummary?.total || 0).toFixed(2)}</strong>
+                    <span className="text-muted">Room Rate ({detailedBill.nights || 1} night{detailedBill.nights > 1 ? 's' : ''}):</span>
+                    <strong className="text-dark">₱{parseFloat(detailedBill.baseRoomCharge || detailedBill.chargesSummary?.room || detailedBill.roomCharge || 0).toFixed(2)}</strong>
                   </div>
+                  {(detailedBill.chargesSummary?.downPaymentPaid > 0 || detailedBill.downPaymentPaid > 0 || detailedBill.storedDownPaymentAmount > 0) && (
+                    <div className="d-flex justify-content-between align-items-center mb-1.5 small text-primary">
+                      <span>Down Payment ({detailedBill.chargesSummary?.downPaymentPercentage || detailedBill.storedDownPaymentPercentage || 30}%):</span>
+                      <strong className="fw-semibold">-₱{parseFloat(detailedBill.chargesSummary?.downPaymentPaid || detailedBill.downPaymentPaid || detailedBill.storedDownPaymentAmount || 0).toFixed(2)}</strong>
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between align-items-center mb-1.5 small">
+                    <span className="text-muted">Additional Charges (Incidentals, Fees &amp; Orders):</span>
+                    <strong className="text-dark">
+                      ₱{parseFloat(
+                        (parseFloat(detailedBill.regularIncidentalTotal || detailedBill.incidentalTotal || 0)) +
+                        (parseFloat(detailedBill.earlyCheckInFee || 0)) +
+                        (parseFloat(detailedBill.lateCheckOutFee || 0)) +
+                        (parseFloat(detailedBill.extraGuestFee || 0)) +
+                        (parseFloat(detailedBill.ordersTotal || 0))
+                      ).toFixed(2)}
+                    </strong>
+                  </div>
+                  {(detailedBill.totalDiscount || detailedBill.chargesBreakdown?.discounts?.total || 0) > 0 && (
+                    <div className="d-flex justify-content-between align-items-center mb-1.5 small text-success">
+                      <span>Discounts Applied:</span>
+                      <strong className="fw-semibold">-₱{parseFloat(detailedBill.totalDiscount || detailedBill.chargesBreakdown?.discounts?.total || 0).toFixed(2)}</strong>
+                    </div>
+                  )}
                   <div className="d-flex justify-content-between align-items-center mb-2 small text-success">
-                    <span>Paid Total (Down Payment + Subsequent Payments):</span>
+                    <span>Total Paid Recorded:</span>
                     <strong className="fs-6">₱{parseFloat(detailedBill.paidTotal || detailedBill.balancing?.paidTotal || detailedBill.chargesSummary?.paid || 0).toFixed(2)}</strong>
                   </div>
                   <hr className="my-2" />
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span className="fw-bold text-danger fs-6">Remaining Balance:</span>
+                  <div className="d-flex justify-content-between align-items-center total-row">
+                    <span className="fw-bold text-danger fs-6">Total Remaining Balance:</span>
                     <span className="fw-bold text-danger fs-5">₱{parseFloat(detailedBill.balance ?? detailedBill.remainingBalance ?? detailedBill.balancing?.remainingBalance ?? 0).toFixed(2)}</span>
+                  </div>
+                  <div className="mt-2.5 pt-2 border-top d-flex justify-content-end">
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm p-0 text-primary fw-semibold d-inline-flex align-items-center gap-1"
+                      style={{ fontSize: '0.80rem' }}
+                      onClick={() => setShowAuditTrailModal(true)}
+                    >
+                      <i className="bi bi-clock-history"></i>
+                      <span>View Payment History &amp; Audit Logs</span>
+                    </button>
                   </div>
                 </div>
               </div>

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import LoadingButton from './LoadingButton';
+import ReceptionistSidebarNav from './ReceptionistSidebarNav';
 
 export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
@@ -66,24 +67,29 @@ export default function SidebarClient({ session, role, children }) {
   const labelText = role === 'Administrator' ? 'PCC Admin' : 'PCC Front Desk';
   const headingText = role === 'Administrator' ? 'PCC Administration' : 'PCC Front Desk Panel';
 
-  const renderNavLinksList = () => (
-    <ul className="nav flex-column gap-1" style={{ paddingLeft: '0', listStyle: 'none' }}>
-      {navLinks.map(([path, icon, label], index) => {
-        const isActive = pathname === path;
-        return (
-          <li key={index}>
-            <Link
-              href={path}
-              className={`nav-link text-white d-flex align-items-center gap-2 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
-              style={{ borderRadius: '6px', fontSize: '0.9rem' }}
-            >
-              {icon} {label}
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
+  const renderNavLinksList = () => {
+    if (role === 'Receptionist') {
+      return <ReceptionistSidebarNav pathname={pathname} icons={icons} />;
+    }
+    return (
+      <ul className="nav flex-column gap-1" style={{ paddingLeft: '0', listStyle: 'none' }}>
+        {navLinks.map(([path, icon, label], index) => {
+          const isActive = pathname === path;
+          return (
+            <li key={index}>
+              <Link
+                href={path}
+                className={`nav-link text-white d-flex align-items-center gap-2 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
+                style={{ borderRadius: '6px', fontSize: '0.9rem' }}
+              >
+                {icon} {label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
 
   const mainBgColor = role === 'Administrator' ? '#f6faf7' : '#f0f4f8';
 

@@ -1924,3 +1924,24 @@ body.dark-theme .qr-payment-container {
 body.dark-theme .qr-payment-container h4 {
   color: #f8fafc !important;
 }
+
+/* =====================================================================
+   Receptionist Alerts, Guest Orders, and Accurate Billing Standards
+   ===================================================================== */
+.badge.bg-danger {
+  border-radius: 50%;
+  padding: 0.35em 0.6em;
+}
+
+.order-card {
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.billing-breakdown {
+  line-height: 1.6;
+}
+
+.billing-breakdown .total-row {
+  font-weight: bold;
+}
