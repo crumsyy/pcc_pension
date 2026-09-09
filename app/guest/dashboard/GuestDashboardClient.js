@@ -126,6 +126,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [resetBannerDismissed, setResetBannerDismissed] = useState(true);
+  const [viewBillingBooking, setViewBillingBooking] = useState(null);
 
   useEffect(() => {
     try {
@@ -993,6 +994,64 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     });
   };
 
+  const handleRequestCheckout = (booking) => {
+    if (!booking) return;
+    showConfirm(
+      'Request Checkout & Room Verification',
+      `Are you ready to request checkout for Room ${booking.roomNumber}? Housekeeping and front desk will be notified to inspect the room and update your final billing statement.`,
+      async () => {
+        try {
+          const res = await fetch('/api/guest/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'request_checkout',
+              bookingID: booking.bookingID
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to request checkout');
+
+          showAlert('success', 'Checkout Requested', data.message || 'Staff notified to inspect room.');
+          fetchRoomsAndStatus();
+        } catch (err) {
+          showAlert('error', 'Error', err.message);
+        }
+      }
+    );
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'Pending':
+      case 'Pending Check-in':
+        return 'bg-warning-subtle text-warning-emphasis border border-warning';
+      case 'Confirmed':
+      case 'Booked':
+        return 'bg-primary-subtle text-primary border border-primary';
+      case 'Checked In':
+      case 'Active Stay':
+        return 'bg-info-subtle text-info-emphasis border border-info';
+      case 'Pending Checkout':
+        return 'bg-warning-subtle text-warning-emphasis border border-warning';
+      case 'Room Verified':
+        return 'bg-info-subtle text-info-emphasis border border-info';
+      case 'Final Billing Updated':
+        return 'bg-primary text-white';
+      case 'Payment Completed':
+      case 'Paid':
+        return 'bg-success text-white';
+      case 'Checked Out':
+      case 'Completed':
+        return 'bg-secondary-subtle text-secondary border';
+      case 'Cancelled':
+      case 'No Show':
+        return 'bg-danger-subtle text-danger border border-danger';
+      default:
+        return 'bg-secondary-subtle text-secondary';
+    }
+  };
+
   const handlePrintReceipt = () => {
     if (!receiptData) return;
     const printWindow = window.open('', '_blank', 'width=450,height=700');
@@ -1130,8 +1189,81 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     };
   };
 
-  // REQ165a: Interactive Booking Status Timeline Component Helper
+  // Interactive Booking & Checkout Status Timeline Component Helper
   const renderBookingStatusTimeline = (status) => {
+    // If booking is in checked-in or checkout workflow
+    const isCheckoutFlow = [
+      'Checked In', 'Active Stay', 'Pending Checkout', 'Room Verified', 
+      'Final Billing Updated', 'Payment Completed', 'Checked Out', 'Completed'
+    ].includes(status);
+
+    if (isCheckoutFlow) {
+      const checkoutSteps = [
+        { id: 'Active Stay', label: 'Active Stay' },
+        { id: 'Pending Checkout', label: 'Verify Room' },
+        { id: 'Room Verified', label: 'Room OK' },
+        { id: 'Final Billing Updated', label: 'Bill Ready' },
+        { id: 'Payment Completed', label: 'Paid' },
+        { id: 'Checked Out', label: 'Departed' }
+      ];
+
+      let currentIdx = 0;
+      if (status === 'Pending Checkout') currentIdx = 1;
+      if (status === 'Room Verified') currentIdx = 2;
+      if (status === 'Final Billing Updated') currentIdx = 3;
+      if (status === 'Payment Completed') currentIdx = 4;
+      if (status === 'Checked Out' || status === 'Completed') currentIdx = 5;
+
+      return (
+        <div className="w-100 my-2">
+          <div className="d-flex align-items-center justify-content-between position-relative px-1">
+            {/* Status Connecting Line Track */}
+            <div
+              className="position-absolute"
+              style={{
+                top: '12px',
+                left: '8%',
+                right: '8%',
+                height: '3px',
+                backgroundColor: '#e2e8f0',
+                zIndex: 0,
+                transform: 'translateY(-50%)'
+              }}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  width: `${(currentIdx / (checkoutSteps.length - 1)) * 100}%`,
+                  backgroundColor: currentIdx >= 4 ? '#198754' : 'var(--pcc-blue, #0d6efd)',
+                  transition: 'width 0.3s ease'
+                }}
+              />
+            </div>
+
+            {checkoutSteps.map((step, idx) => {
+              const isDone = idx <= currentIdx;
+              const isCurrent = idx === currentIdx;
+              return (
+                <div key={step.id} className="d-flex flex-column align-items-center" style={{ flex: 1, zIndex: 1 }}>
+                  <div
+                    className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${
+                      isDone ? (currentIdx >= 4 ? 'bg-success text-white shadow-sm' : 'bg-primary text-white shadow-sm') : 'bg-white text-muted border'
+                    }`}
+                    style={{ width: '22px', height: '22px', fontSize: '0.62rem', position: 'relative', zIndex: 2 }}
+                  >
+                    {isDone ? '✓' : idx + 1}
+                  </div>
+                  <span className={`mt-1 text-center ${isCurrent ? 'fw-bold text-primary' : (isDone ? 'text-dark' : 'text-muted')}`} style={{ fontSize: '0.62rem', whiteSpace: 'nowrap' }}>
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     const steps = [
       { id: 'Pending', label: 'Pending' },
       { id: 'Confirmed', label: 'Confirmed' },
@@ -1218,7 +1350,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const fallbackRooms = allRooms.filter(r => !groundFloorRooms.some(g => g.roomID === r.roomID) && !secondFloorRooms.some(s => s.roomID === r.roomID));
 
   const activeReservation = reservations.find(r => r.status === 'Pending' || r.status === 'Confirmed' || r.status === 'Overdue Check-In');
-  const activeBookingStay = bookings.find(b => b.status === 'Pending' || b.status === 'Confirmed' || b.status === 'Overdue Check-In' || b.status === 'Checked In');
+  const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'].includes(b.status));
 
   useEffect(() => {
     if (activeBookingStay?.bookingID) {
@@ -2630,30 +2762,97 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         const isCheckedOut = b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled';
                         const remBal = isCheckedOut ? 0 : parseFloat(b.remainingBalance || 0);
                         return (
-                          <div key={b.bookingID} className="p-3 border rounded bg-light">
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <div>
-                                <h6 className="fw-bold mb-0 text-dark">Booking #{formatBookingID(b.bookingID)} — Room {b.roomNumber} ({b.roomType || 'Room'})</h6>
-                                <span className="small text-muted">Remaining Balance: <strong className={remBal > 0 ? 'text-danger' : 'text-success'}>₱{remBal.toFixed(2)}</strong></span>
+                          <div key={b.bookingID} className="card shadow-sm border mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                            <div className="card-body p-3">
+                              <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
+                                <div>
+                                  <h5 className="card-title fw-bold text-dark mb-0">
+                                    Room {b.roomNumber} — {b.roomType || 'Standard Room'}
+                                  </h5>
+                                  <div className="text-secondary font-monospace small" style={{ fontSize: '0.78rem' }}>
+                                    Booking ID: #{formatBookingID(b.bookingID)} • User ID: #{guest.userID || guest.guestID}
+                                  </div>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                  <span className={`booking-status-pill ${getStatusBadgeClass(b.status)}`}>
+                                    {b.status}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="d-flex gap-1.5 align-items-center">
-                                {remBal > 0 && (b.status === 'Pending' || b.status === 'Confirmed' || b.status === 'Checked In') && (
-                                  <button
-                                    className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
-                                    onClick={() => setSettleBooking(b)}
+
+                              <p className="card-text text-muted small mb-2">
+                                <i className="bi bi-calendar-event me-1"></i> Check-in: <strong>{formatDate(b.checkInDateTime)}</strong> • Check-out: <strong>{formatDate(b.checkOutDateTime)}</strong>
+                              </p>
+
+                              <div className="d-flex justify-content-between align-items-center py-2 px-3 bg-light rounded mb-2">
+                                <span className="small text-muted fw-semibold">Billing Balance:</span>
+                                <span className={`fw-bold fs-6 ${remBal > 0 ? 'text-danger' : 'text-success'}`}>
+                                  ₱{remBal.toFixed(2)}
+                                </span>
+                              </div>
+
+                              {/* TIMELINE */}
+                              {renderBookingStatusTimeline(b.status)}
+
+                              {/* ACTION BUTTONS */}
+                              <div className="booking-card-actions">
+                                <button 
+                                  type="button" 
+                                  className="btn btn-outline-primary"
+                                  onClick={() => setViewBillingBooking(b)}
+                                >
+                                  <i className="bi bi-receipt"></i> View Billing
+                                </button>
+
+                                {(b.status === 'Checked In' || b.status === 'Active Stay') && (
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-outline-secondary"
+                                    onClick={() => handleRequestCheckout(b)}
                                   >
-                                    Pay Balance
+                                    <i className="bi bi-box-arrow-right"></i> Request Checkout
                                   </button>
                                 )}
+
+                                {b.status === 'Pending Checkout' && (
+                                  <button type="button" className="btn btn-outline-warning text-dark" disabled>
+                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Pending Inspection
+                                  </button>
+                                )}
+
+                                {b.status === 'Room Verified' && (
+                                  <button type="button" className="btn btn-outline-info text-dark" disabled>
+                                    <i className="bi bi-check-circle me-1"></i> Room Verified (Preparing Bill)
+                                  </button>
+                                )}
+
+                                {b.status === 'Final Billing Updated' && (
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-primary fw-bold text-white shadow-sm"
+                                    onClick={() => setSettleBooking(b)}
+                                  >
+                                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Pay (₱{remBal.toFixed(2)})
+                                  </button>
+                                )}
+
+                                {b.status === 'Payment Completed' && (
+                                  <button type="button" className="btn btn-success text-white" disabled>
+                                    <i className="bi bi-check2-all me-1"></i> Payment Completed
+                                  </button>
+                                )}
+
                                 {(b.status === 'Pending' || b.status === 'Confirmed') && (
-                                  <button className="btn btn-xs btn-danger text-white fw-bold px-2.5 py-1" onClick={() => handleCancelBooking(b.bookingID)}>
-                                    Cancel
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-outline-danger" 
+                                    onClick={() => handleCancelBooking(b.bookingID)}
+                                  >
+                                    <i className="bi bi-x-circle"></i> Cancel
                                   </button>
                                 )}
                               </div>
                             </div>
-                            {/* REQ165a TIMELINE */}
-                            {renderBookingStatusTimeline(b.status)}
                           </div>
                         );
                       })}
@@ -2793,6 +2992,211 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setSettleBooking(null)}>Close</button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW BILLING BREAKDOWN MODAL */}
+      {viewBillingBooking && (
+        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px' }}>
+              <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)' }}>
+                <div>
+                  <h5 className="modal-title fw-bold mb-0">Billing Breakdown — Room {viewBillingBooking.roomNumber}</h5>
+                  <div className="small opacity-75 font-monospace">Stay #{viewBillingBooking.bookingID} • {viewBillingBooking.roomType || 'Room'}</div>
+                </div>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setViewBillingBooking(null)}></button>
+              </div>
+              <div className="modal-body p-3 p-md-4" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+                {/* Stay Summary Card */}
+                <div className="p-3 bg-light rounded border mb-3">
+                  <div className="row g-2 small">
+                    <div className="col-sm-6">
+                      <span className="text-muted d-block">Scheduled Stay:</span>
+                      <strong>{formatDate(viewBillingBooking.checkInDateTime)} &rarr; {formatDate(viewBillingBooking.checkOutDateTime)}</strong>
+                    </div>
+                    <div className="col-sm-6">
+                      <span className="text-muted d-block">Current Status:</span>
+                      <span className={`booking-status-pill ${getStatusBadgeClass(viewBillingBooking.status)}`}>
+                        {viewBillingBooking.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Itemized Room Charges */}
+                <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                  <i className="bi bi-door-open-fill text-primary"></i> Room Charges
+                </h6>
+                <div className="table-responsive mb-3">
+                  <table className="table table-sm table-bordered align-middle small mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Item Description</th>
+                        <th className="text-end" style={{ width: '120px' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Room Rate ({viewBillingBooking.roomType || 'Standard'})</td>
+                        <td className="text-end fw-semibold">
+                          ₱{parseFloat(viewBillingBooking.billingDetails?.roomChargeSummary?.baseRoomCharge || viewBillingBooking.rate || 1500).toFixed(2)}
+                        </td>
+                      </tr>
+                      {viewBillingBooking.billingDetails?.roomChargeSummary?.breakfastOption === 'with' && (
+                        <tr>
+                          <td>Breakfast Package (Included with Stay)</td>
+                          <td className="text-end text-success fw-semibold">Included</td>
+                        </tr>
+                      )}
+                      {parseFloat(viewBillingBooking.billingDetails?.roomChargeSummary?.totalDiscount || 0) > 0 && (
+                        <tr>
+                          <td className="text-success">Discount Applied</td>
+                          <td className="text-end text-success fw-semibold">
+                            -₱{parseFloat(viewBillingBooking.billingDetails.roomChargeSummary.totalDiscount).toFixed(2)}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Itemized Incidental Charges */}
+                <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                  <i className="bi bi-shield-check text-warning"></i> Incidental &amp; Extra Charges
+                </h6>
+                <div className="table-responsive mb-3">
+                  <table className="table table-sm table-bordered align-middle small mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Fee Description</th>
+                        <th className="text-end" style={{ width: '120px' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(!viewBillingBooking.incidentals || viewBillingBooking.incidentals.length === 0) ? (
+                        <tr>
+                          <td colSpan="2" className="text-center text-muted py-2">No incidental charges added.</td>
+                        </tr>
+                      ) : (
+                        viewBillingBooking.incidentals.map((inc, idx) => (
+                          <tr key={inc.chargeID || idx}>
+                            <td>
+                              <div>{inc.description}</div>
+                              {inc.createdAt && <span className="text-muted" style={{ fontSize: '0.72rem' }}>{inc.createdAt}</span>}
+                            </td>
+                            <td className="text-end fw-semibold text-danger">₱{parseFloat(inc.amount).toFixed(2)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Room Service / Orders if present */}
+                {viewBillingBooking.billingDetails?.productCharges?.length > 0 && (
+                  <>
+                    <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                      <i className="bi bi-cup-hot-fill text-success"></i> Room Service &amp; Store Orders
+                    </h6>
+                    <div className="table-responsive mb-3">
+                      <table className="table table-sm table-bordered align-middle small mb-0">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Item</th>
+                            <th className="text-center" style={{ width: '60px' }}>Qty</th>
+                            <th className="text-end" style={{ width: '120px' }}>Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewBillingBooking.billingDetails.productCharges.map((item, idx) => (
+                            <tr key={idx}>
+                              <td>{item.name} {item.isFreeBreakfast && <span className="badge bg-success-subtle text-success ms-1">Package</span>}</td>
+                              <td className="text-center">{item.quantity}</td>
+                              <td className="text-end fw-semibold">₱{parseFloat(item.subtotal || 0).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+
+                {/* Payment History Breakdown */}
+                <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                  <i className="bi bi-cash-stack text-success"></i> Payments Recorded
+                </h6>
+                <div className="table-responsive mb-3">
+                  <table className="table table-sm table-bordered align-middle small mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Payment Detail</th>
+                        <th>Method</th>
+                        <th className="text-end" style={{ width: '120px' }}>Amount Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(!viewBillingBooking.billingDetails?.paymentsList || viewBillingBooking.billingDetails.paymentsList.length === 0) ? (
+                        <tr>
+                          <td colSpan="3" className="text-center text-muted py-2">No payments recorded yet.</td>
+                        </tr>
+                      ) : (
+                        viewBillingBooking.billingDetails.paymentsList.map((p, idx) => (
+                          <tr key={p.paymentID || idx}>
+                            <td>Payment #{p.paymentID} <span className="text-muted small">({p.paymentDate})</span></td>
+                            <td>{p.paymentMethod || 'GCash'}</td>
+                            <td className="text-end fw-semibold text-success">₱{parseFloat(p.amount).toFixed(2)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Balance Summary Box */}
+                <div className="p-3 bg-light rounded border">
+                  <div className="d-flex justify-content-between mb-1 small">
+                    <span className="text-muted">Total Charges:</span>
+                    <strong className="text-dark">
+                      ₱{parseFloat(viewBillingBooking.billingDetails?.totalAmount || viewBillingBooking.rate || 0).toFixed(2)}
+                    </strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1 small">
+                    <span className="text-muted">Total Payments Made:</span>
+                    <strong className="text-success">
+                      ₱{parseFloat(viewBillingBooking.billingDetails?.paidTotal || 0).toFixed(2)}
+                    </strong>
+                  </div>
+                  <hr className="my-2" />
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="fw-bold text-dark">Remaining Final Balance:</span>
+                    <span className={`fw-bold fs-5 ${parseFloat(viewBillingBooking.remainingBalance || 0) > 0 ? 'text-danger' : 'text-success'}`}>
+                      ₱{parseFloat(viewBillingBooking.remainingBalance || 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer bg-light border-top">
+                <button type="button" className="btn btn-secondary" onClick={() => setViewBillingBooking(null)}>
+                  Close
+                </button>
+                {viewBillingBooking.status === 'Final Billing Updated' && parseFloat(viewBillingBooking.remainingBalance || 0) > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-primary fw-bold px-4 text-white shadow-sm"
+                    onClick={() => {
+                      const target = viewBillingBooking;
+                      setViewBillingBooking(null);
+                      setSettleBooking(target);
+                    }}
+                  >
+                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Pay (₱{parseFloat(viewBillingBooking.remainingBalance || 0).toFixed(2)})
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

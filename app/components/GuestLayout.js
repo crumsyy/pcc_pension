@@ -81,27 +81,32 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
               <img src="/assets/images/logo.jpg" height="38" alt="PCC Logo" style={{ borderRadius: "6px" }} />
               <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
             </Link>
-            <div className="d-flex align-items-center gap-2">
-              <span className="fw-semibold text-white px-2.5 py-1 rounded-pill d-flex align-items-center gap-1.5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.35)', fontSize: '0.82rem' }}>
+            <div className="d-flex align-items-center gap-2 gap-sm-3">
+              <span 
+                className="guest-mobile-user-badge"
+                title={guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
+              >
                 {guest?.profilePicture ? (
                   <img
                     src={guest.profilePicture}
                     alt="Avatar"
                     className="rounded-circle border border-white flex-shrink-0"
-                    style={{ width: '22px', height: '22px', objectFit: 'cover' }}
+                    style={{ width: '24px', height: '24px', objectFit: 'cover' }}
                   />
                 ) : (
                   <div
                     className="profile-avatar-initial flex-shrink-0"
-                    style={{ width: '22px', height: '22px', fontSize: '0.65rem' }}
+                    style={{ width: '24px', height: '24px', fontSize: '0.7rem' }}
                   >
                     {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
                   </div>
                 )}
-                {guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
+                <span className="user-name">
+                  {guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
+                </span>
               </span>
               <button
-                className="btn btn-sm text-white border-0"
+                className="btn btn-sm text-white border-0 px-2 py-1"
                 title="Log Out"
                 onClick={() => setShowLogoutModal(true)}
               >

@@ -123,6 +123,7 @@ export async function POST(request) {
       if (balanceAfter <= 0.05) {
         await connection.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
         await connection.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
+        await connection.execute("UPDATE booking SET status = 'Payment Completed', paymentCompletedAt = NOW() WHERE bookingID = ?", [parsedBookingID]);
       } else {
         await connection.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
       }

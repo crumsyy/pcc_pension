@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema } from '@/lib/db';
 
 export async function GET() {
   const session = await getSession();
@@ -10,6 +10,7 @@ export async function GET() {
 
   try {
     await syncRoomStatuses();
+    await ensureBookingBillingSchema();
 
     const guests = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
     if (guests.length === 0) {
@@ -26,6 +27,7 @@ export async function GET() {
                ELSE b.status
              END as status,
              b.reservationID, b.roomID, b.cancelRemarks,
+             b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
              rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID, COALESCE(rr.rate, 1500) as rate
       FROM booking b
       JOIN room rm ON rm.roomID = b.roomID
@@ -44,15 +46,18 @@ export async function GET() {
         WHERE bg.bookingID = ?
       `, [b.bookingID]);
       const incidentals = await dbQuery(`
-        SELECT incidentalID, description, amount
+        SELECT chargeID, description, amount, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt
         FROM incidental_charge
         WHERE bookingID = ?
+        ORDER BY chargeID ASC
       `, [b.bookingID]);
+      const billingDetails = await getBookingBalanceDetails(b.bookingID).catch(() => null);
       return {
         ...b,
         remainingBalance,
         registeredGuests,
-        incidentals: incidentals || []
+        incidentals: incidentals || [],
+        billingDetails: billingDetails || null
       };
     }));
 
@@ -78,6 +83,59 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
     }
     const guest = guests[0];
+
+    if (action === 'request_checkout') {
+      const bookingID = parseInt(body.bookingID);
+      if (!bookingID) {
+        return NextResponse.json({ error: 'Booking ID is required.' }, { status: 400 });
+      }
+
+      const [booking] = await dbQuery(
+        `SELECT b.bookingID, b.status, b.roomID, rm.roomNumber 
+         FROM booking b 
+         JOIN room rm ON rm.roomID = b.roomID 
+         WHERE b.bookingID = ? AND b.guestID = ?`,
+        [bookingID, guest.guestID]
+      );
+
+      if (!booking) {
+        return NextResponse.json({ error: 'Booking record not found.' }, { status: 404 });
+      }
+
+      const currentStatus = booking.status;
+      if (currentStatus !== 'Checked In' && currentStatus !== 'Active Stay') {
+        return NextResponse.json({ 
+          error: `Cannot request checkout from current status '${currentStatus}'. Only checked-in active stays can request checkout.` 
+        }, { status: 400 });
+      }
+
+      await ensureBookingBillingSchema();
+      await dbQuery(
+        "UPDATE booking SET status = 'Pending Checkout', checkoutRequestedAt = NOW() WHERE bookingID = ?",
+        [bookingID]
+      );
+
+      // Notify receptionists & administrators
+      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      for (const r of staffToNotify) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checkout Requested', ?)",
+          [r.userID, `Guest ${guest.firstName} ${guest.lastName} in Room ${booking.roomNumber} (Booking #${bookingID}) has requested checkout. Room inspection and billing verification required.`]
+        );
+      }
+
+      // Notify guest
+      await dbQuery(
+        "INSERT INTO notification (userID, title, message) VALUES (?, 'Checkout Requested', ?)",
+        [session.userID, `Your checkout request for Room ${booking.roomNumber} has been received. Our team will inspect your room and update your final billing statement shortly.`]
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: 'Checkout request submitted. Front desk has been notified to verify your room and finalize your billing.',
+        bookingStatus: 'Pending Checkout'
+      });
+    }
 
     if (action === 'cancel') {
       const bookingID = parseInt(body.bookingID);

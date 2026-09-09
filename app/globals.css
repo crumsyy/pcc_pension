@@ -1690,6 +1690,76 @@ body.dark-theme .profile-avatar-initial {
   margin-bottom: 2px;
 }
 
+/* Guest Mobile Header User Badge & Spacing */
+.guest-mobile-user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+  max-width: 175px;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.guest-mobile-user-badge .user-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+}
+
+/* Interactive Booking Cards & Action Buttons */
+.booking-card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.booking-card-actions button,
+.booking-card-actions a {
+  flex: 1;
+  min-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: all 0.15s ease-in-out;
+}
+
+.booking-item-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.booking-subtitle-wrap {
+  font-size: 0.8rem;
+  line-height: 1.3;
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+.booking-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 50rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 /* =====================================================================
    Guest Orders & Room Service Catalog Styling
    ===================================================================== */

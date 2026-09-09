@@ -19,6 +19,7 @@ export async function GET(request) {
   }
 
   await syncRoomStatuses();
+  await ensureBookingBillingSchema();
 
   try {
     const [bookings, guests, rooms, guestsDetails, discounts, paymentMethods] = await Promise.all([
@@ -30,6 +31,7 @@ export async function GET(request) {
                  ELSE b.status
                END as status,
                b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
+               b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
                g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
                rm.roomNumber, rm.occupancyLimit, rt.type as roomType, rm.image
         FROM booking b
@@ -65,9 +67,14 @@ export async function GET(request) {
 
     const bookingsWithGuests = await Promise.all(bookings.map(async b => {
       const remainingBalance = await getBookingBalance(b.bookingID);
+      const incidentals = await dbQuery(
+        "SELECT chargeID, description, amount, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt FROM incidental_charge WHERE bookingID = ? ORDER BY chargeID ASC",
+        [b.bookingID]
+      );
       return {
         ...b,
         remainingBalance,
+        incidentals: incidentals || [],
         registeredGuests: guestsDetails.filter(gd => gd.bookingID === b.bookingID)
       };
     }));
@@ -599,20 +606,129 @@ export async function POST(request) {
       });
     }
 
+    if (action === 'verify_room') {
+      const bookingID = parseInt(body.bookingID);
+      const inspectionNotes = body.notes?.trim() || '';
+
+      if (!bookingID) {
+        return NextResponse.json({ error: 'Booking ID is required.' }, { status: 400 });
+      }
+
+      const res = await dbQuery("SELECT b.roomID, b.guestID, rm.roomNumber FROM booking b JOIN room rm ON rm.roomID = b.roomID WHERE b.bookingID = ?", [bookingID]);
+      if (res.length === 0) {
+        return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      }
+
+      const { guestID, roomNumber } = res[0];
+
+      await ensureBookingBillingSchema();
+      await dbQuery(
+        "UPDATE booking SET status = 'Room Verified', roomVerifiedAt = NOW() WHERE bookingID = ?",
+        [bookingID]
+      );
+
+      // Notify guest in real-time
+      const guestRes = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [guestID]);
+      if (guestRes.length > 0 && guestRes[0].userID) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Room Inspection Verified', ?)",
+          [
+            guestRes[0].userID,
+            `Room ${roomNumber} has been inspected and verified by staff. Front desk is now finalizing your billing statement.`
+          ]
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Room ${roomNumber} verified successfully.`,
+        bookingStatus: 'Room Verified'
+      });
+    }
+
+    if (action === 'update_final_billing') {
+      const bookingID = parseInt(body.bookingID);
+      const incidentals = body.incidentals || []; // array of { description, amount }
+
+      if (!bookingID) {
+        return NextResponse.json({ error: 'Booking ID is required.' }, { status: 400 });
+      }
+
+      const res = await dbQuery("SELECT b.roomID, b.guestID, rm.roomNumber FROM booking b JOIN room rm ON rm.roomID = b.roomID WHERE b.bookingID = ?", [bookingID]);
+      if (res.length === 0) {
+        return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      }
+      const { guestID, roomNumber } = res[0];
+
+      await ensureBookingBillingSchema();
+
+      // Add any incidentals provided (minibar, damages, extra towels, etc.)
+      if (Array.isArray(incidentals)) {
+        for (const inc of incidentals) {
+          if (inc.description && parseFloat(inc.amount) > 0) {
+            await dbQuery(
+              "INSERT INTO incidental_charge (bookingID, description, amount, createdAt) VALUES (?, ?, ?, NOW())",
+              [bookingID, inc.description.trim(), parseFloat(inc.amount)]
+            );
+          }
+        }
+      }
+
+      // Single incidental convenience payload
+      if (body.singleIncidental?.description && parseFloat(body.singleIncidental?.amount) > 0) {
+        await dbQuery(
+          "INSERT INTO incidental_charge (bookingID, description, amount, createdAt) VALUES (?, ?, ?, NOW())",
+          [bookingID, body.singleIncidental.description.trim(), parseFloat(body.singleIncidental.amount)]
+        );
+      }
+
+      // Compute final accurate balance
+      const balance = await getBookingBalance(bookingID);
+
+      await dbQuery(
+        "UPDATE booking SET status = 'Final Billing Updated', finalBalance = ?, finalBillingUpdatedAt = NOW() WHERE bookingID = ?",
+        [balance, bookingID]
+      );
+
+      await dbQuery(
+        "UPDATE billing SET balance = ?, totalAmount = ? WHERE bookingID = ?",
+        [balance, balance, bookingID]
+      );
+
+      // Notify guest in real-time
+      const guestRes = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [guestID]);
+      if (guestRes.length > 0 && guestRes[0].userID) {
+        const msg = balance > 0
+          ? `Your final billing for Room ${roomNumber} has been verified and updated to ₱${balance.toFixed(2)}. You can now proceed to pay online from your portal or settle at the front desk.`
+          : `Your final billing for Room ${roomNumber} has been verified and settled (₱0.00 balance). You are ready for checkout!`;
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Final Billing Updated — Ready for Payment', ?)",
+          [guestRes[0].userID, msg]
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Final billing updated successfully. Guest can now proceed to payment.',
+        finalBalance: balance,
+        bookingStatus: 'Final Billing Updated'
+      });
+    }
+
     if (action === 'checkout') {
       const bookingID = parseInt(body.bookingID);
       const confirmEarlyCheckOut = !!body.confirmEarlyCheckOut;
       
-      const res = await dbQuery("SELECT roomID, checkOutDateTime FROM booking WHERE bookingID = ?", [bookingID]);
+      const res = await dbQuery("SELECT roomID, checkOutDateTime, status FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
-      const { roomID, checkOutDateTime } = res[0];
+      const { roomID, checkOutDateTime, status } = res[0];
 
       const localNow = new Date();
       const scheduledCheckOut = new Date(String(checkOutDateTime).replace(' ', 'T'));
 
-      if (localNow < scheduledCheckOut && !confirmEarlyCheckOut) {
+      if (localNow < scheduledCheckOut && !confirmEarlyCheckOut && status !== 'Payment Completed') {
         return NextResponse.json({
           requiresEarlyCheckOutConfirmation: true,
           message: "Are you sure you want to checkout even if it's still not the checkout time yet."
@@ -627,7 +743,7 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         message: 'Guest checked out successfully.',
-        bookingStatus: 'Completed',
+        bookingStatus: 'Checked Out',
         roomStatus: 'Available'
       });
     }
