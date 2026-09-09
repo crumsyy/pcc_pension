@@ -5,12 +5,12 @@ import React from 'react';
 /**
  * Calculates required down payment based on room price and down payment rate.
  * @param {number} roomPrice - Base room price pulled from admin room table.
- * @param {number} downPaymentRate - Decimal rate (e.g., 0.30 for 30%, 0.50 for 50%, 1.00 for 100%).
+ * @param {number} downPaymentRate - Decimal rate (e.g., 0.25 for 25%, 0.50 for 50%, 1.00 for 100%). Default is 0.50.
  * @returns {number} Down payment amount.
  */
-export function calculateDownPayment(roomPrice, downPaymentRate = 0.30) {
+export function calculateDownPayment(roomPrice, downPaymentRate = 0.50) {
   const price = parseFloat(roomPrice) || 0;
-  const rate = parseFloat(downPaymentRate) || 0.30;
+  const rate = parseFloat(downPaymentRate) || 0.50;
   return Math.round(price * rate * 100) / 100;
 }
 
@@ -32,7 +32,7 @@ export function calculateExtraGuestFee(booking = {}) {
 export function calculateBookingBreakdown({
   roomPrice = 0,
   nights = 1,
-  downPaymentRate = 0.30,
+  downPaymentRate = 0.50,
   downPaymentPaid = 0,
   extraGuestFees = 0,
   roomBasePax = 4,
@@ -84,7 +84,7 @@ export function calculateBookingBreakdown({
 export default function GuestBookingSummaryCard({
   room,
   nights = 1,
-  downPaymentRate = 0.30,
+  downPaymentRate = 0.50,
   additionalCharges = 0
 }) {
   const roomPrice = parseFloat(room?.rate || room?.price || 0);

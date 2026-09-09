@@ -7,10 +7,10 @@ import React, { useState, useMemo } from 'react';
  * Read-only visual overview of room availability and schedules.
  * - Non-interactive day grid (pointer-events: none) to prevent accidental clicks
  * - Highlights room statuses:
- *   - Reserved → yellow highlight
- *   - Booked → green highlight
- *   - Occupied → red highlight
- *   - Under Maintenance → gray highlight
+ *   - Reserved → Orange highlight (#fd7e14)
+ *   - Booked → Green highlight (#198754)
+ *   - Occupied → Blue highlight (#0d6efd)
+ *   - Under Maintenance → Red highlight (#dc3545)
  */
 export default function ReservationCalendar({
   schedules = [],
@@ -176,17 +176,17 @@ export default function ReservationCalendar({
       </div>
 
       {/* Weekdays Header */}
-      <div className="d-grid text-center mb-1 text-muted fw-semibold" style={{ gridTemplateColumns: 'repeat(7, 1fr)', fontSize: '0.72rem' }}>
+      <div className="d-grid text-center mb-1 text-muted fw-semibold" style={{ gridTemplateColumns: 'repeat(7, 1fr)', fontSize: '0.72rem', padding: '0 1rem', gap: '0.5rem' }}>
         {dayLabels.map(d => (
           <div key={d} className="py-1">{d}</div>
         ))}
       </div>
 
       {/* Days Grid: Non-interactive Visual Overview */}
-      <div className="calendar-visual d-grid gap-1 text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+      <div className="calendar-visual calendar-grid d-grid text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
         {days.map((dateStr, idx) => {
           if (!dateStr) {
-            return <div key={`empty-${idx}`} className="p-1" />;
+            return <div key={`empty-${idx}`} className="calendar-cell p-1" />;
           }
 
           const dayNumber = parseInt(dateStr.split('-')[2], 10);
@@ -196,7 +196,7 @@ export default function ReservationCalendar({
           return (
             <div
               key={dateStr}
-              className={`p-1 d-flex flex-column align-items-center justify-content-center rounded ${
+              className={`calendar-cell p-1 d-flex flex-column align-items-center justify-content-center ${
                 hasStatus ? statusInfo.className : 'bg-light border text-dark'
               }`}
               style={{
@@ -225,21 +225,21 @@ export default function ReservationCalendar({
       </div>
 
       {/* Visual Status Legend */}
-      <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mt-2 pt-2 border-top" style={{ fontSize: '0.68rem' }}>
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mt-2 pt-2 border-top" style={{ fontSize: '0.68rem', padding: '0 0.5rem' }}>
         <div className="d-flex align-items-center gap-1">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffc107', border: '1px solid #d39e00' }}></span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fd7e14', border: '1px solid #d9480f' }}></span>
           <span className="text-muted">Reserved</span>
         </div>
         <div className="d-flex align-items-center gap-1">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #146c43' }}></span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #0f5132' }}></span>
           <span className="text-muted">Booked</span>
         </div>
         <div className="d-flex align-items-center gap-1">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#dc3545', border: '1px solid #b02a37' }}></span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0d6efd', border: '1px solid #084298' }}></span>
           <span className="text-muted">Occupied</span>
         </div>
         <div className="d-flex align-items-center gap-1">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#6c757d', border: '1px solid #495057' }}></span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#dc3545', border: '1px solid #842029' }}></span>
           <span className="text-muted">Under Maint.</span>
         </div>
       </div>

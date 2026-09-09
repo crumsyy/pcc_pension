@@ -75,6 +75,7 @@ export async function POST(request) {
   }
 
   try {
+    await ensureBookingBillingSchema();
     const body = await request.json();
     const { action } = body;
 
@@ -257,11 +258,26 @@ export async function POST(request) {
           `, [compRes.reservationID]);
         }
 
+        // Calculate down payment amounts and breakdown
+        const downPaymentPercentage = parseInt(body.downPaymentPercentage || body.paymentOption || 50, 10);
+        const downPaymentRate = downPaymentPercentage / 100;
+
+        const [roomRows] = await connection.execute("SELECT rate, price FROM room WHERE roomID = ?", [roomID]);
+        const roomPrice = parseFloat(roomRows[0]?.price || roomRows[0]?.rate || 0);
+        const dIn = new Date(checkInDate);
+        const dOut = new Date(checkOutDate);
+        const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
+        const totalAmount = parseFloat(body.totalAmount) || (roomPrice * nights);
+        const downPaymentAmount = parseFloat(body.downPaymentAmount) || Math.round(totalAmount * downPaymentRate * 100) / 100;
+        const remainingBalance = parseFloat(body.remainingBalance) !== undefined && !isNaN(parseFloat(body.remainingBalance))
+          ? parseFloat(body.remainingBalance)
+          : Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
+
         // 3. Insert booking record with 'Confirmed' status
         const [bookingRes] = await connection.execute(
-          `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID)
-           VALUES (?, ?, 'Confirmed', ?, ?, ?)`,
-          [checkInDateTime, checkOutDateTime, convResID, guest.guestID, roomID]
+          `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance)
+           VALUES (?, ?, 'Confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [checkInDateTime, checkOutDateTime, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
         );
         const bookingID = bookingRes.insertId;
 
@@ -284,10 +300,11 @@ export async function POST(request) {
         // Update room status to Reserved
         await connection.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
 
-        // Create billing record if missing
+        // Create billing record with down payment details and remaining balance
         await connection.execute(
-          "INSERT INTO billing (billingDate, status, bookingID) VALUES (NOW(), 'Unpaid', ?)",
-          [bookingID]
+          `INSERT INTO billing (billingDate, status, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) 
+           VALUES (NOW(), 'Unpaid', ?, ?, ?, ?, ?, ?)`,
+          [bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
         );
 
         await connection.commit();

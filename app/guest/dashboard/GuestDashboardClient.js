@@ -12,7 +12,9 @@ import DatePicker from '../../components/DatePicker';
 import ReservationCalendar from '../../components/ReservationCalendar';
 import ReservationForm from '../../components/ReservationForm';
 import BookingForm from '../../components/BookingForm';
+import GuestBookingForm from '../../components/GuestBookingForm';
 import GuestOrdersContent from './GuestOrdersContent';
+import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
 function parseRoomImages(imgVal) {
@@ -946,7 +948,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           paymentMethod: 'GCash',
           paymentStatus: 'Settled',
           isGcashSettled: true,
-          referenceNumber: finalRef
+          referenceNumber: finalRef,
+          totalAmount: netTotalAmount,
+          downPaymentAmount: amountToPayNow,
+          downPaymentPercentage: paymentPctNumber,
+          remainingBalance: remainingBalanceAfterPay
         })
       });
 
@@ -1591,29 +1597,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
               </Link>
               <div className="d-flex align-items-center gap-2 gap-sm-3">
-                <span 
-                  className="guest-mobile-user-badge"
-                  title={guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
-                >
-                  {guest?.profilePicture ? (
-                    <img
-                      src={guest.profilePicture}
-                      alt="Avatar"
-                      className="rounded-circle border border-white flex-shrink-0"
-                      style={{ width: '24px', height: '24px', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <div
-                      className="profile-avatar-initial flex-shrink-0"
-                      style={{ width: '24px', height: '24px', fontSize: '0.7rem' }}
-                    >
-                      {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
-                    </div>
-                  )}
-                  <span className="user-name">
-                    {guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
-                  </span>
-                </span>
+                <HeaderProfile user={guest} />
                 <button
                   className="btn btn-sm text-white border-0 px-2 py-1"
                   title="Log Out"
@@ -3811,19 +3795,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="badge bg-warning text-dark ms-2">TEST MODE</span>
                   </div>
 
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">Select Down Payment Percentage *</label>
-                    <div className="btn-group w-100" role="group">
-                      <input type="radio" className="btn-check" name="payPct" id="pct30" value="30" checked={paymentOption === '30'} onChange={(e) => setPaymentOption(e.target.value)} />
-                      <label className="btn btn-outline-primary fw-bold" htmlFor="pct30">30% Down Payment</label>
-
-                      <input type="radio" className="btn-check" name="payPct" id="pct50" value="50" checked={paymentOption === '50'} onChange={(e) => setPaymentOption(e.target.value)} />
-                      <label className="btn btn-outline-primary fw-bold" htmlFor="pct50">50% Down Payment</label>
-
-                      <input type="radio" className="btn-check" name="payPct" id="pct100" value="100" checked={paymentOption === '100'} onChange={(e) => setPaymentOption(e.target.value)} />
-                      <label className="btn btn-outline-primary fw-bold" htmlFor="pct100">Full (100%) Payment</label>
-                    </div>
-                  </div>
+                  <GuestBookingForm paymentOption={paymentOption} setPaymentOption={setPaymentOption} />
 
                   <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
                     <div className="d-flex justify-content-between mb-1">

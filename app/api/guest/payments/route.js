@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema } from '@/lib/db';
 
 export async function POST(request) {
   const session = await getSession();
@@ -124,6 +124,7 @@ export async function POST(request) {
       const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
 
       await ensurePaymentSchema();
+      await ensureBookingBillingSchema();
 
       // Insert payment record
       const [paymentInsert] = await connection.execute(
@@ -143,10 +144,22 @@ export async function POST(request) {
 
       // Determine transaction type
       let txType = 'Subsequent Payment';
-      if (paymentPercentage?.includes('30')) txType = 'Down Payment (30%)';
+      if (paymentPercentage?.includes('25')) txType = 'Down Payment (25%)';
+      else if (paymentPercentage?.includes('30')) txType = 'Down Payment (30%)';
       else if (paymentPercentage?.includes('50')) txType = 'Down Payment (50%)';
       else if (paymentPercentage?.includes('100')) txType = 'Down Payment (100%)';
       else if (balanceAfter <= 0.05) txType = 'Checkout Settlement';
+
+      // Update downPaymentAmount, downPaymentPercentage, and remainingBalance on booking and billing
+      const pctNum = parseInt(paymentPercentage, 10) || 50;
+      await connection.execute(
+        "UPDATE booking SET downPaymentAmount = ?, downPaymentPercentage = ?, remainingBalance = ?, finalBalance = ? WHERE bookingID = ?",
+        [parsedAmount, pctNum, balanceAfter, balanceAfter, parsedBookingID]
+      );
+      await connection.execute(
+        "UPDATE billing SET downPaymentAmount = ?, downPaymentPercentage = ?, remainingBalance = ?, balance = ? WHERE billingID = ?",
+        [parsedAmount, pctNum, balanceAfter, balanceAfter, billingID]
+      );
 
       // Update billing status
       if (balanceAfter <= 0.05) {

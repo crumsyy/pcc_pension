@@ -1960,10 +1960,29 @@ body.dark-theme .qr-payment-container h4 {
   font-weight: bold;
 }
 
+/* Mobile Header Profile Name Truncation */
+.header-profile-name {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
+
 /* Visual Calendar & Date-Time Pickers Styling Standards */
 .calendar-visual {
   pointer-events: none; /* disables interaction */
   opacity: 0.95;
+}
+
+.calendar-grid {
+  padding: 0 1rem;
+  gap: 0.5rem;
+}
+
+.calendar-cell {
+  margin: 0.25rem;
+  border-radius: 6px;
 }
 
 .form-control[type="date"],
@@ -1973,10 +1992,11 @@ body.dark-theme .qr-payment-container h4 {
   padding: 0.5rem;
 }
 
+/* Updated Calendar Status Colors: Reserved (Orange), Booked (Green), Occupied (Blue), Under Maintenance (Red) */
 .calendar-status-reserved {
-  background-color: #fff3cd !important;
-  border: 1px solid #ffc107 !important;
-  color: #856404 !important;
+  background-color: #ffe8cc !important;
+  border: 1px solid #fd7e14 !important;
+  color: #d9480f !important;
 }
 
 .calendar-status-booked {
@@ -1986,13 +2006,13 @@ body.dark-theme .qr-payment-container h4 {
 }
 
 .calendar-status-occupied {
-  background-color: #f8d7da !important;
-  border: 1px solid #dc3545 !important;
-  color: #842029 !important;
+  background-color: #cfe2ff !important;
+  border: 1px solid #0d6efd !important;
+  color: #084298 !important;
 }
 
 .calendar-status-maintenance {
-  background-color: #e2e3e5 !important;
-  border: 1px solid #6c757d !important;
-  color: #41464b !important;
+  background-color: #f8d7da !important;
+  border: 1px solid #dc3545 !important;
+  color: #842029 !important;
 }

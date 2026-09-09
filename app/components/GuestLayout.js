@@ -5,6 +5,7 @@ import Link from 'next/link';
 import GuestSidebarNav from '../guest/dashboard/GuestSidebarNav';
 import GuestBottomNav from '../guest/dashboard/GuestBottomNav';
 import LoadingButton from './LoadingButton';
+import HeaderProfile from './HeaderProfile';
 
 export default function GuestLayout({ children, activeTab = 'orders', guest: propGuest }) {
   const [isDesktop, setIsDesktop] = useState(false);
@@ -82,29 +83,7 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
               <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
             </Link>
             <div className="d-flex align-items-center gap-2 gap-sm-3">
-              <span 
-                className="guest-mobile-user-badge"
-                title={guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
-              >
-                {guest?.profilePicture ? (
-                  <img
-                    src={guest.profilePicture}
-                    alt="Avatar"
-                    className="rounded-circle border border-white flex-shrink-0"
-                    style={{ width: '24px', height: '24px', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <div
-                    className="profile-avatar-initial flex-shrink-0"
-                    style={{ width: '24px', height: '24px', fontSize: '0.7rem' }}
-                  >
-                    {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
-                  </div>
-                )}
-                <span className="user-name">
-                  {guest?.firstName ? `${guest.firstName} ${guest.lastName || ''}`.trim() : 'Guest'}
-                </span>
-              </span>
+              <HeaderProfile user={guest} />
               <button
                 className="btn btn-sm text-white border-0 px-2 py-1"
                 title="Log Out"

@@ -3,6 +3,16 @@
 import React from 'react';
 
 /**
+ * Calculate down payment rate, amount and remaining balance
+ */
+export function calculateDownPaymentDetails(totalAmount, selectedOption = 50) {
+  const downPaymentRate = (parseFloat(selectedOption) || 50) / 100;
+  const downPaymentAmount = Math.round((parseFloat(totalAmount) || 0) * downPaymentRate * 100) / 100;
+  const remainingBalance = Math.max(0, Math.round(((parseFloat(totalAmount) || 0) - downPaymentAmount) * 100) / 100);
+  return { downPaymentRate, downPaymentAmount, remainingBalance };
+}
+
+/**
  * Accurate Guest Billing Breakdown Component
  * Renders:
  * - Room rate
@@ -11,7 +21,7 @@ import React from 'react';
  * - Total balance
  * - Payment history link / modal trigger
  */
-export default function Billing({ detailedBill, onOpenPaymentHistory }) {
+export default function Billing({ detailedBill, selectedOption, onOpenPaymentHistory }) {
   if (!detailedBill) return null;
 
   const nights = detailedBill.nights || 1;
@@ -23,17 +33,21 @@ export default function Billing({ detailedBill, onOpenPaymentHistory }) {
     0
   );
 
-  const downPaymentPaid = parseFloat(
-    detailedBill.chargesSummary?.downPaymentPaid ||
-    detailedBill.storedDownPaymentAmount ||
-    detailedBill.downPaymentPaid ||
-    0
-  );
-
   const downPaymentPercentage =
     detailedBill.chargesSummary?.downPaymentPercentage ||
     detailedBill.storedDownPaymentPercentage ||
-    30;
+    detailedBill.downPaymentPercentage ||
+    (selectedOption ? parseInt(selectedOption, 10) : 50);
+
+  const downPaymentRate = downPaymentPercentage / 100;
+  const downPaymentAmount = parseFloat(
+    detailedBill.chargesSummary?.downPaymentPaid ||
+    detailedBill.storedDownPaymentAmount ||
+    detailedBill.downPaymentPaid ||
+    detailedBill.downPaymentAmount ||
+    (roomRate * downPaymentRate)
+  );
+  const downPaymentPaid = downPaymentAmount;
 
   // Standard Check-in and Check-out times
   const standardCheckInTime = detailedBill.standardCheckInTime || '14:00';
