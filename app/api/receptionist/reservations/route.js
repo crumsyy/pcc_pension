@@ -111,7 +111,7 @@ export async function GET(request) {
                  ELSE r.status
                END as status,
                r.guestID, r.roomID,
-               g.firstName, g.lastName, g.contact, g.email,
+               g.firstName, g.lastName, g.contact, COALESCE(r.guestEmail, g.email) as email,
                rm.roomNumber, rt.type as roomType, rm.image,
                rr1.rate as rateWithBreakfast, rr2.rate as rateWithoutBreakfast,
                COALESCE(rr1.rate, rr2.rate, 0) as rate,
@@ -168,20 +168,31 @@ export async function POST(request) {
     const { action } = body;
 
     if (action === 'create') {
+      await ensurePaymentSchema();
       let guestID;
+      let guestEmail = null;
+      const isCourtesyHold = Boolean(body.isCourtesyHold);
 
       if (body.isWalkIn) {
         const { firstName, lastName, contact, email, gender } = body;
         if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
           return NextResponse.json({ error: 'First name and Last name are required for walk-in guests.' }, { status: 400 });
         }
+        if (isCourtesyHold && (!email || !email.trim())) {
+          return NextResponse.json({ error: 'Email address is required for walk-in courtesy holds to receive expiry alerts.' }, { status: 400 });
+        }
         const insertRes = await dbQuery(
           "INSERT INTO guest (firstName, lastName, contact, email, gender, userID) VALUES (?, ?, ?, ?, ?, NULL)",
           [firstName.trim(), lastName.trim(), (contact || '').trim(), (email || '').trim() || null, gender || null]
         );
         guestID = insertRes.insertId;
+        guestEmail = (email || '').trim() || null;
       } else {
         guestID = parseInt(body.guestID);
+        const guestRows = await dbQuery("SELECT email FROM guest WHERE guestID = ?", [guestID]);
+        if (guestRows.length > 0 && guestRows[0].email) {
+          guestEmail = guestRows[0].email;
+        }
       }
 
       const roomID = parseInt(body.roomID);
@@ -269,11 +280,11 @@ export async function POST(request) {
       await dbQuery(
         `INSERT INTO reservation(
           reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
-          status, guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime
-        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          status, guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
-          initialStatus, guestID, roomID, isCourtesyHold ? 1 : 0, isCourtesyHold ? holdDurationHours : null, holdExpiryDateTime
+          initialStatus, guestID, roomID, isCourtesyHold ? 1 : 0, isCourtesyHold ? holdDurationHours : null, holdExpiryDateTime, guestEmail
         ]
       );
 

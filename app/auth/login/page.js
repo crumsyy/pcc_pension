@@ -48,6 +48,30 @@ function LoginContent() {
     }
   }, [searchParams]);
 
+  // Route guard: if authenticated user navigates to /auth/login, redirect to their dashboard
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/auth/session-check')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        if (data && data.valid && data.session) {
+          const role = data.session.role;
+          if (role === 'Administrator') {
+            router.replace('/admin/dashboard');
+          } else if (role === 'Receptionist') {
+            router.replace('/receptionist/dashboard');
+          } else {
+            router.replace('/guest/dashboard');
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -74,13 +98,13 @@ function LoginContent() {
         return;
       }
 
-      // Successful login, redirect based on role
+      // Successful login, redirect based on role (replace to remove login from history stack)
       if (data.role === "Administrator") {
-        router.push("/admin/dashboard");
+        router.replace("/admin/dashboard");
       } else if (data.role === "Receptionist") {
-        router.push("/receptionist/dashboard");
+        router.replace("/receptionist/dashboard");
       } else {
-        router.push("/guest/dashboard");
+        router.replace("/guest/dashboard");
       }
     } catch (err) {
       console.error(err);

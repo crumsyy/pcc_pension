@@ -110,7 +110,7 @@ export async function POST(request) {
     const body = await request.json();
     const { action } = body;
 
-    const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
+    const guests = await dbQuery("SELECT guestID, firstName, lastName, email FROM guest WHERE userID = ?", [session.userID]);
     if (guests.length === 0) {
       return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
     }
@@ -283,8 +283,8 @@ export async function POST(request) {
     const insertRes = await dbQuery(
       `INSERT INTO reservation (
         reservationDateTime, checkOutDateTime, guestCount, specialRequests, status,
-        guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         reservationDateTime,
         checkOutDateTimeFormatted,
@@ -295,7 +295,8 @@ export async function POST(request) {
         roomID,
         isCourtesyHold ? 1 : 0,
         isCourtesyHold ? holdDurationHours : null,
-        holdExpiryDateTime
+        holdExpiryDateTime,
+        guest.email || null
       ]
     );
 

@@ -538,6 +538,10 @@ function ReservationsClient() {
         showAlert('error', 'Validation Error', 'Contact number must be exactly 11 digits.');
         return;
       }
+      if (isCourtesyHold && (!walkInForm.email || !walkInForm.email.trim())) {
+        showAlert('error', 'Validation Error', 'Guest email is required for courtesy holds to send expiry alerts.');
+        return;
+      }
     }
 
     if (checkOutDate && isValidDate(checkOutDate)) {
@@ -1180,14 +1184,22 @@ function ReservationsClient() {
                           />
                         </div>
                         <div className="col-md-4 mb-2">
-                          <label className="form-label small fw-semibold mb-1">Email Address <span className="text-muted">(Optional)</span></label>
+                          <label className="form-label small fw-semibold mb-1">
+                            Email Address {isCourtesyHold ? <span className="text-danger fw-bold">* (Required for Hold)</span> : <span className="text-muted">(Optional)</span>}
+                          </label>
                           <input
                             type="email"
-                            className="form-control form-control-sm"
-                            placeholder="Optional email"
+                            className={`form-control form-control-sm ${isCourtesyHold && !walkInForm.email ? 'border-warning' : ''}`}
+                            placeholder={isCourtesyHold ? "Required for expiry alerts" : "Optional email"}
+                            required={isCourtesyHold}
                             value={walkInForm.email}
                             onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
                           />
+                          {isCourtesyHold && (
+                            <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
+                              Required to dispatch 12h/6h expiration alerts and release notices.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

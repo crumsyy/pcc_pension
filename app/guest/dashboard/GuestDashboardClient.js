@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
@@ -216,16 +216,93 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   }, []);
 
   // Active Navigation Tab: 'home' | 'rooms' | 'orders' | 'chat' | 'notifications' | 'account'
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, _setActiveTab] = useState('home');
+  const activeTabRef = useRef('home');
+  activeTabRef.current = activeTab;
+
+  // Workflow Mode: 'default' | 'select_room'
+  const [viewMode, _setViewMode] = useState('default');
+  const viewModeRef = useRef('default');
+  viewModeRef.current = viewMode;
+
+  // Modal Workflow States: 'none' | 'room_details' | 'reserve_form' | 'book_form' | 'payment' | 'receipt' | 'reservation_summary'
+  const [activeModal, _setActiveModal] = useState('none');
+  const activeModalRef = useRef('none');
+  activeModalRef.current = activeModal;
+
+  const setActiveTab = (newTab, pushHistory = true) => {
+    _setActiveTab(newTab);
+    if (pushHistory && typeof window !== 'undefined' && ['home', 'rooms', 'orders', 'chat', 'notifications', 'account'].includes(newTab)) {
+      const url = newTab === 'home' ? '/guest/dashboard' : `/guest/dashboard?tab=${newTab}`;
+      try {
+        window.history.pushState({ tab: newTab, viewMode: 'default', modal: 'none' }, '', url);
+      } catch (e) {}
+    }
+  };
+
+  const setViewMode = (newMode, pushHistory = true) => {
+    _setViewMode(newMode);
+    if (pushHistory && typeof window !== 'undefined' && newMode !== 'default') {
+      try {
+        window.history.pushState({ tab: activeTabRef.current, viewMode: newMode, modal: activeModalRef.current }, '', window.location.href);
+      } catch (e) {}
+    }
+  };
+
+  const setActiveModal = (newModal, pushHistory = true) => {
+    _setActiveModal(newModal);
+    if (pushHistory && typeof window !== 'undefined' && newModal !== 'none') {
+      try {
+        window.history.pushState({ tab: activeTabRef.current, viewMode: viewModeRef.current, modal: newModal }, '', window.location.href);
+      } catch (e) {}
+    }
+  };
 
   useEffect(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
-      if (tabParam && ['home', 'rooms', 'orders', 'chat', 'notifications', 'account'].includes(tabParam)) {
-        setActiveTab(tabParam);
+      const validTabs = ['home', 'rooms', 'orders', 'chat', 'notifications', 'account'];
+      const initialTab = (tabParam && validTabs.includes(tabParam)) ? tabParam : 'home';
+      _setActiveTab(initialTab);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({ tab: initialTab, viewMode: 'default', modal: 'none' }, '', window.location.href);
       }
     } catch (e) {}
+
+    const handlePopState = (event) => {
+      // 1. If any modal was open, back closes the modal
+      if (activeModalRef.current !== 'none') {
+        _setActiveModal('none');
+        return;
+      }
+
+      // 2. If selecting room workflow was active, back returns to default view
+      if (viewModeRef.current !== 'default') {
+        _setViewMode('default');
+        return;
+      }
+
+      // 3. Tab navigation back
+      const state = event.state;
+      const validTabs = ['home', 'rooms', 'orders', 'chat', 'notifications', 'account'];
+      if (state && state.tab && validTabs.includes(state.tab)) {
+        _setActiveTab(state.tab);
+      } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');
+        if (tabParam && validTabs.includes(tabParam)) {
+          _setActiveTab(tabParam);
+        } else if (activeTabRef.current !== 'home') {
+          _setActiveTab('home');
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   // Room Search & Filtering States
@@ -234,12 +311,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [selectedRoomTypeFilter, setSelectedRoomTypeFilter] = useState('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
 
-  // Workflow Mode: 'default' | 'select_room'
-  const [viewMode, setViewMode] = useState('default');
   const [flowAction, setFlowAction] = useState('reserve'); // 'reserve' | 'book'
-
-  // Modal Workflow States: 'none' | 'room_details' | 'reserve_form' | 'book_form' | 'payment' | 'receipt' | 'reservation_summary'
-  const [activeModal, setActiveModal] = useState('none');
   const [selectedRoom, setSelectedRoom] = useState(null);
 
   // Form States
@@ -971,8 +1043,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const refToUse = (verifiedRef || gcashRef.trim());
 
     if (!refToUse && !isGuestGcashSettled) {
-      setGuestGcashInlineError('Cannot proceed: GCash payment not settled. Please scan the QR code to verify payment or enter your reference number.');
-      showAlert('error', 'Payment Required', 'Cannot proceed: GCash payment not settled. Please scan the QR code to verify payment or enter your reference number.');
+      setGuestGcashInlineError('Please enter your GCash reference number to proceed.');
+      showAlert('error', 'Payment Reference Required', 'Please enter your GCash reference number to proceed.');
       return;
     }
 
@@ -3936,46 +4008,47 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
-                  <DynamicQrPhCode 
-                    amount={amountToPayNow} 
-                    refNumber={`BOOK-${selectedRoom?.roomID || 'PAY'}`}
-                    paymentStatus={isGuestGcashSettled ? 'Settled' : 'Pending'}
-                    showProceedBtn={true}
-                    onProceedToGCash={handlePayMongoCheckout}
-                    onPaymentSuccess={async (autoData) => {
-                      const ref = autoData?.transactionReference || autoData?.referenceNumber || `GCASH-QR-${Date.now()}`;
-                      setIsGuestGcashSettled(true);
-                      setGcashRef(ref);
-                      setGuestGcashInlineError('');
-                      await handleConfirmGCashBookingPayment(null, ref);
-                    }}
-                    isRedirecting={processing}
-                  />
+                  {/* STANDARD GCASH PAYMENT FLOW */}
+                  <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mb-3 text-start">
+                    <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                      <div className="d-flex align-items-center gap-2">
+                        <i className="bi bi-wallet2 text-primary fs-5"></i>
+                        <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>Standard GCash Payment</span>
+                      </div>
+                      <span className="badge bg-primary-subtle text-primary fw-semibold" style={{ fontSize: '0.72rem' }}>Direct Payment</span>
+                    </div>
 
-                  {guestGcashInlineError ? (
-                    <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mb-3">
-                      <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
-                      <span>{guestGcashInlineError}</span>
-                    </div>
-                  ) : isGuestGcashSettled ? (
-                    <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-3">
-                      <i className="bi bi-check-circle-fill text-success fs-6"></i>
-                      <span><strong>GCash Payment Verified:</strong> Reference #{gcashRef}. You may confirm booking.</span>
-                    </div>
-                  ) : (
-                    <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-3">
-                      <i className="bi bi-info-circle-fill text-warning fs-6"></i>
-                      <span><strong>Payment Verification Required:</strong> Please scan QR code with GCash or enter reference number before confirming.</span>
-                    </div>
-                  )}
+                    <p className="text-muted small mb-3">
+                      Complete your down payment using GCash checkout, or enter your GCash payment reference number below.
+                    </p>
 
-                  <div className="p-3 border rounded bg-white text-center mb-3">
-                    <div className="mb-2">
-                      <label className="form-label fw-semibold small">GCash Reference (Auto-verified via QR or manual input)</label>
+                    <button
+                      type="button"
+                      className="btn btn-primary w-100 fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm mb-3"
+                      style={{ backgroundColor: '#005CE6', borderColor: '#005CE6', borderRadius: '8px', fontSize: '0.9rem' }}
+                      disabled={processing}
+                      onClick={handlePayMongoCheckout}
+                    >
+                      <i className="bi bi-credit-card-fill fs-6"></i>
+                      <span>Proceed to GCash Payment (₱{amountToPayNow.toFixed(2)})</span>
+                    </button>
+
+                    <div className="text-center my-2 position-relative">
+                      <hr className="my-2" />
+                      <span className="position-absolute top-50 start-50 translate-middle bg-white px-2 text-muted small fw-semibold" style={{ fontSize: '0.72rem' }}>
+                        OR ENTER REFERENCE NUMBER
+                      </span>
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="form-label fw-semibold small mb-1" htmlFor="gcashReferenceNumber">
+                        GCash Reference Number
+                      </label>
                       <input
+                        id="gcashReferenceNumber"
                         type="text"
                         className="form-control text-center fw-bold"
-                        placeholder="Scan QR or enter reference"
+                        placeholder="Enter GCash reference number"
                         value={gcashRef}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -3989,6 +4062,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         }}
                       />
                     </div>
+
+                    {guestGcashInlineError ? (
+                      <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mt-3 mb-0">
+                        <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
+                        <span>{guestGcashInlineError}</span>
+                      </div>
+                    ) : gcashRef.trim().length >= 6 ? (
+                      <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mt-3 mb-0">
+                        <i className="bi bi-check-circle-fill text-success fs-6"></i>
+                        <span><strong>GCash Reference:</strong> #{gcashRef}. You may now confirm your booking.</span>
+                      </div>
+                    ) : (
+                      <div className="alert alert-light border py-2 px-3 small d-flex align-items-center gap-2 mt-3 mb-0 text-muted">
+                        <i className="bi bi-info-circle text-primary fs-6"></i>
+                        <span>Enter your GCash reference number or click Proceed to complete payment.</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="modal-footer">
