@@ -137,17 +137,11 @@ export default function ReservationCalendar({
 
   return (
     <div className={`reservation-calendar-card card border rounded-3 p-3 bg-white shadow-xs ${className}`}>
-      {/* Header with Title and Room Info */}
-      <div className="d-flex justify-content-between align-items-center mb-2">
-        <h6 className="fw-bold mb-0 text-dark d-flex align-items-center gap-1.5" style={{ fontSize: '0.86rem' }}>
-          <i className="bi bi-calendar-week text-primary"></i>
-          <span>{title}</span>
+      {/* Header with Title */}
+      <div className="mb-2 px-1">
+        <h6 className="fw-bold mb-0 text-dark text-nowrap" style={{ fontSize: '0.88rem' }}>
+          {title || 'Room Availability & Status Overview'}
         </h6>
-        {selectedRoom && (
-          <span className="badge bg-secondary-subtle text-secondary border px-2 py-0.5" style={{ fontSize: '0.72rem' }}>
-            Room {selectedRoom.roomNumber} ({selectedRoom.roomType || 'Standard'})
-          </span>
-        )}
       </div>
 
       {/* Month Navigation (Interactive) */}
