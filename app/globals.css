@@ -1990,8 +1990,14 @@ body.dark-theme .qr-payment-container h4 {
   padding: 0.5rem;
 }
 
-/* Updated Calendar Status Colors: Reserved (Orange), Booked (Green), Occupied (Blue), Under Maintenance (Red) */
+/* Updated Calendar Status Colors: Reserved (Yellow), Courtesy Hold (Orange), Booked (Green), Occupied (Blue), Under Maintenance (Red) */
 .calendar-status-reserved {
+  background-color: #fff3cd !important;
+  border: 1px solid #ffc107 !important;
+  color: #664d03 !important;
+}
+
+.calendar-status-courtesy-hold {
   background-color: #ffe8cc !important;
   border: 1px solid #fd7e14 !important;
   color: #d9480f !important;

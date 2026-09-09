@@ -62,6 +62,41 @@ function getRoomDisplayImage(imgVal) {
   return null;
 }
 
+function getCourtesyHoldTimeInfo(expiryStr) {
+  if (!expiryStr) return { expired: true, text: 'Expired', inGrace: false, hours: 0, mins: 0 };
+  const expiryTime = new Date(expiryStr).getTime();
+  const now = Date.now();
+  const diffMs = expiryTime - now;
+
+  if (diffMs > 0) {
+    const totalMins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    const timeText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    return {
+      expired: false,
+      inGrace: false,
+      hours,
+      mins,
+      text: timeText
+    };
+  }
+
+  // Check 30-minute grace period
+  const graceDiffMs = (expiryTime + 30 * 60 * 1000) - now;
+  if (graceDiffMs > 0) {
+    const graceMins = Math.ceil(graceDiffMs / 60000);
+    return {
+      expired: false,
+      inGrace: true,
+      graceMins,
+      text: `${graceMins}m in grace`
+    };
+  }
+
+  return { expired: true, inGrace: false, text: 'Expired' };
+}
+
 function ReservationsClient() {
   const searchParams = useSearchParams();
   const [reservations, setReservations] = useState([]);
@@ -76,6 +111,18 @@ function ReservationsClient() {
   const [todayUiDate, setTodayUiDate] = useState('');
   const [todayDbDate, setTodayDbDate] = useState('');
   const [currentTimeStr, setCurrentTimeStr] = useState('');
+
+  // Courtesy Hold States
+  const [isCourtesyHold, setIsCourtesyHold] = useState(false);
+  const [holdDurationHours, setHoldDurationHours] = useState(48);
+  const [countdownTick, setCountdownTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdownTick(t => t + 1);
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Modals
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'convert' | null
@@ -315,6 +362,8 @@ function ReservationsClient() {
         guestID: '',
         roomID: '',
       });
+      setIsCourtesyHold(false);
+      setHoldDurationHours(48);
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
     } else if (!activeModal) {
       setResDate('');
@@ -323,6 +372,8 @@ function ReservationsClient() {
       setCheckOutTime('12:00');
       setSpecialRequests('');
       setFormData({ guestID: '', roomID: '' });
+      setIsCourtesyHold(false);
+      setHoldDurationHours(48);
       setIsWalkIn(false);
       setWalkInForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
       setSelectedRoomType('');
@@ -498,7 +549,12 @@ function ReservationsClient() {
       }
     }
 
-    showConfirm('Create Reservation', 'Are you sure you want to create this reservation?', async () => {
+    const confirmTitle = isCourtesyHold ? 'Place Courtesy Hold' : 'Create Reservation';
+    const confirmMsg = isCourtesyHold
+      ? `Are you sure you want to place a ${holdDurationHours}-hour Courtesy Hold on this room? No payment is required immediately.`
+      : 'Are you sure you want to create this reservation?';
+
+    showConfirm(confirmTitle, confirmMsg, async () => {
       try {
         const res = await fetch('/api/receptionist/reservations', {
           method: 'POST',
@@ -512,13 +568,15 @@ function ReservationsClient() {
             checkOutDateTime: checkOutDate && isValidDate(checkOutDate) ? toDbDate(checkOutDate) + ' ' + checkOutTime + ':00' : null,
             guestCount: roomGuests.length,
             specialRequests: specialRequests || null,
-            breakfastOption
+            breakfastOption,
+            isCourtesyHold,
+            holdDurationHours: isCourtesyHold ? holdDurationHours : null
           })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create reservation');
 
-        showAlert('success', 'Success', 'Reservation created successfully.');
+        showAlert('success', 'Success', data.message || (isCourtesyHold ? 'Courtesy hold created successfully.' : 'Reservation created successfully.'));
         setActiveModal(null);
         fetchData();
       } catch (err) {
@@ -682,6 +740,25 @@ function ReservationsClient() {
     });
   };
 
+  const handleReleaseHold = (id) => {
+    showConfirm('Release Courtesy Hold', 'Are you sure you want to release this courtesy hold? The room will immediately become Available for other bookings.', async () => {
+      try {
+        const res = await fetch('/api/receptionist/reservations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'release_hold', reservationID: id })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to release courtesy hold');
+
+        showAlert('success', 'Hold Released', data.message || 'Courtesy hold released successfully.');
+        fetchData();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
   const handleReinstate = (id) => {
     showConfirm('Reinstate Reservation', 'Are you sure you want to reinstate this No Show reservation back to Confirmed?', async () => {
       try {
@@ -707,6 +784,8 @@ function ReservationsClient() {
       case 'Pending': return 'bg-info text-dark';
       case 'Overdue Check-In': return 'bg-warning text-dark';
       case 'No Show': return 'bg-danger text-white';
+      case 'Courtesy Hold': return 'text-white';
+      case 'Released': return 'bg-secondary text-white';
       case 'Canceled':
       case 'Cancelled': return 'bg-secondary text-white';
       case 'Expired': return 'bg-secondary text-white';
@@ -752,8 +831,10 @@ function ReservationsClient() {
               <option value="">All Statuses</option>
               <option value="Pending">Pending</option>
               <option value="Confirmed">Confirmed</option>
+              <option value="Courtesy Hold">Courtesy Hold</option>
               <option value="Overdue Check-In">Overdue Check-In</option>
               <option value="Booked">Booked</option>
+              <option value="Released">Released</option>
               <option value="No Show">No Show</option>
               <option value="Cancelled">Cancelled</option>
             </select>
@@ -824,12 +905,67 @@ function ReservationsClient() {
                     <td>
                       {r.bookingID ? (
                         <span className="badge bg-success text-white">Booked</span>
+                      ) : r.status === 'Courtesy Hold' ? (
+                        <div>
+                          <span className="badge" style={{ backgroundColor: '#fd7e14', color: '#fff' }} aria-label="Courtesy Hold Status">
+                            Courtesy Hold
+                          </span>
+                          {(() => {
+                            const holdInfo = getCourtesyHoldTimeInfo(r.holdExpiryDateTime);
+                            if (!holdInfo.inGrace && !holdInfo.expired) {
+                              return (
+                                <div className="text-warning-emphasis fw-bold mt-1" role="timer" aria-label="Courtesy Hold Expiration" style={{ fontSize: '0.72rem' }}>
+                                  <i className="fa-regular fa-clock me-1 text-warning"></i>
+                                  {holdInfo.text} left
+                                </div>
+                              );
+                            }
+                            if (holdInfo.inGrace) {
+                              return (
+                                <div className="badge bg-warning text-dark mt-1 text-wrap" style={{ fontSize: '0.68rem' }} role="alert" aria-label="Courtesy Hold Grace Period Active">
+                                  <i className="fa-solid fa-triangle-exclamation text-danger me-1"></i>
+                                  Grace: {holdInfo.graceMins}m left
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="text-muted small mt-0.5" style={{ fontSize: '0.70rem' }}>
+                                Expired
+                              </div>
+                            );
+                          })()}
+                        </div>
                       ) : (
                         <span className={`badge ${getStatusBadge(r.status)}`}>{r.status}</span>
                       )}
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
+                        {!r.bookingID && r.status === 'Courtesy Hold' && (
+                          <>
+                            <button
+                              type="button"
+                              className="action-btn action-btn-activate"
+                              data-bs-toggle="tooltip"
+                              title="Confirm & Convert Hold to Booking"
+                              aria-label="Confirm & Convert Hold to Booking"
+                              onClick={() => openConvertModal(r)}
+                            >
+                              <i className="fa-solid fa-book-bookmark"></i>
+                            </button>
+                            <button
+                              type="button"
+                              className="action-btn"
+                              style={{ color: '#d9480f', borderColor: '#fd7e14' }}
+                              data-bs-toggle="tooltip"
+                              title="Manually Release Courtesy Hold"
+                              aria-label="Manually Release Courtesy Hold"
+                              onClick={() => handleReleaseHold(r.reservationID)}
+                            >
+                              <i className="fa-solid fa-unlock-keyhole"></i>
+                            </button>
+                          </>
+                        )}
                         {!r.bookingID && (r.status === 'Pending' || r.status === 'Overdue Check-In') && (
                           <>
                             <button
@@ -907,6 +1043,62 @@ function ReservationsClient() {
 
               <form onSubmit={activeModal === 'create' ? handleCreateSubmit : handleUpdateSubmit}>
                 <div className="modal-body" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+
+                  {/* COURTESY HOLD TOGGLE */}
+                  {activeModal === 'create' && (
+                    <div className="card border mb-3 shadow-xs bg-light">
+                      <div className="card-body p-2.5">
+                        <div className="form-check form-switch d-flex align-items-center justify-content-between mb-0">
+                          <div>
+                            <label className="form-check-label fw-bold text-dark mb-0 d-block" htmlFor="recModalCourtesyHoldToggle">
+                              <i className="fa-solid fa-clock-rotate-left text-warning me-1.5"></i>
+                              Courtesy Hold (Walk-in / Phone Inquiries)
+                            </label>
+                            <small className="text-muted d-block" style={{ fontSize: '0.74rem' }}>
+                              Temporarily lock room without immediate payment. Automatically releases if not confirmed.
+                            </small>
+                          </div>
+                          <input
+                            className="form-check-input ms-3"
+                            type="checkbox"
+                            id="recModalCourtesyHoldToggle"
+                            style={{ width: '2.5em', height: '1.25em', cursor: 'pointer' }}
+                            checked={isCourtesyHold}
+                            onChange={(e) => setIsCourtesyHold(e.target.checked)}
+                            aria-label="Courtesy Hold"
+                          />
+                        </div>
+
+                        {isCourtesyHold && (
+                          <div className="mt-2.5 p-2 bg-white rounded border border-warning-subtle">
+                            <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between align-items-center">
+                              <span>Hold Duration (Countdown) *</span>
+                              <span className="badge bg-warning-subtle text-dark" style={{ fontSize: '0.68rem' }}>+30m Grace Period</span>
+                            </label>
+                            <div className="d-flex gap-2">
+                              {[24, 48, 72].map((dur) => (
+                                <button
+                                  key={dur}
+                                  type="button"
+                                  className={`btn btn-sm flex-fill py-1 ${
+                                    holdDurationHours === dur ? 'btn-warning text-dark fw-bold shadow-xs' : 'btn-outline-secondary'
+                                  }`}
+                                  style={{ fontSize: '0.8rem' }}
+                                  onClick={() => setHoldDurationHours(dur)}
+                                >
+                                  {dur} Hours {dur === 48 && '(Default)'}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="small text-muted mt-1.5" style={{ fontSize: '0.72rem' }}>
+                              <i className="fa-solid fa-circle-info text-warning me-1"></i>
+                              Room will be held for {holdDurationHours} hours and marked as "Reserved".
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* WALK-IN TOGGLE */}
                   {activeModal === 'create' && (
@@ -1211,10 +1403,10 @@ function ReservationsClient() {
                   <LoadingButton
                     type="submit"
                     isLoading={isSubmitting}
-                    loadingText={activeModal === 'create' ? 'Saving Reservation...' : 'Updating Reservation...'}
-                    className="btn btn-pcc-primary text-white fw-bold"
+                    loadingText={activeModal === 'create' ? (isCourtesyHold ? 'Placing Hold...' : 'Saving Reservation...') : 'Updating Reservation...'}
+                    className={`btn ${activeModal === 'create' && isCourtesyHold ? 'btn-warning text-dark' : 'btn-pcc-primary text-white'} fw-bold`}
                   >
-                    {activeModal === 'create' ? 'Save Reservation' : 'Update Reservation'}
+                    {activeModal === 'create' ? (isCourtesyHold ? 'Place Courtesy Hold (No Payment)' : 'Save Reservation') : 'Update Reservation'}
                   </LoadingButton>
                 </div>
               </form>

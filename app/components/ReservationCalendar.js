@@ -83,9 +83,13 @@ export default function ReservationCalendar({
       const rawStatus = (sched.status || '').toLowerCase();
       const schedType = (sched.type || '').toLowerCase();
 
-      let mappedStatus = 'Booked';
-      let label = 'Booked';
-      let statusClass = 'calendar-status-booked';
+      const statusPriority = {
+        'Occupied': 5,
+        'Booked': 4,
+        'Reserved': 3,
+        'Courtesy Hold': 2,
+        'Under Maintenance': 1
+      };
 
       if (rawStatus.includes('maintenance') || rawStatus === 'under maintenance') {
         mappedStatus = 'Under Maintenance';
@@ -95,6 +99,10 @@ export default function ReservationCalendar({
         mappedStatus = 'Occupied';
         label = 'Occupied';
         statusClass = 'calendar-status-occupied';
+      } else if (rawStatus.includes('courtesy') || rawStatus === 'courtesy hold' || (sched.isCourtesyHold && rawStatus !== 'cancelled' && rawStatus !== 'released')) {
+        mappedStatus = 'Courtesy Hold';
+        label = 'Hold';
+        statusClass = 'calendar-status-courtesy-hold';
       } else if (schedType === 'reservation' || rawStatus.includes('reserv') || rawStatus.includes('pending') || rawStatus.includes('confirmed')) {
         mappedStatus = 'Reserved';
         label = 'Reserved';
@@ -105,17 +113,22 @@ export default function ReservationCalendar({
         statusClass = 'calendar-status-booked';
       }
 
+      const priority = statusPriority[mappedStatus] || 1;
+
       let cur = new Date(rawIn + 'T00:00:00');
       const end = rawOut ? new Date(rawOut + 'T00:00:00') : new Date(rawIn + 'T00:00:00');
 
       if (cur.getTime() === end.getTime()) {
         const dStr = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
-        map[dStr] = { status: mappedStatus, label, className: statusClass };
+        const existingPriority = map[dStr] ? (statusPriority[map[dStr].status] || 0) : 0;
+        if (!map[dStr] || priority >= existingPriority) {
+          map[dStr] = { status: mappedStatus, label, className: statusClass };
+        }
       } else {
         while (cur < end) {
           const dStr = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
-          // Priority: Occupied > Booked > Reserved > Maintenance
-          if (!map[dStr] || mappedStatus === 'Occupied') {
+          const existingPriority = map[dStr] ? (statusPriority[map[dStr].status] || 0) : 0;
+          if (!map[dStr] || priority >= existingPriority) {
             map[dStr] = { status: mappedStatus, label, className: statusClass };
           }
           cur.setDate(cur.getDate() + 1);
@@ -224,8 +237,12 @@ export default function ReservationCalendar({
       {/* Visual Status Legend with Side Gaps */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mt-2.5 pt-2 border-top mx-2 mx-sm-3" style={{ fontSize: '0.68rem' }}>
         <div className="d-flex align-items-center gap-1">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fd7e14', border: '1px solid #d9480f' }}></span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffc107', border: '1px solid #d39e00' }}></span>
           <span className="text-muted">Reserved</span>
+        </div>
+        <div className="d-flex align-items-center gap-1">
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fd7e14', border: '1px solid #d9480f' }}></span>
+          <span className="text-muted">Courtesy Hold</span>
         </div>
         <div className="d-flex align-items-center gap-1">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #0f5132' }}></span>

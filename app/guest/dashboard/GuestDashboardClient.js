@@ -11,12 +11,48 @@ import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import DatePicker from '../../components/DatePicker';
 import ReservationCalendar from '../../components/ReservationCalendar';
 import ReservationForm from '../../components/ReservationForm';
+import GuestReservationForm from '../../components/GuestReservationForm';
 import BookingForm from '../../components/BookingForm';
 import GuestBookingForm from '../../components/GuestBookingForm';
 import GuestOrdersContent from './GuestOrdersContent';
 import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
+
+function getCourtesyHoldTimeInfo(expiryStr) {
+  if (!expiryStr) return { expired: true, text: 'Expired', inGrace: false, hours: 0, mins: 0 };
+  const expiryTime = new Date(expiryStr).getTime();
+  const now = Date.now();
+  const diffMs = expiryTime - now;
+
+  if (diffMs > 0) {
+    const totalMins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    const timeText = hours > 0 ? `${hours} hr${hours > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}` : `${mins} min${mins !== 1 ? 's' : ''}`;
+    return {
+      expired: false,
+      inGrace: false,
+      hours,
+      mins,
+      text: timeText
+    };
+  }
+
+  // Check 30-minute grace period
+  const graceDiffMs = (expiryTime + 30 * 60 * 1000) - now;
+  if (graceDiffMs > 0) {
+    const graceMins = Math.ceil(graceDiffMs / 60000);
+    return {
+      expired: false,
+      inGrace: true,
+      graceMins,
+      text: `${graceMins} minute${graceMins !== 1 ? 's' : ''} left in grace period`
+    };
+  }
+
+  return { expired: true, inGrace: false, text: 'Expired' };
+}
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
   if (Array.isArray(imgVal)) return imgVal;
@@ -239,6 +275,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [reservationSummaryData, setReservationSummaryData] = useState(null);
   const [receiptData, setReceiptData] = useState(null);
   const [processing, setProcessing] = useState(false);
+
+  // Courtesy Hold States
+  const [isCourtesyHold, setIsCourtesyHold] = useState(false);
+  const [holdDurationHours, setHoldDurationHours] = useState(48);
+  const [countdownTick, setCountdownTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdownTick(t => t + 1);
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Live Billing & Audit Trail State
   const [showBillModal, setShowBillModal] = useState(false);
@@ -856,7 +904,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
           checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
           numGuests,
-          specialRequests
+          specialRequests,
+          isCourtesyHold,
+          holdDurationHours: isCourtesyHold ? holdDurationHours : null
         })
       });
 
@@ -1443,6 +1493,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       return (
         <div className="alert alert-danger py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
           ❌ Status: Cancelled
+        </div>
+      );
+    }
+    if (status === 'Courtesy Hold') {
+      return (
+        <div className="alert alert-warning py-1.5 px-3 mb-0 small fw-bold text-dark d-flex align-items-center gap-2 border-warning" style={{ fontSize: '0.75rem', backgroundColor: '#fff3cd' }}>
+          <i className="bi bi-clock-history text-warning-emphasis"></i>
+          <span>Status: Courtesy Hold (Temporary Reservation — No Payment Yet)</span>
+        </div>
+      );
+    }
+    if (status === 'Released') {
+      return (
+        <div className="alert alert-secondary py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
+          ⌛ Status: Courtesy Hold Released (Hold period and 30-min grace expired)
         </div>
       );
     }
@@ -2835,39 +2900,96 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <p className="text-muted small mb-0">No reservation records found.</p>
                   ) : (
                     <div className="d-flex flex-column gap-3">
-                      {reservations.map((r) => (
-                        <div key={r.reservationID} className="p-3 border rounded bg-light">
-                          <div className="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                              <h6 className="fw-bold mb-0 text-dark">
-                                Reservation #{formatReservationID(r.reservationID)} — Room {r.roomNumber} ({r.roomType || 'Room'})
-                              </h6>
-                              <span className="small text-muted">
-                                Check-in Date: <strong>{formatDate(r.reservationDateTime)}</strong>
-                              </span>
+                      {reservations.map((r) => {
+                        const isHold = r.status === 'Courtesy Hold';
+                        const holdInfo = isHold ? getCourtesyHoldTimeInfo(r.holdExpiryDateTime) : null;
+
+                        return (
+                          <div key={r.reservationID} className="p-3 border rounded bg-light">
+                            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
+                              <div>
+                                <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                  <h6 className="fw-bold mb-0 text-dark">
+                                    Reservation #{formatReservationID(r.reservationID)} — Room {r.roomNumber} ({r.roomType || 'Room'})
+                                  </h6>
+                                  {isHold ? (
+                                    <span className="badge" style={{ backgroundColor: '#fd7e14', color: '#fff' }} aria-label="Courtesy Hold Status">
+                                      Courtesy Hold
+                                    </span>
+                                  ) : r.status === 'Released' ? (
+                                    <span className="badge bg-secondary text-white" aria-label="Hold Released Status">
+                                      Hold Released
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <span className="small text-muted d-block">
+                                  Check-in Date: <strong>{formatDate(r.reservationDateTime)}</strong>
+                                </span>
+
+                                {/* Countdown Timer */}
+                                {isHold && holdInfo && !holdInfo.inGrace && !holdInfo.expired && (
+                                  <p className="text-warning-emphasis small mb-1 fw-bold d-flex align-items-center gap-1.5 mt-1" role="timer" aria-label="Courtesy Hold Expiration">
+                                    <i className="bi bi-hourglass-split text-warning"></i>
+                                    Courtesy Hold expires in {holdInfo.text}
+                                  </p>
+                                )}
+
+                                {/* Explicit 30-Minute Grace Window Alert Banner */}
+                                {isHold && holdInfo && holdInfo.inGrace && (
+                                  <div className="alert alert-warning py-1.5 px-3 small mb-2 mt-1.5 fw-bold d-flex align-items-center gap-2 border border-warning" role="alert" aria-label="Courtesy Hold Grace Period Active">
+                                    <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
+                                    <span>
+                                      Final 30-Minute Grace Window: Your hold expired, but is temporarily held for {holdInfo.graceMins} more minute{holdInfo.graceMins !== 1 ? 's' : ''}. Complete payment now before auto-release!
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="d-flex gap-1.5 align-items-center flex-wrap">
+                                {isHold && (
+                                  <>
+                                    <button
+                                      className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
+                                      onClick={() => handleProceedToBooking(r)}
+                                      title="Complete Payment to confirm booking"
+                                      aria-label="Complete Payment"
+                                    >
+                                      <i className="bi bi-credit-card-fill me-1"></i>
+                                      Complete Payment
+                                    </button>
+                                    <button
+                                      className="btn btn-xs btn-outline-danger fw-bold px-2.5 py-1"
+                                      onClick={() => handleCancelReservation(r.reservationID)}
+                                      title="Cancel Courtesy Hold"
+                                      aria-label="Cancel Courtesy Hold"
+                                    >
+                                      Cancel Hold
+                                    </button>
+                                  </>
+                                )}
+
+                                {!isHold && (r.status === 'Pending' || r.status === 'Confirmed') && (
+                                  <>
+                                    <button
+                                      className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
+                                      onClick={() => handleProceedToBooking(r)}
+                                    >
+                                      Proceed to Booking
+                                    </button>
+                                    <button
+                                      className="btn btn-xs btn-danger text-white fw-bold px-2.5 py-1"
+                                      onClick={() => handleCancelReservation(r.reservationID)}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <div className="d-flex gap-1.5 align-items-center">
-                              {(r.status === 'Pending' || r.status === 'Confirmed') && (
-                                <>
-                                  <button
-                                    className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
-                                    onClick={() => handleProceedToBooking(r)}
-                                  >
-                                    Proceed to Booking
-                                  </button>
-                                  <button
-                                    className="btn btn-xs btn-danger text-white fw-bold px-2.5 py-1"
-                                    onClick={() => handleCancelReservation(r.reservationID)}
-                                  >
-                                    Cancel
-                                  </button>
-                                </>
-                              )}
-                            </div>
+                            {renderBookingStatusTimeline(r.status)}
                           </div>
-                          {renderBookingStatusTimeline(r.status)}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -3489,8 +3611,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
-              <div className="modal-header text-white" style={{ backgroundColor: '#198754' }}>
-                <h5 className="modal-title fw-bold">Reservation Request Form</h5>
+              <div className="modal-header text-white" style={{ backgroundColor: isCourtesyHold ? '#fd7e14' : '#198754' }}>
+                <h5 className="modal-title fw-bold">
+                  {isCourtesyHold ? 'Courtesy Hold Reservation Form' : 'Reservation Request Form'}
+                </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
               <form onSubmit={handleCreateReservation}>
@@ -3514,63 +3638,41 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="small text-primary fw-semibold mt-1">Note: Selectable reservation check-in dates are Today, Tomorrow, and Day After Tomorrow (up to 2 days ahead).</div>
                   </div>
 
-                  <div className="mb-3">
-                    <ReservationForm
-                      checkInDate={checkInDate}
-                      onChangeCheckInDate={(newDate) => handleCheckInDateChange(newDate)}
-                      checkOutDate={checkOutDate}
-                      onChangeCheckOutDate={(newDate) => setCheckOutDate(newDate)}
-                      checkInTime={checkInTime}
-                      onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
-                      checkOutTime={checkOutTime}
-                      onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
-                      minDate={minReserveDateStr}
-                      maxDate={maxReserveDateStr}
-                      selectedRoom={selectedRoom}
-                      roomSchedules={roomSchedules}
-                    />
-                  </div>
-
-                  {selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate) && (
-                    <div className="alert alert-danger py-2 px-3 small mb-3">
-                      <i className="bi bi-exclamation-triangle-fill me-1.5 fw-bold"></i>
-                      <strong>Schedule Conflict:</strong> Room {selectedRoom.roomNumber} is already reserved or booked for the selected date(s). Please choose another date or room.
-                    </div>
-                  )}
-
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold small">Number of Guests *</label>
-                    <input
-                      type="number"
-                      className="form-control form-control-sm"
-                      min="1"
-                      placeholder="e.g. 2"
-                      value={numGuests === '' ? '' : numGuests}
-                      onChange={(e) => setNumGuests(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
-                      required
-                    />
-                    {selectedRoom && (parseInt(numGuests) || 1) > roomBasePax && (
-                      <small className="text-primary fw-semibold mt-1 d-block" style={{ fontSize: '0.75rem' }}>
-                        ℹ Extra Guest Fee: ₱100/night per guest applied for {(parseInt(numGuests) || 1) - roomBasePax} guest(s) exceeding capacity ({roomBasePax}).
-                      </small>
-                    )}
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold small">Special Requests (Optional)</label>
-                    <textarea className="form-control form-control-sm" rows="2" placeholder="e.g. Extra pillows, early arrival note" value={specialRequests} onChange={(e) => setSpecialRequests(e.target.value)}></textarea>
-                  </div>
+                  <GuestReservationForm
+                    selectedRoom={selectedRoom}
+                    isCourtesyHold={isCourtesyHold}
+                    onChangeCourtesyHold={(val) => setIsCourtesyHold(val)}
+                    holdDurationHours={holdDurationHours}
+                    onChangeHoldDuration={(val) => setHoldDurationHours(val)}
+                    checkInDate={checkInDate}
+                    onChangeCheckInDate={(newDate) => handleCheckInDateChange(newDate)}
+                    checkOutDate={checkOutDate}
+                    onChangeCheckOutDate={(newDate) => setCheckOutDate(newDate)}
+                    checkInTime={checkInTime}
+                    onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
+                    checkOutTime={checkOutTime}
+                    onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
+                    minDate={minReserveDateStr}
+                    maxDate={maxReserveDateStr}
+                    roomSchedules={roomSchedules}
+                    hasConflict={Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
+                    numGuests={numGuests}
+                    onChangeNumGuests={(val) => setNumGuests(val)}
+                    roomBasePax={roomBasePax}
+                    specialRequests={specialRequests}
+                    onChangeSpecialRequests={(val) => setSpecialRequests(val)}
+                  />
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
                   <LoadingButton
                     type="submit"
-                    className="btn btn-success text-white fw-bold"
+                    className={`btn ${isCourtesyHold ? 'btn-warning text-dark fw-bold' : 'btn-success text-white fw-bold'}`}
                     isLoading={processing}
-                    loadingText="Submitting..."
+                    loadingText={isCourtesyHold ? "Placing Hold..." : "Submitting..."}
                     disabled={Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
                   >
-                    Submit Reservation Request
+                    {isCourtesyHold ? 'Place Courtesy Hold (No Payment)' : 'Submit Reservation Request'}
                   </LoadingButton>
                 </div>
               </form>
@@ -3585,13 +3687,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0 text-center p-3">
               <div className="modal-body py-3">
-                <h4 className="fw-bold text-dark">Reservation Request Sent!</h4>
-                <p className="text-muted small mb-3">Front Desk will review your reservation request shortly.</p>
+                <h4 className="fw-bold text-dark">
+                  {reservationSummaryData.isCourtesyHold ? 'Courtesy Hold Placed!' : 'Reservation Request Sent!'}
+                </h4>
+                <p className="text-muted small mb-3">
+                  {reservationSummaryData.isCourtesyHold
+                    ? `Your room is temporarily held for ${reservationSummaryData.holdDurationHours || 48} hours. Confirm with payment before it expires to secure your booking.`
+                    : 'Front Desk will review your reservation request shortly.'}
+                </p>
 
                 <div className="p-3 bg-light rounded text-start border mb-3" style={{ fontSize: '0.85rem' }}>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Reservation Ref:</span>
                     <span className="fw-bold text-success">#{formatReservationID(reservationSummaryData.reservationID)}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Reservation Type:</span>
+                    <span className={`badge ${reservationSummaryData.isCourtesyHold ? 'bg-warning text-dark' : 'bg-primary text-white'}`}>
+                      {reservationSummaryData.isCourtesyHold ? `Courtesy Hold (${reservationSummaryData.holdDurationHours || 48}h)` : 'Standard Reservation'}
+                    </span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Reserved Room:</span>
@@ -3601,6 +3715,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="text-muted">Check-In Date:</span>
                     <span className="fw-semibold">{reservationSummaryData.checkInDate}</span>
                   </div>
+                  {reservationSummaryData.isCourtesyHold && reservationSummaryData.holdExpiryDateTime && (
+                    <div className="d-flex justify-content-between mb-1 text-warning-emphasis fw-bold">
+                      <span>Hold Expiration:</span>
+                      <span>{new Date(reservationSummaryData.holdExpiryDateTime).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</span>
+                    </div>
+                  )}
                 </div>
 
                 <button className="btn btn-pcc-primary text-white fw-bold w-100 py-2" onClick={() => { setActiveModal('none'); setViewMode('default'); }}>

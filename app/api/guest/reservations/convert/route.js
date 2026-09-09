@@ -35,10 +35,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Reservation not found or access denied.' }, { status: 404 });
     }
 
-    if (!['Pending', 'Confirmed'].includes(reservation.status)) {
+    if (!['Pending', 'Confirmed', 'Courtesy Hold'].includes(reservation.status)) {
       return NextResponse.json({
         error: `Cannot convert reservation because its current status is "${reservation.status}".`
       }, { status: 400 });
+    }
+
+    if (reservation.status === 'Courtesy Hold' && reservation.holdExpiryDateTime) {
+      const expiryWithGrace = new Date(new Date(reservation.holdExpiryDateTime).getTime() + 30 * 60 * 1000);
+      if (new Date() > expiryWithGrace) {
+        return NextResponse.json({
+          error: 'This courtesy hold has expired and cannot be converted to a booking.'
+        }, { status: 400 });
+      }
     }
 
     if (reservation.isArchived || reservation.currentRoomStatus === 'Under Maintenance') {
@@ -133,7 +142,7 @@ export async function POST(request) {
          JOIN room rm ON rm.roomID = r.roomID
          WHERE r.roomID = ?
            AND r.reservationID != ?
-           AND r.status IN ('Pending', 'Confirmed')
+           AND r.status IN ('Pending', 'Confirmed', 'Courtesy Hold')
            AND r.reservationDateTime < ?
            AND COALESCE(r.checkOutDateTime, DATE_ADD(r.reservationDateTime, INTERVAL 1 DAY)) > ?`,
         [reservation.roomID, reservationID, checkOutDateTime, checkInDateTime]

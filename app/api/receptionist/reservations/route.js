@@ -32,7 +32,12 @@ async function checkActiveReservationOrBooking(guestID, currentReservationID = n
 }
 
 async function checkDuplicateRoomReservation(guestID, roomID, currentReservationID = null) {
-  let sql = "SELECT reservationID FROM reservation WHERE guestID = ? AND roomID = ? AND status IN ('Pending', 'Confirmed')";
+  let sql = `SELECT reservationID FROM reservation 
+             WHERE guestID = ? AND roomID = ? 
+               AND (
+                 status IN ('Pending', 'Confirmed')
+                 OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
+               )`;
   const params = [guestID, roomID];
   if (currentReservationID) {
     sql += " AND reservationID != ?";
@@ -42,7 +47,7 @@ async function checkDuplicateRoomReservation(guestID, roomID, currentReservation
   if (duplicates.length > 0) {
     return {
       valid: false,
-      message: "You already have an active reservation for this room."
+      message: "You already have an active reservation or courtesy hold for this room."
     };
   }
   return { valid: true };
@@ -50,7 +55,7 @@ async function checkDuplicateRoomReservation(guestID, roomID, currentReservation
 
 async function resolveReservationConflicts(conn, confirmedRoomID, confirmedReservationID) {
   const [conflicts] = await conn.execute(
-    "SELECT r.reservationID, r.guestID, g.userID, rm.roomNumber FROM reservation r JOIN guest g ON g.guestID = r.guestID JOIN room rm ON rm.roomID = r.roomID WHERE r.roomID = ? AND r.reservationID != ? AND r.status IN ('Pending', 'Confirmed')",
+    "SELECT r.reservationID, r.guestID, g.userID, rm.roomNumber FROM reservation r JOIN guest g ON g.guestID = r.guestID JOIN room rm ON rm.roomID = r.roomID WHERE r.roomID = ? AND r.reservationID != ? AND r.status IN ('Pending', 'Confirmed', 'Courtesy Hold')",
     [confirmedRoomID, confirmedReservationID]
   );
 
@@ -93,9 +98,14 @@ export async function GET(request) {
       dbQuery(`
         SELECT r.reservationID, DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime,
                DATE_FORMAT(r.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
+               r.isCourtesyHold, r.holdDurationHours,
+               DATE_FORMAT(r.holdExpiryDateTime, '%Y-%m-%dT%H:%i:%s') as holdExpiryDateTime,
+               r.warning12SentAt, r.warning6SentAt, r.releasedAt,
                COALESCE(r.guestCount, 1) as guestCount, r.specialRequests,
                COALESCE(r.breakfastOption, 'with') as breakfastOption,
                CASE 
+                 WHEN r.status = 'Courtesy Hold' AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'Courtesy Hold'
+                 WHEN r.status = 'Courtesy Hold' AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Released'
                  WHEN r.status IN ('Confirmed', 'Pending') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
                  WHEN r.status IN ('Confirmed', 'Pending') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
                  ELSE r.status
@@ -211,12 +221,72 @@ export async function POST(request) {
         return NextResponse.json({ error: dupCheck.message }, { status: 400 });
       }
 
+      const isCourtesyHold = Boolean(body.isCourtesyHold);
+      const validDurations = [24, 48, 72];
+      const holdDurationHours = validDurations.includes(parseInt(body.holdDurationHours)) ? parseInt(body.holdDurationHours) : 48;
+      let holdExpiryDateTime = null;
+      if (isCourtesyHold) {
+        const pad = (n) => String(n).padStart(2, '0');
+        const expiry = new Date(Date.now() + holdDurationHours * 60 * 60 * 1000);
+        holdExpiryDateTime = `${expiry.getFullYear()}-${pad(expiry.getMonth() + 1)}-${pad(expiry.getDate())} ${pad(expiry.getHours())}:${pad(expiry.getMinutes())}:${pad(expiry.getSeconds())}`;
+      }
+      const initialStatus = isCourtesyHold ? 'Courtesy Hold' : 'Pending';
+
+      // Conflict check against overlapping active bookings or reservations
+      const reqIn = reservationDateTime;
+      const reqOut = checkOutDateTime || new Date(new Date(reservationDateTime.replace(' ', 'T')).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+
+      const conflictingBookings = await dbQuery(`
+        SELECT bookingID FROM booking
+        WHERE roomID = ?
+          AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+          AND checkInDateTime < ?
+          AND checkOutDateTime > ?
+      `, [roomID, reqOut, reqIn]);
+
+      if (conflictingBookings.length > 0) {
+        return NextResponse.json({
+          error: "This room is already booked for the selected dates."
+        }, { status: 409 });
+      }
+
+      const conflictingReservations = await dbQuery(`
+        SELECT reservationID FROM reservation
+        WHERE roomID = ?
+          AND (
+            (status IN ('Pending', 'Confirmed') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+            OR
+            (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+          )
+      `, [roomID, reqOut, reqIn, reqOut, reqIn]);
+
+      if (conflictingReservations.length > 0) {
+        return NextResponse.json({
+          error: "This room already has an active reservation or courtesy hold for the selected dates."
+        }, { status: 409 });
+      }
+
       await dbQuery(
-        "INSERT INTO reservation(reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption, status, guestID, roomID) VALUES(?, ?, ?, ?, ?, 'Pending', ?, ?)",
-        [reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption, guestID, roomID]
+        `INSERT INTO reservation(
+          reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
+          status, guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
+          initialStatus, guestID, roomID, isCourtesyHold ? 1 : 0, isCourtesyHold ? holdDurationHours : null, holdExpiryDateTime
+        ]
       );
 
-      return NextResponse.json({ success: true, message: 'Reservation created successfully.' });
+      if (isCourtesyHold) {
+        await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: isCourtesyHold
+          ? `Courtesy hold created successfully for ${holdDurationHours} hours.`
+          : 'Reservation created successfully.'
+      });
     }
 
     if (action === 'update') {
@@ -430,6 +500,35 @@ export async function POST(request) {
       }
 
       return NextResponse.json({ success: true, message: 'Reservation cancelled successfully.' });
+    }
+
+    if (action === 'release_hold') {
+      const reservationID = parseInt(body.reservationID);
+      const res = await dbQuery("SELECT r.*, g.userID, g.firstName, g.lastName FROM reservation r JOIN guest g ON g.guestID = r.guestID WHERE r.reservationID = ?", [reservationID]);
+      if (res.length === 0) {
+        return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
+      }
+      const targetRes = res[0];
+
+      await dbQuery("UPDATE reservation SET status = 'Released', releasedAt = NOW() WHERE reservationID = ?", [reservationID]);
+      await syncRoomStatuses(true);
+
+      if (targetRes.userID) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Courtesy Hold Released', ?)",
+          [targetRes.userID, `Your courtesy hold on Room #${targetRes.roomID} has been released.`]
+        );
+      }
+
+      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      for (const s of staffUsers) {
+        await dbQuery(
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Courtesy Hold Released', ?)",
+          [s.userID, `Front Desk staff released Courtesy Hold #${reservationID} for Guest ${targetRes.firstName} ${targetRes.lastName}. Room #${targetRes.roomID} is now available.`]
+        );
+      }
+
+      return NextResponse.json({ success: true, message: 'Courtesy hold released successfully. Room is now available.' });
     }
 
     if (action === 'overrideStatus' || action === 'reinstate') {
