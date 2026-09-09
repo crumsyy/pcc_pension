@@ -944,18 +944,6 @@ export default function GuestOrdersContent({ guest }) {
             Order fresh breakfast meals, refreshments, beverages, and extra amenities directly to your room.
           </p>
         </div>
-        <div className="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-outline-primary d-flex align-items-center gap-2"
-            onClick={() => handleSelectCategory('history')}
-          >
-            <span className="badge rounded-circle bg-danger text-white">
-              {orderHistory.length}
-            </span>
-            View Orders
-          </button>
-        </div>
       </div>
 
       {feedback.message && (
