@@ -502,18 +502,14 @@ export async function POST(request) {
 
     if (action === 'cancel') {
       const reservationID = parseInt(body.reservationID);
-      const res = await dbQuery("SELECT r.*, g.userID, g.firstName, g.lastName FROM reservation r JOIN guest g ON g.guestID = r.guestID WHERE r.reservationID = ?", [reservationID]);
+      const res = await dbQuery("SELECT r.*, g.userID, g.firstName, g.lastName FROM reservation r LEFT JOIN guest g ON g.guestID = r.guestID WHERE r.reservationID = ?", [reservationID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       }
       const targetRes = res[0];
 
       await dbQuery("UPDATE reservation SET status = 'Cancelled' WHERE reservationID = ?", [reservationID]);
-
-      // Release room status back to Available if it was Reserved
-      if (targetRes.roomID) {
-        await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ? AND status = 'Reserved'", [targetRes.roomID]);
-      }
+      await syncRoomStatuses(true);
 
       // 1. Send Guest Notification
       if (targetRes.userID) {
@@ -528,7 +524,7 @@ export async function POST(request) {
       for (const s of staffUsers) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Cancelled Audit', ?)",
-          [s.userID, `Front Desk staff cancelled Reservation #${reservationID} for Guest ${targetRes.firstName} ${targetRes.lastName}.`]
+          [s.userID, `Front Desk staff cancelled Reservation #${reservationID} for Guest ${targetRes.firstName || 'Walk-in'} ${targetRes.lastName || 'Guest'}.`]
         );
       }
 
@@ -537,7 +533,7 @@ export async function POST(request) {
 
     if (action === 'release_hold') {
       const reservationID = parseInt(body.reservationID);
-      const res = await dbQuery("SELECT r.*, g.userID, g.firstName, g.lastName FROM reservation r JOIN guest g ON g.guestID = r.guestID WHERE r.reservationID = ?", [reservationID]);
+      const res = await dbQuery("SELECT r.*, g.userID, g.firstName, g.lastName FROM reservation r LEFT JOIN guest g ON g.guestID = r.guestID WHERE r.reservationID = ?", [reservationID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       }
@@ -557,7 +553,7 @@ export async function POST(request) {
       for (const s of staffUsers) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Courtesy Hold Released', ?)",
-          [s.userID, `Front Desk staff released Courtesy Hold #${reservationID} for Guest ${targetRes.firstName} ${targetRes.lastName}. Room #${targetRes.roomID} is now available.`]
+          [s.userID, `Front Desk staff released Courtesy Hold #${reservationID} for Guest ${targetRes.firstName || 'Walk-in'} ${targetRes.lastName || 'Guest'}. Room #${targetRes.roomID} is now available.`]
         );
       }
 
@@ -572,7 +568,7 @@ export async function POST(request) {
       }
 
       await dbQuery("UPDATE reservation SET status = ? WHERE reservationID = ?", [newStatus, reservationID]);
-      await syncRoomStatuses();
+      await syncRoomStatuses(true);
 
       return NextResponse.json({ success: true, message: `Reservation status updated to ${newStatus}.` });
     }

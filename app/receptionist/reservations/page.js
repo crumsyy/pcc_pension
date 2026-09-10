@@ -1004,29 +1004,11 @@ function ReservationsClient() {
                       <small className="text-muted">{r.contact || 'No contact'}</small>
                     </td>
                     <td>
-                      <div className="d-flex align-items-center gap-2">
-                        {getRoomDisplayImage(r.image) ? (
-                          <img
-                            src={getRoomDisplayImage(r.image)}
-                            alt={`Room ${r.roomNumber}`}
-                            className="rounded border"
-                            style={{ width: '40px', height: '32px', objectFit: 'cover' }}
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
-                              if (fb) fb.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5" style={{ width: '40px', height: '32px', fontSize: '0.55rem', lineHeight: 1.1, display: getRoomDisplayImage(r.image) ? 'none' : 'flex' }}>
-                          No Image
-                        </div>
-                        <div>
-                          <div className="fw-semibold text-dark">Room {r.roomNumber || 'N/A'} ({r.roomType || 'Standard'})</div>
-                          <small className="badge bg-light text-dark border">
-                            {r.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast'}
-                          </small>
-                        </div>
+                      <div>
+                        <div className="fw-semibold text-dark">Room {r.roomNumber || 'N/A'} ({r.roomType || 'Standard'})</div>
+                        <small className="badge bg-light text-dark border">
+                          {r.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast'}
+                        </small>
                       </div>
                     </td>
                     <td>{r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
@@ -1487,17 +1469,6 @@ function ReservationsClient() {
                     </div>
                   )}
 
-                  {/* VISUAL ROOM AVAILABILITY CALENDAR (Full Parity with Guest Panel) */}
-                  {selectedRoomObj && (
-                    <div className="mb-3">
-                      <ReservationCalendar
-                        schedules={roomSchedules}
-                        selectedRoom={selectedRoomObj}
-                        selectedRoomId={selectedRoomObj.roomID}
-                        title={`Room ${selectedRoomObj.roomNumber} Availability Overview`}
-                      />
-                    </div>
-                  )}
 
                   {/* SCHEDULE CONFLICT ALERT (Parity with Guest Form) */}
                   {formData.roomID && resDate && checkScheduleConflict(formData.roomID, resDate, checkOutDate, activeModal === 'edit' ? selectedRes?.reservationID : null) && (
@@ -1589,6 +1560,18 @@ function ReservationsClient() {
                           </small>
                         )}
                       </div>
+                    </div>
+
+                    {/* SINGLE VISUAL CALENDAR */}
+                    <div className="col-12 mt-1">
+                      <CalendarDatePicker
+                        label={selectedRoomObj ? `Room ${selectedRoomObj.roomNumber} Availability Overview (Visual Calendar)` : "Room Availability Overview (Visual Calendar)"}
+                        value={toDbDate(resDate) || toDbDate(checkOutDate)}
+                        readOnlyVisual={true}
+                        minDate={todayDbDate}
+                        disabledDates={selectedRoomObj ? getDisabledDatesForRoom(selectedRoomObj.roomID) : []}
+                        helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
+                      />
                     </div>
                   </div>
 

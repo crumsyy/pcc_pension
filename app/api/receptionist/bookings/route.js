@@ -806,6 +806,7 @@ export async function POST(request) {
         "UPDATE reservation SET status = 'Cancelled' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = ? AND roomID = ? AND status IN ('Pending', 'Confirmed', 'Booked', 'Checked In'))",
         [bookingID, res[0].guestID, roomID]
       );
+      await syncRoomStatuses(true);
 
       // Notify Guest if account exists
       const guestRes = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [res[0].guestID]);

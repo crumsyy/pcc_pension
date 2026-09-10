@@ -2,7 +2,7 @@
 
 import React from 'react';
 import SearchableSelect from './SearchableSelect';
-import ReservationCalendar from './ReservationCalendar';
+import CalendarDatePicker from './CalendarDatePicker';
 
 /**
  * ReceptionistReservationForm Component
@@ -235,17 +235,6 @@ export default function ReceptionistReservationForm({
         )}
       </div>
 
-      {/* SELECTED ROOM CALENDAR OVERVIEW */}
-      {selectedRoom && (
-        <div className="mb-3">
-          <ReservationCalendar
-            schedules={roomSchedules}
-            selectedRoom={selectedRoom}
-            selectedRoomId={selectedRoom?.roomID}
-            title={`Availability Overview for Room ${selectedRoom.roomNumber}`}
-          />
-        </div>
-      )}
 
       {/* SCHEDULE CONFLICT ALERT */}
       {hasConflict && (
@@ -324,6 +313,18 @@ export default function ReceptionistReservationForm({
               ℹ Late Check-out past 12:00 PM fee may apply.
             </small>
           )}
+        </div>
+
+        {/* SINGLE VISUAL CALENDAR */}
+        <div className="col-12 mt-1">
+          <CalendarDatePicker
+            label={selectedRoom ? `Room ${selectedRoom.roomNumber} Availability Overview (Visual Calendar)` : "Room Availability Overview (Visual Calendar)"}
+            value={resDate || checkOutDate}
+            readOnlyVisual={true}
+            minDate={effectiveMinDate}
+            disabledDates={selectedRoom && roomSchedules ? roomSchedules.filter(s => String(s.roomID) === String(selectedRoom.roomID)).map(s => (s.checkInDateTime || '').substring(0, 10)).filter(Boolean) : []}
+            helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
+          />
         </div>
       </div>
 

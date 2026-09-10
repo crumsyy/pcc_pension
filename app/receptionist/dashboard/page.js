@@ -3,9 +3,12 @@ import { dbQuery, syncRoomStatuses } from "@/lib/db";
 import { requireSessionRole } from "@/lib/session";
 import AutoRefresh from "@/app/components/AutoRefresh";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function ReceptionistDashboard() {
   const auth = await requireSessionRole("Receptionist");
-  await syncRoomStatuses();
+  await syncRoomStatuses(true);
   const userName = auth.session?.fullName || "Receptionist";
 
   // Fetch statistics, check-ins, reservations, confirmed bookings, inquiries, orders, and payment statuses in parallel
@@ -27,28 +30,41 @@ export default async function ReceptionistDashboard() {
     dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked Out'"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
-    dbQuery("SELECT COUNT(*) as count FROM reservation WHERE status = 'Pending'"),
+    dbQuery(`
+      SELECT COUNT(*) as count FROM reservation 
+      WHERE status IN ('Pending', 'Confirmed', 'Courtesy Hold', 'Overdue Check-In')
+        AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show')
+        AND (
+          status != 'Courtesy Hold' 
+          OR (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE))
+        )
+    `),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Under Maintenance' AND isArchived = 0"),
     dbQuery(`
       SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
-             g.firstName, g.lastName, g.contact,
+             COALESCE(g.firstName, 'Guest') as firstName, COALESCE(g.lastName, '') as lastName, g.contact,
              rm.roomNumber, rt.type as roomType
       FROM booking b
-      JOIN guest g ON g.guestID = b.guestID
+      LEFT JOIN guest g ON g.guestID = b.guestID
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
       WHERE b.status IN ('Checked In', 'Late Checkout')
       ORDER BY rm.roomNumber ASC
     `),
     dbQuery(`
-      SELECT r.reservationID, r.reservationDateTime, r.status,
-             g.firstName, g.lastName, g.contact,
+      SELECT r.reservationID, r.reservationDateTime, r.status, r.isCourtesyHold, r.holdExpiryDateTime,
+             COALESCE(g.firstName, 'Walk-in') as firstName, COALESCE(g.lastName, 'Guest') as lastName, g.contact,
              rm.roomNumber, rt.type as roomType
       FROM reservation r
-      JOIN guest g ON g.guestID = r.guestID
+      LEFT JOIN guest g ON g.guestID = r.guestID
       JOIN room rm ON rm.roomID = r.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      WHERE r.status = 'Pending'
+      WHERE r.status IN ('Pending', 'Confirmed', 'Courtesy Hold', 'Overdue Check-In')
+        AND r.status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show')
+        AND (
+          r.status != 'Courtesy Hold' 
+          OR (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE))
+        )
       ORDER BY r.reservationDateTime ASC
       LIMIT 10
     `),
@@ -62,10 +78,10 @@ export default async function ReceptionistDashboard() {
     `),
     dbQuery(`
       SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
-             g.firstName, g.lastName, g.contact,
+             COALESCE(g.firstName, 'Guest') as firstName, COALESCE(g.lastName, '') as lastName, g.contact,
              rm.roomNumber, rt.type as roomType
       FROM booking b
-      JOIN guest g ON g.guestID = b.guestID
+      LEFT JOIN guest g ON g.guestID = b.guestID
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
       WHERE b.status IN ('Confirmed', 'Pending Check-in')
@@ -129,7 +145,7 @@ export default async function ReceptionistDashboard() {
     ["Today's Check-outs", totalCheckOuts, "#3FA34D"],
     ["Rooms Occupied", occupiedRooms, "#e05c2a"],
     ["Rooms Available", availableRooms, "#3FA34D"],
-    ["Pending Reserv.", pendingRes, "#f0a500"],
+    ["Active Reserv.", pendingRes, "#f0a500"],
     ["Under Maintenance", underMaintenanceRooms, "#dc3545"]
   ];
 
@@ -245,6 +261,10 @@ export default async function ReceptionistDashboard() {
                   <span>
                     <span style={{ display: "inline-block", width: "10px", height: "10px", backgroundColor: "#f0a500", borderRadius: "2px", marginRight: "4px" }}></span>
                     Reserved
+                  </span>
+                  <span>
+                    <span style={{ display: "inline-block", width: "10px", height: "10px", backgroundColor: "#dc3545", borderRadius: "2px", marginRight: "4px" }}></span>
+                    Under Maintenance
                   </span>
                 </div>
               </>
@@ -380,16 +400,16 @@ export default async function ReceptionistDashboard() {
             )}
           </div>
 
-          {/* Pending reservations */}
+          {/* Active Reservations & Courtesy Holds */}
           <div className="key-tag">
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="room-type">Pending Reservations</div>
+              <div className="room-type">Active Reservations &amp; Courtesy Holds</div>
               <Link href="/receptionist/reservations" className="btn btn-pcc-outline btn-sm">
                 View All
               </Link>
             </div>
             {pendingResList.length === 0 ? (
-              <p className="text-muted small">No pending reservations.</p>
+              <p className="text-muted small">No active reservations or courtesy holds.</p>
             ) : (
               <div className="table-responsive">
                 <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
@@ -398,6 +418,7 @@ export default async function ReceptionistDashboard() {
                       <th>Guest</th>
                       <th>Room</th>
                       <th>Reserved On</th>
+                      <th>Status</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -407,16 +428,24 @@ export default async function ReceptionistDashboard() {
                         <td>
                           {r.firstName} {r.lastName}
                           <br />
-                          <small className="text-muted">{r.contact}</small>
+                          <small className="text-muted">{r.contact || 'No contact'}</small>
                         </td>
-                        <td>{r.roomNumber} - {r.roomType}</td>
+                        <td><strong>Room {r.roomNumber}</strong> - {r.roomType}</td>
                         <td>{formatDateShort(r.reservationDateTime)}</td>
+                        <td>
+                          <span 
+                            className={`badge ${r.status === 'Courtesy Hold' ? 'text-white' : r.status === 'Confirmed' ? 'bg-success' : 'bg-warning text-dark'}`}
+                            style={{ backgroundColor: r.status === 'Courtesy Hold' ? '#fd7e14' : undefined, fontSize: '0.72rem' }}
+                          >
+                            {r.status}
+                          </span>
+                        </td>
                         <td>
                           <Link
                             href={`/receptionist/reservations?confirm=${r.reservationID}`}
                             className="btn btn-sm btn-pcc-primary"
                           >
-                            Confirm
+                            Manage
                           </Link>
                         </td>
                       </tr>

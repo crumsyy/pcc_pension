@@ -1647,13 +1647,6 @@ function BookingsClient() {
                           onChange={(e) => handleCheckInDateChange(e.target.value)}
                           required
                         />
-                        <CalendarDatePicker
-                          label="Room Availability (Read-Only)"
-                          value={checkInDate}
-                          readOnlyVisual={true}
-                          minDate={todayDbDate}
-                          helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
-                        />
                         <div className="mt-2">
                           <label className="form-label small fw-semibold">Check-In Time *</label>
                           <input
@@ -1683,13 +1676,6 @@ function BookingsClient() {
                         onChange={(e) => setCheckOutDate(e.target.value)}
                         required
                       />
-                      <CalendarDatePicker
-                        label="Room Availability (Read-Only)"
-                        value={checkOutDate}
-                        readOnlyVisual={true}
-                        minDate={checkInDate ? toDbDate(checkInDate) : todayDbDate}
-                        helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
-                      />
                       <div className="mt-2">
                         <label className="form-label small fw-semibold">Check-Out Time *</label>
                         <input
@@ -1700,6 +1686,17 @@ function BookingsClient() {
                           required
                         />
                       </div>
+                    </div>
+
+                    {/* SINGLE VISUAL CALENDAR */}
+                    <div className="col-12">
+                      <CalendarDatePicker
+                        label="Room Availability Overview (Visual Calendar)"
+                        value={checkInDate || checkOutDate}
+                        readOnlyVisual={true}
+                        minDate={todayDbDate}
+                        helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
+                      />
                     </div>
                   </div>
 

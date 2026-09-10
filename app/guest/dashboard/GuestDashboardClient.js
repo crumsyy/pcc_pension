@@ -2522,7 +2522,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
 
                 {/* SEARCH & FILTER BAR */}
-                <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                <div className="card shadow-sm border border-secondary-subtle p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
                   <div className="row g-2 align-items-center">
                     <div className="col-12 col-md-4">
                       <div className="input-group input-group-sm">
@@ -2618,7 +2618,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                     if (filteredRooms.length === 0) {
                       return (
-                        <div className="card shadow-sm border-0 p-4 text-center bg-white" style={{ borderRadius: '12px' }}>
+                        <div className="card shadow-sm border border-secondary-subtle p-4 text-center bg-white" style={{ borderRadius: '12px' }}>
                           <p className="text-muted mb-0">No rooms match your selected search or filter criteria.</p>
                         </div>
                       );
@@ -2633,7 +2633,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           return (
                             <div key={rm.roomID} className="col-12 col-md-6 col-lg-4">
                               <div 
-                                className={`card shadow-sm border-0 h-100 room-card-hover overflow-hidden ${isBookable ? 'cursor-pointer' : 'opacity-85'}`}
+                                className={`card shadow-sm border border-secondary-subtle h-100 room-card-hover overflow-hidden ${isBookable ? 'cursor-pointer' : 'opacity-85'}`}
                                 style={{
                                   borderRadius: '12px',
                                   backgroundColor: meta.bgColor,

@@ -1039,13 +1039,15 @@ export default function GuestOrdersContent({ guest }) {
                 ))}
               </div>
             ) : (
-              <div className="d-flex flex-column gap-4">
+              <div className="d-flex flex-column gap-3">
                 {/* COOKED MEALS SECTION */}
                 {(activeCategory === 'all' || activeCategory === 'meals') && filteredMeals.length > 0 && (
-                  <div>
-                    <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
+                    <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <span className="p-1 px-2 rounded bg-warning-subtle text-dark small fw-bold">Breakfast</span>
+                        <span className="p-1.5 px-2.5 rounded bg-warning-subtle text-warning-emphasis small fw-bold d-flex align-items-center gap-1.5">
+                          <i className="bi bi-egg-fried"></i> Breakfast
+                        </span>
                         <span>Cooked Meals (Scheduled Delivery)</span>
                       </h5>
                       <small className="text-muted d-none d-sm-inline">Available slots: 6:00 AM – 10:30 AM</small>
@@ -1067,10 +1069,12 @@ export default function GuestOrdersContent({ guest }) {
 
                 {/* PRODUCTS SECTION */}
                 {(activeCategory === 'all' || activeCategory === 'products') && filteredProducts.length > 0 && (
-                  <div>
-                    <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
+                    <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <span className="p-1 px-2 rounded bg-info-subtle text-dark small fw-bold">Minibar / Store</span>
+                        <span className="p-1.5 px-2.5 rounded bg-info-subtle text-info-emphasis small fw-bold d-flex align-items-center gap-1.5">
+                          <i className="bi bi-cup-straw"></i> Minibar / Store
+                        </span>
                         <span>Beverages &amp; Snacks</span>
                       </h5>
                       <small className="text-muted d-none d-sm-inline">Immediate room delivery</small>
@@ -1092,10 +1096,12 @@ export default function GuestOrdersContent({ guest }) {
 
                 {/* AMENITIES SECTION */}
                 {(activeCategory === 'all' || activeCategory === 'amenities') && filteredAmenities.length > 0 && (
-                  <div>
-                    <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
+                    <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <span className="p-1 px-2 rounded bg-secondary-subtle text-dark small fw-bold">Guest Service</span>
+                        <span className="p-1.5 px-2.5 rounded bg-primary-subtle text-primary small fw-bold d-flex align-items-center gap-1.5">
+                          <i className="bi bi-box2-heart"></i> Guest Service
+                        </span>
                         <span>Hotel Amenities</span>
                       </h5>
                       <small className="text-muted d-none d-sm-inline">Towels, toiletries &amp; extra amenities</small>
