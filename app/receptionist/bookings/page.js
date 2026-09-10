@@ -1210,28 +1210,10 @@ function BookingsClient() {
                       <small className="text-muted">{b.contact || 'No Contact'}</small>
                     </td>
                     <td>
-                      <div className="d-flex align-items-center gap-2">
-                        {getRoomDisplayImage(b.image) ? (
-                          <img
-                            src={getRoomDisplayImage(b.image)}
-                            alt={`Room ${b.roomNumber}`}
-                            className="rounded border"
-                            style={{ width: '40px', height: '32px', objectFit: 'cover' }}
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
-                              if (fb) fb.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5" style={{ width: '40px', height: '32px', fontSize: '0.55rem', lineHeight: 1.1, display: getRoomDisplayImage(b.image) ? 'none' : 'flex' }}>
-                          No Image
-                        </div>
-                        <div>
-                          <span className="fw-bold text-pcc-blue">Room {b.roomNumber}</span>
-                          <br />
-                          <small className="text-muted">{b.roomType}</small>
-                        </div>
+                      <div>
+                        <span className="fw-bold text-pcc-blue">Room {b.roomNumber}</span>
+                        <br />
+                        <small className="text-muted">{b.roomType}</small>
                       </div>
                     </td>
                     <td>
@@ -1453,22 +1435,8 @@ function BookingsClient() {
                   {selectedRoomObj && (
                     <div className="p-3 mb-3 border rounded bg-light d-flex align-items-center justify-content-between flex-wrap gap-3">
                       <div className="d-flex align-items-center gap-3">
-                        {getRoomDisplayImage(selectedRoomObj.image) ? (
-                          <img
-                            src={getRoomDisplayImage(selectedRoomObj.image)}
-                            alt={`Room ${selectedRoomObj.roomNumber}`}
-                            className="rounded border"
-                            style={{ width: '75px', height: '55px', objectFit: 'cover' }}
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-card');
-                              if (fb) fb.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div className="image-fallback-card rounded border bg-white text-muted flex-column align-items-center justify-content-center text-center p-1" style={{ width: '75px', height: '55px', fontSize: '0.65rem', lineHeight: 1.1, display: getRoomDisplayImage(selectedRoomObj.image) ? 'none' : 'flex' }}>
-                          <i className="bi bi-image mb-0.5"></i>
-                          <span>Image Unavailable</span>
+                        <div className="rounded border bg-white text-pcc-blue d-flex align-items-center justify-content-center shadow-sm" style={{ width: '45px', height: '45px' }}>
+                          <i className="bi bi-door-closed fs-4"></i>
                         </div>
                         <div>
                           <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
