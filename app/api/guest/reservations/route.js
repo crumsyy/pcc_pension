@@ -197,18 +197,12 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Courtesy Hold handling
-    const isCourtesyHold = Boolean(body.isCourtesyHold);
-    const validDurations = [24, 48, 72];
-    const holdDurationHours = validDurations.includes(parseInt(body.holdDurationHours)) ? parseInt(body.holdDurationHours) : 48;
-    let holdExpiryDateTime = null;
-    let holdExpiryDateObj = null;
-
-    if (isCourtesyHold) {
-      holdExpiryDateObj = new Date(Date.now() + holdDurationHours * 60 * 60 * 1000);
-      holdExpiryDateTime = `${holdExpiryDateObj.getFullYear()}-${pad(holdExpiryDateObj.getMonth() + 1)}-${pad(holdExpiryDateObj.getDate())} ${pad(holdExpiryDateObj.getHours())}:${pad(holdExpiryDateObj.getMinutes())}:${pad(holdExpiryDateObj.getSeconds())}`;
-    }
-    const resStatus = isCourtesyHold ? 'Courtesy Hold' : 'Booked';
+    // All reservations are Courtesy Holds (fixed 48h duration + 30m grace period)
+    const isCourtesyHold = true;
+    const holdDurationHours = 48;
+    const holdExpiryDateObj = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const holdExpiryDateTime = `${holdExpiryDateObj.getFullYear()}-${pad(holdExpiryDateObj.getMonth() + 1)}-${pad(holdExpiryDateObj.getDate())} ${pad(holdExpiryDateObj.getHours())}:${pad(holdExpiryDateObj.getMinutes())}:${pad(holdExpiryDateObj.getSeconds())}`;
+    const resStatus = 'Courtesy Hold';
 
     // Rule 1C: Duplicate Reservation / Hold Validation
     const dupRes = await dbQuery(`
@@ -301,50 +295,33 @@ export async function POST(request) {
     );
 
     // If Courtesy Hold: set room status to 'Reserved' immediately
-    if (isCourtesyHold) {
-      await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
-    }
+    await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
 
     // Add user notification
-    if (isCourtesyHold) {
-      const holdExpiryStr = holdExpiryDateObj ? holdExpiryDateObj.toLocaleString('en-US', { timeZone: 'Asia/Manila' }) : '';
-      await dbQuery(
-        "INSERT INTO notification (userID, title, message) VALUES (?, 'Courtesy Hold Placed', ?)",
-        [
-          session.userID,
-          `Your courtesy hold on Room ${roomInfo.roomNumber} (${roomInfo.roomType}) is active for ${holdDurationHours} hours until ${holdExpiryStr}. Please confirm with payment before it expires.`
-        ]
-      );
-    } else {
-      await dbQuery(
-        "INSERT INTO notification (userID, title, message) VALUES (?, 'Booking Confirmed', ?)",
-        [
-          session.userID,
-          `Your booking for Room ${roomInfo.roomNumber} (${roomInfo.roomType}) on ${checkInDate} has been confirmed.`
-        ]
-      );
-    }
+    const holdExpiryStr = holdExpiryDateObj ? holdExpiryDateObj.toLocaleString('en-US', { timeZone: 'Asia/Manila' }) : '';
+    await dbQuery(
+      "INSERT INTO notification (userID, title, message) VALUES (?, 'Courtesy Hold Placed', ?)",
+      [
+        session.userID,
+        `Your courtesy hold on Room ${roomInfo.roomNumber} (${roomInfo.roomType}) is active for 48 hours until ${holdExpiryStr}. Please confirm with payment before it expires.`
+      ]
+    );
 
     // Notify active receptionists
     const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
     for (const r of staffToNotify) {
       await dbQuery(
-        "INSERT INTO notification (userID, title, message) VALUES (?, ?, ?)",
+        "INSERT INTO notification (userID, title, message) VALUES (?, 'New Courtesy Hold', ?)",
         [
           r.userID,
-          isCourtesyHold ? 'New Courtesy Hold' : 'New Guest Booking',
-          isCourtesyHold
-            ? `Guest ${guest.firstName} ${guest.lastName} placed a ${holdDurationHours}-hour Courtesy Hold on Room ${roomInfo.roomNumber}.`
-            : `Guest ${guest.firstName} ${guest.lastName} submitted a new booking for Room ${roomInfo.roomNumber}.`
+          `Guest ${guest.firstName} ${guest.lastName} placed a 48-hour Courtesy Hold on Room ${roomInfo.roomNumber}.`
         ]
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: isCourtesyHold
-        ? `Courtesy hold for Room ${roomInfo.roomNumber} placed successfully! Room is held for ${holdDurationHours} hours.`
-        : `Booking for Room ${roomInfo.roomNumber} confirmed successfully!`,
+      message: `Courtesy hold for Room ${roomInfo.roomNumber} placed successfully! Room is held for 48 hours.`,
       reservationID: insertRes.insertId,
       summary: {
         reservationID: insertRes.insertId,
@@ -355,8 +332,8 @@ export async function POST(request) {
         specialRequests: specialRequests || 'None',
         numGuests: numGuests || 1,
         status: resStatus,
-        isCourtesyHold,
-        holdDurationHours: isCourtesyHold ? holdDurationHours : null,
+        isCourtesyHold: true,
+        holdDurationHours: 48,
         holdExpiryDateTime
       }
     });

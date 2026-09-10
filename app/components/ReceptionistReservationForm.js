@@ -7,7 +7,7 @@ import SearchableSelect from './SearchableSelect';
  * ReceptionistReservationForm Component
  * Specialized reservation form for Front Desk / Receptionists:
  * - Walk-in guest vs Existing registered guest account
- * - Book Now (confirmed with payment) vs Courtesy Hold (temporary hold, no payment)
+ * - Courtesy Hold (48 hours temporary hold without payment + 30m grace period)
  * - Date/time scheduling, breakfast options, guest counts
  */
 export default function ReceptionistReservationForm({
@@ -19,10 +19,6 @@ export default function ReceptionistReservationForm({
   setFormData,
   guests = [],
   rooms = [],
-  isCourtesyHold = false,
-  setIsCourtesyHold,
-  holdDurationHours = 48,
-  setHoldDurationHours,
   resDate = '',
   setResDate,
   resTime = '14:00',
@@ -41,93 +37,10 @@ export default function ReceptionistReservationForm({
 }) {
   return (
     <div className={`receptionist-reservation-form ${className}`}>
-      {/* RESERVATION TYPE SELECTOR: Book Now vs Courtesy Hold */}
-      <div className="card border mb-3 shadow-xs bg-light">
-        <div className="card-body p-3">
-          <label className="form-label fw-bold small text-dark mb-2 d-flex align-items-center gap-1">
-            <i className="bi bi-bookmark-check text-primary"></i>
-            Reservation Type *
-          </label>
-          <div className="d-flex flex-column flex-sm-row gap-2" role="radiogroup" aria-label="Reservation Type">
-            <label className={`card p-2.5 flex-fill cursor-pointer border ${!isCourtesyHold ? 'border-primary bg-primary-subtle shadow-xs' : 'border-secondary-subtle bg-white'}`} style={{ cursor: 'pointer' }}>
-              <div className="d-flex align-items-start gap-2">
-                <input
-                  type="radio"
-                  name="receptionistReservationType"
-                  className="form-check-input mt-1"
-                  checked={!isCourtesyHold}
-                  onChange={() => setIsCourtesyHold && setIsCourtesyHold(false)}
-                  aria-label="Book Now"
-                />
-                <div>
-                  <div className="fw-semibold small text-dark d-flex align-items-center gap-1">
-                    Book Now <span className="badge bg-primary text-white py-0.5 px-1.5" style={{ fontSize: '0.65rem' }}>Confirmed</span>
-                  </div>
-                  <div className="small text-muted" style={{ fontSize: '0.74rem' }}>
-                    Confirmed booking with payment
-                  </div>
-                </div>
-              </div>
-            </label>
-
-            <label className={`card p-2.5 flex-fill cursor-pointer border ${isCourtesyHold ? 'border-warning bg-warning-subtle shadow-xs' : 'border-secondary-subtle bg-white'}`} style={{ cursor: 'pointer' }}>
-              <div className="d-flex align-items-start gap-2">
-                <input
-                  type="radio"
-                  name="receptionistReservationType"
-                  className="form-check-input mt-1"
-                  checked={isCourtesyHold}
-                  onChange={() => setIsCourtesyHold && setIsCourtesyHold(true)}
-                  aria-label="Courtesy Hold"
-                />
-                <div>
-                  <div className="fw-semibold small text-dark d-flex align-items-center gap-1">
-                    <i className="bi bi-clock-history text-warning"></i>
-                    Courtesy Hold <span className="badge bg-warning text-dark py-0.5 px-1.5" style={{ fontSize: '0.65rem' }}>No Payment</span>
-                  </div>
-                  <div className="small text-muted" style={{ fontSize: '0.74rem' }}>
-                    Temporary hold ({holdDurationHours}h auto-release)
-                  </div>
-                </div>
-              </div>
-            </label>
-          </div>
-
-          {/* Courtesy Hold Duration Selection & Notice Banner */}
-          {isCourtesyHold && (
-            <div className="mt-3 p-2.5 bg-white rounded border border-warning-subtle">
-              <div className="alert alert-warning small fw-semibold mb-2" role="alert">
-                Courtesy Hold: This room will be held for up to {holdDurationHours} hours without payment. If not confirmed with payment, it will be automatically released.
-              </div>
-
-              <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between align-items-center" id="rec-hold-duration-label">
-                <span>Hold Expiration Timer *</span>
-                <span className="badge bg-warning-subtle text-dark" style={{ fontSize: '0.7rem' }}>+30m Grace Period</span>
-              </label>
-
-              <div className="d-flex gap-2" role="radiogroup" aria-labelledby="rec-hold-duration-label">
-                {[24, 48, 72].map((dur) => (
-                  <button
-                    key={dur}
-                    type="button"
-                    className={`btn btn-sm flex-fill py-1.5 ${
-                      holdDurationHours === dur ? 'btn-warning text-dark fw-bold shadow-xs' : 'btn-outline-secondary'
-                    }`}
-                    onClick={() => setHoldDurationHours && setHoldDurationHours(dur)}
-                    aria-label={`${dur} Hours Hold`}
-                  >
-                    {dur} Hours {dur === 48 && <span className="d-block" style={{ fontSize: '0.65rem' }}>(Default)</span>}
-                  </button>
-                ))}
-              </div>
-
-              <div className="small text-muted mt-2 d-flex align-items-center gap-1" style={{ fontSize: '0.73rem' }}>
-                <i className="bi bi-info-circle text-warning-emphasis"></i>
-                Room will show as "Courtesy Hold" for {holdDurationHours} hours. If unconfirmed, the automated scheduler releases it back to "Available".
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Courtesy Hold Notice Banner */}
+      <div className="alert alert-warning small fw-semibold mb-3" role="alert">
+        Courtesy Hold: This room will be held for 48 hours without payment. 
+        If not confirmed with payment, it will be automatically released after a 30-minute grace period.
       </div>
 
       {/* WALK-IN TOGGLE */}
@@ -196,21 +109,19 @@ export default function ReceptionistReservationForm({
             </div>
             <div className="col-md-6">
               <label className="form-label small fw-semibold mb-1">
-                Email Address {isCourtesyHold ? <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span> : <span className="text-muted">(Optional)</span>}
+                Email Address <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span>
               </label>
               <input
                 type="email"
-                className={`form-control form-control-sm ${isCourtesyHold && !walkInForm.email ? 'border-warning' : ''}`}
+                className={`form-control form-control-sm ${!walkInForm.email ? 'border-warning' : ''}`}
                 placeholder="Email Address * (Required for Courtesy Hold)"
                 value={walkInForm.email || ''}
-                required={isCourtesyHold}
+                required={true}
                 onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
               />
-              {isCourtesyHold && (
-                <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
-                  Required for sending hold expiry alerts and release notifications.
-                </div>
-              )}
+              <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
+                Required for sending hold expiry alerts and release notifications.
+              </div>
             </div>
           </div>
         </div>

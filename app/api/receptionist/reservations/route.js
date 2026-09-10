@@ -171,14 +171,15 @@ export async function POST(request) {
       await ensurePaymentSchema();
       let guestID;
       let guestEmail = null;
-      const isCourtesyHold = Boolean(body.isCourtesyHold);
+      const isCourtesyHold = true;
+      const holdDurationHours = 48;
 
       if (body.isWalkIn) {
         const { firstName, lastName, contact, email, gender } = body;
         if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
           return NextResponse.json({ error: 'First name and Last name are required for walk-in guests.' }, { status: 400 });
         }
-        if (isCourtesyHold && (!email || !email.trim())) {
+        if (!email || !email.trim()) {
           return NextResponse.json({ error: 'Email address is required for walk-in courtesy holds to receive expiry alerts.' }, { status: 400 });
         }
         const insertRes = await dbQuery(
@@ -232,15 +233,10 @@ export async function POST(request) {
         return NextResponse.json({ error: dupCheck.message }, { status: 400 });
       }
 
-      const validDurations = [24, 48, 72];
-      const holdDurationHours = validDurations.includes(parseInt(body.holdDurationHours)) ? parseInt(body.holdDurationHours) : 48;
-      let holdExpiryDateTime = null;
-      if (isCourtesyHold) {
-        const pad = (n) => String(n).padStart(2, '0');
-        const expiry = new Date(Date.now() + holdDurationHours * 60 * 60 * 1000);
-        holdExpiryDateTime = `${expiry.getFullYear()}-${pad(expiry.getMonth() + 1)}-${pad(expiry.getDate())} ${pad(expiry.getHours())}:${pad(expiry.getMinutes())}:${pad(expiry.getSeconds())}`;
-      }
-      const initialStatus = isCourtesyHold ? 'Courtesy Hold' : 'Booked';
+      const pad = (n) => String(n).padStart(2, '0');
+      const expiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      const holdExpiryDateTime = `${expiry.getFullYear()}-${pad(expiry.getMonth() + 1)}-${pad(expiry.getDate())} ${pad(expiry.getHours())}:${pad(expiry.getMinutes())}:${pad(expiry.getSeconds())}`;
+      const initialStatus = 'Courtesy Hold';
 
       // Conflict check against overlapping active bookings or reservations
       const reqIn = reservationDateTime;
@@ -283,19 +279,15 @@ export async function POST(request) {
         ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
-          initialStatus, guestID, roomID, isCourtesyHold ? 1 : 0, isCourtesyHold ? holdDurationHours : null, holdExpiryDateTime, guestEmail
+          initialStatus, guestID, roomID, 1, 48, holdExpiryDateTime, guestEmail
         ]
       );
 
-      if (isCourtesyHold) {
-        await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
-      }
+      await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
 
       return NextResponse.json({
         success: true,
-        message: isCourtesyHold
-          ? `Courtesy hold created successfully for ${holdDurationHours} hours.`
-          : 'Booking created successfully.'
+        message: 'Courtesy hold created successfully for 48 hours.'
       });
     }
 

@@ -961,12 +961,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       return;
     }
 
-    if (!isCourtesyHold) {
-      // Direct Book Now flow -> transition to booking & payment
-      setActiveModal('book_form');
-      return;
-    }
-
     setProcessing(true);
 
     try {
@@ -983,8 +977,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
           numGuests,
           specialRequests,
-          isCourtesyHold,
-          holdDurationHours: isCourtesyHold ? holdDurationHours : null
+          isCourtesyHold: true,
+          holdDurationHours: 48
         })
       });
 
@@ -3713,15 +3707,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         </span>
                       )}
                     </div>
-                    <div className="small text-primary fw-semibold mt-1">Note: Selectable reservation check-in dates are Today, Tomorrow, and Day After Tomorrow (up to 2 days ahead).</div>
                   </div>
 
                   <GuestReservationForm
                     selectedRoom={selectedRoom}
-                    isCourtesyHold={isCourtesyHold}
-                    onChangeCourtesyHold={(val) => setIsCourtesyHold(val)}
-                    holdDurationHours={holdDurationHours}
-                    onChangeHoldDuration={(val) => setHoldDurationHours(val)}
                     checkInDate={checkInDate}
                     onChangeCheckInDate={(newDate) => handleCheckInDateChange(newDate)}
                     checkOutDate={checkOutDate}
@@ -3745,12 +3734,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
                   <LoadingButton
                     type="submit"
-                    className={`btn ${isCourtesyHold ? 'btn-warning text-dark fw-bold' : 'btn-success text-white fw-bold'}`}
+                    className="btn btn-warning text-dark fw-bold"
                     isLoading={processing}
-                    loadingText={isCourtesyHold ? "Placing Hold..." : "Submitting..."}
+                    loadingText="Placing Hold..."
                     disabled={Boolean(selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate))}
                   >
-                    {isCourtesyHold ? 'Place Courtesy Hold (No Payment)' : 'Continue to Book Now (Payment)'}
+                    Place Courtesy Hold
                   </LoadingButton>
                 </div>
               </form>
@@ -3766,12 +3755,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             <div className="modal-content shadow-lg border-0 text-center p-3">
               <div className="modal-body py-3">
                 <h4 className="fw-bold text-dark">
-                  {reservationSummaryData.isCourtesyHold ? 'Courtesy Hold Placed!' : 'Booking Confirmed!'}
+                  Courtesy Hold Placed!
                 </h4>
                 <p className="text-muted small mb-3">
-                  {reservationSummaryData.isCourtesyHold
-                    ? `Your room is temporarily held for ${reservationSummaryData.holdDurationHours || 48} hours. Confirm with payment before it expires to secure your booking.`
-                    : 'Your room booking is confirmed.'}
+                  Your room is temporarily held for 48 hours without payment. Confirm with payment before it expires to secure your booking.
                 </p>
 
                 <div className="p-3 bg-light rounded text-start border mb-3" style={{ fontSize: '0.85rem' }}>
@@ -3781,8 +3768,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Reservation Type:</span>
-                    <span className={`badge ${reservationSummaryData.isCourtesyHold ? 'bg-warning text-dark' : 'bg-primary text-white'}`}>
-                      {reservationSummaryData.isCourtesyHold ? `Courtesy Hold (${reservationSummaryData.holdDurationHours || 48}h)` : 'Confirmed Booking'}
+                    <span className="badge bg-warning text-dark">
+                      Courtesy Hold (48h)
                     </span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">

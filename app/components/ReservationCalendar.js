@@ -162,26 +162,54 @@ export default function ReservationCalendar({
         </h6>
       </div>
 
-      {/* Month Navigation (Interactive) */}
-      <div className="d-flex justify-content-between align-items-center mb-2 px-1">
+      {/* Month & Year Selectors with Navigation */}
+      <div className="d-flex justify-content-between align-items-center gap-1.5 mb-2 px-1">
         <button
           type="button"
-          className="btn btn-sm btn-outline-secondary py-0.5 px-2 border"
+          className="btn btn-sm btn-outline-secondary py-1 px-2 border d-flex align-items-center justify-content-center"
           onClick={handlePrevMonth}
           title="Previous Month"
-          style={{ fontSize: '0.82rem', borderRadius: '5px' }}
+          style={{ fontSize: '0.88rem', minWidth: '30px', height: '31px', borderRadius: '6px' }}
+          aria-label="Previous Month"
         >
           ‹
         </button>
-        <span className="fw-bold text-dark small">
-          {monthNames[currentMonth]} {currentYear}
-        </span>
+
+        <div className="d-flex align-items-center gap-1.5 flex-grow-1 justify-content-center">
+          {/* Month Selector */}
+          <select
+            className="form-select form-select-sm py-1 px-2 fw-semibold text-dark border-secondary-subtle"
+            style={{ width: 'auto', fontSize: '0.82rem', cursor: 'pointer' }}
+            value={currentMonth}
+            onChange={(e) => setCurrentMonth(parseInt(e.target.value, 10))}
+            aria-label="Select Month"
+          >
+            {monthNames.map((name, idx) => (
+              <option key={idx} value={idx}>{name}</option>
+            ))}
+          </select>
+
+          {/* Year Selector */}
+          <select
+            className="form-select form-select-sm py-1 px-2 fw-semibold text-dark border-secondary-subtle"
+            style={{ width: 'auto', fontSize: '0.82rem', cursor: 'pointer' }}
+            value={currentYear}
+            onChange={(e) => setCurrentYear(parseInt(e.target.value, 10))}
+            aria-label="Select Year"
+          >
+            {Array.from({ length: 10 }, (_, i) => today.getFullYear() - 1 + i).map((yr) => (
+              <option key={yr} value={yr}>{yr}</option>
+            ))}
+          </select>
+        </div>
+
         <button
           type="button"
-          className="btn btn-sm btn-outline-secondary py-0.5 px-2 border"
+          className="btn btn-sm btn-outline-secondary py-1 px-2 border d-flex align-items-center justify-content-center"
           onClick={handleNextMonth}
           title="Next Month"
-          style={{ fontSize: '0.82rem', borderRadius: '5px' }}
+          style={{ fontSize: '0.88rem', minWidth: '30px', height: '31px', borderRadius: '6px' }}
+          aria-label="Next Month"
         >
           ›
         </button>
