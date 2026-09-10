@@ -169,8 +169,9 @@ function BookingsClient() {
     setCheckInDate(val);
   };
 
-  const [isWalkIn, setIsWalkIn] = useState(false);
-  const [walkInForm, setWalkInForm] = useState({
+  // Form states matching unified guest form
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
+  const [guestForm, setGuestForm] = useState({
     firstName: '',
     lastName: '',
     contact: '',
@@ -178,6 +179,26 @@ function BookingsClient() {
     gender: 'Male',
     dateOfBirth: ''
   });
+
+  const handleUidChange = (val) => {
+    setFormData(prev => ({ ...prev, guestID: val }));
+    if (!val) {
+      setIsAutoFilled(false);
+      return;
+    }
+    const selected = guests.find(g => String(g.guestID) === String(val));
+    if (selected) {
+      setGuestForm({
+        firstName: selected.firstName || '',
+        lastName: selected.lastName || '',
+        contact: selected.contact || '',
+        email: selected.email || '',
+        gender: selected.gender || 'Male',
+        dateOfBirth: selected.dateOfBirth ? toUiDate(selected.dateOfBirth) : ''
+      });
+      setIsAutoFilled(true);
+    }
+  };
 
   const [selectedRoomType, setSelectedRoomType] = useState('');
   const [breakfastOption, setBreakfastOption] = useState('with'); // 'with' | 'without'
@@ -536,8 +557,8 @@ function BookingsClient() {
     setCheckOutDate(tomorrowUiDate);
     setCheckOutTime('12:00');
     
-    setIsWalkIn(false);
-    setWalkInForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
+    setIsAutoFilled(false);
+    setGuestForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
     setSelectedRoomType('');
     setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
     setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
@@ -566,8 +587,16 @@ function BookingsClient() {
     setCheckOutDate(tomorrowUiDate);
     setCheckOutTime('12:00');
 
-    setIsWalkIn(false);
-    setWalkInForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
+    const rebookGuest = guests.find(g => String(g.guestID) === String(b.guestID));
+    setGuestForm({
+      firstName: b.firstName || rebookGuest?.firstName || '',
+      lastName: b.lastName || rebookGuest?.lastName || '',
+      contact: b.contact || rebookGuest?.contact || '',
+      email: b.email || rebookGuest?.email || '',
+      gender: b.gender || rebookGuest?.gender || 'Male',
+      dateOfBirth: b.dateOfBirth ? toUiDate(b.dateOfBirth) : (rebookGuest?.dateOfBirth ? toUiDate(rebookGuest.dateOfBirth) : '')
+    });
+    setIsAutoFilled(Boolean(b.guestID));
     setSelectedRoomType(b.roomType || '');
     setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
     setRoomGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(g => ({ ...g, discountID: g.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
@@ -581,8 +610,8 @@ function BookingsClient() {
 
   useEffect(() => {
     if (activeModal !== 'create') {
-      setIsWalkIn(false);
-      setWalkInForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
+      setIsAutoFilled(false);
+      setGuestForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
       setSelectedRoomType('');
       setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
@@ -603,21 +632,10 @@ function BookingsClient() {
   // Synchronize first guest name
   useEffect(() => {
     if (activeModal === 'create') {
-      let name = '';
+      let name = `${guestForm.firstName} ${guestForm.lastName}`.trim();
       let calculatedAge = '';
-      if (isWalkIn) {
-        name = `${walkInForm.firstName} ${walkInForm.lastName}`.trim();
-        if (walkInForm.dateOfBirth) {
-          calculatedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
-        }
-      } else if (formData.guestID) {
-        const selected = guests.find(g => g.guestID === parseInt(formData.guestID));
-        if (selected) {
-          name = `${selected.firstName} ${selected.lastName}`;
-          if (selected.dateOfBirth) {
-            calculatedAge = calculateAgeFromDbDate(selected.dateOfBirth);
-          }
-        }
+      if (guestForm.dateOfBirth) {
+        calculatedAge = calculateAgeFromUiDate(guestForm.dateOfBirth);
       }
       setRoomGuests(prev => {
         const copy = [...prev];
@@ -629,7 +647,7 @@ function BookingsClient() {
         return copy;
       });
     }
-  }, [isWalkIn, walkInForm.firstName, walkInForm.lastName, walkInForm.dateOfBirth, formData.guestID, guests, activeModal]);
+  }, [guestForm.firstName, guestForm.lastName, guestForm.dateOfBirth, activeModal]);
 
   // Auto-calculate downPayment based on selected room, breakfast option, and downpayment percentage tier
   useEffect(() => {
@@ -720,27 +738,24 @@ function BookingsClient() {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    if (isWalkIn) {
-      if (!walkInForm.firstName.trim() || !walkInForm.lastName.trim()) {
-        showAlert('error', 'Validation Error', 'First Name and Last Name are required for walk-in guests.');
+    if (!guestForm.firstName.trim() || !guestForm.lastName.trim()) {
+      showAlert('error', 'Validation Error', 'First Name and Last Name are required.');
+      return;
+    }
+    if (!guestForm.dateOfBirth) {
+      showAlert('error', 'Validation Error', 'Birthdate is required.');
+      return;
+    }
+    if (guestForm.dateOfBirth) {
+      const calculatedAge = calculateAgeFromUiDate(guestForm.dateOfBirth);
+      if (typeof calculatedAge === 'number' && calculatedAge < 18) {
+        showAlert('error', 'Validation Error', 'Guest must be at least 18 years old to proceed.');
         return;
       }
-      if (!walkInForm.dateOfBirth) {
-        showAlert('error', 'Validation Error', 'Birthdate is required for walk-in guests.');
-        return;
-      }
-      if (walkInForm.dateOfBirth) {
-        const calculatedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
-        if (typeof calculatedAge === 'number' && calculatedAge < 18) {
-          showAlert('error', 'Validation Error', 'You must be at least 18 years old to proceed.');
-          return;
-        }
-      }
-    } else {
-      if (!formData.guestID) {
-        showAlert('error', 'Validation Error', 'Please select a registered guest account or choose Walk-In.');
-        return;
-      }
+    }
+    if (guestForm.contact && guestForm.contact.length !== 11) {
+      showAlert('error', 'Validation Error', 'Contact number must be exactly 11 digits (e.g. 09XXXXXXXXX).');
+      return;
     }
 
     if (!formData.roomID) {
@@ -779,9 +794,7 @@ function BookingsClient() {
     const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit) || 4) : 4;
 
     const preparedGuests = [];
-    const primaryName = isWalkIn
-      ? `${walkInForm.firstName} ${walkInForm.lastName}`.trim()
-      : 'Primary Guest';
+    const primaryName = `${guestForm.firstName} ${guestForm.lastName}`.trim() || 'Primary Guest';
 
     for (let i = 0; i < (parseInt(numGuestsCount) || 1); i++) {
       const disc = discountedGuests[i];
@@ -864,8 +877,14 @@ function BookingsClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'create',
-            isWalkIn,
-            ...(isWalkIn ? { ...walkInForm, dateOfBirth: walkInForm.dateOfBirth ? toDbDate(walkInForm.dateOfBirth) : null } : { guestID: formData.guestID }),
+            isWalkIn: !formData.guestID,
+            guestID: formData.guestID || null,
+            firstName: guestForm.firstName,
+            lastName: guestForm.lastName,
+            contact: guestForm.contact,
+            email: guestForm.email,
+            gender: guestForm.gender || 'Male',
+            dateOfBirth: guestForm.dateOfBirth ? toDbDate(guestForm.dateOfBirth) : null,
             roomID: formData.roomID,
             checkInDateTime: finalCheckInDateTime,
             checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
@@ -1290,94 +1309,109 @@ function BookingsClient() {
               </div>
               <form onSubmit={handleCreateSubmit}>
                 <div className="modal-body">
-                  <div className="form-check form-switch mb-3 p-2 bg-light rounded border">
-                    <input
-                      className="form-check-input ms-0 me-2"
-                      type="checkbox"
-                      id="walkInToggle"
-                      checked={isWalkIn}
-                      onChange={(e) => setIsWalkIn(e.target.checked)}
+                  {/* TOP: SELECT GUEST ACCOUNT (UID) */}
+                  <div className="p-3 mb-3 border rounded bg-light">
+                    <div className="d-flex align-items-center justify-content-between mb-1">
+                      <label className="form-label fw-bold text-dark mb-0">
+                        <i className="bi bi-person-badge text-pcc-primary me-1.5"></i>
+                        Select Guest Account (UID)
+                      </label>
+                      {isAutoFilled && formData.guestID && (
+                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+                          <i className="bi bi-check-circle-fill me-1"></i> Auto-filled from Guest Account
+                        </span>
+                      )}
+                    </div>
+                    <SearchableSelect
+                      options={[
+                        { value: '', label: '-- None (Walk-In Guest - Manual Entry) --' },
+                        ...guests.map(g => ({
+                          value: String(g.guestID),
+                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
+                        }))
+                      ]}
+                      value={formData.guestID}
+                      onChange={handleUidChange}
+                      placeholder="Type UID, guest name or contact to search..."
                     />
-                    <label className="form-check-label fw-bold text-dark" htmlFor="walkInToggle">
-                      Walk-In Guest (Quick Booking Without Registered Account)
-                    </label>
+                    <div className="form-text text-muted small mt-1">
+                      <i className="bi bi-info-circle me-1"></i>
+                      Leave blank for walk-in guest.
+                    </div>
                   </div>
 
-                  {!isWalkIn ? (
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Select Guest Account *</label>
-                      <SearchableSelect
-                        options={guests.map(g => ({
-                          value: String(g.guestID),
-                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName}`
-                        }))}
-                        value={formData.guestID}
-                        onChange={(val) => setFormData(prev => ({ ...prev, guestID: val }))}
-                        placeholder="Type guest name or contact..."
-                        disabled={isWalkIn}
-                      />
+                  {/* GUEST DETAILS CARD PANEL (ALWAYS VISIBLE) */}
+                  <div className="p-3 mb-3 border rounded bg-white shadow-xs">
+                    <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                      <h6 className="mb-0 text-pcc-primary fw-bold d-flex align-items-center gap-1.5">
+                        <i className="bi bi-person-lines-fill"></i>
+                        Guest Details
+                      </h6>
+                      <span className="badge bg-light text-muted border small">
+                        {formData.guestID ? 'Account Linked' : 'Walk-In Entry'}
+                      </span>
                     </div>
-                  ) : (
-                    <div className="p-3 mb-3 border rounded bg-light">
-                      <h6 className="mb-3 text-pcc-primary fw-bold">Walk-In Guest Information</h6>
-                      <div className="row g-2">
-                        <div className="col-md-6 mb-2">
-                          <label className="form-label small mb-1">First Name *</label>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            required={isWalkIn}
-                            value={walkInForm.firstName}
-                            onChange={(e) => setWalkInForm(prev => ({ ...prev, firstName: e.target.value }))}
-                          />
-                        </div>
-                        <div className="col-md-6 mb-2">
-                          <label className="form-label small mb-1">Last Name *</label>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            required={isWalkIn}
-                            value={walkInForm.lastName}
-                            onChange={(e) => setWalkInForm(prev => ({ ...prev, lastName: e.target.value }))}
-                          />
-                        </div>
+
+                    <div className="row g-2 mb-2">
+                      <div className="col-md-6">
+                        <label className="form-label small fw-semibold mb-1">First Name *</label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          required
+                          value={guestForm.firstName}
+                          onChange={(e) => setGuestForm(prev => ({ ...prev, firstName: e.target.value }))}
+                        />
                       </div>
-                      <div className="row g-2">
-                        <div className="col-md-4 mb-2">
-                          <label className="form-label small mb-1">Contact Number</label>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="09XXXXXXXXX"
-                            value={walkInForm.contact}
-                            onChange={(e) => {
-                              const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
-                              setWalkInForm(prev => ({ ...prev, contact: sanitized }));
-                            }}
-                          />
-                        </div>
-                        <div className="col-md-4 mb-2">
-                          <label className="form-label small mb-1">Birthdate *</label>
-                          <DateInput
-                            className="form-control form-control-sm"
-                            value={walkInForm.dateOfBirth}
-                            onChange={(e) => setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                            max={maxDobStr}
-                          />
-                        </div>
-                        <div className="col-md-4 mb-2">
-                          <label className="form-label small mb-1">Email Address <span className="text-muted">(Optional)</span></label>
-                          <input
-                            type="email"
-                            className="form-control form-control-sm"
-                            placeholder="Optional email"
-                            value={walkInForm.email}
-                            onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
-                          />
-                        </div>
+                      <div className="col-md-6">
+                        <label className="form-label small fw-semibold mb-1">Last Name *</label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          required
+                          value={guestForm.lastName}
+                          onChange={(e) => setGuestForm(prev => ({ ...prev, lastName: e.target.value }))}
+                        />
                       </div>
                     </div>
-                  )}
+
+                    <div className="row g-2">
+                      <div className="col-md-4 mb-2">
+                        <label className="form-label small fw-semibold mb-1">Contact Number (11 digits)</label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="09XXXXXXXXX"
+                          value={guestForm.contact}
+                          onChange={(e) => {
+                            const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
+                            setGuestForm(prev => ({ ...prev, contact: sanitized }));
+                          }}
+                        />
+                      </div>
+                      <div className="col-md-4 mb-2">
+                        <label className="form-label small fw-semibold mb-1">Birthdate (18+) *</label>
+                        <DateInput
+                          className="form-control form-control-sm"
+                          value={guestForm.dateOfBirth}
+                          onChange={(e) => setGuestForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                          max={maxDobStr}
+                        />
+                      </div>
+                      <div className="col-md-4 mb-2">
+                        <label className="form-label small fw-semibold mb-1">
+                          Email Address <span className="text-muted">(Optional)</span>
+                        </label>
+                        <input
+                          type="email"
+                          className="form-control form-control-sm"
+                          placeholder="name@example.com"
+                          value={guestForm.email}
+                          onChange={(e) => setGuestForm(prev => ({ ...prev, email: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                   {/* ROOM SELECTION & BREAKFAST OPTION */}
                   <div className="row g-2 mb-3">

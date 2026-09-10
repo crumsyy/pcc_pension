@@ -41,7 +41,7 @@ export async function GET(request) {
         WHERE rm.isArchived = 0
         ORDER BY b.checkInDateTime DESC
       `),
-      dbQuery("SELECT guestID, firstName, lastName, contact, dateOfBirth FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
+      dbQuery("SELECT guestID, userID, firstName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, rt.type as roomType,
                MAX(COALESCE(rr_with.rate, rr_default.rate, 1500)) as rateWithBreakfast,
@@ -148,10 +148,10 @@ export async function POST(request) {
         await conn.beginTransaction();
 
         let guestID;
-        if (body.isWalkIn) {
+        if (!body.guestID || body.isWalkIn) {
           const { firstName, lastName, contact, email, gender, dateOfBirth } = body;
           if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
-            return NextResponse.json({ error: 'First name and Last name are required for walk-in guests.' }, { status: 400 });
+            return NextResponse.json({ error: 'First name and Last name are required.' }, { status: 400 });
           }
           if (dateOfBirth) {
             const dobObj = new Date(dateOfBirth + 'T00:00:00');
@@ -161,11 +161,30 @@ export async function POST(request) {
               return NextResponse.json({ error: 'Date of birth cannot be today or in the future.' }, { status: 400 });
             }
           }
-          const [insertGuestRes] = await conn.execute(
-            "INSERT INTO guest (firstName, lastName, contact, email, gender, dateOfBirth, userID) VALUES (?, ?, ?, ?, ?, ?, NULL)",
-            [firstName.trim(), lastName.trim(), (contact || '').trim(), (email || '').trim() || null, gender || null, dateOfBirth || null]
+          const cleanEmail = (email || '').trim().toLowerCase();
+          const cleanContact = (contact || '').trim();
+
+          // Check if guest already exists by email or contact
+          const [existingGuests] = await conn.execute(
+            "SELECT guestID, userID FROM guest WHERE (email IS NOT NULL AND LOWER(email) = ?) OR (contact = ? AND contact != '') ORDER BY (userID IS NOT NULL) DESC, guestID DESC LIMIT 1",
+            [cleanEmail, cleanContact]
           );
-          guestID = insertGuestRes.insertId;
+
+          if (existingGuests && existingGuests.length > 0) {
+            guestID = existingGuests[0].guestID;
+            if (!existingGuests[0].userID) {
+              await conn.execute(
+                "UPDATE guest SET firstName = COALESCE(NULLIF(?, ''), firstName), lastName = COALESCE(NULLIF(?, ''), lastName), contact = COALESCE(NULLIF(?, ''), contact), dateOfBirth = COALESCE(NULLIF(?, ''), dateOfBirth), email = COALESCE(NULLIF(?, ''), email) WHERE guestID = ?",
+                [firstName.trim(), lastName.trim(), cleanContact, dateOfBirth || null, cleanEmail || null, guestID]
+              );
+            }
+          } else {
+            const [insertGuestRes] = await conn.execute(
+              "INSERT INTO guest (firstName, lastName, contact, email, gender, dateOfBirth, userID) VALUES (?, ?, ?, ?, ?, ?, NULL)",
+              [firstName.trim(), lastName.trim(), cleanContact, cleanEmail || null, gender || null, dateOfBirth || null]
+            );
+            guestID = insertGuestRes.insertId;
+          }
         } else {
           guestID = parseInt(body.guestID);
         }
