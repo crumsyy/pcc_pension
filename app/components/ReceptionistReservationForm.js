@@ -100,120 +100,153 @@ export default function ReceptionistReservationForm({
         If not confirmed with payment, it will be automatically released after a 30-minute grace period.
       </div>
 
-      {/* WALK-IN TOGGLE */}
-      <div className="form-check form-switch p-2.5 mb-3 border rounded bg-light d-flex align-items-center justify-content-between">
-        <label className="form-check-label fw-bold mb-0 text-dark me-3" htmlFor="walkInToggleForm">
-          Walk-In Guest (No Registered Account)
-        </label>
-        <input
-          className="form-check-input ms-0"
-          type="checkbox"
-          id="walkInToggleForm"
-          style={{ width: '2.4em', height: '1.2em', cursor: 'pointer' }}
-          checked={isWalkIn}
-          onChange={(e) => setIsWalkIn && setIsWalkIn(e.target.checked)}
-        />
-      </div>
-
-      {/* GUEST DETAILS */}
-      {!isWalkIn ? (
-        <div className="mb-3">
-          <label className="form-label fw-semibold">Select Guest Account *</label>
-          <SearchableSelect
-            options={guests.map(g => ({
-              value: String(g.guestID),
-              label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
-            }))}
-            value={formData.guestID}
-            onChange={(val) => setFormData && setFormData(prev => ({ ...prev, guestID: val }))}
-            placeholder="Type guest name or contact..."
-          />
-          {formErrors.guestID && (
-            <div className="text-danger small mt-1 fw-semibold">{formErrors.guestID}</div>
+      {/* TOP: SELECT GUEST ACCOUNT (UID) */}
+      <div className="p-3 mb-3 border rounded bg-light">
+        <div className="d-flex align-items-center justify-content-between mb-1">
+          <label className="form-label fw-bold text-dark mb-0">
+            <i className="bi bi-person-badge text-primary me-1.5"></i>
+            Select Guest Account (UID)
+          </label>
+          {formData.guestID && (
+            <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+              <i className="bi bi-check-circle-fill me-1"></i> Auto-filled from Guest Account
+            </span>
           )}
         </div>
-      ) : (
-        <div className="p-3 mb-3 border rounded bg-light">
-          <h6 className="mb-3 text-primary fw-bold">Walk-In Guest Details</h6>
-          <div className="row g-2 mb-2">
-            <div className="col-md-6">
-              <label className="form-label small fw-semibold mb-1">First Name *</label>
-              <input
-                type="text"
-                className={`form-control form-control-sm ${formErrors.firstName ? 'is-invalid' : ''}`}
-                value={walkInForm.firstName || ''}
-                onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, firstName: e.target.value }))}
-                required
-              />
-              {formErrors.firstName && (
-                <div className="invalid-feedback">{formErrors.firstName}</div>
-              )}
-            </div>
-            <div className="col-md-6">
-              <label className="form-label small fw-semibold mb-1">Last Name *</label>
-              <input
-                type="text"
-                className={`form-control form-control-sm ${formErrors.lastName ? 'is-invalid' : ''}`}
-                value={walkInForm.lastName || ''}
-                onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, lastName: e.target.value }))}
-                required
-              />
-              {formErrors.lastName && (
-                <div className="invalid-feedback">{formErrors.lastName}</div>
-              )}
-            </div>
+        <SearchableSelect
+          options={[
+            { value: '', label: '-- None (Walk-In Guest - Manual Entry) --' },
+            ...guests.map(g => ({
+              value: String(g.guestID),
+              label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
+            }))
+          ]}
+          value={formData.guestID || ''}
+          onChange={(val) => {
+            if (setFormData) setFormData(prev => ({ ...prev, guestID: val }));
+            if (setWalkInForm) {
+              if (!val) {
+                // blank: walk-in
+              } else {
+                const selected = guests.find(g => String(g.guestID) === String(val));
+                if (selected) {
+                  setWalkInForm(prev => ({
+                    ...prev,
+                    firstName: selected.firstName || '',
+                    lastName: selected.lastName || '',
+                    contact: selected.contact || '',
+                    birthdate: selected.dateOfBirth ? String(selected.dateOfBirth).substring(0, 10) : '',
+                    email: selected.email || ''
+                  }));
+                }
+              }
+            }
+          }}
+          placeholder="Type UID, guest name or contact to search..."
+        />
+        <div className="form-text text-muted small mt-1">
+          <i className="bi bi-info-circle me-1"></i>
+          Leave blank for walk-in guest.
+        </div>
+        {formErrors.guestID && (
+          <div className="text-danger small mt-1 fw-semibold">{formErrors.guestID}</div>
+        )}
+      </div>
+
+      {/* GUEST DETAILS (ALWAYS VISIBLE) */}
+      <div className="p-3 mb-3 border rounded bg-white shadow-xs">
+        <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h6 className="mb-0 text-primary fw-bold d-flex align-items-center gap-1.5">
+            <i className="bi bi-person-lines-fill"></i>
+            Guest Details
+          </h6>
+          <span className="badge bg-light text-muted border small">
+            {formData.guestID ? 'Account Linked' : 'Walk-In Entry'}
+          </span>
+        </div>
+        <div className="row g-2 mb-2">
+          <div className="col-md-6">
+            <label className="form-label small fw-semibold mb-1">First Name *</label>
+            <input
+              type="text"
+              className={`form-control form-control-sm ${formErrors.firstName ? 'is-invalid' : ''}`}
+              value={walkInForm.firstName || ''}
+              onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, firstName: e.target.value }))}
+              required
+            />
+            {formErrors.firstName && (
+              <div className="invalid-feedback">{formErrors.firstName}</div>
+            )}
           </div>
-          <div className="row g-2 mb-2">
-            <div className="col-md-6">
-              <label className="form-label small fw-semibold mb-1">Contact Number (11 digits)</label>
-              <input
-                type="text"
-                className={`form-control form-control-sm ${formErrors.contact ? 'is-invalid' : ''}`}
-                placeholder="09XXXXXXXXX"
-                value={walkInForm.contact || ''}
-                onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, contact: e.target.value }))}
-              />
-              {formErrors.contact && (
-                <div className="invalid-feedback">{formErrors.contact}</div>
-              )}
-            </div>
-            <div className="col-md-6">
-              <label className="form-label small fw-semibold mb-1">Birthdate (Must be 18+)</label>
-              <input
-                type="date"
-                className={`form-control form-control-sm ${formErrors.birthdate ? 'is-invalid' : ''}`}
-                value={walkInForm.birthdate || ''}
-                onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, birthdate: e.target.value }))}
-              />
-              {formErrors.birthdate && (
-                <div className="invalid-feedback">{formErrors.birthdate}</div>
-              )}
-            </div>
-          </div>
-          <div className="row g-2">
-            <div className="col-12">
-              <label className="form-label small fw-semibold mb-1">
-                Email Address <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span>
-              </label>
-              <input
-                type="email"
-                className={`form-control form-control-sm ${formErrors.email ? 'is-invalid' : (!walkInForm.email ? 'border-warning' : '')}`}
-                placeholder="guest@example.com"
-                value={walkInForm.email || ''}
-                required={true}
-                onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
-              />
-              {formErrors.email ? (
-                <div className="invalid-feedback d-block">{formErrors.email}</div>
-              ) : (
-                <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
-                  Required for sending hold expiry alerts and release notifications.
-                </div>
-              )}
-            </div>
+          <div className="col-md-6">
+            <label className="form-label small fw-semibold mb-1">Last Name *</label>
+            <input
+              type="text"
+              className={`form-control form-control-sm ${formErrors.lastName ? 'is-invalid' : ''}`}
+              value={walkInForm.lastName || ''}
+              onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, lastName: e.target.value }))}
+              required
+            />
+            {formErrors.lastName && (
+              <div className="invalid-feedback">{formErrors.lastName}</div>
+            )}
           </div>
         </div>
-      )}
+        <div className="row g-2 mb-2">
+          <div className="col-md-6">
+            <label className="form-label small fw-semibold mb-1">Contact Number (11 digits) *</label>
+            <input
+              type="text"
+              className={`form-control form-control-sm ${formErrors.contact ? 'is-invalid' : ''}`}
+              placeholder="09XXXXXXXXX"
+              value={walkInForm.contact || ''}
+              onChange={(e) => {
+                const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
+                if (setWalkInForm) setWalkInForm(prev => ({ ...prev, contact: sanitized }));
+              }}
+              required
+            />
+            {formErrors.contact && (
+              <div className="invalid-feedback">{formErrors.contact}</div>
+            )}
+          </div>
+          <div className="col-md-6">
+            <label className="form-label small fw-semibold mb-1">Birthdate (18+) *</label>
+            <input
+              type="date"
+              className={`form-control form-control-sm ${formErrors.birthdate ? 'is-invalid' : ''}`}
+              value={walkInForm.birthdate || ''}
+              onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, birthdate: e.target.value }))}
+              required
+            />
+            {formErrors.birthdate && (
+              <div className="invalid-feedback">{formErrors.birthdate}</div>
+            )}
+          </div>
+        </div>
+        <div className="row g-2">
+          <div className="col-12">
+            <label className="form-label small fw-semibold mb-1">
+              Email Address <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span>
+            </label>
+            <input
+              type="email"
+              className={`form-control form-control-sm ${formErrors.email ? 'is-invalid' : (!walkInForm.email ? 'border-warning' : '')}`}
+              placeholder="guest@example.com"
+              value={walkInForm.email || ''}
+              required={true}
+              onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
+            />
+            {formErrors.email ? (
+              <div className="invalid-feedback d-block">{formErrors.email}</div>
+            ) : (
+              <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
+                Required for sending courtesy hold expiry alerts and auto-release notifications.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* ROOM SELECTION */}
       <div className="mb-3">

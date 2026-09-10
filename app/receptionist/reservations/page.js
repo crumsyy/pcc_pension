@@ -129,9 +129,9 @@ function ReservationsClient() {
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'convert' | null
   const [selectedRes, setSelectedRes] = useState(null);
 
-  // Form states matching Booking Workspace
-  const [isWalkIn, setIsWalkIn] = useState(false);
-  const [walkInForm, setWalkInForm] = useState({
+  // Form states matching Booking Workspace (Unified guest form)
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
+  const [guestForm, setGuestForm] = useState({
     firstName: '',
     lastName: '',
     contact: '',
@@ -144,6 +144,27 @@ function ReservationsClient() {
     guestID: '',
     roomID: ''
   });
+
+  const handleUidChange = (val) => {
+    setFormData(prev => ({ ...prev, guestID: val }));
+    setFormErrors(prev => ({ ...prev, guestID: '', firstName: '', lastName: '', contact: '', email: '', dateOfBirth: '' }));
+    if (!val) {
+      setIsAutoFilled(false);
+      return;
+    }
+    const selected = guests.find(g => String(g.guestID) === String(val));
+    if (selected) {
+      setGuestForm({
+        firstName: selected.firstName || '',
+        lastName: selected.lastName || '',
+        contact: selected.contact || '',
+        email: selected.email || '',
+        gender: selected.gender || 'Male',
+        dateOfBirth: selected.dateOfBirth ? toUiDate(selected.dateOfBirth) : ''
+      });
+      setIsAutoFilled(true);
+    }
+  };
 
   const [selectedRoomType, setSelectedRoomType] = useState('');
   const [breakfastOption, setBreakfastOption] = useState('with');
@@ -385,8 +406,8 @@ function ReservationsClient() {
         setResTime("14:00");
         setCheckOutDate(getTomorrowUiDate());
         setCheckOutTime("12:00");
-        setIsWalkIn(true);
-        setWalkInForm({
+        setIsAutoFilled(false);
+        setGuestForm({
           firstName: qFirstName || '',
           lastName: qLastName || '',
           email: qEmail || '',
@@ -420,6 +441,8 @@ function ReservationsClient() {
       });
       setIsCourtesyHold(false);
       setHoldDurationHours(48);
+      setIsAutoFilled(false);
+      setGuestForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
     } else if (!activeModal) {
       setResDate('');
@@ -430,8 +453,8 @@ function ReservationsClient() {
       setFormData({ guestID: '', roomID: '' });
       setIsCourtesyHold(false);
       setHoldDurationHours(48);
-      setIsWalkIn(false);
-      setWalkInForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
+      setIsAutoFilled(false);
+      setGuestForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
       setSelectedRoomType('');
       setSelectedRes(null);
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
@@ -441,21 +464,10 @@ function ReservationsClient() {
   // Synchronize first guest name matching Booking form
   useEffect(() => {
     if (activeModal === 'create' || activeModal === 'edit') {
-      let name = '';
+      let name = `${guestForm.firstName} ${guestForm.lastName}`.trim();
       let calculatedAge = '';
-      if (isWalkIn) {
-        name = `${walkInForm.firstName} ${walkInForm.lastName}`.trim();
-        if (walkInForm.dateOfBirth) {
-          calculatedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
-        }
-      } else if (formData.guestID) {
-        const selected = guests.find(g => String(g.guestID) === String(formData.guestID));
-        if (selected) {
-          name = `${selected.firstName} ${selected.lastName}`;
-          if (selected.dateOfBirth) {
-            calculatedAge = calculateAgeFromDbDate(selected.dateOfBirth);
-          }
-        }
+      if (guestForm.dateOfBirth) {
+        calculatedAge = calculateAgeFromUiDate(guestForm.dateOfBirth);
       }
       setRoomGuests(prev => {
         const copy = [...prev];
@@ -467,7 +479,7 @@ function ReservationsClient() {
         return copy;
       });
     }
-  }, [isWalkIn, walkInForm.firstName, walkInForm.lastName, walkInForm.dateOfBirth, formData.guestID, guests, activeModal]);
+  }, [guestForm.firstName, guestForm.lastName, guestForm.dateOfBirth, activeModal]);
 
   const handleAddGuest = () => {
     setRoomGuests(prev => [...prev, { fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
@@ -494,9 +506,18 @@ function ReservationsClient() {
     setGuestCount(res.guestCount || 1);
     setFormErrors({});
     setFormData({
-      guestID: String(res.guestID),
+      guestID: res.guestID ? String(res.guestID) : '',
       roomID: String(res.roomID)
     });
+    setGuestForm({
+      firstName: res.firstName || '',
+      lastName: res.lastName || '',
+      contact: res.contact || '',
+      email: res.email || '',
+      gender: res.gender || 'Male',
+      dateOfBirth: res.dateOfBirth ? toUiDate(res.dateOfBirth) : ''
+    });
+    setIsAutoFilled(Boolean(res.guestID));
 
     if (res.reservationDateTime) {
       const dateOnly = res.reservationDateTime.substring(0, 10);
@@ -515,7 +536,6 @@ function ReservationsClient() {
       setCheckOutTime('12:00');
     }
 
-    setIsWalkIn(false);
     setActiveModal('edit');
   };
 
@@ -564,33 +584,27 @@ function ReservationsClient() {
     e.preventDefault();
 
     const errors = {};
-    if (isWalkIn) {
-      if (!walkInForm.firstName || !walkInForm.firstName.trim()) {
-        errors.firstName = 'First name is required for walk-in guest.';
-      }
-      if (!walkInForm.lastName || !walkInForm.lastName.trim()) {
-        errors.lastName = 'Last name is required for walk-in guest.';
-      }
-      if (!walkInForm.contact || walkInForm.contact.length !== 11) {
-        errors.contact = 'Contact number must be exactly 11 digits (e.g. 09XXXXXXXXX).';
-      }
-      if (!walkInForm.dateOfBirth) {
-        errors.dateOfBirth = 'Birthdate is required for walk-in guest.';
-      } else {
-        const calculatedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
-        if (typeof calculatedAge === 'number' && calculatedAge < 18) {
-          errors.dateOfBirth = 'Guest must be at least 18 years old to make a reservation.';
-        }
-      }
-      if (!walkInForm.email || !walkInForm.email.trim()) {
-        errors.email = 'Email address is required for Courtesy Hold to send expiry alerts (12h/6h) and auto-release notices.';
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(walkInForm.email.trim())) {
-        errors.email = 'Please enter a valid email address.';
-      }
+    if (!guestForm.firstName || !guestForm.firstName.trim()) {
+      errors.firstName = 'First name is required.';
+    }
+    if (!guestForm.lastName || !guestForm.lastName.trim()) {
+      errors.lastName = 'Last name is required.';
+    }
+    if (!guestForm.contact || guestForm.contact.length !== 11) {
+      errors.contact = 'Contact number must be exactly 11 digits (e.g. 09XXXXXXXXX).';
+    }
+    if (!guestForm.dateOfBirth) {
+      errors.dateOfBirth = 'Birthdate is required.';
     } else {
-      if (!formData.guestID) {
-        errors.guestID = 'Please select a registered guest account.';
+      const calculatedAge = calculateAgeFromUiDate(guestForm.dateOfBirth);
+      if (typeof calculatedAge === 'number' && calculatedAge < 18) {
+        errors.dateOfBirth = 'Guest must be at least 18 years old to make a reservation.';
       }
+    }
+    if (!guestForm.email || !guestForm.email.trim()) {
+      errors.email = 'Email address is required for Courtesy Hold to receive expiry alerts and auto-release notices.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestForm.email.trim())) {
+      errors.email = 'Please enter a valid email address.';
     }
 
     if (!selectedRoomType) {
@@ -643,6 +657,7 @@ function ReservationsClient() {
 
     setFormErrors({});
 
+    const isWalkIn = !formData.guestID;
     const confirmTitle = 'Place Courtesy Hold';
     const confirmMsg = `Are you sure you want to place a 48-hour Courtesy Hold on this room? No payment is required immediately.`;
 
@@ -655,7 +670,13 @@ function ReservationsClient() {
           body: JSON.stringify({
             action: 'create',
             isWalkIn,
-            ...(isWalkIn ? walkInForm : { guestID: formData.guestID }),
+            guestID: formData.guestID || null,
+            firstName: guestForm.firstName,
+            lastName: guestForm.lastName,
+            contact: guestForm.contact,
+            email: guestForm.email,
+            gender: guestForm.gender || 'Male',
+            dateOfBirth: guestForm.dateOfBirth ? toDbDate(guestForm.dateOfBirth) : null,
             roomID: formData.roomID,
             reservationDateTime: toDbDate(resDate) + ' ' + (resTime || '14:00') + ':00',
             checkOutDateTime: checkOutDate && isValidDate(checkOutDate) ? toDbDate(checkOutDate) + ' ' + (checkOutTime || '12:00') + ':00' : null,
@@ -1177,142 +1198,146 @@ function ReservationsClient() {
                     If not confirmed with payment, it will be automatically released after a 30-minute grace period.
                   </div>
 
-                  {/* WALK-IN TOGGLE (Only in Create mode) */}
-                  {activeModal === 'create' && (
-                    <div className="form-check form-switch p-2.5 mb-3 border rounded bg-light d-flex align-items-center justify-content-between">
-                      <label className="form-check-label fw-bold mb-0 text-dark me-3" htmlFor="walkInToggle">
-                        Walk-In Guest (Quick Booking Without Registered Account)
+                  {/* TOP: SELECT GUEST ACCOUNT (UID) */}
+                  <div className="p-3 mb-3 border rounded bg-light">
+                    <div className="d-flex align-items-center justify-content-between mb-1">
+                      <label className="form-label fw-bold text-dark mb-0">
+                        <i className="bi bi-person-badge text-pcc-primary me-1.5"></i>
+                        Select Guest Account (UID)
                       </label>
-                      <input
-                        className="form-check-input ms-0"
-                        type="checkbox"
-                        id="walkInToggle"
-                        style={{ width: '2.4em', height: '1.2em' }}
-                        checked={isWalkIn}
-                        onChange={(e) => {
-                          setIsWalkIn(e.target.checked);
-                          setFormErrors(prev => ({ ...prev, firstName: '', lastName: '', contact: '', email: '', dateOfBirth: '', guestID: '' }));
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* GUEST DETAILS */}
-                  {!isWalkIn ? (
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Select Guest Account *</label>
-                      <SearchableSelect
-                        options={guests.map(g => ({
-                          value: String(g.guestID),
-                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
-                        }))}
-                        value={formData.guestID}
-                        onChange={(val) => {
-                          setFormData(prev => ({ ...prev, guestID: val }));
-                          setFormErrors(prev => ({ ...prev, guestID: '' }));
-                        }}
-                        placeholder="Type guest name or contact..."
-                      />
-                      {formErrors.guestID && (
-                        <div className="text-danger small mt-1 fw-semibold">{formErrors.guestID}</div>
+                      {isAutoFilled && formData.guestID && (
+                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+                          <i className="bi bi-check-circle-fill me-1"></i> Auto-filled from Guest Account
+                        </span>
                       )}
                     </div>
-                  ) : (
-                    <div className="p-3 mb-3 border rounded bg-light">
-                      <h6 className="mb-3 text-pcc-primary fw-bold">Walk-In Guest Details</h6>
-                      <div className="row g-2 mb-2">
-                        <div className="col-md-6">
-                          <label className="form-label small fw-semibold mb-1">First Name *</label>
-                          <input
-                            type="text"
-                            className={`form-control form-control-sm ${formErrors.firstName ? 'is-invalid border-danger' : ''}`}
-                            required={isWalkIn}
-                            value={walkInForm.firstName}
-                            onChange={(e) => {
-                              setWalkInForm(prev => ({ ...prev, firstName: e.target.value }));
-                              setFormErrors(prev => ({ ...prev, firstName: '' }));
-                            }}
-                          />
-                          {formErrors.firstName && (
-                            <div className="text-danger small mt-1 fw-semibold">{formErrors.firstName}</div>
-                          )}
-                        </div>
-                        <div className="col-md-6">
-                          <label className="form-label small fw-semibold mb-1">Last Name *</label>
-                          <input
-                            type="text"
-                            className={`form-control form-control-sm ${formErrors.lastName ? 'is-invalid border-danger' : ''}`}
-                            required={isWalkIn}
-                            value={walkInForm.lastName}
-                            onChange={(e) => {
-                              setWalkInForm(prev => ({ ...prev, lastName: e.target.value }));
-                              setFormErrors(prev => ({ ...prev, lastName: '' }));
-                            }}
-                          />
-                          {formErrors.lastName && (
-                            <div className="text-danger small mt-1 fw-semibold">{formErrors.lastName}</div>
-                          )}
-                        </div>
+                    <SearchableSelect
+                      options={[
+                        { value: '', label: '-- None (Walk-In Guest - Manual Entry) --' },
+                        ...guests.map(g => ({
+                          value: String(g.guestID),
+                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
+                        }))
+                      ]}
+                      value={formData.guestID}
+                      onChange={handleUidChange}
+                      placeholder="Type UID, guest name or contact to search..."
+                    />
+                    <div className="form-text text-muted small mt-1">
+                      <i className="bi bi-info-circle me-1"></i>
+                      Leave blank for walk-in guest.
+                    </div>
+                    {formErrors.guestID && (
+                      <div className="text-danger small mt-1 fw-semibold">{formErrors.guestID}</div>
+                    )}
+                  </div>
+
+                  {/* GUEST DETAILS CARD PANEL (ALWAYS VISIBLE) */}
+                  <div className="p-3 mb-3 border rounded bg-white shadow-xs">
+                    <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                      <h6 className="mb-0 text-pcc-primary fw-bold d-flex align-items-center gap-1.5">
+                        <i className="bi bi-person-lines-fill"></i>
+                        Guest Details
+                      </h6>
+                      <span className="badge bg-light text-muted border small">
+                        {formData.guestID ? 'Account Linked' : 'Walk-In Entry'}
+                      </span>
+                    </div>
+
+                    <div className="row g-2 mb-2">
+                      <div className="col-md-6">
+                        <label className="form-label small fw-semibold mb-1">First Name *</label>
+                        <input
+                          type="text"
+                          className={`form-control form-control-sm ${formErrors.firstName ? 'is-invalid border-danger' : ''}`}
+                          required
+                          value={guestForm.firstName}
+                          onChange={(e) => {
+                            setGuestForm(prev => ({ ...prev, firstName: e.target.value }));
+                            setFormErrors(prev => ({ ...prev, firstName: '' }));
+                          }}
+                        />
+                        {formErrors.firstName && (
+                          <div className="text-danger small mt-1 fw-semibold">{formErrors.firstName}</div>
+                        )}
                       </div>
-                      <div className="row g-2">
-                        <div className="col-md-4 mb-2">
-                          <label className="form-label small fw-semibold mb-1">Contact Number *</label>
-                          <input
-                            type="text"
-                            className={`form-control form-control-sm ${formErrors.contact ? 'is-invalid border-danger' : ''}`}
-                            placeholder="09XXXXXXXXX"
-                            value={walkInForm.contact}
-                            onChange={(e) => {
-                              const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
-                              setWalkInForm(prev => ({ ...prev, contact: sanitized }));
-                              setFormErrors(prev => ({ ...prev, contact: '' }));
-                            }}
-                          />
-                          {formErrors.contact && (
-                            <div className="text-danger small mt-1 fw-semibold">{formErrors.contact}</div>
-                          )}
-                        </div>
-                        <div className="col-md-4 mb-2">
-                          <label className="form-label small fw-semibold mb-1">Birthdate *</label>
-                          <DateInput
-                            className={`form-control form-control-sm ${formErrors.dateOfBirth ? 'is-invalid border-danger' : ''}`}
-                            value={walkInForm.dateOfBirth}
-                            onChange={(e) => {
-                              setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }));
-                              setFormErrors(prev => ({ ...prev, dateOfBirth: '' }));
-                            }}
-                            max={maxDobStr}
-                          />
-                          {formErrors.dateOfBirth && (
-                            <div className="text-danger small mt-1 fw-semibold">{formErrors.dateOfBirth}</div>
-                          )}
-                        </div>
-                        <div className="col-md-4 mb-2">
-                          <label className="form-label small fw-semibold mb-1">
-                            Email Address <span className="text-danger fw-bold">* (Required)</span>
-                          </label>
-                          <input
-                            type="email"
-                            className={`form-control form-control-sm ${formErrors.email ? 'is-invalid border-danger' : (!walkInForm.email ? 'border-warning' : '')}`}
-                            placeholder="name@example.com"
-                            required={true}
-                            value={walkInForm.email}
-                            onChange={(e) => {
-                              setWalkInForm(prev => ({ ...prev, email: e.target.value }));
-                              setFormErrors(prev => ({ ...prev, email: '' }));
-                            }}
-                          />
-                          {formErrors.email ? (
-                            <div className="text-danger small mt-1 fw-semibold">{formErrors.email}</div>
-                          ) : (
-                            <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
-                              Required for sending 12h/6h hold expiry alerts and release notifications.
-                            </div>
-                          )}
-                        </div>
+                      <div className="col-md-6">
+                        <label className="form-label small fw-semibold mb-1">Last Name *</label>
+                        <input
+                          type="text"
+                          className={`form-control form-control-sm ${formErrors.lastName ? 'is-invalid border-danger' : ''}`}
+                          required
+                          value={guestForm.lastName}
+                          onChange={(e) => {
+                            setGuestForm(prev => ({ ...prev, lastName: e.target.value }));
+                            setFormErrors(prev => ({ ...prev, lastName: '' }));
+                          }}
+                        />
+                        {formErrors.lastName && (
+                          <div className="text-danger small mt-1 fw-semibold">{formErrors.lastName}</div>
+                        )}
                       </div>
                     </div>
-                  )}
+
+                    <div className="row g-2">
+                      <div className="col-md-4 mb-2">
+                        <label className="form-label small fw-semibold mb-1">Contact Number (11 digits) *</label>
+                        <input
+                          type="text"
+                          className={`form-control form-control-sm ${formErrors.contact ? 'is-invalid border-danger' : ''}`}
+                          placeholder="09XXXXXXXXX"
+                          required
+                          value={guestForm.contact}
+                          onChange={(e) => {
+                            const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
+                            setGuestForm(prev => ({ ...prev, contact: sanitized }));
+                            setFormErrors(prev => ({ ...prev, contact: '' }));
+                          }}
+                        />
+                        {formErrors.contact && (
+                          <div className="text-danger small mt-1 fw-semibold">{formErrors.contact}</div>
+                        )}
+                      </div>
+                      <div className="col-md-4 mb-2">
+                        <label className="form-label small fw-semibold mb-1">Birthdate (18+) *</label>
+                        <DateInput
+                          className={`form-control form-control-sm ${formErrors.dateOfBirth ? 'is-invalid border-danger' : ''}`}
+                          value={guestForm.dateOfBirth}
+                          onChange={(e) => {
+                            setGuestForm(prev => ({ ...prev, dateOfBirth: e.target.value }));
+                            setFormErrors(prev => ({ ...prev, dateOfBirth: '' }));
+                          }}
+                          max={maxDobStr}
+                        />
+                        {formErrors.dateOfBirth && (
+                          <div className="text-danger small mt-1 fw-semibold">{formErrors.dateOfBirth}</div>
+                        )}
+                      </div>
+                      <div className="col-md-4 mb-2">
+                        <label className="form-label small fw-semibold mb-1">
+                          Email Address <span className="text-danger fw-bold">* (Required)</span>
+                        </label>
+                        <input
+                          type="email"
+                          className={`form-control form-control-sm ${formErrors.email ? 'is-invalid border-danger' : (!guestForm.email ? 'border-warning' : '')}`}
+                          placeholder="name@example.com"
+                          required
+                          value={guestForm.email}
+                          onChange={(e) => {
+                            setGuestForm(prev => ({ ...prev, email: e.target.value }));
+                            setFormErrors(prev => ({ ...prev, email: '' }));
+                          }}
+                        />
+                        {formErrors.email ? (
+                          <div className="text-danger small mt-1 fw-semibold">{formErrors.email}</div>
+                        ) : (
+                          <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
+                            Required for Courtesy Hold expiry alerts and auto-release notices.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
                   {/* ROOM SELECTION & BREAKFAST INCLUSION */}
                   <div className="row g-2 mb-3">

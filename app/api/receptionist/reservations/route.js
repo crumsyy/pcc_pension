@@ -108,12 +108,13 @@ export async function GET(request) {
                  WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
                  ELSE r.status
                END as status,
-               r.guestID, r.roomID,
-               g.firstName, g.lastName, g.contact, COALESCE(r.guestEmail, g.email) as email,
-               rm.roomNumber, rt.type as roomType, rm.image,
-               rr1.rate as rateWithBreakfast, rr2.rate as rateWithoutBreakfast,
-               COALESCE(rr1.rate, rr2.rate, 0) as rate,
-               b.bookingID, b.status as bookingStatus
+                r.guestID, r.roomID,
+                g.firstName, g.lastName, g.contact, COALESCE(r.guestEmail, g.email) as email,
+                DATE_FORMAT(g.dateOfBirth, '%Y-%m-%d') as dateOfBirth, g.gender,
+                rm.roomNumber, rt.type as roomType, rm.image,
+                rr1.rate as rateWithBreakfast, rr2.rate as rateWithoutBreakfast,
+                COALESCE(rr1.rate, rr2.rate, 0) as rate,
+                b.bookingID, b.status as bookingStatus
         FROM reservation r
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
@@ -124,7 +125,7 @@ export async function GET(request) {
         WHERE rm.isArchived = 0
         ORDER BY r.reservationDateTime DESC
       `),
-      dbQuery("SELECT guestID, firstName, lastName, contact, email FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
+      dbQuery("SELECT guestID, userID, firstName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, r.occupancyLimit, r.image,
                rr1.rate as rateWithBreakfast,
@@ -191,25 +192,48 @@ export async function POST(request) {
       const isCourtesyHold = true;
       const holdDurationHours = 48;
 
-      if (body.isWalkIn) {
-        const { firstName, lastName, contact, email, gender } = body;
+      if (!body.guestID || body.isWalkIn) {
+        const { firstName, lastName, contact, email, gender, dateOfBirth } = body;
         if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
-          return NextResponse.json({ error: 'First name and Last name are required for walk-in guests.' }, { status: 400 });
+          return NextResponse.json({ error: 'First name and Last name are required.' }, { status: 400 });
         }
         if (!email || !email.trim()) {
-          return NextResponse.json({ error: 'Email address is required for walk-in courtesy holds to receive expiry alerts.' }, { status: 400 });
+          return NextResponse.json({ error: 'Email address is required for Courtesy Hold to receive expiry alerts.' }, { status: 400 });
         }
-        const insertRes = await dbQuery(
-          "INSERT INTO guest (firstName, lastName, contact, email, gender, userID) VALUES (?, ?, ?, ?, ?, NULL)",
-          [firstName.trim(), lastName.trim(), (contact || '').trim(), (email || '').trim() || null, gender || null]
+        const cleanEmail = email.trim().toLowerCase();
+        const cleanContact = (contact || '').trim();
+
+        // Prevent duplicate guest creation: check if guest already exists by email or contact
+        const existingGuests = await dbQuery(
+          "SELECT guestID, userID, email FROM guest WHERE LOWER(email) = ? OR (contact = ? AND contact != '') ORDER BY (userID IS NOT NULL) DESC, guestID DESC LIMIT 1",
+          [cleanEmail, cleanContact]
         );
-        guestID = insertRes.insertId;
-        guestEmail = (email || '').trim() || null;
+
+        if (existingGuests.length > 0) {
+          guestID = existingGuests[0].guestID;
+          guestEmail = cleanEmail || existingGuests[0].email;
+          if (!existingGuests[0].userID) {
+            await dbQuery(
+              "UPDATE guest SET firstName = COALESCE(NULLIF(?, ''), firstName), lastName = COALESCE(NULLIF(?, ''), lastName), contact = COALESCE(NULLIF(?, ''), contact), dateOfBirth = COALESCE(NULLIF(?, ''), dateOfBirth) WHERE guestID = ?",
+              [firstName.trim(), lastName.trim(), cleanContact, dateOfBirth || null, guestID]
+            );
+          }
+        } else {
+          const insertRes = await dbQuery(
+            "INSERT INTO guest (firstName, lastName, contact, email, gender, dateOfBirth, userID) VALUES (?, ?, ?, ?, ?, ?, NULL)",
+            [firstName.trim(), lastName.trim(), cleanContact, cleanEmail, gender || null, dateOfBirth || null]
+          );
+          guestID = insertRes.insertId;
+          guestEmail = cleanEmail;
+        }
       } else {
         guestID = parseInt(body.guestID);
-        const guestRows = await dbQuery("SELECT email FROM guest WHERE guestID = ?", [guestID]);
-        if (guestRows.length > 0 && guestRows[0].email) {
-          guestEmail = guestRows[0].email;
+        guestEmail = (body.email || '').trim() || null;
+        if (!guestEmail) {
+          const guestRows = await dbQuery("SELECT email FROM guest WHERE guestID = ?", [guestID]);
+          if (guestRows.length > 0 && guestRows[0].email) {
+            guestEmail = guestRows[0].email;
+          }
         }
       }
 

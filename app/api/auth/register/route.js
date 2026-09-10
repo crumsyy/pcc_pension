@@ -111,22 +111,46 @@ export async function POST(request) {
       );
       const userID = userResult.insertId;
 
-      // 2. Insert into Guest table
-      await connection.execute(
-        "INSERT INTO guest (firstName, middleName, lastName, gender, dateOfBirth, city, province, contact, email, userID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-          firstName.trim(),
-          middleName ? middleName.trim() : '',
-          lastName.trim(),
-          gender,
-          dob,
-          city.trim(),
-          province.trim(),
-          contact.trim(),
-          lowerEmail,
-          userID
-        ]
+      // 2. Insert or Merge into Guest table
+      const [existingWalkIns] = await connection.execute(
+        "SELECT guestID FROM guest WHERE LOWER(email) = ? AND userID IS NULL ORDER BY guestID DESC LIMIT 1",
+        [lowerEmail]
       );
+      if (existingWalkIns && existingWalkIns.length > 0) {
+        const matchedGuestID = existingWalkIns[0].guestID;
+        await connection.execute(
+          "UPDATE guest SET firstName = ?, middleName = ?, lastName = ?, gender = ?, dateOfBirth = ?, city = ?, province = ?, contact = ?, email = ?, userID = ? WHERE guestID = ?",
+          [
+            firstName.trim(),
+            middleName ? middleName.trim() : '',
+            lastName.trim(),
+            gender,
+            dob,
+            city.trim(),
+            province.trim(),
+            contact.trim(),
+            lowerEmail,
+            userID,
+            matchedGuestID
+          ]
+        );
+      } else {
+        await connection.execute(
+          "INSERT INTO guest (firstName, middleName, lastName, gender, dateOfBirth, city, province, contact, email, userID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [
+            firstName.trim(),
+            middleName ? middleName.trim() : '',
+            lastName.trim(),
+            gender,
+            dob,
+            city.trim(),
+            province.trim(),
+            contact.trim(),
+            lowerEmail,
+            userID
+          ]
+        );
+      }
 
       await connection.commit();
     } catch (dbError) {
