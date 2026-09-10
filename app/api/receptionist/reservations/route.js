@@ -7,14 +7,12 @@ function checkReservationLeadTime(checkInDateStr) {
   const pad = (n) => String(n).padStart(2, '0');
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const maxDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-  const maxDateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`;
 
   const inDateStr = (checkInDateStr || '').split(' ')[0] || (checkInDateStr || '').split('T')[0];
-  if (inDateStr < todayStr || inDateStr > maxDateStr) {
+  if (inDateStr < todayStr) {
     return {
       valid: false,
-      message: "Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum)."
+      message: "Reservation check-in date cannot be in the past."
     };
   }
   return { valid: true };

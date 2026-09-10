@@ -178,22 +178,14 @@ export async function POST(request) {
       }
     }
 
-    // Rule 1A: Reservation Date Restrictions (Today up to 2 days ahead maximum allowed)
+    // Rule 1A: Reservation Date Restrictions (Check-in cannot be in the past)
     const pad = (n) => String(n).padStart(2, '0');
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const maxDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-    const maxDateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`;
 
     if (checkInDate < todayStr) {
       return NextResponse.json({
         error: "Reservation or booking has already passed."
-      }, { status: 400 });
-    }
-
-    if (checkInDate > maxDateStr) {
-      return NextResponse.json({
-        error: "Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum)."
       }, { status: 400 });
     }
 

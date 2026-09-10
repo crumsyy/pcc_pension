@@ -609,8 +609,8 @@ function ReservationsClient() {
       selectedDateObj.setHours(0, 0, 0, 0);
 
       const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays < 0 || diffDays > 2) {
-        errors.resDate = 'Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum).';
+      if (diffDays < 0) {
+        errors.resDate = 'Reservation check-in date cannot be in the past.';
       }
     }
 
@@ -701,8 +701,8 @@ function ReservationsClient() {
       selectedDateObj.setHours(0, 0, 0, 0);
 
       const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays < 0 || diffDays > 2) {
-        errors.resDate = 'Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum).';
+      if (diffDays < 0) {
+        errors.resDate = 'Reservation check-in date cannot be in the past.';
       }
     }
 
@@ -1473,7 +1473,6 @@ function ReservationsClient() {
                         className={`form-control form-control-sm mb-1 ${formErrors.resDate ? 'is-invalid border-danger' : ''}`}
                         value={toDbDate(resDate)}
                         min={todayDbDate}
-                        max={toDbDate(maxResDate)}
                         onChange={(e) => {
                           handleResDateChange(e.target.value);
                           setFormErrors(prev => ({ ...prev, resDate: '', checkOutDate: '', conflict: '' }));
@@ -1483,9 +1482,6 @@ function ReservationsClient() {
                       {formErrors.resDate && (
                         <div className="text-danger small mb-1 fw-semibold">{formErrors.resDate}</div>
                       )}
-                      <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>
-                        Bookings strictly allowed for Today, Tomorrow, and Day After (up to 2 days ahead).
-                      </small>
                       <div className="mt-2">
                         <label className="form-label small fw-semibold d-flex justify-content-between">
                           <span>Check-In Time *</span>

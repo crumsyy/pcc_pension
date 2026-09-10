@@ -22,7 +22,7 @@ export async function GET(request) {
   await ensureBookingBillingSchema();
 
   try {
-    const [bookings, guests, rooms, guestsDetails, discounts, paymentMethods] = await Promise.all([
+    const [bookings, guests, rooms, guestsDetails, discounts, paymentMethods, activeBookings, activeReservations] = await Promise.all([
       dbQuery(`
         SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
                CASE
