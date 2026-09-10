@@ -35,6 +35,45 @@ export default function ReceptionistReservationForm({
   setSpecialRequests,
   className = ''
 }) {
+  const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
+
+  const isFreeBreakfast = Boolean(
+    selectedRoom &&
+    selectedRoom.breakfastRate !== null &&
+    selectedRoom.breakfastRate !== undefined &&
+    parseFloat(selectedRoom.breakfastRate) === 0
+  );
+
+  React.useEffect(() => {
+    if (isFreeBreakfast && breakfastOption !== 'with' && setBreakfastOption) {
+      setBreakfastOption('with');
+    }
+  }, [isFreeBreakfast, breakfastOption, setBreakfastOption]);
+
+  const basePax = parseInt(selectedRoom?.roomBasePax || selectedRoom?.occupancyLimit || 2, 10);
+  const numGuests = guestCount === '' ? 1 : (parseInt(guestCount, 10) || 1);
+  const extraGuests = Math.max(0, numGuests - basePax);
+  const extraGuestFee = extraGuests * 100; // Flat ₱100 per extra guest
+
+  let nightsCount = 1;
+  if (resDate && checkOutDate) {
+    const inD = new Date(resDate + 'T00:00:00');
+    const outD = new Date(checkOutDate + 'T00:00:00');
+    if (!isNaN(inD.getTime()) && !isNaN(outD.getTime()) && outD > inD) {
+      nightsCount = Math.max(1, Math.round((outD - inD) / (1000 * 60 * 60 * 24)));
+    }
+  }
+
+  const rateWithBfast = selectedRoom
+    ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate) || 0))
+    : 0;
+  const rateWithoutBfast = selectedRoom
+    ? (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0)
+    : 0;
+  const activeRate = breakfastOption === 'with' ? rateWithBfast : rateWithoutBfast;
+  const roomSubtotal = activeRate * nightsCount;
+  const estimatedTotal = roomSubtotal + extraGuestFee;
+
   return (
     <div className={`receptionist-reservation-form ${className}`}>
       {/* Courtesy Hold Notice Banner */}
@@ -193,43 +232,114 @@ export default function ReceptionistReservationForm({
         </div>
       </div>
 
+      {/* STAY DURATION SUMMARY */}
+      <div className="p-2.5 bg-primary-subtle border border-primary-subtle rounded-3 mb-3 d-flex justify-content-between align-items-center">
+        <div className="d-flex align-items-center gap-1.5 text-primary fw-bold small">
+          <i className="bi bi-moon-stars-fill"></i>
+          <span>Stay Duration</span>
+        </div>
+        <span className="badge bg-primary text-white fs-6 px-3 py-1 shadow-xs">
+          {nightsCount} {nightsCount === 1 ? 'Night' : 'Nights'}
+        </span>
+      </div>
+
       {/* GUEST COUNT & BREAKFAST */}
-      <div className="row g-2 mb-3">
-        <div className="col-md-6">
-          <label className="form-label fw-semibold small">Number of Guests *</label>
-          <input
-            type="number"
-            className="form-control"
-            min="1"
-            value={guestCount}
-            onChange={(e) => setGuestCount && setGuestCount(Math.max(1, parseInt(e.target.value) || 1))}
-            required
-          />
+      <div className="p-3 bg-white border rounded mb-3">
+        <div className="row g-2 align-items-center mb-2">
+          <div className="col-md-6">
+            <label className="form-label fw-bold small text-dark d-flex justify-content-between">
+              <span>Breakfast Inclusion *</span>
+              {isFreeBreakfast && (
+                <span className="text-success fw-semibold">(Complimentary)</span>
+              )}
+            </label>
+            <select
+              className="form-select form-select-sm fw-semibold"
+              value={breakfastOption}
+              onChange={(e) => setBreakfastOption && setBreakfastOption(e.target.value)}
+              disabled={isFreeBreakfast}
+            >
+              <option value="with">
+                With Breakfast (₱{rateWithBfast.toFixed(2)}/night{isFreeBreakfast ? ' - Free' : ''})
+              </option>
+              {!isFreeBreakfast && (
+                <option value="without">
+                  Without Breakfast (₱{rateWithoutBfast.toFixed(2)}/night)
+                </option>
+              )}
+            </select>
+          </div>
+
+          <div className="col-md-6">
+            <label className="form-label fw-bold small text-dark">Number of Guests *</label>
+            <input
+              type="number"
+              className="form-control form-control-sm"
+              min="1"
+              max={basePax + 5}
+              value={guestCount}
+              onChange={(e) => setGuestCount && setGuestCount(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+              required
+            />
+            <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
+              Standard Room Capacity: <strong>Up to {basePax} Pax</strong>
+              {extraGuests > 0 && (
+                <span className="text-primary fw-bold ms-1">
+                  (+₱{extraGuestFee.toFixed(2)} for {extraGuests} extra guest{extraGuests > 1 ? 's' : ''} @ ₱100 flat)
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="col-md-6">
-          <label className="form-label fw-semibold small">Breakfast Option</label>
-          <select
-            className="form-select"
-            value={breakfastOption}
-            onChange={(e) => setBreakfastOption && setBreakfastOption(e.target.value)}
-          >
-            <option value="with">With Breakfast</option>
-            <option value="without">Without Breakfast</option>
-          </select>
-        </div>
+
+        {extraGuests > 0 && (
+          <div className="alert alert-warning py-1.5 px-2.5 small mb-0 mt-2" style={{ fontSize: '0.78rem' }}>
+            <i className="bi bi-info-circle-fill me-1"></i>
+            Extra Guest Fee: <strong>₱100 flat per extra guest</strong> applied for {extraGuests} guest(s) exceeding capacity ({basePax}). Total fee: ₱{extraGuestFee.toFixed(2)}.
+          </div>
+        )}
       </div>
 
       {/* SPECIAL REQUESTS */}
       <div className="mb-3">
         <label className="form-label fw-semibold small">Special Requests</label>
         <textarea
-          className="form-control"
+          className="form-control form-control-sm"
           rows="2"
           placeholder="e.g. Extra pillows, late arrival"
           value={specialRequests}
           onChange={(e) => setSpecialRequests && setSpecialRequests(e.target.value)}
         ></textarea>
       </div>
+
+      {/* BILLING BREAKDOWN PREVIEW */}
+      {selectedRoom && (
+        <div className="p-3 bg-light rounded border mb-1" style={{ fontSize: '0.88rem' }}>
+          <h6 className="fw-bold text-dark mb-2 pb-1 border-bottom" style={{ fontSize: '0.90rem' }}>
+            Estimated Billing Breakdown Preview
+          </h6>
+          <div className="d-flex justify-content-between mb-1">
+            <span className="text-muted">
+              Room Stay ({nightsCount} night{nightsCount > 1 ? 's' : ''} @ ₱{activeRate.toFixed(2)}/night):
+            </span>
+            <span className="fw-semibold">₱{roomSubtotal.toFixed(2)}</span>
+          </div>
+          {extraGuests > 0 && (
+            <div className="d-flex justify-content-between mb-1 text-primary">
+              <span>Extra Guest Fee ({extraGuests} Extra Pax @ ₱100 flat):</span>
+              <span className="fw-semibold">+₱{extraGuestFee.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="d-flex justify-content-between pt-2 border-top fw-bold text-dark" style={{ fontSize: '1.02rem' }}>
+            <span>Estimated Total:</span>
+            <span className="text-primary">₱{estimatedTotal.toFixed(2)}</span>
+          </div>
+          <div className="mt-2 pt-2 border-top text-muted small" style={{ fontSize: '0.75rem' }}>
+            <i className="bi bi-shield-check text-success me-1"></i>
+            <strong>Courtesy Hold:</strong> ₱0.00 due now. Total payable upon booking conversion or check-in.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

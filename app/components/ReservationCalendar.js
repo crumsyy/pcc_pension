@@ -36,7 +36,11 @@ export default function ReservationCalendar({
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
 
+  const todayStr = formatYmd(today.getFullYear(), today.getMonth(), today.getDate());
+  const isPrevDisabled = currentYear === today.getFullYear() && currentMonth <= today.getMonth();
+
   const handlePrevMonth = () => {
+    if (isPrevDisabled) return;
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear(prev => prev - 1);
@@ -51,6 +55,14 @@ export default function ReservationCalendar({
       setCurrentYear(prev => prev + 1);
     } else {
       setCurrentMonth(prev => prev + 1);
+    }
+  };
+
+  const handleYearChange = (newYear) => {
+    const yr = parseInt(newYear, 10);
+    setCurrentYear(yr);
+    if (yr === today.getFullYear() && currentMonth < today.getMonth()) {
+      setCurrentMonth(today.getMonth());
     }
   };
 
@@ -166,10 +178,11 @@ export default function ReservationCalendar({
       <div className="d-flex justify-content-between align-items-center gap-1.5 mb-2 px-1">
         <button
           type="button"
-          className="btn btn-sm btn-outline-secondary py-1 px-2 border d-flex align-items-center justify-content-center"
+          className={`btn btn-sm btn-outline-secondary py-1 px-2 border d-flex align-items-center justify-content-center ${isPrevDisabled ? 'opacity-50' : ''}`}
           onClick={handlePrevMonth}
-          title="Previous Month"
-          style={{ fontSize: '0.88rem', minWidth: '30px', height: '31px', borderRadius: '6px' }}
+          disabled={isPrevDisabled}
+          title={isPrevDisabled ? "Past months unavailable" : "Previous Month"}
+          style={{ fontSize: '0.88rem', minWidth: '30px', height: '31px', borderRadius: '6px', cursor: isPrevDisabled ? 'not-allowed' : 'pointer' }}
           aria-label="Previous Month"
         >
           ‹
@@ -184,20 +197,25 @@ export default function ReservationCalendar({
             onChange={(e) => setCurrentMonth(parseInt(e.target.value, 10))}
             aria-label="Select Month"
           >
-            {monthNames.map((name, idx) => (
-              <option key={idx} value={idx}>{name}</option>
-            ))}
+            {monthNames.map((name, idx) => {
+              const isPastMonth = currentYear === today.getFullYear() && idx < today.getMonth();
+              return (
+                <option key={idx} value={idx} disabled={isPastMonth}>
+                  {name}
+                </option>
+              );
+            })}
           </select>
 
-          {/* Year Selector */}
+          {/* Year Selector (Current and Future Only) */}
           <select
             className="form-select form-select-sm py-1 px-2 fw-semibold text-dark border-secondary-subtle"
             style={{ width: 'auto', fontSize: '0.82rem', cursor: 'pointer' }}
             value={currentYear}
-            onChange={(e) => setCurrentYear(parseInt(e.target.value, 10))}
+            onChange={(e) => handleYearChange(e.target.value)}
             aria-label="Select Year"
           >
-            {Array.from({ length: 10 }, (_, i) => today.getFullYear() - 1 + i).map((yr) => (
+            {Array.from({ length: 5 }, (_, i) => today.getFullYear() + i).map((yr) => (
               <option key={yr} value={yr}>{yr}</option>
             ))}
           </select>
@@ -224,7 +242,7 @@ export default function ReservationCalendar({
           ))}
         </div>
 
-        {/* Days Grid: Non-interactive Visual Overview */}
+        {/* Days Grid: Non-interactive Visual Overview with Past Dates Disabled */}
         <div className="calendar-visual d-grid text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
           {days.map((dateStr, idx) => {
             if (!dateStr) {
@@ -232,35 +250,44 @@ export default function ReservationCalendar({
             }
 
             const dayNumber = parseInt(dateStr.split('-')[2], 10);
+            const isPastDate = dateStr < todayStr;
             const statusInfo = dateStatusMap[dateStr];
-            const hasStatus = !!statusInfo;
+            const hasStatus = !isPastDate && !!statusInfo;
+
+            let cellClass = 'bg-light border text-dark';
+            let cellTitle = `${dateStr}: Available`;
+            let cellLabel = 'Open';
+
+            if (isPastDate) {
+              cellClass = 'bg-light-subtle border text-muted opacity-50 fst-italic';
+              cellTitle = `${dateStr}: Past Date (Unavailable)`;
+              cellLabel = '-';
+            } else if (hasStatus) {
+              cellClass = statusInfo.className;
+              cellTitle = `${dateStr}: ${statusInfo.status}`;
+              cellLabel = statusInfo.label;
+            }
 
             return (
               <div
                 key={dateStr}
-                className={`calendar-cell p-1 d-flex flex-column align-items-center justify-content-center ${
-                  hasStatus ? statusInfo.className : 'bg-light border text-dark'
-                }`}
+                className={`calendar-cell p-1 d-flex flex-column align-items-center justify-content-center ${cellClass}`}
                 style={{
                   height: '38px',
                   fontSize: '0.75rem',
-                  userSelect: 'none'
+                  userSelect: 'none',
+                  cursor: isPastDate ? 'not-allowed' : 'default',
+                  pointerEvents: 'none'
                 }}
-                title={hasStatus ? `${dateStr}: ${statusInfo.status}` : `${dateStr}: Available`}
+                title={cellTitle}
               >
                 <span className="fw-semibold" style={{ lineHeight: 1 }}>{dayNumber}</span>
-                {hasStatus ? (
-                  <span
-                    className="fw-bold mt-0.5 text-truncate"
-                    style={{ fontSize: '0.52rem', lineHeight: 1, maxWidth: '100%' }}
-                  >
-                    {statusInfo.label}
-                  </span>
-                ) : (
-                  <span className="text-muted mt-0.5" style={{ fontSize: '0.50rem', lineHeight: 1 }}>
-                    Open
-                  </span>
-                )}
+                <span
+                  className={`mt-0.5 text-truncate ${hasStatus ? 'fw-bold' : 'text-muted'}`}
+                  style={{ fontSize: '0.50rem', lineHeight: 1, maxWidth: '100%' }}
+                >
+                  {cellLabel}
+                </span>
               </div>
             );
           })}

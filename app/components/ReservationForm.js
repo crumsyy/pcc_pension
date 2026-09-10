@@ -45,6 +45,11 @@ export default function ReservationForm({
     lateHours = Math.max(1, Math.ceil((outMinutes - standardOutMinutes) / 60));
   }
 
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const effectiveMinDate = minDate || todayStr;
+
   return (
     <div className={`reservation-form-container ${className}`}>
       {showCalendar && (
@@ -68,7 +73,7 @@ export default function ReservationForm({
             type="date"
             className="form-control"
             value={checkInDate}
-            min={minDate}
+            min={effectiveMinDate}
             max={maxDate}
             onChange={(e) => onChangeCheckInDate && onChangeCheckInDate(e.target.value)}
             required
@@ -84,7 +89,7 @@ export default function ReservationForm({
             type="date"
             className="form-control"
             value={checkOutDate}
-            min={checkInDate || minDate}
+            min={checkInDate || effectiveMinDate}
             onChange={(e) => onChangeCheckOutDate && onChangeCheckOutDate(e.target.value)}
             required
           />

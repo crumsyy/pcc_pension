@@ -1197,14 +1197,24 @@ function ReservationsClient() {
                     </div>
 
                     <div className="col-md-4">
-                      <label className="form-label fw-semibold">Breakfast Inclusion *</label>
+                      <label className="form-label fw-semibold d-flex justify-content-between">
+                        <span>Breakfast Inclusion *</span>
+                        {selectedRoomObj && selectedRoomObj.breakfastRate !== null && selectedRoomObj.breakfastRate !== undefined && parseFloat(selectedRoomObj.breakfastRate) === 0 && (
+                          <span className="text-success fw-semibold">(Complimentary)</span>
+                        )}
+                      </label>
                       <select
                         className="form-select fw-semibold"
                         value={breakfastOption}
                         onChange={(e) => setBreakfastOption(e.target.value)}
+                        disabled={Boolean(selectedRoomObj && selectedRoomObj.breakfastRate !== null && selectedRoomObj.breakfastRate !== undefined && parseFloat(selectedRoomObj.breakfastRate) === 0)}
                       >
-                        <option value="with">With Breakfast</option>
-                        <option value="without">Without Breakfast</option>
+                        <option value="with">
+                          With Breakfast{selectedRoomObj && selectedRoomObj.breakfastRate !== null && selectedRoomObj.breakfastRate !== undefined && parseFloat(selectedRoomObj.breakfastRate) === 0 ? ' (Free)' : ''}
+                        </option>
+                        {(!selectedRoomObj || selectedRoomObj.breakfastRate === null || selectedRoomObj.breakfastRate === undefined || parseFloat(selectedRoomObj.breakfastRate) !== 0) && (
+                          <option value="without">Without Breakfast</option>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -1249,6 +1259,52 @@ function ReservationsClient() {
                       <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
                         Maximum Occupancy: {selectedRoomObj.occupancyLimit || 2} Guests
                       </span>
+                    </div>
+                  )}
+
+                  {/* ROOM OCCUPANCY & NUMBER OF GUESTS */}
+                  {selectedRoomObj && (
+                    <div className="p-3 mb-3 border rounded bg-white">
+                      <div className="row g-2 align-items-center mb-2">
+                        <div className="col-md-6">
+                          <label className="form-label fw-bold mb-0 small text-dark">Total Number of Guests *</label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm mt-1"
+                            min="1"
+                            max={(selectedRoomObj.occupancyLimit || 2) + 5}
+                            value={roomGuests.length}
+                            onChange={(e) => {
+                              const val = Math.max(1, parseInt(e.target.value) || 1);
+                              const currentLen = roomGuests.length;
+                              if (val > currentLen) {
+                                const toAdd = val - currentLen;
+                                const newArr = Array.from({ length: toAdd }, () => ({ fullName: '', age: '', discountID: '', discountIdNumber: '' }));
+                                setRoomGuests(prev => [...prev, ...newArr]);
+                              } else if (val < currentLen) {
+                                setRoomGuests(prev => prev.slice(0, val));
+                              }
+                            }}
+                            required
+                          />
+                          <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
+                            Standard Room Capacity: <strong>Up to {selectedRoomObj.occupancyLimit || 2} Pax</strong>
+                            {roomGuests.length > (selectedRoomObj.occupancyLimit || 2) && (
+                              <span className="text-primary fw-bold ms-1">
+                                (+₱{(roomGuests.length - (selectedRoomObj.occupancyLimit || 2)) * 100} for {roomGuests.length - (selectedRoomObj.occupancyLimit || 2)} extra guest(s) @ ₱100 flat)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          {roomGuests.length > (selectedRoomObj.occupancyLimit || 2) && (
+                            <div className="alert alert-warning py-1.5 px-2.5 mb-0 small fw-bold">
+                              Extra Guest Fee: ₱100 flat per extra guest applied for {roomGuests.length - (selectedRoomObj.occupancyLimit || 2)} guest(s).
+                              <div>Total Extra Fee: ₱{(roomGuests.length - (selectedRoomObj.occupancyLimit || 2)) * 100}.00</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1323,28 +1379,70 @@ function ReservationsClient() {
                     </div>
                   </div>
 
-                  {/* DYNAMIC STAY DURATION & NIGHTS SUMMARY BADGE */}
-                  <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3 d-flex justify-content-between align-items-center">
-                    <div>
-                      <div className="fw-bold text-primary small d-flex align-items-center gap-1.5">
-                        <i className="bi bi-moon-stars-fill"></i>
-                        <span>Stay Duration</span>
-                      </div>
-                      <div className="text-muted small mt-0.5">
-                        {toDbDate(resDate) || 'Check-in'} → {toDbDate(checkOutDate) || 'Check-out'}
-                      </div>
-                    </div>
-                    <div className="text-end">
-                      <span className="badge bg-primary text-white fs-6 px-3 py-1.5 shadow-xs">
-                        {calculateReservationNights()} {calculateReservationNights() === 1 ? 'Night' : 'Nights'}
-                      </span>
-                      {selectedRoom && (
-                        <div className="small fw-bold text-dark mt-1">
-                          ₱{((parseFloat(selectedRoom.rate) || 0) * calculateReservationNights()).toFixed(2)} Est. Room Charge
+                  {/* DYNAMIC STAY DURATION & BILLING BREAKDOWN PREVIEW */}
+                  {(() => {
+                    const nights = calculateReservationNights();
+                    const isWithBk = (selectedRoomObj && selectedRoomObj.breakfastRate !== null && selectedRoomObj.breakfastRate !== undefined && parseFloat(selectedRoomObj.breakfastRate) === 0) || breakfastOption === 'with';
+                    const activeRate = selectedRoomObj
+                      ? (isWithBk
+                          ? (parseFloat(selectedRoomObj.rateWithBreakfast) || (selectedRoomObj.breakfastRate !== null && selectedRoomObj.breakfastRate !== undefined ? parseFloat(selectedRoomObj.rate) + parseFloat(selectedRoomObj.breakfastRate) : parseFloat(selectedRoomObj.rate)) || 0)
+                          : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0))
+                      : 0;
+                    const maxPax = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
+                    const excessPax = Math.max(0, roomGuests.length - maxPax);
+                    const extraGuestFee = excessPax * 100; // Flat ₱100 per extra guest
+                    const roomStayCharges = activeRate * nights;
+                    const estimatedTotal = roomStayCharges + extraGuestFee;
+
+                    return (
+                      <>
+                        <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3 d-flex justify-content-between align-items-center">
+                          <div>
+                            <div className="fw-bold text-primary small d-flex align-items-center gap-1.5">
+                              <i className="bi bi-moon-stars-fill"></i>
+                              <span>Stay Duration</span>
+                            </div>
+                            <div className="text-muted small mt-0.5">
+                              {toDbDate(resDate) || 'Check-in'} → {toDbDate(checkOutDate) || 'Check-out'}
+                            </div>
+                          </div>
+                          <div className="text-end">
+                            <span className="badge bg-primary text-white fs-6 px-3 py-1.5 shadow-xs">
+                              {nights} {nights === 1 ? 'Night' : 'Nights'}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
+
+                        {selectedRoomObj && (
+                          <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
+                            <h6 className="fw-bold text-dark mb-2 pb-1 border-bottom" style={{ fontSize: '0.90rem' }}>
+                              Estimated Billing Breakdown Preview
+                            </h6>
+                            <div className="d-flex justify-content-between mb-1">
+                              <span className="text-muted">
+                                Room Stay ({nights} night{nights > 1 ? 's' : ''} @ ₱{activeRate.toFixed(2)}/night):
+                              </span>
+                              <span className="fw-semibold">₱{roomStayCharges.toFixed(2)}</span>
+                            </div>
+                            {excessPax > 0 && (
+                              <div className="d-flex justify-content-between mb-1 text-primary">
+                                <span>Extra Guest Fee ({excessPax} Extra Pax @ ₱100 flat):</span>
+                                <span className="fw-semibold">+₱{extraGuestFee.toFixed(2)}</span>
+                              </div>
+                            )}
+                            <div className="d-flex justify-content-between pt-2 border-top fw-bold text-dark" style={{ fontSize: '1.02rem' }}>
+                              <span>Estimated Total:</span>
+                              <span className="text-primary">₱{estimatedTotal.toFixed(2)}</span>
+                            </div>
+                            <div className="mt-2 pt-2 border-top text-muted small" style={{ fontSize: '0.75rem' }}>
+                              <i className="bi bi-shield-check text-success me-1"></i>
+                              <strong>Courtesy Hold:</strong> ₱0.00 due now. Total payable upon booking conversion or check-in.
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   <div className="mb-2">
                     <label className="form-label small fw-semibold">Special Requests (Optional)</label>

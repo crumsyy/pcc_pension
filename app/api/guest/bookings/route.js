@@ -281,9 +281,9 @@ export async function POST(request) {
         );
         const bookingID = bookingRes.insertId;
 
-        // If converted from a reservation, update that reservation status to 'Converted to Booking'
+        // If converted from a reservation, update that reservation status to 'Booked'
         if (convResID) {
-          await connection.execute("UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?", [convResID]);
+          await connection.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [convResID]);
         }
 
         // Insert registered guests

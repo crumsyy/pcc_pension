@@ -344,6 +344,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     { fullName: `${initialGuest.firstName || 'Guest'} ${initialGuest.lastName || ''}`.trim(), age: 30, discountID: '', discountIdNumber: '' }
   ]);
   const [discountedGuests, setDiscountedGuests] = useState([]);
+  const [convertingReservationID, setConvertingReservationID] = useState(null);
   const [reservationSummaryData, setReservationSummaryData] = useState(null);
   const [receiptData, setReceiptData] = useState(null);
   const [processing, setProcessing] = useState(false);
@@ -811,7 +812,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const roomBasePax = selectedRoom ? parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit || 4) : 4;
   const inputPax = parseInt(numGuests) || 1;
   const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
-  const extraGuestFee = extraGuestsCount * 100 * nightsCount;
+  const extraGuestFee = extraGuestsCount * 100; // Flat ₱100 per extra guest
   const originalTotal = (roomRate * nightsCount) + extraGuestFee;
   const totalDiscount = 0;
   const netTotalAmount = originalTotal;
@@ -1059,6 +1060,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'create',
+          reservationID: convertingReservationID,
           roomID: selectedRoom.roomID,
           checkInDate,
           checkOutDate,
@@ -1102,6 +1104,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       setActiveModal('receipt');
       setIsGuestGcashSettled(false);
       setGcashRef('');
+      setConvertingReservationID(null);
       fetchRoomsAndStatus();
     } catch (err) {
       showAlert('error', 'Payment Error', err.message);
@@ -1163,26 +1166,32 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleProceedToBooking = (reservation) => {
     if (!reservation) return;
-    showConfirm(
-      'Proceed to Booking',
-      `Would you like to officially convert your reservation for Room ${reservation.roomNumber} (${reservation.roomType}) into a confirmed booking?`,
-      async () => {
-        try {
-          const res = await fetch('/api/guest/reservations/convert', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reservationID: reservation.reservationID })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to convert reservation');
+    const roomObj = allRooms.find(r => String(r.roomID) === String(reservation.roomID));
+    if (!roomObj) {
+      showAlert('error', 'Room Not Found', 'Could not locate room details for this reservation.');
+      return;
+    }
 
-          showAlert('success', 'Booking Confirmed', data.message || 'Your reservation has been successfully converted into an official booking!');
-          await fetchRoomsAndStatus();
-        } catch (err) {
-          showAlert('error', 'Conversion Error', err.message);
-        }
-      }
-    );
+    const inDateOnly = reservation.reservationDateTime ? reservation.reservationDateTime.substring(0, 10) : new Date().toISOString().substring(0, 10);
+    const inTimeOnly = reservation.reservationDateTime && reservation.reservationDateTime.length >= 16 ? reservation.reservationDateTime.substring(11, 16) : '14:00';
+    const outDateOnly = reservation.checkOutDateTime ? reservation.checkOutDateTime.substring(0, 10) : new Date(Date.now() + 86400000).toISOString().substring(0, 10);
+    const outTimeOnly = reservation.checkOutDateTime && reservation.checkOutDateTime.length >= 16 ? reservation.checkOutDateTime.substring(11, 16) : '12:00';
+
+    setSelectedRoom(roomObj);
+    setCheckInDate(inDateOnly);
+    setCheckInTime(inTimeOnly);
+    setCheckOutDate(outDateOnly);
+    setCheckOutTime(outTimeOnly);
+    setNumGuests(reservation.guestCount || 1);
+    setSpecialRequests(reservation.specialRequests || '');
+    setConvertingReservationID(reservation.reservationID);
+    setPaymentOption('50');
+    setGcashRef('');
+    setIsGuestGcashSettled(false);
+    setGuestGcashInlineError('');
+
+    // Trigger payment modal directly for down payment & GCash flow
+    setActiveModal('payment');
   };
 
   const handleCancelBooking = (bookingID) => {
@@ -3023,11 +3032,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     <button
                                       className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
                                       onClick={() => handleProceedToBooking(r)}
-                                      title="Complete Payment to confirm booking"
-                                      aria-label="Complete Payment"
+                                      title="Proceed to Booking with Down Payment"
+                                      aria-label="Proceed to Booking"
                                     >
-                                      <i className="bi bi-credit-card-fill me-1"></i>
-                                      Complete Payment
+                                      <i className="bi bi-calendar-check me-1"></i>
+                                      Proceed to Booking
                                     </button>
                                     <button
                                       className="btn btn-xs btn-outline-danger fw-bold px-2.5 py-1"
@@ -3719,6 +3728,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
                     checkOutTime={checkOutTime}
                     onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
+                    breakfastOption={breakfastOption}
+                    onChangeBreakfastOption={(newOption) => setBreakfastOption(newOption)}
                     minDate={minReserveDateStr}
                     maxDate={maxReserveDateStr}
                     roomSchedules={roomSchedules}
@@ -3897,7 +3908,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           Standard Room Capacity: <strong>Up to {roomBasePax} Pax</strong>
                           {extraGuestsCount > 0 && (
                             <span className="text-primary fw-bold ms-1">
-                              (+₱{(extraGuestFee).toFixed(2)} for {extraGuestsCount} extra guest(s))
+                              (+₱{(extraGuestFee).toFixed(2)} for {extraGuestsCount} extra guest(s) @ ₱100 flat)
                             </span>
                           )}
                         </div>

@@ -99,9 +99,9 @@ export async function POST(request) {
       const getPart = (type) => manilaParts.find(p => p.type === type)?.value || '00';
       const nowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
 
-      // A. Update reservation status
+      // A. Update reservation status to Booked
       await conn.execute(
-        "UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?",
+        "UPDATE reservation SET status = 'Booked' WHERE reservationID = ?",
         [reservationID]
       );
 
@@ -211,4 +211,8 @@ export async function POST(request) {
     console.error("Error converting guest reservation to booking:", error);
     return NextResponse.json({ error: error.message || 'Failed to convert reservation to booking.' }, { status: 500 });
   }
+}
+
+export async function PATCH(request) {
+  return POST(request);
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, syncRoomStatuses } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -340,5 +340,192 @@ export async function POST(request) {
   } catch (error) {
     console.error("Failed to process guest reservation:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request) {
+  const session = await getSession();
+  if (!session || session.role !== 'Guest') {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const reservationID = parseInt(body.reservationID || body.id);
+
+    if (!reservationID || isNaN(reservationID)) {
+      return NextResponse.json({ error: 'Valid reservation ID is required.' }, { status: 400 });
+    }
+
+    const [guestProfile] = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
+    if (!guestProfile) {
+      return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
+    }
+    const guestID = guestProfile.guestID;
+
+    const [reservation] = await dbQuery(`
+      SELECT r.*, rm.roomNumber, rm.status as currentRoomStatus, rm.isArchived, rm.occupancyLimit,
+             COALESCE(rr1.rate, 1500) as rateWithoutBreakfast,
+             COALESCE(rr2.rate, 1700) as rateWithBreakfast
+      FROM reservation r
+      JOIN room rm ON rm.roomID = r.roomID
+      LEFT JOIN room_rate rr1 ON rr1.roomTypeID = rm.roomTypeID AND rr1.floorID = rm.floorID AND rr1.breakfastID = 1
+      LEFT JOIN room_rate rr2 ON rr2.roomTypeID = rm.roomTypeID AND rr2.floorID = rm.floorID AND rr2.breakfastID = 2
+      WHERE r.reservationID = ? AND r.guestID = ?
+    `, [reservationID, guestID]);
+
+    if (!reservation) {
+      return NextResponse.json({ error: 'Reservation not found or access denied.' }, { status: 404 });
+    }
+
+    if (!['Pending', 'Confirmed', 'Courtesy Hold'].includes(reservation.status)) {
+      return NextResponse.json({
+        error: `Cannot convert reservation because its current status is "${reservation.status}".`
+      }, { status: 400 });
+    }
+
+    if (reservation.status === 'Courtesy Hold' && reservation.holdExpiryDateTime) {
+      const expiryWithGrace = new Date(new Date(reservation.holdExpiryDateTime).getTime() + 30 * 60 * 1000);
+      if (new Date() > expiryWithGrace) {
+        return NextResponse.json({
+          error: 'This courtesy hold has expired and cannot be converted to a booking.'
+        }, { status: 400 });
+      }
+    }
+
+    if (reservation.isArchived || reservation.currentRoomStatus === 'Under Maintenance') {
+      return NextResponse.json({
+        error: `Room ${reservation.roomNumber} is currently unavailable for booking.`
+      }, { status: 400 });
+    }
+
+    const checkInDateTime = body.checkInDateTime || reservation.reservationDateTime;
+    const checkOutDateTime = body.checkOutDateTime || reservation.checkOutDateTime || new Date(new Date(checkInDateTime).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+
+    // Conflict detection
+    const conflictingBookings = await dbQuery(`
+      SELECT bookingID, status
+      FROM booking
+      WHERE roomID = ?
+        AND status IN ('Confirmed', 'Checked In', 'Pending Check-in', 'Late Checkout')
+        AND checkInDateTime < ?
+        AND checkOutDateTime > ?
+      LIMIT 1
+    `, [reservation.roomID, checkOutDateTime, checkInDateTime]);
+
+    if (conflictingBookings.length > 0) {
+      return NextResponse.json({
+        error: `Room ${reservation.roomNumber} has a schedule conflict with an active booking for these dates.`
+      }, { status: 400 });
+    }
+
+    // Rate, nights & flat extra guest fee (extraGuests * 100)
+    const dIn = new Date(checkInDateTime.replace(' ', 'T'));
+    const dOut = new Date(checkOutDateTime.replace(' ', 'T'));
+    const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
+    const isWithBreakfast = (body.breakfastOption || reservation.breakfastOption || 'with') === 'with';
+    const roomRate = isWithBreakfast ? parseFloat(reservation.rateWithBreakfast || 1700) : parseFloat(reservation.rateWithoutBreakfast || 1500);
+    const roomBasePax = parseInt(reservation.occupancyLimit || 2);
+    const totalGuests = parseInt(body.numGuests || reservation.guestCount || 1);
+    const extraGuests = Math.max(0, totalGuests - roomBasePax);
+    const extraGuestFee = extraGuests * 100; // Flat ₱100 per extra guest
+    const totalAmount = parseFloat(body.totalAmount) || ((roomRate * nights) + extraGuestFee);
+    const downPaymentPercentage = parseInt(body.downPaymentPercentage || 50);
+    const downPaymentAmount = parseFloat(body.downPaymentAmount) || Math.round(totalAmount * (downPaymentPercentage / 100) * 100) / 100;
+    const remainingBalance = Math.max(0, totalAmount - downPaymentAmount);
+
+    const pool = await getDbConnection();
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      // 1. Update reservation status to 'Booked'
+      await conn.execute(
+        "UPDATE reservation SET status = 'Booked' WHERE reservationID = ?",
+        [reservationID]
+      );
+
+      // 2. Create confirmed booking record linked to reservationID
+      const [insertBookingRes] = await conn.execute(
+        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance)
+         VALUES (?, ?, 'Confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomRate, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
+      );
+      const bookingID = insertBookingRes.insertId;
+
+      // 3. Register primary guest
+      const primaryGuestName = `${guestProfile.firstName || ''} ${guestProfile.lastName || ''}`.trim() || 'Primary Guest';
+      await conn.execute(
+        `INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber)
+         VALUES (?, ?, 30, NULL, NULL)`,
+        [bookingID, primaryGuestName]
+      );
+
+      // 4. Create billing record
+      const [billingInsert] = await conn.execute(
+        `INSERT INTO billing (billingDate, status, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance)
+         VALUES (NOW(), 'Unpaid', ?, ?, ?, ?, ?, ?)`,
+        [bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
+      );
+      const billingID = billingInsert.insertId;
+
+      // 5. If payment info provided (GCash reference), record payment
+      const paymentRef = body.referenceNumber || `GCASH-CONV-${reservationID}`;
+      const [paymentInsert] = await conn.execute(
+        `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, status, referenceNumber, testMode)
+         VALUES (?, ?, 0, ?, ?, NULL, 2, 'Settled', ?, 1)`,
+        [downPaymentAmount, downPaymentAmount, billingID, guestID, paymentRef]
+      );
+      const paymentID = paymentInsert.insertId;
+
+      await conn.execute(
+        "INSERT INTO transactions (transactionDateTime, billingID, paymentID, testMode) VALUES (NOW(), ?, ?, 1)",
+        [billingID, paymentID]
+      );
+
+      // 6. Update room status to Reserved
+      await conn.execute(
+        "UPDATE room SET status = 'Reserved' WHERE roomID = ?",
+        [reservation.roomID]
+      );
+
+      // 7. Auto-cancel conflicting unconfirmed reservations
+      const [conflicts] = await conn.execute(
+        `SELECT r.reservationID, r.guestID, g.userID, rm.roomNumber
+         FROM reservation r
+         JOIN guest g ON g.guestID = r.guestID
+         JOIN room rm ON rm.roomID = r.roomID
+         WHERE r.roomID = ?
+           AND r.reservationID != ?
+           AND r.status IN ('Pending', 'Confirmed', 'Courtesy Hold')
+           AND r.reservationDateTime < ?
+           AND COALESCE(r.checkOutDateTime, DATE_ADD(r.reservationDateTime, INTERVAL 1 DAY)) > ?`,
+        [reservation.roomID, reservationID, checkOutDateTime, checkInDateTime]
+      );
+
+      for (const c of conflicts) {
+        await conn.execute(
+          "UPDATE reservation SET status = 'Cancelled' WHERE reservationID = ?",
+          [c.reservationID]
+        );
+      }
+
+      await conn.commit();
+
+      return NextResponse.json({
+        success: true,
+        bookingID,
+        message: `Reservation #${reservationID} successfully converted into Booking #${bookingID}!`
+      });
+    } catch (txnError) {
+      await conn.rollback();
+      throw txnError;
+    } finally {
+      conn.release();
+    }
+  } catch (error) {
+    console.error("Error converting reservation in PATCH:", error);
+    return NextResponse.json({ error: error.message || 'Failed to convert reservation to booking.' }, { status: 500 });
   }
 }

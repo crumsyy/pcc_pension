@@ -385,8 +385,8 @@ export async function POST(request) {
         const roomStatus = checkInNow ? 'Occupied' : 'Reserved';
         const finalCheckInDateTime = checkInNow ? nowStr : checkInDateTime;
 
-        // 1. Update reservation status to Converted to Booking
-        await conn.execute("UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?", [reservationID]);
+        // 1. Update reservation status to Booked
+        await conn.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [reservationID]);
 
         // 2. Insert booking with appropriate status ('Checked In' if Book and Check-In Now, else 'Pending Check-in')
         const [insertBookingRes] = await conn.execute(
@@ -550,5 +550,23 @@ export async function POST(request) {
   } catch (error) {
     console.error("Failed to process reservation action:", error);
     return NextResponse.json({ error: 'Operation failed: ' + error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request) {
+  const clonedRequest = request.clone();
+  try {
+    const body = await clonedRequest.json();
+    if (!body.action) {
+      body.action = 'convert_to_booking';
+    }
+    const modifiedRequest = new Request(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify(body)
+    });
+    return POST(modifiedRequest);
+  } catch (e) {
+    return POST(request);
   }
 }
