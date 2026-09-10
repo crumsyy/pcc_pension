@@ -3,6 +3,7 @@
 import React from 'react';
 import SearchableSelect from './SearchableSelect';
 import CalendarDatePicker from './CalendarDatePicker';
+import ReservationCalendar from './ReservationCalendar';
 
 /**
  * ReceptionistReservationForm Component
@@ -315,15 +316,15 @@ export default function ReceptionistReservationForm({
           )}
         </div>
 
-        {/* SINGLE VISUAL CALENDAR */}
-        <div className="col-12 mt-1">
-          <CalendarDatePicker
-            label={selectedRoom ? `Room ${selectedRoom.roomNumber} Availability Overview (Visual Calendar)` : "Room Availability Overview (Visual Calendar)"}
-            value={resDate || checkOutDate}
-            readOnlyVisual={true}
-            minDate={effectiveMinDate}
-            disabledDates={selectedRoom && roomSchedules ? roomSchedules.filter(s => String(s.roomID) === String(selectedRoom.roomID)).map(s => (s.checkInDateTime || '').substring(0, 10)).filter(Boolean) : []}
-            helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
+        {/* SINGLE VISUAL CALENDAR WITH DUAL HIGHLIGHTING & ROOM STATUSES */}
+        <div className="col-12 mt-2">
+          <ReservationCalendar
+            schedules={roomSchedules}
+            selectedRoom={selectedRoom}
+            selectedRoomId={selectedRoom?.roomID}
+            checkInDate={resDate}
+            checkOutDate={checkOutDate}
+            title={selectedRoom ? `Room ${selectedRoom.roomNumber} Availability & Status Overview` : "Room Availability & Status Overview"}
           />
         </div>
       </div>

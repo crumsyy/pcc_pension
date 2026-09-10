@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import CalendarDatePicker from '../../components/CalendarDatePicker';
+import ReservationCalendar from '../../components/ReservationCalendar';
 import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
@@ -45,8 +46,9 @@ function calculateAgeFromDbDate(dbDateStr) {
 }
 
 function getRoomDisplayImage(imgVal) {
-  if (imgVal && typeof imgVal === 'string' && imgVal.trim()) {
-    const trimmed = imgVal.trim();
+  if (!imgVal) return null;
+  const trimmed = String(imgVal).trim();
+  if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
       try {
         const arr = JSON.parse(trimmed);
@@ -64,6 +66,7 @@ function BookingsClient() {
   const [bookings, setBookings] = useState([]);
   const [guests, setGuests] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [roomSchedules, setRoomSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -504,6 +507,7 @@ function BookingsClient() {
       setRooms(data.rooms || []);
       setAvailableDiscounts(data.discounts || []);
       setPaymentMethods(data.paymentMethods || []);
+      if (data.roomSchedules) setRoomSchedules(data.roomSchedules);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -1656,14 +1660,15 @@ function BookingsClient() {
                       </div>
                     </div>
 
-                    {/* SINGLE VISUAL CALENDAR */}
-                    <div className="col-12">
-                      <CalendarDatePicker
-                        label="Room Availability Overview (Visual Calendar)"
-                        value={checkInDate || checkOutDate}
-                        readOnlyVisual={true}
-                        minDate={todayDbDate}
-                        helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
+                    {/* SINGLE VISUAL CALENDAR WITH DUAL HIGHLIGHTING & ROOM STATUSES */}
+                    <div className="col-12 mt-2">
+                      <ReservationCalendar
+                        schedules={roomSchedules}
+                        selectedRoom={selectedRoomObj}
+                        selectedRoomId={selectedRoomObj?.roomID}
+                        checkInDate={checkInDate}
+                        checkOutDate={checkOutDate}
+                        title={selectedRoomObj ? `Room ${selectedRoomObj.roomNumber} Availability & Status Overview` : "Room Availability & Status Overview"}
                       />
                     </div>
                   </div>

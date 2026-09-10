@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 /**
  * ReservationCalendar Component
@@ -12,20 +12,65 @@ import React, { useState, useMemo } from 'react';
  *   - Reserved → Yellow highlight (#ffc107)
  *   - Occupied → Blue highlight (#0d6efd)
  *   - Under Maintenance → Red highlight (#dc3545)
+ * - Dual Date Highlighting:
+ *   - Check-In Date → Primary Blue highlight (#0d6efd)
+ *   - Check-Out Date → Teal/Navy highlight (#055160)
+ *   - Stay Range → Soft Blue dashed range (#e7f1ff)
  */
 export default function ReservationCalendar({
   schedules = [],
   selectedRoomId = null,
   selectedRoom = null,
+  checkInDate = "",
+  checkOutDate = "",
   title = "Room Availability Calendar",
   className = ""
 }) {
   const pad = (n) => String(n).padStart(2, '0');
   const formatYmd = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
+  // Normalizes any date string (YYYY-MM-DD or MM/DD/YYYY or ISO) to standard 'YYYY-MM-DD'
+  const toStandardYmd = (str) => {
+    if (!str) return '';
+    const clean = String(str).trim();
+    if (clean.includes('T')) return clean.substring(0, 10);
+    if (clean.includes('-')) {
+      const parts = clean.substring(0, 10).split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[0]}-${pad(parts[1])}-${pad(parts[2])}`;
+      }
+    }
+    if (clean.includes('/')) {
+      const parts = clean.split('/');
+      if (parts.length === 3) {
+        const y = parts[2].length === 4 ? parts[2] : (parseInt(parts[2], 10) > 50 ? `19${parts[2]}` : `20${parts[2]}`);
+        return `${y}-${pad(parts[0])}-${pad(parts[1])}`;
+      }
+    }
+    return '';
+  };
+
+  const stdCheckIn = useMemo(() => toStandardYmd(checkInDate), [checkInDate]);
+  const stdCheckOut = useMemo(() => toStandardYmd(checkOutDate), [checkOutDate]);
+
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+
+  // Automatically switch calendar month to selected check-in date when set
+  useEffect(() => {
+    if (stdCheckIn) {
+      const parts = stdCheckIn.split('-');
+      if (parts.length === 3) {
+        const yr = parseInt(parts[0], 10);
+        const mo = parseInt(parts[1], 10) - 1;
+        if (!isNaN(yr) && !isNaN(mo) && mo >= 0 && mo <= 11) {
+          setCurrentYear(yr);
+          setCurrentMonth(mo);
+        }
+      }
+    }
+  }, [stdCheckIn]);
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -167,11 +212,25 @@ export default function ReservationCalendar({
 
   return (
     <div className={`reservation-calendar-card card border rounded-3 p-3 bg-white shadow-xs ${className}`}>
-      {/* Header with Title */}
-      <div className="mb-2 px-1">
+      {/* Header with Title and Selected Stay Badges */}
+      <div className="d-flex justify-content-between align-items-center flex-wrap gap-1.5 mb-2 px-1">
         <h6 className="fw-bold mb-0 text-dark text-nowrap" style={{ fontSize: '0.88rem' }}>
           {title || 'Room Availability & Status Overview'}
         </h6>
+        {(stdCheckIn || stdCheckOut) && (
+          <div className="d-flex align-items-center gap-1.5 flex-wrap">
+            {stdCheckIn && (
+              <span className="badge text-white px-2 py-1 shadow-xs font-monospace" style={{ backgroundColor: '#0d6efd', fontSize: '0.72rem' }}>
+                <i className="bi bi-box-arrow-in-right me-1"></i>In: {stdCheckIn}
+              </span>
+            )}
+            {stdCheckOut && (
+              <span className="badge text-white px-2 py-1 shadow-xs font-monospace" style={{ backgroundColor: '#055160', fontSize: '0.72rem' }}>
+                <i className="bi bi-box-arrow-right me-1"></i>Out: {stdCheckOut}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Month & Year Selectors with Navigation */}
@@ -254,11 +313,68 @@ export default function ReservationCalendar({
             const statusInfo = dateStatusMap[dateStr];
             const hasStatus = !isPastDate && !!statusInfo;
 
+            const isCheckIn = !!stdCheckIn && dateStr === stdCheckIn;
+            const isCheckOut = !!stdCheckOut && dateStr === stdCheckOut;
+            const isStayRange = !!stdCheckIn && !!stdCheckOut && dateStr > stdCheckIn && dateStr < stdCheckOut;
+
             let cellClass = 'bg-light border text-dark';
             let cellTitle = `${dateStr}: Available`;
             let cellLabel = 'Open';
+            let cellStyle = {
+              height: '38px',
+              fontSize: '0.75rem',
+              userSelect: 'none',
+              cursor: isPastDate ? 'not-allowed' : 'default',
+              pointerEvents: 'none'
+            };
 
-            if (isPastDate) {
+            if (isCheckIn) {
+              cellClass = 'text-white shadow-sm';
+              cellStyle = {
+                ...cellStyle,
+                backgroundColor: '#0d6efd',
+                color: '#ffffff',
+                border: '2px solid #0a58ca',
+                borderRadius: '6px',
+                fontWeight: 'bold'
+              };
+              cellTitle = `${dateStr}: Selected Check-In Date${hasStatus ? ` (Room Status: ${statusInfo.status})` : ''}`;
+              cellLabel = 'Check-In';
+            } else if (isCheckOut) {
+              cellClass = 'text-white shadow-sm';
+              cellStyle = {
+                ...cellStyle,
+                backgroundColor: '#055160',
+                color: '#ffffff',
+                border: '2px solid #032830',
+                borderRadius: '6px',
+                fontWeight: 'bold'
+              };
+              cellTitle = `${dateStr}: Selected Check-Out Date${hasStatus ? ` (Room Status: ${statusInfo.status})` : ''}`;
+              cellLabel = 'Check-Out';
+            } else if (isStayRange) {
+              if (hasStatus) {
+                cellClass = statusInfo.className;
+                cellStyle = {
+                  ...cellStyle,
+                  border: '2px dashed #dc3545',
+                  fontWeight: 'bold'
+                };
+                cellTitle = `OVERLAP CONFLICT on ${dateStr}: Overlaps with ${statusInfo.status}`;
+                cellLabel = 'Conflict!';
+              } else {
+                cellClass = 'border text-primary';
+                cellStyle = {
+                  ...cellStyle,
+                  backgroundColor: '#e7f1ff',
+                  border: '1px dashed #0d6efd',
+                  color: '#084298',
+                  fontWeight: '600'
+                };
+                cellTitle = `${dateStr}: Selected Stay Duration (Available)`;
+                cellLabel = 'Stay';
+              }
+            } else if (isPastDate) {
               cellClass = 'bg-light-subtle border text-muted opacity-50 fst-italic';
               cellTitle = `${dateStr}: Past Date (Unavailable)`;
               cellLabel = '-';
@@ -272,19 +388,18 @@ export default function ReservationCalendar({
               <div
                 key={dateStr}
                 className={`calendar-cell p-1 d-flex flex-column align-items-center justify-content-center ${cellClass}`}
-                style={{
-                  height: '38px',
-                  fontSize: '0.75rem',
-                  userSelect: 'none',
-                  cursor: isPastDate ? 'not-allowed' : 'default',
-                  pointerEvents: 'none'
-                }}
+                style={cellStyle}
                 title={cellTitle}
               >
                 <span className="fw-semibold" style={{ lineHeight: 1 }}>{dayNumber}</span>
                 <span
-                  className={`mt-0.5 text-truncate ${hasStatus ? 'fw-bold' : 'text-muted'}`}
-                  style={{ fontSize: '0.50rem', lineHeight: 1, maxWidth: '100%' }}
+                  className={`mt-0.5 text-truncate ${isCheckIn || isCheckOut ? 'badge bg-white px-1 py-0' : hasStatus || isStayRange ? 'fw-bold' : 'text-muted'}`}
+                  style={{
+                    fontSize: isCheckIn || isCheckOut ? '0.48rem' : '0.50rem',
+                    lineHeight: 1,
+                    maxWidth: '100%',
+                    color: isCheckIn ? '#0d6efd' : isCheckOut ? '#055160' : undefined
+                  }}
                 >
                   {cellLabel}
                 </span>
@@ -296,6 +411,18 @@ export default function ReservationCalendar({
 
       {/* Visual Status Legend with Side Gaps */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mt-2.5 pt-2 border-top mx-2 mx-sm-3" style={{ fontSize: '0.68rem' }}>
+        <div className="d-flex align-items-center gap-1">
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0d6efd', border: '1px solid #0a58ca' }}></span>
+          <span className="text-dark fw-bold">Check-In</span>
+        </div>
+        <div className="d-flex align-items-center gap-1">
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#055160', border: '1px solid #032830' }}></span>
+          <span className="text-dark fw-bold">Check-Out</span>
+        </div>
+        <div className="d-flex align-items-center gap-1">
+          <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#e7f1ff', border: '1px dashed #0d6efd' }}></span>
+          <span className="text-muted">Stay Range</span>
+        </div>
         <div className="d-flex align-items-center gap-1">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #0f5132' }}></span>
           <span className="text-muted">Booked</span>

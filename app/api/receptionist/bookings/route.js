@@ -62,8 +62,27 @@ export async function GET(request) {
         LEFT JOIN discounts d ON d.discountID = bg.discountID
       `),
       dbQuery("SELECT discountID, name, percentage FROM discounts WHERE eligibilityTypeID = 1 AND isArchived = 0"),
-      dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method")
+      dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method"),
+      dbQuery(`
+        SELECT bookingID, roomID, checkInDateTime, checkOutDateTime, status, 'booking' as type
+        FROM booking
+        WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+          AND checkOutDateTime >= CURDATE()
+      `),
+      dbQuery(`
+        SELECT reservationID, roomID, reservationDateTime as checkInDateTime,
+               COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) as checkOutDateTime,
+               status, 'reservation' as type, isCourtesyHold
+        FROM reservation
+        WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show', 'Released')
+          AND (
+            reservationDateTime >= CURDATE()
+            OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
+          )
+      `)
     ]);
+
+    const roomSchedules = [...(activeBookings || []), ...(activeReservations || [])];
 
     const bookingsWithGuests = await Promise.all(bookings.map(async b => {
       const remainingBalance = await getBookingBalance(b.bookingID);
@@ -79,7 +98,7 @@ export async function GET(request) {
       };
     }));
 
-    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods });
+    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods, roomSchedules });
   } catch (error) {
     console.error("Failed to fetch bookings data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

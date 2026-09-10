@@ -1548,15 +1548,15 @@ function ReservationsClient() {
                       </div>
                     </div>
 
-                    {/* SINGLE VISUAL CALENDAR */}
-                    <div className="col-12 mt-1">
-                      <CalendarDatePicker
-                        label={selectedRoomObj ? `Room ${selectedRoomObj.roomNumber} Availability Overview (Visual Calendar)` : "Room Availability Overview (Visual Calendar)"}
-                        value={toDbDate(resDate) || toDbDate(checkOutDate)}
-                        readOnlyVisual={true}
-                        minDate={todayDbDate}
-                        disabledDates={selectedRoomObj ? getDisabledDatesForRoom(selectedRoomObj.roomID) : []}
-                        helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
+                    {/* SINGLE VISUAL CALENDAR WITH DUAL HIGHLIGHTING & ROOM STATUSES */}
+                    <div className="col-12 mt-2">
+                      <ReservationCalendar
+                        schedules={roomSchedules}
+                        selectedRoom={selectedRoomObj}
+                        selectedRoomId={selectedRoomObj?.roomID}
+                        checkInDate={resDate}
+                        checkOutDate={checkOutDate}
+                        title={selectedRoomObj ? `Room ${selectedRoomObj.roomNumber} Availability & Status Overview` : "Room Availability & Status Overview"}
                       />
                     </div>
                   </div>

@@ -51,6 +51,8 @@ export default function BookingForm({
             schedules={roomSchedules}
             selectedRoom={selectedRoom}
             selectedRoomId={selectedRoom?.roomID}
+            checkInDate={checkInDate}
+            checkOutDate={checkOutDate}
             title="Room Availability & Status Overview"
           />
         </div>
