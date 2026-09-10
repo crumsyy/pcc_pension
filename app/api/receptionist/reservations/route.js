@@ -94,7 +94,7 @@ export async function GET(request) {
   await syncRoomStatuses();
 
   try {
-    const [reservations, guests, rooms, paymentMethods, discounts] = await Promise.all([
+    const [reservations, guests, rooms, paymentMethods, discounts, activeBookings, activeReservations] = await Promise.all([
       dbQuery(`
         SELECT r.reservationID, DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime,
                DATE_FORMAT(r.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
@@ -140,8 +140,27 @@ export async function GET(request) {
         ORDER BY r.roomNumber
       `),
       dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method"),
-      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name")
+      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name"),
+      dbQuery(`
+        SELECT bookingID, roomID, checkInDateTime, checkOutDateTime, status, 'booking' as type
+        FROM booking
+        WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+          AND checkOutDateTime >= CURDATE()
+      `),
+      dbQuery(`
+        SELECT reservationID, roomID, reservationDateTime as checkInDateTime,
+               COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) as checkOutDateTime,
+               status, 'reservation' as type, isCourtesyHold
+        FROM reservation
+        WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show', 'Released')
+          AND (
+            reservationDateTime >= CURDATE()
+            OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
+          )
+      `)
     ]);
+
+    const roomSchedules = [...(activeBookings || []), ...(activeReservations || [])];
 
     const syncedReservations = reservations.map(r => {
       if (r.bookingStatus && r.bookingStatus !== 'Pending Check-in' && r.bookingStatus !== 'Pending') {
@@ -150,7 +169,7 @@ export async function GET(request) {
       return r;
     });
 
-    return NextResponse.json({ reservations: syncedReservations, guests, rooms, paymentMethods, discounts });
+    return NextResponse.json({ reservations: syncedReservations, guests, rooms, paymentMethods, discounts, roomSchedules });
   } catch (error) {
     console.error("Failed to fetch reservations data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -358,6 +377,18 @@ export async function POST(request) {
       if (res.length === 0) {
         return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
       }
+
+      if (['Released', 'Canceled', 'Cancelled', 'Expired', 'No Show'].includes(res[0].status)) {
+        return NextResponse.json({ error: `Cannot convert reservation: status is ${res[0].status}.` }, { status: 400 });
+      }
+
+      if (res[0].isCourtesyHold && res[0].holdExpiryDateTime) {
+        const expiryWithGrace = new Date(new Date(res[0].holdExpiryDateTime).getTime() + 30 * 60 * 1000);
+        if (new Date() > expiryWithGrace) {
+          return NextResponse.json({ error: 'Cannot convert reservation: the 48-hour courtesy hold has expired.' }, { status: 400 });
+        }
+      }
+
       const { guestID, roomID } = res[0];
 
       const pool = await getDbConnection();

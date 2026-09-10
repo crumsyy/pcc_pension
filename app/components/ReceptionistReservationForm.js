@@ -2,13 +2,16 @@
 
 import React from 'react';
 import SearchableSelect from './SearchableSelect';
+import ReservationCalendar from './ReservationCalendar';
 
 /**
  * ReceptionistReservationForm Component
  * Specialized reservation form for Front Desk / Receptionists:
  * - Walk-in guest vs Existing registered guest account
  * - Courtesy Hold (48 hours temporary hold without payment + 30m grace period)
- * - Date/time scheduling, breakfast options, guest counts
+ * - Schedule conflict warnings & visual ReservationCalendar overview
+ * - Strict field validation (inline errors)
+ * - Date/time scheduling with lead-time limits, breakfast options, and guest capacity
  */
 export default function ReceptionistReservationForm({
   isWalkIn = false,
@@ -33,6 +36,11 @@ export default function ReceptionistReservationForm({
   setGuestCount,
   specialRequests = '',
   setSpecialRequests,
+  roomSchedules = [],
+  formErrors = {},
+  hasConflict = false,
+  minDate = '',
+  maxDate = '',
   className = ''
 }) {
   const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
@@ -74,10 +82,19 @@ export default function ReceptionistReservationForm({
   const roomSubtotal = activeRate * nightsCount;
   const estimatedTotal = roomSubtotal + extraGuestFee;
 
+  const isEarlyCheckIn = resTime && resTime < '14:00';
+  const isLateCheckOut = checkOutTime && checkOutTime > '12:00';
+
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const effectiveMinDate = minDate || todayStr;
+
   return (
     <div className={`receptionist-reservation-form ${className}`}>
       {/* Courtesy Hold Notice Banner */}
       <div className="alert alert-warning small fw-semibold mb-3" role="alert">
+        <i className="bi bi-clock-history me-1.5 text-warning-emphasis"></i>
         Courtesy Hold: This room will be held for 48 hours without payment. 
         If not confirmed with payment, it will be automatically released after a 30-minute grace period.
       </div>
@@ -91,7 +108,7 @@ export default function ReceptionistReservationForm({
           className="form-check-input ms-0"
           type="checkbox"
           id="walkInToggleForm"
-          style={{ width: '2.4em', height: '1.2em' }}
+          style={{ width: '2.4em', height: '1.2em', cursor: 'pointer' }}
           checked={isWalkIn}
           onChange={(e) => setIsWalkIn && setIsWalkIn(e.target.checked)}
         />
@@ -110,6 +127,9 @@ export default function ReceptionistReservationForm({
             onChange={(val) => setFormData && setFormData(prev => ({ ...prev, guestID: val }))}
             placeholder="Type guest name or contact..."
           />
+          {formErrors.guestID && (
+            <div className="text-danger small mt-1 fw-semibold">{formErrors.guestID}</div>
+          )}
         </div>
       ) : (
         <div className="p-3 mb-3 border rounded bg-light">
@@ -119,48 +139,76 @@ export default function ReceptionistReservationForm({
               <label className="form-label small fw-semibold mb-1">First Name *</label>
               <input
                 type="text"
-                className="form-control form-control-sm"
+                className={`form-control form-control-sm ${formErrors.firstName ? 'is-invalid' : ''}`}
                 value={walkInForm.firstName || ''}
                 onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, firstName: e.target.value }))}
                 required
               />
+              {formErrors.firstName && (
+                <div className="invalid-feedback">{formErrors.firstName}</div>
+              )}
             </div>
             <div className="col-md-6">
               <label className="form-label small fw-semibold mb-1">Last Name *</label>
               <input
                 type="text"
-                className="form-control form-control-sm"
+                className={`form-control form-control-sm ${formErrors.lastName ? 'is-invalid' : ''}`}
                 value={walkInForm.lastName || ''}
                 onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, lastName: e.target.value }))}
                 required
               />
+              {formErrors.lastName && (
+                <div className="invalid-feedback">{formErrors.lastName}</div>
+              )}
             </div>
           </div>
-          <div className="row g-2">
+          <div className="row g-2 mb-2">
             <div className="col-md-6">
-              <label className="form-label small fw-semibold mb-1">Contact Number</label>
+              <label className="form-label small fw-semibold mb-1">Contact Number (11 digits)</label>
               <input
                 type="text"
-                className="form-control form-control-sm"
+                className={`form-control form-control-sm ${formErrors.contact ? 'is-invalid' : ''}`}
+                placeholder="09XXXXXXXXX"
                 value={walkInForm.contact || ''}
                 onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, contact: e.target.value }))}
               />
+              {formErrors.contact && (
+                <div className="invalid-feedback">{formErrors.contact}</div>
+              )}
             </div>
             <div className="col-md-6">
+              <label className="form-label small fw-semibold mb-1">Birthdate (Must be 18+)</label>
+              <input
+                type="date"
+                className={`form-control form-control-sm ${formErrors.birthdate ? 'is-invalid' : ''}`}
+                value={walkInForm.birthdate || ''}
+                onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, birthdate: e.target.value }))}
+              />
+              {formErrors.birthdate && (
+                <div className="invalid-feedback">{formErrors.birthdate}</div>
+              )}
+            </div>
+          </div>
+          <div className="row g-2">
+            <div className="col-12">
               <label className="form-label small fw-semibold mb-1">
                 Email Address <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span>
               </label>
               <input
                 type="email"
-                className={`form-control form-control-sm ${!walkInForm.email ? 'border-warning' : ''}`}
-                placeholder="Email Address * (Required for Courtesy Hold)"
+                className={`form-control form-control-sm ${formErrors.email ? 'is-invalid' : (!walkInForm.email ? 'border-warning' : '')}`}
+                placeholder="guest@example.com"
                 value={walkInForm.email || ''}
                 required={true}
                 onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
               />
-              <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
-                Required for sending hold expiry alerts and release notifications.
-              </div>
+              {formErrors.email ? (
+                <div className="invalid-feedback d-block">{formErrors.email}</div>
+              ) : (
+                <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
+                  Required for sending hold expiry alerts and release notifications.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -170,7 +218,7 @@ export default function ReceptionistReservationForm({
       <div className="mb-3">
         <label className="form-label fw-semibold">Select Room *</label>
         <select
-          className="form-select"
+          className={`form-select ${formErrors.roomID ? 'is-invalid' : ''}`}
           value={formData.roomID || ''}
           onChange={(e) => setFormData && setFormData(prev => ({ ...prev, roomID: e.target.value }))}
           required
@@ -182,7 +230,30 @@ export default function ReceptionistReservationForm({
             </option>
           ))}
         </select>
+        {formErrors.roomID && (
+          <div className="invalid-feedback">{formErrors.roomID}</div>
+        )}
       </div>
+
+      {/* SELECTED ROOM CALENDAR OVERVIEW */}
+      {selectedRoom && (
+        <div className="mb-3">
+          <ReservationCalendar
+            schedules={roomSchedules}
+            selectedRoom={selectedRoom}
+            selectedRoomId={selectedRoom?.roomID}
+            title={`Availability Overview for Room ${selectedRoom.roomNumber}`}
+          />
+        </div>
+      )}
+
+      {/* SCHEDULE CONFLICT ALERT */}
+      {hasConflict && (
+        <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">
+          <i className="bi bi-exclamation-triangle-fill me-1.5 fw-bold"></i>
+          <strong>Schedule Conflict:</strong> Room {selectedRoom?.roomNumber} is already reserved, held, or booked for the selected date(s). Please select an alternative date or room.
+        </div>
+      )}
 
       {/* DATES & TIMES */}
       <div className="row g-2 mb-3">
@@ -190,14 +261,22 @@ export default function ReceptionistReservationForm({
           <label className="form-label fw-semibold small">Check-in Date *</label>
           <input
             type="date"
-            className="form-control"
+            className={`form-control ${formErrors.resDate ? 'is-invalid' : ''}`}
             value={resDate}
+            min={effectiveMinDate}
+            max={maxDate}
             onChange={(e) => setResDate && setResDate(e.target.value)}
             required
           />
+          {formErrors.resDate && (
+            <div className="invalid-feedback">{formErrors.resDate}</div>
+          )}
         </div>
         <div className="col-md-6">
-          <label className="form-label fw-semibold small">Check-in Time *</label>
+          <label className="form-label fw-semibold small d-flex justify-content-between">
+            <span>Check-in Time *</span>
+            <small className="text-muted" style={{ fontSize: '0.72rem' }}>Std: 2:00 PM</small>
+          </label>
           <input
             type="time"
             className="form-control"
@@ -205,6 +284,11 @@ export default function ReceptionistReservationForm({
             onChange={(e) => setResTime && setResTime(e.target.value)}
             required
           />
+          {isEarlyCheckIn && (
+            <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
+              ℹ Early Check-in prior to 2:00 PM fee may apply.
+            </small>
+          )}
         </div>
       </div>
 
@@ -213,15 +297,21 @@ export default function ReceptionistReservationForm({
           <label className="form-label fw-semibold small">Check-out Date *</label>
           <input
             type="date"
-            className="form-control"
+            className={`form-control ${formErrors.checkOutDate ? 'is-invalid' : ''}`}
             value={checkOutDate}
-            min={resDate}
+            min={resDate || effectiveMinDate}
             onChange={(e) => setCheckOutDate && setCheckOutDate(e.target.value)}
             required
           />
+          {formErrors.checkOutDate && (
+            <div className="invalid-feedback">{formErrors.checkOutDate}</div>
+          )}
         </div>
         <div className="col-md-6">
-          <label className="form-label fw-semibold small">Check-out Time *</label>
+          <label className="form-label fw-semibold small d-flex justify-content-between">
+            <span>Check-out Time *</span>
+            <small className="text-muted" style={{ fontSize: '0.72rem' }}>Std: 12:00 PM</small>
+          </label>
           <input
             type="time"
             className="form-control"
@@ -229,6 +319,11 @@ export default function ReceptionistReservationForm({
             onChange={(e) => setCheckOutTime && setCheckOutTime(e.target.value)}
             required
           />
+          {isLateCheckOut && (
+            <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
+              ℹ Late Check-out past 12:00 PM fee may apply.
+            </small>
+          )}
         </div>
       </div>
 

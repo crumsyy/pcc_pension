@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import CalendarDatePicker from '../../components/CalendarDatePicker';
+import ReservationCalendar from '../../components/ReservationCalendar';
 import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
@@ -182,6 +183,60 @@ function ReservationsClient() {
     return Math.max(1, Math.round((outD - inD) / (1000 * 60 * 60 * 24)));
   };
 
+  const [roomSchedules, setRoomSchedules] = useState([]);
+  const [guestCount, setGuestCount] = useState(1);
+  const [formErrors, setFormErrors] = useState({});
+
+  const getDisabledDatesForRoom = (roomId) => {
+    if (!roomId || !roomSchedules || roomSchedules.length === 0) return [];
+    const disabledSet = new Set();
+    const pad = (n) => String(n).padStart(2, '0');
+
+    roomSchedules.forEach(sched => {
+      if (String(sched.roomID) !== String(roomId)) return;
+      if (selectedRes && String(sched.reservationID) === String(selectedRes.reservationID)) return;
+      const inStr = (sched.checkInDateTime || '').substring(0, 10);
+      const outStr = (sched.checkOutDateTime || '').substring(0, 10);
+      if (!inStr) return;
+
+      let cur = new Date(inStr + 'T00:00:00');
+      const end = outStr ? new Date(outStr + 'T00:00:00') : new Date(inStr + 'T00:00:00');
+
+      if (cur.getTime() === end.getTime()) {
+        const dStr = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
+        disabledSet.add(dStr);
+      } else {
+        while (cur < end) {
+          const dStr = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
+          disabledSet.add(dStr);
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+    });
+
+    return Array.from(disabledSet);
+  };
+
+  const checkScheduleConflict = (roomId, inDate, outDate, currentResId = null) => {
+    if (!roomId || !inDate || !roomSchedules || roomSchedules.length === 0) return false;
+    const dbIn = toDbDate(inDate);
+    const dbOut = outDate ? toDbDate(outDate) : null;
+    if (!dbIn) return false;
+
+    const reqIn = new Date(`${dbIn}T14:00:00`);
+    const reqOut = dbOut ? new Date(`${dbOut}T12:00:00`) : new Date(new Date(`${dbIn}T14:00:00`).getTime() + 24 * 3600 * 1000);
+    if (isNaN(reqIn.getTime()) || isNaN(reqOut.getTime())) return false;
+
+    return roomSchedules.some(sched => {
+      if (String(sched.roomID) !== String(roomId)) return false;
+      if (currentResId && String(sched.reservationID) === String(currentResId)) return false;
+      const sIn = new Date((sched.checkInDateTime || '').replace(' ', 'T'));
+      const sOut = new Date((sched.checkOutDateTime || '').replace(' ', 'T'));
+      if (isNaN(sIn.getTime()) || isNaN(sOut.getTime())) return false;
+      return sIn < reqOut && sOut > reqIn;
+    });
+  };
+
   useEffect(() => {
     const today = new Date();
     const pad = (n) => String(n).padStart(2, '0');
@@ -296,6 +351,7 @@ function ReservationsClient() {
       setRooms(data.rooms || []);
       setPaymentMethods(data.paymentMethods || []);
       setAvailableDiscounts(data.discounts || []);
+      if (data.roomSchedules) setRoomSchedules(data.roomSchedules);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -435,6 +491,8 @@ function ReservationsClient() {
     setSelectedRoomType(res.roomType || '');
     setBreakfastOption(res.breakfastOption || 'with');
     setSpecialRequests(res.specialRequests || '');
+    setGuestCount(res.guestCount || 1);
+    setFormErrors({});
     setFormData({
       guestID: String(res.guestID),
       roomID: String(res.roomID)
@@ -457,11 +515,23 @@ function ReservationsClient() {
       setCheckOutTime('12:00');
     }
 
-    setRoomGuests([{ fullName: `${res.firstName} ${res.lastName}`, age: 30, discountID: '', discountIdNumber: '' }]);
+    setIsWalkIn(false);
     setActiveModal('edit');
   };
 
   const openConvertModal = (res) => {
+    if (['Released', 'Canceled', 'Cancelled', 'Expired', 'No Show'].includes(res.status)) {
+      showAlert('error', 'Cannot Convert', `This reservation cannot be converted because its status is ${res.status}.`);
+      return;
+    }
+    if (res.isCourtesyHold && res.holdExpiryDateTime) {
+      const expiry = new Date(new Date(res.holdExpiryDateTime).getTime() + 30 * 60 * 1000);
+      if (new Date() > expiry) {
+        showAlert('error', 'Expired Courtesy Hold', 'This courtesy hold has expired (past the 48-hour hold and 30-minute grace period) and cannot be converted to a booking.');
+        return;
+      }
+    }
+
     setSelectedRes(res);
     const inDateOnly = res.reservationDateTime ? res.reservationDateTime.substring(0, 10) : '';
     const inTimeOnly = res.reservationDateTime && res.reservationDateTime.length >= 16 ? res.reservationDateTime.substring(11, 16) : '14:00';
@@ -493,70 +563,91 @@ function ReservationsClient() {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
 
-    if (!isValidDate(resDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid Reservation Date (MM/DD/YYYY).');
-      return;
-    }
-    if (!resTime) {
-      showAlert('error', 'Validation Error', 'Please select a Reservation Time.');
-      return;
-    }
-    if (!formData.roomID) {
-      showAlert('error', 'Validation Error', 'Please select a Room for the reservation.');
-      return;
-    }
-
-    // Lead time validation (at least 2 days ahead of today)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDateObj = new Date(toDbDate(resDate) + 'T00:00:00');
-    selectedDateObj.setHours(0, 0, 0, 0);
-
-    const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0 || diffDays > 2) {
-      showAlert('error', 'Validation Error', 'Reservations are strictly allowed for Today, Tomorrow, and Next Day only (up to 2 days ahead).');
-      return;
-    }
-
+    const errors = {};
     if (isWalkIn) {
-      if (!walkInForm.firstName.trim() || !walkInForm.lastName.trim()) {
-        showAlert('error', 'Validation Error', 'First name and Last name are required.');
-        return;
+      if (!walkInForm.firstName || !walkInForm.firstName.trim()) {
+        errors.firstName = 'First name is required for walk-in guest.';
       }
-      if (!walkInForm.dateOfBirth) {
-        showAlert('error', 'Validation Error', 'Birthdate is required for walk-in guests.');
-        return;
-      }
-      if (walkInForm.dateOfBirth) {
-        const calculatedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
-        if (typeof calculatedAge === 'number' && calculatedAge < 18) {
-          showAlert('error', 'Validation Error', 'You must be at least 18 years old to proceed.');
-          return;
-        }
+      if (!walkInForm.lastName || !walkInForm.lastName.trim()) {
+        errors.lastName = 'Last name is required for walk-in guest.';
       }
       if (!walkInForm.contact || walkInForm.contact.length !== 11) {
-        showAlert('error', 'Validation Error', 'Contact number must be exactly 11 digits.');
-        return;
+        errors.contact = 'Contact number must be exactly 11 digits (e.g. 09XXXXXXXXX).';
       }
-      if (isCourtesyHold && (!walkInForm.email || !walkInForm.email.trim())) {
-        showAlert('error', 'Validation Error', 'Guest email is required for courtesy holds to send expiry alerts.');
-        return;
+      if (!walkInForm.dateOfBirth) {
+        errors.dateOfBirth = 'Birthdate is required for walk-in guest.';
+      } else {
+        const calculatedAge = calculateAgeFromUiDate(walkInForm.dateOfBirth);
+        if (typeof calculatedAge === 'number' && calculatedAge < 18) {
+          errors.dateOfBirth = 'Guest must be at least 18 years old to make a reservation.';
+        }
+      }
+      if (!walkInForm.email || !walkInForm.email.trim()) {
+        errors.email = 'Email address is required for Courtesy Hold to send expiry alerts (12h/6h) and auto-release notices.';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(walkInForm.email.trim())) {
+        errors.email = 'Please enter a valid email address.';
+      }
+    } else {
+      if (!formData.guestID) {
+        errors.guestID = 'Please select a registered guest account.';
       }
     }
 
-    if (checkOutDate && isValidDate(checkOutDate)) {
-      const inDateObj = new Date(toDbDate(resDate) + 'T' + resTime + ':00');
-      const outDateObj = new Date(toDbDate(checkOutDate) + 'T' + checkOutTime + ':00');
-      if (outDateObj <= inDateObj) {
-        showAlert('error', 'Validation Error', 'Check-out time must be later than check-in time.');
-        return;
+    if (!selectedRoomType) {
+      errors.roomType = 'Please select a room type.';
+    }
+    if (!formData.roomID) {
+      errors.roomID = 'Please select an available room.';
+    }
+
+    if (!resDate || !isValidDate(resDate)) {
+      errors.resDate = 'Please enter a valid reservation date.';
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDateObj = new Date(toDbDate(resDate) + 'T00:00:00');
+      selectedDateObj.setHours(0, 0, 0, 0);
+
+      const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0 || diffDays > 2) {
+        errors.resDate = 'Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum).';
       }
     }
+
+    if (!resTime) {
+      errors.resTime = 'Please select a check-in time.';
+    }
+
+    if (!checkOutDate || !isValidDate(checkOutDate)) {
+      errors.checkOutDate = 'Please enter a valid check-out date.';
+    } else if (resDate && isValidDate(resDate)) {
+      const inDateObj = new Date(toDbDate(resDate) + 'T' + (resTime || '14:00') + ':00');
+      const outDateObj = new Date(toDbDate(checkOutDate) + 'T' + (checkOutTime || '12:00') + ':00');
+      if (outDateObj <= inDateObj) {
+        errors.checkOutDate = 'Check-out time must be later than check-in time.';
+      }
+    }
+
+    if (formData.roomID && resDate && checkOutDate) {
+      const hasConflict = checkScheduleConflict(formData.roomID, resDate, checkOutDate);
+      if (hasConflict) {
+        errors.conflict = `Room ${selectedRoomObj?.roomNumber || ''} is already reserved, held, or booked for the selected dates.`;
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      showAlert('error', 'Validation Error', Object.values(errors)[0]);
+      return;
+    }
+
+    setFormErrors({});
 
     const confirmTitle = 'Place Courtesy Hold';
     const confirmMsg = `Are you sure you want to place a 48-hour Courtesy Hold on this room? No payment is required immediately.`;
 
     showConfirm(confirmTitle, confirmMsg, async () => {
+      setIsSubmitting(true);
       try {
         const res = await fetch('/api/receptionist/reservations', {
           method: 'POST',
@@ -566,9 +657,9 @@ function ReservationsClient() {
             isWalkIn,
             ...(isWalkIn ? walkInForm : { guestID: formData.guestID }),
             roomID: formData.roomID,
-            reservationDateTime: toDbDate(resDate) + ' ' + resTime + ':00',
-            checkOutDateTime: checkOutDate && isValidDate(checkOutDate) ? toDbDate(checkOutDate) + ' ' + checkOutTime + ':00' : null,
-            guestCount: roomGuests.length,
+            reservationDateTime: toDbDate(resDate) + ' ' + (resTime || '14:00') + ':00',
+            checkOutDateTime: checkOutDate && isValidDate(checkOutDate) ? toDbDate(checkOutDate) + ' ' + (checkOutTime || '12:00') + ':00' : null,
+            guestCount: parseInt(guestCount, 10) || 1,
             specialRequests: specialRequests || null,
             breakfastOption,
             isCourtesyHold: true,
@@ -583,6 +674,8 @@ function ReservationsClient() {
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setIsSubmitting(false);
       }
     });
   };
@@ -591,28 +684,59 @@ function ReservationsClient() {
     e.preventDefault();
     if (!selectedRes) return;
 
-    if (!isValidDate(resDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid Reservation Date (MM/DD/YYYY).');
-      return;
+    const errors = {};
+    if (!selectedRoomType) {
+      errors.roomType = 'Please select a room type.';
     }
+    if (!formData.roomID) {
+      errors.roomID = 'Please select an available room.';
+    }
+
+    if (!resDate || !isValidDate(resDate)) {
+      errors.resDate = 'Please enter a valid reservation date.';
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDateObj = new Date(toDbDate(resDate) + 'T00:00:00');
+      selectedDateObj.setHours(0, 0, 0, 0);
+
+      const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0 || diffDays > 2) {
+        errors.resDate = 'Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum).';
+      }
+    }
+
     if (!resTime) {
-      showAlert('error', 'Validation Error', 'Please select a Reservation Time.');
+      errors.resTime = 'Please select a check-in time.';
+    }
+
+    if (!checkOutDate || !isValidDate(checkOutDate)) {
+      errors.checkOutDate = 'Please enter a valid check-out date.';
+    } else if (resDate && isValidDate(resDate)) {
+      const inDateObj = new Date(toDbDate(resDate) + 'T' + (resTime || '14:00') + ':00');
+      const outDateObj = new Date(toDbDate(checkOutDate) + 'T' + (checkOutTime || '12:00') + ':00');
+      if (outDateObj <= inDateObj) {
+        errors.checkOutDate = 'Check-out time must be later than check-in time.';
+      }
+    }
+
+    if (formData.roomID && resDate && checkOutDate) {
+      const hasConflict = checkScheduleConflict(formData.roomID, resDate, checkOutDate, selectedRes.reservationID);
+      if (hasConflict) {
+        errors.conflict = `Room ${selectedRoomObj?.roomNumber || ''} is already reserved, held, or booked for the selected dates.`;
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      showAlert('error', 'Validation Error', Object.values(errors)[0]);
       return;
     }
 
-    const pad = (n) => String(n).padStart(2, '0');
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const maxDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-    const maxDateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`;
-
-    const inDateStr = toDbDate(resDate);
-    if (inDateStr < todayStr || inDateStr > maxDateStr) {
-      showAlert('error', 'Validation Error', 'Reservations can only be made for Today, Tomorrow, or the Next Day (up to 2 days ahead maximum).');
-      return;
-    }
+    setFormErrors({});
 
     showConfirm('Update Reservation', 'Are you sure you want to update this reservation?', async () => {
+      setIsSubmitting(true);
       try {
         const res = await fetch('/api/receptionist/reservations', {
           method: 'POST',
@@ -621,9 +745,9 @@ function ReservationsClient() {
             action: 'update',
             reservationID: selectedRes.reservationID,
             roomID: formData.roomID,
-            reservationDateTime: toDbDate(resDate) + ' ' + resTime + ':00',
-            checkOutDateTime: checkOutDate && isValidDate(checkOutDate) ? toDbDate(checkOutDate) + ' ' + checkOutTime + ':00' : null,
-            guestCount: roomGuests.length,
+            reservationDateTime: toDbDate(resDate) + ' ' + (resTime || '14:00') + ':00',
+            checkOutDateTime: checkOutDate && isValidDate(checkOutDate) ? toDbDate(checkOutDate) + ' ' + (checkOutTime || '12:00') + ':00' : null,
+            guestCount: parseInt(guestCount, 10) || 1,
             specialRequests: specialRequests || null,
             breakfastOption
           })
@@ -636,6 +760,8 @@ function ReservationsClient() {
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setIsSubmitting(false);
       }
     });
   };
@@ -943,31 +1069,47 @@ function ReservationsClient() {
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
-                        {!r.bookingID && r.status === 'Courtesy Hold' && (
-                          <>
-                            <button
-                              type="button"
-                              className="action-btn action-btn-activate"
-                              data-bs-toggle="tooltip"
-                              title="Confirm & Convert Hold to Booking"
-                              aria-label="Confirm & Convert Hold to Booking"
-                              onClick={() => openConvertModal(r)}
-                            >
-                              <i className="fa-solid fa-book-bookmark"></i>
-                            </button>
-                            <button
-                              type="button"
-                              className="action-btn"
-                              style={{ color: '#d9480f', borderColor: '#fd7e14' }}
-                              data-bs-toggle="tooltip"
-                              title="Manually Release Courtesy Hold"
-                              aria-label="Manually Release Courtesy Hold"
-                              onClick={() => handleReleaseHold(r.reservationID)}
-                            >
-                              <i className="fa-solid fa-unlock-keyhole"></i>
-                            </button>
-                          </>
-                        )}
+                        {!r.bookingID && r.status === 'Courtesy Hold' && (() => {
+                          const holdInfo = getCourtesyHoldTimeInfo(r.holdExpiryDateTime);
+                          const isExpired = holdInfo.expired;
+                          return (
+                            <>
+                              {!isExpired && (
+                                <button
+                                  type="button"
+                                  className="action-btn action-btn-activate"
+                                  data-bs-toggle="tooltip"
+                                  title="Confirm & Convert Hold to Booking"
+                                  aria-label="Confirm & Convert Hold to Booking"
+                                  onClick={() => openConvertModal(r)}
+                                >
+                                  <i className="fa-solid fa-book-bookmark"></i>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="action-btn action-btn-edit"
+                                data-bs-toggle="tooltip"
+                                title="Edit Reservation"
+                                aria-label="Edit Reservation"
+                                onClick={() => openEditModal(r)}
+                              >
+                                <i className="fa-solid fa-pen-to-square"></i>
+                              </button>
+                              <button
+                                type="button"
+                                className="action-btn"
+                                style={{ color: '#d9480f', borderColor: '#fd7e14' }}
+                                data-bs-toggle="tooltip"
+                                title="Manually Release Courtesy Hold"
+                                aria-label="Manually Release Courtesy Hold"
+                                onClick={() => handleReleaseHold(r.reservationID)}
+                              >
+                                <i className="fa-solid fa-unlock-keyhole"></i>
+                              </button>
+                            </>
+                          );
+                        })()}
                         {!r.bookingID && (r.status === 'Pending' || r.status === 'Overdue Check-In') && (
                           <>
                             <button
@@ -1031,7 +1173,7 @@ function ReservationsClient() {
         )}
       </div>
 
-      {/* CREATE / EDIT RESERVATION MODAL (Matching Booking Workspace Design) */}
+      {/* CREATE / EDIT RESERVATION MODAL (Matching Booking Workspace Design & Guest Form Parity) */}
       {(activeModal === 'create' || activeModal === 'edit') && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
@@ -1047,14 +1189,13 @@ function ReservationsClient() {
                 <div className="modal-body" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
 
                   {/* Courtesy Hold Notice Banner */}
-                  {activeModal === 'create' && (
-                    <div className="alert alert-warning small fw-semibold mb-3" role="alert">
-                      Courtesy Hold: This room will be held for 48 hours without payment. 
-                      If not confirmed with payment, it will be automatically released after a 30-minute grace period.
-                    </div>
-                  )}
+                  <div className="alert alert-warning small fw-semibold mb-3" role="alert">
+                    <i className="bi bi-info-circle-fill me-1.5"></i>
+                    <strong>Courtesy Hold:</strong> This room will be held for 48 hours without payment. 
+                    If not confirmed with payment, it will be automatically released after a 30-minute grace period.
+                  </div>
 
-                  {/* WALK-IN TOGGLE */}
+                  {/* WALK-IN TOGGLE (Only in Create mode) */}
                   {activeModal === 'create' && (
                     <div className="form-check form-switch p-2.5 mb-3 border rounded bg-light d-flex align-items-center justify-content-between">
                       <label className="form-check-label fw-bold mb-0 text-dark me-3" htmlFor="walkInToggle">
@@ -1066,24 +1207,33 @@ function ReservationsClient() {
                         id="walkInToggle"
                         style={{ width: '2.4em', height: '1.2em' }}
                         checked={isWalkIn}
-                        onChange={(e) => setIsWalkIn(e.target.checked)}
+                        onChange={(e) => {
+                          setIsWalkIn(e.target.checked);
+                          setFormErrors(prev => ({ ...prev, firstName: '', lastName: '', contact: '', email: '', dateOfBirth: '', guestID: '' }));
+                        }}
                       />
                     </div>
                   )}
 
-                  {/* GUEST ACCOUNT SELECTION */}
+                  {/* GUEST DETAILS */}
                   {!isWalkIn ? (
                     <div className="mb-3">
                       <label className="form-label fw-semibold">Select Guest Account *</label>
                       <SearchableSelect
                         options={guests.map(g => ({
                           value: String(g.guestID),
-                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName}`
+                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
                         }))}
                         value={formData.guestID}
-                        onChange={(val) => setFormData(prev => ({ ...prev, guestID: val }))}
+                        onChange={(val) => {
+                          setFormData(prev => ({ ...prev, guestID: val }));
+                          setFormErrors(prev => ({ ...prev, guestID: '' }));
+                        }}
                         placeholder="Type guest name or contact..."
                       />
+                      {formErrors.guestID && (
+                        <div className="text-danger small mt-1 fw-semibold">{formErrors.guestID}</div>
+                      )}
                     </div>
                   ) : (
                     <div className="p-3 mb-3 border rounded bg-light">
@@ -1093,21 +1243,33 @@ function ReservationsClient() {
                           <label className="form-label small fw-semibold mb-1">First Name *</label>
                           <input
                             type="text"
-                            className="form-control form-control-sm"
+                            className={`form-control form-control-sm ${formErrors.firstName ? 'is-invalid border-danger' : ''}`}
                             required={isWalkIn}
                             value={walkInForm.firstName}
-                            onChange={(e) => setWalkInForm(prev => ({ ...prev, firstName: e.target.value }))}
+                            onChange={(e) => {
+                              setWalkInForm(prev => ({ ...prev, firstName: e.target.value }));
+                              setFormErrors(prev => ({ ...prev, firstName: '' }));
+                            }}
                           />
+                          {formErrors.firstName && (
+                            <div className="text-danger small mt-1 fw-semibold">{formErrors.firstName}</div>
+                          )}
                         </div>
                         <div className="col-md-6">
                           <label className="form-label small fw-semibold mb-1">Last Name *</label>
                           <input
                             type="text"
-                            className="form-control form-control-sm"
+                            className={`form-control form-control-sm ${formErrors.lastName ? 'is-invalid border-danger' : ''}`}
                             required={isWalkIn}
                             value={walkInForm.lastName}
-                            onChange={(e) => setWalkInForm(prev => ({ ...prev, lastName: e.target.value }))}
+                            onChange={(e) => {
+                              setWalkInForm(prev => ({ ...prev, lastName: e.target.value }));
+                              setFormErrors(prev => ({ ...prev, lastName: '' }));
+                            }}
                           />
+                          {formErrors.lastName && (
+                            <div className="text-danger small mt-1 fw-semibold">{formErrors.lastName}</div>
+                          )}
                         </div>
                       </div>
                       <div className="row g-2">
@@ -1115,39 +1277,56 @@ function ReservationsClient() {
                           <label className="form-label small fw-semibold mb-1">Contact Number *</label>
                           <input
                             type="text"
-                            className="form-control form-control-sm"
+                            className={`form-control form-control-sm ${formErrors.contact ? 'is-invalid border-danger' : ''}`}
                             placeholder="09XXXXXXXXX"
                             value={walkInForm.contact}
                             onChange={(e) => {
                               const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
                               setWalkInForm(prev => ({ ...prev, contact: sanitized }));
+                              setFormErrors(prev => ({ ...prev, contact: '' }));
                             }}
                           />
+                          {formErrors.contact && (
+                            <div className="text-danger small mt-1 fw-semibold">{formErrors.contact}</div>
+                          )}
                         </div>
                         <div className="col-md-4 mb-2">
                           <label className="form-label small fw-semibold mb-1">Birthdate *</label>
                           <DateInput
-                            className="form-control form-control-sm"
+                            className={`form-control form-control-sm ${formErrors.dateOfBirth ? 'is-invalid border-danger' : ''}`}
                             value={walkInForm.dateOfBirth}
-                            onChange={(e) => setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                            onChange={(e) => {
+                              setWalkInForm(prev => ({ ...prev, dateOfBirth: e.target.value }));
+                              setFormErrors(prev => ({ ...prev, dateOfBirth: '' }));
+                            }}
                             max={maxDobStr}
                           />
+                          {formErrors.dateOfBirth && (
+                            <div className="text-danger small mt-1 fw-semibold">{formErrors.dateOfBirth}</div>
+                          )}
                         </div>
                         <div className="col-md-4 mb-2">
                           <label className="form-label small fw-semibold mb-1">
-                            Email Address <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span>
+                            Email Address <span className="text-danger fw-bold">* (Required)</span>
                           </label>
                           <input
                             type="email"
-                            className={`form-control form-control-sm ${!walkInForm.email ? 'border-warning' : ''}`}
-                            placeholder="Email Address * (Required for Courtesy Hold)"
+                            className={`form-control form-control-sm ${formErrors.email ? 'is-invalid border-danger' : (!walkInForm.email ? 'border-warning' : '')}`}
+                            placeholder="name@example.com"
                             required={true}
                             value={walkInForm.email}
-                            onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
+                            onChange={(e) => {
+                              setWalkInForm(prev => ({ ...prev, email: e.target.value }));
+                              setFormErrors(prev => ({ ...prev, email: '' }));
+                            }}
                           />
-                          <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
-                            Required for sending hold expiry alerts and release notifications.
-                          </div>
+                          {formErrors.email ? (
+                            <div className="text-danger small mt-1 fw-semibold">{formErrors.email}</div>
+                          ) : (
+                            <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
+                              Required for sending 12h/6h hold expiry alerts and release notifications.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1158,12 +1337,13 @@ function ReservationsClient() {
                     <div className="col-md-4">
                       <label className="form-label fw-semibold">Room Type *</label>
                       <select
-                        className="form-select"
+                        className={`form-select ${formErrors.roomType ? 'is-invalid border-danger' : ''}`}
                         required
                         value={selectedRoomType}
                         onChange={(e) => {
                           setSelectedRoomType(e.target.value);
                           setFormData(prev => ({ ...prev, roomID: '' }));
+                          setFormErrors(prev => ({ ...prev, roomType: '', roomID: '' }));
                         }}
                       >
                         <option value="" disabled>Select Room Type</option>
@@ -1171,15 +1351,21 @@ function ReservationsClient() {
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>
+                      {formErrors.roomType && (
+                        <div className="text-danger small mt-1 fw-semibold">{formErrors.roomType}</div>
+                      )}
                     </div>
 
                     <div className="col-md-4">
                       <label className="form-label fw-semibold">Available Room *</label>
                       <select
-                        className="form-select"
+                        className={`form-select ${formErrors.roomID ? 'is-invalid border-danger' : ''}`}
                         required
                         value={formData.roomID}
-                        onChange={(e) => setFormData(prev => ({ ...prev, roomID: e.target.value }))}
+                        onChange={(e) => {
+                          setFormData(prev => ({ ...prev, roomID: e.target.value }));
+                          setFormErrors(prev => ({ ...prev, roomID: '' }));
+                        }}
                         disabled={!selectedRoomType}
                       >
                         <option value="" disabled>
@@ -1194,6 +1380,9 @@ function ReservationsClient() {
                           ))
                         }
                       </select>
+                      {formErrors.roomID && (
+                        <div className="text-danger small mt-1 fw-semibold">{formErrors.roomID}</div>
+                      )}
                     </div>
 
                     <div className="col-md-4">
@@ -1247,8 +1436,8 @@ function ReservationsClient() {
                           <div className="text-muted small">
                             Base Price: <span className="text-pcc-blue fw-bold">₱{(
                               breakfastOption === 'with'
-                                ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
-                                : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0))
+                                ? (parseFloat(selectedRoomObj.rateWithBreakfast) || (selectedRoomObj.breakfastRate !== null && selectedRoomObj.breakfastRate !== undefined ? parseFloat(selectedRoomObj.rate) + parseFloat(selectedRoomObj.breakfastRate) : parseFloat(selectedRoomObj.rate)) || 0)
+                                : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
                             ).toFixed(2)}</span> / night
                           </div>
                           <small className="text-muted">
@@ -1273,34 +1462,24 @@ function ReservationsClient() {
                             className="form-control form-control-sm mt-1"
                             min="1"
                             max={(selectedRoomObj.occupancyLimit || 2) + 5}
-                            value={roomGuests.length}
-                            onChange={(e) => {
-                              const val = Math.max(1, parseInt(e.target.value) || 1);
-                              const currentLen = roomGuests.length;
-                              if (val > currentLen) {
-                                const toAdd = val - currentLen;
-                                const newArr = Array.from({ length: toAdd }, () => ({ fullName: '', age: '', discountID: '', discountIdNumber: '' }));
-                                setRoomGuests(prev => [...prev, ...newArr]);
-                              } else if (val < currentLen) {
-                                setRoomGuests(prev => prev.slice(0, val));
-                              }
-                            }}
+                            value={guestCount}
+                            onChange={(e) => setGuestCount(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
                             required
                           />
                           <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
                             Standard Room Capacity: <strong>Up to {selectedRoomObj.occupancyLimit || 2} Pax</strong>
-                            {roomGuests.length > (selectedRoomObj.occupancyLimit || 2) && (
+                            {Number(guestCount) > (selectedRoomObj.occupancyLimit || 2) && (
                               <span className="text-primary fw-bold ms-1">
-                                (+₱{(roomGuests.length - (selectedRoomObj.occupancyLimit || 2)) * 100} for {roomGuests.length - (selectedRoomObj.occupancyLimit || 2)} extra guest(s) @ ₱100 flat)
+                                (+₱{(Number(guestCount) - (selectedRoomObj.occupancyLimit || 2)) * 100} for {Number(guestCount) - (selectedRoomObj.occupancyLimit || 2)} extra guest(s) @ ₱100 flat)
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="col-md-6">
-                          {roomGuests.length > (selectedRoomObj.occupancyLimit || 2) && (
+                          {Number(guestCount) > (selectedRoomObj.occupancyLimit || 2) && (
                             <div className="alert alert-warning py-1.5 px-2.5 mb-0 small fw-bold">
-                              Extra Guest Fee: ₱100 flat per extra guest applied for {roomGuests.length - (selectedRoomObj.occupancyLimit || 2)} guest(s).
-                              <div>Total Extra Fee: ₱{(roomGuests.length - (selectedRoomObj.occupancyLimit || 2)) * 100}.00</div>
+                              Extra Guest Fee: ₱100 flat per extra guest applied for {Number(guestCount) - (selectedRoomObj.occupancyLimit || 2)} guest(s).
+                              <div>Total Extra Fee: ₱{(Number(guestCount) - (selectedRoomObj.occupancyLimit || 2)) * 100}.00</div>
                             </div>
                           )}
                         </div>
@@ -1308,30 +1487,53 @@ function ReservationsClient() {
                     </div>
                   )}
 
-                  {/* RESERVATION CHECK-IN & CHECK-OUT CALENDARS */}
+                  {/* VISUAL ROOM AVAILABILITY CALENDAR (Full Parity with Guest Panel) */}
+                  {selectedRoomObj && (
+                    <div className="mb-3">
+                      <ReservationCalendar
+                        schedules={roomSchedules}
+                        selectedRoom={selectedRoomObj}
+                        selectedRoomId={selectedRoomObj.roomID}
+                        title={`Room ${selectedRoomObj.roomNumber} Availability Overview`}
+                      />
+                    </div>
+                  )}
+
+                  {/* SCHEDULE CONFLICT ALERT (Parity with Guest Form) */}
+                  {formData.roomID && resDate && checkScheduleConflict(formData.roomID, resDate, checkOutDate, activeModal === 'edit' ? selectedRes?.reservationID : null) && (
+                    <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">
+                      <i className="bi bi-exclamation-triangle-fill me-1.5 fw-bold"></i>
+                      <strong>Schedule Conflict:</strong> Room {selectedRoomObj?.roomNumber} is already reserved, held, or booked for the selected date(s). Please select an alternative date or room.
+                    </div>
+                  )}
+
+                  {/* RESERVATION CHECK-IN & CHECK-OUT DATES & TIMES */}
                   <div className="row g-3 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-In Date *</label>
                       <input
                         type="date"
-                        className="form-control form-control-sm mb-2"
+                        className={`form-control form-control-sm mb-1 ${formErrors.resDate ? 'is-invalid border-danger' : ''}`}
                         value={toDbDate(resDate)}
                         min={todayDbDate}
-                        max={maxResDate}
-                        onChange={(e) => handleResDateChange(e.target.value)}
+                        max={toDbDate(maxResDate)}
+                        onChange={(e) => {
+                          handleResDateChange(e.target.value);
+                          setFormErrors(prev => ({ ...prev, resDate: '', checkOutDate: '', conflict: '' }));
+                        }}
                         required
                       />
-                      <CalendarDatePicker
-                        label="Room Availability (Read-Only)"
-                        value={resDate}
-                        readOnlyVisual={true}
-                        minDate={todayDbDate}
-                        maxDate={maxResDate}
-                        disabledDates={selectedRoom ? getDisabledDatesForRoom(selectedRoom.roomID) : []}
-                        helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
-                      />
+                      {formErrors.resDate && (
+                        <div className="text-danger small mb-1 fw-semibold">{formErrors.resDate}</div>
+                      )}
+                      <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>
+                        Bookings strictly allowed for Today, Tomorrow, and Day After (up to 2 days ahead).
+                      </small>
                       <div className="mt-2">
-                        <label className="form-label small fw-semibold">Check-In Time *</label>
+                        <label className="form-label small fw-semibold d-flex justify-content-between">
+                          <span>Check-In Time *</span>
+                          <small className="text-muted" style={{ fontSize: '0.72rem' }}>Std: 2:00 PM</small>
+                        </label>
                         <input
                           type="time"
                           className="form-control form-control-sm"
@@ -1345,6 +1547,11 @@ function ReservationsClient() {
                             Earliest selectable time today: {currentTimeStr}
                           </small>
                         )}
+                        {resTime && resTime < '14:00' && (
+                          <small className="text-warning-emphasis d-block mt-1 fw-semibold" style={{ fontSize: '0.72rem' }}>
+                            ℹ Early Check-in prior to 2:00 PM fee may apply.
+                          </small>
+                        )}
                       </div>
                     </div>
 
@@ -1352,22 +1559,23 @@ function ReservationsClient() {
                       <label className="form-label small fw-semibold">Check-Out Date *</label>
                       <input
                         type="date"
-                        className="form-control form-control-sm mb-2"
+                        className={`form-control form-control-sm mb-1 ${formErrors.checkOutDate ? 'is-invalid border-danger' : ''}`}
                         value={toDbDate(checkOutDate)}
                         min={resDate ? toDbDate(resDate) : todayDbDate}
-                        onChange={(e) => setCheckOutDate(e.target.value)}
+                        onChange={(e) => {
+                          setCheckOutDate(e.target.value);
+                          setFormErrors(prev => ({ ...prev, checkOutDate: '', conflict: '' }));
+                        }}
                         required
                       />
-                      <CalendarDatePicker
-                        label="Room Availability (Read-Only)"
-                        value={checkOutDate}
-                        readOnlyVisual={true}
-                        minDate={resDate ? toDbDate(resDate) : todayDbDate}
-                        disabledDates={selectedRoom ? getDisabledDatesForRoom(selectedRoom.roomID) : []}
-                        helperText="Visual calendar: dates are non-interactive to prevent accidental clicks."
-                      />
+                      {formErrors.checkOutDate && (
+                        <div className="text-danger small mb-1 fw-semibold">{formErrors.checkOutDate}</div>
+                      )}
                       <div className="mt-2">
-                        <label className="form-label small fw-semibold">Check-Out Time *</label>
+                        <label className="form-label small fw-semibold d-flex justify-content-between">
+                          <span>Check-Out Time *</span>
+                          <small className="text-muted" style={{ fontSize: '0.72rem' }}>Std: 12:00 PM</small>
+                        </label>
                         <input
                           type="time"
                           className="form-control form-control-sm"
@@ -1375,6 +1583,11 @@ function ReservationsClient() {
                           onChange={(e) => setCheckOutTime(e.target.value)}
                           required
                         />
+                        {checkOutTime && checkOutTime > '12:00' && (
+                          <small className="text-danger d-block mt-1 fw-semibold" style={{ fontSize: '0.72rem' }}>
+                            ℹ Late Check-out past 12:00 PM fee applied @ ₱100/hr.
+                          </small>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1389,7 +1602,8 @@ function ReservationsClient() {
                           : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0))
                       : 0;
                     const maxPax = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
-                    const excessPax = Math.max(0, roomGuests.length - maxPax);
+                    const guestVal = guestCount === '' ? 1 : (parseInt(guestCount, 10) || 1);
+                    const excessPax = Math.max(0, guestVal - maxPax);
                     const extraGuestFee = excessPax * 100; // Flat ₱100 per extra guest
                     const roomStayCharges = activeRate * nights;
                     const estimatedTotal = roomStayCharges + extraGuestFee;
@@ -1461,6 +1675,7 @@ function ReservationsClient() {
                   <LoadingButton
                     type="submit"
                     isLoading={isSubmitting}
+                    disabled={Boolean(formData.roomID && resDate && checkScheduleConflict(formData.roomID, resDate, checkOutDate, activeModal === 'edit' ? selectedRes?.reservationID : null))}
                     loadingText={activeModal === 'create' ? 'Placing Hold...' : 'Updating Reservation...'}
                     className={`btn ${activeModal === 'create' ? 'btn-warning text-dark' : 'btn-pcc-primary text-white'} fw-bold`}
                   >
