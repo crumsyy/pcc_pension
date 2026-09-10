@@ -6,7 +6,7 @@ import ReservationForm from './ReservationForm';
 /**
  * GuestReservationForm Component
  * Specialized reservation form for Guests with support for:
- * 1. Standard Reservation Request
+ * 1. Book Now (Confirmed Booking requiring down payment)
  * 2. Courtesy Hold (No Payment) with selectable durations (24h, 48h default, 72h)
  * 3. Schedule conflict warnings & calendar overview
  */
@@ -59,12 +59,14 @@ export default function GuestReservationForm({
                   className="form-check-input mt-1"
                   checked={!isCourtesyHold}
                   onChange={() => onChangeCourtesyHold && onChangeCourtesyHold(false)}
-                  aria-label="Standard Reservation Request"
+                  aria-label="Book Now"
                 />
                 <div>
-                  <div className="fw-semibold small text-dark">Standard Reservation</div>
+                  <div className="fw-semibold small text-dark d-flex align-items-center gap-1">
+                    Book Now <span className="badge bg-primary text-white py-0.5 px-1.5" style={{ fontSize: '0.65rem' }}>Confirmed</span>
+                  </div>
                   <div className="small text-muted" style={{ fontSize: '0.74rem' }}>
-                    Front Desk review & confirmation
+                    Requires down payment (25%, 50%, 100%)
                   </div>
                 </div>
               </label>
@@ -97,9 +99,13 @@ export default function GuestReservationForm({
             </div>
           </div>
 
-          {/* Courtesy Hold Duration Selection */}
+          {/* Courtesy Hold Duration Selection & Notice Banner */}
           {isCourtesyHold && (
             <div className="mt-3 p-2.5 bg-white rounded border border-warning-subtle">
+              <div className="alert alert-warning small fw-semibold mb-2" role="alert">
+                Courtesy Hold: This room will be held for up to {holdDurationHours} hours without payment. If not confirmed with payment, it will be automatically released.
+              </div>
+
               <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between align-items-center" id="hold-duration-label">
                 <span>Hold Duration (Countdown) *</span>
                 <span className="badge bg-secondary-subtle text-dark" style={{ fontSize: '0.7rem' }}>+30m Grace Period</span>

@@ -553,10 +553,10 @@ function ReservationsClient() {
       }
     }
 
-    const confirmTitle = isCourtesyHold ? 'Place Courtesy Hold' : 'Create Reservation';
+    const confirmTitle = isCourtesyHold ? 'Place Courtesy Hold' : 'Create Confirmed Booking';
     const confirmMsg = isCourtesyHold
       ? `Are you sure you want to place a ${holdDurationHours}-hour Courtesy Hold on this room? No payment is required immediately.`
-      : 'Are you sure you want to create this reservation?';
+      : 'Are you sure you want to book this room now?';
 
     showConfirm(confirmTitle, confirmMsg, async () => {
       try {
@@ -578,9 +578,9 @@ function ReservationsClient() {
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to create reservation');
+        if (!res.ok) throw new Error(data.error || 'Failed to create booking');
 
-        showAlert('success', 'Success', data.message || (isCourtesyHold ? 'Courtesy hold created successfully.' : 'Reservation created successfully.'));
+        showAlert('success', 'Success', data.message || (isCourtesyHold ? 'Courtesy hold created successfully.' : 'Booking created successfully.'));
         setActiveModal(null);
         fetchData();
       } catch (err) {
@@ -1048,33 +1048,66 @@ function ReservationsClient() {
               <form onSubmit={activeModal === 'create' ? handleCreateSubmit : handleUpdateSubmit}>
                 <div className="modal-body" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
 
-                  {/* COURTESY HOLD TOGGLE */}
+                  {/* RESERVATION TYPE SELECTOR: Book Now vs Courtesy Hold */}
                   {activeModal === 'create' && (
                     <div className="card border mb-3 shadow-xs bg-light">
                       <div className="card-body p-2.5">
-                        <div className="form-check form-switch d-flex align-items-center justify-content-between mb-0">
-                          <div>
-                            <label className="form-check-label fw-bold text-dark mb-0 d-block" htmlFor="recModalCourtesyHoldToggle">
-                              <i className="fa-solid fa-clock-rotate-left text-warning me-1.5"></i>
-                              Courtesy Hold (Walk-in / Phone Inquiries)
-                            </label>
-                            <small className="text-muted d-block" style={{ fontSize: '0.74rem' }}>
-                              Temporarily lock room without immediate payment. Automatically releases if not confirmed.
-                            </small>
-                          </div>
-                          <input
-                            className="form-check-input ms-3"
-                            type="checkbox"
-                            id="recModalCourtesyHoldToggle"
-                            style={{ width: '2.5em', height: '1.25em', cursor: 'pointer' }}
-                            checked={isCourtesyHold}
-                            onChange={(e) => setIsCourtesyHold(e.target.checked)}
-                            aria-label="Courtesy Hold"
-                          />
+                        <label className="form-label fw-bold small text-dark mb-2 d-flex align-items-center gap-1">
+                          <i className="fa-solid fa-bookmark text-primary"></i>
+                          Reservation Type *
+                        </label>
+                        <div className="d-flex flex-column flex-sm-row gap-2" role="radiogroup" aria-label="Reservation Type">
+                          <label className={`card p-2.5 flex-fill cursor-pointer border ${!isCourtesyHold ? 'border-primary bg-primary-subtle shadow-xs' : 'border-secondary-subtle bg-white'}`} style={{ cursor: 'pointer' }}>
+                            <div className="d-flex align-items-start gap-2">
+                              <input
+                                type="radio"
+                                name="recModalResType"
+                                className="form-check-input mt-1"
+                                checked={!isCourtesyHold}
+                                onChange={() => setIsCourtesyHold(false)}
+                                aria-label="Book Now"
+                              />
+                              <div>
+                                <div className="fw-semibold small text-dark d-flex align-items-center gap-1">
+                                  Book Now <span className="badge bg-primary text-white py-0.5 px-1.5" style={{ fontSize: '0.65rem' }}>Confirmed</span>
+                                </div>
+                                <div className="small text-muted" style={{ fontSize: '0.74rem' }}>
+                                  Confirmed booking with payment
+                                </div>
+                              </div>
+                            </div>
+                          </label>
+
+                          <label className={`card p-2.5 flex-fill cursor-pointer border ${isCourtesyHold ? 'border-warning bg-warning-subtle shadow-xs' : 'border-secondary-subtle bg-white'}`} style={{ cursor: 'pointer' }}>
+                            <div className="d-flex align-items-start gap-2">
+                              <input
+                                type="radio"
+                                name="recModalResType"
+                                className="form-check-input mt-1"
+                                checked={isCourtesyHold}
+                                onChange={() => setIsCourtesyHold(true)}
+                                aria-label="Courtesy Hold"
+                              />
+                              <div>
+                                <div className="fw-semibold small text-dark d-flex align-items-center gap-1">
+                                  <i className="fa-solid fa-clock-rotate-left text-warning"></i>
+                                  Courtesy Hold <span className="badge bg-warning text-dark py-0.5 px-1.5" style={{ fontSize: '0.65rem' }}>No Payment</span>
+                                </div>
+                                <div className="small text-muted" style={{ fontSize: '0.74rem' }}>
+                                  Temporary hold ({holdDurationHours}h auto-release)
+                                </div>
+                              </div>
+                            </div>
+                          </label>
                         </div>
 
+                        {/* Courtesy Hold Duration Selection & Notice Banner */}
                         {isCourtesyHold && (
-                          <div className="mt-2.5 p-2 bg-white rounded border border-warning-subtle">
+                          <div className="mt-2.5 p-2.5 bg-white rounded border border-warning-subtle">
+                            <div className="alert alert-warning small fw-semibold mb-2" role="alert">
+                              Courtesy Hold: This room will be held for up to {holdDurationHours} hours without payment. If not confirmed with payment, it will be automatically released.
+                            </div>
+
                             <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between align-items-center">
                               <span>Hold Duration (Countdown) *</span>
                               <span className="badge bg-warning-subtle text-dark" style={{ fontSize: '0.68rem' }}>+30m Grace Period</span>
@@ -1096,7 +1129,7 @@ function ReservationsClient() {
                             </div>
                             <div className="small text-muted mt-1.5" style={{ fontSize: '0.72rem' }}>
                               <i className="fa-solid fa-circle-info text-warning me-1"></i>
-                              Room will be held for {holdDurationHours} hours and marked as "Reserved".
+                              Room will be held for {holdDurationHours} hours and marked as "Courtesy Hold".
                             </div>
                           </div>
                         )}
@@ -1185,19 +1218,19 @@ function ReservationsClient() {
                         </div>
                         <div className="col-md-4 mb-2">
                           <label className="form-label small fw-semibold mb-1">
-                            Email Address {isCourtesyHold ? <span className="text-danger fw-bold">* (Required for Hold)</span> : <span className="text-muted">(Optional)</span>}
+                            Email Address {isCourtesyHold ? <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span> : <span className="text-muted">(Optional)</span>}
                           </label>
                           <input
                             type="email"
                             className={`form-control form-control-sm ${isCourtesyHold && !walkInForm.email ? 'border-warning' : ''}`}
-                            placeholder={isCourtesyHold ? "Required for expiry alerts" : "Optional email"}
+                            placeholder="Email Address * (Required for Courtesy Hold)"
                             required={isCourtesyHold}
                             value={walkInForm.email}
                             onChange={(e) => setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
                           />
                           {isCourtesyHold && (
                             <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
-                              Required to dispatch 12h/6h expiration alerts and release notices.
+                              Required for sending hold expiry alerts and release notifications.
                             </div>
                           )}
                         </div>
@@ -1415,10 +1448,10 @@ function ReservationsClient() {
                   <LoadingButton
                     type="submit"
                     isLoading={isSubmitting}
-                    loadingText={activeModal === 'create' ? (isCourtesyHold ? 'Placing Hold...' : 'Saving Reservation...') : 'Updating Reservation...'}
+                    loadingText={activeModal === 'create' ? (isCourtesyHold ? 'Placing Hold...' : 'Booking Room...') : 'Updating Reservation...'}
                     className={`btn ${activeModal === 'create' && isCourtesyHold ? 'btn-warning text-dark' : 'btn-pcc-primary text-white'} fw-bold`}
                   >
-                    {activeModal === 'create' ? (isCourtesyHold ? 'Place Courtesy Hold (No Payment)' : 'Save Reservation') : 'Update Reservation'}
+                    {activeModal === 'create' ? (isCourtesyHold ? 'Place Courtesy Hold (No Payment)' : 'Book Now (Confirm with Payment)') : 'Update Reservation'}
                   </LoadingButton>
                 </div>
               </form>

@@ -7,8 +7,9 @@ import React, { useState, useMemo } from 'react';
  * Read-only visual overview of room availability and schedules.
  * - Non-interactive day grid (pointer-events: none) to prevent accidental clicks
  * - Highlights room statuses:
- *   - Reserved → Orange highlight (#fd7e14)
  *   - Booked → Green highlight (#198754)
+ *   - Courtesy Hold → Orange highlight (#fd7e14)
+ *   - Reserved → Yellow highlight (#ffc107)
  *   - Occupied → Blue highlight (#0d6efd)
  *   - Under Maintenance → Red highlight (#dc3545)
  */
@@ -90,6 +91,10 @@ export default function ReservationCalendar({
         'Courtesy Hold': 2,
         'Under Maintenance': 1
       };
+
+      let mappedStatus = 'Booked';
+      let label = 'Booked';
+      let statusClass = 'calendar-status-booked';
 
       if (rawStatus.includes('maintenance') || rawStatus === 'under maintenance') {
         mappedStatus = 'Under Maintenance';
@@ -237,16 +242,16 @@ export default function ReservationCalendar({
       {/* Visual Status Legend with Side Gaps */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mt-2.5 pt-2 border-top mx-2 mx-sm-3" style={{ fontSize: '0.68rem' }}>
         <div className="d-flex align-items-center gap-1">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffc107', border: '1px solid #d39e00' }}></span>
-          <span className="text-muted">Reserved</span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #0f5132' }}></span>
+          <span className="text-muted">Booked</span>
         </div>
         <div className="d-flex align-items-center gap-1">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fd7e14', border: '1px solid #d9480f' }}></span>
           <span className="text-muted">Courtesy Hold</span>
         </div>
         <div className="d-flex align-items-center gap-1">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #0f5132' }}></span>
-          <span className="text-muted">Booked</span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffc107', border: '1px solid #d39e00' }}></span>
+          <span className="text-muted">Reserved</span>
         </div>
         <div className="d-flex align-items-center gap-1">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0d6efd', border: '1px solid #084298' }}></span>
@@ -254,7 +259,7 @@ export default function ReservationCalendar({
         </div>
         <div className="d-flex align-items-center gap-1">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#dc3545', border: '1px solid #842029' }}></span>
-          <span className="text-muted">Under Maint.</span>
+          <span className="text-muted">Under Maintenance</span>
         </div>
       </div>
 

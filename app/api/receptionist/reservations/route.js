@@ -21,7 +21,7 @@ function checkReservationLeadTime(checkInDateStr) {
 }
 
 async function checkActiveReservationOrBooking(guestID, currentReservationID = null) {
-  let resSql = "SELECT reservationID FROM reservation WHERE guestID = ? AND status IN ('Pending', 'Confirmed')";
+  let resSql = "SELECT reservationID FROM reservation WHERE guestID = ? AND status IN ('Pending', 'Confirmed', 'Booked')";
   const resParams = [guestID];
   if (currentReservationID) {
     resSql += " AND reservationID != ?";
@@ -35,7 +35,7 @@ async function checkDuplicateRoomReservation(guestID, roomID, currentReservation
   let sql = `SELECT reservationID FROM reservation 
              WHERE guestID = ? AND roomID = ? 
                AND (
-                 status IN ('Pending', 'Confirmed')
+                 status IN ('Pending', 'Confirmed', 'Booked')
                  OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
                )`;
   const params = [guestID, roomID];
@@ -55,7 +55,7 @@ async function checkDuplicateRoomReservation(guestID, roomID, currentReservation
 
 async function resolveReservationConflicts(conn, confirmedRoomID, confirmedReservationID) {
   const [conflicts] = await conn.execute(
-    "SELECT r.reservationID, r.guestID, g.userID, rm.roomNumber FROM reservation r JOIN guest g ON g.guestID = r.guestID JOIN room rm ON rm.roomID = r.roomID WHERE r.roomID = ? AND r.reservationID != ? AND r.status IN ('Pending', 'Confirmed', 'Courtesy Hold')",
+    "SELECT r.reservationID, r.guestID, g.userID, rm.roomNumber FROM reservation r JOIN guest g ON g.guestID = r.guestID JOIN room rm ON rm.roomID = r.roomID WHERE r.roomID = ? AND r.reservationID != ? AND r.status IN ('Pending', 'Confirmed', 'Booked', 'Courtesy Hold')",
     [confirmedRoomID, confirmedReservationID]
   );
 
@@ -106,8 +106,8 @@ export async function GET(request) {
                CASE 
                  WHEN r.status = 'Courtesy Hold' AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'Courtesy Hold'
                  WHEN r.status = 'Courtesy Hold' AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Released'
-                 WHEN r.status IN ('Confirmed', 'Pending') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
-                 WHEN r.status IN ('Confirmed', 'Pending') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
+                 WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
+                 WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
                  ELSE r.status
                END as status,
                r.guestID, r.roomID,
@@ -240,7 +240,7 @@ export async function POST(request) {
         const expiry = new Date(Date.now() + holdDurationHours * 60 * 60 * 1000);
         holdExpiryDateTime = `${expiry.getFullYear()}-${pad(expiry.getMonth() + 1)}-${pad(expiry.getDate())} ${pad(expiry.getHours())}:${pad(expiry.getMinutes())}:${pad(expiry.getSeconds())}`;
       }
-      const initialStatus = isCourtesyHold ? 'Courtesy Hold' : 'Pending';
+      const initialStatus = isCourtesyHold ? 'Courtesy Hold' : 'Booked';
 
       // Conflict check against overlapping active bookings or reservations
       const reqIn = reservationDateTime;
@@ -264,7 +264,7 @@ export async function POST(request) {
         SELECT reservationID FROM reservation
         WHERE roomID = ?
           AND (
-            (status IN ('Pending', 'Confirmed') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+            (status IN ('Pending', 'Confirmed', 'Booked') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
             OR
             (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
           )
@@ -295,7 +295,7 @@ export async function POST(request) {
         success: true,
         message: isCourtesyHold
           ? `Courtesy hold created successfully for ${holdDurationHours} hours.`
-          : 'Reservation created successfully.'
+          : 'Booking created successfully.'
       });
     }
 

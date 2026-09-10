@@ -23,8 +23,8 @@ export async function GET(request) {
              CASE 
                WHEN r.status = 'Courtesy Hold' AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'Courtesy Hold'
                WHEN r.status = 'Courtesy Hold' AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Released'
-               WHEN r.status IN ('Confirmed', 'Pending') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
-               WHEN r.status IN ('Confirmed', 'Pending') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
+               WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
+               WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
                ELSE r.status
              END as status,
              r.roomID,
@@ -208,14 +208,14 @@ export async function POST(request) {
       holdExpiryDateObj = new Date(Date.now() + holdDurationHours * 60 * 60 * 1000);
       holdExpiryDateTime = `${holdExpiryDateObj.getFullYear()}-${pad(holdExpiryDateObj.getMonth() + 1)}-${pad(holdExpiryDateObj.getDate())} ${pad(holdExpiryDateObj.getHours())}:${pad(holdExpiryDateObj.getMinutes())}:${pad(holdExpiryDateObj.getSeconds())}`;
     }
-    const resStatus = isCourtesyHold ? 'Courtesy Hold' : 'Pending';
+    const resStatus = isCourtesyHold ? 'Courtesy Hold' : 'Booked';
 
     // Rule 1C: Duplicate Reservation / Hold Validation
     const dupRes = await dbQuery(`
       SELECT reservationID FROM reservation 
       WHERE guestID = ? AND roomID = ? 
         AND (
-          status IN ('Pending', 'Confirmed')
+          status IN ('Pending', 'Confirmed', 'Booked')
           OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
         )
     `, [guest.guestID, roomID]);
@@ -224,7 +224,7 @@ export async function POST(request) {
       return NextResponse.json({
         error: isCourtesyHold
           ? "You already have an active reservation or courtesy hold for this room."
-          : "You already have an active reservation for this room."
+          : "You already have an active booking for this room."
       }, { status: 400 });
     }
 
@@ -261,7 +261,7 @@ export async function POST(request) {
       FROM reservation
       WHERE roomID = ?
         AND (
-          (status IN ('Pending', 'Confirmed') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+          (status IN ('Pending', 'Confirmed', 'Booked') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
           OR
           (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
         )
@@ -279,7 +279,7 @@ export async function POST(request) {
     );
     const roomInfo = roomRes[0] || { roomNumber: 'N/A', roomType: 'Room' };
 
-    // Zero billing record generated for courtesy holds / standard reservation requests
+    // Zero billing record generated for courtesy holds / confirmed booking records
     const insertRes = await dbQuery(
       `INSERT INTO reservation (
         reservationDateTime, checkOutDateTime, guestCount, specialRequests, status,
@@ -317,10 +317,10 @@ export async function POST(request) {
       );
     } else {
       await dbQuery(
-        "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Submitted', ?)",
+        "INSERT INTO notification (userID, title, message) VALUES (?, 'Booking Confirmed', ?)",
         [
           session.userID,
-          `Your reservation request for Room ${roomInfo.roomNumber} (${roomInfo.roomType}) on ${checkInDate} has been submitted. Front Desk will review it shortly.`
+          `Your booking for Room ${roomInfo.roomNumber} (${roomInfo.roomType}) on ${checkInDate} has been confirmed.`
         ]
       );
     }
@@ -332,10 +332,10 @@ export async function POST(request) {
         "INSERT INTO notification (userID, title, message) VALUES (?, ?, ?)",
         [
           r.userID,
-          isCourtesyHold ? 'New Courtesy Hold' : 'New Guest Reservation',
+          isCourtesyHold ? 'New Courtesy Hold' : 'New Guest Booking',
           isCourtesyHold
             ? `Guest ${guest.firstName} ${guest.lastName} placed a ${holdDurationHours}-hour Courtesy Hold on Room ${roomInfo.roomNumber}.`
-            : `Guest ${guest.firstName} ${guest.lastName} submitted a new reservation for Room ${roomInfo.roomNumber}.`
+            : `Guest ${guest.firstName} ${guest.lastName} submitted a new booking for Room ${roomInfo.roomNumber}.`
         ]
       );
     }
@@ -344,7 +344,7 @@ export async function POST(request) {
       success: true,
       message: isCourtesyHold
         ? `Courtesy hold for Room ${roomInfo.roomNumber} placed successfully! Room is held for ${holdDurationHours} hours.`
-        : `Reservation request for Room ${roomInfo.roomNumber} submitted successfully!`,
+        : `Booking for Room ${roomInfo.roomNumber} confirmed successfully!`,
       reservationID: insertRes.insertId,
       summary: {
         reservationID: insertRes.insertId,
