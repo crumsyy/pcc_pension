@@ -31,6 +31,10 @@ export default function ReceptionistReservationForm({
   setCheckOutDate,
   checkOutTime = '12:00',
   setCheckOutTime,
+  useCurrentTimeIn = false,
+  setUseCurrentTimeIn,
+  useCurrentTimeOut = false,
+  setUseCurrentTimeOut,
   breakfastOption = 'with',
   setBreakfastOption,
   guestCount = 1,
@@ -302,11 +306,37 @@ export default function ReceptionistReservationForm({
           </label>
           <input
             type="time"
-            className="form-control"
+            className={`form-control ${useCurrentTimeIn ? 'bg-light text-muted' : ''}`}
             value={resTime}
             onChange={(e) => setResTime && setResTime(e.target.value)}
+            disabled={Boolean(useCurrentTimeIn)}
             required
           />
+          <div className="form-check mt-1">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="rrfUseCurrentTimeIn"
+              checked={Boolean(useCurrentTimeIn)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                if (setUseCurrentTimeIn) setUseCurrentTimeIn(checked);
+                if (checked) {
+                  const now = new Date();
+                  const pad = (n) => String(n).padStart(2, '0');
+                  const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+                  if (setResTime) setResTime(nowTime);
+                  if (setResDate && (!resDate || resDate < todayStr)) {
+                    setResDate(todayStr);
+                  }
+                }
+              }}
+            />
+            <label className="form-check-label small text-muted user-select-none" htmlFor="rrfUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
+              Use Current Time (auto-record actual time)
+            </label>
+          </div>
           {isEarlyCheckIn && (
             <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
               ℹ Early Check-in prior to 2:00 PM fee may apply.
@@ -337,11 +367,33 @@ export default function ReceptionistReservationForm({
           </label>
           <input
             type="time"
-            className="form-control"
+            className={`form-control ${useCurrentTimeOut ? 'bg-light text-muted' : ''}`}
             value={checkOutTime}
             onChange={(e) => setCheckOutTime && setCheckOutTime(e.target.value)}
+            disabled={Boolean(useCurrentTimeOut)}
             required
           />
+          <div className="form-check mt-1">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="rrfUseCurrentTimeOut"
+              checked={Boolean(useCurrentTimeOut)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                if (setUseCurrentTimeOut) setUseCurrentTimeOut(checked);
+                if (checked) {
+                  const now = new Date();
+                  const pad = (n) => String(n).padStart(2, '0');
+                  const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                  if (setCheckOutTime) setCheckOutTime(nowTime);
+                }
+              }}
+            />
+            <label className="form-check-label small text-muted user-select-none" htmlFor="rrfUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
+              Use Current Time (auto-record actual time)
+            </label>
+          </div>
           {isLateCheckOut && (
             <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
               ℹ Late Check-out past 12:00 PM fee may apply.

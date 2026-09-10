@@ -173,6 +173,8 @@ function ReservationsClient() {
   const [resTime, setResTime] = useState('14:00');
   const [checkOutDate, setCheckOutDate] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
+  const [useCurrentTimeIn, setUseCurrentTimeIn] = useState(false);
+  const [useCurrentTimeOut, setUseCurrentTimeOut] = useState(false);
   const [specialRequests, setSpecialRequests] = useState('');
 
   // Room guests matching Booking form
@@ -1514,13 +1516,35 @@ function ReservationsClient() {
                         </label>
                         <input
                           type="time"
-                          className="form-control form-control-sm"
+                          className={`form-control form-control-sm ${useCurrentTimeIn ? 'bg-light text-muted' : ''}`}
                           value={resTime}
-                          min={isResToday ? currentTimeStr : undefined}
+                          min={isResToday && !useCurrentTimeIn ? currentTimeStr : undefined}
                           onChange={(e) => setResTime(e.target.value)}
+                          disabled={Boolean(useCurrentTimeIn)}
                           required
                         />
-                        {isResToday && (
+                        <div className="form-check mt-1">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="resUseCurrentTimeIn"
+                            checked={Boolean(useCurrentTimeIn)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setUseCurrentTimeIn(checked);
+                              if (checked) {
+                                const now = new Date();
+                                const pad = (n) => String(n).padStart(2, '0');
+                                setResDate(toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`));
+                                setResTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+                              }
+                            }}
+                          />
+                          <label className="form-check-label small text-muted user-select-none" htmlFor="resUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
+                            Use Current Time (auto-record actual time)
+                          </label>
+                        </div>
+                        {isResToday && !useCurrentTimeIn && (
                           <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
                             Earliest selectable time today: {currentTimeStr}
                           </small>
@@ -1556,11 +1580,32 @@ function ReservationsClient() {
                         </label>
                         <input
                           type="time"
-                          className="form-control form-control-sm"
+                          className={`form-control form-control-sm ${useCurrentTimeOut ? 'bg-light text-muted' : ''}`}
                           value={checkOutTime}
                           onChange={(e) => setCheckOutTime(e.target.value)}
+                          disabled={Boolean(useCurrentTimeOut)}
                           required
                         />
+                        <div className="form-check mt-1">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="resUseCurrentTimeOut"
+                            checked={Boolean(useCurrentTimeOut)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setUseCurrentTimeOut(checked);
+                              if (checked) {
+                                const now = new Date();
+                                const pad = (n) => String(n).padStart(2, '0');
+                                setCheckOutTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+                              }
+                            }}
+                          />
+                          <label className="form-check-label small text-muted user-select-none" htmlFor="resUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
+                            Use Current Time (auto-record actual time)
+                          </label>
+                        </div>
                         {checkOutTime && checkOutTime > '12:00' && (
                           <small className="text-danger d-block mt-1 fw-semibold" style={{ fontSize: '0.72rem' }}>
                             ℹ Late Check-out past 12:00 PM fee applied @ ₱100/hr.

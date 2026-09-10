@@ -189,6 +189,28 @@ export async function POST(request) {
           await conn.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
         }
 
+        // Automatic room status update: if not checked out and arrival is today or past, set room to Occupied
+        if (!checkedOut) {
+          const [bkRows] = await conn.execute(
+            "SELECT roomID, checkInDateTime, status FROM booking WHERE bookingID = ?",
+            [targetBookingID]
+          );
+          if (bkRows.length > 0) {
+            const bRec = bkRows[0];
+            const inDate = new Date(String(bRec.checkInDateTime).replace(' ', 'T'));
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const inDateOnly = String(bRec.checkInDateTime).split(' ')[0] || String(bRec.checkInDateTime).split('T')[0];
+            const todayDateOnly = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+            if (inDate <= now || inDateOnly === todayDateOnly || bRec.status === 'Checked In') {
+              await conn.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [bRec.roomID]);
+              if (bRec.status !== 'Checked In' && bRec.status !== 'Checked Out' && bRec.status !== 'Payment Completed') {
+                await conn.execute("UPDATE booking SET status = 'Checked In' WHERE bookingID = ?", [targetBookingID]);
+              }
+            }
+          }
+        }
+
         await logBillingAudit(conn, {
           billingID,
           bookingID: targetBookingID,

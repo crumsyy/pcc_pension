@@ -304,11 +304,27 @@ export async function POST(request) {
           );
         }
 
+        // Timestamp resolution based on useCurrentTime
+        let finalCheckInDateTime = checkInDateTime;
+        let bookingStatus = status;
+        if (body.useCurrentTime === true || body.useCurrentTimeIn === true || status === 'Checked In') {
+          const localNow = new Date();
+          const pad = (num) => String(num).padStart(2, '0');
+          finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+          bookingStatus = 'Checked In';
+        }
+        let finalCheckOutDateTime = checkOutDateTime;
+        if (body.useCurrentTimeOut === true) {
+          const localNow = new Date();
+          const pad = (num) => String(num).padStart(2, '0');
+          finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+        }
+
         // Insert booking with roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption
         const [insertBookingRes] = await conn.execute(
           `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption)
            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [checkInDateTime, checkOutDateTime, status, convReservationID, guestID, roomID, roomRate, finalRoomCharge, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption]
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, roomRate, finalRoomCharge, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption]
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -318,8 +334,31 @@ export async function POST(request) {
         }
 
         // Update room status
-        const roomStatus = status === 'Checked In' ? 'Occupied' : 'Reserved';
+        const roomStatus = (bookingStatus === 'Checked In' || body.useCurrentTime === true || body.useCurrentTimeIn === true) ? 'Occupied' : 'Reserved';
         await conn.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
+
+        // If early check-in fee applies, record into incidental_charge
+        let earlyFeeToRecord = parseFloat(body.earlyFee) || 0;
+        let earlyHoursToRecord = parseInt(body.earlyHours) || 0;
+        if (!earlyFeeToRecord && (body.useCurrentTimeIn || bookingStatus === 'Checked In')) {
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, '0');
+          const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+          if (inDateStr === todayStr && now.getHours() < 14) {
+            const exactRemainingMinutes = (14 * 60) - (now.getHours() * 60 + now.getMinutes());
+            if (exactRemainingMinutes > 0) {
+              earlyHoursToRecord = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
+              earlyFeeToRecord = earlyHoursToRecord * 50;
+            }
+          }
+        }
+        if (earlyFeeToRecord > 0) {
+          const feeDesc = `Early Check-In Fee (${earlyHoursToRecord} hr(s) @ ₱50.00/hr before 2:00 PM)`;
+          await conn.execute(
+            "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+            [bookingID, feeDesc, earlyFeeToRecord]
+          );
+        }
 
         // Insert registered guests details
         if (guests.length > 0) {

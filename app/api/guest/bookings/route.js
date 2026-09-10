@@ -273,11 +273,24 @@ export async function POST(request) {
           ? parseFloat(body.remainingBalance)
           : Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
 
+        let finalCheckInDateTime = checkInDateTime;
+        if (body.useCurrentTime === true || body.useCurrentTimeIn === true) {
+          const localNow = new Date();
+          const pad = (num) => String(num).padStart(2, '0');
+          finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+        }
+        let finalCheckOutDateTime = checkOutDateTime;
+        if (body.useCurrentTimeOut === true) {
+          const localNow = new Date();
+          const pad = (num) => String(num).padStart(2, '0');
+          finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+        }
+
         // 3. Insert booking record with 'Confirmed' status
         const [bookingRes] = await connection.execute(
           `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance)
            VALUES (?, ?, 'Confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [checkInDateTime, checkOutDateTime, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
+          [finalCheckInDateTime, finalCheckOutDateTime, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
         );
         const bookingID = bookingRes.insertId;
 
@@ -295,6 +308,17 @@ export async function POST(request) {
               [bookingID, g.fullName.trim(), parseInt(g.age) || 30, g.discountID ? parseInt(g.discountID) : null, g.discountIdNumber || null]
             );
           }
+        }
+
+        // Record Early Check-In Fee if applicable
+        const earlyFeeToRecord = parseFloat(body.earlyFee) || 0;
+        const earlyHoursToRecord = parseInt(body.earlyHours) || 0;
+        if (earlyFeeToRecord > 0) {
+          const feeDesc = `Early Check-In Fee (${earlyHoursToRecord} hr(s) @ ₱50.00/hr before 2:00 PM)`;
+          await connection.execute(
+            "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+            [bookingID, feeDesc, earlyFeeToRecord]
+          );
         }
 
         // Update room status to Reserved

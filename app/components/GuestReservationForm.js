@@ -19,6 +19,10 @@ export default function GuestReservationForm({
   onChangeCheckInTime,
   checkOutTime = '12:00',
   onChangeCheckOutTime,
+  useCurrentTimeIn = false,
+  onChangeUseCurrentTimeIn,
+  useCurrentTimeOut = false,
+  onChangeUseCurrentTimeOut,
   breakfastOption = 'with',
   onChangeBreakfastOption,
   numGuests = 1,
@@ -88,6 +92,10 @@ export default function GuestReservationForm({
           onChangeCheckInTime={onChangeCheckInTime}
           checkOutTime={checkOutTime}
           onChangeCheckOutTime={onChangeCheckOutTime}
+          useCurrentTimeIn={useCurrentTimeIn}
+          onChangeUseCurrentTimeIn={onChangeUseCurrentTimeIn}
+          useCurrentTimeOut={useCurrentTimeOut}
+          onChangeUseCurrentTimeOut={onChangeUseCurrentTimeOut}
           minDate={minDate}
           maxDate={maxDate}
           selectedRoom={selectedRoom}

@@ -215,17 +215,24 @@ export async function POST(request) {
     }
 
     // Conflict Detection: check overlapping active bookings or reservations
-    const checkInD = new Date(checkInDate + 'T14:00:00');
+    const inTimeOnly = (body.useCurrentTime || body.useCurrentTimeIn)
+      ? `${pad(now.getHours())}:${pad(now.getMinutes())}:00`
+      : (body.checkInTime ? (body.checkInTime.length === 5 ? `${body.checkInTime}:00` : body.checkInTime) : '14:00:00');
+    const outTimeOnly = (body.useCurrentTimeOut)
+      ? `${pad(now.getHours())}:${pad(now.getMinutes())}:00`
+      : (body.checkOutTime ? (body.checkOutTime.length === 5 ? `${body.checkOutTime}:00` : body.checkOutTime) : '12:00:00');
+
+    const checkInD = new Date(`${checkInDate}T${inTimeOnly}`);
     let checkOutD;
     if (checkOutDate) {
-      checkOutD = new Date(checkOutDate + 'T12:00:00');
+      checkOutD = new Date(`${checkOutDate}T${outTimeOnly}`);
     } else {
       checkOutD = new Date(checkInD.getTime() + 24 * 60 * 60 * 1000);
       checkOutD.setHours(12, 0, 0, 0);
     }
-    const checkOutDateTimeFormatted = checkOutDate ? `${checkOutDate} 12:00:00` : null;
-    const reqCheckOutSql = `${checkOutD.getFullYear()}-${pad(checkOutD.getMonth() + 1)}-${pad(checkOutD.getDate())} 12:00:00`;
-    const reservationDateTime = `${checkInDate} 14:00:00`;
+    const checkOutDateTimeFormatted = checkOutDate ? `${checkOutDate} ${outTimeOnly}` : null;
+    const reqCheckOutSql = `${checkOutD.getFullYear()}-${pad(checkOutD.getMonth() + 1)}-${pad(checkOutD.getDate())} ${outTimeOnly}`;
+    const reservationDateTime = `${checkInDate} ${inTimeOnly}`;
 
     const conflictingBookings = await dbQuery(`
       SELECT bookingID, checkInDateTime, checkOutDateTime

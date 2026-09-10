@@ -319,6 +319,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [checkOutDate, setCheckOutDate] = useState(new Date(Date.now() + 86400000).toISOString().substring(0, 10));
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
+  const [useCurrentTimeIn, setUseCurrentTimeIn] = useState(false);
+  const [useCurrentTimeOut, setUseCurrentTimeOut] = useState(false);
 
   const handleCheckInDateChange = (val) => {
     setCheckInDate(val);
@@ -813,13 +815,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const inputPax = parseInt(numGuests) || 1;
   const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
   const extraGuestFee = extraGuestsCount * 100; // Flat ₱100 per extra guest
-  const originalTotal = (roomRate * nightsCount) + extraGuestFee;
-  const totalDiscount = 0;
-  const netTotalAmount = originalTotal;
-  const paymentPctNumber = parseInt(paymentOption) || 50;
-  const amountToPayNow = Math.round(netTotalAmount * (paymentPctNumber / 100) * 100) / 100;
-  const remainingBalanceAfterPay = Math.max(0, Math.round((netTotalAmount - amountToPayNow) * 100) / 100);
-
   // Early Check-In Fee Preview Calculation (based on selected checkInTime < 14:00 or current arrival day)
   const calculateEarlyCheckInPreview = () => {
     if (!checkInDate) return { isEarly: false, earlyHours: 0, earlyFee: 0 };
@@ -861,11 +856,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     } catch (e) {}
 
     // Early check-in applies strictly on the day of arrival before 2:00 PM (14:00)
-    if (checkInDate === todayStr && manilaHour < 14) {
+    if (checkInDate === todayStr && (manilaHour < 14 || useCurrentTimeIn)) {
       const exactRemainingMinutes = (14 * 60) - (manilaHour * 60 + manilaMinute);
-      const earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
-      const earlyFee = earlyHours * 50;
-      return { isEarly: true, earlyHours, earlyFee };
+      if (exactRemainingMinutes > 0) {
+        const earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
+        const earlyFee = earlyHours * 50;
+        return { isEarly: true, earlyHours, earlyFee };
+      }
     }
     return { isEarly: false, earlyHours: 0, earlyFee: 0 };
   };
@@ -886,6 +883,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     return { isLate: false, lateHours: 0, lateFee: 0 };
   };
   const lateCheckOutInfo = calculateLateCheckOutPreview();
+
+  const totalAutoFees = (earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0) + (lateCheckOutInfo.isLate ? lateCheckOutInfo.lateFee : 0);
+  const originalTotal = (roomRate * nightsCount) + extraGuestFee;
+  const totalDiscount = 0;
+  const netTotalAmount = originalTotal + totalAutoFees;
+  const paymentPctNumber = parseInt(paymentOption) || 50;
+  const amountToPayNow = Math.round(netTotalAmount * (paymentPctNumber / 100) * 100) / 100;
+  const remainingBalanceAfterPay = Math.max(0, Math.round((netTotalAmount - amountToPayNow) * 100) / 100);
 
   // Dashboard Metrics
   const totalStaysCount = bookings.length;
@@ -974,6 +979,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkOutDate,
           checkInTime,
           checkOutTime,
+          useCurrentTime: Boolean(useCurrentTimeIn),
+          useCurrentTimeIn: Boolean(useCurrentTimeIn),
+          useCurrentTimeOut: Boolean(useCurrentTimeOut),
+          earlyFee: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0,
+          earlyHours: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyHours : 0,
+          lateFee: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateFee : 0,
+          lateHours: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateHours : 0,
           checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
           checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
           numGuests,
@@ -1066,6 +1078,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkOutDate,
           checkInTime,
           checkOutTime,
+          useCurrentTime: Boolean(useCurrentTimeIn),
+          useCurrentTimeIn: Boolean(useCurrentTimeIn),
+          useCurrentTimeOut: Boolean(useCurrentTimeOut),
+          earlyFee: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0,
+          earlyHours: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyHours : 0,
+          lateFee: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateFee : 0,
+          lateHours: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateHours : 0,
           checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
           checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
           registeredGuests,
@@ -3728,6 +3747,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
                     checkOutTime={checkOutTime}
                     onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
+                    useCurrentTimeIn={useCurrentTimeIn}
+                    onChangeUseCurrentTimeIn={(val) => setUseCurrentTimeIn(val)}
+                    useCurrentTimeOut={useCurrentTimeOut}
+                    onChangeUseCurrentTimeOut={(val) => setUseCurrentTimeOut(val)}
                     breakfastOption={breakfastOption}
                     onChangeBreakfastOption={(newOption) => setBreakfastOption(newOption)}
                     minDate={minReserveDateStr}
@@ -3853,6 +3876,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
                           checkOutTime={checkOutTime}
                           onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
+                          useCurrentTimeIn={useCurrentTimeIn}
+                          onChangeUseCurrentTimeIn={(val) => setUseCurrentTimeIn(val)}
+                          useCurrentTimeOut={useCurrentTimeOut}
+                          onChangeUseCurrentTimeOut={(val) => setUseCurrentTimeOut(val)}
                           minDate={minBookDateStr}
                           nightsCount={nightsCount}
                           selectedRoom={selectedRoom}
@@ -3930,22 +3957,34 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   )}
 
-                  <div className="p-3 bg-light rounded border" style={{ fontSize: '0.88rem' }}>
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">Room Rent Subtotal ({nightsCount} nights):</span>
-                      <span className="fw-semibold">₱{originalTotal.toFixed(2)}</span>
-                    </div>
-                    {totalDiscount > 0 && (
-                      <div className="d-flex justify-content-between mb-1 text-danger">
-                        <span>Applied Discount Apportionment:</span>
-                        <span className="fw-semibold">-₱{totalDiscount.toFixed(2)}</span>
+                    <div className="p-3 bg-light rounded border" style={{ fontSize: '0.88rem' }}>
+                      <div className="d-flex justify-content-between mb-1">
+                        <span className="text-muted">Room Rent Subtotal ({nightsCount} nights):</span>
+                        <span className="fw-semibold">₱{originalTotal.toFixed(2)}</span>
                       </div>
-                    )}
-                    <div className="d-flex justify-content-between pt-2 border-top fw-bold text-primary" style={{ fontSize: '1.05rem' }}>
-                      <span>Net Booking Amount Due:</span>
-                      <span>₱{netTotalAmount.toFixed(2)}</span>
+                      {earlyCheckInInfo.isEarly && (
+                        <div className="d-flex justify-content-between mb-1 text-warning-emphasis fw-semibold">
+                          <span>Early Check-In Fee ({earlyCheckInInfo.earlyHours} hr{earlyCheckInInfo.earlyHours > 1 ? 's' : ''} @ ₱50/hr):</span>
+                          <span>+₱{earlyCheckInInfo.earlyFee.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {lateCheckOutInfo.isLate && (
+                        <div className="d-flex justify-content-between mb-1 text-danger fw-semibold">
+                          <span>Late Check-Out Fee ({lateCheckOutInfo.lateHours} hr{lateCheckOutInfo.lateHours > 1 ? 's' : ''} @ ₱100/hr):</span>
+                          <span>+₱{lateCheckOutInfo.lateFee.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {totalDiscount > 0 && (
+                        <div className="d-flex justify-content-between mb-1 text-danger">
+                          <span>Applied Discount Apportionment:</span>
+                          <span className="fw-semibold">-₱{totalDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="d-flex justify-content-between pt-2 border-top fw-bold text-primary" style={{ fontSize: '1.05rem' }}>
+                        <span>Net Booking Amount Due:</span>
+                        <span>₱{netTotalAmount.toFixed(2)}</span>
+                      </div>
                     </div>
-                  </div>
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
