@@ -234,6 +234,12 @@ export async function POST(request) {
 
       if (shouldCheckout) {
         await completeBookingAndFreeRoom(bookingID);
+      } else if (bookingID) {
+        // Upon payment for an active stay booking, automatically ensure room status is Occupied
+        const [bInfo] = await connection.execute("SELECT roomID, status FROM booking WHERE bookingID = ?", [bookingID]);
+        if (bInfo.length > 0 && bInfo[0].status !== 'Checked Out' && bInfo[0].status !== 'Cancelled') {
+          await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [bInfo[0].roomID]);
+        }
       }
 
       await syncInventoryStock();

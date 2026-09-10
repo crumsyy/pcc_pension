@@ -3747,10 +3747,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
                     checkOutTime={checkOutTime}
                     onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
-                    useCurrentTimeIn={useCurrentTimeIn}
-                    onChangeUseCurrentTimeIn={(val) => setUseCurrentTimeIn(val)}
-                    useCurrentTimeOut={useCurrentTimeOut}
-                    onChangeUseCurrentTimeOut={(val) => setUseCurrentTimeOut(val)}
                     breakfastOption={breakfastOption}
                     onChangeBreakfastOption={(newOption) => setBreakfastOption(newOption)}
                     minDate={minReserveDateStr}

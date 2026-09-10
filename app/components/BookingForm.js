@@ -177,7 +177,7 @@ export default function BookingForm({
               onChange={(e) => handleToggleCurrentOut(e.target.checked)}
             />
             <label className="form-check-label small text-muted user-select-none" htmlFor="bfUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
-              Use Current Time (auto-record actual time)
+              Current time
             </label>
           </div>
           {isLateCheckOut && (

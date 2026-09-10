@@ -1356,13 +1356,10 @@ function BookingsClient() {
                       )}
                     </div>
                     <SearchableSelect
-                      options={[
-                        { value: '', label: '-- None (Walk-In Guest - Manual Entry) --' },
-                        ...guests.map(g => ({
-                          value: String(g.guestID),
-                          label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
-                        }))
-                      ]}
+                      options={guests.map(g => ({
+                        value: String(g.guestID),
+                        label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
+                      }))}
                       value={formData.guestID}
                       onChange={handleUidChange}
                       placeholder="Type UID, guest name or contact to search..."
@@ -1781,7 +1778,7 @@ function BookingsClient() {
                             }}
                           />
                           <label className="form-check-label small text-muted user-select-none" htmlFor="recUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
-                            Use Current Time (auto-record actual time)
+                            Current time
                           </label>
                         </div>
                         {isLateCheckOut && (
@@ -2421,7 +2418,7 @@ function BookingsClient() {
                             }}
                           />
                           <label className="form-check-label small text-muted user-select-none" htmlFor="updUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
-                            Use Current Time (auto-record actual time)
+                            Current time
                           </label>
                         </div>
                       </div>

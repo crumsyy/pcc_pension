@@ -321,8 +321,8 @@ export async function POST(request) {
           );
         }
 
-        // Update room status to Reserved
-        await connection.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+        // Update room status upon payment to Occupied
+        await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
 
         // Create billing record with down payment details and remaining balance
         await connection.execute(

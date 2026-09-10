@@ -333,8 +333,8 @@ export async function POST(request) {
           await conn.execute("UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?", [convReservationID]);
         }
 
-        // Update room status
-        const roomStatus = (bookingStatus === 'Checked In' || body.useCurrentTime === true || body.useCurrentTimeIn === true) ? 'Occupied' : 'Reserved';
+        // Update room status upon payment to Occupied
+        const roomStatus = (downPaymentAmount > 0 || bookingStatus === 'Checked In' || body.useCurrentTime === true || body.useCurrentTimeIn === true) ? 'Occupied' : 'Reserved';
         await conn.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
 
         // If early check-in fee applies, record into incidental_charge

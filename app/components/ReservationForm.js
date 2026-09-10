@@ -17,10 +17,6 @@ export default function ReservationForm({
   onChangeCheckInTime,
   checkOutTime = '12:00',
   onChangeCheckOutTime,
-  useCurrentTimeIn = false,
-  onChangeUseCurrentTimeIn,
-  useCurrentTimeOut = false,
-  onChangeUseCurrentTimeOut,
   minDate = '',
   maxDate = '',
   selectedRoom = null,
@@ -58,27 +54,6 @@ export default function ReservationForm({
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
   const effectiveMinDate = minDate || todayStr;
 
-  const handleToggleCurrentIn = (checked) => {
-    if (onChangeUseCurrentTimeIn) onChangeUseCurrentTimeIn(checked);
-    if (checked) {
-      const now = new Date();
-      const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      const nowTodayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-      if (onChangeCheckInTime) onChangeCheckInTime(nowTime);
-      if (onChangeCheckInDate && (!checkInDate || checkInDate < nowTodayStr)) {
-        onChangeCheckInDate(nowTodayStr);
-      }
-    }
-  };
-
-  const handleToggleCurrentOut = (checked) => {
-    if (onChangeUseCurrentTimeOut) onChangeUseCurrentTimeOut(checked);
-    if (checked) {
-      const now = new Date();
-      const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      if (onChangeCheckOutTime) onChangeCheckOutTime(nowTime);
-    }
-  };
 
   return (
     <div className={`reservation-form-container ${className}`}>
@@ -135,24 +110,11 @@ export default function ReservationForm({
           </label>
           <input
             type="time"
-            className={`form-control ${useCurrentTimeIn ? 'bg-light text-muted' : ''}`}
+            className="form-control"
             value={checkInTime}
             onChange={(e) => onChangeCheckInTime && onChangeCheckInTime(e.target.value)}
-            disabled={Boolean(useCurrentTimeIn)}
             required
           />
-          <div className="form-check mt-1">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="rfUseCurrentTimeIn"
-              checked={Boolean(useCurrentTimeIn)}
-              onChange={(e) => handleToggleCurrentIn(e.target.checked)}
-            />
-            <label className="form-check-label small text-muted user-select-none" htmlFor="rfUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-              Use Current Time (auto-record actual time)
-            </label>
-          </div>
           {isEarlyCheckIn && (
             <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
               ℹ Early Check-in ({earlyHours} hr{earlyHours > 1 ? 's' : ''} prior to 2:00 PM) fee of ₱{earlyFee.toFixed(2)} may apply.
@@ -168,24 +130,11 @@ export default function ReservationForm({
           </label>
           <input
             type="time"
-            className={`form-control ${useCurrentTimeOut ? 'bg-light text-muted' : ''}`}
+            className="form-control"
             value={checkOutTime}
             onChange={(e) => onChangeCheckOutTime && onChangeCheckOutTime(e.target.value)}
-            disabled={Boolean(useCurrentTimeOut)}
             required
           />
-          <div className="form-check mt-1">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="rfUseCurrentTimeOut"
-              checked={Boolean(useCurrentTimeOut)}
-              onChange={(e) => handleToggleCurrentOut(e.target.checked)}
-            />
-            <label className="form-check-label small text-muted user-select-none" htmlFor="rfUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
-              Use Current Time (auto-record actual time)
-            </label>
-          </div>
           {isLateCheckOut && (
             <small className="text-danger d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
               ℹ Late Check-out ({lateHours} hr{lateHours > 1 ? 's' : ''} past 12:00 PM) fee of ₱{lateFee.toFixed(2)} applied @ ₱100/hr.
