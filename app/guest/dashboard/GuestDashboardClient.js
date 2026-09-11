@@ -4303,7 +4303,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     setActiveModal('book_form');
                   }}>Back</button>
                   <LoadingButton 
-                    type="submit" 
+                    type="button" 
                     className={`btn fw-bold ${isGuestGcashSettled ? 'btn-success text-white shadow-sm' : 'btn-secondary text-white'}`}
                     disabled={!isGuestGcashSettled || processing}
                     isLoading={processing}
