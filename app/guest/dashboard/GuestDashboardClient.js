@@ -2929,9 +2929,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                         aria-label={`Room ${rm.roomNumber} is ${meta.label}`}
                                       >
                                         {meta.label}
-                                      </button>
-                                    )}
-                                  </div>
+                                                      </div>
+               </div>
+             </div>          </div>
                                 </div>
                               </div>
                             </div>
@@ -3879,7 +3879,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
-              <form onSubmit={handleCreateReservation}>
                 <div className="modal-body">
                   <div className="p-3 bg-light rounded border mb-3">
                     <h6 className="fw-bold text-success mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h6>
@@ -3998,8 +3997,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <h5 className="modal-title fw-bold">Online Booking Summary & Guest Details</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
-              <form onSubmit={handleProceedToPayment}>
-                <div className="modal-body">
+              <div className="modal-body">
                   <div className="row g-3 mb-3">
                     <div className="col-md-6">
                       <div className="p-3 bg-light rounded border h-100">
@@ -4154,7 +4152,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     Proceed to GCash Payment
                   </LoadingButton>
                 </div>
-              </form>
+              
             </div>
           </div>
         </div>
@@ -4179,8 +4177,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   setActiveModal('none');
                 }}></button>
               </div>
-              <form onSubmit={handleConfirmGCashBookingPayment}>
-                <div className="modal-body">
+              <div>
+                <div className="modal-body" aria-label="Payment Modal">
                   <div className="alert alert-info py-2 small mb-3 d-flex justify-content-between align-items-center">
                     <span>Online payments are processed via <strong>GCash (PayMongo Test Mode)</strong>. Select downpayment below.</span>
                     <span className="badge bg-warning text-dark ms-2">TEST MODE</span>
