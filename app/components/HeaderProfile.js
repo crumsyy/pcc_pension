@@ -5,7 +5,7 @@ import React from 'react';
 export default function HeaderProfile({ user, name, avatar, className = '' }) {
   const displayName = name || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user?.name || 'Guest'));
   const profilePicture = avatar || user?.profilePicture;
-  const initial = displayName ? displayName.charAt(0).toUpperCase() : 'G';
+  const initial = (displayName && displayName.length > 0) ? displayName.charAt(0).toUpperCase() : 'G';
 
   return (
     <span

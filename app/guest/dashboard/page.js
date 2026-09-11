@@ -64,7 +64,7 @@ export default async function GuestDashboard() {
         const lastName = lastNameParts.join(' ') || session.lastName || '';
         try {
           const ins = await dbQuery(
-            "INSERT INTO guest (firstName, lastName, email, contact, gender, city, province, userID) VALUES (?, ?, ?, 'N/A', 'N/A', 'N/A', 'N/A', ?)",
+            "INSERT INTO guest (firstName, lastName, email, contact, gender, city, province, userID) VALUES (?, ?, ?, 'N/A', NULL, 'N/A', 'N/A', ?)",
             [firstName || 'Guest', lastName, session.email || '', session.userID]
           );
           guest = {
@@ -74,7 +74,7 @@ export default async function GuestDashboard() {
             lastName,
             email: session.email || '',
             contact: 'N/A',
-            gender: 'N/A',
+            gender: null,
             city: 'N/A',
             province: 'N/A',
             profilePicture: null,
@@ -89,7 +89,7 @@ export default async function GuestDashboard() {
             lastName,
             email: session.email || '',
             contact: 'N/A',
-            gender: 'N/A',
+            gender: null,
             city: 'N/A',
             province: 'N/A',
             profilePicture: null,
@@ -105,6 +105,7 @@ export default async function GuestDashboard() {
     const [reservations, rawBookings, allRooms, roomSchedules] = await Promise.all([
       dbQuery(
         `SELECT r.reservationID, r.reservationDateTime, r.status,
+                r.holdExpiryDateTime, r.isCourtesyHold,
                 rm.roomNumber, rt.type as roomType, fl.name as floor
          FROM reservation r
          LEFT JOIN room rm ON rm.roomID = r.roomID
@@ -191,11 +192,28 @@ export default async function GuestDashboard() {
       };
     });
 
+    const [firstName, ...lastNameParts] = (session.fullName || session.firstName || 'Guest').split(' ');
+    const fallbackGuest = {
+      userID: session.userID,
+      guestID: session.guestID || session.userID,
+      firstName: firstName || 'Guest',
+      lastName: lastNameParts.join(' ') || session.lastName || '',
+      email: session.email || '',
+      contact: 'N/A',
+      gender: null,
+      city: 'N/A',
+      province: 'N/A',
+      profilePicture: null,
+      createdAt: new Date().toISOString()
+    };
+
+    const safeGuest = guest || fallbackGuest;
+
     // Safely serialize all props to prevent Next.js Server Component Date/Decimal serialization errors
     return (
       <Suspense fallback={<GuestDashboardLoading />}>
         <GuestDashboardClient
-          initialGuest={JSON.parse(JSON.stringify(guest))}
+          initialGuest={JSON.parse(JSON.stringify(safeGuest))}
           initialReservations={JSON.parse(JSON.stringify(reservations || []))}
           initialBookings={JSON.parse(JSON.stringify(bookings || []))}
           initialActiveBill={activeBill ? JSON.parse(JSON.stringify(activeBill)) : null}
@@ -210,15 +228,15 @@ export default async function GuestDashboard() {
       throw error;
     }
     console.error("Error rendering guest dashboard:", error);
-    const [firstName, ...lastNameParts] = (session.fullName || session.firstName || 'Guest').split(' ');
+    const [firstName, ...lastNameParts] = (session?.fullName || session?.firstName || 'Guest').split(' ');
     const fallbackGuest = {
-      userID: session.userID,
-      guestID: session.guestID || session.userID,
+      userID: session?.userID || 0,
+      guestID: session?.guestID || session?.userID || 0,
       firstName: firstName || 'Guest',
-      lastName: lastNameParts.join(' ') || session.lastName || '',
-      email: session.email || '',
+      lastName: lastNameParts.join(' ') || session?.lastName || '',
+      email: session?.email || '',
       contact: 'N/A',
-      gender: 'N/A',
+      gender: null,
       city: 'N/A',
       province: 'N/A',
       profilePicture: null,
