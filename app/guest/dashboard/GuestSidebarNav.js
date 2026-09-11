@@ -116,7 +116,7 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
         <div className="d-flex align-items-center gap-2 mb-2">
           {guest?.profilePicture ? (
             <img
-              src={guest.profilePicture}
+              src={guest?.profilePicture}
               alt="Avatar"
               className="rounded-circle border border-white shadow-sm flex-shrink-0"
               style={{ width: '36px', height: '36px', objectFit: 'cover' }}
@@ -126,15 +126,15 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
               className="profile-avatar-initial shadow-sm flex-shrink-0"
               style={{ width: '36px', height: '36px', fontSize: '0.85rem' }}
             >
-              {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
+              {guest?.firstName ? guest?.firstName.charAt(0).toUpperCase() : 'G'}
             </div>
           )}
           <div className="text-truncate">
             <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.88rem', lineHeight: '1.2' }}>
-              {guest?.firstName} {guest?.lastName}
+              {guest?.firstName || 'Guest'} {guest?.lastName || ''}
             </div>
             <div className="text-white-50 font-monospace" style={{ fontSize: '0.72rem' }}>
-              User ID: #{guest?.userID || guest?.guestID}
+              User ID: #{guest?.userID || guest?.guestID || 'N/A'}
             </div>
           </div>
         </div>

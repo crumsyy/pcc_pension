@@ -343,7 +343,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [isGuestGcashSettled, setIsGuestGcashSettled] = useState(false);
   const [guestGcashInlineError, setGuestGcashInlineError] = useState('');
   const [registeredGuests, setRegisteredGuests] = useState([
-    { fullName: `${initialGuest.firstName || 'Guest'} ${initialGuest.lastName || ''}`.trim(), age: 30, discountID: '', discountIdNumber: '' }
+    { fullName: `${initialGuest?.firstName || 'Guest'} ${initialGuest?.lastName || ''}`.trim(), age: 30, discountID: '', discountIdNumber: '' }
   ]);
   const [discountedGuests, setDiscountedGuests] = useState([]);
   const [convertingReservationID, setConvertingReservationID] = useState(null);
@@ -2251,11 +2251,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       </span>
                       <div className="welcome-header mb-1">
                         <div className="welcome-header-mobile d-md-none">
-                          <div className="fw-bold fs-5">Welcome, {guest.firstName} {guest.lastName || ''}!</div>
-                          <div className="opacity-75 font-monospace small">(UserID: #{guest.userID || guest.guestID})</div>
+                          <div className="fw-bold fs-5">Welcome, {guest?.firstName || 'Guest'} {guest?.lastName || ''}!</div>
+                          <div className="opacity-75 font-monospace small">(UserID: #{guest?.userID || guest?.guestID || 'N/A'})</div>
                         </div>
                         <h3 className="fw-bold mb-0 d-none d-md-block">
-                          Welcome, {guest.firstName} {guest.lastName || ''}! <span className="fs-6 font-monospace opacity-75 fw-normal">(UserID: #{guest.userID || guest.guestID})</span>
+                          Welcome, {guest?.firstName || 'Guest'} {guest?.lastName || ''}! <span className="fs-6 font-monospace opacity-75 fw-normal">(UserID: #{guest?.userID || guest?.guestID || 'N/A'})</span>
                         </h3>
                       </div>
                       <p className="mb-0 text-white-50 small">Experience comfort and convenience at PCC Home Suite Home.</p>
@@ -3073,8 +3073,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <div className="d-flex align-items-center gap-3">
                       {guest?.profilePicture ? (
                         <img
-                          src={guest.profilePicture}
-                          alt={`${guest.firstName || 'Guest'} Avatar`}
+                          src={guest?.profilePicture}
+                          alt={`${guest?.firstName || 'Guest'} Avatar`}
                           className="profile-avatar-img shadow-sm"
                           style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '50%', border: '2px solid var(--pcc-blue)', flexShrink: 0 }}
                         />
@@ -3083,12 +3083,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           className="profile-avatar-initial shadow-sm flex-shrink-0"
                           style={{ width: '64px', height: '64px', fontSize: '1.6rem' }}
                         >
-                          {guest?.firstName ? guest.firstName.charAt(0).toUpperCase() : 'G'}
+                          {guest?.firstName ? guest?.firstName.charAt(0).toUpperCase() : 'G'}
                         </div>
                       )}
                       <div>
-                        <h5 className="fw-bold mb-1 text-dark">{guest.firstName} {guest.lastName}</h5>
-                        <p className="text-muted mb-0">UserID: #{guest.userID || guest.guestID}</p>
+                        <h5 className="fw-bold mb-1 text-dark">{guest?.firstName || 'Guest'} {guest?.lastName || ''}</h5>
+                        <p className="text-muted mb-0">UserID: #{guest?.userID || guest?.guestID || 'N/A'}</p>
                       </div>
                     </div>
                     <span className="badge bg-success text-white px-3 py-1.5 rounded-pill">Active Guest</span>
@@ -3098,23 +3098,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <tbody>
                       <tr>
                         <td className="text-muted" style={{ width: '120px' }}>User ID:</td>
-                        <td className="fw-bold text-pcc-blue font-monospace">#{guest.userID || guest.guestID}</td>
+                        <td className="fw-bold text-pcc-blue font-monospace">#{guest?.userID || guest?.guestID || 'N/A'}</td>
                       </tr>
                       <tr>
                         <td className="text-muted" style={{ width: '120px' }}>Contact:</td>
-                        <td className="fw-semibold">{guest.contact}</td>
+                        <td className="fw-semibold">{guest?.contact || 'N/A'}</td>
                       </tr>
                       <tr>
                         <td className="text-muted">Gender:</td>
-                        <td>{guest.gender}</td>
+                        <td>{guest?.gender || 'N/A'}</td>
                       </tr>
                       <tr>
                         <td className="text-muted">Address:</td>
-                        <td>{guest.city}, {guest.province}</td>
+                        <td>{guest?.city || 'N/A'}, {guest?.province || 'N/A'}</td>
                       </tr>
                       <tr>
                         <td className="text-muted">Member Since:</td>
-                        <td>{formatDate(guest.createdAt)}</td>
+                        <td>{formatDate(guest?.createdAt)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -3304,7 +3304,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     Room {b.roomNumber} — {b.roomType || 'Standard Room'}
                                   </h5>
                                   <div className="text-secondary font-monospace small" style={{ fontSize: '0.78rem' }}>
-                                    Booking ID: #{formatBookingID(b.bookingID)} • User ID: #{guest.userID || guest.guestID}
+                                    Booking ID: #{formatBookingID(b.bookingID)} • User ID: #{guest?.userID || guest?.guestID || 'N/A'}
                                   </div>
                                 </div>
                                 <div className="d-flex align-items-center gap-2">
@@ -3414,14 +3414,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     type="button"
                     onClick={() => {
                       setEditProfileForm({
-                        firstName: guest.firstName || '',
-                        middleName: guest.middleName || '',
-                        lastName: guest.lastName || '',
-                        contact: guest.contact || '',
-                        gender: guest.gender || 'Other',
-                        city: guest.city || '',
-                        province: guest.province || '',
-                        profilePicture: guest.profilePicture || ''
+                        firstName: guest?.firstName || '',
+                        middleName: guest?.middleName || '',
+                        lastName: guest?.lastName || '',
+                        contact: guest?.contact || '',
+                        gender: guest?.gender || 'Other',
+                        city: guest?.city || '',
+                        province: guest?.province || '',
+                        profilePicture: guest?.profilePicture || ''
                       });
                       setShowEditProfileModal(true);
                     }}
@@ -4180,8 +4180,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   setActiveModal('none');
                 }}></button>
               </div>
-              <div>
-                <div className="modal-body" aria-label="Payment Modal">
+              <div className="modal-body" aria-label="Payment Modal">
                   <div className="alert alert-info py-2 small mb-3 d-flex justify-content-between align-items-center">
                     <span>Online payments are processed via <strong>GCash (PayMongo Test Mode)</strong>. Select downpayment below.</span>
                     <span className="badge bg-warning text-dark ms-2">TEST MODE</span>
@@ -4314,12 +4313,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     disabled={!isGuestGcashSettled || processing}
                     isLoading={processing}
                     loadingText="Completing Booking..."
+                    onClick={handleConfirmGCashBookingPayment}
                   >
                     <i className={`bi ${isGuestGcashSettled ? 'bi-check2-circle' : 'bi-hourglass-split'} me-1.5`}></i>
                     <span>{isGuestGcashSettled ? `Confirm & Complete Booking (₱${amountToPayNow.toFixed(2)})` : 'Awaiting Payment Authorization...'}</span>
                   </LoadingButton>
                 </div>
-                             </div>
             </div>
           </div>
         </div>
