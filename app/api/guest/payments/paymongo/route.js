@@ -1,6 +1,64 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, getBookingBalanceDetails } from '@/lib/db';
+
+export async function GET(request) {
+  const session = await getSession();
+  if (!session || !['Guest', 'Receptionist', 'Administrator'].includes(session.role)) {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const sourceID = searchParams.get('sourceID') || searchParams.get('sourceId');
+  const bookingID = parseInt(searchParams.get('bookingID'), 10);
+
+  if (!sourceID) {
+    return NextResponse.json({ error: 'Source ID is required.' }, { status: 400 });
+  }
+
+  try {
+    const secretKey = process.env.PAYMONGO_SECRET_KEY || 'sk_test_GjYHQCNkKkxUuhQykSsSetrS';
+    const authHeader = 'Basic ' + Buffer.from(`${secretKey}:`).toString('base64');
+
+    const pmRes = await fetch(`https://api.paymongo.com/v1/sources/${sourceID}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': authHeader
+      }
+    });
+
+    const pmData = await pmRes.json();
+    if (!pmRes.ok || !pmData.data) {
+      const errMsg = pmData.errors?.[0]?.detail || 'Failed to retrieve PayMongo source.';
+      return NextResponse.json({ error: errMsg }, { status: 400 });
+    }
+
+    const source = pmData.data;
+    const rawStatus = source.attributes?.status; // 'pending', 'chargeable', 'cancelled', 'expired', 'paid'
+    // In PayMongo sandbox/live, when test payment is authorized, GCash source status becomes 'chargeable'
+    const isPaidOrAuthorized = rawStatus === 'chargeable' || rawStatus === 'paid';
+
+    let billingDetails = null;
+    if (bookingID) {
+      billingDetails = await getBookingBalanceDetails(bookingID);
+    }
+
+    return NextResponse.json({
+      success: true,
+      sourceID,
+      status: isPaidOrAuthorized ? 'paid' : rawStatus,
+      rawStatus,
+      isPaid: isPaidOrAuthorized,
+      referenceNumber: sourceID,
+      amount: source.attributes?.amount ? source.attributes.amount / 100 : null,
+      billing: billingDetails
+    });
+  } catch (error) {
+    console.error("PayMongo status polling error:", error);
+    return NextResponse.json({ error: 'Failed to poll PayMongo source: ' + error.message }, { status: 500 });
+  }
+}
 
 export async function POST(request) {
   const session = await getSession();
@@ -80,12 +138,15 @@ export async function POST(request) {
     const sourceData = pmData.data;
     const checkoutUrl = sourceData.attributes.redirect.checkout_url;
     const sourceID = sourceData.id;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(checkoutUrl)}`;
 
     return NextResponse.json({
       success: true,
       checkoutUrl,
+      qrCodeUrl,
       sourceID,
-      amount: parseAmt
+      amount: parseAmt,
+      status: sourceData.attributes?.status || 'pending'
     });
 
   } catch (error) {

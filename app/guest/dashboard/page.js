@@ -18,11 +18,29 @@ export default async function GuestDashboard() {
     await syncRoomStatuses();
 
     // 1. Fetch guest profile
-    const guests = await dbQuery(
+    let guests = await dbQuery(
       "SELECT g.*, u.email, u.createdAt FROM guest g JOIN user u ON u.userID = g.userID WHERE g.userID = ?",
       [session.userID]
     );
     
+    // Auto-provision guest profile if record is missing for this authenticated user
+    if (guests.length === 0) {
+      const [firstName, ...lastNameParts] = (session.fullName || session.firstName || 'Guest').split(' ');
+      const lastName = lastNameParts.join(' ') || session.lastName || '';
+      try {
+        const insertRes = await dbQuery(
+          "INSERT INTO guest (firstName, lastName, email, contact, gender, city, province, userID) VALUES (?, ?, ?, 'N/A', NULL, 'N/A', 'N/A', ?)",
+          [firstName || 'Guest', lastName, session.email || '', session.userID]
+        );
+        guests = await dbQuery(
+          "SELECT g.*, u.email, u.createdAt FROM guest g JOIN user u ON u.userID = g.userID WHERE g.guestID = ?",
+          [insertRes.insertId]
+        );
+      } catch (provErr) {
+        console.error("Auto-provision guest profile error:", provErr);
+      }
+    }
+
     if (guests.length === 0) {
       redirect("/auth/login?error=" + encodeURIComponent("Profile details not found. Please log in again."));
     }
@@ -129,6 +147,9 @@ export default async function GuestDashboard() {
       />
     );
   } catch (error) {
+    if (error?.digest?.startsWith('NEXT_REDIRECT') || error?.message === 'NEXT_REDIRECT') {
+      throw error;
+    }
     console.error("Error rendering guest dashboard:", error);
     // Fallback safe load so guest dashboard never crashes
     const fallbackGuest = {

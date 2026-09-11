@@ -143,12 +143,24 @@ export async function GET(request) {
         total: details.subtotal,
         paid: details.paidTotal,
         balance: details.balance,
+        remainingBalance: details.chargesSummary?.remainingBalance !== undefined ? details.chargesSummary.remainingBalance : details.balance,
         finalCheckoutBalance: details.chargesSummary?.finalCheckoutBalance || details.balance
       },
       guestsList: details.finalGuestsList,
       billingID: details.billingID,
       discounts
     });
+
+    if (details.billingID) {
+      await dbQuery(
+        "UPDATE billing SET totalAmount = ?, downPaymentAmount = ?, remainingBalance = ?, balance = ? WHERE billingID = ?",
+        [details.subtotal, details.chargesSummary?.downPaymentPaid || 0, details.balance, details.balance, details.billingID]
+      ).catch(() => {});
+      await dbQuery(
+        "UPDATE booking SET remainingBalance = ?, finalBalance = ? WHERE bookingID = ?",
+        [details.balance, details.balance, bookingID]
+      ).catch(() => {});
+    }
 
   } catch (error) {
     console.error("Failed to calculate billing:", error);

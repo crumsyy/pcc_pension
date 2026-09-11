@@ -351,6 +351,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [receiptData, setReceiptData] = useState(null);
   const [processing, setProcessing] = useState(false);
 
+  // PayMongo Real-time Polling & QR States
+  const [paymongoSourceID, setPaymongoSourceID] = useState(null);
+  const [paymongoCheckoutUrl, setPaymongoCheckoutUrl] = useState(null);
+  const [paymongoQrUrl, setPaymongoQrUrl] = useState(null);
+  const [paymongoLoading, setPaymongoLoading] = useState(false);
+  const [paymongoError, setPaymongoError] = useState('');
+  const [paymongoStatus, setPaymongoStatus] = useState('idle'); // 'idle' | 'awaiting_payment' | 'paid' | 'failed'
+  const pollingIntervalRef = useRef(null);
+
   // Courtesy Hold States
   const [isCourtesyHold, setIsCourtesyHold] = useState(false);
   const [holdDurationHours, setHoldDurationHours] = useState(48);
@@ -461,13 +470,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [settleBooking, setSettleBooking] = useState(null);
   const [settleGcashRef, setSettleGcashRef] = useState('');
   const [settleProcessing, setSettleProcessing] = useState(false);
-  const [paymongoQrUrl, setPaymongoQrUrl] = useState(null);
+  const [settlePaymongoQrUrl, setSettlePaymongoQrUrl] = useState(null);
   const [loadingPaymongoQr, setLoadingPaymongoQr] = useState(false);
   const [qrErrorMessage, setQrErrorMessage] = useState('');
 
   useEffect(() => {
     if (!settleBooking) {
-      setPaymongoQrUrl(null);
+      setSettlePaymongoQrUrl(null);
       setQrErrorMessage('');
       return;
     }
@@ -486,7 +495,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       .then(res => res.json())
       .then(data => {
         if (data.success && data.paymongoQrUrl) {
-          setPaymongoQrUrl(data.paymongoQrUrl);
+          setSettlePaymongoQrUrl(data.paymongoQrUrl);
         } else {
           setQrErrorMessage(data.error || 'Live QR generation unavailable in sandbox mode.');
         }
@@ -1027,43 +1036,120 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     setActiveModal('payment');
   };
 
-  const handlePayMongoCheckout = async () => {
-    if (!amountToPayNow || amountToPayNow <= 0) return;
-    setProcessing(true);
+  const initiatePayMongoSource = async (amtToPay = null) => {
+    const targetAmt = amtToPay || amountToPayNow;
+    if (!targetAmt || targetAmt <= 0) return null;
+    setPaymongoLoading(true);
+    setPaymongoError('');
     try {
       const res = await fetch('/api/guest/payments/paymongo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: amountToPayNow,
-          description: `Online Down Payment (₱${amountToPayNow.toFixed(2)}) for Room ${selectedRoom?.roomNumber || ''}`
+          amount: targetAmt,
+          description: `Online Down Payment (₱${targetAmt.toFixed(2)}) for Room ${selectedRoom?.roomNumber || ''}`
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to initiate PayMongo GCash checkout');
 
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      } else {
-        throw new Error('Checkout URL not returned.');
-      }
+      setPaymongoSourceID(data.sourceID);
+      setPaymongoCheckoutUrl(data.checkoutUrl);
+      setPaymongoQrUrl(data.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data.checkoutUrl)}`);
+      setPaymongoStatus('awaiting_payment');
+      return data;
     } catch (err) {
-      showAlert('error', 'PayMongo Error', err.message);
-      setProcessing(false);
+      console.error("PayMongo initiate error:", err);
+      setPaymongoError(err.message || 'Unable to generate GCash payment QR.');
+      setPaymongoStatus('failed');
+      return null;
+    } finally {
+      setPaymongoLoading(false);
     }
   };
 
-  const handleConfirmGCashBookingPayment = async (e, verifiedRef = null) => {
-    if (e) e.preventDefault();
-    const refToUse = (verifiedRef || gcashRef.trim());
+  const handleProceedToSandboxGCash = async () => {
+    let url = paymongoCheckoutUrl;
+    if (!url) {
+      const data = await initiatePayMongoSource();
+      url = data?.checkoutUrl;
+    }
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
-    if (!refToUse && !isGuestGcashSettled) {
-      setGuestGcashInlineError('Please enter your GCash reference number to proceed.');
-      showAlert('error', 'Payment Reference Required', 'Please enter your GCash reference number to proceed.');
+  // Auto-initiate PayMongo source when payment modal is opened or amount changes
+  useEffect(() => {
+    if (activeModal === 'payment' && selectedRoom && amountToPayNow > 0) {
+      setPaymongoStatus('idle');
+      setIsGuestGcashSettled(false);
+      setGcashRef('');
+      initiatePayMongoSource(amountToPayNow);
+    } else if (activeModal !== 'payment') {
+      setPaymongoStatus('idle');
+      setPaymongoSourceID(null);
+      setPaymongoCheckoutUrl(null);
+      setPaymongoQrUrl(null);
+      setIsGuestGcashSettled(false);
+      setGcashRef('');
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+  }, [activeModal, selectedRoom?.roomID, amountToPayNow]);
+
+  // Real-time polling of PayMongo source status
+  useEffect(() => {
+    if (activeModal !== 'payment' || !paymongoSourceID || paymongoStatus === 'paid') {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
       return;
     }
 
-    const finalRef = refToUse || `GCASH-${Date.now()}`;
+    const pollStatus = async () => {
+      try {
+        const res = await fetch(`/api/guest/payments/paymongo?sourceID=${encodeURIComponent(paymongoSourceID)}`);
+        const data = await res.json();
+        if (res.ok && (data.isPaid || data.status === 'paid' || data.rawStatus === 'chargeable' || data.rawStatus === 'paid')) {
+          setPaymongoStatus('paid');
+          setIsGuestGcashSettled(true);
+          setGcashRef(data.referenceNumber || paymongoSourceID);
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        }
+      } catch (err) {
+        console.error("Polling PayMongo status error:", err);
+      }
+    };
+
+    pollingIntervalRef.current = setInterval(pollStatus, 2000);
+    pollStatus();
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [activeModal, paymongoSourceID, paymongoStatus]);
+
+  const handleConfirmGCashBookingPayment = async (e, verifiedRef = null) => {
+    if (e) e.preventDefault();
+    const refToUse = (verifiedRef || gcashRef.trim() || paymongoSourceID || `PM-${Date.now()}`);
+
+    if (paymongoStatus !== 'paid' && !isGuestGcashSettled && !verifiedRef) {
+      setGuestGcashInlineError('Please complete and authorize your GCash payment first.');
+      showAlert('error', 'Payment Authorization Required', 'Please complete or authorize your GCash payment to proceed.');
+      return;
+    }
+
+    const finalRef = refToUse;
     setGuestGcashInlineError('');
     setProcessing(true);
 
@@ -1125,6 +1211,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       setActiveModal('receipt');
       setIsGuestGcashSettled(false);
       setGcashRef('');
+      setPaymongoStatus('idle');
+      setPaymongoSourceID(null);
+      setPaymongoCheckoutUrl(null);
+      setPaymongoQrUrl(null);
       setConvertingReservationID(null);
       fetchRoomsAndStatus();
     } catch (err) {
@@ -1309,7 +1399,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
   };
 
-  const handleProceedToSandboxGCash = async () => {
+  const handleProceedToSandboxGCashSettlement = async () => {
     if (!settleBooking) return;
     setSettleProcessing(true);
     try {
@@ -3376,9 +3466,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <span className="spinner-border spinner-border-sm text-primary mb-2" role="status"></span>
                         <small className="text-muted fw-semibold" style={{ fontSize: '0.78rem' }}>Generating PayMongo QR...</small>
                       </div>
-                    ) : paymongoQrUrl ? (
+                    ) : settlePaymongoQrUrl ? (
                       <img 
-                        src={paymongoQrUrl} 
+                        src={settlePaymongoQrUrl} 
                         alt="GCash QR" 
                         className="img-fluid mb-0" 
                         style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
@@ -3439,7 +3529,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   style={{ backgroundColor: '#005ce6', borderColor: '#005ce6', borderRadius: '8px' }}
                   aria-label="Proceed to GCash in Test Mode"
                   disabled={settleProcessing}
-                  onClick={handleProceedToSandboxGCash}
+                  onClick={handleProceedToSandboxGCashSettlement}
                 >
                   <i className="bi bi-wallet2 fs-6"></i>
                   <span>Proceed to GCash (Test Mode)</span>
@@ -4058,6 +4148,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   setIsGuestGcashSettled(false);
                   setGuestGcashInlineError('');
                   setGcashRef('');
+                  setPaymongoStatus('idle');
+                  setPaymongoSourceID(null);
                   setActiveModal('none');
                 }}></button>
               </div>
@@ -4089,75 +4181,105 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
-                  {/* STANDARD GCASH PAYMENT FLOW */}
+                  {/* REAL-TIME PAYMONGO QR & CHECKOUT */}
                   <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mb-3 text-start">
                     <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
                       <div className="d-flex align-items-center gap-2">
                         <i className="bi bi-wallet2 text-primary fs-5"></i>
-                        <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>Standard GCash Payment</span>
+                        <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>GCash Payment (PayMongo Sandbox)</span>
                       </div>
-                      <span className="badge bg-primary-subtle text-primary fw-semibold" style={{ fontSize: '0.72rem' }}>Direct Payment</span>
+                      {paymongoStatus === 'paid' ? (
+                        <span className="badge bg-success text-white fw-semibold" style={{ fontSize: '0.72rem' }}>
+                          <i className="bi bi-check-circle-fill me-1"></i>Authorized
+                        </span>
+                      ) : (
+                        <span className="badge bg-warning text-dark fw-semibold" style={{ fontSize: '0.72rem' }}>
+                          Awaiting Auth
+                        </span>
+                      )}
                     </div>
 
-                    <p className="text-muted small mb-3">
-                      Complete your down payment using GCash checkout, or enter your GCash payment reference number below.
-                    </p>
+                    {/* QR CODE DISPLAY */}
+                    <div className="text-center p-3 bg-light rounded-3 border mb-3">
+                      <div className="d-flex align-items-center justify-content-between mb-2">
+                        <span className="fw-bold text-dark small">
+                          <i className="bi bi-qr-code me-1.5 text-primary"></i> Scan QR to Pay
+                        </span>
+                        {paymongoStatus === 'paid' ? (
+                          <span className="badge bg-success text-white">
+                            <i className="bi bi-check-circle-fill me-1"></i> Payment Authorized
+                          </span>
+                        ) : (
+                          <span className="badge bg-primary-subtle text-primary d-inline-flex align-items-center gap-1">
+                            <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: '8px', height: '8px' }} role="status"></span>
+                            Waiting for Authorization
+                          </span>
+                        )}
+                      </div>
 
+                      {paymongoLoading ? (
+                        <div className="py-4 text-center">
+                          <div className="spinner-border text-primary" role="status"></div>
+                          <div className="small text-muted mt-2">Generating PayMongo QR Code...</div>
+                        </div>
+                      ) : paymongoQrUrl ? (
+                        <div className="d-flex flex-column align-items-center justify-content-center">
+                          <div className="bg-white p-2 rounded shadow-sm border mb-2" style={{ display: 'inline-block' }}>
+                            <img
+                              src={paymongoQrUrl}
+                              alt="PayMongo GCash QR Code"
+                              className="img-fluid rounded"
+                              style={{ width: '190px', height: '190px', objectFit: 'contain' }}
+                            />
+                          </div>
+                          <small className="text-muted" style={{ fontSize: '0.78rem' }}>
+                            Scan QR code with GCash or click the button below to authorize.
+                          </small>
+                        </div>
+                      ) : paymongoError ? (
+                        <div className="alert alert-warning py-2 small mb-0">
+                          {paymongoError}
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary d-block mx-auto mt-2"
+                            onClick={() => initiatePayMongoSource()}
+                          >
+                            Retry Generating QR
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* PROCEED TO GCASH SANDBOX BUTTON */}
                     <button
                       type="button"
-                      className="btn btn-primary w-100 fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm mb-3"
+                      className="btn btn-primary w-100 fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm mb-2"
                       style={{ backgroundColor: '#005CE6', borderColor: '#005CE6', borderRadius: '8px', fontSize: '0.9rem' }}
-                      disabled={processing}
-                      onClick={handlePayMongoCheckout}
+                      disabled={paymongoLoading || processing}
+                      onClick={handleProceedToSandboxGCash}
                     >
-                      <i className="bi bi-credit-card-fill fs-6"></i>
-                      <span>Proceed to GCash Payment (₱{amountToPayNow.toFixed(2)})</span>
+                      <i className="bi bi-box-arrow-up-right fs-6"></i>
+                      <span>Proceed to GCash Checkout (₱{amountToPayNow.toFixed(2)})</span>
                     </button>
 
-                    <div className="text-center my-2 position-relative">
-                      <hr className="my-2" />
-                      <span className="position-absolute top-50 start-50 translate-middle bg-white px-2 text-muted small fw-semibold" style={{ fontSize: '0.72rem' }}>
-                        OR ENTER REFERENCE NUMBER
-                      </span>
-                    </div>
+                    <small className="text-muted d-block text-center small mb-2" style={{ fontSize: '0.76rem' }}>
+                      Opens PayMongo sandbox in a new window. Keep this modal open while authorizing.
+                    </small>
 
-                    <div className="mt-3">
-                      <label className="form-label fw-semibold small mb-1" htmlFor="gcashReferenceNumber">
-                        GCash Reference Number
-                      </label>
-                      <input
-                        id="gcashReferenceNumber"
-                        type="text"
-                        className="form-control text-center fw-bold"
-                        placeholder="Enter GCash reference number"
-                        value={gcashRef}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setGcashRef(val);
-                          if (val.trim().length >= 6) {
-                            setIsGuestGcashSettled(true);
-                            setGuestGcashInlineError('');
-                          } else {
-                            setIsGuestGcashSettled(false);
-                          }
-                        }}
-                      />
-                    </div>
+                    {paymongoStatus === 'paid' && (
+                      <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
+                        <i className="bi bi-check-circle-fill text-success fs-5"></i>
+                        <div>
+                          <strong>Payment Verified & Authorized!</strong>
+                          <div className="text-muted small">PayMongo Reference #{paymongoSourceID}. You may now complete your booking.</div>
+                        </div>
+                      </div>
+                    )}
 
-                    {guestGcashInlineError ? (
-                      <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mt-3 mb-0">
+                    {guestGcashInlineError && (
+                      <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
                         <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
                         <span>{guestGcashInlineError}</span>
-                      </div>
-                    ) : gcashRef.trim().length >= 6 ? (
-                      <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mt-3 mb-0">
-                        <i className="bi bi-check-circle-fill text-success fs-6"></i>
-                        <span><strong>GCash Reference:</strong> #{gcashRef}. You may now confirm your booking.</span>
-                      </div>
-                    ) : (
-                      <div className="alert alert-light border py-2 px-3 small d-flex align-items-center gap-2 mt-3 mb-0 text-muted">
-                        <i className="bi bi-info-circle text-primary fs-6"></i>
-                        <span>Enter your GCash reference number or click Proceed to complete payment.</span>
                       </div>
                     )}
                   </div>
@@ -4167,16 +4289,32 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     setIsGuestGcashSettled(false);
                     setGuestGcashInlineError('');
                     setGcashRef('');
+                    setPaymongoStatus('idle');
+                    setPaymongoSourceID(null);
                     setActiveModal('book_form');
                   }}>Back</button>
-                  <LoadingButton 
-                    type="submit" 
-                    className="btn btn-success text-white fw-bold" 
-                    isLoading={processing}
-                    loadingText="Processing Payment..."
-                  >
-                    Confirm Payment (₱{amountToPayNow.toFixed(2)})
-                  </LoadingButton>
+
+                  {paymongoStatus === 'paid' ? (
+                    <LoadingButton 
+                      type="submit" 
+                      className="btn btn-success text-white fw-bold d-inline-flex align-items-center gap-2" 
+                      isLoading={processing}
+                      loadingText="Processing Booking..."
+                    >
+                      <i className="bi bi-check-circle-fill"></i>
+                      <span>Confirm & Complete Booking (₱{amountToPayNow.toFixed(2)})</span>
+                    </LoadingButton>
+                  ) : (
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary text-white fw-semibold d-inline-flex align-items-center gap-2"
+                      disabled
+                      style={{ opacity: 0.75, cursor: 'not-allowed' }}
+                    >
+                      <span className="spinner-border spinner-border-sm" role="status"></span>
+                      <span>Waiting for GCash Authorization...</span>
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
