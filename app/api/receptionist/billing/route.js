@@ -129,6 +129,7 @@ export async function GET(request) {
         sharePerGuest: details.sharePerGuest,
         totalGuests: details.totalGuestsCount,
         downPaymentPaid: details.chargesSummary?.downPaymentPaid || 0,
+        downPaymentAmount: details.chargesSummary?.downPaymentPaid || 0,
         downPaymentPercentage: details.chargesSummary?.downPaymentPercentage || 0,
         roomBalance: details.chargesSummary?.roomBalance || 0,
         extraGuests: details.chargesSummary?.extraGuests || 0,
@@ -143,6 +144,7 @@ export async function GET(request) {
         total: details.subtotal,
         paid: details.paidTotal,
         balance: details.balance,
+        remainingBalance: details.balance,
         finalCheckoutBalance: details.chargesSummary?.finalCheckoutBalance || details.balance
       },
       guestsList: details.finalGuestsList,
