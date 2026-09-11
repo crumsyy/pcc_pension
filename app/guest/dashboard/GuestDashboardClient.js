@@ -2928,10 +2928,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                         style={{ fontSize: '0.78rem', borderRadius: '6px' }}
                                         aria-label={`Room ${rm.roomNumber} is ${meta.label}`}
                                       >
-                                        {meta.label}
-                                                      </div>
-               </div>
-             </div>          </div>
+                                        <div className="room-label">
+                                          {meta.label}
+                                        </div>
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -3879,6 +3881,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
+              <form onSubmit={handleCreateReservation}>
                 <div className="modal-body">
                   <div className="p-3 bg-light rounded border mb-3">
                     <h6 className="fw-bold text-success mb-1">Room {selectedRoom.roomNumber} ({selectedRoom.roomType})</h6>
@@ -4200,7 +4203,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <span>₱{amountToPayNow.toFixed(2)}</span>
                     </div>
                     <div className="d-flex justify-content-between pt-2 border-top text-danger small">
-                                       {/* OFFICIAL PAYMONGO QR & GCASH PAYMENT SECTION */}
+                      <span>Remaining Balance at Check-in:</span>
+                      <span className="fw-bold">₱{remainingBalanceAfterPay.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* OFFICIAL PAYMONGO QR & GCASH PAYMENT SECTION */}
                   <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mb-3 text-center">
                     <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom text-start">
                       <div className="d-flex align-items-center gap-2">
