@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import LoadingButton from '@/app/components/LoadingButton';
+import ViewOrdersModal from './ViewOrdersModal';
 
 // Fast client-side module cache so switching tabs preserves catalog and renders at 0ms
 let cachedOrdersCatalog = null;
 let cachedOrderHistory = null;
 
 const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCookedMeal, onAdd }) {
-  const [deliverWithBreakfast, setDeliverWithBreakfast] = useState(false);
   const isAvailable = isCookedMeal || (item.availableQty === undefined || item.availableQty > 0);
   const badgeLabel = isCookedMeal ? 'Cooked Meal (Scheduled)' : type === 'Amenity' ? 'Amenity (Immediate)' : 'Minibar / Store (Immediate)';
   const badgeClass = isCookedMeal ? 'bg-warning-subtle text-dark border-warning-subtle' : type === 'Amenity' ? 'bg-secondary-subtle text-dark border-secondary-subtle' : 'bg-info-subtle text-dark border-info-subtle';
@@ -66,32 +66,19 @@ const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCook
         </div>
       </div>
       <div className="p-2 p-sm-3 pt-1 pt-sm-0 mt-auto">
-        {!isCookedMeal ? (
-          <div className="form-check mb-2 pt-1 border-top" style={{ fontSize: '0.73rem' }}>
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id={`bundle-${type}-${item.productID || item.amenityID}`}
-              checked={deliverWithBreakfast}
-              onChange={(e) => setDeliverWithBreakfast(e.target.checked)}
-            />
-            <label className="form-check-label text-muted user-select-none" htmlFor={`bundle-${type}-${item.productID || item.amenityID}`}>
-              Deliver with breakfast (6:00–10:30 AM)
-            </label>
-          </div>
-        ) : (
+        {isCookedMeal ? (
           <div className="mb-2 pt-1 border-top">
             <span className="badge bg-warning-subtle text-dark border border-warning-subtle small py-1 px-2 d-inline-block" style={{ fontSize: '0.68rem' }}>
-              <i className="bi bi-clock-history me-1 text-warning-emphasis"></i>Window: 6:00 AM – 10:30 AM
+              <i className="bi bi-clock-history me-1 text-warning-emphasis"></i>⏰ Scheduled Breakfast (6:00 AM – 10:30 AM)
             </span>
           </div>
-        )}
+        ) : null}
         <button
           type="button"
           className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs catalog-add-btn ${isAvailable ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
           style={{ backgroundColor: isAvailable ? 'var(--pcc-blue)' : undefined, borderColor: isAvailable ? 'var(--pcc-blue)' : undefined, borderRadius: '6px' }}
           disabled={!isAvailable}
-          onClick={() => onAdd(item, type, isCookedMeal, deliverWithBreakfast ? 'scheduled' : 'immediate')}
+          onClick={() => onAdd(item, type, isCookedMeal, isCookedMeal ? 'scheduled' : 'immediate')}
           aria-label={isAvailable ? `Add ${item.name} to Order Tray` : `${item.name} is Out of Stock`}
         >
           <i className="bi bi-cart-plus"></i>
@@ -235,7 +222,7 @@ function DeliveryTimeline({ deliveryType, currentStatus }) {
   );
 }
 
-const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loading, onBrowse }) {
+const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loading, onBrowse, onViewOrder }) {
   const [historyFilter, setHistoryFilter] = useState('all');
 
   const getStatusBadge = (status) => {
@@ -286,6 +273,15 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
             </span>
           </div>
           <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-primary py-0.5 px-2 fw-semibold d-flex align-items-center gap-1 shadow-xs"
+              style={{ fontSize: '0.74rem', borderRadius: '5px' }}
+              onClick={() => onViewOrder && onViewOrder(o)}
+            >
+              <i className="bi bi-pencil-square"></i>
+              <span>Modify Order</span>
+            </button>
             {o.orderStatus === 'Pending Delivery' ? (
               <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
                 <i className="bi bi-hourglass-split me-1"></i>Pending Delivery (Awaiting Check-in)
@@ -351,8 +347,19 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           </div>
         </div>
 
-        <div className="card-footer bg-light py-2 px-3 border-top d-flex justify-content-between align-items-center">
-          <small className="text-muted">Charged to Stay Billing</small>
+        <div className="card-footer bg-light py-2 px-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-primary fw-semibold d-flex align-items-center gap-1.5 shadow-xs px-2.5 py-1"
+              style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+              onClick={() => onViewOrder && onViewOrder(o)}
+            >
+              <i className="bi bi-eye"></i>
+              <span>View / Modify Order</span>
+            </button>
+            <small className="text-muted d-none d-sm-inline">&bull; Charged to Stay Billing</small>
+          </div>
           <div>
             <span className="text-muted small me-2">Order Total:</span>
             <strong className="text-success fs-6">₱{totalAmt.toFixed(2)}</strong>
@@ -490,6 +497,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   // Cart / Order Tray State: array of { itemID, type, name, price, quantity, isCookedMeal }
   const [cart, setCart] = useState([]);
   const [showMobileOrderModal, setShowMobileOrderModal] = useState(false);
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState(null);
 
   // Delivery Scheduling State for Cooked Meals
   const [todayStr, setTodayStr] = useState('');
@@ -1101,6 +1109,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
               orders={orderHistory}
               loading={loadingHistory}
               onBrowse={() => handleSelectCategory('all')}
+              onViewOrder={(order) => setSelectedOrderForModal(order)}
             />
           ) : (
             /* CATALOG ITEMS GRID */
@@ -1299,6 +1308,19 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
             </div>
           </div>
         </div>
+      )}
+
+      {/* VIEW / MODIFY ORDER MODAL */}
+      {selectedOrderForModal && (
+        <ViewOrdersModal
+          isOpen={Boolean(selectedOrderForModal)}
+          order={selectedOrderForModal}
+          onClose={() => setSelectedOrderForModal(null)}
+          onOrderUpdated={async () => {
+            await fetchOrderHistory();
+            await fetchCatalog();
+          }}
+        />
       )}
     </div>
   );

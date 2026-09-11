@@ -88,8 +88,8 @@ export default function ReceptionistOrders() {
     });
   };
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const res = await fetch('/api/receptionist/orders');
       const data = await res.json();
@@ -101,14 +101,29 @@ export default function ReceptionistOrders() {
       setAmenities(data.amenities || []);
       setActiveBookings(data.activeBookings || []);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
+
+    // Real-time polling every 8 seconds so receptionist sees updated orders and delivery types
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 8000);
+
+    const handleFocus = () => {
+      fetchData(true);
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Reset modal state

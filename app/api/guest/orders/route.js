@@ -471,10 +471,13 @@ export async function POST(request) {
       // Trigger sync inventory quantities
       syncInventoryStock();
 
+      const primaryOrderID = createdOrderIDs[0] || 0;
+      const summaryText = allOrderSummaries.join(' | ');
+
       // Notify Guest
       await dbQuery(
         "INSERT INTO notification (userID, title, message) VALUES (?, 'Order Placed Successfully', ?)",
-        [session.userID, `Your order #${orderID} (${orderSummaryList.join(', ')}) total ₱${totalOrderAmount.toFixed(2)} has been placed!`]
+        [session.userID, `Your order #${primaryOrderID} (${summaryText}) total ₱${grandTotalOrderAmount.toFixed(2)} has been placed!`]
       );
 
       // Notify Receptionists
@@ -482,7 +485,7 @@ export async function POST(request) {
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'New Guest Room Order', ?)",
-          [r.userID, `Guest ${guest.firstName} ${guest.lastName} placed Order #${orderID}: ${orderSummaryList.join(', ')} (₱${totalOrderAmount.toFixed(2)}).`]
+          [r.userID, `Guest ${guest.firstName} ${guest.lastName} placed Order #${primaryOrderID}: ${summaryText} (₱${grandTotalOrderAmount.toFixed(2)}).`]
         );
       }
 
@@ -491,10 +494,11 @@ export async function POST(request) {
 
       return NextResponse.json({
         success: true,
-        message: `Order #${orderID} placed successfully! Total: ₱${totalOrderAmount.toFixed(2)}`,
-        orderID,
-        totalAmount: totalOrderAmount,
-        summary: orderSummaryList.join(', ')
+        message: `Order #${primaryOrderID} placed successfully! Total: ₱${grandTotalOrderAmount.toFixed(2)}`,
+        orderID: primaryOrderID,
+        orderIDs: createdOrderIDs,
+        totalAmount: grandTotalOrderAmount,
+        summary: summaryText
       });
     } catch (err) {
       await connection.rollback();
@@ -504,6 +508,197 @@ export async function POST(request) {
     }
   } catch (error) {
     console.error("Failed to process guest chat order:", error);
+    return NextResponse.json({ error: 'Operation failed: ' + error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request) {
+  const session = await getSession();
+  if (!session || session.role !== 'Guest') {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
+  try {
+    await ensureOrdersSchema();
+    const body = await request.json();
+    const { orderID, items, deliveryDate, deliveryTime } = body;
+
+    if (!orderID) {
+      return NextResponse.json({ error: 'orderID is required.' }, { status: 400 });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'Order items are required.' }, { status: 400 });
+    }
+
+    const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
+    if (guests.length === 0) {
+      return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
+    }
+    const guest = guests[0];
+
+    // Verify order exists and belongs to this guest
+    const ordersFound = await dbQuery(
+      "SELECT orderID, guestID, bookingID, orderStatus, deliveryType, deliveryTime, deliveryDate FROM orders WHERE orderID = ? AND guestID = ?",
+      [parseInt(orderID, 10), guest.guestID]
+    );
+
+    if (ordersFound.length === 0) {
+      return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
+    }
+
+    const currentOrder = ordersFound[0];
+    const currentStatus = (currentOrder.orderStatus || '').toLowerCase();
+
+    // Check if order status permits modifications (only before preparation begins)
+    const nonModifiable = ['preparing', 'served', 'out for delivery', 'completed', 'delivered', 'canceled', 'cancelled'];
+    if (nonModifiable.some(s => currentStatus.includes(s))) {
+      return NextResponse.json({
+        error: `Order #${orderID} is already ${currentOrder.orderStatus} and can no longer be modified.`
+      }, { status: 400 });
+    }
+
+    // Connect to db and start transaction
+    const db = await getDbConnection();
+    const connection = await db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      let hasCookedMeals = false;
+
+      for (const it of items) {
+        const itemID = parseInt(it.itemID, 10);
+        const itemType = it.type; // 'Product' or 'Amenity'
+        let reqDelType = it.deliveryType === 'scheduled' ? 'scheduled' : 'immediate';
+
+        if (itemType === 'Product') {
+          // Check if cooked meal (productCategoryID === 3)
+          const [pRows] = await connection.execute("SELECT productCategoryID FROM products WHERE productID = ?", [itemID]);
+          if (pRows.length > 0 && pRows[0].productCategoryID === 3) {
+            // ENFORCE: Cooked meals are strictly locked to scheduled
+            reqDelType = 'scheduled';
+            hasCookedMeals = true;
+          }
+
+          // Update order_product
+          await connection.execute(
+            "UPDATE order_product SET deliveryType = ?, itemStatus = ? WHERE orderID = ? AND productID = ?",
+            [reqDelType, reqDelType === 'scheduled' ? 'Scheduled' : 'Placed', orderID, itemID]
+          );
+        } else if (itemType === 'Amenity') {
+          // Update order_amenities
+          await connection.execute(
+            "UPDATE order_amenities SET deliveryType = ?, itemStatus = ? WHERE orderID = ? AND amenityID = ?",
+            [reqDelType, reqDelType === 'scheduled' ? 'Scheduled' : 'Placed', orderID, itemID]
+          );
+        }
+      }
+
+      // Check all existing items in database for this order to ensure consistency
+      const [allOP] = await connection.execute(
+        `SELECT op.deliveryType, p.productCategoryID FROM order_product op
+         JOIN products p ON p.productID = op.productID
+         WHERE op.orderID = ?`,
+        [orderID]
+      );
+      const [allOA] = await connection.execute(
+        `SELECT deliveryType FROM order_amenities WHERE orderID = ?`,
+        [orderID]
+      );
+
+      const anyScheduledInDB = allOP.some(p => p.deliveryType === 'scheduled') || allOA.some(a => a.deliveryType === 'scheduled');
+      const anyCookedMealInDB = allOP.some(p => p.productCategoryID === 3);
+
+      const finalDeliveryType = anyScheduledInDB ? 'scheduled' : 'immediate';
+
+      let finalDeliveryDate = null;
+      let finalDeliveryTime = null;
+
+      if (finalDeliveryType === 'scheduled') {
+        const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Manila',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        const todayManila = manilaDateFormatter.format(new Date());
+
+        finalDeliveryDate = deliveryDate ? String(deliveryDate).trim() : (currentOrder.deliveryDate || todayManila);
+        finalDeliveryTime = deliveryTime || currentOrder.deliveryTime || '07:30 AM';
+
+        const allowedTimes = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
+        if (!allowedTimes.includes(finalDeliveryTime)) {
+          await connection.rollback();
+          return NextResponse.json({
+            error: "Breakfast delivery time must be scheduled between 6:00 AM and 10:30 AM."
+          }, { status: 400 });
+        }
+
+        if (finalDeliveryDate < todayManila) {
+          await connection.rollback();
+          return NextResponse.json({
+            error: "Scheduled delivery date cannot be in the past."
+          }, { status: 400 });
+        }
+      }
+
+      // Update orders table
+      // If order was Pending Delivery (awaiting check-in), preserve that status; otherwise if scheduled -> Scheduled, else Pending
+      let nextOrderStatus = currentOrder.orderStatus;
+      if (currentOrder.orderStatus !== 'Pending Delivery') {
+        nextOrderStatus = finalDeliveryType === 'scheduled' ? 'Scheduled' : 'Pending';
+      }
+
+      await connection.execute(
+        `UPDATE orders
+         SET deliveryType = ?,
+             hasCookedMeal = ?,
+             deliveryDate = ?,
+             deliveryTime = ?,
+             orderStatus = ?
+         WHERE orderID = ?`,
+        [
+          finalDeliveryType,
+          anyCookedMealInDB ? 1 : 0,
+          finalDeliveryDate,
+          finalDeliveryTime,
+          nextOrderStatus,
+          orderID
+        ]
+      );
+
+      await connection.commit();
+
+      // Log notification for staff
+      try {
+        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+        for (const r of staffToNotify) {
+          await dbQuery(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'Order Delivery Mode Updated', ?)",
+            [r.userID, `Guest ${guest.firstName} ${guest.lastName} updated delivery mode for Order #${orderID} to ${finalDeliveryType.toUpperCase()}${finalDeliveryType === 'scheduled' ? ` (${finalDeliveryTime})` : ''}.`]
+          );
+        }
+      } catch (ne) {
+        console.error("Failed to notify staff:", ne);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Order delivery preferences updated successfully.',
+        orderID,
+        deliveryType: finalDeliveryType,
+        deliveryDate: finalDeliveryDate,
+        deliveryTime: finalDeliveryTime
+      });
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Failed to update guest order delivery mode:", error);
     return NextResponse.json({ error: 'Operation failed: ' + error.message }, { status: 500 });
   }
 }
