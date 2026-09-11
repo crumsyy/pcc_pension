@@ -174,24 +174,30 @@ export async function POST(request) {
 
     const booking = bookings[0];
 
-    // Check if order contains cooked meals (productCategoryID === 3)
+    // Check if order contains cooked meals (productCategoryID === 3) or bundled scheduled items
     let containsCookedMeal = false;
+    let hasScheduledItems = false;
     for (const item of items) {
       if (item.type === 'Product') {
         const pCheck = await dbQuery("SELECT productCategoryID FROM products WHERE productID = ?", [parseInt(item.itemID)]);
         if (pCheck.length > 0 && pCheck[0].productCategoryID === 3) {
           containsCookedMeal = true;
-          if (item.deliveryType === 'immediate') {
-            return NextResponse.json({
-              error: "Cooked breakfast meals cannot be ordered with 'Deliver Now'. They must be scheduled between 6:00 AM and 10:30 AM."
-            }, { status: 400 });
-          }
+          // Cooked breakfast meals MUST always be scheduled
           item.deliveryType = 'scheduled';
+        } else {
+          // Products: honor checkbox selection (default immediate)
+          item.deliveryType = item.deliveryType === 'scheduled' ? 'scheduled' : 'immediate';
         }
+      } else {
+        // Amenities: honor checkbox selection (default immediate)
+        item.deliveryType = item.deliveryType === 'scheduled' ? 'scheduled' : 'immediate';
+      }
+      if (item.deliveryType === 'scheduled') {
+        hasScheduledItems = true;
       }
     }
 
-    // Validate deliveryTime and deliveryDate for cooked meals
+    // Validate deliveryTime and deliveryDate for scheduled breakfast items
     const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Manila',
       year: 'numeric',
@@ -199,12 +205,12 @@ export async function POST(request) {
       day: '2-digit'
     });
     const todayManila = manilaDateFormatter.format(new Date()); // YYYY-MM-DD
-    const deliveryDate = body.deliveryDate ? String(body.deliveryDate).trim() : (containsCookedMeal ? todayManila : null);
+    const deliveryDate = body.deliveryDate ? String(body.deliveryDate).trim() : (hasScheduledItems ? todayManila : null);
 
-    if (containsCookedMeal) {
+    if (hasScheduledItems) {
       if (!body.deliveryTime) {
         return NextResponse.json({
-          error: "Please select a scheduled delivery time (between 6:00 AM and 10:30 AM) for cooked breakfast meals."
+          error: "Please select a scheduled breakfast delivery time (between 6:00 AM and 10:30 AM) for your scheduled items."
         }, { status: 400 });
       }
       const allowedTimes = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];

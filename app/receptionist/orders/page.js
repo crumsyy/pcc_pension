@@ -29,6 +29,7 @@ export default function ReceptionistOrders() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [deliveryTab, setDeliveryTab] = useState('immediate'); // 'immediate' | 'scheduled' | 'all'
 
   // Modals
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'view_order' | null
@@ -158,24 +159,31 @@ export default function ReceptionistOrders() {
       return;
     }
 
-    const updatedItems = [...newOrderForm.items];
-    if (existsIndex >= 0) {
-      updatedItems[existsIndex].quantity += qty;
-    } else {
-      updatedItems.push({
-        itemID,
-        type,
-        quantity: qty,
-        name: details.name,
-        price: parseFloat(details.price),
-        image: details.image || null
-      });
-    }
+    const isMeal = (type === 'Product' && details.productCategoryID === 3) || activeItemCategory === 'Meal';
+    const initialDeliveryType = isMeal ? 'scheduled' : 'immediate';
 
-    setNewOrderForm(prev => ({
-      ...prev,
-      items: updatedItems
-    }));
+    if (existsIndex >= 0) {
+      const updated = [...newOrderForm.items];
+      updated[existsIndex].quantity += qty;
+      setNewOrderForm(prev => ({ ...prev, items: updated }));
+    } else {
+      setNewOrderForm(prev => ({
+        ...prev,
+        items: [
+          ...prev.items,
+          {
+            itemID,
+            type,
+            name: details.name,
+            price: parseFloat(details.price),
+            quantity: qty,
+            image: details.image || null,
+            isCookedMeal: isMeal,
+            deliveryType: initialDeliveryType
+          }
+        ]
+      }));
+    }
 
     setSelectedItemToAdd({
       idAndType: '',
@@ -261,13 +269,25 @@ export default function ReceptionistOrders() {
     }
   };
 
+  // Task list counts
+  const immediateOrdersCount = orders.filter(o => (o.immediateItems && o.immediateItems.length > 0) || (o.deliveryType === 'immediate' && (!o.scheduledItems || o.scheduledItems.length === 0))).length;
+  const scheduledOrdersCount = orders.filter(o => (o.scheduledItems && o.scheduledItems.length > 0) || o.deliveryType === 'scheduled' || Boolean(o.deliveryTime)).length;
+
   // Filter & Search
   const filteredOrders = orders.filter(o => {
     const matchesSearch = 
       (o.firstName + ' ' + o.lastName).toLowerCase().includes(search.toLowerCase()) ||
       (o.roomNumber || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === '' || o.orderStatus === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    let matchesDelivery = true;
+    if (deliveryTab === 'immediate') {
+      matchesDelivery = (o.immediateItems && o.immediateItems.length > 0) || (o.deliveryType === 'immediate' && (!o.scheduledItems || o.scheduledItems.length === 0));
+    } else if (deliveryTab === 'scheduled') {
+      matchesDelivery = (o.scheduledItems && o.scheduledItems.length > 0) || o.deliveryType === 'scheduled' || Boolean(o.deliveryTime);
+    }
+
+    return matchesSearch && matchesStatus && matchesDelivery;
   });
 
 
@@ -291,6 +311,57 @@ export default function ReceptionistOrders() {
 
         <div className="card shadow-sm border-0 flex-grow-1 d-flex flex-column overflow-hidden mb-3" style={{ borderRadius: '8px', minHeight: 0 }}>
           <div className="card-header bg-white py-3 border-0">
+            {/* TWO TASK LISTS TABS: IMMEDIATE VS SCHEDULED */}
+            <div className="d-flex flex-wrap gap-2 mb-3">
+              <button
+                type="button"
+                className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-bold shadow-xs ${
+                  deliveryTab === 'immediate'
+                    ? 'btn-success text-white'
+                    : 'btn-outline-secondary bg-white text-dark'
+                }`}
+                onClick={() => setDeliveryTab('immediate')}
+              >
+                <i className="bi bi-lightning-charge-fill text-warning"></i>
+                <span>⚡ Immediate Deliveries</span>
+                <span className={`badge ${deliveryTab === 'immediate' ? 'bg-white text-success' : 'bg-success text-white'} ms-1`}>
+                  {immediateOrdersCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-bold shadow-xs ${
+                  deliveryTab === 'scheduled'
+                    ? 'btn-primary text-white'
+                    : 'btn-outline-secondary bg-white text-dark'
+                }`}
+                onClick={() => setDeliveryTab('scheduled')}
+              >
+                <i className="bi bi-clock-history"></i>
+                <span>⏰ Scheduled Breakfast Deliveries (6:00–10:30 AM)</span>
+                <span className={`badge ${deliveryTab === 'scheduled' ? 'bg-white text-primary' : 'bg-primary text-white'} ms-1`}>
+                  {scheduledOrdersCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className={`btn btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-semibold shadow-xs ${
+                  deliveryTab === 'all'
+                    ? 'btn-secondary text-white'
+                    : 'btn-outline-secondary bg-white text-muted'
+                }`}
+                onClick={() => setDeliveryTab('all')}
+              >
+                <i className="bi bi-list-check"></i>
+                <span>All Orders</span>
+                <span className="badge bg-light text-dark ms-1">
+                  {orders.length}
+                </span>
+              </button>
+            </div>
+
             <div className="row g-2 align-items-center">
               <div className="col-md-4">
                 <input
@@ -359,37 +430,41 @@ export default function ReceptionistOrders() {
                             {o.firstName} {o.lastName}
                           </td>
                           <td>
-                            <div className="d-flex flex-column gap-1">
-                              {o.items.map((item, idx) => (
-                                <div key={idx} className="d-flex align-items-center gap-1.5" style={{ fontSize: '0.85rem' }}>
-                                  {item.image ? (
-                                    <img
-                                      src={item.image}
-                                      alt={item.name}
-                                      className="rounded border flex-shrink-0"
-                                      style={{ width: '22px', height: '22px', objectFit: 'cover' }}
-                                      onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                        const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-xs');
-                                        if (fb) fb.style.display = 'inline-flex';
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div className="image-fallback-xs rounded border bg-light text-muted flex-shrink-0 align-items-center justify-content-center" style={{ width: '22px', height: '22px', fontSize: '0.55rem', display: item.image ? 'none' : 'inline-flex' }}>
-                                    <i className="bi bi-image"></i>
+                            <div className="d-flex flex-column gap-2">
+                              {/* Immediate Items Group */}
+                              {((o.immediateItems && o.immediateItems.length > 0) || (!o.scheduledItems?.length && o.items.some(it => it.deliveryType !== 'scheduled'))) && (
+                                <div className="p-1.5 rounded bg-success-subtle border border-success-subtle">
+                                  <div className="d-flex align-items-center gap-1 text-success fw-bold mb-1" style={{ fontSize: '0.72rem' }}>
+                                    <i className="bi bi-lightning-charge-fill text-warning"></i>
+                                    <span>Immediate Delivery</span>
                                   </div>
-                                  <span><span className="text-muted">{item.quantity}x</span> {item.name}</span>
-                                  <span className="text-muted ms-1">(₱{parseFloat(item.price).toFixed(2)})</span>
+                                  {(o.immediateItems || o.items.filter(it => it.deliveryType !== 'scheduled')).map((item, idx) => (
+                                    <div key={idx} className="d-flex align-items-center gap-1.5" style={{ fontSize: '0.82rem' }}>
+                                      <span className="fw-semibold text-dark">{item.quantity}x {item.name}</span>
+                                      <span className="text-muted ms-1">(₱{parseFloat(item.price).toFixed(2)})</span>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              )}
+
+                              {/* Scheduled Items Group */}
+                              {((o.scheduledItems && o.scheduledItems.length > 0) || o.items.some(it => it.deliveryType === 'scheduled')) && (
+                                <div className="p-1.5 rounded bg-primary-subtle border border-primary-subtle">
+                                  <div className="d-flex align-items-center justify-content-between text-primary fw-bold mb-1" style={{ fontSize: '0.72rem' }}>
+                                    <span><i className="bi bi-clock-history me-1"></i>Scheduled Breakfast</span>
+                                    <span className="badge bg-white text-primary border border-primary-subtle px-1.5 py-0.5" style={{ fontSize: '0.68rem' }}>
+                                      {o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime || '07:30 AM'}
+                                    </span>
+                                  </div>
+                                  {(o.scheduledItems || o.items.filter(it => it.deliveryType === 'scheduled')).map((item, idx) => (
+                                    <div key={idx} className="d-flex align-items-center gap-1.5" style={{ fontSize: '0.82rem' }}>
+                                      <span className="fw-semibold text-dark">{item.quantity}x {item.name}</span>
+                                      <span className="text-muted ms-1">(₱{parseFloat(item.price).toFixed(2)})</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                            {o.deliveryTime && (
-                              <div className="mt-1">
-                                <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5" style={{ fontSize: '0.73rem' }}>
-                                  <i className="bi bi-clock me-1"></i>Scheduled Delivery: {o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime}
-                                </span>
-                              </div>
-                            )}
                           </td>
                           <td className="fw-bold text-dark">
                             ₱{totalAmt.toFixed(2)}
@@ -577,7 +652,7 @@ export default function ReceptionistOrders() {
                     })()}
                   </div>
 
-                  {(activeItemCategory === 'Meal' || newOrderForm.items.some(item => cookedMeals.some(m => m.productID === item.itemID))) && (() => {
+                  {(activeItemCategory === 'Meal' || newOrderForm.items.some(item => item.deliveryType === 'scheduled' || cookedMeals.some(m => m.productID === item.itemID))) && (() => {
                     const slots = ['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
                     const todayManila = getTodayManila();
                     const selectedDate = newOrderForm.deliveryDate || todayManila;
@@ -672,6 +747,7 @@ export default function ReceptionistOrders() {
                         <tr>
                           <th className="ps-3">Item Name</th>
                           <th>Type</th>
+                          <th>Delivery Mode</th>
                           <th>Price</th>
                           <th>Quantity</th>
                           <th>Total</th>
@@ -681,7 +757,7 @@ export default function ReceptionistOrders() {
                       <tbody>
                         {newOrderForm.items.length === 0 ? (
                           <tr>
-                            <td colSpan="6" className="text-center py-4 text-muted small">
+                            <td colSpan="7" className="text-center py-4 text-muted small">
                               No items added to the bucket yet.
                             </td>
                           </tr>
@@ -711,6 +787,33 @@ export default function ReceptionistOrders() {
                                 </div>
                               </td>
                               <td><span className="badge bg-secondary-subtle text-secondary">{item.type}</span></td>
+                              <td>
+                                {item.isCookedMeal ? (
+                                  <span className="badge bg-warning-subtle text-dark border border-warning-subtle" style={{ fontSize: '0.70rem' }}>
+                                    ⏰ Scheduled (6:00–10:30 AM)
+                                  </span>
+                                ) : (
+                                  <div className="form-check mb-0" style={{ fontSize: '0.72rem' }}>
+                                    <input
+                                      className="form-check-input"
+                                      type="checkbox"
+                                      id={`rec-item-bundle-${idx}`}
+                                      checked={item.deliveryType === 'scheduled'}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setNewOrderForm(prev => {
+                                          const updated = [...prev.items];
+                                          updated[idx] = { ...updated[idx], deliveryType: checked ? 'scheduled' : 'immediate' };
+                                          return { ...prev, items: updated };
+                                        });
+                                      }}
+                                    />
+                                    <label className="form-check-label text-muted user-select-none fw-semibold" htmlFor={`rec-item-bundle-${idx}`}>
+                                      Deliver with breakfast
+                                    </label>
+                                  </div>
+                                )}
+                              </td>
                               <td>₱{item.price.toFixed(2)}</td>
                               <td>{item.quantity}</td>
                               <td className="fw-bold">₱{(item.price * item.quantity).toFixed(2)}</td>
@@ -785,6 +888,7 @@ export default function ReceptionistOrders() {
                     <thead className="table-light">
                       <tr>
                         <th>Item Description</th>
+                        <th className="text-center">Delivery Mode</th>
                         <th className="text-center">Qty</th>
                         <th className="text-end">Unit Price</th>
                         <th className="text-end">Subtotal</th>
@@ -814,6 +918,11 @@ export default function ReceptionistOrders() {
                               </div>
                               <span>{it.name}</span>
                             </div>
+                          </td>
+                          <td className="text-center">
+                            <span className={`badge ${it.deliveryType === 'scheduled' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-success-subtle text-success border border-success-subtle'} px-2 py-0.5`} style={{ fontSize: '0.70rem' }}>
+                              {it.deliveryType === 'scheduled' ? '⏰ With Breakfast' : '⚡ Immediate'}
+                            </span>
                           </td>
                           <td className="text-center">{it.quantity}x</td>
                           <td className="text-end">₱{parseFloat(it.price).toFixed(2)}</td>

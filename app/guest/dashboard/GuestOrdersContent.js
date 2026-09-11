@@ -8,14 +8,15 @@ let cachedOrdersCatalog = null;
 let cachedOrderHistory = null;
 
 const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCookedMeal, onAdd }) {
+  const [deliverWithBreakfast, setDeliverWithBreakfast] = useState(false);
   const isAvailable = isCookedMeal || (item.availableQty === undefined || item.availableQty > 0);
-  const badgeLabel = isCookedMeal ? 'Cooked Meal' : type === 'Amenity' ? 'Amenity' : 'Minibar / Store';
+  const badgeLabel = isCookedMeal ? 'Cooked Meal (Scheduled)' : type === 'Amenity' ? 'Amenity (Immediate)' : 'Minibar / Store (Immediate)';
   const badgeClass = isCookedMeal ? 'bg-warning-subtle text-dark border-warning-subtle' : type === 'Amenity' ? 'bg-secondary-subtle text-dark border-secondary-subtle' : 'bg-info-subtle text-dark border-info-subtle';
   const descText = isCookedMeal 
-    ? 'Freshly prepared breakfast meal served with scheduled room delivery tracking.'
+    ? 'Freshly prepared breakfast meal served during 6:00 AM – 10:30 AM delivery window.'
     : type === 'Amenity'
-    ? 'Extra guest room amenity delivered directly by front desk staff.'
-    : 'Available for prompt delivery to your hotel room.';
+    ? 'Extra guest room amenity delivered immediately by front desk staff.'
+    : 'Snacks & beverages available for immediate delivery to your room.';
 
   return (
     <div 
@@ -54,7 +55,7 @@ const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCook
           <div className="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
             <span className={`badge border small ${badgeClass} d-none d-sm-inline-block`} style={{ fontSize: '0.68rem' }}>{badgeLabel}</span>
             <span className={`badge border ${badgeClass} d-sm-none p-1`} style={{ fontSize: '0.58rem' }}>
-              {isCookedMeal ? 'Meal' : type === 'Amenity' ? 'Amenity' : 'Store'}
+              {isCookedMeal ? 'Scheduled Meal' : 'Immediate'}
             </span>
             <span className="fw-bold text-success" style={{ fontSize: '0.88rem' }}>₱{parseFloat(item.price).toFixed(2)}</span>
           </div>
@@ -65,12 +66,32 @@ const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCook
         </div>
       </div>
       <div className="p-2 p-sm-3 pt-1 pt-sm-0 mt-auto">
+        {!isCookedMeal ? (
+          <div className="form-check mb-2 pt-1 border-top" style={{ fontSize: '0.73rem' }}>
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id={`bundle-${type}-${item.productID || item.amenityID}`}
+              checked={deliverWithBreakfast}
+              onChange={(e) => setDeliverWithBreakfast(e.target.checked)}
+            />
+            <label className="form-check-label text-muted user-select-none" htmlFor={`bundle-${type}-${item.productID || item.amenityID}`}>
+              Deliver with breakfast (6:00–10:30 AM)
+            </label>
+          </div>
+        ) : (
+          <div className="mb-2 pt-1 border-top">
+            <span className="badge bg-warning-subtle text-dark border border-warning-subtle small py-1 px-2 d-inline-block" style={{ fontSize: '0.68rem' }}>
+              <i className="bi bi-clock-history me-1 text-warning-emphasis"></i>Window: 6:00 AM – 10:30 AM
+            </span>
+          </div>
+        )}
         <button
           type="button"
           className={`btn btn-sm w-100 fw-semibold d-flex align-items-center justify-content-center gap-1 shadow-xs catalog-add-btn ${isAvailable ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
           style={{ backgroundColor: isAvailable ? 'var(--pcc-blue)' : undefined, borderColor: isAvailable ? 'var(--pcc-blue)' : undefined, borderRadius: '6px' }}
           disabled={!isAvailable}
-          onClick={() => onAdd(item, type, isCookedMeal)}
+          onClick={() => onAdd(item, type, isCookedMeal, deliverWithBreakfast ? 'scheduled' : 'immediate')}
           aria-label={isAvailable ? `Add ${item.name} to Order Tray` : `${item.name} is Out of Stock`}
         >
           <i className="bi bi-cart-plus"></i>
@@ -343,14 +364,14 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
             className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
             onClick={() => setHistoryFilter('immediate')}
           >
-            ⚡ Immediate ({immediateOrders.length})
+            ⚡ Immediate Deliveries ({immediateOrders.length})
           </button>
           <button
             type="button"
-            className={`btn btn-sm ${historyFilter === 'scheduled' ? 'btn-info text-dark fw-bold' : 'btn-outline-secondary'}`}
+            className={`btn btn-sm ${historyFilter === 'scheduled' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary'}`}
             onClick={() => setHistoryFilter('scheduled')}
           >
-            ⏰ Scheduled ({scheduledOrders.length})
+            ⏰ Scheduled Breakfast Deliveries ({scheduledOrders.length})
           </button>
         </div>
       </div>
@@ -558,9 +579,9 @@ export default function GuestOrdersContent({ guest }) {
 
   const hasScheduledItemsInCart = useMemo(() => cart.some(item => item.deliveryType === 'scheduled'), [cart]);
 
-  const handleAddToCart = useCallback((item, type, isCookedMeal = false) => {
+  const handleAddToCart = useCallback((item, type, isCookedMeal = false, chosenDeliveryType = null) => {
     const itemID = type === 'Product' ? item.productID : item.amenityID;
-    const defaultDeliveryType = isCookedMeal ? 'scheduled' : 'immediate';
+    const defaultDeliveryType = isCookedMeal ? 'scheduled' : (chosenDeliveryType || 'immediate');
     setCart(prev => {
       const existsIndex = prev.findIndex(c => c.itemID === itemID && c.type === type);
       if (existsIndex >= 0) {
@@ -569,7 +590,11 @@ export default function GuestOrdersContent({ guest }) {
           return prev;
         }
         const updated = [...prev];
-        updated[existsIndex] = { ...updated[existsIndex], quantity: updated[existsIndex].quantity + 1 };
+        updated[existsIndex] = {
+          ...updated[existsIndex],
+          quantity: updated[existsIndex].quantity + 1,
+          deliveryType: isCookedMeal ? 'scheduled' : (chosenDeliveryType || updated[existsIndex].deliveryType)
+        };
         return updated;
       }
       return [
@@ -800,35 +825,31 @@ export default function GuestOrdersContent({ guest }) {
                 </div>
               </div>
 
-              {/* PER-ITEM DELIVERY TIMING SELECTOR */}
+              {/* PER-ITEM DELIVERY TIMING SELECTOR / BUNDLING CHECKBOX */}
               {item.isCookedMeal || item.type === 'CookedMeal' ? (
                 <div className="d-flex align-items-center justify-content-between pt-1.5 border-top" style={{ fontSize: '0.74rem' }}>
-                  <span className="text-muted fw-semibold">Delivery:</span>
+                  <span className="text-muted fw-semibold">Delivery Window:</span>
                   <span className="badge bg-warning-subtle text-dark border border-warning-subtle py-1 px-2 fw-semibold" style={{ fontSize: '0.70rem' }}>
-                    <i className="bi bi-clock-history me-1 text-warning-emphasis"></i>Scheduled (6:00 AM – 10:30 AM)
+                    <i className="bi bi-clock-history me-1 text-warning-emphasis"></i>Scheduled Breakfast (6:00–10:30 AM)
                   </span>
                 </div>
               ) : (
-                <div className="d-flex align-items-center justify-content-between pt-1.5 border-top" style={{ fontSize: '0.74rem' }}>
-                  <span className="text-muted fw-semibold">Delivery:</span>
-                  <div className="btn-group btn-group-sm" role="group">
-                    <button
-                      type="button"
-                      className={`btn btn-xs py-0.5 px-2 ${item.deliveryType !== 'scheduled' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary text-muted'}`}
-                      style={{ fontSize: '0.68rem' }}
-                      onClick={() => handleToggleItemDelivery(idx, 'immediate')}
-                    >
-                      ⚡ Deliver now
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn btn-xs py-0.5 px-2 ${item.deliveryType === 'scheduled' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary text-muted'}`}
-                      style={{ fontSize: '0.68rem' }}
-                      onClick={() => handleToggleItemDelivery(idx, 'scheduled')}
-                    >
-                      ⏰ With breakfast
-                    </button>
+                <div className="d-flex align-items-center justify-content-between pt-1.5 border-top flex-wrap gap-1" style={{ fontSize: '0.74rem' }}>
+                  <div className="form-check form-check-inline mb-0" style={{ fontSize: '0.73rem' }}>
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id={`tray-bundle-${idx}`}
+                      checked={item.deliveryType === 'scheduled'}
+                      onChange={(e) => handleToggleItemDelivery(idx, e.target.checked ? 'scheduled' : 'immediate')}
+                    />
+                    <label className="form-check-label text-muted user-select-none fw-semibold" htmlFor={`tray-bundle-${idx}`}>
+                      Deliver with breakfast (6:00–10:30 AM)
+                    </label>
                   </div>
+                  <span className={`badge ${item.deliveryType === 'scheduled' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-success-subtle text-success border border-success-subtle'} py-0.5 px-2`} style={{ fontSize: '0.68rem' }}>
+                    {item.deliveryType === 'scheduled' ? '⏰ With Breakfast' : '⚡ Immediate'}
+                  </span>
                 </div>
               )}
             </div>
@@ -962,35 +983,28 @@ export default function GuestOrdersContent({ guest }) {
           <div className="btn-group flex-wrap shadow-xs" role="group">
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'all' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
+              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'meals' ? 'btn-primary text-white' : 'btn-outline-secondary bg-white'}`}
+              onClick={() => handleSelectCategory('meals')}
+            >
+              🍳 Cooked Meals (Scheduled: 6:00–10:30 AM) ({cookedMeals.length})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'products_amenities' ? 'btn-primary text-white' : 'btn-outline-secondary bg-white'}`}
+              onClick={() => handleSelectCategory('products_amenities')}
+            >
+              🛍️ Products & Amenities (Immediate) ({products.length + amenities.length})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'all' ? 'btn-primary text-white' : 'btn-outline-secondary bg-white'}`}
               onClick={() => handleSelectCategory('all')}
             >
               All Items
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'meals' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
-              onClick={() => handleSelectCategory('meals')}
-            >
-              🍳 Cooked Meals ({cookedMeals.length})
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'products' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
-              onClick={() => handleSelectCategory('products')}
-            >
-              🥤 Products & Drinks ({products.length})
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'amenities' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
-              onClick={() => handleSelectCategory('amenities')}
-            >
-              🛎️ Amenities ({amenities.length})
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'history' ? 'btn-primary' : 'btn-outline-secondary bg-white'}`}
+              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'history' ? 'btn-primary text-white' : 'btn-outline-secondary bg-white'}`}
               onClick={() => handleSelectCategory('history')}
             >
               📋 My Orders ({orderHistory.length})
@@ -1068,16 +1082,16 @@ export default function GuestOrdersContent({ guest }) {
                 )}
 
                 {/* PRODUCTS SECTION */}
-                {(activeCategory === 'all' || activeCategory === 'products') && filteredProducts.length > 0 && (
+                {(activeCategory === 'all' || activeCategory === 'products_amenities' || activeCategory === 'products') && filteredProducts.length > 0 && (
                   <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
                     <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                         <span className="p-1.5 px-2.5 rounded bg-info-subtle text-info-emphasis small fw-bold d-flex align-items-center gap-1.5">
-                          <i className="bi bi-cup-straw"></i> Minibar / Store
+                          <i className="bi bi-cup-straw"></i> Minibar &amp; Store
                         </span>
-                        <span>Beverages &amp; Snacks</span>
+                        <span>Beverages &amp; Snacks (Immediate Delivery)</span>
                       </h5>
-                      <small className="text-muted d-none d-sm-inline">Immediate room delivery</small>
+                      <small className="text-muted d-none d-sm-inline">Immediate delivery or bundle with breakfast</small>
                     </div>
                     <div className="row g-2 g-md-3">
                       {filteredProducts.map(p => (
@@ -1095,7 +1109,7 @@ export default function GuestOrdersContent({ guest }) {
                 )}
 
                 {/* AMENITIES SECTION */}
-                {(activeCategory === 'all' || activeCategory === 'amenities') && filteredAmenities.length > 0 && (
+                {(activeCategory === 'all' || activeCategory === 'products_amenities' || activeCategory === 'amenities') && filteredAmenities.length > 0 && (
                   <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
                     <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">

@@ -29,12 +29,18 @@ export async function GET(request) {
     // 2. Fetch order items (products and amenities)
     const [orderProducts, orderAmenities] = await Promise.all([
       dbQuery(`
-        SELECT op.orderID, op.quantity, p.productID as itemID, p.name, p.price, p.image, 'Product' as type
+        SELECT op.orderID, op.quantity, op.isComplimentary,
+               COALESCE(op.deliveryType, 'immediate') as deliveryType,
+               COALESCE(op.itemStatus, 'Placed') as itemStatus,
+               p.productID as itemID, p.name, p.price, p.image, p.productCategoryID, 'Product' as type
         FROM order_product op
         JOIN products p ON p.productID = op.productID
       `),
       dbQuery(`
-        SELECT oa.orderID, oa.quantity, a.amenityID as itemID, a.name, a.price, a.image, 'Amenity' as type
+        SELECT oa.orderID, oa.quantity,
+               COALESCE(oa.deliveryType, 'immediate') as deliveryType,
+               COALESCE(oa.itemStatus, 'Placed') as itemStatus,
+               a.amenityID as itemID, a.name, a.price, a.image, 'Amenity' as type
         FROM order_amenities oa
         JOIN amenities a ON a.amenityID = oa.amenityID
       `)
@@ -43,9 +49,14 @@ export async function GET(request) {
     const orders = ordersRaw.map(o => {
       const products = orderProducts.filter(op => op.orderID === o.orderID);
       const amenities = orderAmenities.filter(oa => oa.orderID === o.orderID);
+      const allItems = [...products, ...amenities];
+      const immediateItems = allItems.filter(it => it.deliveryType === 'immediate');
+      const scheduledItems = allItems.filter(it => it.deliveryType === 'scheduled');
       return {
         ...o,
-        items: [...products, ...amenities]
+        items: allItems,
+        immediateItems,
+        scheduledItems
       };
     });
 
@@ -245,10 +256,11 @@ export async function POST(request) {
         const roomHasBreakfast = rateCheck.length > 0;
 
         const deliveryTime = body.deliveryTime || null;
+        const orderDeliveryType = (containsCookedBreakfast || items.some(it => it.deliveryType === 'scheduled')) ? 'scheduled' : 'immediate';
         // 1. Create order record
         const [orderResult] = await connection.execute(
-          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal, deliveryTime, deliveryDate) VALUES ('Preparing', ?, ?, ?, ?, ?, ?)",
-          [nowStr, guestID, activeBookingID, containsCookedBreakfast ? 1 : 0, deliveryTime, deliveryDate]
+          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal, deliveryTime, deliveryDate, deliveryType) VALUES ('Preparing', ?, ?, ?, ?, ?, ?, ?)",
+          [nowStr, guestID, activeBookingID, containsCookedBreakfast ? 1 : 0, deliveryTime, deliveryDate, orderDeliveryType]
         );
         const orderID = orderResult.insertId;
 
@@ -276,7 +288,7 @@ export async function POST(request) {
               currentCompCount++;
             }
             await connection.execute(
-              "INSERT INTO order_product(quantity, orderID, productID, isComplimentary) VALUES(?, ?, ?, ?)",
+              "INSERT INTO order_product(quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES(?, ?, ?, ?, 'scheduled', 'Scheduled')",
               [quantity, orderID, itemID, isComplimentary]
             );
             continue;
@@ -341,11 +353,13 @@ export async function POST(request) {
             );
           }
 
+          const itDelType = item.deliveryType === 'scheduled' ? 'scheduled' : 'immediate';
+          const itStatus = itDelType === 'scheduled' ? 'Scheduled' : 'Placed';
           if (item.type === 'Product') {
-            await connection.execute("INSERT INTO order_product(quantity, orderID, productID) VALUES(?, ?, ?)", [quantity, orderID, itemID]);
+            await connection.execute("INSERT INTO order_product(quantity, orderID, productID, deliveryType, itemStatus) VALUES(?, ?, ?, ?, ?)", [quantity, orderID, itemID, itDelType, itStatus]);
             await connection.execute("UPDATE products SET quantity = GREATEST(0, quantity - ?) WHERE productID = ?", [quantity, itemID]);
           } else {
-            await connection.execute("INSERT INTO order_amenities(quantity, orderID, amenityID) VALUES(?, ?, ?)", [quantity, orderID, itemID]);
+            await connection.execute("INSERT INTO order_amenities(quantity, orderID, amenityID, deliveryType, itemStatus) VALUES(?, ?, ?, ?, ?)", [quantity, orderID, itemID, itDelType, itStatus]);
             await connection.execute("UPDATE amenities SET quantity = GREATEST(0, quantity - ?) WHERE amenityID = ?", [quantity, itemID]);
           }
         }
