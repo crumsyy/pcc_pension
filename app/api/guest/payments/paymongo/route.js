@@ -93,3 +93,40 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Internal server error: ' + error.message }, { status: 500 });
   }
 }
+
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const sourceID = searchParams.get('sourceID');
+    if (!sourceID) {
+      return NextResponse.json({ error: 'Source ID is required.' }, { status: 400 });
+    }
+
+    const secretKey = process.env.PAYMONGO_SECRET_KEY || 'sk_test_GjYHQCNkKkxUuhQykSsSetrS';
+    const authHeader = 'Basic ' + Buffer.from(`${secretKey}:`).toString('base64');
+
+    const res = await fetch(`https://api.paymongo.com/v1/sources/${sourceID}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': authHeader
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok || data.errors) {
+      return NextResponse.json({ error: data.errors?.[0]?.detail || 'Failed to check source status.' }, { status: 400 });
+    }
+
+    const sourceStatus = data?.data?.attributes?.status; // 'pending' | 'chargeable' | 'cancelled' | 'expired' | 'paid'
+    const isPaid = (sourceStatus === 'chargeable' || sourceStatus === 'paid' || sourceStatus === 'succeeded');
+
+    return NextResponse.json({
+      success: true,
+      status: sourceStatus,
+      isPaid,
+      sourceID
+    });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

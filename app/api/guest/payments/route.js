@@ -35,10 +35,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Valid Booking ID and amount are required.' }, { status: 400 });
     }
 
-    const cleanRef = (body.referenceNumber && String(body.referenceNumber).trim()) || (isTestAuth ? `PM-AUTH-${Date.now().toString().slice(-8)}` : '');
-    if (!cleanRef) {
-      return NextResponse.json({ error: 'Payment Reference Number is required.' }, { status: 400 });
-    }
+    const cleanRef = (body.referenceNumber && String(body.referenceNumber).trim()) || `PM-${Date.now().toString().slice(-8)}`;
 
     const { paymentPercentage } = body;
 
