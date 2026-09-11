@@ -88,8 +88,9 @@ export default function ReceptionistReservationForm({
 
   const today = new Date();
   const pad = (n) => String(n).padStart(2, '0');
-  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-  const effectiveMinDate = minDate || todayStr;
+  const minLeadDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+  const minLeadDateStr = `${minLeadDate.getFullYear()}-${pad(minLeadDate.getMonth() + 1)}-${pad(minLeadDate.getDate())}`;
+  const effectiveMinDate = (minDate && minDate > minLeadDateStr) ? minDate : minLeadDateStr;
 
   return (
     <div className={`receptionist-reservation-form ${className}`}>

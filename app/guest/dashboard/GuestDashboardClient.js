@@ -191,10 +191,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const pad = (n) => String(n).padStart(2, '0');
     const todayStr = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
     setMinBookDateStr(todayStr);
-    setMinReserveDateStr(todayStr);
 
-    const maxD = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 2);
-    setMaxReserveDateStr(`${maxD.getFullYear()}-${pad(maxD.getMonth() + 1)}-${pad(maxD.getDate())}`);
+    const minReserveD = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 2);
+    setMinReserveDateStr(`${minReserveD.getFullYear()}-${pad(minReserveD.getMonth() + 1)}-${pad(minReserveD.getDate())}`);
+    setMaxReserveDateStr('');
   }, []);
 
   useEffect(() => {
@@ -957,21 +957,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     e.preventDefault();
     if (!selectedRoom) return;
 
-    // Reservation Rule: Guests can only select today’s date and up to 2 days ahead maximum
+    // Reservation Rule: Strict 2-day lead time. Guests cannot select today or tomorrow.
     const pad = (n) => String(n).padStart(2, '0');
     const today = new Date();
-    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-
-    const maxDate = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
-    const maxDateStr = `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`;
+    const minLeadD = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+    const minLeadDateStr = `${minLeadD.getFullYear()}-${pad(minLeadD.getMonth() + 1)}-${pad(minLeadD.getDate())}`;
 
     if (checkOutDate && checkOutDate <= checkInDate) {
       showAlert('warning', 'Invalid Stay Dates', 'Check-out time must be later than check-in time.');
       return;
     }
 
-    if (checkInDate < todayStr || checkInDate > maxDateStr) {
-      showAlert('warning', 'Reservation Date Restriction', 'Reservations can only be made for today or up to 2 days ahead maximum.');
+    if (checkInDate < minLeadDateStr) {
+      showAlert('warning', 'Reservation Date Restriction', 'Reservations must be made at least 2 days in advance.');
       return;
     }
 

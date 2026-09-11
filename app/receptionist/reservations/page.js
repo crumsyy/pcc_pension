@@ -112,6 +112,8 @@ function ReservationsClient() {
   const [maxDobStr, setMaxDobStr] = useState('');
   const [todayUiDate, setTodayUiDate] = useState('');
   const [todayDbDate, setTodayDbDate] = useState('');
+  const [minReserveDbDate, setMinReserveDbDate] = useState('');
+  const [minResDate, setMinResDate] = useState('');
   const [currentTimeStr, setCurrentTimeStr] = useState('');
 
   // Courtesy Hold States
@@ -270,6 +272,12 @@ function ReservationsClient() {
     setTodayDbDate(tDb);
     setTodayUiDate(tUi);
 
+    const minLeadD = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+    const minLeadDb = `${minLeadD.getFullYear()}-${pad(minLeadD.getMonth() + 1)}-${pad(minLeadD.getDate())}`;
+    const minLeadUi = `${pad(minLeadD.getMonth() + 1)}/${pad(minLeadD.getDate())}/${minLeadD.getFullYear()}`;
+    setMinReserveDbDate(minLeadDb);
+    setMinResDate(minLeadUi);
+
     const updateCurrentTime = () => {
       const d = new Date();
       setCurrentTimeStr(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
@@ -358,9 +366,6 @@ function ReservationsClient() {
     return `${pad(target.getMonth() + 1)}/${pad(target.getDate())}/${target.getFullYear()}`;
   };
 
-  const minResDate = getTodayUiDate();
-  const maxResDate = getTwoDaysAheadUiDate();
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -427,8 +432,13 @@ function ReservationsClient() {
 
   useEffect(() => {
     if (activeModal === 'create') {
-      const defaultDateStr = minResDate;
-      const defaultOutStr = getTomorrowUiDate();
+      const today = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const minLeadD = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+      const defaultDateStr = `${pad(minLeadD.getMonth() + 1)}/${pad(minLeadD.getDate())}/${minLeadD.getFullYear()}`;
+      const dOut = new Date(minLeadD);
+      dOut.setDate(dOut.getDate() + 1);
+      const defaultOutStr = `${pad(dOut.getMonth() + 1)}/${pad(dOut.getDate())}/${dOut.getFullYear()}`;
 
       setResDate(defaultDateStr);
       setResTime("14:00");
@@ -525,7 +535,10 @@ function ReservationsClient() {
       setResDate(toUiDate(dateOnly));
       setResTime(res.reservationDateTime.length >= 16 ? res.reservationDateTime.substring(11, 16) : '14:00');
     } else {
-      setResDate(minResDate);
+      const today = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const minLeadD = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+      setResDate(`${pad(minLeadD.getMonth() + 1)}/${pad(minLeadD.getDate())}/${minLeadD.getFullYear()}`);
       setResTime('14:00');
     }
 
@@ -596,12 +609,13 @@ function ReservationsClient() {
     } else {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+      minDate.setHours(0, 0, 0, 0);
       const selectedDateObj = new Date(toDbDate(resDate) + 'T00:00:00');
       selectedDateObj.setHours(0, 0, 0, 0);
 
-      const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays < 0) {
-        errors.resDate = 'Reservation check-in date cannot be in the past.';
+      if (selectedDateObj < minDate) {
+        errors.resDate = 'Reservations must be made at least 2 days in advance.';
       }
     }
 
@@ -695,12 +709,13 @@ function ReservationsClient() {
     } else {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+      minDate.setHours(0, 0, 0, 0);
       const selectedDateObj = new Date(toDbDate(resDate) + 'T00:00:00');
       selectedDateObj.setHours(0, 0, 0, 0);
 
-      const diffDays = Math.round((selectedDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays < 0) {
-        errors.resDate = 'Reservation check-in date cannot be in the past.';
+      if (selectedDateObj < minDate) {
+        errors.resDate = 'Reservations must be made at least 2 days in advance.';
       }
     }
 
@@ -1388,7 +1403,7 @@ function ReservationsClient() {
                         type="date"
                         className={`form-control form-control-sm mb-1 ${formErrors.resDate ? 'is-invalid border-danger' : ''}`}
                         value={toDbDate(resDate)}
-                        min={todayDbDate}
+                        min={minReserveDbDate}
                         onChange={(e) => {
                           handleResDateChange(e.target.value);
                           setFormErrors(prev => ({ ...prev, resDate: '', checkOutDate: '', conflict: '' }));
@@ -1430,7 +1445,7 @@ function ReservationsClient() {
                         type="date"
                         className={`form-control form-control-sm mb-1 ${formErrors.checkOutDate ? 'is-invalid border-danger' : ''}`}
                         value={toDbDate(checkOutDate)}
-                        min={resDate ? toDbDate(resDate) : todayDbDate}
+                        min={resDate ? toDbDate(resDate) : minReserveDbDate}
                         onChange={(e) => {
                           setCheckOutDate(e.target.value);
                           setFormErrors(prev => ({ ...prev, checkOutDate: '', conflict: '' }));

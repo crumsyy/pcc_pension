@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit } from '@/lib/db';
+import { validateReservationDate } from '@/lib/validation';
 
 export async function GET(request) {
   const session = await getSession();
@@ -178,14 +179,10 @@ export async function POST(request) {
       }
     }
 
-    // Rule 1A: Reservation Date Restrictions (Check-in cannot be in the past)
-    const pad = (n) => String(n).padStart(2, '0');
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-
-    if (checkInDate < todayStr) {
+    // Rule 1A: Reservation Date Restrictions (Check-in must be at least 2 days ahead)
+    if (!validateReservationDate(checkInDate)) {
       return NextResponse.json({
-        error: "Reservation or booking has already passed."
+        error: "Reservation date must be at least 2 days ahead."
       }, { status: 400 });
     }
 

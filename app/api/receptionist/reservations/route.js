@@ -2,18 +2,14 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, ensurePaymentSchema, logBillingAudit } from '@/lib/db';
 import { sendCourtesyHoldCreatedEmail, sendBookingConfirmationEmail } from '@/lib/mailer';
+import { validateReservationDate } from '@/lib/validation';
 
 function checkReservationLeadTime(checkInDateStr) {
   if (!checkInDateStr) return { valid: true };
-  const pad = (n) => String(n).padStart(2, '0');
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-
-  const inDateStr = (checkInDateStr || '').split(' ')[0] || (checkInDateStr || '').split('T')[0];
-  if (inDateStr < todayStr) {
+  if (!validateReservationDate(checkInDateStr)) {
     return {
       valid: false,
-      message: "Reservation check-in date cannot be in the past."
+      message: "Reservation date must be at least 2 days ahead."
     };
   }
   return { valid: true };
