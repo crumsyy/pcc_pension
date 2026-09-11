@@ -1,0 +1,38 @@
+/* =====================================================================
+   PCC Guest Dashboard & Active Stay Panel Styling Utilities
+   ===================================================================== */
+
+/* Standard button spacing utility */
+.btn-spaced {
+  margin-right: 12px;
+  margin-bottom: 12px;
+}
+
+.btn-spaced:last-child {
+  margin-right: 0;
+}
+
+/* Dedicated Billing & Payments Section in Active Stay Panel */
+.billing-payments-section {
+  padding: 1.15rem 1.25rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.billing-payments-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Dashboard Action Buttons Consistency */
+.dashboard-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
