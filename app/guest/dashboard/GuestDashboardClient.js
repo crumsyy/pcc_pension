@@ -4313,7 +4313,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span>{isGuestGcashSettled ? `Confirm & Complete Booking (₱${amountToPayNow.toFixed(2)})` : 'Awaiting Payment Authorization...'}</span>
                   </LoadingButton>
                 </div>
-              </form>
+                             </div>
             </div>
           </div>
         </div>
