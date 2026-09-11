@@ -10,6 +10,7 @@ import ReservationCalendar from '../../components/ReservationCalendar';
 import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
+import ConfirmReservationModal from '../ConfirmReservationModal';
 
 const calculateAgeFromUiDate = (dateStr) => {
   if (!dateStr) return '';
@@ -553,30 +554,6 @@ function ReservationsClient() {
     }
 
     setSelectedRes(res);
-    const inDateOnly = res.reservationDateTime ? res.reservationDateTime.substring(0, 10) : '';
-    const inTimeOnly = res.reservationDateTime && res.reservationDateTime.length >= 16 ? res.reservationDateTime.substring(11, 16) : '14:00';
-
-    const outDateOnly = res.checkOutDateTime ? res.checkOutDateTime.substring(0, 10) : '';
-    const outTimeOnly = res.checkOutDateTime && res.checkOutDateTime.length >= 16 ? res.checkOutDateTime.substring(11, 16) : '12:00';
-
-    setConvInDate(inDateOnly ? toUiDate(inDateOnly) : minResDate);
-    setConvInTime(inTimeOnly);
-
-    if (outDateOnly) {
-      setConvOutDate(toUiDate(outDateOnly));
-      setConvOutTime(outTimeOnly);
-    } else {
-      setConvOutDate(getTomorrowUiDate());
-      setConvOutTime('12:00');
-    }
-
-    setDownPaymentOption('30');
-    setPaymentMethodID('1');
-    setDownPayment('');
-    setIsGcashSettled(false);
-    setConvertCheckInNow(false);
-    setGcashInlineError('');
-    setSettledPaymentRef('');
     setActiveModal('convert');
   };
 
@@ -783,89 +760,6 @@ function ReservationsClient() {
         showAlert('error', 'Error', err.message);
       } finally {
         setIsSubmitting(false);
-      }
-    });
-  };
-
-  const handleConvertSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedRes) return;
-
-    if (!isValidDate(convInDate) || !isValidDate(convOutDate)) {
-      showAlert('error', 'Validation Error', 'Please enter valid Check-In and Check-Out dates (MM/DD/YYYY).');
-      return;
-    }
-
-    const inDateObj = new Date(toDbDate(convInDate) + 'T' + convInTime);
-    const outDateObj = new Date(toDbDate(convOutDate) + 'T' + convOutTime);
-
-    if (outDateObj <= inDateObj) {
-      showAlert('error', 'Validation Error', 'Check-Out date & time must be after Check-In date & time.');
-      return;
-    }
-
-    // Rate calculation matching Booking Workspace
-    const selectedRoom = rooms.find(r => String(r.roomID) === String(selectedRes.roomID));
-    const isWithBk = (selectedRes.breakfastOption || breakfastOption) === 'with';
-    const rate = selectedRoom
-      ? (isWithBk
-        ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-        : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
-      : parseFloat(selectedRes.rate || 0);
-
-    const diff = Math.abs(outDateObj - inDateObj);
-    const nights = Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
-    const totalRoomCharge = rate * nights;
-    const dpPct = parseInt(downPaymentOption) || 30;
-    const requiredDownpayment = totalRoomCharge * (dpPct / 100);
-
-    const cashReceived = String(paymentMethodID) === '2' ? requiredDownpayment : parseFloat(downPayment || 0);
-
-    if (String(paymentMethodID) === '1' && (isNaN(cashReceived) || cashReceived < requiredDownpayment)) {
-      showAlert('error', 'Validation Error', `Minimum required down payment is ₱${requiredDownpayment.toFixed(2)} (${dpPct}% Tier).`);
-      return;
-    }
-
-    if (String(paymentMethodID) === '2' && !isGcashSettled) {
-      setGcashInlineError('Cannot proceed: GCash payment not settled. Please scan and verify the QR payment before saving.');
-      showAlert('error', 'Payment Unsettled', 'Cannot proceed: GCash payment not settled. Please scan and verify the QR payment before saving.');
-      return;
-    }
-
-    const change = Math.max(0, cashReceived - requiredDownpayment);
-    const actionTitle = convertCheckInNow ? 'Book and Check‑In Now' : 'Confirm & Record Booking';
-    const actionMsg = convertCheckInNow
-      ? 'Are you sure you want to convert this reservation and check-in the guest immediately?'
-      : 'Are you sure you want to confirm this reservation and record down payment?';
-
-    showConfirm(actionTitle, actionMsg, async () => {
-      try {
-        const res = await fetch('/api/receptionist/reservations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'convert_to_booking',
-            reservationID: selectedRes.reservationID,
-            checkInDateTime: toDbDate(convInDate) + ' ' + convInTime + ':00',
-            checkOutDateTime: toDbDate(convOutDate) + ' ' + convOutTime + ':00',
-            downPaymentAmount: requiredDownpayment,
-            cashReceived: cashReceived,
-            change: change,
-            paymentMethodID: parseInt(paymentMethodID),
-            checkInNow: convertCheckInNow,
-            paymentStatus: String(paymentMethodID) === '2' ? 'Settled' : 'Settled',
-            isGcashSettled: isGcashSettled,
-            referenceNumber: settledPaymentRef || null
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to convert reservation to booking');
-
-        showAlert('success', 'Success', data.message || (convertCheckInNow ? 'Reservation confirmed and guest checked in successfully.' : 'Reservation confirmed and converted to booking successfully.'));
-        setActiveModal(null);
-        fetchData();
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
       }
     });
   };
@@ -1675,357 +1569,38 @@ function ReservationsClient() {
         </div>
       )}
 
-      {/* CONVERT MODAL ("Confirm Reservation & Record Booking") */}
-      {activeModal === 'convert' && selectedRes && (() => {
-        const isWithBk = (selectedRes.breakfastOption || breakfastOption) === 'with';
-        const selectedRoom = rooms.find(r => String(r.roomID) === String(selectedRes.roomID));
-        const rate = selectedRoom
-          ? (isWithBk
-            ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-            : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
-          : parseFloat(selectedRes.rate || 0);
+      {/* 4. CONVERT RESERVATION TO BOOKING MODAL */}
+      <ConfirmReservationModal
+        isOpen={activeModal === 'convert'}
+        onClose={() => setActiveModal(null)}
+        selectedRes={selectedRes}
+        rooms={rooms}
+        paymentMethods={paymentMethods}
+        onSubmit={async (payload) => {
+          setIsSubmitting(true);
+          try {
+            const res = await fetch('/api/receptionist/reservations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to convert reservation to booking');
 
-        let nights = 0;
-        if (convInDate && convOutDate) {
-          const inD = new Date(toDbDate(convInDate) + 'T00:00:00');
-          const outD = new Date(toDbDate(convOutDate) + 'T00:00:00');
-          if (outD > inD) {
-            nights = Math.round(Math.abs(outD - inD) / (1000 * 60 * 60 * 24));
+            showAlert('success', 'Booking Confirmed', data.message || (payload.checkInNow ? 'Reservation confirmed and guest checked in successfully.' : 'Reservation confirmed and converted to booking successfully.'));
+            setActiveModal(null);
+            fetchData();
+          } catch (err) {
+            showAlert('error', 'Conversion Error', err.message);
+          } finally {
+            setIsSubmitting(false);
           }
-        }
-        nights = Math.max(1, nights);
+        }}
+        isSubmitting={isSubmitting}
+        showAlert={showAlert}
+        showConfirm={showConfirm}
+      />
 
-        const totalRoomCharge = rate * nights;
-        const dpPctNum = parseInt(downPaymentOption) || 30;
-        const requiredDownpayment = totalRoomCharge * (dpPctNum / 100);
-        const remainingBal = totalRoomCharge - requiredDownpayment;
-
-        return (
-          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
-            <div className="modal-dialog modal-dialog-centered modal-lg">
-              <div className="modal-content border-0 shadow-lg">
-                <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
-                  <h5 className="modal-title fw-bold">
-                    {convertCheckInNow ? 'Confirm Reservation & Book / Check‑In Now' : 'Confirm Reservation & Record Booking'}
-                  </h5>
-                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-                </div>
-                <form onSubmit={handleConvertSubmit}>
-                  <div className="modal-body" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
-                    <div className="p-3 mb-3 bg-light rounded border">
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <h6 className="fw-bold mb-0 text-dark">
-                            Guest: {selectedRes.firstName} {selectedRes.lastName}
-                          </h6>
-                          <span className="small text-muted">Contact: {selectedRes.contact}</span>
-                        </div>
-                        <div className="text-end">
-                          <span className="badge bg-primary-subtle text-primary border border-primary fs-6 fw-bold">
-                            Room {selectedRes.roomNumber} ({selectedRes.roomType})
-                          </span>
-                          <div className="small text-muted mt-1">
-                            Inclusion: <strong>{isWithBk ? 'With Breakfast' : 'Without Breakfast'}</strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CHECK-IN SCENARIO SELECTOR */}
-                    <div className="mb-3">
-                      <label className="form-label fw-bold">Check-In Scenario *</label>
-                      <div className="btn-group w-100" role="group">
-                        <button
-                          type="button"
-                          className={`btn ${convertCheckInNow ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
-                          onClick={() => {
-                            setConvertCheckInNow(true);
-                            const now = new Date();
-                            const pad = (n) => String(n).padStart(2, '0');
-                            const todayUi = toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
-                            setConvInDate(todayUi);
-                            setConvInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-
-                            const tomorrow = new Date(now);
-                            tomorrow.setDate(tomorrow.getDate() + 1);
-                            setConvOutDate(toUiDate(`${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`));
-                            setConvOutTime('12:00');
-                          }}
-                        >
-                          Book & Check-In Now (Current System Time)
-                        </button>
-                        <button
-                          type="button"
-                          className={`btn ${!convertCheckInNow ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-                          onClick={() => {
-                            setConvertCheckInNow(false);
-                            if (selectedRes) {
-                              const inDateOnly = selectedRes.reservationDateTime ? String(selectedRes.reservationDateTime).substring(0, 10) : '';
-                              const inTimeOnly = selectedRes.reservationDateTime ? String(selectedRes.reservationDateTime).substring(11, 16) : '14:00';
-                              const outDateOnly = selectedRes.checkOutDateTime ? String(selectedRes.checkOutDateTime).substring(0, 10) : '';
-                              const outTimeOnly = selectedRes.checkOutDateTime ? String(selectedRes.checkOutDateTime).substring(11, 16) : '12:00';
-
-                              setConvInDate(inDateOnly ? toUiDate(inDateOnly) : todayUiDate);
-                              setConvInTime(inTimeOnly);
-                              if (outDateOnly) {
-                                setConvOutDate(toUiDate(outDateOnly));
-                                setConvOutTime(outTimeOnly);
-                              } else {
-                                setConvOutDate(getTomorrowUiDate());
-                                setConvOutTime('12:00');
-                              }
-                            }
-                          }}
-                        >
-                          Book Now, Check-In Later
-                        </button>
-                      </div>
-                      {convertCheckInNow ? (
-                        <div className="alert alert-success py-2 px-3 small mt-2 mb-3 d-flex align-items-center justify-content-between" style={{ fontSize: '0.82rem' }}>
-                          <div className="d-flex align-items-center gap-2">
-                            <i className="bi bi-box-arrow-in-right fs-5 text-success"></i>
-                            <div>
-                              <strong>Immediate Check-In:</strong> Check-in timestamp will be recorded as <strong>{convInDate} {convInTime} (Current System Time)</strong>.
-                              <div className="text-muted" style={{ fontSize: '0.74rem' }}>
-                                Booking status: <span className="badge bg-success">Checked In</span> &bull; Room {selectedRes.roomNumber}: <span className="badge bg-danger">Occupied</span>
-                              </div>
-                            </div>
-                          </div>
-                          <span className="badge bg-success-subtle text-success border border-success fw-bold px-2 py-1">ACTIVE NOW</span>
-                        </div>
-                      ) : (
-                        <>
-                      {/* SCHEDULED CHECK-IN & CHECK-OUT CALENDARS */}
-                      <div className="row g-3 mb-3">
-                        <div className="col-md-6">
-                          <CalendarDatePicker
-                            label="Scheduled Check-In Date *"
-                            value={convInDate}
-                            onChange={(val) => {
-                              setConvInDate(val);
-                              if (val) {
-                                const inD = new Date(toDbDate(val) + 'T00:00:00');
-                                inD.setDate(inD.getDate() + 1);
-                                const pad = (n) => String(n).padStart(2, '0');
-                                setConvOutDate(toUiDate(`${inD.getFullYear()}-${pad(inD.getMonth() + 1)}-${pad(inD.getDate())}`));
-                              }
-                            }}
-                            minDate={todayDbDate}
-                            helperText="Guest check-in date"
-                          />
-                          <div className="mt-2">
-                            <label className="form-label small fw-semibold">Scheduled Check-In Time *</label>
-                            <input
-                              type="time"
-                              className="form-control form-control-sm"
-                              value={convInTime}
-                              min={isConvToday ? currentTimeStr : undefined}
-                              onChange={(e) => setConvInTime(e.target.value)}
-                              required
-                            />
-                            {isConvToday && (
-                              <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                                Earliest selectable time today: {currentTimeStr}
-                              </small>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="col-md-6">
-                          <CalendarDatePicker
-                            label="Check-Out Date *"
-                            value={convOutDate}
-                            onChange={(val) => setConvOutDate(val)}
-                            minDate={convInDate ? toDbDate(convInDate) : todayDbDate}
-                            helperText="Guest departure date"
-                          />
-                          <div className="mt-2">
-                            <label className="form-label small fw-semibold">Check-Out Time *</label>
-                            <input type="time" className="form-control form-control-sm" value={convOutTime} onChange={(e) => setConvOutTime(e.target.value)} required />
-                          </div>
-                        </div>
-                      </div>
-                      <small className="text-muted d-block mb-3" style={{ fontSize: '0.74rem' }}>
-                        Reservations are scheduled for check-in on the selected reservation date (Status: <strong>Pending Check-In</strong>, Room: <strong>Reserved</strong>).
-                      </small>
-                    </>
-                  )}
-                </div>
-
-                    {/* REQUIRED DOWN PAYMENT TIER */}
-                    <div className="mb-3">
-                      <label className="form-label fw-bold">Required Down Payment Tier *</label>
-                      <div className="btn-group w-100" role="group">
-                        <button
-                          type="button"
-                          className={`btn ${downPaymentOption === '30' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-                          onClick={() => setDownPaymentOption('30')}
-                        >
-                          30% Down Payment
-                        </button>
-                        <button
-                          type="button"
-                          className={`btn ${downPaymentOption === '50' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-                          onClick={() => setDownPaymentOption('50')}
-                        >
-                          50% Down Payment
-                        </button>
-                        <button
-                          type="button"
-                          className={`btn ${downPaymentOption === '100' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-                          onClick={() => setDownPaymentOption('100')}
-                        >
-                          Full Payment (100%)
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* DYNAMIC BREAKDOWN MATH */}
-                    <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
-                      <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted">Room Base Rate:</span>
-                        <span className="fw-bold text-dark">
-                          ₱{rate.toFixed(2)}/night ({isWithBk ? 'With Breakfast' : 'Without Breakfast'})
-                        </span>
-                      </div>
-                      <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted">Stay Duration:</span>
-                        <span className="fw-semibold">{nights} Night(s)</span>
-                      </div>
-                      <div className="d-flex justify-content-between border-top pt-1.5 mb-1 fw-bold text-pcc-blue" style={{ fontSize: '1rem' }}>
-                        <span>Net Total Booking Amount:</span>
-                        <span>₱{totalRoomCharge.toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between text-success fw-bold">
-                        <span>Required Down Payment ({dpPctNum}% Tier):</span>
-                        <span className="fs-6">₱{requiredDownpayment.toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between text-muted small">
-                        <span>Remaining Balance at Check-in:</span>
-                        <span>₱{remainingBal.toFixed(2)}</span>
-                      </div>
-                    </div>
-
-                    {/* PAYMENT METHOD & RECEIVED */}
-                    <div className="row g-2 mb-3">
-                      <div className="col-md-4">
-                        <label className="form-label small fw-semibold">Payment Method *</label>
-                        <select
-                          className="form-select form-select-sm"
-                          required
-                          value={paymentMethodID}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPaymentMethodID(val);
-                            if (String(val) === '2') {
-                              setDownPayment(requiredDownpayment.toFixed(2));
-                            }
-                          }}
-                        >
-                          {paymentMethods.map(pm => (
-                            <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
-                              {pm.paymentMethod}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {String(paymentMethodID) === '1' ? (
-                        <>
-                          <div className="col-md-4">
-                            <label className="form-label small fw-semibold">Payment Received (₱) *</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              className="form-control form-control-sm fw-bold text-success"
-                              required
-                              placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
-                              value={downPayment}
-                              onChange={(e) => setDownPayment(e.target.value)}
-                            />
-                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                              Required: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
-                            </small>
-                          </div>
-
-                          <div className="col-md-4">
-                            <label className="form-label small fw-semibold">Change to Give (₱)</label>
-                            <input
-                              type="text"
-                              readOnly
-                              className={`form-control form-control-sm fw-bold ${
-                                (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
-                              }`}
-                              value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
-                            />
-                            <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                              Auto-calculated change
-                            </small>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="col-md-8">
-                          {gcashInlineError && (
-                            <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mb-2">
-                              <i className="bi bi-exclamation-octagon-fill"></i>
-                              <span>{gcashInlineError}</span>
-                            </div>
-                          )}
-                          {!isGcashSettled ? (
-                            <div className="alert alert-warning py-1.5 px-2.5 small d-flex align-items-center gap-2 mb-2" style={{ fontSize: '0.78rem' }}>
-                              <i className="bi bi-exclamation-triangle-fill text-warning"></i>
-                              <span>GCash payment has not been settled yet. Scan QR code or confirm auto-settlement below.</span>
-                            </div>
-                          ) : (
-                            <div className="alert alert-success py-1.5 px-2.5 small d-flex align-items-center gap-2 mb-2 text-success fw-bold" style={{ fontSize: '0.78rem' }}>
-                              <i className="bi bi-check-circle-fill"></i>
-                              <span>GCash payment verified and settled.</span>
-                            </div>
-                          )}
-                          <DynamicQrPhCode 
-                            amount={requiredDownpayment}
-                            refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
-                            paymentStatus={isGcashSettled ? "Settled" : "Pending"}
-                            showProceedBtn={false}
-                            showCheckStatusBtn={false}
-                            showTestPayBtn={true}
-                            onSimulateTestPay={(simRef) => {
-                              setIsGcashSettled(true);
-                              setGcashInlineError('');
-                              setSettledPaymentRef(simRef);
-                              setDownPayment(requiredDownpayment.toFixed(2));
-                              showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment settled.`);
-                            }}
-                            onCheckStatus={fetchData}
-                            onPaymentSuccess={(pData) => {
-                              setIsGcashSettled(true);
-                              setGcashInlineError('');
-                              if (pData?.referenceNumber) setSettledPaymentRef(pData.referenceNumber);
-                              setDownPayment(requiredDownpayment.toFixed(2));
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                    <LoadingButton
-                      type="submit"
-                      isLoading={isSubmitting}
-                      loadingText="Processing Booking..."
-                      className="btn btn-pcc-primary text-white fw-bold"
-                    >
-                      {convertCheckInNow ? 'Save Booking & Check-In Now' : 'Save Booking & Record Down Payment'}
-                    </LoadingButton>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Confirmation & Alert dialog */}
       <ModalDialog

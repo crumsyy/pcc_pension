@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, ensurePaymentSchema, logBillingAudit } from '@/lib/db';
+import { sendCourtesyHoldCreatedEmail, sendBookingConfirmationEmail } from '@/lib/mailer';
 
 function checkReservationLeadTime(checkInDateStr) {
   if (!checkInDateStr) return { valid: true };
@@ -198,9 +199,12 @@ export async function POST(request) {
           return NextResponse.json({ error: 'First name and Last name are required.' }, { status: 400 });
         }
         if (!email || !email.trim()) {
-          return NextResponse.json({ error: 'Email address is required for Courtesy Hold to receive expiry alerts.' }, { status: 400 });
+          return NextResponse.json({ error: 'Guest email address is required for all reservations.' }, { status: 400 });
         }
         const cleanEmail = email.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+          return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+        }
         const cleanContact = (contact || '').trim();
 
         // Prevent duplicate guest creation: check if guest already exists by email or contact
@@ -211,11 +215,11 @@ export async function POST(request) {
 
         if (existingGuests.length > 0) {
           guestID = existingGuests[0].guestID;
-          guestEmail = cleanEmail || existingGuests[0].email;
+          guestEmail = cleanEmail;
           if (!existingGuests[0].userID) {
             await dbQuery(
-              "UPDATE guest SET firstName = COALESCE(NULLIF(?, ''), firstName), lastName = COALESCE(NULLIF(?, ''), lastName), contact = COALESCE(NULLIF(?, ''), contact), dateOfBirth = COALESCE(NULLIF(?, ''), dateOfBirth) WHERE guestID = ?",
-              [firstName.trim(), lastName.trim(), cleanContact, dateOfBirth || null, guestID]
+              "UPDATE guest SET firstName = COALESCE(NULLIF(?, ''), firstName), lastName = COALESCE(NULLIF(?, ''), lastName), contact = COALESCE(NULLIF(?, ''), contact), dateOfBirth = COALESCE(NULLIF(?, ''), dateOfBirth), email = ? WHERE guestID = ?",
+              [firstName.trim(), lastName.trim(), cleanContact, dateOfBirth || null, cleanEmail, guestID]
             );
           }
         } else {
@@ -228,12 +232,15 @@ export async function POST(request) {
         }
       } else {
         guestID = parseInt(body.guestID);
-        guestEmail = (body.email || '').trim() || null;
+        guestEmail = (body.email || '').trim().toLowerCase() || null;
         if (!guestEmail) {
           const guestRows = await dbQuery("SELECT email FROM guest WHERE guestID = ?", [guestID]);
           if (guestRows.length > 0 && guestRows[0].email) {
             guestEmail = guestRows[0].email;
           }
+        }
+        if (!guestEmail || !guestEmail.trim()) {
+          return NextResponse.json({ error: 'Guest email address is required.' }, { status: 400 });
         }
       }
 
@@ -313,7 +320,7 @@ export async function POST(request) {
         }, { status: 409 });
       }
 
-      await dbQuery(
+      const insertRes = await dbQuery(
         `INSERT INTO reservation(
           reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
           status, guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail
@@ -325,6 +332,23 @@ export async function POST(request) {
       );
 
       await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+
+      // Dispatch Courtesy Hold Confirmation Email
+      try {
+        const roomData = await dbQuery("SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?", [roomID]);
+        const guestName = `${body.firstName || ''} ${body.lastName || ''}`.trim() || 'Valued Guest';
+        sendCourtesyHoldCreatedEmail(guestEmail, guestName, {
+          reservationID: insertRes.insertId,
+          roomNumber: roomData[0]?.roomNumber || '',
+          roomType: roomData[0]?.roomType || 'Standard',
+          reservationDateTime,
+          checkOutDateTime,
+          holdExpiryStr: expiry.toLocaleString('en-US', { timeZone: 'Asia/Manila' }),
+          breakfastOption
+        }).catch(() => {});
+      } catch (eMailErr) {
+        console.error("Failed to trigger courtesy hold email:", eMailErr);
+      }
 
       return NextResponse.json({
         success: true,
@@ -420,6 +444,26 @@ export async function POST(request) {
         await conn.beginTransaction();
         await ensurePaymentSchema();
 
+        // Enforce Guest Email for Conversion
+        const [existingGuestRows] = await conn.execute("SELECT email, firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
+        const currentGuest = existingGuestRows[0] || {};
+        const updatedEmail = (body.email || res[0].guestEmail || currentGuest.email || '').trim().toLowerCase();
+
+        if (!updatedEmail) {
+          await conn.rollback();
+          conn.release();
+          return NextResponse.json({ error: 'Guest email address is required to convert reservation to booking.' }, { status: 400 });
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updatedEmail)) {
+          await conn.rollback();
+          conn.release();
+          return NextResponse.json({ error: 'Please enter a valid guest email address.' }, { status: 400 });
+        }
+
+        // Update email on guest and reservation records
+        await conn.execute("UPDATE guest SET email = ? WHERE guestID = ?", [updatedEmail, guestID]);
+        await conn.execute("UPDATE reservation SET guestEmail = ? WHERE reservationID = ?", [updatedEmail, reservationID]);
+
         const manilaParts = new Intl.DateTimeFormat('en-CA', {
           timeZone: 'Asia/Manila',
           year: 'numeric',
@@ -505,6 +549,30 @@ export async function POST(request) {
         });
 
         await conn.commit();
+
+        // Dispatch Booking Confirmation Email
+        try {
+          const [roomInfo] = await conn.execute(
+            "SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
+            [roomID]
+          );
+          const guestFullName = `${currentGuest.firstName || ''} ${currentGuest.lastName || ''}`.trim() || 'Valued Guest';
+          sendBookingConfirmationEmail(updatedEmail, guestFullName, {
+            bookingID,
+            roomNumber: roomInfo[0]?.roomNumber || '',
+            roomType: roomInfo[0]?.roomType || 'Standard',
+            status: bookingStatus,
+            checkInDateTime: finalCheckInDateTime,
+            checkOutDateTime,
+            downPaymentAmount,
+            remainingBalance: Math.max(0, parseFloat(body.remainingBalance || 0)),
+            paymentMethod: parseInt(paymentMethodID) === 2 ? 'GCash' : 'Cash',
+            referenceNumber: refNumber
+          }).catch(() => {});
+        } catch (mailErr) {
+          console.error("Failed to send booking confirmation email:", mailErr);
+        }
+
         return NextResponse.json({
           success: true,
           message: checkInNow ? 'Reservation confirmed and guest checked in successfully.' : 'Reservation successfully converted to Booking.',

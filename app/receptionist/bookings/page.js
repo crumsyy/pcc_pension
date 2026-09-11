@@ -765,6 +765,14 @@ function BookingsClient() {
       showAlert('error', 'Validation Error', 'First Name and Last Name are required.');
       return;
     }
+    if (!guestForm.email || !guestForm.email.trim()) {
+      showAlert('error', 'Validation Error', 'Guest Email Address is required for all bookings.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestForm.email.trim())) {
+      showAlert('error', 'Validation Error', 'Please enter a valid guest email address.');
+      return;
+    }
     if (!guestForm.dateOfBirth) {
       showAlert('error', 'Validation Error', 'Birthdate is required.');
       return;
@@ -1427,12 +1435,13 @@ function BookingsClient() {
                       </div>
                       <div className="col-md-4 mb-2">
                         <label className="form-label small fw-semibold mb-1">
-                          Email Address <span className="text-muted">(Optional)</span>
+                          Email Address *
                         </label>
                         <input
                           type="email"
                           className="form-control form-control-sm"
                           placeholder="name@example.com"
+                          required
                           value={guestForm.email}
                           onChange={(e) => setGuestForm(prev => ({ ...prev, email: e.target.value }))}
                         />
@@ -1681,8 +1690,8 @@ function BookingsClient() {
                               }
                             }}
                           />
-                          <label className="form-check-label small text-muted user-select-none" htmlFor="recUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-                            Current time
+                          <label className="form-check-label small text-muted user-select-none fw-semibold text-dark" htmlFor="recUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
+                            Check-In Now (use current time)
                           </label>
                           <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
                             <i className="bi bi-info-circle me-1"></i>
@@ -2311,8 +2320,8 @@ function BookingsClient() {
                               }
                             }}
                           />
-                          <label className="form-check-label small text-muted user-select-none" htmlFor="updUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-                            Current time
+                          <label className="form-check-label small text-muted user-select-none fw-semibold text-dark" htmlFor="updUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
+                            Check-In Now (use current time)
                           </label>
                           <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
                             <i className="bi bi-info-circle me-1"></i>

@@ -133,8 +133,8 @@ export default function BookingForm({
               checked={Boolean(useCurrentTimeIn)}
               onChange={(e) => handleToggleCurrentIn(e.target.checked)}
             />
-            <label className="form-check-label small text-muted user-select-none" htmlFor="bfUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-              Current time
+            <label className="form-check-label small text-muted user-select-none fw-semibold text-dark" htmlFor="bfUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
+              Check-In Now (use current time)
             </label>
             <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
               <i className="bi bi-info-circle me-1"></i>

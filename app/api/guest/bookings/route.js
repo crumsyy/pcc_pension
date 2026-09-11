@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema } from '@/lib/db';
+import { sendBookingConfirmationEmail } from '@/lib/mailer';
 
 export async function GET() {
   const session = await getSession();
@@ -286,13 +287,20 @@ export async function POST(request) {
           finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         }
 
-        // 3. Insert booking record with 'Confirmed' status
+        const isCheckedInNow = Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
+        const bookingStatus = isCheckedInNow ? 'Checked In' : 'Pending Check-in';
+        const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
+
+        // 3. Insert booking record with appropriate status
         const [bookingRes] = await connection.execute(
           `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance)
-           VALUES (?, ?, 'Confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
         );
         const bookingID = bookingRes.insertId;
+
+        // Update room status
+        await connection.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
 
         // If converted from a reservation, update that reservation status to 'Booked'
         if (convResID) {
@@ -370,6 +378,28 @@ export async function POST(request) {
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Booking Confirmed', ?)",
           [session.userID, `Your online booking #${bookingID} has been created and confirmed!`]
         );
+
+        // Dispatch Booking Confirmation Email
+        try {
+          const [roomInfo] = await connection.execute(
+            "SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
+            [roomID]
+          );
+          sendBookingConfirmationEmail(guest.email, `${guest.firstName} ${guest.lastName}`, {
+            bookingID,
+            roomNumber: roomInfo[0]?.roomNumber || '',
+            roomType: roomInfo[0]?.roomType || 'Standard',
+            status: bookingStatus,
+            checkInDateTime: finalCheckInDateTime,
+            checkOutDateTime: finalCheckOutDateTime,
+            downPaymentAmount,
+            remainingBalance,
+            paymentMethod: 'GCash',
+            referenceNumber: body.referenceNumber || null
+          }).catch(() => {});
+        } catch (mErr) {
+          console.error("Failed to send guest booking confirmation email:", mErr);
+        }
 
         return NextResponse.json({
           success: true,
