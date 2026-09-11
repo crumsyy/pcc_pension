@@ -573,7 +573,7 @@ function BookingsClient() {
     const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
     
     setMinDateTime(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${currentTimeStr}`);
-    setCheckInScenario('now');
+    setUseCurrentTimeIn(false);
     setDownPaymentOption('30');
     setCheckInDate(todayUiDate);
     setCheckInTime('14:00');
@@ -583,7 +583,7 @@ function BookingsClient() {
     setIsAutoFilled(false);
     setGuestForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
     setSelectedRoomType('');
-    setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
+    setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
     setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
     setDownPayment('');
     setPaymentMethodID('1');
@@ -603,6 +603,7 @@ function BookingsClient() {
     const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
     
     setMinDateTime(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${currentTimeStr}`);
+    setUseCurrentTimeIn(false);
     setDownPaymentOption('30');
     setCheckInDate(todayUiDate);
     setCheckInTime('14:00');
@@ -620,7 +621,7 @@ function BookingsClient() {
     });
     setIsAutoFilled(Boolean(b.guestID));
     setSelectedRoomType(b.roomType || '');
-    setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
+    setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
     setRoomGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(g => ({ ...g, discountID: g.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
     setDownPayment('');
     setPaymentMethodID('1');
