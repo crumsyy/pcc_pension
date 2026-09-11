@@ -14,7 +14,6 @@ export default function RoomsClient() {
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
   const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef(null);
   const parseRoomImages = (imgVal) => {
     if (!imgVal) return [];
     if (Array.isArray(imgVal)) return imgVal;
@@ -32,15 +31,30 @@ export default function RoomsClient() {
   };
 
   const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+    const rawFiles = Array.from(e.target.files || []);
+    if (rawFiles.length === 0) return;
+
+    const currentList = parseRoomImages(formData.image);
+    if (currentList.length >= 5) {
+      showAlert('warning', 'Photo Limit Reached', 'Maximum 5 photos allowed per room. Please remove an existing photo first.');
+      e.target.value = '';
+      return;
+    }
+
+    const availableSlots = 5 - currentList.length;
+    let filesToUpload = rawFiles;
+    if (rawFiles.length > availableSlots) {
+      showAlert('info', 'Photo Limit Notice', `Only ${availableSlots} more photo(s) can be added (5 photos max per room). Extra photos were skipped.`);
+      filesToUpload = rawFiles.slice(0, availableSlots);
+    }
 
     setUploadingImage(true);
     try {
       const uploadedUrls = [];
-      for (const file of files) {
+      for (const file of filesToUpload) {
         const dataForm = new FormData();
         dataForm.append('file', file);
+        dataForm.append('type', 'rooms');
 
         const res = await fetch('/api/upload', {
           method: 'POST',
@@ -53,8 +67,8 @@ export default function RoomsClient() {
       }
 
       setFormData(prev => {
-        const currentList = parseRoomImages(prev.image);
-        const newList = [...currentList, ...uploadedUrls];
+        const cur = parseRoomImages(prev.image);
+        const newList = [...cur, ...uploadedUrls].slice(0, 5);
         return { ...prev, image: JSON.stringify(newList) };
       });
 
@@ -63,7 +77,7 @@ export default function RoomsClient() {
       showAlert('error', 'Upload Failed', err.message);
     } finally {
       setUploadingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      e.target.value = '';
     }
   };
 
@@ -715,46 +729,37 @@ export default function RoomsClient() {
                       ))}
                     </select>
                   </div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="d-none"
-                    accept="image/*"
-                    multiple
-                    onChange={handleFileChange}
-                  />
                   <div className="mb-3">
-                    <label className="form-label">Room Photos (Select Multiple Local Photos or Paste URLs)</label>
-                    <div className="input-group mb-2">
-                      <input
-                        type="text"
-                        name="image"
-                        className="form-control"
-                        placeholder="e.g. /uploads/rooms/standard.jpg or paste URL"
-                        value={formData.image}
-                        onChange={handleInputChange}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-outline-primary fw-bold"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage}
-                      >
-                        {uploadingImage ? (
-                          <>
-                            <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                            Uploading...
-                          </>
-                        ) : (
-                          '📂 Browse / Upload Multiple Photos'
-                        )}
-                      </button>
-                    </div>
+                    <label className="form-label fw-semibold">Room Photos</label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileChange}
+                      disabled={uploadingImage}
+                    />
+                    {uploadingImage && (
+                      <small className="text-primary d-block mt-1">
+                        <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                        Uploading photo(s)...
+                      </small>
+                    )}
 
                     {parseRoomImages(formData.image).length > 0 && (
-                      <div className="p-3 bg-light rounded border">
-                        <div className="small fw-semibold text-muted mb-2">
-                          Attached Room Photos ({parseRoomImages(formData.image).length} total):
+                      <div className="mt-2 p-2.5 bg-light rounded border">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <small className="fw-semibold text-muted">
+                            Attached Room Photos ({parseRoomImages(formData.image).length}/5 max):
+                          </small>
+                          <button
+                            type="button"
+                            className="btn btn-link text-danger p-0 text-decoration-none"
+                            style={{ fontSize: '0.75rem' }}
+                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                          >
+                            Remove All
+                          </button>
                         </div>
                         <div className="d-flex flex-wrap gap-2">
                           {parseRoomImages(formData.image).map((imgUrl, idx) => (
@@ -763,7 +768,8 @@ export default function RoomsClient() {
                                 src={imgUrl}
                                 alt={`Room photo ${idx + 1}`}
                                 className="rounded"
-                                style={{ width: '90px', height: '65px', objectFit: 'cover' }}
+                                style={{ width: '85px', height: '60px', objectFit: 'cover' }}
+                                onError={(e) => { e.currentTarget.src = '/assets/images/logo.jpg'; }}
                               />
                               <button
                                 type="button"
@@ -780,7 +786,7 @@ export default function RoomsClient() {
                       </div>
                     )}
                     <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      Selected photos will automatically display as an interactive slideshow carousel on the Landing Page and Guest Portal.
+                      You can select up to 5 photos per room. Selected photos will display on the Landing Page and Guest Portal.
                     </small>
                   </div>
                   <div className="mb-3">
@@ -946,37 +952,36 @@ export default function RoomsClient() {
                     </select>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Room Photos (Select Multiple Local Photos or Paste URLs)</label>
-                    <div className="input-group mb-2">
-                      <input
-                        type="text"
-                        name="image"
-                        className="form-control"
-                        placeholder="e.g. /uploads/rooms/standard.jpg or paste URL"
-                        value={formData.image}
-                        onChange={handleInputChange}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-outline-primary fw-bold"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage}
-                      >
-                        {uploadingImage ? (
-                          <>
-                            <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                            Uploading...
-                          </>
-                        ) : (
-                          '📂 Browse / Upload Multiple Photos'
-                        )}
-                      </button>
-                    </div>
+                    <label className="form-label fw-semibold">Room Photos</label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileChange}
+                      disabled={uploadingImage}
+                    />
+                    {uploadingImage && (
+                      <small className="text-primary d-block mt-1">
+                        <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                        Uploading photo(s)...
+                      </small>
+                    )}
 
                     {parseRoomImages(formData.image).length > 0 && (
-                      <div className="p-3 bg-light rounded border">
-                        <div className="small fw-semibold text-muted mb-2">
-                          Attached Room Photos ({parseRoomImages(formData.image).length} total):
+                      <div className="mt-2 p-2.5 bg-light rounded border">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <small className="fw-semibold text-muted">
+                            Attached Room Photos ({parseRoomImages(formData.image).length}/5 max):
+                          </small>
+                          <button
+                            type="button"
+                            className="btn btn-link text-danger p-0 text-decoration-none"
+                            style={{ fontSize: '0.75rem' }}
+                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                          >
+                            Remove All
+                          </button>
                         </div>
                         <div className="d-flex flex-wrap gap-2">
                           {parseRoomImages(formData.image).map((imgUrl, idx) => (
@@ -985,7 +990,8 @@ export default function RoomsClient() {
                                 src={imgUrl}
                                 alt={`Room photo ${idx + 1}`}
                                 className="rounded"
-                                style={{ width: '90px', height: '65px', objectFit: 'cover' }}
+                                style={{ width: '85px', height: '60px', objectFit: 'cover' }}
+                                onError={(e) => { e.currentTarget.src = '/assets/images/logo.jpg'; }}
                               />
                               <button
                                 type="button"
@@ -1002,7 +1008,7 @@ export default function RoomsClient() {
                       </div>
                     )}
                     <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      Selected photos will automatically display as an interactive slideshow carousel on the Landing Page and Guest Portal.
+                      You can select up to 5 photos per room. Selected photos will display on the Landing Page and Guest Portal.
                     </small>
                   </div>
                   <div className="mb-3">
