@@ -4338,8 +4338,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="fw-bold text-pcc-blue">#{receiptData.bookingID}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">GCash Reference No:</span>
-                    <span className="fw-bold text-dark">{receiptData.referenceNumber}</span>
+                    {/* GCash Reference No removed per requirement */}
                   </div>
                   <div className="d-flex justify-content-between mb-1 text-success fw-bold">
                     <span>Amount Paid ({receiptData.paymentPercentage}):</span>
