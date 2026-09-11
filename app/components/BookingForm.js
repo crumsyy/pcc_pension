@@ -19,8 +19,6 @@ export default function BookingForm({
   onChangeCheckOutTime,
   useCurrentTimeIn = false,
   onChangeUseCurrentTimeIn,
-  useCurrentTimeOut = false,
-  onChangeUseCurrentTimeOut,
   minDate = '',
   nightsCount = 1,
   selectedRoom = null,
@@ -62,16 +60,8 @@ export default function BookingForm({
       if (onChangeCheckInDate && (!checkInDate || checkInDate < todayStr)) {
         onChangeCheckInDate(todayStr);
       }
-    }
-  };
-
-  const handleToggleCurrentOut = (checked) => {
-    if (onChangeUseCurrentTimeOut) onChangeUseCurrentTimeOut(checked);
-    if (checked) {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      if (onChangeCheckOutTime) onChangeCheckOutTime(nowTime);
+    } else {
+      if (onChangeCheckInTime) onChangeCheckInTime('14:00');
     }
   };
 
@@ -144,8 +134,12 @@ export default function BookingForm({
               onChange={(e) => handleToggleCurrentIn(e.target.checked)}
             />
             <label className="form-check-label small text-muted user-select-none" htmlFor="bfUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-              Use Current Time (auto-record actual time)
+              Current time
             </label>
+            <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
+              <i className="bi bi-info-circle me-1"></i>
+              Checked In immediately when selected; defaults to 2:00 PM when unselected.
+            </div>
           </div>
           {isEarlyCheckIn && (
             <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
@@ -162,24 +156,11 @@ export default function BookingForm({
           </label>
           <input
             type="time"
-            className={`form-control ${useCurrentTimeOut ? 'bg-light text-muted' : ''}`}
+            className="form-control"
             value={checkOutTime}
             onChange={(e) => onChangeCheckOutTime && onChangeCheckOutTime(e.target.value)}
-            disabled={Boolean(useCurrentTimeOut)}
             required
           />
-          <div className="form-check mt-1">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="bfUseCurrentTimeOut"
-              checked={Boolean(useCurrentTimeOut)}
-              onChange={(e) => handleToggleCurrentOut(e.target.checked)}
-            />
-            <label className="form-check-label small text-muted user-select-none" htmlFor="bfUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
-              Current time
-            </label>
-          </div>
           {isLateCheckOut && (
             <small className="text-danger d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
               ℹ Late Check-out ({lateHours} hr{lateHours > 1 ? 's' : ''} past 12:00 PM) fee of ₱{lateFee.toFixed(2)} applied @ ₱100/hr.

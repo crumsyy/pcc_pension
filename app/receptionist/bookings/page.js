@@ -125,15 +125,12 @@ function BookingsClient() {
   const [settledPaymentRef, setSettledPaymentRef] = useState('');
   const [roomFilterStatus, setRoomFilterStatus] = useState('Available');
   const [downPaymentOption, setDownPaymentOption] = useState('30');
-  const [checkInScenario, setCheckInScenario] = useState('now');
   const [checkInDate, setCheckInDate] = useState('');
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutDate, setCheckOutDate] = useState('');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
   const [useCurrentTimeIn, setUseCurrentTimeIn] = useState(false);
-  const [useCurrentTimeOut, setUseCurrentTimeOut] = useState(false);
   const [updateUseCurrentTimeIn, setUpdateUseCurrentTimeIn] = useState(false);
-  const [updateUseCurrentTimeOut, setUpdateUseCurrentTimeOut] = useState(false);
 
   const calculateBookingNights = (inDateVal = checkInDate, outDateVal = checkOutDate) => {
     const dbIn = toDbDate(inDateVal);
@@ -606,7 +603,6 @@ function BookingsClient() {
     const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
     
     setMinDateTime(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${currentTimeStr}`);
-    setCheckInScenario('now');
     setDownPaymentOption('30');
     setCheckInDate(todayUiDate);
     setCheckInTime('14:00');
@@ -806,8 +802,8 @@ function BookingsClient() {
       return;
     }
 
-    if (checkInScenario === 'later' && inDateObj < new Date()) {
-      showAlert('error', 'Validation Error', 'Scheduled Check-In time has already passed. Please select a valid future time or choose "Book & Check-In Now".');
+    if (!useCurrentTimeIn && inDateObj < new Date()) {
+      showAlert('error', 'Validation Error', 'Scheduled Check-In time has already passed. Please select a valid future time or use "Current time".');
       return;
     }
 
@@ -887,9 +883,9 @@ function BookingsClient() {
       return;
     }
 
-    // Format Check-in timestamp cleanly based on Scenario 1 vs Scenario 2
+    // Format Check-in timestamp cleanly based on useCurrentTimeIn
     let finalCheckInDateTime = toDbDate(checkInDate) + ' ' + checkInTime + ':00';
-    if (checkInScenario === 'now') {
+    if (useCurrentTimeIn) {
       const localNow = new Date();
       const pad = (n) => String(n).padStart(2, '0');
       finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
@@ -914,10 +910,10 @@ function BookingsClient() {
             roomID: formData.roomID,
             checkInDateTime: finalCheckInDateTime,
             checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
-            status: (checkInScenario === 'now' || useCurrentTimeIn) ? 'Checked In' : 'Pending Check-in',
-            useCurrentTime: Boolean(checkInScenario === 'now' || useCurrentTimeIn),
-            useCurrentTimeIn: Boolean(checkInScenario === 'now' || useCurrentTimeIn),
-            useCurrentTimeOut: Boolean(useCurrentTimeOut),
+            status: useCurrentTimeIn ? 'Checked In' : 'Pending Check-in',
+            useCurrentTime: Boolean(useCurrentTimeIn),
+            useCurrentTimeIn: Boolean(useCurrentTimeIn),
+            useCurrentTimeOut: false,
             earlyFee,
             earlyHours,
             lateFee,
@@ -1140,10 +1136,10 @@ function BookingsClient() {
     return matchesSearch && matchesStatus;
   });
 
-  const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, scenario) => {
+  const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, isCurrentTime = false) => {
     const room = rooms.find(r => String(r.roomID) === String(roomID));
     if (!room) return false;
-    if (scenario === 'now') {
+    if (isCurrentTime) {
       return room.status === 'Available';
     }
     if (!inDateStr || !outDateStr) {
@@ -1476,7 +1472,7 @@ function BookingsClient() {
                           {selectedRoomType ? "Select Available Room" : "Choose Room Type first"}
                         </option>
                         {rooms
-                          .filter(rm => rm.roomType === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, checkInScenario))
+                          .filter(rm => rm.roomType === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, useCurrentTimeIn))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
                               Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
@@ -1636,42 +1632,6 @@ function BookingsClient() {
                     </div>
                   </div>
 
-                  {/* REQUIREMENT 3: CHECK-IN SCENARIO SELECTOR */}
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">Check-In Scenario *</label>
-                    <div className="btn-group w-100" role="group">
-                      <button
-                        type="button"
-                        className={`btn ${checkInScenario === 'now' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
-                        onClick={() => {
-                          setCheckInScenario('now');
-                          setUseCurrentTimeIn(true);
-                          const now = new Date();
-                          const pad = (n) => String(n).padStart(2, '0');
-                          setCheckInDate(toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`));
-                          const tomorrow = new Date(now);
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          setCheckOutDate(toUiDate(`${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`));
-                          setCheckInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-                          setFormData(prev => ({ ...prev, status: 'Checked In' }));
-                        }}
-                      >
-                        Book & Check-In Now (Current System Time)
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn ${checkInScenario === 'later' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-                        onClick={() => {
-                          setCheckInScenario('later');
-                          setUseCurrentTimeIn(false);
-                          setFormData(prev => ({ ...prev, status: 'Pending Check-in' }));
-                        }}
-                      >
-                        Book Now, Check-In Later
-                      </button>
-                    </div>
-                  </div>
-
                   {/* STAY SCHEDULE & CALENDAR DATES */}
                   <div className="row g-3 mb-3">
                     <div className="col-md-6">
@@ -1709,30 +1669,28 @@ function BookingsClient() {
                               const checked = e.target.checked;
                               setUseCurrentTimeIn(checked);
                               if (checked) {
-                                setCheckInScenario('now');
                                 const now = new Date();
                                 const pad = (n) => String(n).padStart(2, '0');
                                 setCheckInDate(toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`));
                                 setCheckInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
                                 setFormData(prev => ({ ...prev, status: 'Checked In' }));
                               } else {
-                                setCheckInScenario('later');
+                                setCheckInTime('14:00');
                                 setFormData(prev => ({ ...prev, status: 'Pending Check-in' }));
                               }
                             }}
                           />
                           <label className="form-check-label small text-muted user-select-none" htmlFor="recUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-                            Use Current Time (auto-record actual time)
+                            Current time
                           </label>
+                          <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
+                            <i className="bi bi-info-circle me-1"></i>
+                            Checked In immediately when selected; defaults to 2:00 PM when unselected.
+                          </div>
                         </div>
                         {isEarlyCheckIn && (
                           <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.72rem' }}>
                             ℹ Early Check-in ({earlyHours} hr{earlyHours > 1 ? 's' : ''} prior to 2:00 PM) fee of ₱{earlyFee.toFixed(2)} applied @ ₱50/hr.
-                          </small>
-                        )}
-                        {!useCurrentTimeIn && isCheckInToday && !isEarlyCheckIn && (
-                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                            Earliest selectable time today: {currentTimeStr}
                           </small>
                         )}
                       </div>
@@ -1755,32 +1713,11 @@ function BookingsClient() {
                         </label>
                         <input
                           type="time"
-                          className={`form-control form-control-sm ${useCurrentTimeOut ? 'bg-light text-muted' : ''}`}
+                          className="form-control form-control-sm"
                           value={checkOutTime}
                           onChange={(e) => setCheckOutTime(e.target.value)}
-                          disabled={Boolean(useCurrentTimeOut)}
                           required
                         />
-                        <div className="form-check mt-1">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="recUseCurrentTimeOut"
-                            checked={Boolean(useCurrentTimeOut)}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setUseCurrentTimeOut(checked);
-                              if (checked) {
-                                const now = new Date();
-                                const pad = (n) => String(n).padStart(2, '0');
-                                setCheckOutTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-                              }
-                            }}
-                          />
-                          <label className="form-check-label small text-muted user-select-none" htmlFor="recUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
-                            Current time
-                          </label>
-                        </div>
                         {isLateCheckOut && (
                           <small className="text-danger d-block mt-0.5 fw-semibold" style={{ fontSize: '0.72rem' }}>
                             ℹ Late Check-out ({lateHours} hr{lateHours > 1 ? 's' : ''} past 12:00 PM) fee of ₱{lateFee.toFixed(2)} applied @ ₱100/hr.
@@ -2368,12 +2305,18 @@ function BookingsClient() {
                                 const pad = (n) => String(n).padStart(2, '0');
                                 setUpdateCheckInDate(toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`));
                                 setUpdateCheckInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+                              } else {
+                                setUpdateCheckInTime('14:00');
                               }
                             }}
                           />
                           <label className="form-check-label small text-muted user-select-none" htmlFor="updUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-                            Use Current Time (auto-record actual time)
+                            Current time
                           </label>
+                          <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
+                            <i className="bi bi-info-circle me-1"></i>
+                            Checked In immediately when selected; defaults to 2:00 PM when unselected.
+                          </div>
                         </div>
                         {isUpdateToday && !updateUseCurrentTimeIn && (
                           <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
@@ -2395,32 +2338,11 @@ function BookingsClient() {
                         <label className="form-label small fw-semibold">Check-Out Time *</label>
                         <input
                           type="time"
-                          className={`form-control form-control-sm ${updateUseCurrentTimeOut ? 'bg-light text-muted' : ''}`}
+                          className="form-control form-control-sm"
                           required
                           value={updateCheckOutTime}
-                          disabled={Boolean(updateUseCurrentTimeOut)}
                           onChange={(e) => setUpdateCheckOutTime(e.target.value)}
                         />
-                        <div className="form-check mt-1">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="updUseCurrentTimeOut"
-                            checked={Boolean(updateUseCurrentTimeOut)}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setUpdateUseCurrentTimeOut(checked);
-                              if (checked) {
-                                const now = new Date();
-                                const pad = (n) => String(n).padStart(2, '0');
-                                setUpdateCheckOutTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-                              }
-                            }}
-                          />
-                          <label className="form-check-label small text-muted user-select-none" htmlFor="updUseCurrentTimeOut" style={{ fontSize: '0.75rem' }}>
-                            Current time
-                          </label>
-                        </div>
                       </div>
                     </div>
                   </div>

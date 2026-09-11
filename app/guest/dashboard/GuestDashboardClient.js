@@ -855,9 +855,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       manilaMinute = parseInt(p.minute, 10);
     } catch (e) {}
 
-    // Early check-in applies strictly on the day of arrival before 2:00 PM (14:00)
-    if (checkInDate === todayStr && (manilaHour < 14 || useCurrentTimeIn)) {
-      const exactRemainingMinutes = (14 * 60) - (manilaHour * 60 + manilaMinute);
+    // Early check-in applies strictly on the day of arrival before 2:00 PM (14:00) when checking in early or current time is used
+    if (checkInDate === todayStr && (useCurrentTimeIn || (checkInTime && checkInTime < '14:00'))) {
+      const h = useCurrentTimeIn ? manilaHour : (parseInt((checkInTime || '').split(':')[0], 10) || 14);
+      const m = useCurrentTimeIn ? manilaMinute : (parseInt((checkInTime || '').split(':')[1], 10) || 0);
+      const exactRemainingMinutes = (14 * 60) - (h * 60 + m);
       if (exactRemainingMinutes > 0) {
         const earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
         const earlyFee = earlyHours * 50;
@@ -981,7 +983,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkOutTime,
           useCurrentTime: Boolean(useCurrentTimeIn),
           useCurrentTimeIn: Boolean(useCurrentTimeIn),
-          useCurrentTimeOut: Boolean(useCurrentTimeOut),
+          useCurrentTimeOut: false,
           earlyFee: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0,
           earlyHours: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyHours : 0,
           lateFee: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateFee : 0,
@@ -1080,7 +1082,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkOutTime,
           useCurrentTime: Boolean(useCurrentTimeIn),
           useCurrentTimeIn: Boolean(useCurrentTimeIn),
-          useCurrentTimeOut: Boolean(useCurrentTimeOut),
+          useCurrentTimeOut: false,
           earlyFee: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0,
           earlyHours: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyHours : 0,
           lateFee: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateFee : 0,
@@ -3874,8 +3876,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
                           useCurrentTimeIn={useCurrentTimeIn}
                           onChangeUseCurrentTimeIn={(val) => setUseCurrentTimeIn(val)}
-                          useCurrentTimeOut={useCurrentTimeOut}
-                          onChangeUseCurrentTimeOut={(val) => setUseCurrentTimeOut(val)}
                           minDate={minBookDateStr}
                           nightsCount={nightsCount}
                           selectedRoom={selectedRoom}
