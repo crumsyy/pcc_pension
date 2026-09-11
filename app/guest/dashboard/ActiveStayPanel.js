@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Button from '@/app/components/Button';
+import StatusBadge from '@/app/components/StatusBadge';
 import './styles.css';
 
 export default function ActiveStayPanel({
@@ -10,9 +11,14 @@ export default function ActiveStayPanel({
   loadingBill,
   onViewLiveBill,
   onPay,
+  onRequestCheckout,
   formatBookingID,
   renderBookingStatusTimeline
 }) {
+  const [requestingCheckout, setRequestingCheckout] = useState(false);
+  const [checkoutNotice, setCheckoutNotice] = useState('');
+  const [isCheckoutRequested, setIsCheckoutRequested] = useState(false);
+
   if (!activeBookingStay) return null;
 
   const remainingBal = parseFloat(
@@ -22,6 +28,30 @@ export default function ActiveStayPanel({
     detailedBill?.balancing?.remainingBalance ??
     0
   );
+
+  const isAlreadyRequested = activeBookingStay.status === 'Checkout Requested' || isCheckoutRequested;
+
+  const handleRequestCheckoutClick = async () => {
+    if (onRequestCheckout) {
+      return onRequestCheckout(activeBookingStay);
+    }
+    setRequestingCheckout(true);
+    try {
+      const res = await fetch('/api/guest/checkout-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingID: activeBookingStay.bookingID })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to request checkout');
+      setIsCheckoutRequested(true);
+      setCheckoutNotice("Checkout request sent. Receptionist will finalize your bill.");
+    } catch (err) {
+      alert(err.message || 'Error sending checkout request');
+    } finally {
+      setRequestingCheckout(false);
+    }
+  };
 
   return (
     <div
@@ -36,9 +66,7 @@ export default function ActiveStayPanel({
             <span className="badge bg-primary text-white px-3 py-1.5 fs-7 rounded-pill">
               Active Stay Booking ({formatBookingID ? formatBookingID(activeBookingStay.bookingID) : `#${activeBookingStay.bookingID}`})
             </span>
-            <span className="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1" style={{ fontSize: '0.74rem' }}>
-              <i className="bi bi-check-circle-fill me-1"></i>{activeBookingStay.status || 'Checked In'}
-            </span>
+            <StatusBadge status={activeBookingStay.status || 'Active Stay'} />
           </div>
 
           <h5 className="fw-bold mb-1 text-dark">
@@ -54,7 +82,7 @@ export default function ActiveStayPanel({
                   <span>Billing &amp; Payments</span>
                 </div>
                 <small className="text-muted d-block mt-0.5" style={{ fontSize: '0.78rem' }}>
-                  Review itemized room charges, meals, and settle your stay balance
+                  Review itemized room charges, meals, and request checkout
                 </small>
               </div>
 
@@ -67,17 +95,24 @@ export default function ActiveStayPanel({
                   <i className="bi bi-receipt me-2"></i>Live Bill
                 </Button>
 
-                {remainingBal > 0 && (
-                  <Button
-                    variant="success"
-                    className="btn-spaced shadow-sm"
-                    onClick={() => onPay(activeBookingStay)}
-                  >
-                    <i className="bi bi-credit-card me-2"></i>Pay (₱{remainingBal.toFixed(2)})
-                  </Button>
-                )}
+                <Button
+                  variant="warning"
+                  className="btn-spaced shadow-sm fw-bold text-dark"
+                  disabled={isAlreadyRequested || requestingCheckout || activeBookingStay.status === 'Completed'}
+                  onClick={handleRequestCheckoutClick}
+                >
+                  <i className="bi bi-box-arrow-right me-2"></i>
+                  {isAlreadyRequested ? 'Checkout Requested' : (requestingCheckout ? 'Sending Request...' : 'Request Checkout')}
+                </Button>
               </div>
             </div>
+
+            {checkoutNotice && (
+              <div className="alert alert-warning py-2 px-3 small mt-2 mb-0 d-flex align-items-center gap-2 fw-semibold" role="alert">
+                <i className="bi bi-info-circle-fill text-warning-emphasis"></i>
+                <span>{checkoutNotice}</span>
+              </div>
+            )}
           </div>
 
           {/* GUEST BILLING BREAKDOWN CARD */}

@@ -1327,11 +1327,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const handleRequestCheckout = (booking) => {
     if (!booking) return;
     showConfirm(
-      'Request Checkout & Room Verification',
-      `Are you ready to request checkout for Room ${booking.roomNumber}? Housekeeping and front desk will be notified to inspect the room condition and finalize your incidental fees.`,
+      'Request Checkout',
+      `Are you ready to request checkout for Room ${booking.roomNumber}? Receptionist will be notified to finalize your bill.`,
       async () => {
         try {
-          const res = await fetch('/api/receptionist/bookings/checkout-request', {
+          const res = await fetch('/api/guest/checkout-request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1341,7 +1341,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to request checkout');
 
-          showAlert('success', 'Checkout Requested', data.message || 'Front desk has been notified. Staff are now inspecting your room.');
+          showAlert('success', 'Checkout Requested', "Checkout request sent. Receptionist will finalize your bill.");
           fetchRoomsAndStatus();
         } catch (err) {
           showAlert('error', 'Error', err.message);
@@ -1430,29 +1430,30 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     switch (status) {
       case 'Pending':
       case 'Pending Check-in':
-        return 'bg-warning-subtle text-warning-emphasis border border-warning';
+        return 'bg-info-subtle text-info-emphasis border border-info';
       case 'Confirmed':
       case 'Booked':
         return 'bg-primary-subtle text-primary border border-primary';
-      case 'Checked In':
       case 'Active Stay':
-        return 'bg-info-subtle text-info-emphasis border border-info';
+      case 'Checked In':
+        return 'bg-primary text-white';
+      case 'Checkout Requested':
       case 'Pending Room Verification':
       case 'Pending Checkout':
-        return 'bg-warning-subtle text-warning-emphasis border border-warning';
+        return 'bg-warning text-dark';
+      case 'Bill Finalized':
       case 'Room Verified':
-        return 'bg-info-subtle text-info-emphasis border border-info';
       case 'Final Billing Updated':
-        return 'bg-primary text-white';
-      case 'Payment Completed':
+        return 'badge-purple text-white';
       case 'Paid':
+      case 'Payment Completed':
         return 'bg-success text-white';
-      case 'Checked Out':
       case 'Completed':
-        return 'bg-secondary-subtle text-secondary border';
+      case 'Checked Out':
+        return 'bg-secondary text-white';
       case 'Cancelled':
       case 'No Show':
-        return 'bg-danger-subtle text-danger border border-danger';
+        return 'bg-danger text-white';
       default:
         return 'bg-secondary-subtle text-secondary';
     }
@@ -1606,19 +1607,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (isCheckoutFlow) {
       const checkoutSteps = [
         { id: 'Active Stay', label: 'Active Stay' },
-        { id: 'Pending Room Verification', label: 'Verify Room' },
-        { id: 'Room Verified', label: 'Room OK' },
-        { id: 'Final Billing Updated', label: 'Bill Ready' },
-        { id: 'Payment Completed', label: 'Paid' },
-        { id: 'Checked Out', label: 'Departed' }
+        { id: 'Checkout Requested', label: 'Checkout Requested' },
+        { id: 'Bill Finalized', label: 'Bill Finalized' },
+        { id: 'Paid', label: 'Paid' },
+        { id: 'Completed', label: 'Completed' }
       ];
 
       let currentIdx = 0;
-      if (status === 'Pending Room Verification' || status === 'Pending Checkout') currentIdx = 1;
-      if (status === 'Room Verified') currentIdx = 2;
-      if (status === 'Final Billing Updated') currentIdx = 3;
-      if (status === 'Payment Completed') currentIdx = 4;
-      if (status === 'Checked Out' || status === 'Completed') currentIdx = 5;
+      if (status === 'Checkout Requested' || status === 'Pending Room Verification' || status === 'Pending Checkout') currentIdx = 1;
+      if (status === 'Bill Finalized' || status === 'Room Verified' || status === 'Final Billing Updated') currentIdx = 2;
+      if (status === 'Paid' || status === 'Payment Completed') currentIdx = 3;
+      if (status === 'Completed' || status === 'Checked Out') currentIdx = 4;
 
       return (
         <div className="w-100 my-2">
@@ -2294,6 +2293,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       setShowBillModal(true);
                     }}
                     onPay={(booking) => setSettleBooking(booking)}
+                    onRequestCheckout={(booking) => handleRequestCheckout(booking)}
                     formatBookingID={formatBookingID}
                     renderBookingStatusTimeline={renderBookingStatusTimeline}
                   />
@@ -3109,19 +3109,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {(b.status === 'Pending Room Verification' || b.status === 'Pending Checkout') && (
-                                  <button type="button" className="btn btn-outline-warning text-dark" disabled aria-label="Pending Room Verification">
-                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Pending Room Verification
+                                {(b.status === 'Checkout Requested' || b.status === 'Pending Room Verification' || b.status === 'Pending Checkout') && (
+                                  <button type="button" className="btn btn-outline-warning text-dark" disabled aria-label="Checkout Requested">
+                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checkout Requested
                                   </button>
                                 )}
 
-                                {b.status === 'Room Verified' && (
-                                  <button type="button" className="btn btn-outline-info text-dark" disabled aria-label="Room Verified">
-                                    <i className="bi bi-check-circle me-1"></i> Room Verified (Preparing Bill)
-                                  </button>
-                                )}
-
-                                {b.status === 'Final Billing Updated' && (
+                                {(b.status === 'Bill Finalized' || b.status === 'Final Billing Updated' || b.status === 'Room Verified') && (
                                   <button 
                                     type="button" 
                                     className="btn btn-primary fw-bold text-white shadow-sm"
@@ -3132,9 +3126,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {b.status === 'Payment Completed' && (
+                                {(b.status === 'Paid' || b.status === 'Payment Completed') && (
                                   <button type="button" className="btn btn-success text-white" disabled aria-label="Payment Completed">
-                                    <i className="bi bi-check2-all me-1"></i> Payment Completed
+                                    <i className="bi bi-check2-all me-1"></i> Paid
                                   </button>
                                 )}
 

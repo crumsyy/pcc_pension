@@ -36,3 +36,10 @@
   gap: 12px;
   align-items: center;
 }
+
+/* Streamlined Status Badge Helpers */
+.badge-purple {
+  background-color: #6f42c1 !important;
+  color: #ffffff !important;
+}
+

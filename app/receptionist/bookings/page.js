@@ -10,6 +10,7 @@ import ReservationCalendar from '../../components/ReservationCalendar';
 import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
+import StatusBadge from '../../components/StatusBadge';
 
 function calculateAgeFromUiDate(uiDateStr) {
   if (!isValidDate(uiDateStr)) return '';
@@ -75,6 +76,13 @@ function BookingsClient() {
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'cancel_reason' | 'manage_guests' | null
   const [cancellingBookingID, setCancellingBookingID] = useState(null);
   const [cancelRemarks, setCancelRemarks] = useState('');
+  const [finalizeBillModal, setFinalizeBillModal] = useState({
+    isOpen: false,
+    booking: null,
+    singleDesc: '',
+    singleAmount: '',
+    processing: false
+  });
   const [minDateTime, setMinDateTime] = useState('');
   const [maxDobStr, setMaxDobStr] = useState('');
 
@@ -368,6 +376,92 @@ function BookingsClient() {
     } else {
       executeUpdate();
     }
+  };
+
+  const handleOpenFinalizeBillModal = (b) => {
+    setFinalizeBillModal({
+      isOpen: true,
+      booking: b,
+      singleDesc: '',
+      singleAmount: '',
+      processing: false
+    });
+  };
+
+  const handleSaveFinalBill = async (e) => {
+    if (e) e.preventDefault();
+    if (!finalizeBillModal.booking) return;
+
+    setFinalizeBillModal(prev => ({ ...prev, processing: true }));
+    try {
+      const payload = {
+        action: 'update_final_billing',
+        bookingID: finalizeBillModal.booking.bookingID,
+        incidentals: []
+      };
+      if (finalizeBillModal.singleDesc.trim() && parseFloat(finalizeBillModal.singleAmount) > 0) {
+        payload.incidentals.push({
+          description: finalizeBillModal.singleDesc.trim(),
+          amount: parseFloat(finalizeBillModal.singleAmount)
+        });
+      }
+      const res = await fetch('/api/receptionist/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to finalize bill');
+
+      showAlert('success', 'Bill Finalized', data.message || 'Billing has been finalized and guest notified.');
+      const finalizedBooking = finalizeBillModal.booking;
+      setFinalizeBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '', processing: false });
+      await fetchData();
+
+      const bal = parseFloat(data.finalBalance || finalizedBooking.remainingBalance || 0);
+      if (bal > 0) {
+        showConfirm(
+          'Balance Remaining',
+          `Room ${finalizedBooking.roomNumber} has an outstanding balance of ₱${bal.toFixed(2)}. Would you like to proceed to the Payment Terminal now?`,
+          () => {
+            window.location.href = `/receptionist/bookings/checkout`;
+          },
+          'Proceed to Pay',
+          'Dismiss'
+        );
+      }
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+      setFinalizeBillModal(prev => ({ ...prev, processing: false }));
+    }
+  };
+
+  const handleMarkCompleted = (b) => {
+    if (!b) return;
+    showConfirm(
+      'Complete Checkout',
+      `Are you sure you want to mark Booking #${b.bookingID} (Room ${b.roomNumber}) as Completed? This will release the room and mark the stay as departed.`,
+      async () => {
+        try {
+          const res = await fetch('/api/receptionist/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'checkout',
+              bookingID: b.bookingID,
+              confirmEarlyCheckOut: true
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to complete checkout');
+
+          showAlert('success', 'Stay Completed', `Booking #${b.bookingID} has been completed and Room ${b.roomNumber} is now freed.`);
+          fetchData();
+        } catch (err) {
+          showAlert('error', 'Error', err.message);
+        }
+      }
+    );
   };
 
   // Auto-fill required down payment in Payment Received textfield
@@ -1141,9 +1235,32 @@ function BookingsClient() {
     const contact = (b.contact || '').toLowerCase();
     const roomNum = (b.roomNumber || '').toString().toLowerCase();
     const matchesSearch = fullName.includes(search.toLowerCase()) || contact.includes(search.toLowerCase()) || roomNum.includes(search.toLowerCase());
-    const matchesStatus = statusFilter ? b.status === statusFilter : true;
+    
+    let matchesStatus = true;
+    if (statusFilter) {
+      if (statusFilter === 'Active Stay') {
+        matchesStatus = b.status === 'Active Stay' || b.status === 'Checked In';
+      } else if (statusFilter === 'Checkout Requested') {
+        matchesStatus = b.status === 'Checkout Requested' || b.status === 'Pending Room Verification' || b.status === 'Pending Checkout';
+      } else if (statusFilter === 'Bill Finalized') {
+        matchesStatus = b.status === 'Bill Finalized' || b.status === 'Room Verified' || b.status === 'Final Billing Updated';
+      } else if (statusFilter === 'Paid') {
+        matchesStatus = b.status === 'Paid' || b.status === 'Payment Completed';
+      } else if (statusFilter === 'Completed') {
+        matchesStatus = b.status === 'Completed' || b.status === 'Checked Out';
+      } else {
+        matchesStatus = b.status === statusFilter;
+      }
+    }
     return matchesSearch && matchesStatus;
   });
+
+  const checkoutRequests = bookings.filter(b => 
+    b.status === 'Checkout Requested' ||
+    b.status === 'Pending Room Verification' ||
+    b.status === 'Pending Checkout' ||
+    b.status === 'Bill Finalized'
+  );
 
   const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, isCurrentTime = false) => {
     const room = rooms.find(r => String(r.roomID) === String(roomID));
@@ -1176,11 +1293,21 @@ function BookingsClient() {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Checked In': return 'bg-success text-white';
+      case 'Active Stay':
+      case 'Checked In': return 'bg-primary text-white';
+      case 'Checkout Requested':
+      case 'Pending Checkout':
+      case 'Pending Room Verification': return 'bg-warning text-dark';
+      case 'Bill Finalized':
+      case 'Room Verified':
+      case 'Final Billing Updated': return 'badge-purple text-white';
+      case 'Paid':
+      case 'Payment Completed': return 'bg-success text-white';
+      case 'Completed':
+      case 'Checked Out': return 'bg-secondary text-white';
       case 'Late Checkout': return 'bg-danger text-white';
       case 'Overdue Check-In': return 'bg-warning text-dark';
       case 'No Show': return 'bg-danger text-white';
-      case 'Checked Out': return 'bg-secondary text-white';
       case 'Pending Check-in': return 'bg-info text-dark';
       case 'Cancelled': return 'bg-secondary text-white';
       default: return 'bg-primary text-white';
@@ -1212,6 +1339,114 @@ function BookingsClient() {
         </button>
       </div>
 
+      {/* CHECKOUT REQUESTS NOTIFICATION & ACTION SECTION */}
+      {checkoutRequests.length > 0 && (
+        <div className="card shadow-sm border-0 border-start border-4 border-warning p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+          <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-2">
+            <div className="d-flex align-items-center gap-2">
+              <i className="fa-solid fa-bell text-warning fs-5"></i>
+              <h5 className="fw-bold text-dark mb-0">Active Checkout Requests</h5>
+              <span className="badge bg-warning text-dark fw-bold rounded-pill px-2.5 py-1">
+                {checkoutRequests.length} Pending
+              </span>
+            </div>
+            <small className="text-muted">
+              Guests who requested checkout. Review incidental fees, finalize bill, and complete departure.
+            </small>
+          </div>
+
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
+              <thead className="table-light">
+                <tr>
+                  <th>Room</th>
+                  <th>Guest</th>
+                  <th>Booking Ref</th>
+                  <th>Requested Time</th>
+                  <th>Balance Due</th>
+                  <th>Status</th>
+                  <th className="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {checkoutRequests.map(req => {
+                  const reqBalance = parseFloat(req.remainingBalance ?? req.finalBalance ?? 0);
+                  const isBillFinalized = req.status === 'Bill Finalized' || req.status === 'Room Verified' || req.status === 'Final Billing Updated';
+
+                  return (
+                    <tr key={`checkout-req-${req.bookingID}`}>
+                      <td>
+                        <strong className="text-pcc-blue fs-6">Room {req.roomNumber}</strong>
+                        <div className="small text-muted">{req.roomType}</div>
+                      </td>
+                      <td>
+                        <div className="fw-bold text-dark">{req.firstName} {req.lastName}</div>
+                        <small className="text-muted">{req.contact || req.email || 'No contact'}</small>
+                      </td>
+                      <td>
+                        <span className="badge bg-light text-dark border">#{req.bookingID}</span>
+                      </td>
+                      <td>
+                        <div className="text-dark">
+                          <i className="fa-regular fa-clock me-1 text-muted"></i>
+                          {req.checkoutRequestedAt
+                            ? new Date(req.checkoutRequestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : 'Requested'}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`fw-bold ${reqBalance > 0 ? 'text-danger' : 'text-success'}`}>
+                          ₱{reqBalance.toFixed(2)}
+                        </span>
+                      </td>
+                      <td>
+                        <StatusBadge status={req.status} />
+                      </td>
+                      <td className="text-end">
+                        <div className="d-flex justify-content-end gap-1.5 flex-wrap">
+                          {!isBillFinalized && (
+                            <button
+                              type="button"
+                              className="btn btn-sm text-white fw-bold shadow-xs d-inline-flex align-items-center gap-1"
+                              style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1', fontSize: '0.78rem' }}
+                              onClick={() => handleOpenFinalizeBillModal(req)}
+                            >
+                              <i className="fa-solid fa-receipt"></i>
+                              <span>Finalize Bill</span>
+                            </button>
+                          )}
+
+                          {isBillFinalized && reqBalance > 0 && (
+                            <Link
+                              href="/receptionist/bookings/checkout"
+                              className="btn btn-sm btn-success text-white fw-bold shadow-xs d-inline-flex align-items-center gap-1"
+                              style={{ fontSize: '0.78rem' }}
+                            >
+                              <i className="fa-solid fa-credit-card"></i>
+                              <span>Collect ₱{reqBalance.toFixed(2)}</span>
+                            </Link>
+                          )}
+
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-secondary text-white fw-bold shadow-xs d-inline-flex align-items-center gap-1"
+                            style={{ fontSize: '0.78rem' }}
+                            onClick={() => handleMarkCompleted(req)}
+                          >
+                            <i className="fa-solid fa-check"></i>
+                            <span>Mark Completed</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
         <div className="row g-2">
           <div className="col-md-6">
@@ -1226,11 +1461,14 @@ function BookingsClient() {
           <div className="col-md-6">
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Booking Statuses</option>
+              <option value="Active Stay">Active Stay</option>
+              <option value="Checkout Requested">Checkout Requested</option>
+              <option value="Bill Finalized">Bill Finalized</option>
+              <option value="Paid">Paid</option>
+              <option value="Completed">Completed</option>
               <option value="Pending Check-in">Pending Check-in</option>
               <option value="Overdue Check-In">Overdue Check-In</option>
-              <option value="Checked In">Checked In</option>
               <option value="Late Checkout">Late Checkout</option>
-              <option value="Checked Out">Checked Out</option>
               <option value="No Show">No Show</option>
               <option value="Cancelled">Cancelled</option>
             </select>
@@ -1286,7 +1524,7 @@ function BookingsClient() {
                       </div>
                     </td>
                     <td>
-                      <span className={`badge ${getStatusBadge(b.status)}`}>{b.status}</span>
+                      <StatusBadge status={b.status} />
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
@@ -1313,7 +1551,7 @@ function BookingsClient() {
                           <i className="fa-solid fa-sync-alt"></i>
                         </button>
 
-                        {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'Booked' || b.status === 'Checked In') && (
+                        {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'Booked' || b.status === 'Checked In' || b.status === 'Active Stay') && (
                           <button
                             type="button"
                             className="action-btn action-btn-delete"
@@ -2402,6 +2640,93 @@ function BookingsClient() {
                     className="btn btn-success btn-sm text-white fw-bold"
                   >
                     <i className="fa-solid fa-check me-1"></i>Save Changes
+                  </LoadingButton>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* FINALIZE BILL MODAL */}
+      {finalizeBillModal.isOpen && finalizeBillModal.booking && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg">
+              <div className="modal-header text-white" style={{ backgroundColor: '#6f42c1' }}>
+                <h5 className="modal-title fw-bold">
+                  <i className="fa-solid fa-receipt me-2"></i>
+                  Finalize Bill — Room {finalizeBillModal.booking.roomNumber}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => setFinalizeBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '', processing: false })}
+                ></button>
+              </div>
+              <form onSubmit={handleSaveFinalBill}>
+                <div className="modal-body">
+                  <div className="p-3 bg-light rounded border mb-3">
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Guest:</span>
+                      <strong className="text-dark">{finalizeBillModal.booking.firstName} {finalizeBillModal.booking.lastName}</strong>
+                    </div>
+                    <div className="d-flex justify-content-between mb-1">
+                      <span className="text-muted">Current Balance:</span>
+                      <strong className="text-danger">₱{parseFloat(finalizeBillModal.booking.remainingBalance || finalizeBillModal.booking.finalBalance || 0).toFixed(2)}</strong>
+                    </div>
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted">Current Status:</span>
+                      <StatusBadge status={finalizeBillModal.booking.status} />
+                    </div>
+                  </div>
+
+                  <h6 className="fw-bold text-dark mb-2" style={{ fontSize: '0.88rem' }}>
+                    Add Incidental Fee / Damage Charge (Optional)
+                  </h6>
+                  <div className="mb-2">
+                    <label className="form-label small fw-semibold mb-1">Description</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="e.g. Minibar consumption, stained towel, key replacement"
+                      value={finalizeBillModal.singleDesc}
+                      onChange={(e) => setFinalizeBillModal(prev => ({ ...prev, singleDesc: e.target.value }))}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold mb-1">Amount (₱)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="form-control form-control-sm"
+                      placeholder="0.00"
+                      value={finalizeBillModal.singleAmount}
+                      onChange={(e) => setFinalizeBillModal(prev => ({ ...prev, singleAmount: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="alert alert-info py-2 px-3 small mb-0 d-flex align-items-center gap-2">
+                    <i className="fa-solid fa-circle-info"></i>
+                    <span>Finalizing the bill will update the booking status to <strong>Bill Finalized</strong> and notify the guest.</span>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => setFinalizeBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '', processing: false })}
+                  >
+                    Cancel
+                  </button>
+                  <LoadingButton
+                    type="submit"
+                    className="btn btn-sm text-white fw-bold"
+                    style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1' }}
+                    isLoading={finalizeBillModal.processing}
+                    loadingText="Finalizing..."
+                  >
+                    Confirm &amp; Finalize Bill
                   </LoadingButton>
                 </div>
               </form>
