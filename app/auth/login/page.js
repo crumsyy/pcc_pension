@@ -48,29 +48,10 @@ function LoginContent() {
     }
   }, [searchParams]);
 
-  // Route guard: if authenticated user navigates to /auth/login, redirect to their dashboard
+  // Auto-clear previous session on navigating to login page for a clean slate
   useEffect(() => {
-    let isMounted = true;
-    fetch('/api/auth/session-check')
-      .then((res) => res.json())
-      .then((data) => {
-        if (!isMounted) return;
-        if (data && data.valid && data.session) {
-          const role = data.session.role;
-          if (role === 'Administrator') {
-            router.replace('/admin/dashboard');
-          } else if (role === 'Receptionist') {
-            router.replace('/receptionist/dashboard');
-          } else {
-            router.replace('/guest/dashboard');
-          }
-        }
-      })
-      .catch(() => {});
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

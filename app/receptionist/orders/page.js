@@ -260,6 +260,7 @@ export default function ReceptionistOrders() {
 
   const getStatusBadge = (status) => {
     switch (status) {
+      case 'Pending Delivery': return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
       case 'Pending': return 'bg-warning text-dark';
       case 'Preparing': return 'bg-info text-white';
       case 'Served': return 'bg-primary text-white';
@@ -381,6 +382,7 @@ export default function ReceptionistOrders() {
                   style={{ borderRadius: '20px' }}
                 >
                   <option value="">All Statuses</option>
+                  <option value="Pending Delivery">Pending Delivery</option>
                   <option value="Preparing">Preparing</option>
                   <option value="Completed">Completed</option>
                   <option value="Canceled">Canceled</option>
@@ -540,14 +542,29 @@ export default function ReceptionistOrders() {
                   <div className="mb-3">
                     <label className="form-label fw-semibold">Select Room / Guest *</label>
                     <SearchableSelect
-                      options={activeBookings.map(b => ({
-                        value: String(b.guestID),
-                        label: `Room ${b.roomNumber} — ${b.lastName}, ${b.firstName}`
-                      }))}
+                      options={activeBookings.map(b => {
+                        const isCheckedIn = (b.bookingStatus === 'Checked In');
+                        return {
+                          value: String(b.guestID),
+                          label: `Room ${b.roomNumber} — ${b.lastName}, ${b.firstName} (${isCheckedIn ? 'Checked In' : 'Pending Check-in'})`
+                        };
+                      })}
                       value={newOrderForm.guestID}
                       onChange={(val) => setNewOrderForm(prev => ({ ...prev, guestID: val }))}
                       placeholder="Type to search guest or room..."
                     />
+                    {(() => {
+                      const selectedBooking = activeBookings.find(b => String(b.guestID) === String(newOrderForm.guestID));
+                      if (selectedBooking && selectedBooking.bookingStatus !== 'Checked In') {
+                        return (
+                          <div className="alert alert-warning py-1.5 px-2.5 mt-2 mb-0 small d-flex align-items-center gap-1.5" style={{ fontSize: '0.76rem' }}>
+                            <i className="bi bi-info-circle-fill text-warning-emphasis"></i>
+                            <span><strong>Guest not yet checked in:</strong> Order will be recorded as <strong>Pending Delivery</strong> and will automatically activate once the guest checks in.</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   <div className="row g-2 mb-3 bg-light p-3 border rounded">

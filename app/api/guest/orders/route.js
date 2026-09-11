@@ -127,9 +127,25 @@ export async function GET(request) {
       }
     }
 
+    let activeBooking = null;
+    if (guestID > 0) {
+      const activeBookings = await dbQuery(`
+        SELECT b.bookingID, b.status as bookingStatus, b.roomID, r.roomNumber, r.status as roomStatus
+        FROM booking b
+        LEFT JOIN room r ON r.roomID = b.roomID
+        WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        ORDER BY b.bookingID DESC
+        LIMIT 1
+      `, [guestID]);
+      if (activeBookings.length > 0) {
+        activeBooking = activeBookings[0];
+      }
+    }
+
     return NextResponse.json({
       success: true,
       guest,
+      activeBooking,
       products: activeProducts,
       cookedMeals,
       amenities,
@@ -162,14 +178,20 @@ export async function POST(request) {
     }
     const guest = guests[0];
 
-    // Find active checked-in or confirmed booking for this guest
-    const bookings = await dbQuery(
-      "SELECT bookingID, roomID FROM booking WHERE guestID = ? AND status IN ('Checked In', 'Late Checkout', 'Confirmed') ORDER BY checkInDateTime DESC LIMIT 1",
-      [guest.guestID]
-    );
+    // Find active booking and enforce check-in and occupancy constraint
+    const bookings = await dbQuery(`
+      SELECT b.bookingID, b.roomID, b.status as bookingStatus, r.status as roomStatus
+      FROM booking b
+      LEFT JOIN room r ON r.roomID = b.roomID
+      WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+      ORDER BY b.bookingID DESC
+      LIMIT 1
+    `, [guest.guestID]);
 
-    if (bookings.length === 0) {
-      return NextResponse.json({ error: 'Active booking not found. Orders must be linked to an active booking stay.' }, { status: 400 });
+    if (bookings.length === 0 || bookings[0].bookingStatus !== 'Checked In') {
+      return NextResponse.json({
+        error: "Orders can only be placed once you’ve checked in."
+      }, { status: 403 });
     }
 
     const booking = bookings[0];

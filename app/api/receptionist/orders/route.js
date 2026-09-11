@@ -81,11 +81,12 @@ export async function GET(request) {
         ORDER BY a.name
       `),
       dbQuery(`
-        SELECT b.bookingID, b.guestID, g.firstName, g.lastName, rm.roomNumber 
+        SELECT b.bookingID, b.guestID, b.status as bookingStatus, g.firstName, g.lastName, rm.roomNumber, rm.status as roomStatus 
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
-        WHERE b.status IN ('Checked In', 'Late Checkout')
+        WHERE b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        ORDER BY b.bookingID DESC
       `),
       dbQuery(`
         SELECT bt.*, COALESCE(a.name, p.name) as itemName, r.roomNumber
@@ -136,22 +137,25 @@ export async function POST(request) {
       try {
         await connection.beginTransaction();
 
-        // Check active checked-in booking for this guest
+        // Check active booking for this guest (supports checked-in guests and pending check-in overrides)
         const [bookingCheck] = await connection.execute(
-          `SELECT b.bookingID, b.roomID, g.firstName, g.lastName, r.roomTypeID, r.floorID 
+          `SELECT b.bookingID, b.roomID, b.status as bookingStatus, g.firstName, g.lastName, r.roomTypeID, r.floorID, r.status as roomStatus 
            FROM booking b 
            JOIN guest g ON g.guestID = b.guestID 
            JOIN room r ON r.roomID = b.roomID
-           WHERE g.guestID = ? AND b.status IN ('Checked In', 'Late Checkout') 
+           WHERE g.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show') 
+           ORDER BY b.bookingID DESC
            LIMIT 1`,
           [guestID]
         );
         if (bookingCheck.length === 0) {
-          return NextResponse.json({ error: 'Only checked-in guests are allowed to place orders.' }, { status: 400 });
+          return NextResponse.json({ error: 'No active booking found for this guest.' }, { status: 400 });
         }
-        const activeBookingID = bookingCheck[0].bookingID;
-        const activeRoomID = bookingCheck[0].roomID;
-        const activeBorrowedBy = `${bookingCheck[0].firstName} ${bookingCheck[0].lastName}`.trim();
+        const activeBooking = bookingCheck[0];
+        const activeBookingID = activeBooking.bookingID;
+        const activeRoomID = activeBooking.roomID;
+        const isOccupiedAndCheckedIn = (activeBooking.bookingStatus === 'Checked In' && activeBooking.roomStatus === 'Occupied');
+        const activeBorrowedBy = `${activeBooking.firstName} ${activeBooking.lastName}`.trim();
 
         // Prevent duplicate order creation within 10 seconds for the same guest
         const [recentOrderCheck] = await connection.execute(
@@ -257,10 +261,11 @@ export async function POST(request) {
 
         const deliveryTime = body.deliveryTime || null;
         const orderDeliveryType = (containsCookedBreakfast || items.some(it => it.deliveryType === 'scheduled')) ? 'scheduled' : 'immediate';
+        const initialOrderStatus = isOccupiedAndCheckedIn ? 'Preparing' : 'Pending Delivery';
         // 1. Create order record
         const [orderResult] = await connection.execute(
-          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal, deliveryTime, deliveryDate, deliveryType) VALUES ('Preparing', ?, ?, ?, ?, ?, ?, ?)",
-          [nowStr, guestID, activeBookingID, containsCookedBreakfast ? 1 : 0, deliveryTime, deliveryDate, orderDeliveryType]
+          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal, deliveryTime, deliveryDate, deliveryType) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          [initialOrderStatus, nowStr, guestID, activeBookingID, containsCookedBreakfast ? 1 : 0, deliveryTime, deliveryDate, orderDeliveryType]
         );
         const orderID = orderResult.insertId;
 

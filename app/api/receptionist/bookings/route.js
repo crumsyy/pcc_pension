@@ -337,6 +337,10 @@ export async function POST(request) {
         const roomStatus = (downPaymentAmount > 0 || bookingStatus === 'Checked In' || body.useCurrentTime === true || body.useCurrentTimeIn === true) ? 'Occupied' : 'Reserved';
         await conn.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
 
+        if (roomStatus === 'Occupied') {
+          await conn.execute("UPDATE orders SET orderStatus = 'Preparing' WHERE (bookingID = ? OR guestID = ?) AND orderStatus = 'Pending Delivery'", [bookingID, guestID]);
+        }
+
         // If early check-in fee applies, record into incidental_charge
         let earlyFeeToRecord = parseFloat(body.earlyFee) || 0;
         let earlyHoursToRecord = parseInt(body.earlyHours) || 0;
@@ -674,6 +678,8 @@ export async function POST(request) {
         "UPDATE reservation SET status = 'Checked In' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = (SELECT guestID FROM booking WHERE bookingID = ?) AND roomID = ? AND status IN ('Pending', 'Confirmed', 'Booked'))",
         [bookingID, bookingID, roomID]
       );
+      // Auto-transition Pending Delivery orders to active (Preparing)
+      await dbQuery("UPDATE orders SET orderStatus = 'Preparing' WHERE bookingID = ? AND orderStatus = 'Pending Delivery'", [bookingID]);
 
       return NextResponse.json({
         success: true,

@@ -2210,6 +2210,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             </button>
                             <button
                               type="button"
+                              className="btn btn-xs btn-outline-info text-dark fw-semibold px-2 py-1 text-decoration-none shadow-xs"
+                              onClick={() => setActiveTab('order-history')}
+                            >
+                              <i className="bi bi-clock-history me-1 text-info"></i> Order History
+                            </button>
+                            <button
+                              type="button"
                               className="btn btn-xs btn-outline-primary fw-semibold px-2 py-1"
                               onClick={() => {
                                 fetchDetailedBill(activeBookingStay.bookingID);
@@ -2442,16 +2449,26 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       Book Room
                     </button>
                   </div>
-                  <div className="col-6 col-md-3">
+                  <div className="col-6 col-md">
                     <button
                       type="button"
                       className="btn btn-warning text-dark fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center"
                       onClick={() => setActiveTab('orders')}
                     >
-                      <span>Orders</span>
+                      <span>Order Food</span>
                     </button>
                   </div>
-                  <div className="col-6 col-md-3">
+                  <div className="col-6 col-md">
+                    <button
+                      type="button"
+                      className="btn btn-info text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center gap-1"
+                      onClick={() => setActiveTab('order-history')}
+                    >
+                      <i className="bi bi-clock-history"></i>
+                      <span>Order History</span>
+                    </button>
+                  </div>
+                  <div className="col-12 col-md">
                     <button
                       className="btn btn-secondary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={() => setActiveTab('account')}
@@ -2811,7 +2828,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
             {/* TAB: ORDERS TAB */}
             {activeTab === 'orders' && (
-              <GuestOrdersContent guest={guest} />
+              <GuestOrdersContent guest={guest} activeBookingStay={activeBookingStay} initialCategory="all" />
+            )}
+
+            {/* TAB: ORDER HISTORY TAB */}
+            {activeTab === 'order-history' && (
+              <GuestOrdersContent guest={guest} activeBookingStay={activeBookingStay} initialCategory="history" />
             )}
 
             {/* TAB 3: CHAT TAB */}
@@ -2993,6 +3015,26 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <ThemeToggle />
                     </div>
                   </div>
+                </div>
+
+                {/* MY ORDER HISTORY SECTION */}
+                <div id="order-history-section" className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                      <i className="bi bi-clock-history text-primary"></i>
+                      <span>My Order History &amp; Room Service Records</span>
+                    </h6>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-pcc-primary text-white fw-semibold px-3 py-1 shadow-xs"
+                      onClick={() => setActiveTab('order-history')}
+                    >
+                      <i className="bi bi-eye me-1"></i>View Full Order Records
+                    </button>
+                  </div>
+                  <p className="text-muted small mb-0">
+                    Track your room service orders, scheduled breakfast meals, beverages, and extra amenities. Click the button above to view your full history records.
+                  </p>
                 </div>
 
                 {/* MY RESERVATIONS HISTORY */}
@@ -3296,7 +3338,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       {/* FLOATING AI CHATBOT BUTTON */}
       <GuestChatBubble
         hideFloating={activeTab === 'chat'}
-        bottomOffset={isDesktop ? '24px' : (activeTab === 'orders' ? '135px' : '85px')}
+        bottomOffset={isDesktop ? '24px' : (activeTab === 'orders' || activeTab === 'order-history' ? '135px' : '85px')}
       />
 
       {/* PAYMONGO TEST MODE PAYMENT MODAL */}

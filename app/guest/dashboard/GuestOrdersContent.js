@@ -140,6 +140,16 @@ function DeliveryTimeline({ deliveryType, currentStatus }) {
   const currentIdx = getStepIndex(currentStatus);
   const isCanceled = (currentStatus || '').toLowerCase().includes('cancel');
 
+  if (currentStatus === 'Pending Delivery') {
+    return (
+      <div className="py-2 text-center">
+        <span className="badge bg-warning-subtle text-warning-emphasis border border-warning px-3 py-1.5 rounded-pill" style={{ fontSize: '0.76rem' }}>
+          <i className="bi bi-hourglass-split me-1"></i>Order Placed — Awaiting Guest Check-In &amp; Room Occupancy
+        </span>
+      </div>
+    );
+  }
+
   if (isCanceled) {
     return (
       <div className="py-2 text-center">
@@ -230,6 +240,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
 
   const getStatusBadge = (status) => {
     const s = (status || '').toLowerCase();
+    if (s.includes('pending delivery')) return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
     if (s.includes('cancel')) return 'bg-danger text-white';
     if (s.includes('complete') || s === 'delivered') return 'bg-success text-white';
     if (s.includes('out for delivery') || s === 'served') return 'bg-primary text-white';
@@ -240,6 +251,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
 
   const getItemStatusBadge = (status) => {
     const s = (status || '').toLowerCase();
+    if (s.includes('pending delivery')) return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
     if (s.includes('cancel')) return 'bg-danger-subtle text-danger border border-danger-subtle';
     if (s.includes('complete') || s === 'delivered') return 'bg-success-subtle text-success border border-success-subtle';
     if (s.includes('out for delivery') || s === 'served') return 'bg-primary-subtle text-primary border border-primary-subtle';
@@ -248,12 +260,16 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
     return 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
   };
 
+  const pendingDeliveryOrders = useMemo(() => {
+    return (orders || []).filter(o => o.orderStatus === 'Pending Delivery');
+  }, [orders]);
+
   const immediateOrders = useMemo(() => {
-    return (orders || []).filter(o => o.deliveryType === 'immediate' || (!o.deliveryType && !o.deliveryTime));
+    return (orders || []).filter(o => o.orderStatus !== 'Pending Delivery' && (o.deliveryType === 'immediate' || (!o.deliveryType && !o.deliveryTime)));
   }, [orders]);
 
   const scheduledOrders = useMemo(() => {
-    return (orders || []).filter(o => o.deliveryType === 'scheduled' || Boolean(o.deliveryTime));
+    return (orders || []).filter(o => o.orderStatus !== 'Pending Delivery' && (o.deliveryType === 'scheduled' || Boolean(o.deliveryTime)));
   }, [orders]);
 
   const renderOrderCard = (o) => {
@@ -270,7 +286,11 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
             </span>
           </div>
           <div className="d-flex align-items-center gap-2">
-            {isScheduled ? (
+            {o.orderStatus === 'Pending Delivery' ? (
+              <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
+                <i className="bi bi-hourglass-split me-1"></i>Pending Delivery (Awaiting Check-in)
+              </span>
+            ) : isScheduled ? (
               <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
                 <i className="bi bi-clock-history me-1"></i>{o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime || 'Breakfast'}
               </span>
@@ -351,7 +371,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           </h5>
           <span className="text-muted small">Real-time status tracking for immediate dispatches and scheduled meals.</span>
         </div>
-        <div className="btn-group btn-group-sm" role="group">
+        <div className="btn-group btn-group-sm flex-wrap" role="group">
           <button
             type="button"
             className={`btn btn-sm ${historyFilter === 'all' ? 'btn-primary fw-bold' : 'btn-outline-secondary'}`}
@@ -373,6 +393,15 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           >
             ⏰ Scheduled Breakfast Deliveries ({scheduledOrders.length})
           </button>
+          {pendingDeliveryOrders.length > 0 && (
+            <button
+              type="button"
+              className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'btn-outline-warning text-dark'}`}
+              onClick={() => setHistoryFilter('pending')}
+            >
+              ⏳ Pending Deliveries ({pendingDeliveryOrders.length})
+            </button>
+          )}
         </div>
       </div>
 
@@ -437,19 +466,26 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
   );
 });
 
-export default function GuestOrdersContent({ guest }) {
+export default function GuestOrdersContent({ guest, activeBookingStay, initialCategory = 'all' }) {
   const [products, setProducts] = useState(cachedOrdersCatalog?.products || []);
   const [cookedMeals, setCookedMeals] = useState(cachedOrdersCatalog?.cookedMeals || []);
   const [amenities, setAmenities] = useState(cachedOrdersCatalog?.amenities || []);
   const [orderHistory, setOrderHistory] = useState(cachedOrderHistory || []);
+  const [activeBooking, setActiveBooking] = useState(null);
   const [loading, setLoading] = useState(!cachedOrdersCatalog);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(Boolean(cachedOrderHistory));
   const [submitting, setSubmitting] = useState(false);
 
   // Active Category Filter: 'all' | 'meals' | 'products' | 'amenities' | 'history'
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState(initialCategory || 'all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (initialCategory) {
+      setActiveCategory(initialCategory);
+    }
+  }, [initialCategory]);
 
   // Cart / Order Tray State: array of { itemID, type, name, price, quantity, isCookedMeal }
   const [cart, setCart] = useState([]);
@@ -518,6 +554,14 @@ export default function GuestOrdersContent({ guest }) {
       setProducts(p);
       setCookedMeals(m);
       setAmenities(a);
+      if (data.activeBooking) {
+        setActiveBooking(data.activeBooking);
+      }
+      if (data.orders) {
+        setOrderHistory(data.orders);
+        cachedOrderHistory = data.orders;
+        setHistoryLoaded(true);
+      }
       cachedOrdersCatalog = { products: p, cookedMeals: m, amenities: a };
     } catch (err) {
       setFeedback({ type: 'danger', message: err.message });
@@ -666,8 +710,15 @@ export default function GuestOrdersContent({ guest }) {
 
   const allTodaySlotsPassed = isClientMounted && isSelectedDateToday && evaluatedSlots.every(s => s.isPast);
 
+  const effectiveBooking = activeBooking || activeBookingStay;
+  const isCheckedIn = (effectiveBooking?.bookingStatus === 'Checked In' || effectiveBooking?.status === 'Checked In');
+
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
+    if (!isCheckedIn) {
+      setFeedback({ type: 'danger', message: 'Orders can only be placed once you’ve checked in.' });
+      return;
+    }
     if (cart.length === 0) {
       setFeedback({ type: 'warning', message: 'Your Order Tray is empty. Please add items to order.' });
       return;
@@ -761,6 +812,16 @@ export default function GuestOrdersContent({ guest }) {
 
     return (
       <form onSubmit={handleSubmitOrder}>
+        {/* CHECK-IN RESTRICTION BANNER */}
+        {!isCheckedIn && (
+          <div className="alert alert-warning py-2.5 px-3 rounded-3 mb-3 d-flex align-items-center gap-2 border-warning shadow-xs" style={{ fontSize: '0.82rem' }}>
+            <i className="bi bi-info-circle-fill text-warning-emphasis fs-6 flex-shrink-0"></i>
+            <div>
+              <strong>Ordering Restricted:</strong> Ordering will be available once you’ve checked in.
+            </div>
+          </div>
+        )}
+
         {/* ITEMS LIST */}
         <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: isMobileModal ? '350px' : '280px', overflowY: 'auto' }}>
           {cart.map((item, idx) => (
@@ -931,17 +992,23 @@ export default function GuestOrdersContent({ guest }) {
           </div>
         </div>
 
-        {/* SUBMIT BUTTON WITH LOADING STATE */}
+        {/* SUBMIT BUTTON WITH OCCUPANCY CHECK */}
+        {!isCheckedIn && (
+          <div className="alert alert-info py-2 px-3 small mb-2 d-flex align-items-center gap-2" style={{ fontSize: '0.76rem' }}>
+            <i className="bi bi-lock-fill text-primary flex-shrink-0"></i>
+            <span>Ordering will be available once you’ve checked in.</span>
+          </div>
+        )}
         <LoadingButton
           type="submit"
           isLoading={submitting}
           loadingText="Placing Room Order..."
-          className="btn btn-primary w-100 py-2.5 fw-bold shadow-sm"
-          style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)', borderRadius: '8px' }}
-          disabled={hasScheduledItemsInCart && allTodaySlotsPassed && isSelectedDateToday}
+          className={`btn w-100 py-2.5 fw-bold shadow-sm ${isCheckedIn ? 'btn-primary' : 'btn-secondary text-white'}`}
+          style={{ backgroundColor: isCheckedIn ? 'var(--pcc-blue)' : undefined, borderColor: isCheckedIn ? 'var(--pcc-blue)' : undefined, borderRadius: '8px' }}
+          disabled={!isCheckedIn || (hasScheduledItemsInCart && allTodaySlotsPassed && isSelectedDateToday)}
         >
-          <i className="bi bi-send-fill me-1.5"></i>
-          <span>Submit Room Order</span>
+          <i className={`bi ${isCheckedIn ? 'bi-send-fill' : 'bi-lock-fill'} me-1.5`}></i>
+          <span>{isCheckedIn ? 'Submit Room Order' : 'Ordering Locked (Check-In Required)'}</span>
         </LoadingButton>
       </form>
     );
