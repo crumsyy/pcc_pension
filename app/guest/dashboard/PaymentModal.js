@@ -124,7 +124,7 @@ export default function PaymentModal({
         onPaymentFailed({
           bookingID,
           error: data.message || 'Payment Declined, Try Again',
-          status: 'Payment Declined'
+          status: 'Payment Declined, Try Again'
         });
       }
       onClose();
@@ -146,13 +146,17 @@ export default function PaymentModal({
       <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '520px', margin: '1rem auto' }}>
         <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px', overflow: 'hidden' }}>
           {/* TOP HEADER */}
-          <div className="modal-header text-white px-4 py-3" style={{ backgroundColor: 'var(--pcc-blue, #005ce6)' }}>
+          <div className="modal-header text-white px-4 py-3 d-flex justify-content-between align-items-center" style={{ backgroundColor: '#0d6efd' }}>
             <div>
-              <h5 className="modal-title fw-bold mb-0 d-flex align-items-center gap-2" style={{ fontSize: '1.05rem' }}>
-                <i className="bi bi-credit-card-2-front-fill"></i>
-                <span>Guest Payment &amp; Checkout</span>
-              </h5>
-              <div className="small text-white text-opacity-75" style={{ fontSize: '0.78rem' }}>
+              <div className="d-flex align-items-center gap-2">
+                <h5 className="modal-title fw-bold mb-0" style={{ fontSize: '1.05rem' }}>
+                  GCash Online Payment Options
+                </h5>
+                <span className="badge bg-warning text-dark font-mono px-2 py-0.5" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+                  <i className="bi bi-flask me-1"></i>TEST MODE
+                </span>
+              </div>
+              <div className="small text-white text-opacity-75 mt-0.5" style={{ fontSize: '0.78rem' }}>
                 Booking #{booking.bookingID} • Room {booking.roomNumber} ({booking.roomType || 'Room'})
               </div>
             </div>
@@ -190,7 +194,7 @@ export default function PaymentModal({
                 style={activeTab === 'gcash' ? { backgroundColor: '#005ce6', borderColor: '#005ce6' } : {}}
                 onClick={() => setActiveTab('gcash')}
               >
-                <i className="bi bi-wallet2 me-1.5"></i>GCash Simulator
+                <i className="bi bi-wallet2 me-1.5"></i>GCash Payment
               </button>
               <button
                 type="button"
@@ -334,16 +338,15 @@ export default function PaymentModal({
             )}
           </div>
 
-          {/* MODAL FOOTER: Mobile Layout Corrected with Back Button at Bottom Below Confirm Button */}
+          {/* MODAL FOOTER */}
           <div className="modal-footer bg-light px-4 py-3 border-top d-flex flex-column gap-2">
-            {/* BACK BUTTON: Placed at the very bottom below all action buttons */}
             <button
               type="button"
-              className="btn btn-secondary text-white fw-bold w-100 py-2 shadow-xs"
+              className="btn btn-danger text-white fw-bold w-100 py-2 shadow-sm mt-2"
               onClick={onClose}
               style={{ borderRadius: '8px' }}
             >
-              <i className="bi bi-arrow-left me-1.5"></i>Back
+              Back
             </button>
           </div>
         </div>

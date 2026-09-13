@@ -464,9 +464,9 @@ export async function PATCH(request) {
 
       // 4. Create billing record
       const [billingInsert] = await conn.execute(
-        `INSERT INTO billing (billingDate, status, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance)
-         VALUES (NOW(), 'Unpaid', ?, ?, ?, ?, ?, ?)`,
-        [bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
+        `INSERT INTO billing (billingDateTime, guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance)
+         VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?)`,
+        [res.guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
       );
       const billingID = billingInsert.insertId;
 

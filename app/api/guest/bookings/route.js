@@ -368,9 +368,9 @@ export async function POST(request) {
 
         // Create billing record with down payment details and remaining balance
         await connection.execute(
-          `INSERT INTO billing (billingDate, status, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) 
-           VALUES (NOW(), 'Unpaid', ?, ?, ?, ?, ?, ?)`,
-          [bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
+          `INSERT INTO billing (billingDateTime, guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) 
+           VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?)`,
+          [guest.guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
         );
 
         await connection.commit();
@@ -437,7 +437,8 @@ export async function POST(request) {
 
         return NextResponse.json({
           success: true,
-          message: 'Booking request created successfully!',
+          status: 'Confirmed',
+          message: 'Booking confirmed successfully.',
           bookingID
         });
       } catch (err) {

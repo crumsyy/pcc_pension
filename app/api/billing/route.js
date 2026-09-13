@@ -173,9 +173,11 @@ export async function POST(request) {
       );
       let billingID = billingRows[0]?.billingID || null;
       if (!billingID) {
+        const [bkGuest] = await conn.execute("SELECT guestID FROM booking WHERE bookingID = ?", [bookingID]);
+        const bGuestID = bkGuest[0]?.guestID || null;
         const [insB] = await conn.execute(
-          "INSERT INTO billing (billingDate, status, bookingID) VALUES (NOW(), 'Unpaid', ?)",
-          [bookingID]
+          "INSERT INTO billing (billingDateTime, guestID, bookingID) VALUES (NOW(), ?, ?)",
+          [bGuestID, bookingID]
         );
         billingID = insB.insertId;
       }

@@ -89,7 +89,7 @@ export async function POST(request) {
       let billingID;
       if (billingRows.length === 0) {
         const [billRes] = await conn.execute(
-          "INSERT INTO billing (billingDateTime, billingDate, guestID, bookingID, status, balance, remainingBalance, totalAmount) VALUES (NOW(), NOW(), ?, ?, 'Paid', 0.00, 0.00, ?)",
+          "INSERT INTO billing (billingDateTime, guestID, bookingID, balance, remainingBalance, totalAmount) VALUES (NOW(), ?, ?, 0.00, 0.00, ?)",
           [assignedGuestID, bookingID, amountToSettle]
         );
         billingID = billRes.insertId;

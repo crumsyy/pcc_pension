@@ -507,7 +507,7 @@ export async function GET(request) {
 
     } else if (report === 'billing') {
       const billingList = await dbQuery(`
-        SELECT bil.billingID, DATE_FORMAT(bil.billingDate, '%Y-%m-%dT%H:%i:%s') as billingDate, bil.status as billingStatus, bil.bookingID,
+        SELECT bil.billingID, DATE_FORMAT(bil.billingDateTime, '%Y-%m-%dT%H:%i:%s') as billingDate, b.status as billingStatus, bil.bookingID,
                g.firstName, g.lastName, g.contact,
                rm.roomNumber,
                (SELECT COALESCE(SUM(p.amount), 0) FROM payment p WHERE p.billingID = bil.billingID) as totalPaid
@@ -515,8 +515,8 @@ export async function GET(request) {
         JOIN booking b ON b.bookingID = bil.bookingID
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
-        WHERE DATE(bil.billingDate) BETWEEN ? AND ?
-        ORDER BY bil.billingDate DESC
+        WHERE DATE(bil.billingDateTime) BETWEEN ? AND ?
+        ORDER BY bil.billingDateTime DESC
       `, [from, to]);
 
       let totalCollected = 0;

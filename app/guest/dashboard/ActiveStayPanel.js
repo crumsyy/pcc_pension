@@ -42,7 +42,7 @@ export default function ActiveStayPanel({
   const isAlreadyRequested = effectiveStatus === 'Checkout Requested' || isCheckoutRequested;
   const isBillReady = normalizeBookingStatus(effectiveStatus) === 'Bill Ready';
   const isPaid = normalizeBookingStatus(effectiveStatus) === 'Paid' || effectiveStatus === 'Paid' || effectiveStatus === 'Payment Completed';
-  const isDeclined = effectiveStatus === 'Payment Declined' || effectiveStatus === 'Declined';
+  const isDeclined = effectiveStatus === 'Payment Declined' || effectiveStatus === 'Payment Declined, Try Again' || effectiveStatus === 'Declined';
   const canProceedToPayment = isBillReady || isDeclined;
 
   const handleRequestCheckoutClick = async () => {
@@ -452,8 +452,8 @@ export default function ActiveStayPanel({
           setShowPaymentModal(false);
         }}
         onPaymentFailed={() => {
-          setLocalStatus('Payment Declined');
-          activeBookingStay.status = 'Payment Declined';
+          setLocalStatus('Payment Declined, Try Again');
+          activeBookingStay.status = 'Payment Declined, Try Again';
           setShowPaymentModal(false);
         }}
       />

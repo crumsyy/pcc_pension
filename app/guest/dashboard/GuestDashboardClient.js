@@ -362,6 +362,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [paymongoLoading, setPaymongoLoading] = useState(false);
   const [paymongoError, setPaymongoError] = useState('');
   const [paymongoStatus, setPaymongoStatus] = useState('idle'); // 'idle' | 'awaiting_payment' | 'paid' | 'failed'
+  const [paymentDialogTab, setPaymentDialogTab] = useState('gcash');
   const pollingIntervalRef = useRef(null);
 
   // Courtesy Hold States
@@ -3843,38 +3844,162 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                   </div>
 
-                  {/* REAL-TIME PAYMONGO QR & CHECKOUT */}
-                  <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mb-3 text-start">
-                    <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-wallet2 text-primary fs-5"></i>
-                        <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>GCash Payment (PayMongo Sandbox)</span>
-                      </div>
-                      {paymongoStatus === 'paid' ? (
-                        <span className="badge bg-success text-white fw-semibold" style={{ fontSize: '0.72rem' }}>
-                          <i className="bi bi-check-circle-fill me-1"></i>Authorized
-                        </span>
-                      ) : (
-                        <span className="badge bg-warning text-dark fw-semibold" style={{ fontSize: '0.72rem' }}>
-                          Awaiting Auth
-                        </span>
-                      )}
-                    </div>
+                  {/* TAB SELECTOR: GCash Payment & Pay via QRPh Code */}
+                  <div className="d-flex gap-2 mb-3 p-1 bg-light rounded-3 border">
+                    <button
+                      type="button"
+                      className={`btn flex-fill btn-sm fw-bold py-2 ${paymentDialogTab === 'gcash' ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark'}`}
+                      style={paymentDialogTab === 'gcash' ? { backgroundColor: '#005ce6', borderColor: '#005ce6' } : {}}
+                      onClick={() => setPaymentDialogTab('gcash')}
+                    >
+                      <i className="bi bi-wallet2 me-1.5"></i>GCash Payment
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn flex-fill btn-sm fw-bold py-2 ${paymentDialogTab === 'qrph' ? 'btn-primary shadow-sm text-white' : 'btn-light text-dark'}`}
+                      style={paymentDialogTab === 'qrph' ? { backgroundColor: '#005ce6', borderColor: '#005ce6' } : {}}
+                      onClick={() => setPaymentDialogTab('qrph')}
+                    >
+                      <i className="bi bi-qr-code-scan me-1.5"></i>Pay via QRPh Code
+                    </button>
+                  </div>
 
-                    {/* QR CODE DISPLAY */}
-                    <div className="text-center p-3 bg-light rounded-3 border mb-3">
-                      <div className="d-flex align-items-center justify-content-between mb-2">
-                        <span className="fw-bold text-dark small">
-                          <i className="bi bi-qr-code me-1.5 text-primary"></i> Scan QR to Pay
-                        </span>
+                  {/* TAB 1: GCASH CHECKOUT */}
+                  {paymentDialogTab === 'gcash' && (
+                    <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mb-3 text-start">
+                      <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                        <div className="d-flex align-items-center gap-2">
+                          <i className="bi bi-wallet2 text-primary fs-5"></i>
+                          <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>GCash Payment (PayMongo Sandbox)</span>
+                        </div>
                         {paymongoStatus === 'paid' ? (
-                          <span className="badge bg-success text-white">
-                            <i className="bi bi-check-circle-fill me-1"></i> Payment Authorized
+                          <span className="badge bg-success text-white fw-semibold" style={{ fontSize: '0.72rem' }}>
+                            <i className="bi bi-check-circle-fill me-1"></i>Authorized
                           </span>
                         ) : (
-                          <span className="badge bg-primary-subtle text-primary d-inline-flex align-items-center gap-1">
-                            <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: '8px', height: '8px' }} role="status"></span>
-                            Waiting for Authorization
+                          <span className="badge bg-warning text-dark fw-semibold" style={{ fontSize: '0.72rem' }}>
+                            Awaiting Auth
+                          </span>
+                        )}
+                      </div>
+
+                      {/* QR CODE DISPLAY */}
+                      <div className="text-center p-3 bg-light rounded-3 border mb-3">
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                          <span className="fw-bold text-dark small">
+                            <i className="bi bi-qr-code me-1.5 text-primary"></i> Scan QR to Pay
+                          </span>
+                          {paymongoStatus === 'paid' ? (
+                            <span className="badge bg-success text-white">
+                              <i className="bi bi-check-circle-fill me-1"></i> Payment Authorized
+                            </span>
+                          ) : (
+                            <span className="badge bg-primary-subtle text-primary d-inline-flex align-items-center gap-1">
+                              <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: '8px', height: '8px' }} role="status"></span>
+                              Waiting for Authorization
+                            </span>
+                          )}
+                        </div>
+
+                        {paymongoLoading ? (
+                          <div className="py-4 text-center">
+                            <div className="spinner-border text-primary" role="status"></div>
+                            <div className="small text-muted mt-2">Generating PayMongo QR Code...</div>
+                          </div>
+                        ) : paymongoQrUrl ? (
+                          <div className="d-flex flex-column align-items-center justify-content-center">
+                            <div className="bg-white p-2 rounded shadow-sm border mb-2" style={{ display: 'inline-block' }}>
+                              <img
+                                src={paymongoQrUrl}
+                                alt="PayMongo GCash QR Code"
+                                className="img-fluid rounded"
+                                style={{ width: '190px', height: '190px', objectFit: 'contain' }}
+                              />
+                            </div>
+                            <small className="text-muted" style={{ fontSize: '0.78rem' }}>
+                              Scan QR code with GCash or click the button below to authorize.
+                            </small>
+                          </div>
+                        ) : paymongoError ? (
+                          <div className="alert alert-warning py-2 small mb-0">
+                            {paymongoError}
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary d-block mx-auto mt-2"
+                              onClick={() => initiatePayMongoSource()}
+                            >
+                              Retry Generating QR
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* PROCEED TO GCASH SANDBOX BUTTON */}
+                      <button
+                        type="button"
+                        className="btn btn-primary w-100 fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm mb-2"
+                        style={{ backgroundColor: '#005CE6', borderColor: '#005CE6', borderRadius: '8px', fontSize: '0.9rem' }}
+                        disabled={paymongoLoading || processing}
+                        onClick={handleProceedToSandboxGCash}
+                      >
+                        <i className="bi bi-box-arrow-up-right fs-6"></i>
+                        <span>Proceed to GCash Checkout (₱{amountToPayNow.toFixed(2)})</span>
+                      </button>
+
+                      <small className="text-muted d-block text-center small mb-2" style={{ fontSize: '0.76rem' }}>
+                        Opens PayMongo sandbox in a new window. Keep this modal open while authorizing.
+                      </small>
+
+                      {/* SIMULATION BUTTON FOR SANDBOX TEST MODE */}
+                      {paymongoStatus !== 'paid' && (
+                        <button
+                          type="button"
+                          className="btn btn-outline-success btn-sm fw-bold w-100 mt-1 mb-2"
+                          style={{ borderRadius: '8px' }}
+                          onClick={() => {
+                            setPaymongoStatus('paid');
+                            setIsGuestGcashSettled(true);
+                            if (!paymongoSourceID) setPaymongoSourceID(`src_sim_${Date.now()}`);
+                          }}
+                        >
+                          <i className="bi bi-check2-circle me-1.5"></i>Authorize Payment (Test Mode Simulation)
+                        </button>
+                      )}
+
+                      {paymongoStatus === 'paid' && (
+                        <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
+                          <i className="bi bi-check-circle-fill text-success fs-5"></i>
+                          <div>
+                            <strong>Payment Verified & Authorized!</strong>
+                            <div className="text-muted small">PayMongo Reference #{paymongoSourceID}. You may now complete your booking.</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {guestGcashInlineError && (
+                        <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
+                          <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
+                          <span>{guestGcashInlineError}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 2: PAY VIA QRPH CODE */}
+                  {paymentDialogTab === 'qrph' && (
+                    <div className="card border-0 shadow-sm p-3 bg-white rounded-3 mb-3 text-center">
+                      <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                        <div className="d-flex align-items-center gap-2">
+                          <i className="bi bi-qr-code-scan text-primary fs-5"></i>
+                          <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>Pay via QRPh Code</span>
+                        </div>
+                        {paymongoStatus === 'paid' ? (
+                          <span className="badge bg-success text-white fw-semibold" style={{ fontSize: '0.72rem' }}>
+                            <i className="bi bi-check-circle-fill me-1"></i>Authorized
+                          </span>
+                        ) : (
+                          <span className="badge bg-warning text-dark fw-semibold" style={{ fontSize: '0.72rem' }}>
+                            Awaiting Scan
                           </span>
                         )}
                       </div>
@@ -3882,21 +4007,30 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       {paymongoLoading ? (
                         <div className="py-4 text-center">
                           <div className="spinner-border text-primary" role="status"></div>
-                          <div className="small text-muted mt-2">Generating PayMongo QR Code...</div>
+                          <div className="small text-muted mt-2">Generating PayMongo QRPh Code...</div>
                         </div>
                       ) : paymongoQrUrl ? (
                         <div className="d-flex flex-column align-items-center justify-content-center">
                           <div className="bg-white p-2 rounded shadow-sm border mb-2" style={{ display: 'inline-block' }}>
                             <img
                               src={paymongoQrUrl}
-                              alt="PayMongo GCash QR Code"
+                              alt="PayMongo Dynamic QRPh Code"
                               className="img-fluid rounded"
-                              style={{ width: '190px', height: '190px', objectFit: 'contain' }}
+                              style={{ width: '200px', height: '200px', objectFit: 'contain' }}
                             />
                           </div>
-                          <small className="text-muted" style={{ fontSize: '0.78rem' }}>
-                            Scan QR code with GCash or click the button below to authorize.
-                          </small>
+
+                          {/* EXACT INSTRUCTIONS REQUIRED */}
+                          <div className="alert alert-info py-2 px-3 small mt-1 mb-2 text-center fw-medium" style={{ fontSize: '0.82rem' }}>
+                            <i className="bi bi-info-circle-fill me-1.5 text-primary"></i>
+                            <span>Scan with GCash or any QRPh-compliant app. Amount is pre-set.</span>
+                          </div>
+
+                          <div className="text-muted small mt-1 d-flex flex-column gap-1 text-start w-100 px-2" style={{ fontSize: '0.74rem' }}>
+                            <div><strong>Step 1:</strong> Open GCash, Maya, or any QRPh-compliant banking app.</div>
+                            <div><strong>Step 2:</strong> Scan the QR code to load the pre-set downpayment amount (₱{amountToPayNow.toFixed(2)}).</div>
+                            <div><strong>Step 3:</strong> Confirm payment in your app or simulate authorization below.</div>
+                          </div>
                         </div>
                       ) : paymongoError ? (
                         <div className="alert alert-warning py-2 small mb-0">
@@ -3910,41 +4044,45 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           </button>
                         </div>
                       ) : null}
-                    </div>
 
-                    {/* PROCEED TO GCASH SANDBOX BUTTON */}
-                    <button
-                      type="button"
-                      className="btn btn-primary w-100 fw-bold py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm mb-2"
-                      style={{ backgroundColor: '#005CE6', borderColor: '#005CE6', borderRadius: '8px', fontSize: '0.9rem' }}
-                      disabled={paymongoLoading || processing}
-                      onClick={handleProceedToSandboxGCash}
-                    >
-                      <i className="bi bi-box-arrow-up-right fs-6"></i>
-                      <span>Proceed to GCash Checkout (₱{amountToPayNow.toFixed(2)})</span>
-                    </button>
+                      {/* SANDBOX SIMULATION BUTTONS */}
+                      <div className="mt-3 pt-2 border-top d-flex flex-column gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-primary w-100 fw-bold py-2 shadow-sm"
+                          style={{ backgroundColor: '#005CE6', borderColor: '#005CE6', borderRadius: '8px' }}
+                          onClick={handleProceedToSandboxGCash}
+                        >
+                          <i className="bi bi-box-arrow-up-right me-1.5"></i>
+                          <span>Proceed to PayMongo Checkout (₱{amountToPayNow.toFixed(2)})</span>
+                        </button>
+                        {paymongoStatus !== 'paid' && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-success btn-sm fw-bold w-100"
+                            style={{ borderRadius: '8px' }}
+                            onClick={() => {
+                              setPaymongoStatus('paid');
+                              setIsGuestGcashSettled(true);
+                              if (!paymongoSourceID) setPaymongoSourceID(`src_sim_${Date.now()}`);
+                            }}
+                          >
+                            <i className="bi bi-check2-circle me-1.5"></i>Authorize Payment (Test Mode Simulation)
+                          </button>
+                        )}
+                      </div>
 
-                    <small className="text-muted d-block text-center small mb-2" style={{ fontSize: '0.76rem' }}>
-                      Opens PayMongo sandbox in a new window. Keep this modal open while authorizing.
-                    </small>
-
-                    {paymongoStatus === 'paid' && (
-                      <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
-                        <i className="bi bi-check-circle-fill text-success fs-5"></i>
-                        <div>
-                          <strong>Payment Verified & Authorized!</strong>
-                          <div className="text-muted small">PayMongo Reference #{paymongoSourceID}. You may now complete your booking.</div>
+                      {paymongoStatus === 'paid' && (
+                        <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
+                          <i className="bi bi-check-circle-fill text-success fs-5"></i>
+                          <div className="text-start">
+                            <strong>Payment Verified & Authorized!</strong>
+                            <div className="text-muted small">PayMongo Reference #{paymongoSourceID}. You may now complete your booking.</div>
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    {guestGcashInlineError && (
-                      <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
-                        <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
-                        <span>{guestGcashInlineError}</span>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="modal-footer d-flex flex-column gap-2 p-3 border-top bg-light">
                   {paymongoStatus === 'paid' ? (
@@ -3969,16 +4107,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </button>
                   )}
 
-                  {/* BACK BUTTON: Placed below confirm booking button at the bottom for clean mobile UX */}
-                  <button type="button" className="btn btn-outline-secondary fw-bold w-100 py-2 shadow-xs" onClick={() => {
-                    setIsGuestGcashSettled(false);
-                    setGuestGcashInlineError('');
-                    setGcashRef('');
-                    setPaymongoStatus('idle');
-                    setPaymongoSourceID(null);
-                    setActiveModal('book_form');
-                  }}>
-                    <i className="bi bi-arrow-left me-1.5"></i>Back
+                  {/* BACK BUTTON: Placed below confirm booking button, filled red, no arrow, with mt-2 spacing */}
+                  <button 
+                    type="button" 
+                    className="btn btn-danger text-white fw-bold w-100 py-2 shadow-sm mt-2" 
+                    onClick={() => {
+                      setIsGuestGcashSettled(false);
+                      setGuestGcashInlineError('');
+                      setGcashRef('');
+                      setPaymongoStatus('idle');
+                      setPaymongoSourceID(null);
+                      setActiveModal(convertingReservationID ? 'none' : 'book_form');
+                    }}
+                  >
+                    Back
                   </button>
                 </div>
               </form>

@@ -131,8 +131,8 @@ export async function POST(request) {
             });
             const attachData = await attachRes.json();
             const nextAction = attachData.data?.attributes?.next_action || {};
-            qrphCodeUrl = nextAction.code?.image_url || null;
-            qrCodeRaw = nextAction.code?.qr_code || null;
+            qrphCodeUrl = nextAction.qr_code?.image_url || nextAction.code?.image_url || null;
+            qrCodeRaw = nextAction.qr_code?.qr_code || nextAction.code?.qr_code || null;
           }
         }
       } catch (pmErr) {
@@ -293,9 +293,11 @@ export async function POST(request) {
 
       let billingID;
       if (billingRows.length === 0) {
+        const [bkGuest] = await connection.execute("SELECT guestID FROM booking WHERE bookingID = ?", [parsedBookingID]);
+        const bGuestID = bkGuest[0]?.guestID || null;
         const [insBilling] = await connection.execute(
-          "INSERT INTO billing (billingDate, status, bookingID) VALUES (NOW(), 'Unpaid', ?)",
-          [parsedBookingID]
+          "INSERT INTO billing (billingDateTime, guestID, bookingID) VALUES (NOW(), ?, ?)",
+          [bGuestID, parsedBookingID]
         );
         billingID = insBilling.insertId;
       } else {
