@@ -12,6 +12,8 @@ export default function ActiveStayPanel({
   onViewLiveBill,
   onPay,
   onRequestCheckout,
+  onViewReceipt,
+  onDownloadReceipt,
   formatBookingID,
   renderBookingStatusTimeline
 }) {
@@ -31,6 +33,9 @@ export default function ActiveStayPanel({
 
   const isAlreadyRequested = activeBookingStay.status === 'Checkout Requested' || isCheckoutRequested;
   const isBillReady = normalizeBookingStatus(activeBookingStay.status) === 'Bill Ready';
+  const isPaid = normalizeBookingStatus(activeBookingStay.status) === 'Paid' || activeBookingStay.status === 'Paid' || activeBookingStay.status === 'Payment Completed';
+  const isDeclined = activeBookingStay.status === 'Payment Declined' || activeBookingStay.status === 'Declined';
+  const canProceedToPayment = isBillReady || isDeclined;
 
   const handleRequestCheckoutClick = async () => {
     if (onRequestCheckout) {
@@ -277,26 +282,69 @@ export default function ActiveStayPanel({
                     </div>
                   </div>
 
-                  {remainingBal > 0 && (
+                  {/* PAYMENT DECLINED ALERT */}
+                  {isDeclined && (
+                    <div className="alert alert-danger py-2 px-3 small mt-2 mb-0 d-flex align-items-center gap-2 fw-semibold" role="alert">
+                      <i className="bi bi-exclamation-octagon-fill text-danger fs-5"></i>
+                      <span>Payment Declined, Try Again</span>
+                    </div>
+                  )}
+
+                  {/* PAID / PAYMENT COMPLETED RECEIPT OPTIONS */}
+                  {isPaid ? (
+                    <div className="mt-3 p-2.5 bg-success-subtle border border-success-subtle rounded-3 text-center">
+                      <div className="d-flex align-items-center justify-content-center gap-1.5 text-success fw-bold mb-2">
+                        <i className="bi bi-check-circle-fill"></i>
+                        <span>Payment Completed</span>
+                      </div>
+                      <div className="d-flex flex-wrap gap-2 justify-content-center">
+                        <Button
+                          variant="outline-primary"
+                          className="btn-sm fw-bold"
+                          onClick={() => onViewReceipt && onViewReceipt(activeBookingStay)}
+                        >
+                          <i className="bi bi-receipt me-1.5"></i>View Receipt
+                        </Button>
+                        <Button
+                          variant="success"
+                          className="btn-sm fw-bold text-white shadow-sm"
+                          onClick={() => onDownloadReceipt && onDownloadReceipt(activeBookingStay)}
+                        >
+                          <i className="bi bi-download me-1.5"></i>Download Receipt (PNG)
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
                     <>
+                      {/* SINGLE FILLED BUTTON: Proceed to GCash Payment */}
                       <Button
-                        variant={isBillReady ? "primary" : "secondary"}
-                        className="w-100 mt-2.5"
+                        variant="primary"
+                        className="w-100 mt-2.5 btn-primary text-white fw-bold shadow-sm"
+                        disabled={!canProceedToPayment}
                         onClick={() => {
-                          if (!isBillReady) {
+                          if (!canProceedToPayment) {
                             alert("Your bill is not yet ready. Please wait for receptionist finalization.");
                             return;
                           }
-                          onPay(activeBookingStay);
+                          if (onPay) {
+                            onPay(activeBookingStay);
+                          } else {
+                            window.location.href = `/paymongo/test?bookingID=${activeBookingStay.bookingID}&amount=${remainingBal}`;
+                          }
                         }}
-                        disabled={!isBillReady}
-                        style={isBillReady ? { backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)' } : { opacity: 0.65 }}
-                        title={!isBillReady ? "Your bill is not yet ready. Please wait for receptionist finalization." : ""}
+                        style={{
+                          backgroundColor: '#005ce6',
+                          borderColor: '#005ce6',
+                          borderRadius: '8px',
+                          opacity: canProceedToPayment ? 1 : 0.65
+                        }}
+                        title={!canProceedToPayment ? "Your bill is not yet ready. Please wait for receptionist finalization." : ""}
                       >
-                        <i className="bi bi-credit-card me-2"></i>
-                        <span>{isBillReady ? `Proceed to Pay (₱${remainingBal.toFixed(2)})` : "Proceed to Pay (Bill Not Ready)"}</span>
+                        <i className="bi bi-wallet2 me-2"></i>
+                        <span>Proceed to GCash Payment</span>
                       </Button>
-                      {!isBillReady && (
+
+                      {!canProceedToPayment && (
                         <div className="text-center text-muted small mt-1.5" style={{ fontSize: '0.74rem' }}>
                           <i className="bi bi-info-circle me-1 text-warning"></i>
                           Your bill is not yet ready. Please wait for receptionist finalization.
