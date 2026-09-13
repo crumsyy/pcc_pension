@@ -3902,47 +3902,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       </div>
                     ) : null}
 
-                    {/* SANDBOX TEST MODE SIMULATION BUTTONS */}
-                    <div className="mt-3 pt-2 border-top d-flex flex-column gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-primary w-100 fw-bold py-2 shadow-sm"
-                        style={{ backgroundColor: '#005CE6', borderColor: '#005CE6', borderRadius: '8px' }}
-                        onClick={handleProceedToSandboxGCash}
-                      >
-                        <i className="bi bi-box-arrow-up-right me-1.5"></i>
-                        <span>Proceed to PayMongo Checkout (₱{amountToPayNow.toFixed(2)})</span>
-                      </button>
-                      {paymongoStatus !== 'paid' && (
-                        <div className="d-flex flex-column gap-1">
-                          <button
-                            type="button"
-                            className="btn btn-outline-success btn-sm fw-bold w-100"
-                            style={{ borderRadius: '8px' }}
-                            onClick={() => {
-                              setPaymongoStatus('paid');
-                              setIsGuestGcashSettled(true);
-                              if (!paymongoSourceID) setPaymongoSourceID(`src_sim_${Date.now()}`);
-                            }}
-                          >
-                            <i className="bi bi-check2-circle me-1.5"></i>Authorize Payment (Test Mode Simulation)
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-outline-danger btn-sm fw-semibold w-100"
-                            style={{ borderRadius: '8px' }}
-                            onClick={() => {
-                              setGuestGcashInlineError('Payment Declined, Try Again');
-                            }}
-                          >
-                            Fail Payment
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
                     {paymongoStatus === 'paid' && (
-                      <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
+                      <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mt-3 mb-0">
                         <i className="bi bi-check-circle-fill text-success fs-5"></i>
                         <div className="text-start">
                           <strong>Payment Verified & Authorized!</strong>
@@ -3952,7 +3913,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     )}
 
                     {guestGcashInlineError && (
-                      <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mt-2 mb-0">
+                      <div className="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mt-3 mb-0">
                         <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
                         <span>{guestGcashInlineError}</span>
                       </div>
@@ -3966,6 +3927,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       className="btn btn-primary text-white fw-bold w-100 py-2 d-flex align-items-center justify-content-center gap-2 shadow-sm" 
                       isLoading={processing}
                       loadingText="Processing Booking..."
+                      style={{ backgroundColor: '#005ce6', borderColor: '#005ce6', borderRadius: '8px' }}
                     >
                       <i className="bi bi-check-circle-fill"></i>
                       <span>Confirm & Complete Booking (₱{amountToPayNow.toFixed(2)})</span>
@@ -3973,19 +3935,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   ) : (
                     <button 
                       type="button" 
-                      className="btn btn-secondary text-white fw-semibold w-100 py-2 d-flex align-items-center justify-content-center gap-2"
-                      disabled
-                      style={{ opacity: 0.75, cursor: 'not-allowed' }}
+                      className="btn btn-primary text-white fw-bold w-100 py-2 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                      style={{ backgroundColor: '#005ce6', borderColor: '#005ce6', borderRadius: '8px' }}
+                      onClick={handleProceedToSandboxGCash}
                     >
-                      <span className="spinner-border spinner-border-sm" role="status"></span>
-                      <span>Waiting for QRPh Authorization...</span>
+                      <i className="bi bi-wallet2 me-2"></i>
+                      <span>Proceed to GCash</span>
                     </button>
                   )}
 
-                  {/* BACK BUTTON: Placed below confirm booking button, filled red, no arrow, with mt-2 spacing */}
+                  {/* BACK BUTTON: Placed below confirm / proceed button, filled red, no arrow, with mt-2 spacing */}
                   <button 
                     type="button" 
                     className="btn btn-danger text-white fw-bold w-100 py-2 shadow-sm mt-2" 
+                    style={{ borderRadius: '8px' }}
                     onClick={() => {
                       setIsGuestGcashSettled(false);
                       setGuestGcashInlineError('');

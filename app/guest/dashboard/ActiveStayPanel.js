@@ -363,7 +363,7 @@ export default function ActiveStayPanel({
                     </div>
                   ) : (
                     <>
-                      {/* PAYMENT ACTION: Proceed to Payment (Official PayMongo QRPh) */}
+                      {/* PAYMENT ACTION: Proceed to GCash (Official PayMongo QRPh Modal) */}
                       <div className="d-flex flex-column gap-2 mt-2.5">
                         <Button
                           variant="primary"
@@ -382,10 +382,10 @@ export default function ActiveStayPanel({
                             borderRadius: '8px',
                             opacity: canProceedToPayment ? 1 : 0.65
                           }}
-                          title={!canProceedToPayment ? "Your bill is not yet ready. Please wait for receptionist finalization." : "Proceed to Payment"}
+                          title={!canProceedToPayment ? "Your bill is not yet ready. Please wait for receptionist finalization." : "Proceed to GCash"}
                         >
-                          <i className="bi bi-qr-code-scan me-2"></i>
-                          <span>Proceed to Payment</span>
+                          <i className="bi bi-wallet2 me-2"></i>
+                          <span>Proceed to GCash</span>
                         </Button>
                       </div>
 

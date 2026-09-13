@@ -232,33 +232,6 @@ export default function PaymentModal({
                         <div><strong>Step 2:</strong> Tap <em>Scan QR</em> to scan the dynamic code.</div>
                         <div><strong>Step 3:</strong> Confirm the pre-set payment of ₱{parsedAmount.toFixed(2)}.</div>
                       </div>
-
-                      {/* Sandbox simulation buttons for test mode only */}
-                      <div className="mt-3 pt-3 border-top d-flex flex-column gap-2">
-                        <LoadingButton
-                          type="button"
-                          className="btn btn-primary w-100 fw-bold py-2 shadow-sm text-white"
-                          style={{ backgroundColor: '#005ce6', borderColor: '#005ce6', borderRadius: '8px' }}
-                          isLoading={authorizing}
-                          loadingText="Authorizing Payment..."
-                          disabled={failing}
-                          onClick={handleAuthorizePayment}
-                        >
-                          <i className="bi bi-check-circle-fill me-2"></i>
-                          <span>Authorize Payment (₱{parsedAmount.toFixed(2)})</span>
-                        </LoadingButton>
-
-                        <Button
-                          type="button"
-                          variant="outline-danger"
-                          className="w-100 btn-sm fw-semibold"
-                          style={{ borderRadius: '8px' }}
-                          disabled={authorizing || failing}
-                          onClick={handleFailPayment}
-                        >
-                          {failing ? 'Simulating Decline...' : 'Fail Payment'}
-                        </Button>
-                      </div>
                     </div>
                   ) : (
                     <div className="py-3">
@@ -281,6 +254,17 @@ export default function PaymentModal({
 
           {/* MODAL FOOTER */}
           <div className="modal-footer bg-light px-4 py-3 border-top d-flex flex-column gap-2">
+            <button
+              type="button"
+              className="btn btn-primary w-100 py-2 fw-bold shadow-sm text-white"
+              style={{ backgroundColor: '#005ce6', borderColor: '#005ce6', borderRadius: '8px' }}
+              onClick={() => {
+                window.location.href = `/paymongo/test?bookingID=${bookingID}&amount=${parsedAmount}`;
+              }}
+            >
+              <i className="bi bi-wallet2 me-2"></i>
+              <span>Proceed to GCash</span>
+            </button>
             <button
               type="button"
               className="btn btn-danger text-white fw-bold w-100 py-2 shadow-sm mt-2"
