@@ -1042,7 +1042,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
       setPaymongoSourceID(data.sourceID);
       setPaymongoCheckoutUrl(data.checkoutUrl);
-      setPaymongoQrUrl(data.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data.checkoutUrl)}`);
+      setPaymongoQrUrl(data.qrCodeUrl);
       setPaymongoStatus('awaiting_payment');
       return data;
     } catch (err) {
@@ -3879,13 +3879,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               className="img-fluid rounded"
                               style={{ width: '200px', height: '200px', objectFit: 'contain' }}
                             />
-                            {/* Official QRPh Center Logo */}
-                            <div
-                              className="position-absolute top-50 start-50 translate-middle bg-white p-1 rounded shadow-sm border border-danger d-flex align-items-center justify-content-center"
-                              style={{ width: '36px', height: '36px', pointerEvents: 'none' }}
-                            >
-                              <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.62rem', padding: '2px 4px', letterSpacing: '0.3px' }}>QR Ph</span>
-                            </div>
+                            {/* Official QRPh Center Logo overlay for fallback codes (native PayMongo QR already includes official QRPh logo) */}
+                            {!paymongoQrUrl?.startsWith('data:image') && (
+                              <div
+                                className="position-absolute top-50 start-50 translate-middle bg-white p-1 rounded shadow-sm border border-danger d-flex align-items-center justify-content-center"
+                                style={{ width: '36px', height: '36px', pointerEvents: 'none' }}
+                              >
+                                <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.62rem', padding: '2px 4px', letterSpacing: '0.3px' }}>QR Ph</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 

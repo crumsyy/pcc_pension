@@ -122,7 +122,7 @@ export async function POST(request) {
       );
 
       await conn.execute(
-        "UPDATE billing SET status = 'Paid', remainingBalance = 0.00, balance = 0.00 WHERE billingID = ?",
+        "UPDATE billing SET remainingBalance = 0.00, balance = 0.00 WHERE billingID = ?",
         [billingID]
       );
 

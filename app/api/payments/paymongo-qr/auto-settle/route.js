@@ -183,10 +183,7 @@ export async function POST(request) {
       if (targetBookingID && billingID) {
         const balanceAfter = Math.max(0, Math.round((balanceBefore - amount) * 100) / 100);
         if (balanceAfter <= 0.05 || checkedOut) {
-          await conn.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
           await conn.execute("UPDATE payment SET isFullyPaid = 1, status = 'Settled' WHERE paymentID = ?", [paymentID]);
-        } else {
-          await conn.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
         }
 
         // Automatic room status update: if not checked out and arrival is today or past, set room to Occupied

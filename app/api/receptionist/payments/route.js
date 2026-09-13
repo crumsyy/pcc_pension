@@ -164,12 +164,9 @@ export async function POST(request) {
 
       const balanceAfter = Math.max(0, Math.round((balanceBefore - amount) * 100) / 100);
 
-      // Update billing status
+      // Update payment status (table billing has no status column)
       if (balanceAfter <= 0.05) {
-        await connection.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
         await connection.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
-      } else {
-        await connection.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
       }
 
       // Log billing audit

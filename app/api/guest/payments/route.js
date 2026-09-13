@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema, normalizeBookingStatus } from '@/lib/db';
+import { getQRPhImageURL } from '@/lib/qrph';
 
 export async function POST(request) {
   const session = await getSession();
@@ -67,6 +68,7 @@ export async function POST(request) {
       let qrCodeRaw = null;
       let sourceId = null;
 
+      let testUrl = null;
       try {
         // Step 1: Create Payment Intent
         const piRes = await fetch('https://api.paymongo.com/v1/payment_intents', {
@@ -134,22 +136,17 @@ export async function POST(request) {
             const nextAction = attachData.data?.attributes?.next_action || {};
             qrphCodeUrl = nextAction.qr_code?.image_url || nextAction.code?.image_url || null;
             qrCodeRaw = nextAction.qr_code?.qr_code || nextAction.code?.qr_code || null;
+            testUrl = nextAction.code?.test_url || null;
           }
         }
       } catch (pmErr) {
         console.error("PayMongo QRPh creation error:", pmErr);
       }
 
-
-
       // Store returned source.id and qr_code URL in database
-      const finalQrUrl = qrphCodeUrl || (qrCodeRaw ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeRaw)}` : 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=paymongo_qrph_test');
       const finalSourceId = sourceId?.startsWith('src_') ? sourceId : (sourceId ? `src_${sourceId.replace(/^pi_/, '')}` : `src_${Date.now()}`);
+      const finalQrUrl = qrphCodeUrl || (qrCodeRaw ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeRaw)}` : getQRPhImageURL({ amount: parseAmt, reference: finalSourceId }));
 
-      await dbQuery(
-        "UPDATE billing SET sourceID = ?, qrCodeUrl = ? WHERE bookingID = ?",
-        [finalSourceId, finalQrUrl, parsedBookingID]
-      ).catch(() => {});
 
       await logBillingAudit(null, {
         bookingID: parsedBookingID,
@@ -168,6 +165,7 @@ export async function POST(request) {
         qrphCodeUrl: finalQrUrl,
         sourceId: finalSourceId,
         amount: parseAmt,
+        testUrl,
         status: bInfo.status || 'Bill Ready'
       });
     }
@@ -323,13 +321,10 @@ export async function POST(request) {
         [parsedAmount, pctNum, balanceAfter, balanceAfter, billingID]
       );
 
-      // Update billing status
+      // Update booking and payment status (table billing has no status column)
       if (balanceAfter <= 0.05) {
-        await connection.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
         await connection.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
         await connection.execute("UPDATE booking SET status = 'Payment Completed', paymentCompletedAt = NOW() WHERE bookingID = ?", [parsedBookingID]);
-      } else {
-        await connection.execute("UPDATE billing SET status = 'Partial' WHERE billingID = ?", [billingID]);
       }
 
       // Automatic Room Status update: if check-in is today or has passed, update room status to 'Occupied'

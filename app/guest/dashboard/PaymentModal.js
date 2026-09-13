@@ -222,13 +222,15 @@ export default function PaymentModal({
                             className="img-fluid rounded"
                             style={{ width: '230px', height: '230px', objectFit: 'contain' }}
                           />
-                          {/* Official QRPh Center Logo */}
-                          <div
-                            className="position-absolute top-50 start-50 translate-middle bg-white p-1 rounded shadow-sm border border-danger d-flex align-items-center justify-content-center"
-                            style={{ width: '40px', height: '40px', pointerEvents: 'none' }}
-                          >
-                            <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.65rem', padding: '3px 4px', letterSpacing: '0.3px' }}>QR Ph</span>
-                          </div>
+                          {/* Official QRPh Center Logo overlay for fallback codes (native PayMongo QR already includes official QRPh logo) */}
+                          {!qrphData.qrphCodeUrl?.startsWith('data:image') && (
+                            <div
+                              className="position-absolute top-50 start-50 translate-middle bg-white p-1 rounded shadow-sm border border-danger d-flex align-items-center justify-content-center"
+                              style={{ width: '40px', height: '40px', pointerEvents: 'none' }}
+                            >
+                              <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.65rem', padding: '3px 4px', letterSpacing: '0.3px' }}>QR Ph</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 

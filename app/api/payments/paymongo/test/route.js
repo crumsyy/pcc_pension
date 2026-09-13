@@ -99,7 +99,6 @@ export async function POST(request) {
       // Calculate balance after
       const balanceAfter = bookingID ? Math.max(0, balanceBefore - amount) : 0;
       if (bookingID && balanceAfter <= 0.05) {
-        await conn.execute("UPDATE billing SET status = 'Paid' WHERE billingID = ?", [billingID]);
         await conn.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
         await conn.execute("UPDATE booking SET status = 'Payment Completed', paymentCompletedAt = NOW() WHERE bookingID = ?", [bookingID]);
       }
