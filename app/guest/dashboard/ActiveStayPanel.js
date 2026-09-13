@@ -23,7 +23,6 @@ export default function ActiveStayPanel({
   const [checkoutNotice, setCheckoutNotice] = useState('');
   const [isCheckoutRequested, setIsCheckoutRequested] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentModalTab, setPaymentModalTab] = useState('gcash');
   const [localStatus, setLocalStatus] = useState(null);
   const [localReceipt, setLocalReceipt] = useState(null);
 
@@ -364,18 +363,17 @@ export default function ActiveStayPanel({
                     </div>
                   ) : (
                     <>
-                      {/* PAYMENT ACTIONS: Proceed to GCash Payment & Pay via QRPh Code */}
-                      <div className="d-flex flex-column flex-sm-row gap-2 mt-2.5">
+                      {/* PAYMENT ACTION: Proceed to Payment (Official PayMongo QRPh) */}
+                      <div className="d-flex flex-column gap-2 mt-2.5">
                         <Button
                           variant="primary"
-                          className="flex-fill btn-primary text-white fw-bold shadow-sm"
+                          className="btn-primary w-100 text-white fw-bold shadow-sm py-2"
                           disabled={!canProceedToPayment}
                           onClick={() => {
                             if (!canProceedToPayment) {
                               alert("Your bill is not yet ready. Please wait for receptionist finalization.");
                               return;
                             }
-                            setPaymentModalTab('gcash');
                             setShowPaymentModal(true);
                           }}
                           style={{
@@ -384,34 +382,10 @@ export default function ActiveStayPanel({
                             borderRadius: '8px',
                             opacity: canProceedToPayment ? 1 : 0.65
                           }}
-                          title={!canProceedToPayment ? "Your bill is not yet ready. Please wait for receptionist finalization." : ""}
-                        >
-                          <i className="bi bi-wallet2 me-2"></i>
-                          <span>Proceed to GCash Payment</span>
-                        </Button>
-
-                        <Button
-                          variant="outline-primary"
-                          className="flex-fill fw-bold shadow-sm"
-                          disabled={!isBillReady}
-                          onClick={() => {
-                            if (!isBillReady) {
-                              alert("QRPh code can only be generated once the bill is ready.");
-                              return;
-                            }
-                            setPaymentModalTab('qrph');
-                            setShowPaymentModal(true);
-                          }}
-                          style={{
-                            borderRadius: '8px',
-                            borderColor: '#005ce6',
-                            color: isBillReady ? '#005ce6' : '#6c757d',
-                            opacity: isBillReady ? 1 : 0.65
-                          }}
-                          title={!isBillReady ? "QRPh code can only be generated once the bill is ready." : "Pay using PayMongo QRPh"}
+                          title={!canProceedToPayment ? "Your bill is not yet ready. Please wait for receptionist finalization." : "Proceed to Payment"}
                         >
                           <i className="bi bi-qr-code-scan me-2"></i>
-                          <span>Pay via QRPh Code</span>
+                          <span>Proceed to Payment</span>
                         </Button>
                       </div>
 
@@ -443,7 +417,6 @@ export default function ActiveStayPanel({
           remainingBalance: remainingBal
         }}
         amount={remainingBal}
-        initialTab={paymentModalTab}
         onPaymentSuccess={(data) => {
           setLocalStatus('Paid');
           setLocalReceipt(data.receipt);

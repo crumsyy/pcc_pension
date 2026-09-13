@@ -139,39 +139,7 @@ export async function POST(request) {
         console.error("PayMongo QRPh creation error:", pmErr);
       }
 
-      // Fallback to /v1/sources with type: 'gcash'
-      if (!qrphCodeUrl) {
-        try {
-          const srcRes = await fetch('https://api.paymongo.com/v1/sources', {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'Authorization': authHeader
-            },
-            body: JSON.stringify({
-              data: {
-                attributes: {
-                  amount: amountInCentavos,
-                  currency: 'PHP',
-                  type: 'gcash',
-                  redirect: {
-                    success: `https://${request.headers.get('host') || 'localhost'}/guest/dashboard?paymentStatus=completed&bookingID=${parsedBookingID}`,
-                    failed: `https://${request.headers.get('host') || 'localhost'}/guest/dashboard?paymentStatus=declined&bookingID=${parsedBookingID}`
-                  }
-                }
-              }
-            })
-          });
-          const srcData = await srcRes.json();
-          if (srcRes.ok && srcData.data?.id) {
-            sourceId = srcData.data.id;
-            qrphCodeUrl = srcData.data.attributes?.redirect?.checkout_url || null;
-          }
-        } catch (srcErr) {
-          console.error("PayMongo sources fallback error:", srcErr);
-        }
-      }
+
 
       // Store returned source.id and qr_code URL in database
       const finalQrUrl = qrphCodeUrl || (qrCodeRaw ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeRaw)}` : 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=paymongo_qrph_test');
