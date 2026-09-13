@@ -45,7 +45,8 @@ export async function POST(request) {
       }
 
       const normStatus = normalizeBookingStatus(bInfo.status);
-      if (normStatus !== 'Bill Ready') {
+      // Allow down payments upon booking creation; restrict only when Checked-In (active stay) and bill not ready
+      if (normStatus === 'Checked-In') {
         return NextResponse.json({
           error: "QRPh code can only be generated once the bill is ready."
         }, { status: 400 });
@@ -80,7 +81,7 @@ export async function POST(request) {
               attributes: {
                 amount: amountInCentavos,
                 currency: 'PHP',
-                payment_method_allowed: ['qrph', 'gcash'],
+                payment_method_allowed: ['qrph'],
                 description: `PCC Stay Payment for Booking #${parsedBookingID}`
               }
             }
@@ -167,7 +168,7 @@ export async function POST(request) {
         qrphCodeUrl: finalQrUrl,
         sourceId: finalSourceId,
         amount: parseAmt,
-        status: 'Bill Ready'
+        status: bInfo.status || 'Bill Ready'
       });
     }
 
@@ -225,10 +226,10 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Booking record not found or access denied.' }, { status: 404 });
       }
 
-      // Strictly enforce Bill Ready status for guest payments
+      // Allow down payments for new bookings; restrict only when Checked-In (active stay) and bill not ready
       if (session.role === 'Guest') {
         const normStatus = normalizeBookingStatus(bookingRows[0].status);
-        if (normStatus !== 'Bill Ready') {
+        if (normStatus === 'Checked-In') {
           await connection.rollback();
           return NextResponse.json({
             error: "Payment is only allowed once the bill is ready."

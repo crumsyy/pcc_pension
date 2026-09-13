@@ -2273,15 +2273,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="small text-muted mb-2">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
                         {renderBookingStatusTimeline(activeReservation.status)}
                       </div>
-                      <div className="d-flex align-items-center gap-2 ms-2">
+                      <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center mt-2 mt-sm-0">
                         <button 
-                          className="btn btn-sm btn-success text-white fw-bold px-3 py-1.5 shadow-sm d-inline-flex align-items-center" 
+                          className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm d-inline-flex align-items-center justify-content-center" 
                           onClick={() => handleProceedToBooking(activeReservation)}
                         >
                           <i className="bi bi-calendar-check me-1"></i>Proceed to Booking
                         </button>
-                        <button className="btn btn-sm btn-outline-danger fw-bold px-3 py-1.5 shadow-sm" onClick={() => handleCancelReservation(activeReservation.reservationID)}>
-                          Cancel
+                        <button 
+                          className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm" 
+                          onClick={() => handleCancelReservation(activeReservation.reservationID)}
+                        >
+                          Cancel Hold
                         </button>
                       </div>
                     </div>
@@ -2965,11 +2968,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 )}
                               </div>
 
-                              <div className="d-flex gap-1.5 align-items-center flex-wrap">
+                              <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center mt-2 mt-sm-0">
                                 {isHold && (
                                   <>
                                     <button
-                                      className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
+                                      className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
                                       onClick={() => handleProceedToBooking(r)}
                                       title="Proceed to Booking with Down Payment"
                                       aria-label="Proceed to Booking"
@@ -2978,7 +2981,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                       Proceed to Booking
                                     </button>
                                     <button
-                                      className="btn btn-xs btn-outline-danger fw-bold px-2.5 py-1"
+                                      className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
                                       onClick={() => handleCancelReservation(r.reservationID)}
                                       title="Cancel Courtesy Hold"
                                       aria-label="Cancel Courtesy Hold"
@@ -2991,13 +2994,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 {!isHold && (r.status === 'Pending' || r.status === 'Confirmed') && (
                                   <>
                                     <button
-                                      className="btn btn-xs btn-success text-white fw-bold px-2.5 py-1"
+                                      className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
                                       onClick={() => handleProceedToBooking(r)}
                                     >
                                       Proceed to Booking
                                     </button>
                                     <button
-                                      className="btn btn-xs btn-danger text-white fw-bold px-2.5 py-1"
+                                      className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
                                       onClick={() => handleCancelReservation(r.reservationID)}
                                     >
                                       Cancel
@@ -3868,13 +3871,22 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       </div>
                     ) : paymongoQrUrl ? (
                       <div className="d-flex flex-column align-items-center justify-content-center">
-                        <div className="bg-white p-2 rounded shadow-sm border mb-2" style={{ display: 'inline-block' }}>
-                          <img
-                            src={paymongoQrUrl}
-                            alt="PayMongo Dynamic QRPh Code"
-                            className="img-fluid rounded"
-                            style={{ width: '200px', height: '200px', objectFit: 'contain' }}
-                          />
+                        <div className="bg-white p-2 rounded shadow-sm border mb-2 position-relative" style={{ display: 'inline-block' }}>
+                          <div className="position-relative d-inline-block">
+                            <img
+                              src={paymongoQrUrl}
+                              alt="Official PayMongo Dynamic QRPh Code"
+                              className="img-fluid rounded"
+                              style={{ width: '200px', height: '200px', objectFit: 'contain' }}
+                            />
+                            {/* Official QRPh Center Logo */}
+                            <div
+                              className="position-absolute top-50 start-50 translate-middle bg-white p-1 rounded shadow-sm border border-danger d-flex align-items-center justify-content-center"
+                              style={{ width: '36px', height: '36px', pointerEvents: 'none' }}
+                            >
+                              <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.62rem', padding: '2px 4px', letterSpacing: '0.3px' }}>QR Ph</span>
+                            </div>
+                          </div>
                         </div>
 
                         {/* EXACT INSTRUCTION BANNER */}

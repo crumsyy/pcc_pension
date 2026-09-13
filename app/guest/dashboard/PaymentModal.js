@@ -28,22 +28,24 @@ export default function PaymentModal({
 
   const parsedAmount = parseFloat(amount || booking?.remainingBalance || 0);
   const bookingID = booking?.bookingID;
-  const isBillReady = normalizeBookingStatus(booking?.status) === 'Bill Ready';
+  const normalizedStatus = normalizeBookingStatus(booking?.status);
+  const isCheckedInWithoutBill = normalizedStatus === 'Checked-In';
+  const canGenerateQr = !isCheckedInWithoutBill;
 
-  // Auto-fetch dynamic QRPh code when opening modal if bill is ready
+  // Auto-fetch dynamic QRPh code when opening modal if eligible
   useEffect(() => {
     if (isOpen) {
       setActionError('');
-      if (isBillReady && !qrphData && !loadingQrph) {
+      if (canGenerateQr && !qrphData && !loadingQrph) {
         fetchQrphCode();
       }
     }
-  }, [isOpen, isBillReady]);
+  }, [isOpen, canGenerateQr]);
 
   if (!isOpen || !booking) return null;
 
   const fetchQrphCode = async () => {
-    if (!isBillReady) {
+    if (!canGenerateQr) {
       setQrphError("QRPh code can only be generated once the bill is ready.");
       return;
     }
@@ -185,7 +187,7 @@ export default function PaymentModal({
 
             {/* OFFICIAL PAYMONGO DYNAMIC QRPH CODE ONLY */}
             <div className="text-center p-3 bg-white rounded-3 border">
-              {!isBillReady ? (
+              {!canGenerateQr ? (
                 <div className="py-4">
                   <div className="alert alert-warning py-2.5 px-3 small mb-2 fw-medium">
                     <i className="bi bi-exclamation-circle-fill me-1.5 text-warning-emphasis"></i>
@@ -210,15 +212,24 @@ export default function PaymentModal({
                   ) : qrphData?.qrphCodeUrl ? (
                     <div>
                       <div
-                        className="p-3 bg-white border rounded-3 shadow-xs d-inline-block mb-2"
+                        className="p-3 bg-white border rounded-3 shadow-xs d-inline-block mb-2 position-relative"
                         style={{ maxWidth: '270px' }}
                       >
-                        <img
-                          src={qrphData.qrphCodeUrl}
-                          alt="PayMongo Dynamic QRPh Code"
-                          className="img-fluid rounded"
-                          style={{ width: '230px', height: '230px', objectFit: 'contain' }}
-                        />
+                        <div className="position-relative d-inline-block">
+                          <img
+                            src={qrphData.qrphCodeUrl}
+                            alt="Official PayMongo Dynamic QRPh Code"
+                            className="img-fluid rounded"
+                            style={{ width: '230px', height: '230px', objectFit: 'contain' }}
+                          />
+                          {/* Official QRPh Center Logo */}
+                          <div
+                            className="position-absolute top-50 start-50 translate-middle bg-white p-1 rounded shadow-sm border border-danger d-flex align-items-center justify-content-center"
+                            style={{ width: '40px', height: '40px', pointerEvents: 'none' }}
+                          >
+                            <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.65rem', padding: '3px 4px', letterSpacing: '0.3px' }}>QR Ph</span>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Exact instructions required by prompt */}

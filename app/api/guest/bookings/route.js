@@ -103,14 +103,16 @@ export async function POST(request) {
       }
 
       const normalized = normalizeBookingStatus(booking.status);
-      if (normalized !== 'Bill Ready') {
+      // Allow payments for down payments (Pending Down Payment, Reservation Confirmed, Pending Check-in, etc.)
+      // Restrict only when status is Checked-In (active stay) and bill is not yet ready
+      if (normalized === 'Checked-In') {
         return NextResponse.json({ error: "Payment is only allowed once the bill is ready." }, { status: 400 });
       }
 
       return NextResponse.json({
         success: true,
-        message: 'Booking is verified and Bill Ready for payment.',
-        bookingStatus: 'Bill Ready'
+        message: 'Booking is verified and eligible for payment.',
+        bookingStatus: normalized
       });
     }
 

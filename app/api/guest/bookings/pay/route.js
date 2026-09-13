@@ -32,7 +32,8 @@ export async function POST(request) {
     }
 
     const normalizedStatus = normalizeBookingStatus(booking.status);
-    if (normalizedStatus !== 'Bill Ready') {
+    // Allow payments for down payments; restrict only when Checked-In (active stay) and bill not ready
+    if (normalizedStatus === 'Checked-In') {
       return NextResponse.json(
         { error: "Payment is only allowed once the bill is ready." },
         { status: 400 }
