@@ -20,6 +20,10 @@ export default function ActiveStayPanel({
   const [requestingCheckout, setRequestingCheckout] = useState(false);
   const [checkoutNotice, setCheckoutNotice] = useState('');
   const [isCheckoutRequested, setIsCheckoutRequested] = useState(false);
+  const [showQrphModal, setShowQrphModal] = useState(false);
+  const [loadingQrph, setLoadingQrph] = useState(false);
+  const [qrphData, setQrphData] = useState(null);
+  const [qrphError, setQrphError] = useState('');
 
   if (!activeBookingStay) return null;
 
@@ -56,6 +60,38 @@ export default function ActiveStayPanel({
       alert(err.message || 'Error sending checkout request');
     } finally {
       setRequestingCheckout(false);
+    }
+  };
+
+  const handleOpenQrphModal = async () => {
+    if (!isBillReady) {
+      alert("QRPh code can only be generated once the bill is ready.");
+      return;
+    }
+    setShowQrphModal(true);
+    if (!qrphData) {
+      setLoadingQrph(true);
+      setQrphError('');
+      try {
+        const res = await fetch('/api/guest/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate_qrph',
+            bookingID: activeBookingStay.bookingID,
+            amount: remainingBal
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Failed to generate PayMongo QRPh code.');
+        }
+        setQrphData(data);
+      } catch (err) {
+        setQrphError(err.message || 'Error generating QRPh code.');
+      } finally {
+        setLoadingQrph(false);
+      }
     }
   };
 
@@ -316,33 +352,52 @@ export default function ActiveStayPanel({
                     </div>
                   ) : (
                     <>
-                      {/* SINGLE FILLED BUTTON: Proceed to GCash Payment */}
-                      <Button
-                        variant="primary"
-                        className="w-100 mt-2.5 btn-primary text-white fw-bold shadow-sm"
-                        disabled={!canProceedToPayment}
-                        onClick={() => {
-                          if (!canProceedToPayment) {
-                            alert("Your bill is not yet ready. Please wait for receptionist finalization.");
-                            return;
-                          }
-                          if (onPay) {
-                            onPay(activeBookingStay);
-                          } else {
-                            window.location.href = `/paymongo/test?bookingID=${activeBookingStay.bookingID}&amount=${remainingBal}`;
-                          }
-                        }}
-                        style={{
-                          backgroundColor: '#005ce6',
-                          borderColor: '#005ce6',
-                          borderRadius: '8px',
-                          opacity: canProceedToPayment ? 1 : 0.65
-                        }}
-                        title={!canProceedToPayment ? "Your bill is not yet ready. Please wait for receptionist finalization." : ""}
-                      >
-                        <i className="bi bi-wallet2 me-2"></i>
-                        <span>Proceed to GCash Payment</span>
-                      </Button>
+                      {/* PAYMENT ACTIONS: Proceed to GCash Payment & Pay via QRPh Code */}
+                      <div className="d-flex flex-column flex-sm-row gap-2 mt-2.5">
+                        <Button
+                          variant="primary"
+                          className="flex-fill btn-primary text-white fw-bold shadow-sm"
+                          disabled={!canProceedToPayment}
+                          onClick={() => {
+                            if (!canProceedToPayment) {
+                              alert("Your bill is not yet ready. Please wait for receptionist finalization.");
+                              return;
+                            }
+                            if (onPay) {
+                              onPay(activeBookingStay);
+                            } else {
+                              window.location.href = `/paymongo/test?bookingID=${activeBookingStay.bookingID}&amount=${remainingBal}`;
+                            }
+                          }}
+                          style={{
+                            backgroundColor: '#005ce6',
+                            borderColor: '#005ce6',
+                            borderRadius: '8px',
+                            opacity: canProceedToPayment ? 1 : 0.65
+                          }}
+                          title={!canProceedToPayment ? "Your bill is not yet ready. Please wait for receptionist finalization." : ""}
+                        >
+                          <i className="bi bi-wallet2 me-2"></i>
+                          <span>Proceed to GCash Payment</span>
+                        </Button>
+
+                        <Button
+                          variant="outline-primary"
+                          className="flex-fill fw-bold shadow-sm"
+                          disabled={!isBillReady}
+                          onClick={handleOpenQrphModal}
+                          style={{
+                            borderRadius: '8px',
+                            borderColor: '#005ce6',
+                            color: isBillReady ? '#005ce6' : '#6c757d',
+                            opacity: isBillReady ? 1 : 0.65
+                          }}
+                          title={!isBillReady ? "QRPh code can only be generated once the bill is ready." : "Pay using PayMongo QRPh"}
+                        >
+                          <i className="bi bi-qr-code-scan me-2"></i>
+                          <span>Pay via QRPh Code</span>
+                        </Button>
+                      </div>
 
                       {!canProceedToPayment && (
                         <div className="text-center text-muted small mt-1.5" style={{ fontSize: '0.74rem' }}>
@@ -361,6 +416,116 @@ export default function ActiveStayPanel({
           {renderBookingStatusTimeline && renderBookingStatusTimeline(activeBookingStay.status)}
         </div>
       </div>
+
+      {/* OFFICIAL PAYMONGO QRPH CODE MODAL (Only accessible when booking status is Bill Ready) */}
+      {showQrphModal && isBillReady && (
+        <div
+          className="modal d-block tab-modal-backdrop"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 1070 }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+              <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue, #005ce6)' }}>
+                <div>
+                  <h5 className="modal-title fw-bold mb-0 d-flex align-items-center gap-2" style={{ fontSize: '1.05rem' }}>
+                    <i className="bi bi-qr-code-scan"></i>
+                    <span>Pay with QRPh</span>
+                  </h5>
+                  <div className="small text-white text-opacity-75" style={{ fontSize: '0.78rem' }}>
+                    Official PayMongo QR Code • Booking #{activeBookingStay.bookingID}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => setShowQrphModal(false)}
+                  aria-label="Close"
+                ></button>
+              </div>
+
+              <div className="modal-body p-4 text-center">
+                {/* Amount Due Banner */}
+                <div className="p-2.5 mb-3 bg-light rounded-3 border">
+                  <div className="text-muted small" style={{ fontSize: '0.78rem' }}>Amount Due:</div>
+                  <div className="fw-bold fs-4 text-primary">₱{remainingBal.toFixed(2)}</div>
+                  <div className="text-muted small" style={{ fontSize: '0.72rem' }}>
+                    Room {activeBookingStay.roomNumber} ({activeBookingStay.roomType || 'Room'})
+                  </div>
+                </div>
+
+                {/* QR Code Container */}
+                {loadingQrph ? (
+                  <div className="py-5 text-center text-muted">
+                    <span className="spinner-border spinner-border-sm text-primary me-2"></span>
+                    <span>Generating official PayMongo QRPh code...</span>
+                  </div>
+                ) : qrphError ? (
+                  <div className="py-4">
+                    <div className="alert alert-danger py-2 px-3 small mb-3">
+                      <i className="bi bi-exclamation-circle me-1.5"></i>
+                      <span>{qrphError}</span>
+                    </div>
+                    <Button
+                      variant="primary"
+                      className="btn-sm fw-bold"
+                      onClick={() => {
+                        setQrphData(null);
+                        handleOpenQrphModal();
+                      }}
+                    >
+                      <i className="bi bi-arrow-clockwise me-1.5"></i>Try Again
+                    </Button>
+                  </div>
+                ) : qrphData?.qrphCodeUrl ? (
+                  <div>
+                    <div
+                      className="p-3 bg-white border rounded-3 shadow-xs d-inline-block mb-2"
+                      style={{ maxWidth: '270px' }}
+                    >
+                      <img
+                        src={qrphData.qrphCodeUrl}
+                        alt="PayMongo QRPh Code"
+                        className="img-fluid rounded"
+                        style={{ width: '230px', height: '230px', objectFit: 'contain' }}
+                      />
+                    </div>
+
+                    {/* Scanning instructions (Prompt requirement) */}
+                    <div className="alert alert-info py-2 px-3 small mt-2 mb-2 text-center fw-medium" style={{ fontSize: '0.80rem' }}>
+                      <i className="bi bi-info-circle-fill me-1.5 text-primary"></i>
+                      <span>Scan with any QRPh-compliant banking or e-wallet app (GCash, Maya, BDO, etc.)</span>
+                    </div>
+
+                    <div className="text-muted small mt-2 d-flex flex-column gap-1 text-start px-2" style={{ fontSize: '0.74rem' }}>
+                      <div><strong>Step 1:</strong> Open your GCash, Maya, or banking app.</div>
+                      <div><strong>Step 2:</strong> Tap <em>Scan QR / QRPh</em> and scan the code.</div>
+                      <div><strong>Step 3:</strong> Confirm payment of ₱{remainingBal.toFixed(2)}.</div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="modal-footer bg-light py-2.5 px-4 d-flex justify-content-between">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm fw-semibold"
+                  onClick={() => setShowQrphModal(false)}
+                >
+                  Close
+                </button>
+
+                <a
+                  href={`/paymongo/test?bookingID=${activeBookingStay.bookingID}&amount=${remainingBal}`}
+                  className="btn btn-outline-primary btn-sm fw-semibold"
+                >
+                  <i className="bi bi-box-arrow-up-right me-1"></i>Open Test Checkout
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

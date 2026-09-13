@@ -186,6 +186,9 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+
     // All reservations are Courtesy Holds (fixed 48h duration + 30m grace period)
     const isCourtesyHold = true;
     const holdDurationHours = 48;
@@ -317,7 +320,8 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: `Courtesy hold for Room ${roomInfo.roomNumber} placed successfully! Room is held for 48 hours.`,
+      status: 'Courtesy Hold',
+      message: 'Reservation placed on courtesy hold.',
       reservationID: insertRes.insertId,
       summary: {
         reservationID: insertRes.insertId,
@@ -327,7 +331,7 @@ export async function POST(request) {
         checkOutDate: checkOutDate || 'Standard 12:00 PM',
         specialRequests: specialRequests || 'None',
         numGuests: numGuests || 1,
-        status: resStatus,
+        status: 'Courtesy Hold',
         isCourtesyHold: true,
         holdDurationHours: 48,
         holdExpiryDateTime

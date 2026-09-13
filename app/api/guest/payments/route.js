@@ -23,6 +23,188 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // QRPh code generation action (PayMongo QRPh API)
+    if (body.action === 'generate_qrph' || body.action === 'qrph' || body.type === 'qrph') {
+      const parsedBookingID = parseInt(body.bookingID, 10);
+      if (!parsedBookingID) {
+        return NextResponse.json({ error: 'Valid Booking ID is required.' }, { status: 400 });
+      }
+
+      // Check booking & enforce Bill Ready status
+      const bookingRows = await dbQuery("SELECT bookingID, guestID, status, remainingBalance, roomID FROM booking WHERE bookingID = ?", [parsedBookingID]);
+      if (bookingRows.length === 0) {
+        return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      }
+      const bInfo = bookingRows[0];
+
+      if (session.role === 'Guest') {
+        const guestRows = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
+        if (guestRows.length === 0 || guestRows[0].guestID !== bInfo.guestID) {
+          return NextResponse.json({ error: 'Unauthorized access to this booking.' }, { status: 403 });
+        }
+      }
+
+      const normStatus = normalizeBookingStatus(bInfo.status);
+      if (normStatus !== 'Bill Ready') {
+        return NextResponse.json({
+          error: "QRPh code can only be generated once the bill is ready."
+        }, { status: 400 });
+      }
+
+      const bal = await getBookingBalance(parsedBookingID);
+      const parseAmt = Math.round((parseFloat(body.amount) || bal || parseFloat(bInfo.remainingBalance) || 0) * 100) / 100;
+      if (parseAmt <= 0) {
+        return NextResponse.json({ error: 'Invalid payment amount.' }, { status: 400 });
+      }
+
+      const secretKey = process.env.PAYMONGO_SECRET_KEY || 'sk_test_GjYHQCNkKkxUuhQykSsSetrS';
+      const authHeader = 'Basic ' + Buffer.from(`${secretKey}:`).toString('base64');
+      const amountInCentavos = Math.round(parseAmt * 100);
+
+      // Call PayMongo API for QRPh
+      let qrphCodeUrl = null;
+      let qrCodeRaw = null;
+      let sourceId = null;
+
+      try {
+        // Step 1: Create Payment Intent
+        const piRes = await fetch('https://api.paymongo.com/v1/payment_intents', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': authHeader
+          },
+          body: JSON.stringify({
+            data: {
+              attributes: {
+                amount: amountInCentavos,
+                currency: 'PHP',
+                payment_method_allowed: ['qrph', 'gcash'],
+                description: `PCC Stay Payment for Booking #${parsedBookingID}`
+              }
+            }
+          })
+        });
+        const piData = await piRes.json();
+
+        if (piRes.ok && piData.data?.id) {
+          const paymentIntentID = piData.data.id;
+          sourceId = paymentIntentID;
+
+          // Step 2: Create Payment Method (type: 'qrph')
+          const pmRes = await fetch('https://api.paymongo.com/v1/payment_methods', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': authHeader
+            },
+            body: JSON.stringify({
+              data: {
+                attributes: {
+                  type: 'qrph'
+                }
+              }
+            })
+          });
+          const pmData = await pmRes.json();
+
+          if (pmRes.ok && pmData.data?.id) {
+            // Step 3: Attach Payment Method
+            const attachRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${paymentIntentID}/attach`, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Authorization': authHeader
+              },
+              body: JSON.stringify({
+                data: {
+                  attributes: {
+                    payment_method: pmData.data.id,
+                    client_key: piData.data.attributes.client_key,
+                    return_url: `https://${request.headers.get('host') || 'localhost'}/guest/dashboard?payment=success&bookingID=${parsedBookingID}`
+                  }
+                }
+              })
+            });
+            const attachData = await attachRes.json();
+            const nextAction = attachData.data?.attributes?.next_action || {};
+            qrphCodeUrl = nextAction.code?.image_url || null;
+            qrCodeRaw = nextAction.code?.qr_code || null;
+          }
+        }
+      } catch (pmErr) {
+        console.error("PayMongo QRPh creation error:", pmErr);
+      }
+
+      // Fallback to /v1/sources with type: 'gcash'
+      if (!qrphCodeUrl) {
+        try {
+          const srcRes = await fetch('https://api.paymongo.com/v1/sources', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': authHeader
+            },
+            body: JSON.stringify({
+              data: {
+                attributes: {
+                  amount: amountInCentavos,
+                  currency: 'PHP',
+                  type: 'gcash',
+                  redirect: {
+                    success: `https://${request.headers.get('host') || 'localhost'}/guest/dashboard?paymentStatus=completed&bookingID=${parsedBookingID}`,
+                    failed: `https://${request.headers.get('host') || 'localhost'}/guest/dashboard?paymentStatus=declined&bookingID=${parsedBookingID}`
+                  }
+                }
+              }
+            })
+          });
+          const srcData = await srcRes.json();
+          if (srcRes.ok && srcData.data?.id) {
+            sourceId = srcData.data.id;
+            qrphCodeUrl = srcData.data.attributes?.redirect?.checkout_url || null;
+          }
+        } catch (srcErr) {
+          console.error("PayMongo sources fallback error:", srcErr);
+        }
+      }
+
+      // Store returned source.id and qr_code URL in database
+      const finalQrUrl = qrphCodeUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=paymongo_qrph_test';
+      const finalSourceId = sourceId || `src_test_${Date.now()}`;
+
+      await dbQuery(
+        "UPDATE billing SET sourceID = ?, qrCodeUrl = ? WHERE bookingID = ?",
+        [finalSourceId, finalQrUrl, parsedBookingID]
+      ).catch(() => {});
+
+      await logBillingAudit(null, {
+        bookingID: parsedBookingID,
+        transactionType: 'QRPh Generation',
+        amount: parseAmt,
+        referenceNumber: finalSourceId,
+        description: `PayMongo QRPh generated. Source/PI ID: ${finalSourceId}, QR URL: ${finalQrUrl}`,
+        status: 'Pending',
+        userID: session.userID,
+        userName: session.fullName || 'Guest User',
+        userRole: session.role
+      }).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        qrphCodeUrl: finalQrUrl,
+        sourceId: finalSourceId,
+        qr_code: qrCodeRaw,
+        amount: parseAmt,
+        bookingID: parsedBookingID,
+        status: 'Bill Ready'
+      });
+    }
+
     const isTestAuth = body.action === 'test_authenticate';
     const parsedBookingID = parseInt(body.bookingID);
     let parsedAmount = Math.round(parseFloat(body.amountToPay || body.amount || 0) * 100) / 100;

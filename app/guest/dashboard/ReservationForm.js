@@ -33,6 +33,50 @@ export function validateLeadTime(date) {
   return { valid: true, error: null };
 }
 
+export async function handleCourtesyHold(payload) {
+  const {
+    roomID,
+    checkInDate,
+    checkOutDate,
+    checkInTime,
+    checkOutTime,
+    numGuests,
+    specialRequests,
+    useCurrentTime,
+    useCurrentTimeIn,
+    useCurrentTimeOut,
+    reservationID,
+    bookingID
+  } = payload || {};
+
+  const res = await fetch('/api/guest/reservations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      roomID,
+      checkInDate,
+      checkOutDate,
+      checkInTime,
+      checkOutTime,
+      useCurrentTime: Boolean(useCurrentTime),
+      useCurrentTimeIn: Boolean(useCurrentTimeIn),
+      useCurrentTimeOut: Boolean(useCurrentTimeOut),
+      numGuests: numGuests || 1,
+      specialRequests: specialRequests || '',
+      isCourtesyHold: true,
+      holdDurationHours: 48,
+      reservationID: reservationID || undefined,
+      bookingID: bookingID || undefined
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to place courtesy hold');
+  }
+  return data;
+}
+
 export default function ReservationForm(props) {
   const minLeadStr = getMinReservationDateStr();
   const effectiveMin = (props.minDate && props.minDate > minLeadStr) ? props.minDate : minLeadStr;
@@ -44,3 +88,4 @@ export default function ReservationForm(props) {
     />
   );
 }
+
