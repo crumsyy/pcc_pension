@@ -174,8 +174,8 @@ export async function POST(request) {
       }
 
       // Store returned source.id and qr_code URL in database
-      const finalQrUrl = qrphCodeUrl || 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=paymongo_qrph_test';
-      const finalSourceId = sourceId || `src_test_${Date.now()}`;
+      const finalQrUrl = qrphCodeUrl || (qrCodeRaw ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeRaw)}` : 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=paymongo_qrph_test');
+      const finalSourceId = sourceId?.startsWith('src_') ? sourceId : (sourceId ? `src_${sourceId.replace(/^pi_/, '')}` : `src_${Date.now()}`);
 
       await dbQuery(
         "UPDATE billing SET sourceID = ?, qrCodeUrl = ? WHERE bookingID = ?",
@@ -187,7 +187,7 @@ export async function POST(request) {
         transactionType: 'QRPh Generation',
         amount: parseAmt,
         referenceNumber: finalSourceId,
-        description: `PayMongo QRPh generated. Source/PI ID: ${finalSourceId}, QR URL: ${finalQrUrl}`,
+        description: `PayMongo dynamic QRPh generated with pre-set amount ₱${parseAmt.toFixed(2)}. Source ID: ${finalSourceId}, QR URL: ${finalQrUrl}`,
         status: 'Pending',
         userID: session.userID,
         userName: session.fullName || 'Guest User',
@@ -198,9 +198,7 @@ export async function POST(request) {
         success: true,
         qrphCodeUrl: finalQrUrl,
         sourceId: finalSourceId,
-        qr_code: qrCodeRaw,
         amount: parseAmt,
-        bookingID: parsedBookingID,
         status: 'Bill Ready'
       });
     }

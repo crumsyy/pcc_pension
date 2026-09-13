@@ -3946,20 +3946,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     )}
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => {
-                    setIsGuestGcashSettled(false);
-                    setGuestGcashInlineError('');
-                    setGcashRef('');
-                    setPaymongoStatus('idle');
-                    setPaymongoSourceID(null);
-                    setActiveModal('book_form');
-                  }}>Back</button>
-
+                <div className="modal-footer d-flex flex-column gap-2 p-3 border-top bg-light">
                   {paymongoStatus === 'paid' ? (
                     <LoadingButton 
                       type="submit" 
-                      className="btn btn-success text-white fw-bold d-inline-flex align-items-center gap-2" 
+                      className="btn btn-success text-white fw-bold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm" 
                       isLoading={processing}
                       loadingText="Processing Booking..."
                     >
@@ -3969,7 +3960,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   ) : (
                     <button 
                       type="button" 
-                      className="btn btn-secondary text-white fw-semibold d-inline-flex align-items-center gap-2"
+                      className="btn btn-secondary text-white fw-semibold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2"
                       disabled
                       style={{ opacity: 0.75, cursor: 'not-allowed' }}
                     >
@@ -3977,6 +3968,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <span>Waiting for GCash Authorization...</span>
                     </button>
                   )}
+
+                  {/* BACK BUTTON: Placed below confirm booking button at the bottom for clean mobile UX */}
+                  <button type="button" className="btn btn-outline-secondary fw-bold w-100 py-2 shadow-xs" onClick={() => {
+                    setIsGuestGcashSettled(false);
+                    setGuestGcashInlineError('');
+                    setGcashRef('');
+                    setPaymongoStatus('idle');
+                    setPaymongoSourceID(null);
+                    setActiveModal('book_form');
+                  }}>
+                    <i className="bi bi-arrow-left me-1.5"></i>Back
+                  </button>
                 </div>
               </form>
             </div>

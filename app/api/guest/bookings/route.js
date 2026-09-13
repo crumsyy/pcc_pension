@@ -291,8 +291,14 @@ export async function POST(request) {
         const downPaymentPercentage = parseInt(body.downPaymentPercentage || body.paymentOption || 50, 10);
         const downPaymentRate = downPaymentPercentage / 100;
 
-        const [roomRows] = await connection.execute("SELECT rate, price FROM room WHERE roomID = ?", [roomID]);
-        const roomPrice = parseFloat(roomRows[0]?.price || roomRows[0]?.rate || 0);
+        const [rateRows] = await connection.execute(`
+          SELECT COALESCE(rr.rate, 1500) as roomRate
+          FROM room r
+          LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
+          WHERE r.roomID = ?
+          LIMIT 1
+        `, [roomID]);
+        const roomPrice = parseFloat(body.roomRate || body.pricePerNight || body.rate || rateRows[0]?.roomRate || 1500);
         const dIn = new Date(checkInDate);
         const dOut = new Date(checkOutDate);
         const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
