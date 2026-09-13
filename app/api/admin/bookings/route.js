@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, normalizeBookingStatus, BOOKING_STATUSES } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -32,10 +32,6 @@ export async function GET(request) {
       sql += " AND (g.firstName LIKE ? OR g.lastName LIKE ? OR rm.roomNumber LIKE ?)";
       params.push(like, like, like);
     }
-    if (statusF) {
-      sql += " AND b.status = ?";
-      params.push(statusF);
-    }
     if (dateF) {
       sql += " AND DATE(b.checkInDateTime) = ?";
       params.push(dateF);
@@ -43,16 +39,30 @@ export async function GET(request) {
 
     sql += " ORDER BY b.checkInDateTime DESC";
 
-    const bookings = await dbQuery(sql, params);
+    const rawBookings = await dbQuery(sql, params);
 
-    // Get count breakdown by status
-    const rawCounts = await dbQuery("SELECT status, COUNT(*) as cnt FROM booking GROUP BY status");
-    const counts = rawCounts.reduce((acc, row) => {
-      acc[row.status] = row.cnt;
-      return acc;
-    }, {});
+    const allNormalized = rawBookings.map(b => ({
+      ...b,
+      status: normalizeBookingStatus(b.status),
+      rawStatus: b.status
+    }));
 
-    return NextResponse.json({ bookings, counts });
+    const bookings = statusF 
+      ? allNormalized.filter(b => b.status === statusF)
+      : allNormalized;
+
+    // Get count breakdown by unified status
+    const counts = {};
+    BOOKING_STATUSES.forEach(st => { counts[st] = 0; });
+    allNormalized.forEach(b => {
+      if (counts[b.status] !== undefined) {
+        counts[b.status]++;
+      } else {
+        counts[b.status] = 1;
+      }
+    });
+
+    return NextResponse.json({ bookings, counts, statuses: BOOKING_STATUSES });
   } catch (error) {
     console.error("Failed to fetch bookings:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

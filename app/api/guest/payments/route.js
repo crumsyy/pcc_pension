@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema, normalizeBookingStatus } from '@/lib/db';
 
 export async function POST(request) {
   const session = await getSession();
@@ -75,6 +75,17 @@ export async function POST(request) {
       if (bookingRows.length === 0 || (session.role === 'Guest' && bookingRows[0].guestID !== guest.guestID)) {
         await connection.rollback();
         return NextResponse.json({ error: 'Booking record not found or access denied.' }, { status: 404 });
+      }
+
+      // Strictly enforce Bill Ready status for guest payments
+      if (session.role === 'Guest') {
+        const normStatus = normalizeBookingStatus(bookingRows[0].status);
+        if (normStatus !== 'Bill Ready') {
+          await connection.rollback();
+          return NextResponse.json({
+            error: "Payment is only allowed once the bill is ready."
+          }, { status: 400 });
+        }
       }
 
       // Prevent duplicate charging by checking reference number in recent payments

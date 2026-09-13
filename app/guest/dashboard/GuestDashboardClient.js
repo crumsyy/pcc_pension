@@ -16,6 +16,7 @@ import BookingForm from '../../components/BookingForm';
 import GuestBookingForm from '../../components/GuestBookingForm';
 import GuestOrdersContent from './GuestOrdersContent';
 import ActiveStayPanel from './ActiveStayPanel';
+import StatusBadge, { normalizeBookingStatus } from '../../components/StatusBadge';
 import './styles.css';
 import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
@@ -1350,6 +1351,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     );
   };
 
+  const handleInitiatePay = (booking) => {
+    if (!booking) return;
+    const norm = normalizeBookingStatus(booking.status);
+    if (norm !== 'Bill Ready') {
+      showAlert('warning', 'Bill Not Ready', "Your bill is not yet ready. Please wait for receptionist finalization.");
+      return;
+    }
+    setSettleBooking(booking);
+  };
+
   const handleAuthenticateTestPayment = async () => {
     if (!settleBooking) return;
     setSettleProcessing(true);
@@ -1599,25 +1610,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   // Interactive Booking & Checkout Status Timeline Component Helper
   const renderBookingStatusTimeline = (status) => {
     // If booking is in checked-in or checkout workflow
+    const norm = normalizeBookingStatus(status);
     const isCheckoutFlow = [
-      'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 
-      'Final Billing Updated', 'Payment Completed', 'Checked Out', 'Completed'
-    ].includes(status);
+      'Checked-In', 'Checked-Out', 'Bill Ready', 'Paid', 'Completed'
+    ].includes(norm);
 
     if (isCheckoutFlow) {
       const checkoutSteps = [
-        { id: 'Active Stay', label: 'Active Stay' },
-        { id: 'Checkout Requested', label: 'Checkout Requested' },
-        { id: 'Bill Finalized', label: 'Bill Finalized' },
+        { id: 'Checked-In', label: 'Checked-In' },
+        { id: 'Checked-Out', label: 'Checked-Out' },
+        { id: 'Bill Ready', label: 'Bill Ready' },
         { id: 'Paid', label: 'Paid' },
         { id: 'Completed', label: 'Completed' }
       ];
 
       let currentIdx = 0;
-      if (status === 'Checkout Requested' || status === 'Pending Room Verification' || status === 'Pending Checkout') currentIdx = 1;
-      if (status === 'Bill Finalized' || status === 'Room Verified' || status === 'Final Billing Updated') currentIdx = 2;
-      if (status === 'Paid' || status === 'Payment Completed') currentIdx = 3;
-      if (status === 'Completed' || status === 'Checked Out') currentIdx = 4;
+      if (norm === 'Checked-Out') currentIdx = 1;
+      if (norm === 'Bill Ready') currentIdx = 2;
+      if (norm === 'Paid') currentIdx = 3;
+      if (norm === 'Completed') currentIdx = 4;
 
       return (
         <div className="w-100 my-2">
@@ -2292,7 +2303,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       fetchDetailedBill(activeBookingStay.bookingID);
                       setShowBillModal(true);
                     }}
-                    onPay={(booking) => setSettleBooking(booking)}
+                    onPay={(booking) => handleInitiatePay(booking)}
                     onRequestCheckout={(booking) => handleRequestCheckout(booking)}
                     formatBookingID={formatBookingID}
                     renderBookingStatusTimeline={renderBookingStatusTimeline}
@@ -3057,9 +3068,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </div>
                                 </div>
                                 <div className="d-flex align-items-center gap-2">
-                                  <span className={`booking-status-pill ${getStatusBadgeClass(b.status)}`}>
-                                    {b.status}
-                                  </span>
+                                  <StatusBadge status={b.status} />
                                 </div>
                               </div>
 
@@ -3078,7 +3087,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               {renderBookingStatusTimeline(b.status)}
 
                               {/* INSPECTION STATUS BANNER */}
-                              {(b.status === 'Pending Room Verification' || b.status === 'Pending Checkout') && (
+                              {(normalizeBookingStatus(b.status) === 'Checked-Out') && (
                                 <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
                                   <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
                                   <div>
@@ -3098,7 +3107,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   <i className="bi bi-receipt"></i> View Billing
                                 </button>
 
-                                {(b.status === 'Checked In' || b.status === 'Active Stay') && (
+                                {normalizeBookingStatus(b.status) === 'Checked-In' && (
                                   <button 
                                     type="button" 
                                     className="btn btn-outline-secondary"
@@ -3109,30 +3118,36 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {(b.status === 'Checkout Requested' || b.status === 'Pending Room Verification' || b.status === 'Pending Checkout') && (
-                                  <button type="button" className="btn btn-outline-warning text-dark" disabled aria-label="Checkout Requested">
-                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checkout Requested
+                                {normalizeBookingStatus(b.status) === 'Checked-Out' && (
+                                  <button type="button" className="btn btn-outline-warning text-dark" disabled aria-label="Checked-Out">
+                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checked-Out (Awaiting Bill)
                                   </button>
                                 )}
 
-                                {(b.status === 'Bill Finalized' || b.status === 'Final Billing Updated' || b.status === 'Room Verified') && (
+                                {normalizeBookingStatus(b.status) === 'Bill Ready' && (
                                   <button 
                                     type="button" 
                                     className="btn btn-primary fw-bold text-white shadow-sm"
-                                    onClick={() => setSettleBooking(b)}
+                                    onClick={() => handleInitiatePay(b)}
                                     aria-label="Proceed to Payment"
                                   >
                                     <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment
                                   </button>
                                 )}
 
-                                {(b.status === 'Paid' || b.status === 'Payment Completed') && (
-                                  <button type="button" className="btn btn-success text-white" disabled aria-label="Payment Completed">
+                                {normalizeBookingStatus(b.status) === 'Paid' && (
+                                  <button type="button" className="btn btn-success text-white" disabled aria-label="Paid">
                                     <i className="bi bi-check2-all me-1"></i> Paid
                                   </button>
                                 )}
 
-                                {(b.status === 'Pending' || b.status === 'Confirmed') && (
+                                {normalizeBookingStatus(b.status) === 'Completed' && (
+                                  <button type="button" className="btn btn-secondary text-white" disabled aria-label="Completed">
+                                    <i className="bi bi-check-circle me-1"></i> Completed
+                                  </button>
+                                )}
+
+                                {normalizeBookingStatus(b.status) === 'Pending' && (
                                   <button 
                                     type="button" 
                                     className="btn btn-outline-danger" 
@@ -3514,7 +3529,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <button type="button" className="btn btn-secondary" onClick={() => setViewBillingBooking(null)}>
                   Close
                 </button>
-                {viewBillingBooking.status === 'Final Billing Updated' && parseFloat(viewBillingBooking.remainingBalance || 0) > 0 && (
+                {normalizeBookingStatus(viewBillingBooking.status) === 'Bill Ready' && parseFloat(viewBillingBooking.remainingBalance || 0) > 0 && (
                   <button
                     type="button"
                     className="btn btn-primary fw-bold px-4 text-white shadow-sm"
@@ -3522,7 +3537,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     onClick={() => {
                       const target = viewBillingBooking;
                       setViewBillingBooking(null);
-                      setSettleBooking(target);
+                      handleInitiatePay(target);
                     }}
                   >
                     <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import StatusBadge, { getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
 
 export default function AdminBookings() {
   const [bookings, setBookings] = useState([]);
@@ -10,14 +11,6 @@ export default function AdminBookings() {
   const [dateFilter, setDateFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const statColors = {
-    'Pending': '#f0a500',
-    'Confirmed': '#3FA34D',
-    'Checked In': '#2155B5',
-    'Checked Out': '#17a2b8',
-    'Canceled': '#dc3545',
-  };
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -63,25 +56,31 @@ export default function AdminBookings() {
 
       {/* Status Summary Cards */}
       <div className="row g-2 mb-4">
-        {Object.entries(statColors).map(([status, color]) => (
-          <div className="col" key={status}>
-            <div
-              className="text-center p-3 rounded"
-              onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
-              style={{
-                backgroundColor: color + '18',
-                border: `2px solid ${statusFilter === status ? color : 'transparent'}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-            >
-              <div style={{ fontSize: '1.6rem', fontWeight: '700', color: color }}>
-                {counts[status] || 0}
+        {BOOKING_STATUSES.map((status) => {
+          const badgeStyle = getStatusBadgeStyle(status);
+          const isSelected = statusFilter === status;
+          return (
+            <div className="col-6 col-md-4 col-lg-2" key={status}>
+              <div
+                className="text-center p-3 rounded"
+                onClick={() => setStatusFilter(isSelected ? '' : status)}
+                style={{
+                  backgroundColor: isSelected ? `${badgeStyle.backgroundColor}22` : `${badgeStyle.backgroundColor}12`,
+                  border: `2px solid ${isSelected ? badgeStyle.backgroundColor : 'transparent'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div style={{ fontSize: '1.6rem', fontWeight: '700', color: badgeStyle.backgroundColor }}>
+                  {counts[status] || 0}
+                </div>
+                <div className="mt-1">
+                  <StatusBadge status={status} />
+                </div>
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--pcc-muted)' }}>{status}</div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Search & Filters */}
@@ -102,8 +101,8 @@ export default function AdminBookings() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="">All Status</option>
-              {Object.keys(statColors).map((s) => (
+              <option value="">All Unified Statuses</option>
+              {BOOKING_STATUSES.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -184,17 +183,7 @@ export default function AdminBookings() {
                         })}
                       </td>
                       <td>
-                        <span
-                          className="badge"
-                          style={{
-                            backgroundColor: (statColors[b.status] || '#6c757d') + '18',
-                            color: statColors[b.status] || '#6c757d',
-                            border: `1px solid ${(statColors[b.status] || '#6c757d')}33`,
-                            padding: '0.4em 0.8em',
-                          }}
-                        >
-                          {b.status}
-                        </span>
+                        <StatusBadge status={b.status} />
                       </td>
                     </tr>
                   ))

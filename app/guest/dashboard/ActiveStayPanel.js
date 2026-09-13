@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Button from '@/app/components/Button';
-import StatusBadge from '@/app/components/StatusBadge';
+import StatusBadge, { normalizeBookingStatus } from '@/app/components/StatusBadge';
 import './styles.css';
 
 export default function ActiveStayPanel({
@@ -30,6 +30,7 @@ export default function ActiveStayPanel({
   );
 
   const isAlreadyRequested = activeBookingStay.status === 'Checkout Requested' || isCheckoutRequested;
+  const isBillReady = normalizeBookingStatus(activeBookingStay.status) === 'Bill Ready';
 
   const handleRequestCheckoutClick = async () => {
     if (onRequestCheckout) {
@@ -277,15 +278,31 @@ export default function ActiveStayPanel({
                   </div>
 
                   {remainingBal > 0 && (
-                    <Button
-                      variant="primary"
-                      className="w-100 mt-2.5"
-                      onClick={() => onPay(activeBookingStay)}
-                      style={{ backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)' }}
-                    >
-                      <i className="bi bi-credit-card me-2"></i>
-                      <span>Proceed to Pay (₱{remainingBal.toFixed(2)})</span>
-                    </Button>
+                    <>
+                      <Button
+                        variant={isBillReady ? "primary" : "secondary"}
+                        className="w-100 mt-2.5"
+                        onClick={() => {
+                          if (!isBillReady) {
+                            alert("Your bill is not yet ready. Please wait for receptionist finalization.");
+                            return;
+                          }
+                          onPay(activeBookingStay);
+                        }}
+                        disabled={!isBillReady}
+                        style={isBillReady ? { backgroundColor: 'var(--pcc-blue)', borderColor: 'var(--pcc-blue)' } : { opacity: 0.65 }}
+                        title={!isBillReady ? "Your bill is not yet ready. Please wait for receptionist finalization." : ""}
+                      >
+                        <i className="bi bi-credit-card me-2"></i>
+                        <span>{isBillReady ? `Proceed to Pay (₱${remainingBal.toFixed(2)})` : "Proceed to Pay (Bill Not Ready)"}</span>
+                      </Button>
+                      {!isBillReady && (
+                        <div className="text-center text-muted small mt-1.5" style={{ fontSize: '0.74rem' }}>
+                          <i className="bi bi-info-circle me-1 text-warning"></i>
+                          Your bill is not yet ready. Please wait for receptionist finalization.
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

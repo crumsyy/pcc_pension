@@ -10,7 +10,7 @@ import ReservationCalendar from '../../components/ReservationCalendar';
 import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
-import StatusBadge from '../../components/StatusBadge';
+import StatusBadge, { normalizeBookingStatus } from '../../components/StatusBadge';
 
 function calculateAgeFromUiDate(uiDateStr) {
   if (!isValidDate(uiDateStr)) return '';
@@ -413,7 +413,7 @@ function BookingsClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to finalize bill');
 
-      showAlert('success', 'Bill Finalized', data.message || 'Billing has been finalized and guest notified.');
+      showAlert('success', 'Bill Ready', data.message || 'Billing has been finalized to Bill Ready and guest notified.');
       const finalizedBooking = finalizeBillModal.booking;
       setFinalizeBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '', processing: false });
       await fetchData();
@@ -1238,29 +1238,15 @@ function BookingsClient() {
     
     let matchesStatus = true;
     if (statusFilter) {
-      if (statusFilter === 'Active Stay') {
-        matchesStatus = b.status === 'Active Stay' || b.status === 'Checked In';
-      } else if (statusFilter === 'Checkout Requested') {
-        matchesStatus = b.status === 'Checkout Requested' || b.status === 'Pending Room Verification' || b.status === 'Pending Checkout';
-      } else if (statusFilter === 'Bill Finalized') {
-        matchesStatus = b.status === 'Bill Finalized' || b.status === 'Room Verified' || b.status === 'Final Billing Updated';
-      } else if (statusFilter === 'Paid') {
-        matchesStatus = b.status === 'Paid' || b.status === 'Payment Completed';
-      } else if (statusFilter === 'Completed') {
-        matchesStatus = b.status === 'Completed' || b.status === 'Checked Out';
-      } else {
-        matchesStatus = b.status === statusFilter;
-      }
+      matchesStatus = normalizeBookingStatus(b.status) === normalizeBookingStatus(statusFilter);
     }
     return matchesSearch && matchesStatus;
   });
 
-  const checkoutRequests = bookings.filter(b => 
-    b.status === 'Checkout Requested' ||
-    b.status === 'Pending Room Verification' ||
-    b.status === 'Pending Checkout' ||
-    b.status === 'Bill Finalized'
-  );
+  const checkoutRequests = bookings.filter(b => {
+    const norm = normalizeBookingStatus(b.status);
+    return norm === 'Checked-Out' || norm === 'Bill Ready';
+  });
 
   const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, isCurrentTime = false) => {
     const room = rooms.find(r => String(r.roomID) === String(roomID));
@@ -1371,7 +1357,7 @@ function BookingsClient() {
               <tbody>
                 {checkoutRequests.map(req => {
                   const reqBalance = parseFloat(req.remainingBalance ?? req.finalBalance ?? 0);
-                  const isBillFinalized = req.status === 'Bill Finalized' || req.status === 'Room Verified' || req.status === 'Final Billing Updated';
+                  const isBillFinalized = normalizeBookingStatus(req.status) === 'Bill Ready';
 
                   return (
                     <tr key={`checkout-req-${req.bookingID}`}>
@@ -1461,15 +1447,12 @@ function BookingsClient() {
           <div className="col-md-6">
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Booking Statuses</option>
-              <option value="Active Stay">Active Stay</option>
-              <option value="Checkout Requested">Checkout Requested</option>
-              <option value="Bill Finalized">Bill Finalized</option>
+              <option value="Pending">Pending</option>
+              <option value="Checked-In">Checked-In</option>
+              <option value="Checked-Out">Checked-Out</option>
+              <option value="Bill Ready">Bill Ready</option>
               <option value="Paid">Paid</option>
               <option value="Completed">Completed</option>
-              <option value="Pending Check-in">Pending Check-in</option>
-              <option value="Overdue Check-In">Overdue Check-In</option>
-              <option value="Late Checkout">Late Checkout</option>
-              <option value="No Show">No Show</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
@@ -2708,7 +2691,7 @@ function BookingsClient() {
 
                   <div className="alert alert-info py-2 px-3 small mb-0 d-flex align-items-center gap-2">
                     <i className="fa-solid fa-circle-info"></i>
-                    <span>Finalizing the bill will update the booking status to <strong>Bill Finalized</strong> and notify the guest.</span>
+                    <span>Finalizing the bill will update the booking status to <strong>Bill Ready</strong> and notify the guest.</span>
                   </div>
                 </div>
                 <div className="modal-footer">

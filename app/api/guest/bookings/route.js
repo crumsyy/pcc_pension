@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, normalizeBookingStatus } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 
 export async function GET() {
@@ -55,6 +55,8 @@ export async function GET() {
       const billingDetails = await getBookingBalanceDetails(b.bookingID).catch(() => null);
       return {
         ...b,
+        status: normalizeBookingStatus(b.status),
+        rawStatus: b.status,
         remainingBalance,
         registeredGuests,
         incidentals: incidentals || [],
@@ -86,6 +88,32 @@ export async function POST(request) {
     }
     const guest = guests[0];
 
+    if (action === 'pay') {
+      const bookingID = parseInt(body.bookingID);
+      if (!bookingID) {
+        return NextResponse.json({ error: 'Valid Booking ID is required.' }, { status: 400 });
+      }
+
+      const [booking] = await dbQuery(
+        "SELECT bookingID, status, guestID FROM booking WHERE bookingID = ? AND guestID = ?",
+        [bookingID, guest.guestID]
+      );
+      if (!booking) {
+        return NextResponse.json({ error: 'Booking record not found or access denied.' }, { status: 404 });
+      }
+
+      const normalized = normalizeBookingStatus(booking.status);
+      if (normalized !== 'Bill Ready') {
+        return NextResponse.json({ error: "Payment is only allowed once the bill is ready." }, { status: 400 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Booking is verified and Bill Ready for payment.',
+        bookingStatus: 'Bill Ready'
+      });
+    }
+
     if (action === 'request_checkout') {
       const bookingID = parseInt(body.bookingID);
       if (!bookingID) {
@@ -105,7 +133,7 @@ export async function POST(request) {
       }
 
       const currentStatus = booking.status;
-      if (currentStatus !== 'Checked In' && currentStatus !== 'Active Stay') {
+      if (normalizeBookingStatus(currentStatus) !== 'Checked-In') {
         return NextResponse.json({ 
           error: `Cannot request checkout from current status '${currentStatus}'. Only checked-in active stays can request checkout.` 
         }, { status: 400 });

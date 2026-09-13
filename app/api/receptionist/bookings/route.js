@@ -812,7 +812,7 @@ export async function POST(request) {
       const balance = await getBookingBalance(bookingID);
 
       await dbQuery(
-        "UPDATE booking SET status = 'Bill Finalized', finalBalance = ?, finalBillingUpdatedAt = NOW(), billFinalizedAt = NOW() WHERE bookingID = ?",
+        "UPDATE booking SET status = 'Bill Ready', finalBalance = ?, finalBillingUpdatedAt = NOW(), billFinalizedAt = NOW() WHERE bookingID = ?",
         [balance, bookingID]
       );
 
@@ -825,19 +825,19 @@ export async function POST(request) {
       const guestRes = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [guestID]);
       if (guestRes.length > 0 && guestRes[0].userID) {
         const msg = balance > 0
-          ? `Your final billing for Room ${roomNumber} has been finalized to ₱${balance.toFixed(2)}. You can now proceed to pay online from your portal or settle at the front desk.`
-          : `Your final billing for Room ${roomNumber} has been finalized and settled (₱0.00 balance). You are ready for checkout!`;
+          ? `Your bill for Room ${roomNumber} is now Bill Ready (₱${balance.toFixed(2)}). You can now proceed to pay online from your portal or settle at the front desk.`
+          : `Your bill for Room ${roomNumber} is Bill Ready and settled (₱0.00 balance). You are ready for checkout!`;
         await dbQuery(
-          "INSERT INTO notification (userID, title, message) VALUES (?, 'Bill Finalized — Ready for Payment', ?)",
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Bill Ready — Ready for Payment', ?)",
           [guestRes[0].userID, msg]
         );
       }
 
       return NextResponse.json({
         success: true,
-        message: 'Bill finalized successfully. Guest can now proceed to payment.',
+        message: 'Bill is now ready for payment. Guest can proceed to payment.',
         finalBalance: balance,
-        bookingStatus: 'Bill Finalized'
+        bookingStatus: 'Bill Ready'
       });
     }
 
