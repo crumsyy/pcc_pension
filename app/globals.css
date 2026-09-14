@@ -22,6 +22,15 @@
   --font-tag: "Space Mono", monospace;
 }
 
+/* Base Brand Utility Classes */
+.text-pcc-blue {
+  color: var(--pcc-blue, #2155B5) !important;
+}
+
+.bg-pcc-blue {
+  background-color: var(--pcc-blue, #2155B5) !important;
+}
+
 /* Ensure all Cancel buttons are styled Red across the application */
 .btn-secondary,
 .btn-cancel,

@@ -1254,7 +1254,13 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
             <div className="d-flex align-items-center gap-2">
               <span
                 className="rounded-circle bg-white text-pcc-blue fw-bold d-inline-flex align-items-center justify-content-center"
-                style={{ width: '28px', height: '28px', fontSize: '0.85rem' }}
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  fontSize: '0.85rem',
+                  color: 'var(--pcc-blue, #2155B5)',
+                  backgroundColor: '#ffffff'
+                }}
               >
                 {cart.reduce((s, it) => s + it.quantity, 0)}
               </span>
