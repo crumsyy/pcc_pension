@@ -43,3 +43,122 @@
   color: #ffffff !important;
 }
 
+/* =====================================================================
+   Filled Buttons Enforced (No transparent buttons)
+   ===================================================================== */
+.btn-outline-primary {
+  background-color: #0d6efd !important;
+  color: #ffffff !important;
+  border-color: #0d6efd !important;
+}
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+  background-color: #0b5ed7 !important;
+  color: #ffffff !important;
+  border-color: #0a58ca !important;
+}
+
+.btn-outline-secondary {
+  background-color: #6c757d !important;
+  color: #ffffff !important;
+  border-color: #6c757d !important;
+}
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus {
+  background-color: #5c636a !important;
+  color: #ffffff !important;
+  border-color: #565e64 !important;
+}
+
+.btn-outline-danger {
+  background-color: #dc3545 !important;
+  color: #ffffff !important;
+  border-color: #dc3545 !important;
+}
+.btn-outline-danger:hover,
+.btn-outline-danger:focus {
+  background-color: #bb2d3b !important;
+  color: #ffffff !important;
+  border-color: #b02a37 !important;
+}
+
+.btn-outline-success {
+  background-color: #198754 !important;
+  color: #ffffff !important;
+  border-color: #198754 !important;
+}
+.btn-outline-success:hover,
+.btn-outline-success:focus {
+  background-color: #157347 !important;
+  color: #ffffff !important;
+  border-color: #146c43 !important;
+}
+
+.btn-outline-warning {
+  background-color: #ffc107 !important;
+  color: #212529 !important;
+  border-color: #ffc107 !important;
+}
+.btn-outline-warning:hover,
+.btn-outline-warning:focus {
+  background-color: #ffca2c !important;
+  color: #212529 !important;
+  border-color: #ffc720 !important;
+}
+
+.btn-outline-pcc-blue {
+  background-color: var(--pcc-blue, #005ce6) !important;
+  color: #ffffff !important;
+  border-color: var(--pcc-blue, #005ce6) !important;
+}
+.btn-outline-pcc-blue:hover,
+.btn-outline-pcc-blue:focus {
+  background-color: #004ecc !important;
+  color: #ffffff !important;
+  border-color: #004ecc !important;
+}
+
+.btn-outline-light {
+  background-color: #f8f9fa !important;
+  color: #212529 !important;
+  border-color: #dee2e6 !important;
+}
+.btn-outline-light:hover,
+.btn-outline-light:focus {
+  background-color: #e2e6ea !important;
+  color: #212529 !important;
+  border-color: #dae0e5 !important;
+}
+
+.btn-pcc-outline {
+  background-color: #ebf3ff !important;
+  border: 1px solid var(--pcc-blue, #005ce6) !important;
+  color: var(--pcc-blue, #005ce6) !important;
+}
+.btn-pcc-outline:hover,
+.btn-pcc-outline:focus {
+  background-color: var(--pcc-blue, #005ce6) !important;
+  color: #ffffff !important;
+}
+
+/* Notification Action Highlight Animation */
+@keyframes notifHighlightPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+    transform: scale(1);
+  }
+}
+
+.notification-highlight-pulse {
+  animation: notifHighlightPulse 1s ease-in-out 3;
+  border: 2px solid #0d6efd !important;
+}
+

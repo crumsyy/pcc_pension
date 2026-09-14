@@ -350,7 +350,7 @@ export default function EditProfilePage() {
       {/* NAVBAR HEADER */}
       <nav className="navbar navbar-dark text-white border-bottom shadow-sm sticky-top px-3" style={{ background: 'var(--pcc-blue)' }}>
         <div className="container-fluid p-0 d-flex justify-content-between align-items-center">
-          <Link href="/guest/dashboard" className="btn btn-sm btn-outline-light fw-semibold d-flex align-items-center gap-1">
+          <Link href="/guest/dashboard" className="btn btn-sm btn-light text-dark fw-semibold d-flex align-items-center gap-1 shadow-xs">
             <i className="bi bi-arrow-left"></i> Back to Dashboard
           </Link>
           <span className="fw-bold text-white display-font" style={{ fontSize: '1.05rem', color: '#ffffff' }}>
@@ -407,14 +407,14 @@ export default function EditProfilePage() {
                   <div className="d-flex flex-wrap gap-2">
                     <label
                       htmlFor="avatarInput"
-                      className="btn btn-sm btn-pcc-outline fw-semibold"
+                      className="btn btn-sm btn-primary text-white fw-semibold"
                     >
                       {uploadingPic ? 'Uploading...' : 'Upload New Photo'}
                     </label>
                     {profilePicture && (
                       <button
                         type="button"
-                        className="btn btn-sm btn-outline-danger fw-semibold"
+                        className="btn btn-sm btn-danger text-white fw-semibold"
                         onClick={handleRemoveProfilePicture}
                         disabled={uploadingPic}
                       >

@@ -365,13 +365,8 @@ export async function POST(request) {
 
       await connection.commit();
 
-      // Notifications
+      // Staff Notifications (strictly for Administrators & Receptionists)
       try {
-        await dbQuery(
-          "INSERT INTO notification (userID, title, message) VALUES (?, 'GCash Payment Received', ?)",
-          [session.userID, `GCash payment of ₱${parsedAmount.toFixed(2)} for Booking #${parsedBookingID} recorded. Ref #${cleanRef}.`]
-        );
-
         const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
         for (const r of staffToNotify) {
           await dbQuery(

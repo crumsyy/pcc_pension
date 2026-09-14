@@ -132,12 +132,15 @@ export async function GET() {
       console.error("Staff auto-reminder generation failed:", reminderErr);
     }
 
-    // Fetch latest 15 notifications for current User (strictly filter Admin notifications)
+    // Fetch latest 15 notifications for current User
     let sql = "SELECT * FROM notification WHERE userID = ?";
     if (session.role === 'Administrator') {
       sql += " AND title IN ('Low Inventory Alert', 'Payment Received', 'Down Payment Received')";
+    } else if (session.role === 'Guest') {
+      // Payment receipts and staff online payment alerts are strictly for Admin and Receptionist
+      sql += " AND title NOT LIKE '%Payment Received%' AND title NOT LIKE '%New GCash%'";
     }
-    sql += " ORDER BY createdAt DESC LIMIT 15";
+    sql += " ORDER BY createdAt DESC LIMIT 20";
 
     const notifications = await dbQuery(sql, [userID]);
 
@@ -148,26 +151,32 @@ export async function GET() {
   }
 }
 
-export async function POST(request) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+async function handleUpdateNotifications(request, session) {
   const userID = session.userID;
 
   try {
-    const body = await request.json();
-    const { action, notificationID } = body;
-
-    if (action === 'mark_all_read') {
-      await dbQuery("UPDATE notification SET isRead = 1 WHERE userID = ?", [userID]);
-      return NextResponse.json({ success: true, message: 'All notifications marked as read.' });
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (e) {
+      body = {};
     }
 
-    if (action === 'mark_read') {
-      await dbQuery("UPDATE notification SET isRead = 1 WHERE notificationID = ? AND userID = ?", [notificationID, userID]);
-      return NextResponse.json({ success: true, message: 'Notification marked as read.' });
+    const { action, notificationID } = body;
+
+    // Single notification mark-as-read
+    if (notificationID || action === 'mark_read') {
+      const notifId = notificationID || body.id;
+      if (notifId) {
+        await dbQuery("UPDATE notification SET isRead = 1 WHERE notificationID = ? AND userID = ?", [notifId, userID]);
+        return NextResponse.json({ success: true, message: 'Notification marked as read.' });
+      }
+    }
+
+    // Mark all notifications as read (explicit action or default PUT without notificationID)
+    if (action === 'mark_all_read' || !notificationID) {
+      await dbQuery("UPDATE notification SET isRead = 1 WHERE userID = ?", [userID]);
+      return NextResponse.json({ success: true, message: 'All notifications marked as read.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -175,4 +184,20 @@ export async function POST(request) {
     console.error("Update notifications error:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
   }
+}
+
+export async function POST(request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return handleUpdateNotifications(request, session);
+}
+
+export async function PUT(request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return handleUpdateNotifications(request, session);
 }

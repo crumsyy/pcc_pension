@@ -616,15 +616,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleMarkAllNotificationsRead = async () => {
     try {
-      const res = await fetch("/api/notifications", {
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: 1 })));
+      setUnreadCount(0);
+      await fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mark_all_read" }),
       });
-      if (res.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: 1 })));
-        setUnreadCount(0);
-      }
     } catch (err) {
       console.error("Failed to mark notifications read:", err);
     }
@@ -632,15 +630,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleMarkSingleNotificationRead = async (id) => {
     try {
-      const res = await fetch("/api/notifications", {
-        method: "PUT",
+      setNotifications(prev => prev.map(n => n.notificationID === id ? { ...n, isRead: 1 } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+      await fetch("/api/notifications", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationID: id }),
+        body: JSON.stringify({ action: "mark_read", notificationID: id }),
       });
-      if (res.ok) {
-        setNotifications(prev => prev.map(n => n.notificationID === id ? { ...n, isRead: 1 } : n));
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      }
     } catch (err) {
       console.error("Failed to mark notification read:", err);
     }
@@ -654,20 +650,43 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const title = (n.title || '').toLowerCase();
     const msg = (n.message || '').toLowerCase();
 
-    // 1. Reservation -> direct to active reservation or reservation history
-    if (title.includes('reservation') || msg.includes('reservation')) {
+    // Helper to pulse highlight on target element
+    const highlightElement = (el) => {
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('notification-highlight-pulse');
+      setTimeout(() => {
+        el.classList.remove('notification-highlight-pulse');
+      }, 3000);
+    };
+
+    // Extract potential ID e.g. "Booking #12", "Reservation #5", "Order #3"
+    const resIdMatch = msg.match(/reservation\s*#?(\d+)/i) || title.match(/reservation\s*#?(\d+)/i);
+
+    // 1. Reservation / Courtesy Hold -> direct to active reservation or reservation history
+    if (title.includes('reservation') || title.includes('hold') || msg.includes('reservation') || msg.includes('hold')) {
+      const targetResID = resIdMatch ? parseInt(resIdMatch[1], 10) : (activeReservation?.reservationID || null);
+
       if (activeReservation) {
         setActiveTab('home');
         setTimeout(() => {
           const el = document.getElementById('active-reservation-card');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (el) {
+            highlightElement(el);
+          } else {
+            setActiveTab('account');
+            setTimeout(() => {
+              const histEl = (targetResID ? document.getElementById(`reservation-item-${targetResID}`) : null) || document.getElementById('reservations-history-section');
+              highlightElement(histEl);
+            }, 180);
+          }
         }, 120);
       } else {
         setActiveTab('account');
         setTimeout(() => {
-          const el = document.getElementById('reservations-history-section');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 120);
+          const histEl = (targetResID ? document.getElementById(`reservation-item-${targetResID}`) : null) || document.getElementById('reservations-history-section');
+          highlightElement(histEl);
+        }, 150);
       }
       return;
     }
@@ -678,14 +697,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         setActiveTab('home');
         setTimeout(() => {
           const el = document.getElementById('active-booking-card');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          highlightElement(el);
         }, 120);
       } else {
         setActiveTab('account');
         setTimeout(() => {
           const el = document.getElementById('bookings-history-section');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 120);
+          highlightElement(el);
+        }, 150);
       }
       return;
     }
@@ -702,7 +721,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         setActiveTab('home');
         setTimeout(() => {
           const el = document.getElementById('stay-billing-breakdown');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          highlightElement(el);
         }, 120);
       } else {
         setActiveTab('account');
@@ -1774,7 +1793,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const secondFloorRooms = allRooms.filter(r => String(r.floorID) === '2' || r.floorName?.toLowerCase().includes('second') || r.floorName?.toLowerCase().includes('upper') || String(r.roomNumber).startsWith('2'));
   const fallbackRooms = allRooms.filter(r => !groundFloorRooms.some(g => g.roomID === r.roomID) && !secondFloorRooms.some(s => s.roomID === r.roomID));
 
-  const activeReservation = reservations.find(r => r.status === 'Pending' || r.status === 'Confirmed' || r.status === 'Overdue Check-In');
+  const activeReservation = reservations.find(r => r.status === 'Courtesy Hold' || r.status === 'Pending' || r.status === 'Confirmed' || r.status === 'Overdue Check-In');
   const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'].includes(b.status));
 
   useEffect(() => {
@@ -1879,7 +1898,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             <div className="animate__animated animate__fadeIn">
               {/* BACK HEADER */}
               <div className="d-flex justify-content-between align-items-center mb-3">
-                <button className="btn btn-sm btn-outline-secondary fw-semibold d-flex align-items-center gap-1" onClick={() => setViewMode('default')}>
+                <button className="btn btn-sm btn-secondary text-white fw-semibold d-flex align-items-center gap-1 shadow-xs" onClick={() => setViewMode('default')}>
                   <i className="bi bi-arrow-left"></i> Back to Navigation
                 </button>
                 <span className="badge bg-pcc-blue text-white px-3 py-1.5 fw-bold" style={{ fontSize: '0.82rem' }}>
@@ -1939,7 +1958,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="card shadow-sm border-0 p-5 text-center my-4 bg-white" style={{ borderRadius: '16px' }}>
                 <h5 className="fw-bold text-dark mb-1">No Rooms Available At The Moment</h5>
                 <p className="text-muted small mb-3">Our rooms are currently being updated by Front Desk. Please check back shortly.</p>
-                <button className="btn btn-outline-pcc-blue btn-sm m-auto" onClick={fetchRoomsAndStatus}>
+                <button className="btn btn-primary text-white fw-bold btn-sm m-auto shadow-xs" onClick={fetchRoomsAndStatus}>
                   Refresh Availability
                 </button>
               </div>
@@ -2006,7 +2025,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             <div className="mt-auto pt-2.5 d-flex justify-content-between align-items-center gap-2">
                               <button
                                 type="button"
-                                className="btn btn-xs btn-outline-secondary py-1.5 px-2.5 shadow-xs"
+                                className="btn btn-xs btn-secondary text-white py-1.5 px-2.5 shadow-xs"
                                 onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                 style={{ fontSize: '0.76rem', borderRadius: '6px' }}
                                 aria-label={`View details for Room ${rm.roomNumber}`}
@@ -2094,7 +2113,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             <div className="mt-auto pt-2.5 d-flex justify-content-between align-items-center gap-2">
                               <button
                                 type="button"
-                                className="btn btn-xs btn-outline-secondary py-1.5 px-2.5 shadow-xs"
+                                className="btn btn-xs btn-secondary text-white py-1.5 px-2.5 shadow-xs"
                                 onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                 style={{ fontSize: '0.76rem', borderRadius: '6px' }}
                                 aria-label={`View details for Room ${rm.roomNumber}`}
@@ -2182,7 +2201,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               <div className="mt-auto pt-2.5 d-flex justify-content-between align-items-center gap-2">
                                 <button
                                   type="button"
-                                  className="btn btn-xs btn-outline-secondary py-1.5 px-2.5 shadow-xs"
+                                  className="btn btn-xs btn-secondary text-white py-1.5 px-2.5 shadow-xs"
                                   onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                   style={{ fontSize: '0.76rem', borderRadius: '6px' }}
                                   aria-label={`View details for Room ${rm.roomNumber}`}
@@ -2266,11 +2285,24 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 {/* ACTIVE STAY / STATUS CARDS */}
                 {activeReservation && (
                   <div id="active-reservation-card" className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                    <div className="d-flex justify-content-between align-items-center">
+                    <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                       <div>
-                        <span className="badge bg-success text-white mb-1">Active Reservation Request</span>
+                        {activeReservation.status === 'Courtesy Hold' ? (
+                          <span className="badge mb-1" style={{ backgroundColor: '#fd7e14', color: '#fff' }}>Courtesy Hold</span>
+                        ) : (
+                          <span className="badge bg-success text-white mb-1">Active Reservation Request</span>
+                        )}
                         <h6 className="fw-bold mb-0 text-dark">Room {activeReservation.roomNumber} ({activeReservation.roomType})</h6>
-                        <div className="small text-muted mb-2">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
+                        <div className="small text-muted mb-1">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
+                        {activeReservation.status === 'Courtesy Hold' && (() => {
+                          const holdInfo = getCourtesyHoldTimeInfo(activeReservation.holdExpiryDateTime);
+                          return holdInfo && !holdInfo.expired ? (
+                            <div className="small text-warning-emphasis fw-bold mb-2">
+                              <i className="bi bi-hourglass-split me-1 text-warning"></i>
+                              Hold expires in {holdInfo.text}
+                            </div>
+                          ) : null;
+                        })()}
                         {renderBookingStatusTimeline(activeReservation.status)}
                       </div>
                       <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center mt-2 mt-sm-0">
@@ -2684,7 +2716,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     ) : (
                                       <button
                                         type="button"
-                                        className="btn btn-xs btn-outline-secondary py-2 px-2.5 flex-grow-1"
+                                        className="btn btn-xs btn-secondary text-white py-2 px-2.5 flex-grow-1"
                                         disabled
                                         style={{ fontSize: '0.78rem', borderRadius: '6px' }}
                                         aria-label={`Room ${rm.roomNumber} is ${meta.label}`}
@@ -2745,7 +2777,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     )}
                     {unreadCount > 0 && (
                       <button
-                        className="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold shadow-xs"
+                        className="btn btn-sm btn-primary text-white rounded-pill px-3 py-1.5 fw-bold shadow-xs"
                         onClick={handleMarkAllNotificationsRead}
                         style={{ fontSize: '0.78rem' }}
                       >
@@ -2928,7 +2960,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         const holdInfo = isHold ? getCourtesyHoldTimeInfo(r.holdExpiryDateTime) : null;
 
                         return (
-                          <div key={r.reservationID} className="p-3 border rounded bg-light">
+                          <div key={r.reservationID} id={`reservation-item-${r.reservationID}`} className="p-3 border rounded bg-light">
                             <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
                               <div>
                                 <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
@@ -3035,7 +3067,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           </div>
                           <button 
                             type="button" 
-                            className="btn btn-sm btn-outline-secondary py-0 px-2 small"
+                            className="btn btn-sm btn-secondary text-white py-0.5 px-2.5 small"
                             style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
                             onClick={() => {
                               try { sessionStorage.setItem('pcc_guest_reset_banner_dismissed', '1'); } catch (e) {}
@@ -3099,7 +3131,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               <div className="booking-card-actions">
                                 <button 
                                   type="button" 
-                                  className="btn btn-outline-primary"
+                                  className="btn btn-primary text-white"
                                   onClick={() => setViewBillingBooking(b)}
                                   aria-label="View Billing Breakdown"
                                 >
@@ -3109,7 +3141,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 {normalizeBookingStatus(b.status) === 'Checked-In' && (
                                   <button 
                                     type="button" 
-                                    className="btn btn-outline-secondary"
+                                    className="btn btn-secondary text-white"
                                     onClick={() => handleRequestCheckout(b)}
                                     aria-label="Request Checkout"
                                   >
@@ -3118,7 +3150,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 )}
 
                                 {normalizeBookingStatus(b.status) === 'Checked-Out' && (
-                                  <button type="button" className="btn btn-outline-warning text-dark" disabled aria-label="Checked-Out">
+                                  <button type="button" className="btn btn-warning text-dark" disabled aria-label="Checked-Out">
                                     <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checked-Out (Awaiting Bill)
                                   </button>
                                 )}
@@ -3149,7 +3181,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 {normalizeBookingStatus(b.status) === 'Pending' && (
                                   <button 
                                     type="button" 
-                                    className="btn btn-outline-danger" 
+                                    className="btn btn-danger text-white" 
                                     onClick={() => handleCancelBooking(b.bookingID)}
                                     aria-label="Cancel Booking"
                                   >
@@ -3908,7 +3940,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         {paymongoError}
                         <button
                           type="button"
-                          className="btn btn-sm btn-outline-primary d-block mx-auto mt-2"
+                          className="btn btn-sm btn-primary text-white fw-bold d-block mx-auto mt-2"
                           onClick={() => initiatePayMongoSource()}
                         >
                           Retry Generating QR
@@ -4014,7 +4046,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
 
                 <div className="d-flex flex-wrap gap-2 justify-content-center">
-                  <button className="btn btn-outline-primary fw-bold" onClick={handlePrintReceipt}>
+                  <button className="btn btn-primary text-white fw-bold" onClick={handlePrintReceipt}>
                     <i className="bi bi-printer me-1.5"></i>Print Receipt
                   </button>
                   <button className="btn btn-success text-white fw-bold shadow-sm" onClick={() => generateReceiptPNG(receiptData)}>
@@ -4073,7 +4105,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <div className="d-flex gap-2 mt-1">
                         <label
                           htmlFor="dashboardModalAvatarInput"
-                          className="btn btn-xs btn-outline-primary py-0.5 px-2 fw-semibold"
+                          className="btn btn-xs btn-primary text-white py-0.5 px-2 fw-semibold"
                           style={{ fontSize: '0.72rem' }}
                         >
                           {uploadingModalPic ? 'Uploading...' : 'Change Photo'}
@@ -4081,7 +4113,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         {editProfileForm.profilePicture && (
                           <button
                             type="button"
-                            className="btn btn-xs btn-outline-danger py-0.5 px-2 fw-semibold"
+                            className="btn btn-xs btn-danger text-white py-0.5 px-2 fw-semibold"
                             onClick={handleModalRemoveProfilePic}
                             disabled={uploadingModalPic}
                             style={{ fontSize: '0.72rem' }}

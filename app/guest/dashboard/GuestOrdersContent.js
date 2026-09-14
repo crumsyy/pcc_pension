@@ -275,7 +275,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           <div className="d-flex align-items-center gap-2">
             <button
               type="button"
-              className="btn btn-sm btn-outline-primary py-0.5 px-2 fw-semibold d-flex align-items-center gap-1 shadow-xs"
+              className="btn btn-sm btn-primary text-white py-0.5 px-2 fw-semibold d-flex align-items-center gap-1 shadow-xs"
               style={{ fontSize: '0.74rem', borderRadius: '5px' }}
               onClick={() => onViewOrder && onViewOrder(o)}
             >
@@ -351,7 +351,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           <div className="d-flex align-items-center gap-2">
             <button
               type="button"
-              className="btn btn-sm btn-outline-primary fw-semibold d-flex align-items-center gap-1.5 shadow-xs px-2.5 py-1"
+              className="btn btn-sm btn-primary text-white fw-semibold d-flex align-items-center gap-1.5 shadow-xs px-2.5 py-1"
               style={{ fontSize: '0.78rem', borderRadius: '6px' }}
               onClick={() => onViewOrder && onViewOrder(o)}
             >
@@ -381,21 +381,21 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
         <div className="btn-group btn-group-sm flex-wrap" role="group">
           <button
             type="button"
-            className={`btn btn-sm ${historyFilter === 'all' ? 'btn-primary fw-bold' : 'btn-outline-secondary'}`}
+            className={`btn btn-sm ${historyFilter === 'all' ? 'btn-primary fw-bold text-white' : 'btn-secondary text-white'}`}
             onClick={() => setHistoryFilter('all')}
           >
             All Orders ({orders.length})
           </button>
           <button
             type="button"
-            className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
+            className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'btn-secondary text-white'}`}
             onClick={() => setHistoryFilter('immediate')}
           >
             ⚡ Immediate Deliveries ({immediateOrders.length})
           </button>
           <button
             type="button"
-            className={`btn btn-sm ${historyFilter === 'scheduled' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+            className={`btn btn-sm ${historyFilter === 'scheduled' ? 'btn-primary text-white fw-bold' : 'btn-secondary text-white'}`}
             onClick={() => setHistoryFilter('scheduled')}
           >
             ⏰ Scheduled Breakfast Deliveries ({scheduledOrders.length})
@@ -403,7 +403,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           {pendingDeliveryOrders.length > 0 && (
             <button
               type="button"
-              className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'btn-outline-warning text-dark'}`}
+              className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'btn-secondary text-white'}`}
               onClick={() => setHistoryFilter('pending')}
             >
               ⏳ Pending Deliveries ({pendingDeliveryOrders.length})
@@ -422,7 +422,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           <i className="bi bi-receipt fs-1 d-block mb-2 text-secondary opacity-50"></i>
           <h6 className="fw-bold">No orders recorded yet</h6>
           <p className="small">Items you order during your stay will appear here with real-time preparation tracking.</p>
-          <button className="btn btn-sm btn-outline-primary fw-semibold mt-1" onClick={onBrowse}>
+          <button className="btn btn-sm btn-primary text-white fw-semibold mt-1" onClick={onBrowse}>
             Browse Catalog
           </button>
         </div>
@@ -864,7 +864,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
                   <div className="input-group input-group-sm" style={{ width: '90px' }}>
                     <button
                       type="button"
-                      className="btn btn-outline-secondary px-2"
+                      className="btn btn-secondary text-white px-2"
                       onClick={() => handleUpdateQty(idx, item.quantity - 1)}
                     >
                       -
@@ -877,7 +877,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
                     />
                     <button
                       type="button"
-                      className="btn btn-outline-secondary px-2"
+                      className="btn btn-secondary text-white px-2"
                       onClick={() => handleUpdateQty(idx, item.quantity + 1)}
                     >
                       +
@@ -1058,28 +1058,28 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           <div className="btn-group flex-wrap shadow-xs" role="group">
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'meals' ? 'btn-primary text-white' : 'btn-outline-secondary bg-white'}`}
+              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'meals' ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
               onClick={() => handleSelectCategory('meals')}
             >
               🍳 Cooked Meals (Scheduled: 6:00–10:30 AM) ({cookedMeals.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'products_amenities' ? 'btn-primary text-white' : 'btn-outline-secondary bg-white'}`}
+              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'products_amenities' ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
               onClick={() => handleSelectCategory('products_amenities')}
             >
               🛍️ Products & Amenities (Immediate) ({products.length + amenities.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'all' ? 'btn-primary text-white' : 'btn-outline-secondary bg-white'}`}
+              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'all' ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
               onClick={() => handleSelectCategory('all')}
             >
               All Items
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'history' ? 'btn-primary text-white' : 'btn-outline-secondary bg-white'}`}
+              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'history' ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
               onClick={() => handleSelectCategory('history')}
             >
               📋 My Orders ({orderHistory.length})
