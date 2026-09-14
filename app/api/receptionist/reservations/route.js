@@ -55,7 +55,7 @@ async function resolveReservationConflicts(conn, confirmedRoomID, confirmedReser
   );
 
   for (const c of conflicts) {
-    await conn.execute("UPDATE reservation SET status = 'Canceled' WHERE reservationID = ?", [c.reservationID]);
+    await conn.execute("UPDATE reservation SET status = 'Cancelled' WHERE reservationID = ?", [c.reservationID]);
 
     if (c.userID) {
       await conn.execute(
@@ -98,13 +98,13 @@ export async function GET(request) {
                r.warning12SentAt, r.warning6SentAt, r.releasedAt,
                COALESCE(r.guestCount, 1) as guestCount, r.specialRequests,
                COALESCE(r.breakfastOption, 'with') as breakfastOption,
-               CASE 
-                 WHEN r.status = 'Courtesy Hold' AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'Courtesy Hold'
-                 WHEN r.status = 'Courtesy Hold' AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Released'
-                 WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
-                 WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
-                 ELSE r.status
-               END as status,
+                CASE 
+                  WHEN r.status IN ('On Hold', 'Courtesy Hold') AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'On Hold'
+                  WHEN r.status IN ('On Hold', 'Courtesy Hold') AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Cancelled'
+                  WHEN r.status IN ('Confirmed', 'Booked') OR b.bookingID IS NOT NULL THEN 'Booked'
+                  WHEN r.status IN ('Cancelled', 'Canceled', 'Released') THEN 'Cancelled'
+                  ELSE 'Reserved'
+                END as status,
                 r.guestID, r.roomID,
                 g.firstName, g.lastName, g.contact, COALESCE(r.guestEmail, g.email) as email,
                 DATE_FORMAT(g.dateOfBirth, '%Y-%m-%d') as dateOfBirth, g.gender,
@@ -474,17 +474,17 @@ export async function POST(request) {
         const nowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
 
         const checkInNow = Boolean(body.checkInNow);
-        const bookingStatus = checkInNow ? 'Checked In' : 'Pending Check-in';
+        const bookingStatus = checkInNow ? 'Active Stay' : 'Pending';
         const roomStatus = checkInNow ? 'Occupied' : 'Reserved';
         const finalCheckInDateTime = checkInNow ? nowStr : checkInDateTime;
 
         // 1. Update reservation status to Booked
         await conn.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [reservationID]);
 
-        // 2. Insert booking with appropriate status ('Checked In' if Book and Check-In Now, else 'Pending Check-in')
+        // 2. Insert booking with appropriate status ('Active Stay' if Book and Check-In Now, else 'Pending')
         const [insertBookingRes] = await conn.execute(
-          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES(?, ?, ?, ?, ?, ?)",
-          [finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID]
+          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, breakfastOption) VALUES(?, ?, ?, ?, ?, ?, ?)",
+          [finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID, reservation.breakfastOption || 'with']
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -625,7 +625,7 @@ export async function POST(request) {
       }
       const targetRes = res[0];
 
-      await dbQuery("UPDATE reservation SET status = 'Released', releasedAt = NOW() WHERE reservationID = ?", [reservationID]);
+      await dbQuery("UPDATE reservation SET status = 'Cancelled', releasedAt = NOW() WHERE reservationID = ?", [reservationID]);
       await syncRoomStatuses(true);
 
       if (targetRes.userID) {

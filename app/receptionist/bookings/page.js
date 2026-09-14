@@ -1245,7 +1245,7 @@ function BookingsClient() {
 
   const checkoutRequests = bookings.filter(b => {
     const norm = normalizeBookingStatus(b.status);
-    return norm === 'Checked-Out' || norm === 'Bill Ready';
+    return norm === 'Bill Finalized' || b.status === 'Checkout Requested' || Boolean(b.checkoutRequestedAt);
   });
 
   const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, isCurrentTime = false) => {
@@ -1267,7 +1267,7 @@ function BookingsClient() {
 
     const hasOverlap = bookings.some(b => {
       if (String(b.roomID) !== String(roomID)) return false;
-      if (['Cancelled', 'Checked Out', 'No Show'].includes(b.status)) return false;
+      if (['Cancelled', 'Checked Out', 'No Show', 'Completed'].includes(b.status)) return false;
       const bIn = new Date((b.checkInDateTime || '').replace(' ', 'T'));
       const bOut = new Date((b.checkOutDateTime || '').replace(' ', 'T'));
       if (isNaN(bIn.getTime()) || isNaN(bOut.getTime())) return false;
@@ -1278,24 +1278,14 @@ function BookingsClient() {
   };
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Active Stay':
-      case 'Checked In': return 'bg-primary text-white';
-      case 'Checkout Requested':
-      case 'Pending Checkout':
-      case 'Pending Room Verification': return 'bg-warning text-dark';
-      case 'Bill Finalized':
-      case 'Room Verified':
-      case 'Final Billing Updated': return 'badge-purple text-white';
-      case 'Paid':
-      case 'Payment Completed': return 'bg-success text-white';
-      case 'Completed':
-      case 'Checked Out': return 'bg-secondary text-white';
-      case 'Late Checkout': return 'bg-danger text-white';
-      case 'Overdue Check-In': return 'bg-warning text-dark';
-      case 'No Show': return 'bg-danger text-white';
-      case 'Pending Check-in': return 'bg-info text-dark';
-      case 'Cancelled': return 'bg-secondary text-white';
+    const norm = normalizeBookingStatus(status);
+    switch (norm) {
+      case 'Pending': return 'bg-secondary text-white';
+      case 'Active Stay': return 'bg-primary text-white';
+      case 'Bill Finalized': return 'badge-purple text-white';
+      case 'Paid': return 'bg-success text-white';
+      case 'Completed': return 'bg-dark text-white';
+      case 'Cancelled': return 'bg-danger text-white';
       default: return 'bg-primary text-white';
     }
   };
@@ -1357,7 +1347,7 @@ function BookingsClient() {
               <tbody>
                 {checkoutRequests.map(req => {
                   const reqBalance = parseFloat(req.remainingBalance ?? req.finalBalance ?? 0);
-                  const isBillFinalized = normalizeBookingStatus(req.status) === 'Bill Ready';
+                  const isBillFinalized = normalizeBookingStatus(req.status) === 'Bill Finalized';
 
                   return (
                     <tr key={`checkout-req-${req.bookingID}`}>
@@ -1448,9 +1438,8 @@ function BookingsClient() {
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Booking Statuses</option>
               <option value="Pending">Pending</option>
-              <option value="Checked-In">Checked-In</option>
-              <option value="Checked-Out">Checked-Out</option>
-              <option value="Bill Ready">Bill Ready</option>
+              <option value="Active Stay">Active Stay</option>
+              <option value="Bill Finalized">Bill Finalized</option>
               <option value="Paid">Paid</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>

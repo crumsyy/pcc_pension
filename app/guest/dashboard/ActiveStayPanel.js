@@ -39,10 +39,11 @@ export default function ActiveStayPanel({
   );
 
   const isAlreadyRequested = effectiveStatus === 'Checkout Requested' || isCheckoutRequested;
-  const isBillReady = normalizeBookingStatus(effectiveStatus) === 'Bill Ready';
+  const isBillFinalized = normalizeBookingStatus(effectiveStatus) === 'Bill Finalized';
+  const isBillReady = isBillFinalized;
   const isPaid = normalizeBookingStatus(effectiveStatus) === 'Paid' || effectiveStatus === 'Paid' || effectiveStatus === 'Payment Completed';
   const isDeclined = effectiveStatus === 'Payment Declined' || effectiveStatus === 'Payment Declined, Try Again' || effectiveStatus === 'Declined';
-  const canProceedToPayment = isBillReady || isDeclined;
+  const canProceedToPayment = isBillFinalized || isDeclined;
 
   const handleRequestCheckoutClick = async () => {
     if (onRequestCheckout) {

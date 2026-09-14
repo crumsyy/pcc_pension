@@ -11,6 +11,7 @@ import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import ConfirmReservationModal from '../ConfirmReservationModal';
+import { normalizeReservationStatus } from '../../components/StatusBadge';
 
 const calculateAgeFromUiDate = (dateStr) => {
   if (!dateStr) return '';
@@ -837,23 +838,20 @@ function ReservationsClient() {
   };
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Confirmed': return 'bg-success text-white';
-      case 'Pending': return 'bg-info text-dark';
-      case 'Overdue Check-In': return 'bg-warning text-dark';
-      case 'No Show': return 'bg-danger text-white';
-      case 'Courtesy Hold': return 'text-white';
-      case 'Released': return 'bg-secondary text-white';
-      case 'Canceled':
-      case 'Cancelled': return 'bg-secondary text-white';
-      case 'Expired': return 'bg-secondary text-white';
-      default: return 'bg-primary text-white';
+    const norm = normalizeReservationStatus(status);
+    switch (norm) {
+      case 'Reserved': return 'bg-primary text-white';
+      case 'On Hold': return 'bg-warning text-dark';
+      case 'Booked': return 'bg-info text-dark';
+      case 'Cancelled': return 'bg-danger text-white';
+      default: return 'bg-secondary text-white';
     }
   };
 
   const filteredReservations = reservations.filter(r => {
     const matchesSearch = `${r.firstName} ${r.lastName} ${r.roomNumber} ${r.contact}`.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter ? (statusFilter === 'Booked' ? r.bookingID : r.status === statusFilter) : true;
+    const rNorm = normalizeReservationStatus(r.status);
+    const matchesStatus = statusFilter ? (rNorm === statusFilter || (statusFilter === 'Booked' && r.bookingID)) : true;
     return matchesSearch && matchesStatus;
   });
 
@@ -887,13 +885,9 @@ function ReservationsClient() {
           <div className="col-md-4">
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="Confirmed">Confirmed</option>
-              <option value="Courtesy Hold">Courtesy Hold</option>
-              <option value="Overdue Check-In">Overdue Check-In</option>
+              <option value="Reserved">Reserved</option>
+              <option value="On Hold">On Hold</option>
               <option value="Booked">Booked</option>
-              <option value="Released">Released</option>
-              <option value="No Show">No Show</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>

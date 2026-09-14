@@ -53,6 +53,7 @@ function CheckInClient() {
         return 'bg-warning text-dark fw-bold';
       case 'Room Verified':
         return 'bg-info text-white fw-bold';
+      case 'Bill Finalized':
       case 'Final Billing Updated':
         return 'bg-primary text-white fw-bold';
       case 'Payment Completed':

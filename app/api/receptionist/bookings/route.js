@@ -210,7 +210,7 @@ export async function POST(request) {
         const roomID = parseInt(body.roomID);
         const checkInDateTime = body.checkInDateTime;
         const checkOutDateTime = body.checkOutDateTime;
-        const status = body.status || 'Pending Check-in';
+        const status = body.status === 'Active Stay' || body.checkInNow ? 'Active Stay' : (body.status || 'Pending');
         const downPaymentAmount = parseFloat(body.downPaymentAmount || 0);
         const paymentMethodID = parseInt(body.paymentMethodID || 1);
 
@@ -346,13 +346,13 @@ export async function POST(request) {
         );
         const bookingID = insertBookingRes.insertId;
 
-        // If converted from a reservation, update its status
+        // If converted from a reservation, update its status to Booked
         if (convReservationID) {
-          await conn.execute("UPDATE reservation SET status = 'Converted to Booking' WHERE reservationID = ?", [convReservationID]);
+          await conn.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [convReservationID]);
         }
 
-        // Update room status upon booking creation (Occupied if Checked In, Reserved if Pending Check-in)
-        const roomStatus = (bookingStatus === 'Checked In') ? 'Occupied' : 'Reserved';
+        // Update room status upon booking creation (Occupied if Active Stay / Checked In, Reserved if Pending)
+        const roomStatus = (bookingStatus === 'Active Stay' || bookingStatus === 'Checked In') ? 'Occupied' : 'Reserved';
         await conn.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
 
         if (roomStatus === 'Occupied') {
@@ -715,12 +715,9 @@ export async function POST(request) {
         );
       }
 
-      await dbQuery("UPDATE booking SET status = 'Checked In', checkInDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
+      await dbQuery("UPDATE booking SET status = 'Active Stay', checkInDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
       await dbQuery("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
-      await dbQuery(
-        "UPDATE reservation SET status = 'Checked In' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = (SELECT guestID FROM booking WHERE bookingID = ?) AND roomID = ? AND status IN ('Pending', 'Confirmed', 'Booked'))",
-        [bookingID, bookingID, roomID]
-      );
+      // Note: Reservation lifecycle concluded at 'Booked'. It is not modified here.
       // Auto-transition Pending Delivery orders to active (Preparing)
       await dbQuery("UPDATE orders SET orderStatus = 'Preparing' WHERE bookingID = ? AND orderStatus = 'Pending Delivery'", [bookingID]);
 
@@ -812,7 +809,7 @@ export async function POST(request) {
       const balance = await getBookingBalance(bookingID);
 
       await dbQuery(
-        "UPDATE booking SET status = 'Bill Ready', finalBalance = ?, finalBillingUpdatedAt = NOW(), billFinalizedAt = NOW() WHERE bookingID = ?",
+        "UPDATE booking SET status = 'Bill Finalized', finalBalance = ?, finalBillingUpdatedAt = NOW(), billFinalizedAt = NOW() WHERE bookingID = ?",
         [balance, bookingID]
       );
 
@@ -825,19 +822,19 @@ export async function POST(request) {
       const guestRes = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [guestID]);
       if (guestRes.length > 0 && guestRes[0].userID) {
         const msg = balance > 0
-          ? `Your bill for Room ${roomNumber} is now Bill Ready (₱${balance.toFixed(2)}). You can now proceed to pay online from your portal or settle at the front desk.`
-          : `Your bill for Room ${roomNumber} is Bill Ready and settled (₱0.00 balance). You are ready for checkout!`;
+          ? `Your bill for Room ${roomNumber} has been finalized (₱${balance.toFixed(2)}). You can now proceed to pay online from your portal or settle at the front desk.`
+          : `Your bill for Room ${roomNumber} is finalized and settled (₱0.00 balance). You are ready for checkout!`;
         await dbQuery(
-          "INSERT INTO notification (userID, title, message) VALUES (?, 'Bill Ready — Ready for Payment', ?)",
+          "INSERT INTO notification (userID, title, message) VALUES (?, 'Bill Finalized — Ready for Payment', ?)",
           [guestRes[0].userID, msg]
         );
       }
 
       return NextResponse.json({
         success: true,
-        message: 'Bill is now ready for payment. Guest can proceed to payment.',
+        message: 'Bill is now finalized for payment. Guest can proceed to payment.',
         finalBalance: balance,
-        bookingStatus: 'Bill Ready'
+        bookingStatus: 'Bill Finalized'
       });
     }
 
@@ -869,7 +866,7 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         message: 'Guest checked out successfully.',
-        bookingStatus: 'Checked Out',
+        bookingStatus: 'Completed',
         roomStatus: 'Available'
       });
     }

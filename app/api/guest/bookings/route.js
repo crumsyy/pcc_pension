@@ -353,7 +353,7 @@ export async function POST(request) {
         }
 
         const isCheckedInNow = Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
-        const bookingStatus = isCheckedInNow ? 'Checked In' : 'Pending Check-in';
+        const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
         const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
 
         // 3. Insert booking record with appropriate status and breakfastOption

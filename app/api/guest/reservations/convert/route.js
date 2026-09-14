@@ -35,13 +35,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Reservation not found or access denied.' }, { status: 404 });
     }
 
-    if (!['Pending', 'Confirmed', 'Courtesy Hold'].includes(reservation.status)) {
+    if (!['Pending', 'Reserved', 'Confirmed', 'Courtesy Hold', 'On Hold'].includes(reservation.status)) {
       return NextResponse.json({
         error: `Cannot convert reservation because its current status is "${reservation.status}".`
       }, { status: 400 });
     }
 
-    if (reservation.status === 'Courtesy Hold' && reservation.holdExpiryDateTime) {
+    if (['Courtesy Hold', 'On Hold'].includes(reservation.status) && reservation.holdExpiryDateTime) {
       const expiryWithGrace = new Date(new Date(reservation.holdExpiryDateTime).getTime() + 30 * 60 * 1000);
       if (new Date() > expiryWithGrace) {
         return NextResponse.json({
@@ -129,10 +129,10 @@ export async function POST(request) {
       const extraGuestFee = extraGuests * 100 * nights;
       const totalCharge = (roomPrice * nights) + extraGuestFee;
 
-      // B. Create confirmed booking record with accurate pricing
+      // B. Create pending booking record with accurate pricing
       const [insertBookingRes] = await conn.execute(
         `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption)
-         VALUES (?, ?, 'Confirmed', ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
         [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, totalCharge, totalCharge, totalCharge, breakfastOption]
       );
       const bookingID = insertBookingRes.insertId;
@@ -183,7 +183,7 @@ export async function POST(request) {
 
       for (const c of conflicts) {
         await conn.execute(
-          "UPDATE reservation SET status = 'Canceled' WHERE reservationID = ?",
+          "UPDATE reservation SET status = 'Cancelled' WHERE reservationID = ?",
           [c.reservationID]
         );
 

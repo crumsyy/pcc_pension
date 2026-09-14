@@ -324,7 +324,7 @@ export async function POST(request) {
       // Update booking and payment status (table billing has no status column)
       if (balanceAfter <= 0.05) {
         await connection.execute("UPDATE payment SET isFullyPaid = 1 WHERE paymentID = ?", [paymentID]);
-        await connection.execute("UPDATE booking SET status = 'Payment Completed', paymentCompletedAt = NOW() WHERE bookingID = ?", [parsedBookingID]);
+        await connection.execute("UPDATE booking SET status = 'Paid', paymentCompletedAt = NOW() WHERE bookingID = ?", [parsedBookingID]);
       }
 
       // Automatic Room Status update: if check-in is today or has passed, update room status to 'Occupied'
@@ -339,10 +339,10 @@ export async function POST(request) {
         const pad = (n) => String(n).padStart(2, '0');
         const inDateOnly = String(bInfo.checkInDateTime).split(' ')[0] || String(bInfo.checkInDateTime).split('T')[0];
         const todayDateOnly = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-        if (inDate <= now || inDateOnly === todayDateOnly || bInfo.status === 'Checked In') {
+        if (inDate <= now || inDateOnly === todayDateOnly || bInfo.status === 'Active Stay' || bInfo.status === 'Checked In') {
           await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [bInfo.roomID]);
-          if (bInfo.status !== 'Checked In' && bInfo.status !== 'Checked Out' && bInfo.status !== 'Payment Completed') {
-            await connection.execute("UPDATE booking SET status = 'Checked In' WHERE bookingID = ?", [parsedBookingID]);
+          if (bInfo.status !== 'Active Stay' && bInfo.status !== 'Checked In' && bInfo.status !== 'Paid' && bInfo.status !== 'Completed' && bInfo.status !== 'Checked Out' && bInfo.status !== 'Payment Completed') {
+            await connection.execute("UPDATE booking SET status = 'Active Stay' WHERE bookingID = ?", [parsedBookingID]);
           }
         }
       }

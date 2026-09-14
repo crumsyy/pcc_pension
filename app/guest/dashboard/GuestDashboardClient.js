@@ -16,7 +16,7 @@ import BookingForm from '../../components/BookingForm';
 import GuestBookingForm from '../../components/GuestBookingForm';
 import GuestOrdersContent from './GuestOrdersContent';
 import ActiveStayPanel from './ActiveStayPanel';
-import StatusBadge, { normalizeBookingStatus } from '../../components/StatusBadge';
+import StatusBadge, { normalizeBookingStatus, normalizeReservationStatus } from '../../components/StatusBadge';
 import './styles.css';
 import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
@@ -1625,137 +1625,45 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     };
   };
 
-  // Interactive Booking & Checkout Status Timeline Component Helper
-  const renderBookingStatusTimeline = (status) => {
-    // If booking is in checked-in or checkout workflow
-    const norm = normalizeBookingStatus(status);
-    const isCheckoutFlow = [
-      'Checked-In', 'Checked-Out', 'Bill Ready', 'Paid', 'Completed'
-    ].includes(norm);
+  // Reservation Status Timeline Component Helper (Pre-payment stage: Reserved -> On Hold -> Booked / Cancelled)
+  const renderReservationStatusTimeline = (status) => {
+    const norm = normalizeReservationStatus(status);
+    const isCancelled = norm === 'Cancelled';
 
-    if (isCheckoutFlow) {
-      const checkoutSteps = [
-        { id: 'Checked-In', label: 'Checked-In' },
-        { id: 'Checked-Out', label: 'Checked-Out' },
-        { id: 'Bill Ready', label: 'Bill Ready' },
-        { id: 'Paid', label: 'Paid' },
-        { id: 'Completed', label: 'Completed' }
-      ];
-
-      let currentIdx = 0;
-      if (norm === 'Checked-Out') currentIdx = 1;
-      if (norm === 'Bill Ready') currentIdx = 2;
-      if (norm === 'Paid') currentIdx = 3;
-      if (norm === 'Completed') currentIdx = 4;
-
-      return (
-        <div className="w-100 my-2">
-          <div className="d-flex align-items-center justify-content-between position-relative px-1">
-            {/* Status Connecting Line Track */}
-            <div
-              className="position-absolute"
-              style={{
-                top: '12px',
-                left: '8%',
-                right: '8%',
-                height: '3px',
-                backgroundColor: '#e2e8f0',
-                zIndex: 0,
-                transform: 'translateY(-50%)'
-              }}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  width: `${(currentIdx / (checkoutSteps.length - 1)) * 100}%`,
-                  backgroundColor: currentIdx >= 4 ? '#198754' : 'var(--pcc-blue, #0d6efd)',
-                  transition: 'width 0.3s ease'
-                }}
-              />
-            </div>
-
-            {checkoutSteps.map((step, idx) => {
-              const isDone = idx <= currentIdx;
-              const isCurrent = idx === currentIdx;
-              return (
-                <div key={step.id} className="d-flex flex-column align-items-center" style={{ flex: 1, zIndex: 1 }}>
-                  <div
-                    className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${
-                      isDone ? (currentIdx >= 4 ? 'bg-success text-white shadow-sm' : 'bg-primary text-white shadow-sm') : 'bg-white text-muted border'
-                    }`}
-                    style={{ width: '22px', height: '22px', fontSize: '0.62rem', position: 'relative', zIndex: 2 }}
-                  >
-                    {isDone ? '✓' : idx + 1}
-                  </div>
-                  <span className={`mt-1 text-center ${isCurrent ? 'fw-bold text-primary' : (isDone ? 'text-dark' : 'text-muted')}`} style={{ fontSize: '0.62rem', whiteSpace: 'nowrap' }}>
-                    {step.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
-    const steps = [
-      { id: 'Pending', label: 'Pending' },
-      { id: 'Confirmed', label: 'Confirmed' },
-      { id: 'Checked In', label: 'Checked-in' },
-      { id: 'Completed', label: 'Completed' }
-    ];
+    const reservationSteps = isCancelled
+      ? [
+          { id: 'Reserved', label: 'Reserved', icon: 'bi-calendar-check' },
+          { id: 'On Hold', label: 'On Hold', icon: 'bi-hourglass-split' },
+          { id: 'Cancelled', label: 'Cancelled', icon: 'bi-x-circle' }
+        ]
+      : [
+          { id: 'Reserved', label: 'Reserved', icon: 'bi-calendar-check' },
+          { id: 'On Hold', label: 'On Hold', icon: 'bi-hourglass-split' },
+          { id: 'Booked', label: 'Booked', icon: 'bi-check2-circle' }
+        ];
 
     let currentIdx = 0;
-    if (status === 'Confirmed') currentIdx = 1;
-    if (status === 'Checked In' || status === 'Late Checkout') currentIdx = 2;
-    if (status === 'Completed' || status === 'Checked Out') currentIdx = 3;
-    if (status === 'Cancelled') {
-      return (
-        <div className="alert alert-danger py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
-          ❌ Status: Cancelled
-        </div>
-      );
-    }
-    if (status === 'Courtesy Hold') {
-      return (
-        <div className="alert alert-warning py-1.5 px-3 mb-0 small fw-bold text-dark d-flex align-items-center gap-2 border-warning" style={{ fontSize: '0.75rem', backgroundColor: '#fff3cd' }}>
-          <i className="bi bi-clock-history text-warning-emphasis"></i>
-          <span>Status: Courtesy Hold (Temporary Reservation — No Payment Yet)</span>
-        </div>
-      );
-    }
-    if (status === 'Released') {
-      return (
-        <div className="alert alert-secondary py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
-          ⌛ Status: Courtesy Hold Released (Hold period and 30-min grace expired)
-        </div>
-      );
-    }
-    if (status === 'Overdue Check-In') {
-      return (
-        <div className="alert alert-warning py-1 px-2.5 mb-0 small fw-bold text-dark" style={{ fontSize: '0.75rem' }}>
-          ⏳ Status: Overdue Check-In (1-hour arrival grace period active)
-        </div>
-      );
-    }
-    if (status === 'No Show') {
-      return (
-        <div className="alert alert-danger py-1 px-2.5 mb-0 small fw-bold" style={{ fontSize: '0.75rem' }}>
-          ⚠️ Status: No Show (1-hour grace period expired — room hold released)
-        </div>
-      );
-    }
+    if (norm === 'On Hold') currentIdx = 1;
+    if (norm === 'Booked' || isCancelled) currentIdx = 2;
+
+    const trackColor = isCancelled ? '#dc3545' : (currentIdx >= 2 ? '#0dcaf0' : 'var(--pcc-blue, #0d6efd)');
 
     return (
-      <div className="w-100 my-2">
-        <div className="d-flex align-items-center justify-content-between position-relative px-1">
+      <div className="w-100 my-2.5 p-2 rounded-3 bg-light-subtle border">
+        <div className="d-flex justify-content-between align-items-center mb-1.5 px-1">
+          <span className="text-muted fw-bold" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <i className="bi bi-clock-history me-1 text-primary"></i>Reservation Timeline (Pre-Payment)
+          </span>
+          <StatusBadge status={status} type="reservation" />
+        </div>
+        <div className="d-flex align-items-center justify-content-between position-relative px-2 pt-1 pb-1">
           {/* Status Connecting Line Track */}
           <div
             className="position-absolute"
             style={{
-              top: '12px',
-              left: '12.5%',
-              right: '12.5%',
+              top: '18px',
+              left: '12%',
+              right: '12%',
               height: '3px',
               backgroundColor: '#e2e8f0',
               zIndex: 0,
@@ -1765,24 +1673,140 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             <div
               style={{
                 height: '100%',
-                width: `${(currentIdx / (steps.length - 1)) * 100}%`,
-                backgroundColor: 'var(--pcc-blue, #0d6efd)',
+                width: `${(currentIdx / (reservationSteps.length - 1)) * 100}%`,
+                backgroundColor: trackColor,
                 transition: 'width 0.3s ease'
               }}
             />
           </div>
 
-          {steps.map((step, idx) => {
+          {reservationSteps.map((step, idx) => {
             const isDone = idx <= currentIdx;
+            const isCurrent = idx === currentIdx;
+            const isCancelStep = isCancelled && step.id === 'Cancelled';
+            const nodeBg = isCancelStep
+              ? 'bg-danger text-white shadow-sm'
+              : (isDone 
+                  ? (norm === 'Booked' && idx === 2 ? 'bg-info text-white shadow-sm' : 'bg-primary text-white shadow-sm')
+                  : 'bg-white text-muted border');
+
             return (
               <div key={step.id} className="d-flex flex-column align-items-center" style={{ flex: 1, zIndex: 1 }}>
                 <div
-                  className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${isDone ? 'bg-primary text-white shadow-sm' : 'bg-white text-muted border'}`}
-                  style={{ width: '24px', height: '24px', fontSize: '0.68rem', position: 'relative', zIndex: 2 }}
+                  className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${nodeBg}`}
+                  style={{ width: '28px', height: '28px', fontSize: '0.75rem', position: 'relative', zIndex: 2 }}
                 >
-                  {isDone ? '✓' : idx + 1}
+                  <i className={`bi ${step.icon}`}></i>
                 </div>
-                <span className={`mt-1 text-center ${isDone ? 'fw-bold text-primary' : 'text-muted'}`} style={{ fontSize: '0.65rem' }}>
+                <span className={`mt-1 text-center ${isCurrent ? (isCancelStep ? 'fw-bold text-danger' : 'fw-bold text-primary') : (isDone ? 'text-dark fw-semibold' : 'text-muted')}`} style={{ fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {norm === 'Booked' && (
+          <div className="text-center text-info small mt-1 fw-bold" style={{ fontSize: '0.72rem' }}>
+            <i className="bi bi-check-circle me-1"></i>Reservation complete! Converted to active booking.
+          </div>
+        )}
+        {isCancelled && (
+          <div className="text-center text-danger small mt-1 fw-bold" style={{ fontSize: '0.72rem' }}>
+            <i className="bi bi-x-circle me-1"></i>Reservation ended. Room returned to inventory.
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Interactive Booking Status Timeline Component Helper (Post-payment stage: Pending -> Active Stay -> Bill Finalized -> Paid -> Completed)
+  const renderBookingStatusTimeline = (status) => {
+    const norm = normalizeBookingStatus(status);
+    const isCancelled = norm === 'Cancelled';
+
+    if (isCancelled) {
+      return (
+        <div className="w-100 my-2 p-2 rounded-3 bg-danger-subtle border border-danger">
+          <div className="d-flex align-items-center gap-2 text-danger small fw-bold">
+            <i className="bi bi-x-octagon-fill fs-6"></i>
+            <span>Booking Cancelled</span>
+          </div>
+        </div>
+      );
+    }
+
+    const bookingSteps = [
+      { id: 'Pending', label: 'Pending', icon: 'bi-clock-history' },
+      { id: 'Active Stay', label: 'Active Stay', icon: 'bi-door-open' },
+      { id: 'Bill Finalized', label: 'Bill Finalized', icon: 'bi-receipt' },
+      { id: 'Paid', label: 'Paid', icon: 'bi-credit-card-2-front' },
+      { id: 'Completed', label: 'Completed', icon: 'bi-check2-all' }
+    ];
+
+    let currentIdx = 0;
+    if (norm === 'Active Stay') currentIdx = 1;
+    if (norm === 'Bill Finalized') currentIdx = 2;
+    if (norm === 'Paid') currentIdx = 3;
+    if (norm === 'Completed') currentIdx = 4;
+
+    const trackColor = currentIdx >= 4 ? '#343a40' : (currentIdx >= 3 ? '#198754' : (currentIdx >= 2 ? '#6f42c1' : 'var(--pcc-blue, #0d6efd)'));
+
+    return (
+      <div className="w-100 my-2.5 p-2 rounded-3 bg-light-subtle border">
+        <div className="d-flex justify-content-between align-items-center mb-1.5 px-1">
+          <span className="text-muted fw-bold" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <i className="bi bi-calendar-check-fill me-1 text-primary"></i>Booking Timeline (Post-Payment)
+          </span>
+          <StatusBadge status={status} type="booking" />
+        </div>
+        <div className="d-flex align-items-center justify-content-between position-relative px-1 pt-1 pb-1">
+          {/* Status Connecting Line Track */}
+          <div
+            className="position-absolute"
+            style={{
+              top: '18px',
+              left: '8%',
+              right: '8%',
+              height: '3px',
+              backgroundColor: '#e2e8f0',
+              zIndex: 0,
+              transform: 'translateY(-50%)'
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                width: `${(currentIdx / (bookingSteps.length - 1)) * 100}%`,
+                backgroundColor: trackColor,
+                transition: 'width 0.3s ease'
+              }}
+            />
+          </div>
+
+          {bookingSteps.map((step, idx) => {
+            const isDone = idx <= currentIdx;
+            const isCurrent = idx === currentIdx;
+            let nodeBg = 'bg-white text-muted border';
+            if (isDone) {
+              if (currentIdx >= 4) nodeBg = 'bg-dark text-white shadow-sm';
+              else if (currentIdx >= 3 && idx >= 3) nodeBg = 'bg-success text-white shadow-sm';
+              else if (currentIdx >= 2 && idx === 2) nodeBg = 'text-white shadow-sm';
+              else nodeBg = 'bg-primary text-white shadow-sm';
+            }
+
+            const customStyle = (isDone && currentIdx >= 2 && idx === 2 && currentIdx < 3)
+              ? { backgroundColor: '#6f42c1' }
+              : {};
+
+            return (
+              <div key={step.id} className="d-flex flex-column align-items-center" style={{ flex: 1, zIndex: 1 }}>
+                <div
+                  className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${nodeBg}`}
+                  style={{ width: '28px', height: '28px', fontSize: '0.75rem', position: 'relative', zIndex: 2, ...customStyle }}
+                >
+                  <i className={`bi ${step.icon}`}></i>
+                </div>
+                <span className={`mt-1 text-center ${isCurrent ? 'fw-bold text-primary' : (isDone ? 'text-dark fw-semibold' : 'text-muted')}`} style={{ fontSize: '0.64rem', whiteSpace: 'nowrap' }}>
                   {step.label}
                 </span>
               </div>
@@ -2308,7 +2332,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             </div>
                           ) : null;
                         })()}
-                        {renderBookingStatusTimeline(activeReservation.status)}
+                        {renderReservationStatusTimeline(activeReservation.status)}
                       </div>
                       <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center mt-2 mt-sm-0">
                         <button 
@@ -3046,7 +3070,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 )}
                               </div>
                             </div>
-                            {renderBookingStatusTimeline(r.status)}
+                            {renderReservationStatusTimeline(r.status)}
                           </div>
                         );
                       })}

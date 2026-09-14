@@ -22,11 +22,11 @@ export async function GET(request) {
              r.warning12SentAt, r.warning6SentAt, r.releasedAt,
              r.guestCount, r.specialRequests,
              CASE 
-               WHEN r.status = 'Courtesy Hold' AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'Courtesy Hold'
-               WHEN r.status = 'Courtesy Hold' AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Released'
-               WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND NOW() >= r.reservationDateTime AND NOW() <= DATE_ADD(r.reservationDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
-               WHEN r.status IN ('Confirmed', 'Pending', 'Booked') AND (r.reservationDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) OR (r.checkOutDateTime IS NOT NULL AND NOW() > r.checkOutDateTime)) THEN 'No Show'
-               ELSE r.status
+               WHEN r.status IN ('On Hold', 'Courtesy Hold') AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'On Hold'
+               WHEN r.status IN ('On Hold', 'Courtesy Hold') AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Cancelled'
+               WHEN r.status IN ('Confirmed', 'Booked') THEN 'Booked'
+               WHEN r.status IN ('Cancelled', 'Canceled', 'Released') THEN 'Cancelled'
+               ELSE 'Reserved'
              END as status,
              r.roomID,
              rm.roomNumber, rm.floorID, rt.type as roomType, fl.name as floor,
@@ -85,10 +85,10 @@ export async function GET(request) {
              COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) as checkOutDateTime,
              status, 'reservation' as type, isCourtesyHold
       FROM reservation
-      WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show', 'Released')
+      WHERE status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Released')
         AND (
           reservationDateTime >= CURDATE()
-          OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
+          OR (status IN ('On Hold', 'Courtesy Hold') AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
         )
     `);
 
@@ -194,15 +194,15 @@ export async function POST(request) {
     const holdDurationHours = 48;
     const holdExpiryDateObj = new Date(Date.now() + 48 * 60 * 60 * 1000);
     const holdExpiryDateTime = `${holdExpiryDateObj.getFullYear()}-${pad(holdExpiryDateObj.getMonth() + 1)}-${pad(holdExpiryDateObj.getDate())} ${pad(holdExpiryDateObj.getHours())}:${pad(holdExpiryDateObj.getMinutes())}:${pad(holdExpiryDateObj.getSeconds())}`;
-    const resStatus = 'Courtesy Hold';
+    const resStatus = 'On Hold';
 
     // Rule 1C: Duplicate Reservation / Hold Validation
     const dupRes = await dbQuery(`
       SELECT reservationID FROM reservation 
       WHERE guestID = ? AND roomID = ? 
         AND (
-          status IN ('Pending', 'Confirmed', 'Booked')
-          OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
+          status IN ('Pending', 'Reserved', 'Confirmed', 'Booked')
+          OR (status IN ('On Hold', 'Courtesy Hold') AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
         )
     `, [guest.guestID, roomID]);
 
@@ -254,9 +254,9 @@ export async function POST(request) {
       FROM reservation
       WHERE roomID = ?
         AND (
-          (status IN ('Pending', 'Confirmed', 'Booked') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+          (status IN ('Pending', 'Reserved', 'Confirmed', 'Booked') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
           OR
-          (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+          (status IN ('On Hold', 'Courtesy Hold') AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
         )
     `, [roomID, reqCheckOutSql, reservationDateTime, reqCheckOutSql, reservationDateTime]);
 
@@ -446,10 +446,10 @@ export async function PATCH(request) {
         [reservationID]
       );
 
-      // 2. Create confirmed booking record linked to reservationID
+      // 2. Create pending booking record linked to reservationID
       const [insertBookingRes] = await conn.execute(
         `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance)
-         VALUES (?, ?, 'Confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomRate, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
       );
       const bookingID = insertBookingRes.insertId;
