@@ -105,15 +105,39 @@ export async function POST(request) {
         [reservationID]
       );
 
-      // B. Create confirmed booking record
+      // Resolve breakfast tier and room rate
+      const breakfastOption = reservation.breakfastOption || 'without';
+      const breakfastID = breakfastOption === 'with' ? 2 : 1;
+
+      const [rateRows] = await conn.execute(`
+        SELECT rr.rate
+        FROM room r
+        JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ?
+        WHERE r.roomID = ?
+        LIMIT 1
+      `, [breakfastID, reservation.roomID]);
+      const roomPrice = rateRows[0]?.rate ? parseFloat(rateRows[0].rate) : 1500;
+
+      const dIn = new Date(checkInDateTime);
+      const dOut = new Date(checkOutDateTime);
+      const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
+
+      const [roomDataRows] = await conn.execute("SELECT occupancyLimit FROM room WHERE roomID = ?", [reservation.roomID]);
+      const basePax = parseInt(roomDataRows[0]?.occupancyLimit || 4);
+      const totalPax = parseInt(reservation.guestCount || 1);
+      const extraGuests = Math.max(0, totalPax - basePax);
+      const extraGuestFee = extraGuests * 100 * nights;
+      const totalCharge = (roomPrice * nights) + extraGuestFee;
+
+      // B. Create confirmed booking record with accurate pricing
       const [insertBookingRes] = await conn.execute(
-        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID)
-         VALUES (?, ?, 'Confirmed', ?, ?, ?)`,
-        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID]
+        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption)
+         VALUES (?, ?, 'Confirmed', ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, totalCharge, totalCharge, totalCharge, breakfastOption]
       );
       const bookingID = insertBookingRes.insertId;
 
-      // C. Register default primary guest in booking details
+      // C. Register guests in booking details up to totalPax
       const primaryGuestName = `${guestProfile.firstName || ''} ${guestProfile.lastName || ''}`.trim() || 'Primary Guest';
       await conn.execute(
         `INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber)
@@ -121,10 +145,19 @@ export async function POST(request) {
         [bookingID, primaryGuestName]
       );
 
-      // D. Create billing record for this booking
+      for (let gIdx = 2; gIdx <= totalPax; gIdx++) {
+        await conn.execute(
+          `INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber)
+           VALUES (?, ?, 30, NULL, NULL)`,
+          [bookingID, `Guest ${gIdx}`]
+        );
+      }
+
+      // D. Create billing record for this booking with accurate charges
       const [billingInsert] = await conn.execute(
-        "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (?, ?, ?, NULL)",
-        [nowStr, guestID, bookingID]
+        `INSERT INTO billing (billingDateTime, guestID, bookingID, totalAmount, remainingBalance, balance) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [nowStr, guestID, bookingID, totalCharge, totalCharge, totalCharge]
       );
       const billingID = billingInsert.insertId;
 
