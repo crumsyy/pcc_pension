@@ -935,6 +935,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     fetchRoomsAndStatus();
   };
 
+  const handleStartReservationFlow = handleStartReserveFlow;
+
   const handleSelectRoomCard = (rm) => {
     if (rm.status === 'Under Maintenance' || rm.status === 'Maintenance') {
       showAlert('warning', 'Room Under Maintenance', 'This room is currently under maintenance and cannot be booked.');
@@ -2385,7 +2387,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="col-6 col-md-3">
                     <button
                       className="btn btn-outline-primary fw-bold w-100 touch-action-btn shadow-sm py-2.5"
-                      onClick={handleStartReservationFlow}
+                      onClick={handleStartReserveFlow}
                     >
                       Reserve Room
                     </button>
