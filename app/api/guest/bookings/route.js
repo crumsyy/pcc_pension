@@ -230,6 +230,30 @@ export async function POST(request) {
       try {
         await connection.beginTransaction();
 
+        // 0. Concurrency row-level lock on room to serialize concurrent bookings and prevent race conditions
+        await connection.execute("SELECT roomID, status FROM room WHERE roomID = ? FOR UPDATE", [roomID]);
+
+        // If converting from reservation, verify and lock reservation row
+        const convResID = reservationID ? parseInt(reservationID) : null;
+        if (convResID) {
+          const [resLock] = await connection.execute(
+            "SELECT reservationID, status, guestID FROM reservation WHERE reservationID = ? FOR UPDATE",
+            [convResID]
+          );
+          if (resLock.length === 0) {
+            await connection.rollback();
+            connection.release();
+            return NextResponse.json({ error: "Reservation record not found." }, { status: 404 });
+          }
+          if (resLock[0].status === 'Booked') {
+            await connection.rollback();
+            connection.release();
+            return NextResponse.json({
+              error: "This reservation has already been converted into a booking."
+            }, { status: 409 });
+          }
+        }
+
         // Check for duplicate booking for same guest, same room, and same check-in date
         const [dupCheck] = await connection.execute(
           `SELECT bookingID, status FROM booking 
@@ -414,67 +438,59 @@ export async function POST(request) {
           [guest.guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
         );
 
-        await connection.commit();
-
-        // Notify staff of new booking
-        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
-        for (const r of staffToNotify) {
-          await dbQuery(
-            "INSERT INTO notification (userID, title, message) VALUES (?, 'New Guest Booking Request', ?)",
-            [r.userID, `Guest ${guest.firstName} ${guest.lastName} created Booking #${bookingID} for ${checkInDate}.`]
-          );
-        }
-
-        // Auto-cancellation notifications for affected reservations
-        for (const compRes of competingReservations) {
-          if (compRes.userID) {
-            await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Cancelled Due to Conflict', ?)",
-              [
-                compRes.userID,
-                `Your reservation request for Room ${compRes.roomNumber} on ${String(compRes.reservationDateTime).substring(0, 10)} was automatically cancelled because the room was booked for those dates.`
-              ]
-            );
-          }
-
-          for (const r of staffToNotify) {
-            await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Auto-Cancelled (Booking Conflict)', ?)",
-              [
-                r.userID,
-                `Reservation #${compRes.reservationID} for Room ${compRes.roomNumber} (${compRes.firstName} ${compRes.lastName}) was automatically cancelled due to a confirmed booking conflict.`
-              ]
-            );
-          }
-        }
-
-        // Add guest notification
-        await dbQuery(
-          "INSERT INTO notification (userID, title, message) VALUES (?, 'Booking Confirmed', ?)",
-          [session.userID, `Your online booking #${bookingID} has been created and confirmed!`]
+        const [roomInfo] = await connection.execute(
+          "SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
+          [roomID]
         );
 
-        // Dispatch Booking Confirmation Email
-        try {
-          const [roomInfo] = await connection.execute(
-            "SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
-            [roomID]
-          );
-          sendBookingConfirmationEmail(guest.email, `${guest.firstName} ${guest.lastName}`, {
-            bookingID,
-            roomNumber: roomInfo[0]?.roomNumber || '',
-            roomType: roomInfo[0]?.roomType || 'Standard',
-            status: bookingStatus,
-            checkInDateTime: finalCheckInDateTime,
-            checkOutDateTime: finalCheckOutDateTime,
-            downPaymentAmount,
-            remainingBalance,
-            paymentMethod: 'GCash',
-            referenceNumber: body.referenceNumber || null
-          }).catch(() => {});
-        } catch (mErr) {
-          console.error("Failed to send guest booking confirmation email:", mErr);
-        }
+        await connection.commit();
+
+        // Fast background notification batching & detached email dispatch
+        (async () => {
+          try {
+            const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+            const notifValues = [];
+
+            for (const r of staffToNotify) {
+              notifValues.push([r.userID, 'New Guest Booking Request', `Guest ${guest.firstName} ${guest.lastName} created Booking #${bookingID} for ${checkInDate}.`]);
+            }
+
+            for (const compRes of competingReservations) {
+              if (compRes.userID) {
+                notifValues.push([compRes.userID, 'Reservation Cancelled Due to Conflict', `Your reservation request for Room ${compRes.roomNumber} on ${String(compRes.reservationDateTime).substring(0, 10)} was automatically cancelled because the room was booked for those dates.`]);
+              }
+              for (const r of staffToNotify) {
+                notifValues.push([r.userID, 'Reservation Auto-Cancelled (Booking Conflict)', `Reservation #${compRes.reservationID} for Room ${compRes.roomNumber} (${compRes.firstName} ${compRes.lastName}) was automatically cancelled due to a confirmed booking conflict.`]);
+              }
+            }
+
+            notifValues.push([session.userID, 'Booking Confirmed', `Your online booking #${bookingID} has been created and confirmed!`]);
+
+            if (notifValues.length > 0) {
+              const placeholders = notifValues.map(() => '(?, ?, ?)').join(', ');
+              const flatValues = notifValues.flat();
+              await dbQuery(`INSERT INTO notification (userID, title, message) VALUES ${placeholders}`, flatValues);
+            }
+
+            // Dispatch Booking Confirmation Email detached
+            sendBookingConfirmationEmail(guest.email, `${guest.firstName} ${guest.lastName}`, {
+              bookingID,
+              roomNumber: roomInfo[0]?.roomNumber || '',
+              roomType: roomInfo[0]?.roomType || 'Standard',
+              status: bookingStatus,
+              checkInDateTime: finalCheckInDateTime,
+              checkOutDateTime: finalCheckOutDateTime,
+              downPaymentAmount,
+              remainingBalance,
+              paymentMethod: 'GCash',
+              referenceNumber: body.referenceNumber || null
+            }).catch((mErr) => {
+              console.error("Failed to send guest booking confirmation email:", mErr);
+            });
+          } catch (bgErr) {
+            console.error("Background notification batching error:", bgErr);
+          }
+        })();
 
         return NextResponse.json({
           success: true,

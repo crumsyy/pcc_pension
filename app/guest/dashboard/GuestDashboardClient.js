@@ -233,6 +233,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [activeModal, _setActiveModal] = useState('none');
   const activeModalRef = useRef('none');
   activeModalRef.current = activeModal;
+  const submittingBookingRef = useRef(false);
 
   const setActiveTab = (newTab, pushHistory = true) => {
     _setActiveTab(newTab);
@@ -1147,6 +1148,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleConfirmGCashBookingPayment = async (e, verifiedRef = null) => {
     if (e) e.preventDefault();
+    if (submittingBookingRef.current || processing) return;
+
     const refToUse = (verifiedRef || gcashRef.trim() || paymongoSourceID || `PM-${Date.now()}`);
 
     if (paymongoStatus !== 'paid' && !isGuestGcashSettled && !verifiedRef) {
@@ -1155,6 +1158,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       return;
     }
 
+    submittingBookingRef.current = true;
     const finalRef = refToUse;
     setGuestGcashInlineError('');
     setProcessing(true);
@@ -1218,6 +1222,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       const payData = await payRes.json();
       if (!payRes.ok) throw new Error(payData.error || 'Failed to process payment');
 
+      // Display "Booking Successful" dialog as explicitly requested
+      showAlert('success', 'Booking Successful', `Your booking for Room ${selectedRoom.roomNumber} has been confirmed and payment processed successfully!`);
+
       setReceiptData(payData.receipt);
       setActiveModal('receipt');
       setIsGuestGcashSettled(false);
@@ -1232,6 +1239,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       showAlert('error', 'Payment Error', err.message);
     } finally {
       setProcessing(false);
+      submittingBookingRef.current = false;
     }
   };
 
@@ -1305,6 +1313,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     setCheckOutDate(outDateOnly);
     setCheckOutTime(outTimeOnly);
     setNumGuests(reservation.guestCount || 1);
+    setBreakfastOption(reservation.breakfastOption || 'without');
     setSpecialRequests(reservation.specialRequests || '');
     setConvertingReservationID(reservation.reservationID);
     setPaymentOption('50');
@@ -1312,8 +1321,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     setIsGuestGcashSettled(false);
     setGuestGcashInlineError('');
 
-    // Trigger payment modal directly for down payment & GCash flow
-    setActiveModal('payment');
+    // Open booking form modal so guest sees the same booking form as when booking a room
+    setActiveModal('book_form');
   };
 
   const handleCancelBooking = (bookingID) => {
@@ -3030,44 +3039,35 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               </div>
 
                               <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center mt-2 mt-sm-0">
-                                {isHold && (
-                                  <>
-                                    <button
-                                      className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
-                                      onClick={() => handleProceedToBooking(r)}
-                                      title="Proceed to Booking with Down Payment"
-                                      aria-label="Proceed to Booking"
-                                    >
-                                      <i className="bi bi-calendar-check me-1"></i>
-                                      Proceed to Booking
-                                    </button>
-                                    <button
-                                      className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
-                                      onClick={() => handleCancelReservation(r.reservationID)}
-                                      title="Cancel Courtesy Hold"
-                                      aria-label="Cancel Courtesy Hold"
-                                    >
-                                      Cancel Hold
-                                    </button>
-                                  </>
-                                )}
-
-                                {!isHold && (r.status === 'Pending' || r.status === 'Confirmed') && (
-                                  <>
-                                    <button
-                                      className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
-                                      onClick={() => handleProceedToBooking(r)}
-                                    >
-                                      Proceed to Booking
-                                    </button>
-                                    <button
-                                      className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
-                                      onClick={() => handleCancelReservation(r.reservationID)}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </>
-                                )}
+                                {(() => {
+                                  const normR = normalizeReservationStatus(r.status);
+                                  const canProceed = !['Booked', 'Cancelled'].includes(normR);
+                                  return (
+                                    <>
+                                      {canProceed && (
+                                        <button
+                                          className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
+                                          onClick={() => handleProceedToBooking(r)}
+                                          title="Proceed to Booking with Down Payment"
+                                          aria-label="Proceed to Booking"
+                                        >
+                                          <i className="bi bi-calendar-check me-1"></i>
+                                          Proceed to Booking
+                                        </button>
+                                      )}
+                                      {canProceed && (
+                                        <button
+                                          className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
+                                          onClick={() => handleCancelReservation(r.reservationID)}
+                                          title={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
+                                          aria-label={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
+                                        >
+                                          {isHold ? "Cancel Hold" : "Cancel"}
+                                        </button>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
                             {renderReservationStatusTimeline(r.status)}
@@ -3569,7 +3569,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       {/* MODAL WORKFLOW: RESERVATION FORM */}
       {activeModal === 'reserve_form' && selectedRoom && (
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ backgroundColor: isCourtesyHold ? '#fd7e14' : '#198754' }}>
                 <h5 className="modal-title fw-bold">
@@ -3690,16 +3690,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       {/* MODAL WORKFLOW: BOOKING FORM & GUESTS */}
       {activeModal === 'book_form' && selectedRoom && (
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-dialog modal-xl modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ backgroundColor: '#0d6efd' }}>
                 <h5 className="modal-title fw-bold">Online Booking Summary & Guest Details</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
               </div>
               <form onSubmit={handleProceedToPayment}>
-                <div className="modal-body">
+                <div className="modal-body p-3 p-md-4">
+                  {convertingReservationID && (
+                    <div className="alert alert-info py-2 px-3 small mb-3 d-flex align-items-center gap-2 border border-info-subtle shadow-xs">
+                      <i className="bi bi-arrow-repeat fs-5 text-primary"></i>
+                      <div>
+                        <strong>Converting Reservation #{convertingReservationID} to Booking:</strong>
+                        <span className="ms-1">Your reservation details have been loaded. Please review your stay schedule, breakfast option, and guest details below before proceeding to payment.</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="row g-3 mb-3">
-                    <div className="col-md-6">
+                    <div className="col-lg-5">
                       <div className="p-3 bg-light rounded border h-100">
                         <h6 className="fw-bold text-primary mb-2">Room {selectedRoom.roomNumber} - {selectedRoom.roomType}</h6>
                         <div className="small text-muted mb-1">Floor: <strong>{selectedRoom.floorName}</strong></div>
@@ -3720,7 +3729,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         </div>
                       </div>
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-lg-7">
                       <div className="p-3 bg-light rounded border h-100">
                         <h6 className="fw-bold text-dark mb-2">Stay Schedule</h6>
                         <BookingForm

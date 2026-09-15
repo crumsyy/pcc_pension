@@ -292,20 +292,20 @@ export default function ReservationCalendar({
         </button>
       </div>
 
-      {/* Calendar Dates Section with Side Gaps (Side DATES Side) */}
-      <div className="calendar-dates-container px-2 px-sm-3">
+      {/* Calendar Dates Section */}
+      <div className="calendar-dates-container px-1">
         {/* Weekdays Header */}
-        <div className="d-grid text-center mb-1 text-muted fw-semibold" style={{ gridTemplateColumns: 'repeat(7, 1fr)', fontSize: '0.72rem', gap: '3px' }}>
+        <div className="d-grid text-center mb-1 text-muted fw-bold" style={{ gridTemplateColumns: 'repeat(7, 1fr)', fontSize: '0.74rem', gap: '4px' }}>
           {dayLabels.map(d => (
-            <div key={d} className="py-1">{d}</div>
+            <div key={d} className="py-1 bg-light rounded text-secondary">{d}</div>
           ))}
         </div>
 
-        {/* Days Grid: Non-interactive Visual Overview with Past Dates Disabled */}
-        <div className="calendar-visual d-grid text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
+        {/* Days Grid: Non-interactive Visual Overview */}
+        <div className="calendar-visual d-grid text-center" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
           {days.map((dateStr, idx) => {
             if (!dateStr) {
-              return <div key={`empty-${idx}`} className="p-1" />;
+              return <div key={`empty-${idx}`} className="p-1" style={{ minHeight: '44px' }} />;
             }
 
             const dayNumber = parseInt(dateStr.split('-')[2], 10);
@@ -318,14 +318,18 @@ export default function ReservationCalendar({
             const isStayRange = !!stdCheckIn && !!stdCheckOut && dateStr > stdCheckIn && dateStr < stdCheckOut;
 
             let cellClass = 'bg-light border text-dark';
-            let cellTitle = `${dateStr}: Available`;
-            let cellLabel = 'Open';
+            let cellTitle = `${dateStr}: Available (Open)`;
+            let cellBadge = 'Open';
+            let cellBadgeClass = 'text-muted';
             let cellStyle = {
-              height: '38px',
-              fontSize: '0.75rem',
+              minHeight: '44px',
+              fontSize: '0.78rem',
               userSelect: 'none',
               cursor: isPastDate ? 'not-allowed' : 'default',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
+              borderRadius: '6px',
+              padding: '2px 1px',
+              transition: 'all 0.15s ease'
             };
 
             if (isCheckIn) {
@@ -335,11 +339,11 @@ export default function ReservationCalendar({
                 backgroundColor: '#0d6efd',
                 color: '#ffffff',
                 border: '2px solid #0a58ca',
-                borderRadius: '6px',
                 fontWeight: 'bold'
               };
               cellTitle = `${dateStr}: Selected Check-In Date${hasStatus ? ` (Room Status: ${statusInfo.status})` : ''}`;
-              cellLabel = 'Check-In';
+              cellBadge = 'IN';
+              cellBadgeClass = 'badge bg-white text-primary px-1 py-0 shadow-xs fw-bold';
             } else if (isCheckOut) {
               cellClass = 'text-white shadow-sm';
               cellStyle = {
@@ -347,11 +351,11 @@ export default function ReservationCalendar({
                 backgroundColor: '#055160',
                 color: '#ffffff',
                 border: '2px solid #032830',
-                borderRadius: '6px',
                 fontWeight: 'bold'
               };
               cellTitle = `${dateStr}: Selected Check-Out Date${hasStatus ? ` (Room Status: ${statusInfo.status})` : ''}`;
-              cellLabel = 'Check-Out';
+              cellBadge = 'OUT';
+              cellBadgeClass = 'badge bg-white text-info px-1 py-0 shadow-xs fw-bold';
             } else if (isStayRange) {
               if (hasStatus) {
                 cellClass = statusInfo.className;
@@ -361,7 +365,8 @@ export default function ReservationCalendar({
                   fontWeight: 'bold'
                 };
                 cellTitle = `OVERLAP CONFLICT on ${dateStr}: Overlaps with ${statusInfo.status}`;
-                cellLabel = 'Conflict!';
+                cellBadge = 'CONFLICT';
+                cellBadgeClass = 'badge bg-danger text-white px-1 py-0';
               } else {
                 cellClass = 'border text-primary';
                 cellStyle = {
@@ -372,36 +377,43 @@ export default function ReservationCalendar({
                   fontWeight: '600'
                 };
                 cellTitle = `${dateStr}: Selected Stay Duration (Available)`;
-                cellLabel = 'Stay';
+                cellBadge = 'STAY';
+                cellBadgeClass = 'text-primary fw-bold';
               }
             } else if (isPastDate) {
               cellClass = 'bg-light-subtle border text-muted opacity-50 fst-italic';
               cellTitle = `${dateStr}: Past Date (Unavailable)`;
-              cellLabel = '-';
+              cellBadge = '-';
+              cellBadgeClass = 'text-muted';
             } else if (hasStatus) {
               cellClass = statusInfo.className;
               cellTitle = `${dateStr}: ${statusInfo.status}`;
-              cellLabel = statusInfo.label;
+              // Use compact badge names to prevent overflow in small columns
+              const compactLabel = statusInfo.label === 'Courtesy Hold' ? 'Hold' :
+                                   statusInfo.label === 'Under Maintenance' ? 'Maint' :
+                                   statusInfo.label;
+              cellBadge = compactLabel;
+              cellBadgeClass = 'fw-bold';
             }
 
             return (
               <div
                 key={dateStr}
-                className={`calendar-cell p-1 d-flex flex-column align-items-center justify-content-center ${cellClass}`}
+                className={`calendar-cell d-flex flex-column align-items-center justify-content-center ${cellClass}`}
                 style={cellStyle}
                 title={cellTitle}
               >
-                <span className="fw-semibold" style={{ lineHeight: 1 }}>{dayNumber}</span>
+                <span className="fw-semibold mb-0.5" style={{ lineHeight: 1.1 }}>{dayNumber}</span>
                 <span
-                  className={`mt-0.5 text-truncate ${isCheckIn || isCheckOut ? 'badge bg-white px-1 py-0' : hasStatus || isStayRange ? 'fw-bold' : 'text-muted'}`}
+                  className={`text-truncate ${cellBadgeClass}`}
                   style={{
-                    fontSize: isCheckIn || isCheckOut ? '0.48rem' : '0.50rem',
+                    fontSize: '0.52rem',
                     lineHeight: 1,
                     maxWidth: '100%',
-                    color: isCheckIn ? '#0d6efd' : isCheckOut ? '#055160' : undefined
+                    letterSpacing: '0.2px'
                   }}
                 >
-                  {cellLabel}
+                  {cellBadge}
                 </span>
               </div>
             );
@@ -409,46 +421,46 @@ export default function ReservationCalendar({
         </div>
       </div>
 
-      {/* Visual Status Legend with Side Gaps */}
-      <div className="d-flex flex-wrap align-items-center justify-content-between gap-1 mt-2.5 pt-2 border-top mx-2 mx-sm-3" style={{ fontSize: '0.68rem' }}>
-        <div className="d-flex align-items-center gap-1">
+      {/* Visual Status Legend with Clean Centered Wrap */}
+      <div className="d-flex flex-wrap align-items-center justify-content-center gap-2 mt-3 pt-2.5 border-top" style={{ fontSize: '0.70rem' }}>
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0d6efd', border: '1px solid #0a58ca' }}></span>
           <span className="text-dark fw-bold">Check-In</span>
         </div>
-        <div className="d-flex align-items-center gap-1">
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#055160', border: '1px solid #032830' }}></span>
           <span className="text-dark fw-bold">Check-Out</span>
         </div>
-        <div className="d-flex align-items-center gap-1">
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#e7f1ff', border: '1px dashed #0d6efd' }}></span>
-          <span className="text-muted">Stay Range</span>
+          <span className="text-muted fw-semibold">Stay Range</span>
         </div>
-        <div className="d-flex align-items-center gap-1">
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #0f5132' }}></span>
-          <span className="text-muted">Booked</span>
+          <span className="text-muted fw-semibold">Booked</span>
         </div>
-        <div className="d-flex align-items-center gap-1">
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fd7e14', border: '1px solid #d9480f' }}></span>
-          <span className="text-muted">Courtesy Hold</span>
+          <span className="text-muted fw-semibold">Courtesy Hold</span>
         </div>
-        <div className="d-flex align-items-center gap-1">
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffc107', border: '1px solid #d39e00' }}></span>
-          <span className="text-muted">Reserved</span>
+          <span className="text-muted fw-semibold">Reserved</span>
         </div>
-        <div className="d-flex align-items-center gap-1">
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0d6efd', border: '1px solid #084298' }}></span>
-          <span className="text-muted">Occupied</span>
+          <span className="text-muted fw-semibold">Occupied</span>
         </div>
-        <div className="d-flex align-items-center gap-1">
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#dc3545', border: '1px solid #842029' }}></span>
-          <span className="text-muted">Under Maintenance</span>
+          <span className="text-muted fw-semibold">Maintenance</span>
         </div>
       </div>
 
-      {/* Helper Text Below with Side Gaps */}
-      <div className="px-3 px-sm-4 text-center mt-1.5">
-        <small className="text-muted d-block fst-italic" style={{ fontSize: '0.68rem', lineHeight: '1.4' }}>
-          Visual schedule reference (Read-only). Select dates below using the date pickers.
+      {/* Helper Text Below */}
+      <div className="text-center mt-2">
+        <small className="text-muted d-block" style={{ fontSize: '0.70rem', lineHeight: '1.4' }}>
+          <i className="bi bi-info-circle me-1"></i>Visual schedule reference (Read-only). Select your stay dates below using the date pickers.
         </small>
       </div>
     </div>
