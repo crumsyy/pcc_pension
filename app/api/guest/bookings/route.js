@@ -289,7 +289,6 @@ export async function POST(request) {
         }
 
         // 2. Conflict Handling: Auto-cancel overlapping active reservations for this room
-        const convResID = reservationID ? parseInt(reservationID) : null;
         const [competingReservations] = await connection.execute(`
           SELECT r.reservationID, r.reservationDateTime, r.checkOutDateTime, r.guestID,
                  g.userID, g.firstName, g.lastName,
