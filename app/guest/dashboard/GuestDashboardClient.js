@@ -2384,8 +2384,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="row g-2 mb-4">
                   <div className="col-6 col-md-3">
                     <button
-                      className="btn btn-success text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
-                      onClick={handleStartReserveFlow}
+                      className="btn btn-outline-primary fw-bold w-100 touch-action-btn shadow-sm py-2.5"
+                      onClick={handleStartReservationFlow}
                     >
                       Reserve Room
                     </button>
@@ -2398,7 +2398,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       Book Room
                     </button>
                   </div>
-                  <div className="col-6 col-md">
+                  <div className="col-6 col-md-3">
                     <button
                       type="button"
                       className="btn btn-warning text-dark fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center"
@@ -2407,17 +2407,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <span>Order Food</span>
                     </button>
                   </div>
-                  <div className="col-6 col-md">
-                    <button
-                      type="button"
-                      className="btn btn-info text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center gap-1"
-                      onClick={() => setActiveTab('order-history')}
-                    >
-                      <i className="bi bi-clock-history"></i>
-                      <span>Order History</span>
-                    </button>
-                  </div>
-                  <div className="col-12 col-md">
+                  <div className="col-6 col-md-3">
                     <button
                       className="btn btn-secondary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
                       onClick={() => setActiveTab('account')}
@@ -2780,11 +2770,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <GuestOrdersContent guest={guest} activeBookingStay={activeBookingStay} initialCategory="all" />
             )}
 
-            {/* TAB: ORDER HISTORY TAB */}
-            {activeTab === 'order-history' && (
-              <GuestOrdersContent guest={guest} activeBookingStay={activeBookingStay} initialCategory="history" />
-            )}
-
             {/* TAB 3: CHAT TAB */}
             {activeTab === 'chat' && (
               <div className="animate__animated animate__fadeIn">
@@ -2949,6 +2934,34 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </table>
                 </div>
 
+                {/* EDIT PROFILE SETTINGS BUTTON */}
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditProfileForm({
+                        firstName: guest.firstName || '',
+                        middleName: guest.middleName || '',
+                        lastName: guest.lastName || '',
+                        contact: guest.contact || '',
+                        gender: guest.gender || 'Other',
+                        city: guest.city || '',
+                        province: guest.province || '',
+                        profilePicture: guest.profilePicture || ''
+                      });
+                      setShowEditProfileModal(true);
+                    }}
+                    className="btn btn-pcc-primary text-white w-100 text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm"
+                    style={{ borderRadius: '12px' }}
+                  >
+                    <span className="d-flex align-items-center gap-2">
+                      <i className="bi bi-person-lines-fill"></i>
+                      <span>Edit Profile Settings</span>
+                    </span>
+                    <i className="bi bi-pencil-square"></i>
+                  </button>
+                </div>
+
                 {/* THEME & APPEARANCE SETTINGS CARD */}
                 <div className="card shadow-sm border-0 p-4 mb-4 bg-white" style={{ borderRadius: '14px', padding: '1.25rem 1.5rem' }}>
                   <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 gap-md-4">
@@ -2964,26 +2977,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <ThemeToggle />
                     </div>
                   </div>
-                </div>
-
-                {/* MY ORDER HISTORY SECTION */}
-                <div id="order-history-section" className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <i className="bi bi-clock-history text-primary"></i>
-                      <span>My Order History &amp; Room Service Records</span>
-                    </h6>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-pcc-primary text-white fw-semibold px-3 py-1 shadow-xs"
-                      onClick={() => setActiveTab('order-history')}
-                    >
-                      <i className="bi bi-eye me-1"></i>View Full Order Records
-                    </button>
-                  </div>
-                  <p className="text-muted small mb-0">
-                    Track your room service orders, scheduled breakfast meals, beverages, and extra amenities. Click the button above to view your full history records.
-                  </p>
                 </div>
 
                 {/* MY RESERVATIONS HISTORY */}
@@ -3228,27 +3221,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {/* ACCOUNT ACTION BUTTONS */}
                 <div className="d-flex flex-column gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditProfileForm({
-                        firstName: guest.firstName || '',
-                        middleName: guest.middleName || '',
-                        lastName: guest.lastName || '',
-                        contact: guest.contact || '',
-                        gender: guest.gender || 'Other',
-                        city: guest.city || '',
-                        province: guest.province || '',
-                        profilePicture: guest.profilePicture || ''
-                      });
-                      setShowEditProfileModal(true);
-                    }}
-                    className="btn btn-pcc-primary text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm"
-                    style={{ borderRadius: '10px' }}
-                  >
-                    <span>Edit Profile Settings</span>
-                    <i className="bi bi-pencil-square"></i>
-                  </button>
                   <button onClick={() => setShowLogoutModal(true)} className="btn btn-danger text-white text-start p-3 fw-bold d-flex justify-content-between align-items-center" style={{ borderRadius: '10px' }}>
                     <span><i className="bi bi-power me-2"></i> Log Out</span>
                     <i className="bi bi-box-arrow-right"></i>
@@ -3276,7 +3248,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       {/* FLOATING AI CHATBOT BUTTON */}
       <GuestChatBubble
         hideFloating={activeTab === 'chat'}
-        bottomOffset={isDesktop ? '24px' : (activeTab === 'orders' || activeTab === 'order-history' ? '135px' : '85px')}
+        bottomOffset={isDesktop ? '24px' : (activeTab === 'orders' ? '135px' : '85px')}
       />
 
 

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, ensureProfilePictureSchema } from '@/lib/db';
+import { dbQuery, ensureProfilePictureSchema, saveUploadedFile } from '@/lib/db';
 import path from 'path';
+import os from 'os';
 import { writeFile, mkdir } from 'fs/promises';
 
 export async function POST(request) {
@@ -19,10 +20,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No image file uploaded.' }, { status: 400 });
     }
 
-    // Validation: Max 2MB file size
-    const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+    // Validation: Max 25MB file size
+    const MAX_SIZE = 25 * 1024 * 1024; // 25MB
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'File size exceeds the 2MB limit. Please select a smaller JPG or PNG image.' }, { status: 400 });
+      return NextResponse.json({ error: 'File size exceeds the 25MB limit. Please select a smaller JPG, PNG, or WEBP image.' }, { status: 400 });
     }
 
     // Validation: Supported file extensions
@@ -31,8 +32,16 @@ export async function POST(request) {
     const allowedExts = ['.jpg', '.jpeg', '.png', '.webp'];
 
     if (!allowedExts.includes(ext)) {
-      return NextResponse.json({ error: 'Unsupported file format. Please upload a JPG or PNG image.' }, { status: 400 });
+      return NextResponse.json({ error: 'Unsupported file format. Please upload a JPG, PNG, or WEBP image.' }, { status: 400 });
     }
+
+    const mimeMap = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp'
+    };
+    const mimeType = file.type || mimeMap[ext] || 'image/jpeg';
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
@@ -47,11 +56,31 @@ export async function POST(request) {
     const subFolder = subFolderMap[uploadType] || 'catalog';
     const filename = `${uploadType}-${Date.now()}-${Math.floor(Math.random() * 1000)}${ext}`;
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', subFolder);
-    await mkdir(uploadDir, { recursive: true });
+    // 1. Always persist to TiDB database for cross-platform / Vercel persistence
+    await saveUploadedFile({
+      filename,
+      subFolder,
+      mimeType,
+      buffer
+    });
 
-    const filePath = path.join(uploadDir, filename);
-    await writeFile(filePath, buffer);
+    // 2. Best-effort local file write (works on local dev machine, gracefully skips on read-only serverless Vercel)
+    try {
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', subFolder);
+      await mkdir(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, filename);
+      await writeFile(filePath, buffer);
+    } catch (fsError) {
+      // In serverless environments (Vercel Lambda /var/task), local filesystem is read-only.
+      // Cache to /tmp instead for fast local serving within the same container
+      try {
+        const tmpDir = path.join(os.tmpdir(), 'uploads', subFolder);
+        await mkdir(tmpDir, { recursive: true });
+        await writeFile(path.join(tmpDir, filename), buffer);
+      } catch (tmpErr) {
+        // Fallback to database serving
+      }
+    }
 
     const relativeUrl = `/uploads/${subFolder}/${filename}`;
 

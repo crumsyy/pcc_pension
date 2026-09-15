@@ -381,21 +381,21 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
         <div className="btn-group btn-group-sm flex-wrap" role="group">
           <button
             type="button"
-            className={`btn btn-sm ${historyFilter === 'all' ? 'btn-primary fw-bold text-white' : 'btn-secondary text-white'}`}
+            className={`btn btn-sm pcc-order-tab-btn ${historyFilter === 'all' ? 'active' : ''}`}
             onClick={() => setHistoryFilter('all')}
           >
             All Orders ({orders.length})
           </button>
           <button
             type="button"
-            className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'btn-secondary text-white'}`}
+            className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'pcc-order-tab-btn'}`}
             onClick={() => setHistoryFilter('immediate')}
           >
             ⚡ Immediate Deliveries ({immediateOrders.length})
           </button>
           <button
             type="button"
-            className={`btn btn-sm ${historyFilter === 'scheduled' ? 'btn-primary text-white fw-bold' : 'btn-secondary text-white'}`}
+            className={`btn btn-sm pcc-order-tab-btn ${historyFilter === 'scheduled' ? 'active' : ''}`}
             onClick={() => setHistoryFilter('scheduled')}
           >
             ⏰ Scheduled Breakfast Deliveries ({scheduledOrders.length})
@@ -403,7 +403,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           {pendingDeliveryOrders.length > 0 && (
             <button
               type="button"
-              className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'btn-secondary text-white'}`}
+              className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'pcc-order-tab-btn'}`}
               onClick={() => setHistoryFilter('pending')}
             >
               ⏳ Pending Deliveries ({pendingDeliveryOrders.length})
@@ -663,7 +663,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
         }
       ];
     });
-    setFeedback({ type: 'success', message: `Added 1x ${item.name} to your Order Tray.` });
   }, []);
 
   const handleToggleItemDelivery = useCallback((index, newDeliveryType) => {
@@ -1058,28 +1057,28 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           <div className="btn-group flex-wrap shadow-xs" role="group">
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'meals' ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
+              className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'meals' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('meals')}
             >
               🍳 Cooked Meals (Scheduled: 6:00–10:30 AM) ({cookedMeals.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'products_amenities' ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
+              className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('products_amenities')}
             >
               🛍️ Products & Amenities (Immediate) ({products.length + amenities.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'all' ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
+              className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'all' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('all')}
             >
               All Items
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'history' ? 'btn-primary text-white' : 'btn-secondary text-white'}`}
+              className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'history' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('history')}
             >
               📋 My Orders ({orderHistory.length})

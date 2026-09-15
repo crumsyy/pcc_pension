@@ -30,6 +30,61 @@ export default function RoomsClient() {
     return [];
   };
 
+  const optimizeImageForUpload = async (file) => {
+    // Files under 4MB can be uploaded directly
+    if (file.size <= 4 * 1024 * 1024) {
+      return file;
+    }
+    // For photos over 4MB (up to 25MB), downscale/compress via canvas so Vercel 4.5MB serverless payload limit is respected
+    return new Promise((resolve) => {
+      try {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          const maxDim = 2560; // crisp 2.5K resolution
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const targetMime = file.type === 'image/png' ? 'image/png' : 'image/webp';
+          canvas.toBlob((blob) => {
+            if (blob && blob.size < file.size) {
+              const baseName = file.name.replace(/\.[^/.]+$/, "");
+              const ext = targetMime === 'image/webp' ? '.webp' : (targetMime === 'image/png' ? '.png' : '.jpg');
+              const optimized = new File([blob], `${baseName}${ext}`, {
+                type: targetMime,
+                lastModified: Date.now()
+              });
+              resolve(optimized);
+            } else {
+              resolve(file);
+            }
+          }, targetMime, 0.88);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(file);
+        };
+        img.src = objectUrl;
+      } catch (err) {
+        resolve(file);
+      }
+    });
+  };
+
   const handleFileChange = async (e) => {
     const rawFiles = Array.from(e.target.files || []);
     if (rawFiles.length === 0) return;
@@ -52,8 +107,14 @@ export default function RoomsClient() {
     try {
       const uploadedUrls = [];
       for (const file of filesToUpload) {
+        if (file.size > 25 * 1024 * 1024) {
+          showAlert('error', 'File Too Large', `"${file.name}" exceeds the 25MB limit. Please select an image under 25MB.`);
+          continue;
+        }
+
+        const readyFile = await optimizeImageForUpload(file);
         const dataForm = new FormData();
-        dataForm.append('file', file);
+        dataForm.append('file', readyFile);
         dataForm.append('type', 'rooms');
 
         const res = await fetch('/api/upload', {
@@ -739,6 +800,9 @@ export default function RoomsClient() {
                       onChange={handleFileChange}
                       disabled={uploadingImage}
                     />
+                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                      Supports JPG, PNG, WEBP up to 25MB (max 5 photos per room).
+                    </small>
                     {uploadingImage && (
                       <small className="text-primary d-block mt-1">
                         <span className="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -961,6 +1025,9 @@ export default function RoomsClient() {
                       onChange={handleFileChange}
                       disabled={uploadingImage}
                     />
+                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                      Supports JPG, PNG, WEBP up to 25MB (max 5 photos per room).
+                    </small>
                     {uploadingImage && (
                       <small className="text-primary d-block mt-1">
                         <span className="spinner-border spinner-border-sm me-1" role="status"></span>

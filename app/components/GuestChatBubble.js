@@ -638,7 +638,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
         title="Guest Assistant & Live Chat"
       >
         {isOpen ? (
-          <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>✕</span>
+          <i className="bi bi-x-lg text-white fs-4" style={{ fontWeight: 'bold' }}></i>
         ) : dbInquiry && dbInquiry.unreadGuest > 0 ? (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -696,10 +696,22 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
             </button>
             <button
               type="button"
-              className="btn-close btn-close-white"
+              className="btn btn-link text-white p-0 d-flex align-items-center justify-content-center shadow-none"
               onClick={() => setIsOpen(false)}
-              style={{ fontSize: '0.75rem' }}
-            ></button>
+              aria-label="Close Chat"
+              title="Close Chat"
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                textDecoration: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <i className="bi bi-x-lg text-white" style={{ fontSize: '0.9rem', fontWeight: 'bold' }}></i>
+            </button>
           </div>
         </div>
 
