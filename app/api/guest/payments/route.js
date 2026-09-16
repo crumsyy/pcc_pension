@@ -283,9 +283,6 @@ export async function POST(request) {
       const pad = (num) => String(num).padStart(2, '0');
       const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
 
-      await ensurePaymentSchema();
-      await ensureBookingBillingSchema();
-
       // Insert payment record
       const [paymentInsert] = await connection.execute(
         `INSERT INTO payment (amount, cashReceived, \`change\`, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID, testMode, status, referenceNumber)
@@ -336,7 +333,6 @@ export async function POST(request) {
         const bInfo = bRows[0];
         const inDate = new Date(String(bInfo.checkInDateTime).replace(' ', 'T'));
         const now = new Date();
-        const pad = (n) => String(n).padStart(2, '0');
         const inDateOnly = String(bInfo.checkInDateTime).split(' ')[0] || String(bInfo.checkInDateTime).split('T')[0];
         const todayDateOnly = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
         if (inDate <= now || inDateOnly === todayDateOnly || bInfo.status === 'Active Stay' || bInfo.status === 'Checked In') {
@@ -365,16 +361,20 @@ export async function POST(request) {
 
       await connection.commit();
 
-      // Staff Notifications (strictly for Administrators & Receptionists)
-      try {
-        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
-        for (const r of staffToNotify) {
-          await dbQuery(
-            "INSERT INTO notification (userID, title, message) VALUES (?, 'New GCash Online Payment', ?)",
-            [r.userID, `GCash payment of ₱${parsedAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${parsedBookingID} (Ref #${cleanRef}).`]
-          );
-        }
-      } catch (notifErr) {}
+      // Non-blocking staff notifications
+      setImmediate(async () => {
+        try {
+          const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+          if (staffToNotify.length > 0) {
+            const placeholders = staffToNotify.map(() => '(?, ?, ?)').join(', ');
+            const values = [];
+            for (const r of staffToNotify) {
+              values.push(r.userID, 'New GCash Online Payment', `GCash payment of ₱${parsedAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${parsedBookingID} (Ref #${cleanRef}).`);
+            }
+            await dbQuery(`INSERT INTO notification (userID, title, message) VALUES ${placeholders}`, values);
+          }
+        } catch (notifErr) {}
+      });
 
       return NextResponse.json({
         success: true,

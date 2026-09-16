@@ -187,7 +187,7 @@ export default function ReservationCalendar({
           map[dStr] = { status: mappedStatus, label, className: statusClass };
         }
       } else {
-        while (cur < end) {
+        while (cur <= end) {
           const dStr = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
           const existingPriority = map[dStr] ? (statusPriority[map[dStr].status] || 0) : 0;
           if (!map[dStr] || priority >= existingPriority) {
@@ -312,6 +312,11 @@ export default function ReservationCalendar({
             const isPastDate = dateStr < todayStr;
             const statusInfo = dateStatusMap[dateStr];
             const hasStatus = !isPastDate && !!statusInfo;
+            const compactLabel = statusInfo ? (
+              statusInfo.label === 'Courtesy Hold' ? 'Hold' :
+              statusInfo.label === 'Under Maintenance' ? 'Maint' :
+              statusInfo.label
+            ) : '';
 
             const isCheckIn = !!stdCheckIn && dateStr === stdCheckIn;
             const isCheckOut = !!stdCheckOut && dateStr === stdCheckOut;
@@ -333,29 +338,55 @@ export default function ReservationCalendar({
             };
 
             if (isCheckIn) {
-              cellClass = 'text-white shadow-sm';
-              cellStyle = {
-                ...cellStyle,
-                backgroundColor: '#0d6efd',
-                color: '#ffffff',
-                border: '2px solid #0a58ca',
-                fontWeight: 'bold'
-              };
-              cellTitle = `${dateStr}: Selected Check-In Date${hasStatus ? ` (Room Status: ${statusInfo.status})` : ''}`;
-              cellBadge = 'IN';
-              cellBadgeClass = 'badge bg-white text-primary px-1 py-0 shadow-xs fw-bold';
+              if (hasStatus) {
+                cellClass = `${statusInfo.className} shadow-sm position-relative`;
+                cellStyle = {
+                  ...cellStyle,
+                  border: '2px solid #dc3545',
+                  boxShadow: '0 0 0 1px #dc3545',
+                  fontWeight: 'bold'
+                };
+                cellTitle = `${dateStr}: Check-In CONFLICT! Overlaps with ${statusInfo.status} (${statusInfo.label})`;
+                cellBadge = `IN • ${compactLabel}`;
+                cellBadgeClass = 'badge bg-danger text-white px-1 py-0 shadow-xs fw-bold';
+              } else {
+                cellClass = 'text-white shadow-sm';
+                cellStyle = {
+                  ...cellStyle,
+                  backgroundColor: '#0d6efd',
+                  color: '#ffffff',
+                  border: '2px solid #0a58ca',
+                  fontWeight: 'bold'
+                };
+                cellTitle = `${dateStr}: Selected Check-In Date`;
+                cellBadge = 'IN';
+                cellBadgeClass = 'badge bg-white text-primary px-1 py-0 shadow-xs fw-bold';
+              }
             } else if (isCheckOut) {
-              cellClass = 'text-white shadow-sm';
-              cellStyle = {
-                ...cellStyle,
-                backgroundColor: '#055160',
-                color: '#ffffff',
-                border: '2px solid #032830',
-                fontWeight: 'bold'
-              };
-              cellTitle = `${dateStr}: Selected Check-Out Date${hasStatus ? ` (Room Status: ${statusInfo.status})` : ''}`;
-              cellBadge = 'OUT';
-              cellBadgeClass = 'badge bg-white text-info px-1 py-0 shadow-xs fw-bold';
+              if (hasStatus) {
+                cellClass = `${statusInfo.className} shadow-sm position-relative`;
+                cellStyle = {
+                  ...cellStyle,
+                  border: '2px solid #dc3545',
+                  boxShadow: '0 0 0 1px #dc3545',
+                  fontWeight: 'bold'
+                };
+                cellTitle = `${dateStr}: Check-Out CONFLICT! Overlaps with ${statusInfo.status} (${statusInfo.label})`;
+                cellBadge = `OUT • ${compactLabel}`;
+                cellBadgeClass = 'badge bg-danger text-white px-1 py-0 shadow-xs fw-bold';
+              } else {
+                cellClass = 'text-white shadow-sm';
+                cellStyle = {
+                  ...cellStyle,
+                  backgroundColor: '#055160',
+                  color: '#ffffff',
+                  border: '2px solid #032830',
+                  fontWeight: 'bold'
+                };
+                cellTitle = `${dateStr}: Selected Check-Out Date`;
+                cellBadge = 'OUT';
+                cellBadgeClass = 'badge bg-white text-info px-1 py-0 shadow-xs fw-bold';
+              }
             } else if (isStayRange) {
               if (hasStatus) {
                 cellClass = statusInfo.className;
@@ -365,7 +396,7 @@ export default function ReservationCalendar({
                   fontWeight: 'bold'
                 };
                 cellTitle = `OVERLAP CONFLICT on ${dateStr}: Overlaps with ${statusInfo.status}`;
-                cellBadge = 'CONFLICT';
+                cellBadge = `CONFLICT • ${compactLabel}`;
                 cellBadgeClass = 'badge bg-danger text-white px-1 py-0';
               } else {
                 cellClass = 'border text-primary';
@@ -388,10 +419,6 @@ export default function ReservationCalendar({
             } else if (hasStatus) {
               cellClass = statusInfo.className;
               cellTitle = `${dateStr}: ${statusInfo.status}`;
-              // Use compact badge names to prevent overflow in small columns
-              const compactLabel = statusInfo.label === 'Courtesy Hold' ? 'Hold' :
-                                   statusInfo.label === 'Under Maintenance' ? 'Maint' :
-                                   statusInfo.label;
               cellBadge = compactLabel;
               cellBadgeClass = 'fw-bold';
             }
@@ -434,6 +461,10 @@ export default function ReservationCalendar({
         <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#e7f1ff', border: '1px dashed #0d6efd' }}></span>
           <span className="text-muted fw-semibold">Stay Range</span>
+        </div>
+        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border border-danger">
+          <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#dc3545', border: '1px solid #842029' }}></span>
+          <span className="text-danger fw-bold">Conflict</span>
         </div>
         <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #0f5132' }}></span>

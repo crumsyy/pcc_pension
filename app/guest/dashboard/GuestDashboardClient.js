@@ -1208,26 +1208,30 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       if (!bookRes.ok) throw new Error(bookData.error || 'Failed to create online booking');
 
       const bookingID = bookData.bookingID;
+      let receiptDataToUse = bookData.receipt || null;
 
-      // 2. Submit GCash Payment with verified reference
-      const payRes = await fetch('/api/guest/payments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookingID,
-          paymentPercentage: `${paymentPctNumber}%`,
-          referenceNumber: finalRef,
-          amountToPay: amountToPayNow
-        })
-      });
+      if (!receiptDataToUse) {
+        // 2. Submit GCash Payment with verified reference if not already settled in booking
+        const payRes = await fetch('/api/guest/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookingID,
+            paymentPercentage: `${paymentPctNumber}%`,
+            referenceNumber: finalRef,
+            amountToPay: amountToPayNow
+          })
+        });
 
-      const payData = await payRes.json();
-      if (!payRes.ok) throw new Error(payData.error || 'Failed to process payment');
+        const payData = await payRes.json();
+        if (!payRes.ok) throw new Error(payData.error || 'Failed to process payment');
+        receiptDataToUse = payData.receipt;
+      }
 
       // Display "Booking Successful" dialog as explicitly requested
       showAlert('success', 'Booking Successful', `Your booking for Room ${selectedRoom.roomNumber} has been confirmed and payment processed successfully!`);
 
-      setReceiptData(payData.receipt);
+      setReceiptData(receiptDataToUse);
       setActiveModal('receipt');
       setIsGuestGcashSettled(false);
       setGcashRef('');
@@ -2325,40 +2329,39 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 {/* ACTIVE STAY / STATUS CARDS */}
                 {activeReservation && (
                   <div id="active-reservation-card" className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                    <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                      <div>
-                        {activeReservation.status === 'Courtesy Hold' ? (
-                          <span className="badge mb-1" style={{ backgroundColor: '#fd7e14', color: '#fff' }}>Courtesy Hold</span>
-                        ) : (
-                          <span className="badge bg-success text-white mb-1">Active Reservation Request</span>
-                        )}
-                        <h6 className="fw-bold mb-0 text-dark">Room {activeReservation.roomNumber} ({activeReservation.roomType})</h6>
-                        <div className="small text-muted mb-1">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
-                        {activeReservation.status === 'Courtesy Hold' && (() => {
-                          const holdInfo = getCourtesyHoldTimeInfo(activeReservation.holdExpiryDateTime);
-                          return holdInfo && !holdInfo.expired ? (
-                            <div className="small text-warning-emphasis fw-bold mb-2">
-                              <i className="bi bi-hourglass-split me-1 text-warning"></i>
-                              Hold expires in {holdInfo.text}
-                            </div>
-                          ) : null;
-                        })()}
-                        {renderReservationStatusTimeline(activeReservation.status)}
-                      </div>
-                      <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center mt-2 mt-sm-0">
-                        <button 
-                          className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm d-inline-flex align-items-center justify-content-center" 
-                          onClick={() => handleProceedToBooking(activeReservation)}
-                        >
-                          <i className="bi bi-calendar-check me-1"></i>Proceed to Booking
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm" 
-                          onClick={() => handleCancelReservation(activeReservation.reservationID)}
-                        >
-                          Cancel Hold
-                        </button>
-                      </div>
+                    <div>
+                      {activeReservation.status === 'Courtesy Hold' ? (
+                        <span className="badge mb-1" style={{ backgroundColor: '#fd7e14', color: '#fff' }}>Courtesy Hold</span>
+                      ) : (
+                        <span className="badge bg-success text-white mb-1">Active Reservation Request</span>
+                      )}
+                      <h6 className="fw-bold mb-0 text-dark">Room {activeReservation.roomNumber} ({activeReservation.roomType})</h6>
+                      <div className="small text-muted mb-1">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
+                      {activeReservation.status === 'Courtesy Hold' && (() => {
+                        const holdInfo = getCourtesyHoldTimeInfo(activeReservation.holdExpiryDateTime);
+                        return holdInfo && !holdInfo.expired ? (
+                          <div className="small text-warning-emphasis fw-bold mb-2">
+                            <i className="bi bi-hourglass-split me-1 text-warning"></i>
+                            Hold expires in {holdInfo.text}
+                          </div>
+                        ) : null;
+                      })()}
+                      {renderReservationStatusTimeline(activeReservation.status)}
+                    </div>
+                    {/* Action buttons directly below statuses: Cancel on left, Proceed to Booking on right */}
+                    <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top gap-2">
+                      <button 
+                        className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm" 
+                        onClick={() => handleCancelReservation(activeReservation.reservationID)}
+                      >
+                        {activeReservation.status === 'Courtesy Hold' ? 'Cancel Hold' : 'Cancel'}
+                      </button>
+                      <button 
+                        className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm d-inline-flex align-items-center justify-content-center" 
+                        onClick={() => handleProceedToBooking(activeReservation)}
+                      >
+                        <i className="bi bi-calendar-check me-1"></i>Proceed to Booking
+                      </button>
                     </div>
                   </div>
                 )}
@@ -3032,40 +3035,35 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </div>
                                 )}
                               </div>
-
-                              <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center mt-2 mt-sm-0">
-                                {(() => {
-                                  const normR = normalizeReservationStatus(r.status);
-                                  const canProceed = !['Booked', 'Cancelled'].includes(normR);
-                                  return (
-                                    <>
-                                      {canProceed && (
-                                        <button
-                                          className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
-                                          onClick={() => handleProceedToBooking(r)}
-                                          title="Proceed to Booking with Down Payment"
-                                          aria-label="Proceed to Booking"
-                                        >
-                                          <i className="bi bi-calendar-check me-1"></i>
-                                          Proceed to Booking
-                                        </button>
-                                      )}
-                                      {canProceed && (
-                                        <button
-                                          className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
-                                          onClick={() => handleCancelReservation(r.reservationID)}
-                                          title={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
-                                          aria-label={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
-                                        >
-                                          {isHold ? "Cancel Hold" : "Cancel"}
-                                        </button>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                              </div>
                             </div>
                             {renderReservationStatusTimeline(r.status)}
+                            {/* Action buttons directly below statuses: Cancel on left, Proceed to Booking on right */}
+                            {(() => {
+                              const normR = normalizeReservationStatus(r.status);
+                              const canProceed = !['Booked', 'Cancelled'].includes(normR);
+                              if (!canProceed) return null;
+                              return (
+                                <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top gap-2">
+                                  <button
+                                    className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
+                                    onClick={() => handleCancelReservation(r.reservationID)}
+                                    title={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
+                                    aria-label={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
+                                  >
+                                    {isHold ? "Cancel Hold" : "Cancel"}
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
+                                    onClick={() => handleProceedToBooking(r)}
+                                    title="Proceed to Booking with Down Payment"
+                                    aria-label="Proceed to Booking"
+                                  >
+                                    <i className="bi bi-calendar-check me-1"></i>
+                                    Proceed to Booking
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })}
@@ -3728,9 +3726,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
 
                   {selectedRoom && checkScheduleConflict(selectedRoom.roomID, checkInDate, checkOutDate) && (
-                    <div className="alert alert-danger py-2 px-3 small mb-3">
+                    <div className="alert alert-danger py-2 px-3 small mb-3 border border-danger shadow-xs">
                       <i className="bi bi-exclamation-triangle-fill me-1.5 fw-bold"></i>
-                      <strong>Schedule Conflict:</strong> Room {selectedRoom.roomNumber} is already booked for the selected date(s). Please select an open date.
+                      <strong>Schedule Conflict:</strong> Room {selectedRoom.roomNumber} is already held, reserved, or booked for the selected date(s) ({checkInDate}{checkOutDate ? ` to ${checkOutDate}` : ''}). Please select an open date on the calendar.
                     </div>
                   )}
 

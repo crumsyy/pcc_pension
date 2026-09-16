@@ -406,14 +406,18 @@ export async function POST(request) {
           });
         }
 
-        for (const g of guestEntries) {
-          if (g.fullName && g.fullName.trim()) {
-            await connection.execute(
-              `INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber)
-               VALUES (?, ?, ?, ?, ?)`,
-              [bookingID, g.fullName.trim(), parseInt(g.age) || 30, g.discountID ? parseInt(g.discountID) : null, g.discountIdNumber || null]
-            );
+        // Batch insert registered guests
+        const validGuests = guestEntries.filter(g => g && g.fullName && g.fullName.trim());
+        if (validGuests.length > 0) {
+          const placeholders = validGuests.map(() => '(?, ?, ?, ?, ?)').join(', ');
+          const values = [];
+          for (const g of validGuests) {
+            values.push(bookingID, g.fullName.trim(), parseInt(g.age) || 30, g.discountID ? parseInt(g.discountID) : null, g.discountIdNumber || null);
           }
+          await connection.execute(
+            `INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES ${placeholders}`,
+            values
+          );
         }
 
         // Record Early Check-In Fee if applicable
@@ -431,11 +435,56 @@ export async function POST(request) {
         await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
 
         // Create billing record with down payment details and remaining balance
-        await connection.execute(
+        const [billingInsert] = await connection.execute(
           `INSERT INTO billing (billingDateTime, guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) 
            VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?)`,
           [guest.guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
         );
+        const billingID = billingInsert.insertId;
+
+        // Atomically record settled GCash down payment and transaction if settled
+        let receiptData = null;
+        if ((body.isGcashSettled === true || body.paymentStatus === 'Settled') && body.referenceNumber) {
+          const cleanRef = String(body.referenceNumber).trim();
+          const localNow = new Date();
+          const pad = (num) => String(num).padStart(2, '0');
+          const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+          const isFullyPaid = remainingBalance <= 0.05 ? 1 : 0;
+
+          // 1. Insert payment record
+          const [paymentInsert] = await connection.execute(
+            `INSERT INTO payment (amount, cashReceived, \`change\`, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID, testMode, status, referenceNumber)
+             VALUES (?, ?, 0, ?, ?, ?, ?, 2, 1, 'Settled', ?)`,
+            [downPaymentAmount, downPaymentAmount, nowStr, isFullyPaid, billingID, guest.guestID, cleanRef]
+          );
+          const paymentID = paymentInsert.insertId;
+
+          // 2. Insert transaction record
+          await connection.execute(
+            "INSERT INTO transactions (transactionDateTime, billingID, paymentID, testMode) VALUES (?, ?, ?, 1)",
+            [nowStr, billingID, paymentID]
+          );
+
+          // 3. Log into billing_audit
+          const txType = isFullyPaid ? 'Down Payment (100%)' : `Down Payment (${downPaymentPercentage}%)`;
+          await connection.execute(
+            `INSERT INTO billing_audit (billingID, bookingID, transactionType, status, amount, balanceBefore, balanceAfter, userID, userName, userRole, description, referenceNumber, createdAt)
+             VALUES (?, ?, ?, 'Settled', ?, ?, ?, ?, ?, 'Guest', ?, ?, NOW())`,
+            [billingID, bookingID, txType, downPaymentAmount, totalAmount, remainingBalance, session.userID, `${guest.firstName} ${guest.lastName}`, `GCash Online Down Payment (Ref #${cleanRef})`, cleanRef]
+          ).catch((auditErr) => console.error("Billing audit insert failed:", auditErr));
+
+          receiptData = {
+            paymentID,
+            bookingID,
+            guestName: `${guest.firstName} ${guest.lastName}`,
+            paymentMethod: 'GCash Online',
+            referenceNumber: cleanRef,
+            paymentPercentage: `${downPaymentPercentage}%`,
+            amountPaid: downPaymentAmount,
+            remainingBalance,
+            timestamp: nowStr
+          };
+        }
 
         const [roomInfo] = await connection.execute(
           "SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
@@ -444,14 +493,17 @@ export async function POST(request) {
 
         await connection.commit();
 
-        // Fast background notification batching & detached email dispatch
-        (async () => {
+        // Non-blocking background notifications & email dispatch
+        setImmediate(async () => {
           try {
             const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
             const notifValues = [];
 
             for (const r of staffToNotify) {
               notifValues.push([r.userID, 'New Guest Booking Request', `Guest ${guest.firstName} ${guest.lastName} created Booking #${bookingID} for ${checkInDate}.`]);
+              if (receiptData) {
+                notifValues.push([r.userID, 'New GCash Online Payment', `GCash down payment of ₱${downPaymentAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${bookingID} (Ref #${body.referenceNumber}).`]);
+              }
             }
 
             for (const compRes of competingReservations) {
@@ -489,13 +541,14 @@ export async function POST(request) {
           } catch (bgErr) {
             console.error("Background notification batching error:", bgErr);
           }
-        })();
+        });
 
         return NextResponse.json({
           success: true,
           status: 'Confirmed',
           message: 'Booking confirmed successfully.',
-          bookingID
+          bookingID,
+          receipt: receiptData
         });
       } catch (err) {
         await connection.rollback();
