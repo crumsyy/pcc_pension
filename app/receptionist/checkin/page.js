@@ -223,9 +223,9 @@ function CheckInClient() {
     if (!loading && targetBookingID && bookings.length > 0) {
       const target = bookings.find(b => b.bookingID === parseInt(targetBookingID));
       if (target) {
-        if (target.status === 'Pending Check-in' || target.status === 'Overdue Check-In') {
+        if (['Pending Check-in', 'Pending', 'Confirmed', 'Booked', 'Overdue Check-In'].includes(target.status)) {
           handleCheckIn(target.bookingID, target.firstName + ' ' + target.lastName);
-        } else if (target.status === 'Checked In') {
+        } else if (target.status === 'Checked In' || target.status === 'Active Stay') {
           handleCheckOut(target.bookingID, target.firstName + ' ' + target.lastName);
         }
       }
@@ -326,9 +326,25 @@ function CheckInClient() {
     }
   };
 
-  const arrivals = bookings.filter(b => b.status === 'Pending Check-in' || b.status === 'Overdue Check-In');
+  const arrivals = bookings.filter(b => [
+    'Pending Check-in',
+    'Pending',
+    'Confirmed',
+    'Booked',
+    'Overdue Check-In'
+  ].includes(b.status));
+
   const departures = bookings.filter(b => [
-    'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'
+    'Checked In',
+    'Active Stay',
+    'Pending Room Verification',
+    'Pending Checkout',
+    'Room Verified',
+    'Bill Finalized',
+    'Final Billing Updated',
+    'Payment Completed',
+    'Paid',
+    'Late Checkout'
   ].includes(b.status));
 
   const filterList = (list) => {

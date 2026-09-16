@@ -449,13 +449,22 @@ function PaymentsClient() {
                       <div>Loading guest records...</div>
                     ) : (
                       <SearchableSelect
-                        options={activeBookings.map(b => ({
-                          value: String(b.bookingID),
-                          label: `Room ${b.roomNumber} (${b.roomType}) — ${b.lastName}, ${b.firstName}`
-                        }))}
+                        options={activeBookings.map(b => {
+                          const userTag = b.userID ? `UID-${b.userID}` : '';
+                          const guestTag = b.guestID ? `Guest-${b.guestID}` : '';
+                          const firstLast = `${b.firstName || ''} ${b.lastName || ''}`.trim();
+                          const lastFirst = `${b.lastName || ''}, ${b.firstName || ''}`.trim();
+                          const searchKW = `${firstLast} ${lastFirst} ${userTag} ${b.userID || ''} ${guestTag} ${b.guestID || ''} Room ${b.roomNumber} ${b.roomType || ''} ${b.contact || ''} BK-${b.bookingID}`;
+
+                          return {
+                            value: String(b.bookingID),
+                            label: `Room ${b.roomNumber} (${b.roomType}) — ${lastFirst}${b.userID ? ` (UID: ${b.userID})` : ''}`,
+                            searchKeywords: searchKW
+                          };
+                        })}
                         value={selectedBookingID}
                         onChange={handleBookingChange}
-                        placeholder="Type to search guest or room..."
+                        placeholder="Type guest name, room number, or User ID (UID)..."
                       />
                     )}
                   </div>

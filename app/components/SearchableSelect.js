@@ -49,13 +49,21 @@ export default function SearchableSelect({
     };
   }, []);
 
-  // Filter based on typed searchTerm
+  // Filter based on typed searchTerm or keywords
   const currentQuery = (isTyping ? searchTerm : '').trim().toLowerCase();
   const filtered = safeOptions.filter(opt => {
     if (!currentQuery) return true;
     const label = (opt?.label || '').toLowerCase();
     const val = String(opt?.value || '').toLowerCase();
-    return label.includes(currentQuery) || val === currentQuery || label.startsWith(`uid${currentQuery}`);
+    const keywords = (opt?.searchKeywords || '').toLowerCase();
+    const cleanNum = currentQuery.replace(/^uid[-:\s]*/i, '');
+
+    return (
+      label.includes(currentQuery) ||
+      val === currentQuery ||
+      keywords.includes(currentQuery) ||
+      (cleanNum && (keywords.includes(cleanNum) || label.includes(cleanNum) || val === cleanNum))
+    );
   });
 
   const handleClear = () => {
@@ -82,28 +90,31 @@ export default function SearchableSelect({
             if (trimmed.length > 0) {
               setIsOpen(true);
               // Check for exact UID or account match
+              const cleanQuery = trimmed.replace(/^uid[-:\s]*/i, '');
               const exactMatch = safeOptions.find(opt => {
                 const optVal = String(opt?.value || '').toLowerCase();
                 const optLabel = (opt?.label || '').toLowerCase();
+                const optKeywords = (opt?.searchKeywords || '').toLowerCase();
                 return optVal === trimmed || 
                        optLabel.startsWith(`uid${trimmed} `) || 
                        optLabel.startsWith(`uid${trimmed}–`) ||
                        optLabel.startsWith(`uid${trimmed} -`) ||
+                       (cleanQuery && (optKeywords.includes(`uid-${cleanQuery}`) || optKeywords.includes(`uid${cleanQuery}`))) ||
                        optLabel === trimmed;
               });
               if (exactMatch) {
                 onChange(exactMatch.value);
               }
             } else {
-              setIsOpen(false);
+              setIsOpen(true);
               onChange('');
             }
           }}
           onFocus={() => {
-            // When already has text/selected, show dropdown if text exists
-            if (displayValue.trim().length > 0) {
-              setIsOpen(true);
-            }
+            setIsOpen(true);
+          }}
+          onClick={() => {
+            setIsOpen(true);
           }}
           style={{ borderRadius: (displayValue && !disabled) ? '6px 0 0 6px' : '6px' }}
         />

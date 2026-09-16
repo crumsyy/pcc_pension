@@ -12,7 +12,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   if (searchParams.get('discountsOnly') === 'true') {
     try {
-      const discounts = await dbQuery("SELECT discountID, name, percentage FROM discounts WHERE eligibilityTypeID = 1 AND isArchived = 0");
+      const discounts = await dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name ASC");
       return NextResponse.json({ discounts });
     } catch (error) {
       return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -27,13 +27,13 @@ export async function GET(request) {
       dbQuery(`
         SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
                CASE
-                 WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND NOW() >= b.checkInDateTime AND NOW() <= DATE_ADD(b.checkInDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
-                 WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND b.checkInDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 'No Show'
+                 WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND NOW() >= b.checkInDateTime AND DATE(b.checkInDateTime) = CURDATE() THEN 'Overdue Check-In'
+                 WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND DATE(b.checkInDateTime) < CURDATE() THEN 'No Show'
                  ELSE b.status
                END as status,
                b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
-               g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
+               g.userID, g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
                rm.roomNumber, rm.occupancyLimit, rt.type as roomType, rm.image
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
@@ -62,7 +62,7 @@ export async function GET(request) {
         FROM booking_guest_details bg
         LEFT JOIN discounts d ON d.discountID = bg.discountID
       `),
-      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE eligibilityTypeID = 1 AND isArchived = 0"),
+      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name ASC"),
       dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method"),
       dbQuery(`
         SELECT bookingID, roomID, checkInDateTime, checkOutDateTime, status, 'booking' as type
@@ -545,11 +545,36 @@ export async function POST(request) {
       try {
         await conn.beginTransaction();
 
-        // Update booking checkIn/Out timestamps
+        // Update booking checkIn/Out timestamps and room/guest if specified
+        const newRoomID = body.roomID ? parseInt(body.roomID) : oldBooking.roomID;
+        const newGuestID = body.guestID ? parseInt(body.guestID) : oldBooking.guestID;
         await conn.execute(
-          "UPDATE booking SET checkInDateTime = ?, checkOutDateTime = ? WHERE bookingID = ?",
-          [checkInDateTime, checkOutDateTime, bookingID]
+          "UPDATE booking SET checkInDateTime = ?, checkOutDateTime = ?, roomID = ?, guestID = ? WHERE bookingID = ?",
+          [checkInDateTime, checkOutDateTime, newRoomID, newGuestID, bookingID]
         );
+
+        // Update guest information if provided
+        if (body.guestForm && newGuestID) {
+          const { firstName, lastName, contact, email, gender, dateOfBirth } = body.guestForm;
+          const dobVal = dateOfBirth ? (dateOfBirth.includes('/') ? dateOfBirth.split('/').reverse().join('-') : dateOfBirth) : null;
+          await conn.execute(
+            "UPDATE guest SET firstName = COALESCE(?, firstName), lastName = COALESCE(?, lastName), contact = COALESCE(?, contact), email = COALESCE(?, email), gender = COALESCE(?, gender), dateOfBirth = COALESCE(?, dateOfBirth) WHERE guestID = ?",
+            [firstName || null, lastName || null, contact || null, email || null, gender || null, dobVal || null, newGuestID]
+          );
+        }
+
+        // Update registered guests & discounts if provided
+        if (Array.isArray(body.guests) && body.guests.length > 0) {
+          await conn.execute("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+          for (const g of body.guests) {
+            if (g.fullName && g.fullName.trim()) {
+              await conn.execute(
+                "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, ?, ?)",
+                [bookingID, g.fullName.trim(), parseInt(g.age) || 30, g.discountID || null, g.discountIdNumber?.trim() || null]
+              );
+            }
+          }
+        }
 
         // Record fee in incidental_charge if extra guest fee exists
         if (extraGuestFee > 0) {

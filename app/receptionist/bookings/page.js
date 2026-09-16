@@ -262,11 +262,64 @@ function BookingsClient() {
     const inTimeStr = `${pad(inD.getHours())}:${pad(inD.getMinutes())}`;
     const outTimeStr = `${pad(outD.getHours())}:${pad(outD.getMinutes())}`;
 
-    setUpdateCheckInDate(inUiDate);
-    setUpdateCheckInTime(inTimeStr);
-    setUpdateCheckOutDate(outUiDate);
-    setUpdateCheckOutTime(outTimeStr);
-    setUpdateNumGuests(currentGuestCount);
+    // Pre-populate Workspace Date & Times
+    setCheckInDate(inUiDate);
+    setCheckInTime(inTimeStr);
+    setCheckOutDate(outUiDate);
+    setCheckOutTime(outTimeStr);
+    setNumGuestsCount(currentGuestCount);
+
+    // Pre-populate Guest Info
+    const matchedGuest = guests.find(g => String(g.guestID) === String(b.guestID));
+    setGuestForm({
+      firstName: b.firstName || matchedGuest?.firstName || '',
+      lastName: b.lastName || matchedGuest?.lastName || '',
+      contact: b.contact || matchedGuest?.contact || '',
+      email: b.email || matchedGuest?.email || '',
+      gender: b.gender || matchedGuest?.gender || 'Male',
+      dateOfBirth: b.dateOfBirth ? toUiDate(b.dateOfBirth) : (matchedGuest?.dateOfBirth ? toUiDate(matchedGuest.dateOfBirth) : '')
+    });
+    setIsAutoFilled(Boolean(b.guestID));
+
+    // Pre-populate Room Selection
+    setSelectedRoomType(b.roomType || '');
+    setBreakfastOption(b.breakfastOption || 'with');
+    setFormData({
+      guestID: b.guestID ? String(b.guestID) : '',
+      roomID: String(b.roomID),
+      checkInDateTime: inStr,
+      checkOutDateTime: outStr,
+      status: b.status || 'Checked In'
+    });
+
+    // Pre-populate Registered Guests and Discounts
+    if (b.registeredGuests && b.registeredGuests.length > 0) {
+      setRoomGuests(b.registeredGuests.map(g => ({
+        fullName: g.fullName || '',
+        age: g.age || 30,
+        discountID: g.discountID ? String(g.discountID) : '',
+        discountIdNumber: g.discountIdNumber || ''
+      })));
+      setDiscountedGuests(b.registeredGuests.map(g => ({
+        guestName: g.fullName || '',
+        discountID: g.discountID ? String(g.discountID) : '',
+        discountIdNumber: g.discountIdNumber || ''
+      })));
+    } else {
+      const primaryFullName = `${b.firstName || ''} ${b.lastName || ''}`.trim();
+      setRoomGuests([{
+        fullName: primaryFullName,
+        age: 30,
+        discountID: '',
+        discountIdNumber: ''
+      }]);
+      setDiscountedGuests([{
+        guestName: primaryFullName,
+        discountID: '',
+        discountIdNumber: ''
+      }]);
+    }
+
     setActiveModal('update_booking');
   };
 
@@ -274,28 +327,28 @@ function BookingsClient() {
     e.preventDefault();
     if (!updatingBooking) return;
 
-    const newNumGuests = parseInt(updateNumGuests) || 1;
+    if (!guestForm.email || !guestForm.email.trim()) {
+      showAlert('error', 'Validation Error', 'Email address is required for walk-in guests to receive booking confirmation and official receipt.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestForm.email.trim())) {
+      showAlert('error', 'Validation Error', 'Please enter a valid email address (e.g. name@example.com).');
+      return;
+    }
+
+    const newNumGuests = parseInt(numGuestsCount) || 1;
     if (newNumGuests < 1) {
       showAlert('error', 'Validation Error', 'Number of guests must be at least 1.');
       return;
     }
 
-    if (!isValidDate(updateCheckInDate) || !isValidDate(updateCheckOutDate)) {
+    if (!isValidDate(checkInDate) || !isValidDate(checkOutDate)) {
       showAlert('error', 'Validation Error', 'Please enter valid Check-In and Check-Out dates (MM/DD/YYYY).');
       return;
     }
 
-    const newInD = new Date(toDbDate(updateCheckInDate) + 'T' + updateCheckInTime + ':00');
-    const newOutD = new Date(toDbDate(updateCheckOutDate) + 'T' + updateCheckOutTime + ':00');
-
-    const todayFloor = new Date();
-    todayFloor.setHours(0, 0, 0, 0);
-    const checkInFloor = new Date(toDbDate(updateCheckInDate) + 'T00:00:00');
-
-    if (checkInFloor < todayFloor) {
-      showAlert('error', 'Validation Error', 'Reservation or booking has already passed.');
-      return;
-    }
+    const newInD = new Date(toDbDate(checkInDate) + 'T' + checkInTime + ':00');
+    const newOutD = new Date(toDbDate(checkOutDate) + 'T' + checkOutTime + ':00');
 
     if (newOutD <= newInD) {
       showAlert('error', 'Validation Error', 'Check-out time must be later than check-in time.');
@@ -304,10 +357,23 @@ function BookingsClient() {
 
     const origInStr = (updatingBooking.checkInDateTime || '').replace(' ', 'T').substring(0, 16);
     const origOutStr = (updatingBooking.checkOutDateTime || '').replace(' ', 'T').substring(0, 16);
-    const newInStr = (toDbDate(updateCheckInDate) + 'T' + updateCheckInTime).substring(0, 16);
-    const newOutStr = (toDbDate(updateCheckOutDate) + 'T' + updateCheckOutTime).substring(0, 16);
+    const newInStr = (toDbDate(checkInDate) + 'T' + checkInTime).substring(0, 16);
+    const newOutStr = (toDbDate(checkOutDate) + 'T' + checkOutTime).substring(0, 16);
 
     const datesChanged = (origInStr !== newInStr) || (origOutStr !== newOutStr);
+
+    const preparedGuests = [];
+    const primaryName = `${guestForm.firstName} ${guestForm.lastName}`.trim() || 'Primary Guest';
+    for (let i = 0; i < (parseInt(numGuestsCount) || 1); i++) {
+      const disc = discountedGuests[i] || roomGuests[i];
+      const gName = disc?.guestName?.trim() || disc?.fullName?.trim();
+      preparedGuests.push({
+        fullName: gName || (i === 0 ? primaryName : `Guest #${i + 1}`),
+        age: disc?.age ? parseInt(disc.age) : 30,
+        discountID: disc?.discountID ? parseInt(disc.discountID) : null,
+        discountIdNumber: disc?.discountIdNumber?.trim() || null
+      });
+    }
 
     const executeUpdate = async () => {
       setIsUpdatingBooking(true);
@@ -318,9 +384,13 @@ function BookingsClient() {
           body: JSON.stringify({
             action: 'update_booking',
             bookingID: updatingBooking.bookingID,
-            checkInDateTime: toDbDate(updateCheckInDate) + ' ' + updateCheckInTime + ':00',
-            checkOutDateTime: toDbDate(updateCheckOutDate) + ' ' + updateCheckOutTime + ':00',
-            numGuestsCount: newNumGuests
+            guestID: formData.guestID || null,
+            roomID: formData.roomID || updatingBooking.roomID,
+            checkInDateTime: toDbDate(checkInDate) + ' ' + checkInTime + ':00',
+            checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
+            numGuestsCount: newNumGuests,
+            guestForm,
+            guests: preparedGuests
           })
         });
         const data = await res.json();
@@ -351,28 +421,28 @@ function BookingsClient() {
 
       const origInFormatted = formatDateTimeNice(updatingBooking.checkInDateTime);
       const origOutFormatted = formatDateTimeNice(updatingBooking.checkOutDateTime);
-      const newInFormatted = `${updateCheckInDate} ${updateCheckInTime}`;
-      const newOutFormatted = `${updateCheckOutDate} ${updateCheckOutTime}`;
+      const newInFormatted = `${checkInDate} ${checkInTime}`;
+      const newOutFormatted = `${checkOutDate} ${checkOutTime}`;
 
       const confirmMessage = (
         <div className="text-start">
-          <p className="mb-2 text-dark font-medium">Are you sure you want to rebook schedule this booking?</p>
+          <p className="mb-2 text-dark font-medium">Are you sure you want to update this booking?</p>
           <div className="p-3 bg-light rounded border text-start small mb-2">
             <div className="text-muted fw-bold mb-2 text-uppercase" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>
-              Rebooking Audit Schedule Preview:
+              Schedule Update Preview:
             </div>
             <div className="d-flex justify-content-between mb-1 pb-1 border-bottom">
               <span className="text-muted">Original Schedule:</span>
               <span className="fw-semibold text-danger">{origInFormatted} → {origOutFormatted}</span>
             </div>
             <div className="d-flex justify-content-between pt-1">
-              <span className="text-muted">New Rebooked Schedule:</span>
+              <span className="text-muted">New Schedule:</span>
               <span className="fw-bold text-success">{newInFormatted} → {newOutFormatted}</span>
             </div>
           </div>
         </div>
       );
-      showConfirm('Confirm Rebooking', confirmMessage, executeUpdate);
+      showConfirm('Confirm Booking Update', confirmMessage, executeUpdate);
     } else {
       executeUpdate();
     }
@@ -726,7 +796,7 @@ function BookingsClient() {
   };
 
   useEffect(() => {
-    if (activeModal !== 'create') {
+    if (activeModal !== 'create' && activeModal !== 'update_booking') {
       setIsAutoFilled(false);
       setGuestForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
       setSelectedRoomType('');
@@ -748,7 +818,7 @@ function BookingsClient() {
 
   // Synchronize first guest name
   useEffect(() => {
-    if (activeModal === 'create') {
+    if (activeModal === 'create' || activeModal === 'update_booking') {
       let name = `${guestForm.firstName} ${guestForm.lastName}`.trim();
       let calculatedAge = '';
       if (guestForm.dateOfBirth) {
@@ -768,7 +838,7 @@ function BookingsClient() {
 
   // Auto-calculate downPayment based on selected room, breakfast option, and downpayment percentage tier
   useEffect(() => {
-    if (activeModal === 'create' && formData.roomID) {
+    if ((activeModal === 'create' || activeModal === 'update_booking') && formData.roomID) {
       const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
       const rate = selectedRoom
         ? (breakfastOption === 'with'
@@ -1546,16 +1616,20 @@ function BookingsClient() {
         )}
       </div>
 
-      {/* CREATE MODAL */}
-      {activeModal === 'create' && (
+      {/* CREATE / UPDATE LODGING BOOKING WORKSPACE MODAL */}
+      {(activeModal === 'create' || activeModal === 'update_booking') && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ background: '#2155B5' }}>
-                <h5 className="modal-title fw-bold">New Lodging Booking Workspace</h5>
+                <h5 className="modal-title fw-bold">
+                  {activeModal === 'create'
+                    ? 'New Lodging Booking Workspace'
+                    : `Update Booking #${updatingBooking ? `BK${String(updatingBooking.bookingID).padStart(5, '0')}` : ''}`}
+                </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
-              <form onSubmit={handleCreateSubmit}>
+              <form onSubmit={activeModal === 'create' ? handleCreateSubmit : handleUpdateBookingSubmit}>
                 <div className="modal-body">
                   {/* TOP: SELECT GUEST ACCOUNT (UID) */}
                   <div className="p-3 mb-3 border rounded bg-light">
@@ -1645,16 +1719,19 @@ function BookingsClient() {
                       </div>
                       <div className="col-md-4 mb-2">
                         <label className="form-label small fw-semibold mb-1">
-                          Email Address *
+                          Email Address <span className="text-danger fw-bold">* (Required)</span>
                         </label>
                         <input
                           type="email"
-                          className="form-control form-control-sm"
+                          className={`form-control form-control-sm ${!guestForm.email ? 'border-warning' : ''}`}
                           placeholder="name@example.com"
                           required
                           value={guestForm.email}
                           onChange={(e) => setGuestForm(prev => ({ ...prev, email: e.target.value }))}
                         />
+                        <div className="form-text small text-muted" style={{ fontSize: '0.73rem' }}>
+                          <i className="bi bi-info-circle me-1"></i>Required for walk-in guests to receive booking confirmation and official receipt.
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2146,7 +2223,16 @@ function BookingsClient() {
                             </select>
                           </div>
 
-                          {String(paymentMethodID) === '1' ? (
+                          {activeModal === 'update_booking' ? (
+                            <div className="col-md-12">
+                              <div className="alert alert-info py-2.5 px-3 mb-0 small d-flex align-items-center gap-2">
+                                <i className="bi bi-info-circle-fill fs-5 text-primary"></i>
+                                <div>
+                                  <strong>Update Booking Mode:</strong> Initial down payment was already recorded for this booking. Room charges and schedule adjustments will be automatically updated in the Billing Ledger upon check-out.
+                                </div>
+                              </div>
+                            </div>
+                          ) : String(paymentMethodID) === '1' ? (
                             <>
                               <div className="col-md-4">
                                 <label className="form-label small fw-semibold">Payment Received (₱) *</label>
@@ -2230,11 +2316,11 @@ function BookingsClient() {
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                   <LoadingButton
                     type="submit"
-                    isLoading={isSubmitting}
-                    loadingText="Saving Booking..."
+                    isLoading={activeModal === 'create' ? isSubmitting : isUpdatingBooking}
+                    loadingText={activeModal === 'create' ? 'Saving Booking...' : 'Updating Booking...'}
                     className="btn btn-pcc-primary text-white fw-bold"
                   >
-                    Save Booking & Record Down Payment
+                    {activeModal === 'create' ? 'Save Booking & Record Down Payment' : 'Save & Update Booking'}
                   </LoadingButton>
                 </div>
               </form>
@@ -2453,171 +2539,7 @@ function BookingsClient() {
         </div>
       )}
 
-      {/* UPDATE BOOKING MODAL */}
-      {activeModal === 'update_booking' && updatingBooking && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0">
-              <div className="modal-header text-white" style={{ background: '#2155B5' }}>
-                <h5 className="modal-title fw-bold d-flex align-items-center">
-                  <i className="fa-solid fa-edit me-2"></i>Update Booking #{`BK${String(updatingBooking.bookingID).padStart(5, '0')}`}
-                </h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
-              <form onSubmit={handleUpdateBookingSubmit}>
-                <div className="modal-body p-4">
-                  <div className="p-3 bg-light rounded border mb-3 small">
-                    <div className="row g-2">
-                      <div className="col-6">
-                        <span className="text-muted d-block">Primary Guest:</span>
-                        <span className="fw-bold text-dark">{updatingBooking.firstName} {updatingBooking.lastName}</span>
-                      </div>
-                      <div className="col-6">
-                        <span className="text-muted d-block">Room Number:</span>
-                        <span className="fw-bold text-dark">{updatingBooking.roomNumber || 'Room N/A'} ({updatingBooking.roomType || 'Standard'})</span>
-                      </div>
-                      <div className="col-6">
-                        <span className="text-muted d-block">Room Capacity:</span>
-                        <span className="fw-bold text-dark">{updatingBooking.occupancyLimit || 4} Pax</span>
-                      </div>
-                      <div className="col-6">
-                        <span className="text-muted d-block">Current Booking Guests:</span>
-                        <span className="fw-bold text-primary">{updatingBooking.currentGuestCount || updateNumGuests || 1} Pax</span>
-                      </div>
-                      <div className="col-12 mt-1 pt-1 border-top d-flex justify-content-between align-items-center">
-                        <span className="text-muted small">Current Booking Status:</span>
-                        <span className="badge bg-primary">{updatingBooking.status}</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="row g-3 mb-3">
-                    <div className="col-md-6">
-                      <CalendarDatePicker
-                        label="Check-In Date *"
-                        value={updateCheckInDate}
-                        onChange={(val) => setUpdateCheckInDate(val)}
-                        minDate={todayDbDate}
-                        helperText="Select new arrival date"
-                      />
-                      <div className="mt-2">
-                        <label className="form-label small fw-semibold">Check-In Time *</label>
-                        <input
-                          type="time"
-                          className={`form-control form-control-sm ${updateUseCurrentTimeIn ? 'bg-light text-muted' : ''}`}
-                          required
-                          value={updateCheckInTime}
-                          min={isUpdateToday && !updateUseCurrentTimeIn ? currentTimeStr : undefined}
-                          disabled={Boolean(updateUseCurrentTimeIn)}
-                          onChange={(e) => setUpdateCheckInTime(e.target.value)}
-                        />
-                        <div className="form-check mt-1">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="updUseCurrentTimeIn"
-                            checked={Boolean(updateUseCurrentTimeIn)}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setUpdateUseCurrentTimeIn(checked);
-                              if (checked) {
-                                const now = new Date();
-                                const pad = (n) => String(n).padStart(2, '0');
-                                setUpdateCheckInDate(toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`));
-                                setUpdateCheckInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-                              } else {
-                                setUpdateCheckInTime('14:00');
-                              }
-                            }}
-                          />
-                          <label className="form-check-label small text-muted user-select-none fw-semibold text-dark" htmlFor="updUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-                            Check-In Now (use current time)
-                          </label>
-                          <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
-                            <i className="bi bi-info-circle me-1"></i>
-                            Checked In immediately when selected; defaults to 2:00 PM when unselected.
-                          </div>
-                        </div>
-                        {isUpdateToday && !updateUseCurrentTimeIn && (
-                          <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                            Earliest selectable time today: {currentTimeStr}
-                          </small>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="col-md-6">
-                      <CalendarDatePicker
-                        label="Check-Out Date *"
-                        value={updateCheckOutDate}
-                        onChange={(val) => setUpdateCheckOutDate(val)}
-                        minDate={updateCheckInDate ? toDbDate(updateCheckInDate) : todayDbDate}
-                        helperText="Select new departure date"
-                      />
-                      <div className="mt-2">
-                        <label className="form-label small fw-semibold">Check-Out Time *</label>
-                        <input
-                          type="time"
-                          className="form-control form-control-sm"
-                          required
-                          value={updateCheckOutTime}
-                          onChange={(e) => setUpdateCheckOutTime(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* DYNAMIC STAY DURATION & NIGHTS SUMMARY BADGE */}
-                  <div className="p-3 bg-primary-subtle border border-primary-subtle rounded-3 mb-3 d-flex justify-content-between align-items-center">
-                    <div>
-                      <div className="fw-bold text-primary small d-flex align-items-center gap-1">
-                        <i className="fa-solid fa-moon me-1"></i>
-                        <span>New Stay Duration</span>
-                      </div>
-                      <div className="text-muted small mt-1">
-                        {toDbDate(updateCheckInDate) || 'Check-in'} → {toDbDate(updateCheckOutDate) || 'Check-out'}
-                      </div>
-                    </div>
-                    <div className="text-end">
-                      <span className="badge bg-primary text-white fs-6 px-3 py-1 shadow-xs">
-                        {calculateBookingNights(updateCheckInDate, updateCheckOutDate)} {calculateBookingNights(updateCheckInDate, updateCheckOutDate) === 1 ? 'Night' : 'Nights'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mb-2">
-                    <label className="form-label small fw-semibold">Number of Guests *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="form-control form-control-sm fw-bold"
-                      required
-                      value={updateNumGuests}
-                      onChange={(e) => setUpdateNumGuests(e.target.value)}
-                    />
-                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                      Extra guests beyond room capacity add ₱100/night per extra guest to incidental billing.
-                    </small>
-                  </div>
-                </div>
-
-                <div className="modal-footer bg-light px-4 py-3 d-flex justify-content-end gap-2">
-                  <button type="button" className="btn btn-secondary btn-sm fw-bold text-white" onClick={() => setActiveModal(null)}>
-                    Cancel
-                  </button>
-                  <LoadingButton
-                    type="submit"
-                    isLoading={isUpdatingBooking}
-                    loadingText="Saving Changes..."
-                    className="btn btn-success btn-sm text-white fw-bold"
-                  >
-                    <i className="fa-solid fa-check me-1"></i>Save Changes
-                  </LoadingButton>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
       )}
       {/* FINALIZE BILL MODAL */}
       {finalizeBillModal.isOpen && finalizeBillModal.booking && (
