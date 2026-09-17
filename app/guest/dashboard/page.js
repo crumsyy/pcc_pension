@@ -3,8 +3,6 @@ import { requireSessionRole } from "@/lib/session";
 import { dbQuery, syncRoomStatuses, getBookingBalanceDetails, getBookingBalance } from "@/lib/db";
 import GuestDashboardClient from "./GuestDashboardClient";
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 export const unstable_instant = false;
 
 export default async function GuestDashboard() {

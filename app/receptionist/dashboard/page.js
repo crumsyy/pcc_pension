@@ -3,9 +3,6 @@ import { dbQuery, syncRoomStatuses } from "@/lib/db";
 import { requireSessionRole } from "@/lib/session";
 import AutoRefresh from "@/app/components/AutoRefresh";
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export default async function ReceptionistDashboard() {
   const auth = await requireSessionRole("Receptionist");
   await syncRoomStatuses(true);
