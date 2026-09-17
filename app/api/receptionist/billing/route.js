@@ -492,47 +492,86 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Incidental charge deleted successfully.' });
     }
 
-    if (action === 'apply_manual_discount') {
+    if (action === 'apply_manual_discount' || action === 'apply_manual_discounts') {
       const bookingID = parseInt(body.bookingID);
-      const { discountID, beneficiaryName, discountIdNumber } = body;
-
       if (!bookingID) {
         return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
       }
-      if (!discountID) {
-        return NextResponse.json({ error: 'Please select a discount type.' }, { status: 400 });
-      }
-      if (!beneficiaryName || !beneficiaryName.trim()) {
-        return NextResponse.json({ error: 'Beneficiary name is required for verification.' }, { status: 400 });
-      }
-      if (!discountIdNumber || !discountIdNumber.trim()) {
-        return NextResponse.json({ error: 'ID card number is required for verification.' }, { status: 400 });
+
+      let discountsList = [];
+      if (Array.isArray(body.discounts) && body.discounts.length > 0) {
+        discountsList = body.discounts;
+      } else if (body.discountID) {
+        discountsList = [{
+          discountID: body.discountID,
+          beneficiaryName: body.beneficiaryName,
+          discountIdNumber: body.discountIdNumber
+        }];
+      } else {
+        return NextResponse.json({ error: 'Please specify at least one discount to apply.' }, { status: 400 });
       }
 
-      let dbDiscountID = null;
-      let dbPromotionID = null;
-      const rawDiscountID = String(discountID);
-      if (rawDiscountID.startsWith('disc-')) {
-        dbDiscountID = parseInt(rawDiscountID.replace('disc-', ''));
-      } else if (rawDiscountID.startsWith('promo-')) {
-        dbPromotionID = parseInt(rawDiscountID.replace('promo-', ''));
-      } else {
-        dbDiscountID = parseInt(rawDiscountID);
+      // Check booking and reservation guestCount
+      const [bRows] = await dbQuery(
+        `SELECT b.bookingID, b.guestID, COALESCE(r.guestCount, 1) as guestCount 
+         FROM booking b 
+         LEFT JOIN reservation r ON r.reservationID = b.reservationID 
+         WHERE b.bookingID = ?`,
+        [bookingID]
+      );
+      if (!bRows || bRows.length === 0) {
+        return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      }
+      const allowedGuestCount = Math.max(1, parseInt(bRows[0].guestCount || 1));
+
+      if (discountsList.length > allowedGuestCount) {
+        return NextResponse.json({
+          error: `Cannot apply ${discountsList.length} discounts. Maximum eligible discounts for this stay is ${allowedGuestCount} (total room guests).`
+        }, { status: 400 });
+      }
+
+      // Validate each discount
+      const parsedDiscounts = [];
+      for (let i = 0; i < discountsList.length; i++) {
+        const item = discountsList[i];
+        if (!item.discountID) {
+          return NextResponse.json({ error: `Beneficiary #${i + 1}: Please select a discount type.` }, { status: 400 });
+        }
+        if (!item.beneficiaryName || !item.beneficiaryName.trim()) {
+          return NextResponse.json({ error: `Beneficiary #${i + 1}: Full name is required for verification.` }, { status: 400 });
+        }
+        if (!item.discountIdNumber || !item.discountIdNumber.trim()) {
+          return NextResponse.json({ error: `Beneficiary #${i + 1} (${item.beneficiaryName.trim()}): ID card number is required for verification.` }, { status: 400 });
+        }
+
+        let dbDiscountID = null;
+        let dbPromotionID = null;
+        const rawDiscountID = String(item.discountID);
+        if (rawDiscountID.startsWith('disc-')) {
+          dbDiscountID = parseInt(rawDiscountID.replace('disc-', ''));
+        } else if (rawDiscountID.startsWith('promo-')) {
+          dbPromotionID = parseInt(rawDiscountID.replace('promo-', ''));
+        } else {
+          dbDiscountID = parseInt(rawDiscountID);
+        }
+
+        parsedDiscounts.push({
+          fullName: item.beneficiaryName.trim(),
+          discountID: dbDiscountID,
+          promotionID: dbPromotionID,
+          discountIdNumber: item.discountIdNumber.trim()
+        });
       }
 
       const balanceBefore = await getBookingBalance(bookingID);
 
-      // Find or create booking_guest_details record
-      const existing = await dbQuery("SELECT bookingGuestID FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
-      if (existing.length > 0) {
+      // Replace existing discount records for this booking in booking_guest_details
+      await dbQuery("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+
+      for (const pd of parsedDiscounts) {
         await dbQuery(
-          "UPDATE booking_guest_details SET fullName = ?, discountID = ?, promotionID = ?, discountIdNumber = ? WHERE bookingGuestID = ?",
-          [beneficiaryName.trim(), dbDiscountID, dbPromotionID, discountIdNumber.trim(), existing[0].bookingGuestID]
-        );
-      } else {
-        await dbQuery(
-          "INSERT INTO booking_guest_details (bookingID, fullName, discountID, promotionID, discountIdNumber) VALUES (?, ?, ?, ?, ?)",
-          [bookingID, beneficiaryName.trim(), dbDiscountID, dbPromotionID, discountIdNumber.trim()]
+          "INSERT INTO booking_guest_details (bookingID, fullName, discountID, promotionID, discountIdNumber, age) VALUES (?, ?, ?, ?, ?, 60)",
+          [bookingID, pd.fullName, pd.discountID, pd.promotionID, pd.discountIdNumber]
         );
       }
 
@@ -541,6 +580,7 @@ export async function POST(request) {
       const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? LIMIT 1", [bookingID]);
       const billingID = billingRes[0]?.billingID || null;
 
+      const descList = parsedDiscounts.map(d => `${d.fullName} (${d.discountIdNumber})`).join(', ');
       await logBillingAudit(null, {
         billingID,
         bookingID,
@@ -551,17 +591,20 @@ export async function POST(request) {
         userID: session.userID,
         userName: session.email || 'Receptionist',
         userRole: session.role,
-        description: `Applied discount for ${beneficiaryName.trim()} (ID: ${discountIdNumber.trim()}). Savings: ₱${discountSaved.toFixed(2)}`
+        description: `Applied discounts for ${parsedDiscounts.length} guest(s): ${descList}. Total Savings: ₱${discountSaved.toFixed(2)}`
       });
 
-      return NextResponse.json({ success: true, message: 'Discount applied to billing successfully.' });
+      return NextResponse.json({
+        success: true,
+        message: `${parsedDiscounts.length} discount(s) applied to billing successfully. Total savings: ₱${discountSaved.toFixed(2)}.`
+      });
     }
 
-    if (action === 'remove_discount') {
+    if (action === 'remove_discount' || action === 'remove_discounts') {
       const bookingID = parseInt(body.bookingID);
       if (!bookingID) return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
-      await dbQuery("UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ?", [bookingID]);
-      return NextResponse.json({ success: true, message: 'Discount removed.' });
+      await dbQuery("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+      return NextResponse.json({ success: true, message: 'All applied discounts removed from billing.' });
     }
 
     // Default: Update Guest Discounts

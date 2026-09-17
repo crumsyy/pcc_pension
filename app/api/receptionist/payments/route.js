@@ -12,6 +12,7 @@ export async function GET(request) {
     const [activeBookings, discounts, paymentMethods, paymentHistory] = await Promise.all([
       dbQuery(`
         SELECT b.bookingID, b.guestID, b.roomID, b.status, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
+               COALESCE(b.remainingBalance, 0) as remainingBalance,
                g.userID, g.firstName, g.lastName, g.contact,
                rm.roomNumber, rt.type as roomType
         FROM booking b
@@ -47,17 +48,15 @@ export async function GET(request) {
     ]);
 
     // Filter activeBookings: Active Stay, Checked In and Late Checkout guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
-    const filteredActiveBookings = [];
-    for (const b of activeBookings) {
+    const filteredActiveBookings = activeBookings.filter(b => {
       if (['Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Payment Completed', 'Paid'].includes(b.status)) {
-        filteredActiveBookings.push(b);
-      } else if (b.status === 'Checked Out') {
-        const bal = await getBookingBalance(b.bookingID);
-        if (bal > 0.05) {
-          filteredActiveBookings.push(b);
-        }
+        return true;
       }
-    }
+      if (b.status === 'Checked Out' && parseFloat(b.remainingBalance || 0) > 0.05) {
+        return true;
+      }
+      return false;
+    });
 
     return NextResponse.json({
       success: true,

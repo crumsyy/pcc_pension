@@ -98,7 +98,7 @@ export default function SidebarClient({ session, role, children }) {
       {/* MOBILE TOP BAR */}
       <div 
         className="d-flex d-lg-none justify-content-between align-items-center p-3 text-white sticky-top" 
-        style={{ backgroundColor: 'var(--pcc-blue)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', zIndex: 1030, position: 'sticky', top: 0 }}
+        style={{ backgroundColor: 'var(--pcc-blue)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', zIndex: 1050, position: 'sticky', top: 0 }}
       >
         <Link href={dashboardUrl} className="d-flex align-items-center gap-2 text-decoration-none">
           <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ height: '36px', borderRadius: '4px' }} />
@@ -217,7 +217,7 @@ export default function SidebarClient({ session, role, children }) {
         {/* DESKTOP HEADER PORTION */}
         <header 
           className="d-none d-lg-flex justify-content-between align-items-center px-4 py-3 text-white border-bottom shadow-sm" 
-          style={{ position: 'sticky', top: 0, zIndex: 1010, backgroundColor: 'var(--pcc-blue)' }}
+          style={{ position: 'sticky', top: 0, zIndex: 1050, backgroundColor: 'var(--pcc-blue)' }}
         >
           <div>
             <h4 className="m-0 text-white fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>

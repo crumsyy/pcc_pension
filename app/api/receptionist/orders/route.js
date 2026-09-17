@@ -81,7 +81,14 @@ export async function GET(request) {
         ORDER BY a.name
       `),
       dbQuery(`
-        SELECT b.bookingID, b.guestID, b.status as bookingStatus, g.firstName, g.lastName, rm.roomNumber, rm.status as roomStatus 
+        SELECT b.bookingID, b.guestID, b.status as bookingStatus, b.breakfastOption,
+               g.firstName, g.lastName, rm.roomNumber, rm.status as roomStatus,
+               (
+                 SELECT COALESCE(SUM(op.quantity), 0)
+                 FROM order_product op
+                 JOIN orders o2 ON o2.orderID = op.orderID
+                 WHERE o2.bookingID = b.bookingID AND op.isComplimentary = 1 AND o2.orderStatus != 'Canceled'
+               ) as complimentaryBreakfastUsed
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
@@ -139,7 +146,7 @@ export async function POST(request) {
 
         // Check active booking for this guest (supports checked-in guests and pending check-in overrides)
         const [bookingCheck] = await connection.execute(
-          `SELECT b.bookingID, b.roomID, b.status as bookingStatus, g.firstName, g.lastName, r.roomTypeID, r.floorID, r.status as roomStatus 
+          `SELECT b.bookingID, b.roomID, b.status as bookingStatus, b.breakfastOption, g.firstName, g.lastName, r.roomTypeID, r.floorID, r.status as roomStatus 
            FROM booking b 
            JOIN guest g ON g.guestID = b.guestID 
            JOIN room r ON r.roomID = b.roomID
@@ -153,6 +160,7 @@ export async function POST(request) {
         }
         const activeBooking = bookingCheck[0];
         const activeBookingID = activeBooking.bookingID;
+        const activeRoomID = activeBooking.roomID;
         const isOccupiedAndCheckedIn = (['Checked In', 'Active Stay', 'Late Checkout'].includes(activeBooking.bookingStatus) && ['Occupied', 'Reserved'].includes(activeBooking.roomStatus));
         const activeBorrowedBy = `${activeBooking.firstName} ${activeBooking.lastName}`.trim();
 
@@ -170,21 +178,30 @@ export async function POST(request) {
           });
         }
 
-        // Check if order contains cooked breakfast meals
-        let containsCookedBreakfast = false;
+        // Check each item for cooked meal category and delivery type
         for (const item of items) {
+          let isCookedMeal = false;
           if (item.type === 'Product') {
             const [pRes] = await connection.execute(
               "SELECT productCategoryID, name FROM products WHERE productID = ?",
               [parseInt(item.itemID)]
             );
             if (pRes.length > 0 && pRes[0].productCategoryID === 3) {
-              containsCookedBreakfast = true;
+              isCookedMeal = true;
             }
+          }
+          item.isCookedMeal = isCookedMeal;
+          if (isCookedMeal) {
+            item.deliveryType = 'scheduled';
+          } else {
+            item.deliveryType = item.deliveryType === 'scheduled' ? 'scheduled' : 'immediate';
           }
         }
 
-        // Validate deliveryTime and deliveryDate for cooked meals
+        const containsCookedBreakfast = items.some(it => it.isCookedMeal);
+        const hasScheduledItems = items.some(it => it.deliveryType === 'scheduled');
+
+        // Validate deliveryTime and deliveryDate for scheduled breakfast items
         const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
           timeZone: 'Asia/Manila',
           year: 'numeric',
@@ -192,12 +209,12 @@ export async function POST(request) {
           day: '2-digit'
         });
         const todayManila = manilaDateFormatter.format(new Date()); // YYYY-MM-DD
-        const deliveryDate = body.deliveryDate ? String(body.deliveryDate).trim() : (containsCookedBreakfast ? todayManila : null);
+        const deliveryDate = body.deliveryDate ? String(body.deliveryDate).trim() : (hasScheduledItems ? todayManila : null);
 
-        if (containsCookedBreakfast) {
+        if (hasScheduledItems) {
           if (!body.deliveryTime) {
             return NextResponse.json({
-              error: "Please select a scheduled delivery time (between 6:00 AM and 10:30 AM) for cooked breakfast meals."
+              error: "Please select a scheduled delivery time (between 6:00 AM and 10:30 AM) for scheduled breakfast items."
             }, { status: 400 });
           }
           const allowedTimes = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
@@ -241,61 +258,55 @@ export async function POST(request) {
           }
         }
 
-        // Rule 10: Complimentary Breakfast Entitlement Check
+        // Complimentary Breakfast Entitlement: Up to 2 free cooked meals per stay if room includes breakfast
         const [compCheck] = await connection.execute(
-          `SELECT COUNT(*) as compCount 
+          `SELECT COALESCE(SUM(op.quantity), 0) as compCount 
            FROM order_product op 
            JOIN orders o ON o.orderID = op.orderID 
-           WHERE o.bookingID = ? AND op.isComplimentary = 1`,
+           WHERE o.bookingID = ? AND op.isComplimentary = 1 AND o.orderStatus != 'Canceled'`,
           [activeBookingID]
         );
-        let currentCompCount = compCheck[0]?.compCount || 0;
+        let currentCompCount = parseInt(compCheck[0]?.compCount || 0);
 
-        // Fetch room rate to see if breakfast is included (breakfastID = 2 or rateWithBreakfast)
         const [rateCheck] = await connection.execute(
           `SELECT breakfastID FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = 2`,
-          [bookingCheck[0].roomTypeID, bookingCheck[0].floorID]
+          [activeBooking.roomTypeID, activeBooking.floorID]
         );
-        const roomHasBreakfast = rateCheck.length > 0;
+        const roomHasBreakfast = (activeBooking.breakfastOption === 'with') || (rateCheck.length > 0);
+        const maxCompAllowance = 2; // Up to 2 complimentary breakfast meals included with room package
 
-        const deliveryTime = body.deliveryTime || null;
-        const orderDeliveryType = (containsCookedBreakfast || items.some(it => it.deliveryType === 'scheduled')) ? 'scheduled' : 'immediate';
-        const initialOrderStatus = isOccupiedAndCheckedIn ? 'Preparing' : 'Pending Delivery';
-        // 1. Create order record
-        const [orderResult] = await connection.execute(
-          "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal, deliveryTime, deliveryDate, deliveryType) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-          [initialOrderStatus, nowStr, guestID, activeBookingID, containsCookedBreakfast ? 1 : 0, deliveryTime, deliveryDate, orderDeliveryType]
-        );
-        const orderID = orderResult.insertId;
+        // Separate items into Immediate vs Scheduled groups
+        const immediateItems = items.filter(it => it.deliveryType !== 'scheduled');
+        const scheduledItems = items.filter(it => it.deliveryType === 'scheduled');
+        const createdOrderIDs = [];
 
-        // 2. Insert items and update stock using FIFO batches
-        for (const item of items) {
+        const processItemBatch = async (targetOrderID, item, targetDeliveryType, targetStatus) => {
           const itemID = parseInt(item.itemID);
           const quantity = parseInt(item.quantity);
-          if (!itemID || quantity <= 0) continue;
+          if (!itemID || isNaN(quantity) || quantity <= 0) return;
 
-          let isCookedMeal = false;
-          if (item.type === 'Product') {
-            const [pRes] = await connection.execute(
-              "SELECT productCategoryID FROM products WHERE productID = ?",
-              [itemID]
-            );
-            if (pRes.length > 0 && pRes[0].productCategoryID === 3) {
-              isCookedMeal = true;
+          if (item.isCookedMeal) {
+            let compQty = 0;
+            if (roomHasBreakfast && currentCompCount < maxCompAllowance) {
+              const remComp = maxCompAllowance - currentCompCount;
+              compQty = Math.min(quantity, remComp);
+              currentCompCount += compQty;
             }
-          }
+            const paidQty = quantity - compQty;
 
-          if (isCookedMeal) {
-            let isComplimentary = 0;
-            if (roomHasBreakfast && currentCompCount < 1) {
-              isComplimentary = 1;
-              currentCompCount++;
+            if (compQty > 0) {
+              await connection.execute(
+                "INSERT INTO order_product(quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES(?, ?, ?, 1, ?, ?)",
+                [compQty, targetOrderID, itemID, targetDeliveryType, targetStatus]
+              );
             }
-            await connection.execute(
-              "INSERT INTO order_product(quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES(?, ?, ?, ?, 'scheduled', 'Scheduled')",
-              [quantity, orderID, itemID, isComplimentary]
-            );
-            continue;
+            if (paidQty > 0) {
+              await connection.execute(
+                "INSERT INTO order_product(quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES(?, ?, ?, 0, ?, ?)",
+                [paidQty, targetOrderID, itemID, targetDeliveryType, targetStatus]
+              );
+            }
+            return;
           }
 
           // Fetch active batches for this item
@@ -334,7 +345,7 @@ export async function POST(request) {
             await connection.execute(
               `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
                VALUES (?, ?, ?, ?, ?, ?, 'Guest Order placed', ?)`,
-              [item.type, itemID, -take, session.userID, mType, `ORD-${orderID}`, batch.batchID]
+              [item.type, itemID, -take, session.userID, mType, `ORD-${targetOrderID}`, batch.batchID]
             );
 
             needed -= take;
@@ -352,25 +363,56 @@ export async function POST(request) {
                 activeBookingID,
                 activeRoomID,
                 session.userID,
-                `Borrowed via Guest Order ORD-${orderID}`
+                `Borrowed via Guest Order ORD-${targetOrderID}`
               ]
             );
           }
 
-          const itDelType = item.deliveryType === 'scheduled' ? 'scheduled' : 'immediate';
-          const itStatus = itDelType === 'scheduled' ? 'Scheduled' : 'Placed';
           if (item.type === 'Product') {
-            await connection.execute("INSERT INTO order_product(quantity, orderID, productID, deliveryType, itemStatus) VALUES(?, ?, ?, ?, ?)", [quantity, orderID, itemID, itDelType, itStatus]);
+            await connection.execute("INSERT INTO order_product(quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES(?, ?, ?, 0, ?, ?)", [quantity, targetOrderID, itemID, targetDeliveryType, targetStatus]);
             await connection.execute("UPDATE products SET quantity = GREATEST(0, quantity - ?) WHERE productID = ?", [quantity, itemID]);
           } else {
-            await connection.execute("INSERT INTO order_amenities(quantity, orderID, amenityID, deliveryType, itemStatus) VALUES(?, ?, ?, ?, ?)", [quantity, orderID, itemID, itDelType, itStatus]);
+            await connection.execute("INSERT INTO order_amenities(quantity, orderID, amenityID, deliveryType, itemStatus) VALUES(?, ?, ?, ?, ?)", [quantity, targetOrderID, itemID, targetDeliveryType, targetStatus]);
             await connection.execute("UPDATE amenities SET quantity = GREATEST(0, quantity - ?) WHERE amenityID = ?", [quantity, itemID]);
+          }
+        };
+
+        // 1. Create immediate order if any immediate items exist
+        if (immediateItems.length > 0) {
+          const initialImmStatus = isOccupiedAndCheckedIn ? 'Preparing' : 'Pending Delivery';
+          const [immOrderResult] = await connection.execute(
+            "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal, deliveryTime, deliveryDate, deliveryType) VALUES (?, ?, ?, ?, 0, NULL, NULL, 'immediate')",
+            [initialImmStatus, nowStr, guestID, activeBookingID]
+          );
+          const immOrderID = immOrderResult.insertId;
+          createdOrderIDs.push(immOrderID);
+          for (const it of immediateItems) {
+            await processItemBatch(immOrderID, it, 'immediate', 'Placed');
+          }
+        }
+
+        // 2. Create scheduled order if any scheduled items exist
+        if (scheduledItems.length > 0) {
+          const hasCookedInScheduled = scheduledItems.some(it => it.isCookedMeal);
+          const [schedOrderResult] = await connection.execute(
+            "INSERT INTO orders (orderStatus, orderDateTime, guestID, bookingID, hasCookedMeal, deliveryTime, deliveryDate, deliveryType) VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')",
+            ['Scheduled', nowStr, guestID, activeBookingID, hasCookedInScheduled ? 1 : 0, body.deliveryTime || '07:30 AM', deliveryDate]
+          );
+          const schedOrderID = schedOrderResult.insertId;
+          createdOrderIDs.push(schedOrderID);
+          for (const it of scheduledItems) {
+            await processItemBatch(schedOrderID, it, 'scheduled', 'Scheduled');
           }
         }
 
         await connection.commit();
         await syncInventoryStock();
-        return NextResponse.json({ success: true, message: 'Order created successfully.', orderID });
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Order created successfully.', 
+          orderID: createdOrderIDs[0] || null,
+          orderIDs: createdOrderIDs 
+        });
       } catch (err) {
         await connection.rollback();
         throw err;

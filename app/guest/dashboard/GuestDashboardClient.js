@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
@@ -447,6 +448,28 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const handleModalRemoveProfilePic = () => {
     setEditProfileForm(prev => ({ ...prev, profilePicture: '' }));
   };
+
+  const router = useRouter();
+
+  // Real-time polling to keep room statuses, balances, and orders updated
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible' &&
+        activeModal === 'none' &&
+        !showBillModal &&
+        !showAuditTrailModal &&
+        !showEditProfileModal &&
+        !paymongoLoading &&
+        viewMode === 'default'
+      ) {
+        router.refresh();
+      }
+    }, 15000);
+
+    return () => clearInterval(timer);
+  }, [router, activeModal, showBillModal, showAuditTrailModal, showEditProfileModal, paymongoLoading, viewMode]);
 
   const handleSaveProfileSubmit = async (e) => {
     e.preventDefault();
@@ -4366,10 +4389,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       {((detailedBill.productCharges || detailedBill.chargesBreakdown?.orders?.products || []).concat(detailedBill.amenityCharges || detailedBill.chargesBreakdown?.orders?.amenities || [])).length > 0 ? (
                         (detailedBill.productCharges || detailedBill.chargesBreakdown?.orders?.products || []).concat(detailedBill.amenityCharges || detailedBill.chargesBreakdown?.orders?.amenities || []).map((item, idx) => (
                           <tr key={idx}>
-                            <td>{item.name}</td>
+                            <td>
+                              {item.name}
+                              {(item.isComplimentary || parseFloat(item.price) === 0) && (
+                                <span className="badge bg-success-subtle text-success ms-1.5" style={{ fontSize: '0.70rem' }}>Complimentary Breakfast</span>
+                              )}
+                            </td>
                             <td>{item.quantity}</td>
-                            <td>₱{parseFloat(item.price).toFixed(2)}</td>
-                            <td className="text-end fw-semibold">₱{parseFloat(item.subtotal).toFixed(2)}</td>
+                            <td>{(item.isComplimentary || parseFloat(item.price) === 0) ? <span className="text-success fw-bold">₱0.00</span> : `₱${parseFloat(item.price).toFixed(2)}`}</td>
+                            <td className="text-end fw-semibold">{(item.isComplimentary || parseFloat(item.price) === 0) ? <span className="text-success fw-bold">₱0.00</span> : `₱${parseFloat(item.subtotal).toFixed(2)}`}</td>
                           </tr>
                         ))
                       ) : (
@@ -4383,12 +4411,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {/* 5. APPORTIONED DISCOUNTS */}
                 {(detailedBill.totalDiscount || detailedBill.chargesBreakdown?.discounts?.total || 0) > 0 && (
-                  <div className="alert alert-success py-2.5 px-3 mb-3 d-flex justify-content-between align-items-center" style={{ fontSize: '0.82rem' }}>
-                    <span>
-                      <i className="bi bi-tag-fill me-1.5"></i>
-                      Discounts / Promotions Applied (Senior Citizen, PWD, Promo):
-                    </span>
-                    <strong className="fs-6">-₱{parseFloat(detailedBill.totalDiscount || detailedBill.chargesBreakdown?.discounts?.total).toFixed(2)}</strong>
+                  <div className="alert alert-success py-2.5 px-3 mb-3" style={{ fontSize: '0.82rem' }}>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-bold">
+                        <i className="bi bi-tag-fill me-1.5"></i>
+                        Discounts Applied (Proportionate Share Deduction):
+                      </span>
+                      <strong className="fs-6">-₱{parseFloat(detailedBill.totalDiscount || detailedBill.chargesBreakdown?.discounts?.total).toFixed(2)}</strong>
+                    </div>
+                    {((detailedBill.chargesBreakdown?.discounts?.beneficiaries || detailedBill.finalGuestsList || detailedBill.guestsList || []).filter(g => g.discountID || g.promotionID)).map((ben, bIdx) => (
+                      <div key={bIdx} className="d-flex justify-content-between text-success-emphasis ps-2" style={{ fontSize: '0.74rem' }}>
+                        <span>• {ben.fullName || ben.beneficiaryName || `Beneficiary #${bIdx + 1}`} ({ben.discountName || ben.name || 'Senior/PWD'} - {ben.percentage || 20}% share) {ben.discountIdNumber ? `[ID: ${ben.discountIdNumber}]` : ''}</span>
+                        <span className="fw-semibold">-₱{parseFloat(ben.discountDeduction || ben.deduction || 0).toFixed(2)}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
 

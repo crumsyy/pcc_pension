@@ -445,13 +445,40 @@ export default function ReceptionistOrders() {
     setCart(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const cartTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  }, [cart]);
-
   const selectedBooking = useMemo(() => {
     return activeBookings.find(b => String(b.guestID) === String(selectedGuestID));
   }, [activeBookings, selectedGuestID]);
+
+  const complimentaryBreakfastAvailable = useMemo(() => {
+    if (!selectedBooking || selectedBooking.breakfastOption !== 'with') return 0;
+    const used = parseInt(selectedBooking.complimentaryBreakfastUsed || 0);
+    return Math.max(0, 2 - used);
+  }, [selectedBooking]);
+
+  const { cartSubtotal, complimentaryDeduction, cartTotal } = useMemo(() => {
+    let subtotal = 0;
+    let cookedCount = 0;
+    let compDeduction = 0;
+
+    for (const item of cart) {
+      const itemPrice = parseFloat(item.price || 0);
+      const itemQty = parseInt(item.quantity || 0);
+      subtotal += itemPrice * itemQty;
+
+      if (item.isCookedMeal && complimentaryBreakfastAvailable > 0) {
+        const canComp = Math.max(0, complimentaryBreakfastAvailable - cookedCount);
+        const freeInItem = Math.min(itemQty, canComp);
+        compDeduction += freeInItem * itemPrice;
+        cookedCount += freeInItem;
+      }
+    }
+
+    return {
+      cartSubtotal: subtotal,
+      complimentaryDeduction: compDeduction,
+      cartTotal: Math.max(0, subtotal - compDeduction)
+    };
+  }, [cart, complimentaryBreakfastAvailable]);
 
   const handleSubmitOrder = async (e) => {
     if (e) e.preventDefault();
@@ -768,8 +795,16 @@ export default function ReceptionistOrders() {
             <div className="p-3 bg-light rounded-2 border mb-3">
               <div className="d-flex justify-content-between mb-1 small text-muted">
                 <span>Subtotal:</span>
-                <span>₱{cartTotal.toFixed(2)}</span>
+                <span>₱{cartSubtotal.toFixed(2)}</span>
               </div>
+              {complimentaryDeduction > 0 && (
+                <div className="d-flex justify-content-between mb-1 small text-success">
+                  <span>
+                    <i className="bi bi-gift-fill me-1"></i>Complimentary Breakfast:
+                  </span>
+                  <span className="fw-bold">-₱{complimentaryDeduction.toFixed(2)}</span>
+                </div>
+              )}
               <div className="d-flex justify-content-between mb-1 small text-muted">
                 <span>Delivery / Service Fee:</span>
                 <span className="text-success fw-bold">FREE</span>

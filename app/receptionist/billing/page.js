@@ -79,32 +79,72 @@ export default function ReceptionistBilling() {
     }
   };
 
-  const [manualDiscountForm, setManualDiscountForm] = useState({
-    discountID: '',
-    beneficiaryName: '',
-    discountIdNumber: ''
-  });
+  const [discountBeneficiaries, setDiscountBeneficiaries] = useState([]);
 
   const openEditDiscountsModal = () => {
     if (!billDetails) return;
-    const existingBeneficiary = billDetails.guestsList?.find(g => g.discountID) || billDetails.guestsList?.[0];
-    setManualDiscountForm({
-      discountID: existingBeneficiary?.discountID || '',
-      beneficiaryName: existingBeneficiary?.fullName || `${billDetails.booking.firstName} ${billDetails.booking.lastName}`,
-      discountIdNumber: existingBeneficiary?.discountIdNumber || ''
-    });
+    const existing = (billDetails.guestsList || []).filter(g => g.discountID || g.promotionID);
+    if (existing.length > 0) {
+      setDiscountBeneficiaries(existing.map(g => ({
+        discountID: g.discountID ? `disc-${g.discountID}` : (g.promotionID ? `promo-${g.promotionID}` : ''),
+        beneficiaryName: g.fullName || '',
+        discountIdNumber: g.discountIdNumber || ''
+      })));
+    } else {
+      setDiscountBeneficiaries([{
+        discountID: '',
+        beneficiaryName: `${billDetails.booking.firstName} ${billDetails.booking.lastName}`,
+        discountIdNumber: ''
+      }]);
+    }
     setIsEditingDiscounts(true);
+  };
+
+  const handleAddBeneficiaryRow = () => {
+    const maxPax = billDetails?.chargesSummary?.totalGuests || 1;
+    if (discountBeneficiaries.length >= maxPax) {
+      showAlert('warning', 'Limit Reached', `Cannot add more discounts than total stay guests (${maxPax} Pax).`);
+      return;
+    }
+    setDiscountBeneficiaries(prev => [
+      ...prev,
+      { discountID: prev[0]?.discountID || '', beneficiaryName: '', discountIdNumber: '' }
+    ]);
+  };
+
+  const handleRemoveBeneficiaryRow = (index) => {
+    setDiscountBeneficiaries(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateBeneficiaryField = (index, field, value) => {
+    setDiscountBeneficiaries(prev => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
   };
 
   const handleSaveDiscountsSubmit = async (e) => {
     e.preventDefault();
-    if (!manualDiscountForm.discountID) {
-      showAlert('warning', 'Discount Required', 'Please choose a discount type to apply.');
+    if (discountBeneficiaries.length === 0) {
+      showAlert('warning', 'No Discounts', 'Please add at least one discount beneficiary or click Remove All.');
       return;
     }
-    if (!manualDiscountForm.beneficiaryName.trim() || !manualDiscountForm.discountIdNumber.trim()) {
-      showAlert('warning', 'Validation Error', 'Beneficiary full name and ID card number are required for verification.');
-      return;
+
+    for (let i = 0; i < discountBeneficiaries.length; i++) {
+      const b = discountBeneficiaries[i];
+      if (!b.discountID) {
+        showAlert('warning', 'Selection Required', `Beneficiary #${i + 1}: Please select a discount type.`);
+        return;
+      }
+      if (!b.beneficiaryName.trim()) {
+        showAlert('warning', 'Validation Error', `Beneficiary #${i + 1}: Full name is required.`);
+        return;
+      }
+      if (!b.discountIdNumber.trim()) {
+        showAlert('warning', 'Validation Error', `Beneficiary #${i + 1} (${b.beneficiaryName}): ID card number is required.`);
+        return;
+      }
     }
 
     try {
@@ -112,18 +152,16 @@ export default function ReceptionistBilling() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'apply_manual_discount',
+          action: 'apply_manual_discounts',
           bookingID: selectedBookingID,
-          discountID: manualDiscountForm.discountID,
-          beneficiaryName: manualDiscountForm.beneficiaryName,
-          discountIdNumber: manualDiscountForm.discountIdNumber
+          discounts: discountBeneficiaries
         })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to apply discount');
+      if (!res.ok) throw new Error(data.error || 'Failed to apply discounts');
 
-      showAlert('success', 'Discount Applied', data.message || 'Discount applied to billing statement successfully.');
+      showAlert('success', 'Discounts Applied', data.message || 'Discounts applied to billing statement successfully.');
       setIsEditingDiscounts(false);
       fetchBillingDetails(selectedBookingID);
     } catch (err) {
@@ -132,20 +170,20 @@ export default function ReceptionistBilling() {
   };
 
   const handleRemoveDiscountSubmit = async () => {
-    showConfirm('Remove Discount', 'Are you sure you want to remove the applied discount from this bill?', async () => {
+    showConfirm('Remove All Discounts', 'Are you sure you want to remove all applied discounts from this bill?', async () => {
       try {
         const res = await fetch('/api/receptionist/billing', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'remove_discount',
+            action: 'remove_discounts',
             bookingID: selectedBookingID
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to remove discount');
+        if (!res.ok) throw new Error(data.error || 'Failed to remove discounts');
 
-        showAlert('success', 'Success', 'Discount removed from billing.');
+        showAlert('success', 'Success', 'All discounts removed from billing.');
         setIsEditingDiscounts(false);
         fetchBillingDetails(selectedBookingID);
       } catch (err) {
@@ -650,49 +688,74 @@ export default function ReceptionistBilling() {
                             </table>
                           </div>
 
-                          {/* Registered Guests Pax breakdown list */}
-                          {billDetails.guestsList && billDetails.guestsList.length > 0 && (
-                            <div className="mb-2 bg-light p-2 rounded border animate__animated animate__fadeIn" style={{ fontSize: '0.75rem' }}>
-                              <div className="fw-bold mb-1 text-dark d-flex justify-content-between align-items-center">
-                                <span>Registered Room Guests ({billDetails.guestsList.length} Pax)</span>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-pcc-primary text-white"
-                                  style={{ fontSize: '0.72rem', padding: '3px 10px', borderRadius: '15px' }}
-                                  onClick={openEditDiscountsModal}
-                                >
-                                  <i className="fa-solid fa-percent me-1"></i> Apply/Edit Discounts
-                                </button>
+                          {/* Room Occupancy & Capacity Summary (Replaces legacy registered guests list) */}
+                          <div className="mb-3 bg-light p-3 rounded-3 border animate__animated animate__fadeIn" style={{ fontSize: '0.80rem' }}>
+                            <div className="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                              <div className="d-flex align-items-center gap-2">
+                                <i className="bi bi-people-fill text-primary fs-6"></i>
+                                <span className="fw-bold text-dark">Stay Occupancy &amp; Capacity</span>
                               </div>
-                              <div className="row g-2">
-                                {billDetails.guestsList.map((g, index) => (
-                                  <div key={index} className="col-md-6">
-                                    <div className="p-2 border rounded bg-white h-100 d-flex justify-content-between align-items-center shadow-sm">
-                                      <div>
-                                        <span className="fw-semibold text-dark">{g.fullName}</span> 
-                                        <span className="text-muted"> ({g.age} yrs)</span>
-                                        {g.discountName && (
-                                          <div className="text-success fw-semibold" style={{ fontSize: '0.75rem', marginTop: '2px' }}>
-                                            ✓ {g.discountName} {g.discountIdNumber ? `(${g.discountIdNumber})` : ''}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="text-end font-monospace ms-2">
-                                        {g.discount > 0 ? (
-                                          <>
-                                            <div className="text-decoration-line-through text-muted" style={{ fontSize: '0.72rem' }}>₱{parseFloat(g.share).toFixed(2)}</div>
-                                            <div className="text-success fw-bold">₱{parseFloat(g.netShare).toFixed(2)}</div>
-                                          </>
-                                        ) : (
-                                          <div className="text-dark fw-semibold">₱{parseFloat(g.share).toFixed(2)}</div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-pcc-primary text-white"
+                                style={{ fontSize: '0.74rem', padding: '4px 12px', borderRadius: '15px' }}
+                                onClick={openEditDiscountsModal}
+                              >
+                                <i className="fa-solid fa-percent me-1"></i> Apply / Edit Discounts
+                              </button>
+                            </div>
+
+                            <div className="row g-2 text-dark">
+                              <div className="col-sm-6 col-md-4">
+                                <div className="p-2 bg-white rounded border h-100">
+                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Number of Guests:</span>
+                                  <span className="fw-bold fs-6 text-primary">{billDetails.chargesSummary.totalGuests} Pax</span>
+                                  <span className="text-muted small ms-1">(from booking)</span>
+                                </div>
+                              </div>
+                              <div className="col-sm-6 col-md-4">
+                                <div className="p-2 bg-white rounded border h-100">
+                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Room Standard Capacity:</span>
+                                  <span className="fw-bold fs-6 text-dark">{billDetails.booking.roomBasePax || billDetails.booking.occupancyLimit || 4} Pax Max</span>
+                                </div>
+                              </div>
+                              <div className="col-sm-12 col-md-4">
+                                <div className="p-2 bg-white rounded border h-100">
+                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Capacity Status:</span>
+                                  {billDetails.chargesSummary.extraGuests > 0 ? (
+                                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning fw-semibold" style={{ fontSize: '0.73rem' }}>
+                                      +{billDetails.chargesSummary.extraGuests} Extra Pax (+₱{parseFloat(billDetails.chargesSummary.extraGuestFee).toFixed(2)})
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-success-subtle text-success border border-success fw-semibold" style={{ fontSize: '0.73rem' }}>
+                                      ✓ Within Standard Capacity
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          )}
+
+                            {/* Applied Discounts breakdown if any */}
+                            {((billDetails.guestsList || []).filter(g => g.discountID || g.promotionID)).length > 0 ? (
+                              <div className="mt-2.5 pt-2 border-top">
+                                <div className="fw-semibold text-success mb-1" style={{ fontSize: '0.76rem' }}>
+                                  <i className="bi bi-tag-fill me-1"></i>Applied Discounts ({((billDetails.guestsList || []).filter(g => g.discountID || g.promotionID)).length} Beneficiar{((billDetails.guestsList || []).filter(g => g.discountID || g.promotionID)).length > 1 ? 'ies' : 'y'} — Total Savings: -₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}):
+                                </div>
+                                <div className="d-flex flex-wrap gap-2">
+                                  {(billDetails.guestsList || []).filter(g => g.discountID || g.promotionID).map((b, idx) => (
+                                    <div key={idx} className="badge bg-white text-dark border p-2 text-start font-monospace shadow-sm" style={{ fontSize: '0.74rem', fontWeight: 'normal' }}>
+                                      <strong className="text-primary">{b.fullName}</strong> — {b.discountName} ({b.discountIdNumber})
+                                      <span className="text-success fw-bold ms-1">-₱{parseFloat(b.discount || 0).toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-2 text-muted small" style={{ fontSize: '0.73rem' }}>
+                                No senior citizen or PWD discounts currently applied. Click &quot;Apply / Edit Discounts&quot; to add qualifying beneficiaries.
+                              </div>
+                            )}
+                          </div>
 
                           {/* Extra product orders */}
                           <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Product Charges (Drinks/Snacks/Meals)</h6>
@@ -1149,64 +1212,97 @@ export default function ReceptionistBilling() {
       {isEditingDiscounts && billDetails && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content border-0">
+            <div className="modal-content border-0 shadow">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Apply Guest Discounts — Room {billDetails.booking.roomNumber}</h5>
+                <h5 className="modal-title">
+                  <i className="bi bi-percent me-2"></i>Apply Guest Discounts — Room {billDetails.booking.roomNumber}
+                </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setIsEditingDiscounts(false)}></button>
               </div>
               <form onSubmit={handleSaveDiscountsSubmit}>
                 <div className="modal-body p-4">
-                  <div className="alert alert-info py-2 small mb-3">
-                    Apply a discount (e.g. Senior Citizen, PWD, Student) to this stay by selecting the discount type and verifying the beneficiary details below.
+                  <div className="alert alert-info py-2 small mb-3 d-flex align-items-center justify-content-between">
+                    <div>
+                      <i className="bi bi-info-circle me-1"></i>
+                      Discounts (e.g. Senior Citizen, PWD) are calculated per beneficiary's proportionate share of room charges.
+                    </div>
+                    <span className="badge bg-primary text-white">
+                      Stay Capacity: {billDetails.chargesSummary?.totalGuests || 1} Pax
+                    </span>
                   </div>
 
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold small">Discount Type *</label>
-                    <select
-                      className="form-select form-select-sm fw-bold text-pcc-blue"
-                      required
-                      value={manualDiscountForm.discountID}
-                      onChange={(e) => setManualDiscountForm({ ...manualDiscountForm, discountID: e.target.value })}
+                  {discountBeneficiaries.map((b, idx) => (
+                    <div key={idx} className="card p-3 mb-3 border bg-light">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="badge bg-secondary">Beneficiary #{idx + 1}</span>
+                        {discountBeneficiaries.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger py-0 px-2"
+                            onClick={() => handleRemoveBeneficiaryRow(idx)}
+                          >
+                            <i className="bi bi-x-circle me-1"></i>Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="row g-2">
+                        <div className="col-md-4">
+                          <label className="form-label fw-semibold small mb-1">Discount Type *</label>
+                          <select
+                            className="form-select form-select-sm fw-bold text-pcc-blue"
+                            required
+                            value={b.discountID}
+                            onChange={(e) => handleUpdateBeneficiaryField(idx, 'discountID', e.target.value)}
+                          >
+                            <option value="">-- Choose Discount --</option>
+                            {billDetails.discounts.map(d => (
+                              <option key={d.discountID} value={d.discountID}>
+                                {d.name} ({d.percentage}% Off)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label fw-semibold small mb-1">Beneficiary Full Name *</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            required
+                            placeholder="e.g. Juan Dela Cruz"
+                            value={b.beneficiaryName}
+                            onChange={(e) => handleUpdateBeneficiaryField(idx, 'beneficiaryName', e.target.value)}
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label fw-semibold small mb-1">Government / ID No. *</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            required
+                            placeholder="e.g. OSCA-12345 / PWD-9876"
+                            value={b.discountIdNumber}
+                            onChange={(e) => handleUpdateBeneficiaryField(idx, 'discountIdNumber', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {discountBeneficiaries.length < (billDetails.chargesSummary?.totalGuests || 1) && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary btn-sm w-100 mb-2"
+                      style={{ borderStyle: 'dashed' }}
+                      onClick={handleAddBeneficiaryRow}
                     >
-                      <option value="">-- Choose Discount / Promotion --</option>
-                      {billDetails.discounts.map(d => (
-                        <option key={d.discountID} value={d.discountID}>
-                          {d.name} ({d.percentage}% Off)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold small">Beneficiary Full Name *</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      required
-                      placeholder="e.g. Juan Dela Cruz"
-                      value={manualDiscountForm.beneficiaryName}
-                      onChange={(e) => setManualDiscountForm({ ...manualDiscountForm, beneficiaryName: e.target.value })}
-                    />
-                    <small className="text-muted" style={{ fontSize: '0.74rem' }}>Enter the full name of the Senior, PWD, or Student beneficiary.</small>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold small">Government / Student ID Number *</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      required
-                      placeholder="e.g. OSCA-123456 / PWD-98765"
-                      value={manualDiscountForm.discountIdNumber}
-                      onChange={(e) => setManualDiscountForm({ ...manualDiscountForm, discountIdNumber: e.target.value })}
-                    />
-                    <small className="text-muted" style={{ fontSize: '0.74rem' }}>Required for audit compliance and BIR senior/PWD deductions.</small>
-                  </div>
+                      <i className="bi bi-plus-circle me-1"></i>Add Another Senior / PWD Discount (Up to {billDetails.chargesSummary?.totalGuests || 1} Pax)
+                    </button>
+                  )}
                 </div>
                 <div className="modal-footer border-top-0 d-flex justify-content-between">
-                  {billDetails.guestsList?.some(g => g.discountID) ? (
+                  {billDetails.guestsList?.some(g => g.discountID || g.promotionID) ? (
                     <button type="button" className="btn btn-outline-danger btn-sm" onClick={handleRemoveDiscountSubmit}>
-                      <i className="bi bi-trash me-1"></i>Remove Discount
+                      <i className="bi bi-trash me-1"></i>Remove All Discounts
                     </button>
                   ) : <div />}
                   <div className="d-flex gap-2">

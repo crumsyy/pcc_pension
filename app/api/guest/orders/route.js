@@ -178,9 +178,9 @@ export async function POST(request) {
     }
     const guest = guests[0];
 
-    // Find active booking and enforce check-in and occupancy constraint
     const bookings = await dbQuery(`
-      SELECT b.bookingID, b.roomID, b.status as bookingStatus, r.status as roomStatus
+      SELECT b.bookingID, b.roomID, b.status as bookingStatus, b.breakfastOption,
+             r.status as roomStatus, r.roomTypeID, r.floorID
       FROM booking b
       LEFT JOIN room r ON r.roomID = b.roomID
       WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
@@ -338,6 +338,23 @@ export async function POST(request) {
       const [billRows] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ?", [booking.bookingID]);
       const billingID = billRows[0]?.billingID || null;
 
+      // Complimentary Breakfast Entitlement: Up to 2 free cooked meals per stay if room package includes breakfast
+      const [compCheck] = await connection.execute(
+        `SELECT COALESCE(SUM(op.quantity), 0) as compCount 
+         FROM order_product op 
+         JOIN orders o ON o.orderID = op.orderID 
+         WHERE o.bookingID = ? AND op.isComplimentary = 1 AND o.orderStatus != 'Canceled'`,
+        [booking.bookingID]
+      );
+      let currentCompCount = parseInt(compCheck[0]?.compCount || 0);
+
+      const [rateCheck] = await connection.execute(
+        `SELECT breakfastID FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = 2`,
+        [booking.roomTypeID, booking.floorID]
+      );
+      const roomHasBreakfast = (booking.breakfastOption === 'with') || (rateCheck.length > 0);
+      const maxCompAllowance = 2;
+
       for (const group of orderGroups) {
         const groupHasCookedMeal = group.items.some(it => it.type === 'Product' && (it.isCookedMeal || it.productCategoryID === 3));
         const [orderRes] = await connection.execute(
@@ -364,13 +381,40 @@ export async function POST(request) {
             if (pRes.length > 0) {
               const p = pRes[0];
               const price = parseFloat(p.price);
-              groupTotal += price * qty;
-              groupSummaryList.push(`${qty}x ${p.name}`);
 
-              await connection.execute(
-                "INSERT INTO order_product (quantity, orderID, productID, deliveryType, itemStatus) VALUES (?, ?, ?, ?, ?)",
-                [qty, orderID, itemID, itemDelType, initialItemStatus]
-              );
+              if (p.productCategoryID === 3) {
+                let compQty = 0;
+                if (roomHasBreakfast && currentCompCount < maxCompAllowance) {
+                  const remComp = maxCompAllowance - currentCompCount;
+                  compQty = Math.min(qty, remComp);
+                  currentCompCount += compQty;
+                }
+                const paidQty = qty - compQty;
+
+                if (compQty > 0) {
+                  groupSummaryList.push(`${compQty}x ${p.name} (Complimentary)`);
+                  await connection.execute(
+                    "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES (?, ?, ?, 1, ?, ?)",
+                    [compQty, orderID, itemID, itemDelType, initialItemStatus]
+                  );
+                }
+                if (paidQty > 0) {
+                  groupTotal += price * paidQty;
+                  groupSummaryList.push(`${paidQty}x ${p.name}`);
+                  await connection.execute(
+                    "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES (?, ?, ?, 0, ?, ?)",
+                    [paidQty, orderID, itemID, itemDelType, initialItemStatus]
+                  );
+                }
+              } else {
+                groupTotal += price * qty;
+                groupSummaryList.push(`${qty}x ${p.name}`);
+
+                await connection.execute(
+                  "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES (?, ?, ?, 0, ?, ?)",
+                  [qty, orderID, itemID, itemDelType, initialItemStatus]
+                );
+              }
 
               // FIFO Inventory deduction if not cooked meal (productCategoryID !== 3)
               if (p.productCategoryID !== 3) {

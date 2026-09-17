@@ -202,7 +202,7 @@ export default function ActiveStayPanel({
                 </div>
 
                 {/* 2. Cooked Meals */}
-                {((detailedBill?.chargesBreakdown?.orders?.products || []).some(p => p.productCategoryID === 3 || (p.name && p.name.toLowerCase().includes('breakfast')))) && (
+                {((detailedBill?.chargesBreakdown?.orders?.products || detailedBill?.cookedMealCharges || []).some(p => p.productCategoryID === 3 || p.isComplimentary || (p.name && p.name.toLowerCase().includes('breakfast')))) && (
                   <div className="p-2.5 bg-white rounded border">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                       <span className="fw-semibold text-dark">
@@ -210,19 +210,32 @@ export default function ActiveStayPanel({
                       </span>
                       <span className="fw-bold text-dark">
                         ₱{parseFloat(
-                          (detailedBill?.chargesBreakdown?.orders?.products || [])
-                            .filter(p => p.productCategoryID === 3 || (p.name && p.name.toLowerCase().includes('breakfast')))
+                          (detailedBill?.chargesBreakdown?.orders?.products || detailedBill?.cookedMealCharges || [])
+                            .filter(p => p.productCategoryID === 3 || p.isComplimentary || (p.name && p.name.toLowerCase().includes('breakfast')))
                             .reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0)
                         ).toFixed(2)}
                       </span>
                     </div>
                     <div className="d-flex flex-column gap-0.5" style={{ fontSize: '0.74rem' }}>
-                      {(detailedBill?.chargesBreakdown?.orders?.products || [])
-                        .filter(p => p.productCategoryID === 3 || (p.name && p.name.toLowerCase().includes('breakfast')))
+                      {(detailedBill?.chargesBreakdown?.orders?.products || detailedBill?.cookedMealCharges || [])
+                        .filter(p => p.productCategoryID === 3 || p.isComplimentary || (p.name && p.name.toLowerCase().includes('breakfast')))
                         .map((m, idx) => (
                           <div key={idx} className="d-flex justify-content-between text-muted">
-                            <span>{m.quantity}x {m.name}</span>
-                            <span>₱{(parseFloat(m.price) * m.quantity).toFixed(2)}</span>
+                            <span>
+                              {m.quantity}x {m.name}
+                              {(m.isComplimentary || parseFloat(m.price) === 0) && (
+                                <span className="badge bg-success-subtle text-success ms-1.5" style={{ fontSize: '0.68rem' }}>
+                                  Complimentary Breakfast
+                                </span>
+                              )}
+                            </span>
+                            <span>
+                              {(m.isComplimentary || parseFloat(m.price) === 0) ? (
+                                <span className="text-success fw-semibold">₱0.00</span>
+                              ) : (
+                                `₱${(parseFloat(m.price) * m.quantity).toFixed(2)}`
+                              )}
+                            </span>
                           </div>
                         ))}
                     </div>
@@ -230,8 +243,8 @@ export default function ActiveStayPanel({
                 )}
 
                 {/* 3. Products & Amenities */}
-                {(((detailedBill?.chargesBreakdown?.orders?.products || []).some(p => p.productCategoryID !== 3 && (!p.name || !p.name.toLowerCase().includes('breakfast')))) ||
-                  ((detailedBill?.chargesBreakdown?.orders?.amenities || []).length > 0)) && (
+                {(((detailedBill?.chargesBreakdown?.orders?.products || detailedBill?.storeProductCharges || []).some(p => p.productCategoryID !== 3 && !p.isComplimentary && (!p.name || !p.name.toLowerCase().includes('breakfast')))) ||
+                  ((detailedBill?.chargesBreakdown?.orders?.amenities || detailedBill?.amenityCharges || []).length > 0)) && (
                   <div className="p-2.5 bg-white rounded border">
                     <div className="d-flex justify-content-between align-items-center mb-1">
                       <span className="fw-semibold text-dark">
@@ -239,24 +252,37 @@ export default function ActiveStayPanel({
                       </span>
                       <span className="fw-bold text-dark">
                         ₱{parseFloat(
-                          ((detailedBill?.chargesBreakdown?.orders?.products || [])
-                            .filter(p => p.productCategoryID !== 3 && (!p.name || !p.name.toLowerCase().includes('breakfast')))
+                          ((detailedBill?.chargesBreakdown?.orders?.products || detailedBill?.storeProductCharges || [])
+                            .filter(p => p.productCategoryID !== 3 && !p.isComplimentary && (!p.name || !p.name.toLowerCase().includes('breakfast')))
                             .reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0)) +
-                          ((detailedBill?.chargesBreakdown?.orders?.amenities || [])
+                          ((detailedBill?.chargesBreakdown?.orders?.amenities || detailedBill?.amenityCharges || [])
                             .reduce((sum, a) => sum + (parseFloat(a.price) * a.quantity), 0))
                         ).toFixed(2)}
                       </span>
                     </div>
                     <div className="d-flex flex-column gap-0.5" style={{ fontSize: '0.74rem' }}>
-                      {(detailedBill?.chargesBreakdown?.orders?.products || [])
-                        .filter(p => p.productCategoryID !== 3 && (!p.name || !p.name.toLowerCase().includes('breakfast')))
+                      {(detailedBill?.chargesBreakdown?.orders?.products || detailedBill?.storeProductCharges || [])
+                        .filter(p => p.productCategoryID !== 3 && !p.isComplimentary && (!p.name || !p.name.toLowerCase().includes('breakfast')))
                         .map((p, idx) => (
                           <div key={`p-${idx}`} className="d-flex justify-content-between text-muted">
-                            <span>{p.quantity}x {p.name}</span>
-                            <span>₱{(parseFloat(p.price) * p.quantity).toFixed(2)}</span>
+                            <span>
+                              {p.quantity}x {p.name}
+                              {(p.isComplimentary || parseFloat(p.price) === 0) && (
+                                <span className="badge bg-success-subtle text-success ms-1.5" style={{ fontSize: '0.68rem' }}>
+                                  Free
+                                </span>
+                              )}
+                            </span>
+                            <span>
+                              {(p.isComplimentary || parseFloat(p.price) === 0) ? (
+                                <span className="text-success fw-semibold">₱0.00</span>
+                              ) : (
+                                `₱${(parseFloat(p.price) * p.quantity).toFixed(2)}`
+                              )}
+                            </span>
                           </div>
                         ))}
-                      {(detailedBill?.chargesBreakdown?.orders?.amenities || []).map((a, idx) => (
+                      {(detailedBill?.chargesBreakdown?.orders?.amenities || detailedBill?.amenityCharges || []).map((a, idx) => (
                         <div key={`a-${idx}`} className="d-flex justify-content-between text-muted">
                           <span>{a.quantity}x {a.name}</span>
                           <span>₱{(parseFloat(a.price) * a.quantity).toFixed(2)}</span>
@@ -276,9 +302,9 @@ export default function ActiveStayPanel({
                       ₱{parseFloat(detailedBill?.chargesBreakdown?.incidentalFees?.total || detailedBill?.regularIncidentalTotal || 0).toFixed(2)}
                     </span>
                   </div>
-                  {(detailedBill?.chargesBreakdown?.incidentalFees?.charges || []).length > 0 ? (
+                  {(detailedBill?.chargesBreakdown?.incidentalFees?.charges || detailedBill?.incidentalCharges || []).length > 0 ? (
                     <div className="d-flex flex-column gap-0.5 mt-1" style={{ fontSize: '0.74rem' }}>
-                      {(detailedBill?.chargesBreakdown?.incidentalFees?.charges || []).map((inc, idx) => (
+                      {(detailedBill?.chargesBreakdown?.incidentalFees?.charges || detailedBill?.incidentalCharges || []).map((inc, idx) => (
                         <div key={idx} className="d-flex justify-content-between text-danger">
                           <span>• {inc.description}</span>
                           <span>₱{parseFloat(inc.amount).toFixed(2)}</span>
@@ -299,9 +325,20 @@ export default function ActiveStayPanel({
                     </span>
                   </div>
                   {(parseFloat(detailedBill?.chargesBreakdown?.discounts?.total || detailedBill?.totalDiscount || 0) > 0) && (
-                    <div className="d-flex justify-content-between mb-1 text-success">
-                      <span>Discounts Applied:</span>
-                      <span>-₱{parseFloat(detailedBill?.chargesBreakdown?.discounts?.total || detailedBill?.totalDiscount || 0).toFixed(2)}</span>
+                    <div className="mb-2">
+                      <div className="d-flex justify-content-between mb-1 text-success fw-semibold">
+                        <span>
+                          <i className="bi bi-tag-fill me-1"></i>
+                          Discounts Applied:
+                        </span>
+                        <span>-₱{parseFloat(detailedBill?.chargesBreakdown?.discounts?.total || detailedBill?.totalDiscount || 0).toFixed(2)}</span>
+                      </div>
+                      {((detailedBill?.chargesBreakdown?.discounts?.beneficiaries || detailedBill?.finalGuestsList || detailedBill?.guestsList || []).filter(g => g.discountID || g.promotionID)).map((ben, bIdx) => (
+                        <div key={bIdx} className="d-flex justify-content-between text-muted ps-2" style={{ fontSize: '0.72rem' }}>
+                          <span>• {ben.fullName || ben.beneficiaryName || `Beneficiary #${bIdx + 1}`} ({ben.discountName || ben.name || 'Senior/PWD'} - {ben.percentage || 20}%)</span>
+                          <span>-₱{parseFloat(ben.discountDeduction || ben.deduction || 0).toFixed(2)}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                   <div className="d-flex justify-content-between mb-1">
