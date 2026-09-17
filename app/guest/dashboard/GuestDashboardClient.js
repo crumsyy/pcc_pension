@@ -1378,10 +1378,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleInitiatePay = (booking) => {
     if (!booking) return;
-    const norm = normalizeBookingStatus(booking.status);
+    const isBillFinalized = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(booking.status) || normalizeBookingStatus(booking.status) === 'Bill Finalized';
     const isDeclined = booking.status === 'Payment Declined' || booking.status === 'Declined';
-    if (norm !== 'Bill Ready' && !isDeclined) {
-      showAlert('warning', 'Bill Not Ready', "Your bill is not yet ready. Please wait for receptionist finalization.");
+    if (!isBillFinalized && !isDeclined) {
+      showAlert('warning', 'Bill Not Ready', "Check-out must be requested first and receptionist must finalize your bill before payment.");
       return;
     }
     const rem = booking.remainingBalance ?? detailedBill?.balancing?.remainingBalance ?? detailedBill?.remainingBalance ?? 0;
@@ -3140,7 +3140,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               {renderBookingStatusTimeline(b.status)}
 
                               {/* INSPECTION STATUS BANNER */}
-                              {(normalizeBookingStatus(b.status) === 'Checked-Out') && (
+                              {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
                                 <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
                                   <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
                                   <div>
@@ -3160,7 +3160,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   <i className="bi bi-receipt"></i> View Billing
                                 </button>
 
-                                {normalizeBookingStatus(b.status) === 'Checked-In' && (
+                                {['Checked In', 'Checked-In', 'Active Stay'].includes(b.status) && (
                                   <button 
                                     type="button" 
                                     className="btn btn-secondary text-white"
@@ -3171,13 +3171,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {normalizeBookingStatus(b.status) === 'Checked-Out' && (
-                                  <button type="button" className="btn btn-warning text-dark" disabled aria-label="Checked-Out">
-                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checked-Out (Awaiting Bill)
+                                {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
+                                  <button type="button" className="btn btn-warning text-dark" disabled aria-label="Awaiting Bill Finalization">
+                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Awaiting Bill Finalization
                                   </button>
                                 )}
 
-                                {normalizeBookingStatus(b.status) === 'Bill Ready' && (
+                                {['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) && (
                                   <button 
                                     type="button" 
                                     className="btn btn-primary fw-bold text-white shadow-sm"
@@ -3188,13 +3188,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {normalizeBookingStatus(b.status) === 'Paid' && (
+                                {['Paid', 'Payment Completed'].includes(b.status) && (
                                   <button type="button" className="btn btn-success text-white" disabled aria-label="Paid">
                                     <i className="bi bi-check2-all me-1"></i> Paid
                                   </button>
                                 )}
 
-                                {normalizeBookingStatus(b.status) === 'Completed' && (
+                                {['Completed', 'Checked Out', 'Checked-Out'].includes(b.status) && (
                                   <button type="button" className="btn btn-secondary text-white" disabled aria-label="Completed">
                                     <i className="bi bi-check-circle me-1"></i> Completed
                                   </button>

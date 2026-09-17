@@ -46,10 +46,11 @@ export async function POST(request) {
       }
 
       const normStatus = normalizeBookingStatus(bInfo.status);
-      // Allow down payments upon booking creation; restrict only when Checked-In (active stay) and bill not ready
-      if (normStatus === 'Checked-In') {
+      // Allow down payments upon booking creation; restrict when in-house or in checkout verification before bill finalization
+      const activeUnfinalized = ['Checked In', 'Checked-In', 'Active Stay', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'];
+      if (activeUnfinalized.includes(bInfo.status) || (normStatus === 'Active Stay' && !['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(bInfo.status))) {
         return NextResponse.json({
-          error: "QRPh code can only be generated once the bill is ready."
+          error: "Check-out must be requested first and receptionist must finalize your bill before payment."
         }, { status: 400 });
       }
 

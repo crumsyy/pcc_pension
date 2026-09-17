@@ -38,8 +38,9 @@ export default function ActiveStayPanel({
     0
   );
 
-  const isAlreadyRequested = effectiveStatus === 'Checkout Requested' || isCheckoutRequested;
-  const isBillFinalized = normalizeBookingStatus(effectiveStatus) === 'Bill Finalized';
+  const isAlreadyRequested = ['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(effectiveStatus) || isCheckoutRequested;
+  const isRoomVerified = effectiveStatus === 'Room Verified';
+  const isBillFinalized = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(effectiveStatus);
   const isBillReady = isBillFinalized;
   const isPaid = normalizeBookingStatus(effectiveStatus) === 'Paid' || effectiveStatus === 'Paid' || effectiveStatus === 'Payment Completed';
   const isDeclined = effectiveStatus === 'Payment Declined' || effectiveStatus === 'Payment Declined, Try Again' || effectiveStatus === 'Declined';
@@ -59,7 +60,7 @@ export default function ActiveStayPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to request checkout');
       setIsCheckoutRequested(true);
-      setCheckoutNotice("Checkout request sent. Receptionist will finalize your bill.");
+      setCheckoutNotice("Checkout request sent. Receptionist will inspect room and finalize your bill.");
     } catch (err) {
       alert(err.message || 'Error sending checkout request');
     } finally {
@@ -372,28 +373,32 @@ export default function ActiveStayPanel({
                           disabled={!canProceedToPayment}
                           onClick={() => {
                             if (!canProceedToPayment) {
-                              alert("Your bill is not yet ready. Please wait for receptionist finalization.");
+                              alert("Check-out must be initiated first and receptionist must finalize your bill before payment.");
                               return;
                             }
                             setShowPaymentModal(true);
                           }}
                           style={{
-                            backgroundColor: '#005ce6',
-                            borderColor: '#005ce6',
+                            backgroundColor: canProceedToPayment ? '#005ce6' : '#6c757d',
+                            borderColor: canProceedToPayment ? '#005ce6' : '#6c757d',
                             borderRadius: '8px',
                             opacity: canProceedToPayment ? 1 : 0.65
                           }}
-                          title={!canProceedToPayment ? "Your bill is not yet ready. Please wait for receptionist finalization." : "Proceed to GCash"}
+                          title={!canProceedToPayment ? "Check-out must be initiated first and receptionist must finalize your bill before payment." : "Proceed to GCash"}
                         >
                           <i className="bi bi-wallet2 me-2"></i>
-                          <span>Proceed to GCash</span>
+                          <span>{canProceedToPayment ? 'Proceed to GCash (PayMongo)' : 'Payment Locked (Check-out & Bill Finalization Required)'}</span>
                         </Button>
                       </div>
 
                       {!canProceedToPayment && (
                         <div className="text-center text-muted small mt-1.5" style={{ fontSize: '0.74rem' }}>
                           <i className="bi bi-info-circle me-1 text-warning"></i>
-                          Your bill is not yet ready. Please wait for receptionist finalization.
+                          {!isAlreadyRequested
+                            ? "Please request check-out first. Receptionist will inspect room and finalize bill before payment."
+                            : isRoomVerified
+                            ? "Room verified by staff. Receptionist is finalizing your bill statement."
+                            : "Check-out request received. Receptionist will finalize your bill before payment."}
                         </div>
                       )}
                     </>

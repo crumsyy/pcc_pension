@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
+import ReservationCalendar from '../../components/ReservationCalendar';
 
 function CheckInClient() {
   const searchParams = useSearchParams();
   const targetBookingID = searchParams.get('bookingID');
 
   const [bookings, setBookings] = useState([]);
+  const [roomSchedules, setRoomSchedules] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -207,6 +210,8 @@ function CheckInClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch bookings');
       setBookings(data.bookings || []);
+      setRoomSchedules(data.roomSchedules || []);
+      setRooms(data.rooms || []);
     } catch (err) {
       showAlert('error', 'Error', err.message);
     } finally {
@@ -455,7 +460,7 @@ function CheckInClient() {
 
                       {/* WORKFLOW ACTION BUTTONS */}
                       <div className="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top">
-                        {(b.status === 'Pending Room Verification' || b.status === 'Pending Checkout') && (
+                        {(b.status === 'Pending Room Verification' || b.status === 'Pending Checkout' || b.status === 'Checkout Requested') && (
                           <button
                             type="button"
                             className="btn btn-sm btn-warning text-dark fw-bold d-inline-flex align-items-center gap-1"
@@ -476,7 +481,7 @@ function CheckInClient() {
                           </button>
                         )}
 
-                        {b.status === 'Final Billing Updated' && (
+                        {(b.status === 'Final Billing Updated' || b.status === 'Bill Finalized') && (
                           <>
                             <button
                               type="button"
@@ -495,16 +500,33 @@ function CheckInClient() {
                             >
                               <i className="fa-solid fa-qrcode"></i> Show QR Code
                             </a>
+                            <a
+                              href={`/receptionist/payments?bookingID=${b.bookingID}`}
+                              className="btn btn-sm btn-success text-white fw-bold d-inline-flex align-items-center gap-1"
+                              title="Settle Outstanding Balance"
+                            >
+                              <i className="fa-solid fa-cash-register"></i> Settle Bill
+                            </a>
                           </>
                         )}
 
-                        {(b.status === 'Payment Completed' || b.status === 'Checked In' || b.status === 'Active Stay') && (
+                        {(b.status === 'Payment Completed' || b.status === 'Paid') && (
                           <button
                             type="button"
-                            className={`btn btn-sm ${b.status === 'Payment Completed' ? 'btn-success' : 'btn-outline-danger'} fw-bold d-inline-flex align-items-center gap-1`}
+                            className="btn btn-sm btn-success fw-bold d-inline-flex align-items-center gap-1"
                             onClick={() => handleCheckOut(b.bookingID, b.firstName + ' ' + b.lastName)}
                           >
-                            <i className="fa-solid fa-right-from-bracket"></i> {b.status === 'Payment Completed' ? 'Complete Check-Out' : 'Check Out'}
+                            <i className="fa-solid fa-right-from-bracket"></i> Complete Check-Out
+                          </button>
+                        )}
+
+                        {(b.status === 'Checked In' || b.status === 'Active Stay') && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger fw-bold d-inline-flex align-items-center gap-1"
+                            onClick={() => handleCheckOut(b.bookingID, b.firstName + ' ' + b.lastName)}
+                          >
+                            <i className="fa-solid fa-right-from-bracket"></i> Check Out
                           </button>
                         )}
 
@@ -537,7 +559,7 @@ function CheckInClient() {
       {/* UPDATE CHECK-OUT DATE & TIME MODAL */}
       {updateModal.isOpen && updateModal.booking && (
         <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1080 }}>
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog modal-dialog-centered modal-xl">
             <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px' }}>
               <div className="modal-header border-bottom px-4 py-3">
                 <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
@@ -545,30 +567,105 @@ function CheckInClient() {
                 </h5>
                 <button type="button" className="btn-close" onClick={() => setUpdateModal({ isOpen: false, booking: null, newCheckOut: '' })}></button>
               </div>
-              <div className="modal-body p-4">
-                <div className="alert alert-info py-2 small mb-3">
-                  <strong>Guest:</strong> {updateModal.booking.firstName} {updateModal.booking.lastName} (User ID: #{updateModal.booking.userID || updateModal.booking.guestID})<br/>
-                  <strong>Room:</strong> Room {updateModal.booking.roomNumber} ({updateModal.booking.roomType})
-                </div>
+              <div className="modal-body p-3 p-md-4">
+                <div className="row g-4">
+                  <div className="col-lg-5 col-md-12 d-flex flex-column justify-content-between">
+                    <div>
+                      <div className="alert alert-info py-2.5 px-3 small mb-3 border-info-subtle shadow-xs" style={{ borderRadius: '10px' }}>
+                        <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.92rem' }}>
+                          <i className="fa-solid fa-user me-1 text-primary"></i>
+                          {updateModal.booking.firstName} {updateModal.booking.lastName}
+                          <span className="text-muted ms-1 fw-normal">(User ID: #{updateModal.booking.userID || updateModal.booking.guestID})</span>
+                        </div>
+                        <div className="d-flex align-items-center gap-2 text-muted">
+                          <span><i className="fa-solid fa-door-closed me-1"></i>Room <strong>{updateModal.booking.roomNumber}</strong> ({updateModal.booking.roomType})</span>
+                        </div>
+                      </div>
 
-                <div className="mb-3">
-                  <label className="form-label fw-bold text-dark small">New Check-Out Date &amp; Time *</label>
-                  <input
-                    type="datetime-local"
-                    className="form-control"
-                    value={updateModal.newCheckOut}
-                    onChange={(e) => setUpdateModal(prev => ({ ...prev, newCheckOut: e.target.value }))}
-                    required
-                  />
-                  <small className="text-muted d-block mt-1">Select the new scheduled check-out date and time for this stay.</small>
+                      <div className="card border-0 bg-light p-3 mb-3 rounded-3">
+                        <div className="d-flex justify-content-between mb-2 small">
+                          <span className="text-muted">Current Check-In:</span>
+                          <strong className="text-dark">
+                            {updateModal.booking.checkInDateTime ? new Date(updateModal.booking.checkInDateTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                          </strong>
+                        </div>
+                        <div className="d-flex justify-content-between small">
+                          <span className="text-muted">Current Check-Out:</span>
+                          <strong className="text-dark">
+                            {updateModal.booking.checkOutDateTime ? new Date(updateModal.booking.checkOutDateTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <label className="form-label fw-bold text-dark small">New Check-Out Date &amp; Time *</label>
+                        <input
+                          type="datetime-local"
+                          className="form-control form-control-lg fw-semibold"
+                          value={updateModal.newCheckOut}
+                          onChange={(e) => setUpdateModal(prev => ({ ...prev, newCheckOut: e.target.value }))}
+                          required
+                        />
+                        <small className="text-muted d-block mt-1">
+                          Adjust the date or time. The calendar on the right displays real-time room availability to help prevent double bookings.
+                        </small>
+                      </div>
+
+                      {(() => {
+                        if (!updateModal.newCheckOut || !updateModal.booking?.checkInDateTime) return null;
+                        const inD = new Date(String(updateModal.booking.checkInDateTime).replace(' ', 'T'));
+                        const outD = new Date(String(updateModal.newCheckOut).replace(' ', 'T'));
+                        if (isNaN(inD) || isNaN(outD)) return null;
+                        const diffMs = outD - inD;
+                        if (diffMs <= 0) {
+                          return (
+                            <div className="alert alert-danger py-2 small mb-0">
+                              <i className="fa-solid fa-triangle-exclamation me-1"></i>
+                              Check-out date &amp; time must be after check-in date &amp; time.
+                            </div>
+                          );
+                        }
+                        const totalHours = Math.round(diffMs / (1000 * 60 * 60));
+                        const totalNights = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+                        return (
+                          <div className="p-2.5 bg-primary-subtle border border-primary-subtle rounded-2 small text-primary fw-semibold">
+                            <i className="fa-solid fa-calendar-days me-1"></i>
+                            Stay Duration: {totalNights} Night(s) (~{totalHours} Total Hours)
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="col-lg-7 col-md-12">
+                    <div className="border rounded-3 p-3 bg-white shadow-xs">
+                      <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                        <h6 className="fw-bold mb-0 text-dark d-flex align-items-center gap-1.5">
+                          <i className="fa-solid fa-calendar-check text-primary"></i>
+                          <span>Real-Time Room Calendar</span>
+                        </h6>
+                        <span className="badge bg-light text-muted border">
+                          Room {updateModal.booking.roomNumber}
+                        </span>
+                      </div>
+                      <ReservationCalendar
+                        schedules={roomSchedules}
+                        selectedRoomId={updateModal.booking.roomID}
+                        selectedRoom={rooms.find(r => r.roomID === updateModal.booking.roomID)}
+                        checkInDate={updateModal.booking.checkInDateTime}
+                        checkOutDate={updateModal.newCheckOut}
+                        title={`Room ${updateModal.booking.roomNumber} Availability & Schedules`}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="modal-footer border-top px-4 py-3 d-flex justify-content-end gap-2">
                 <button type="button" className="btn btn-secondary text-white" onClick={() => setUpdateModal({ isOpen: false, booking: null, newCheckOut: '' })}>
                   Cancel
                 </button>
-                <button type="button" className="btn btn-primary fw-bold text-white" onClick={handleSaveUpdateCheckOut}>
-                  Save Check-Out Schedule
+                <button type="button" className="btn btn-primary fw-bold text-white px-4" onClick={handleSaveUpdateCheckOut}>
+                  <i className="fa-solid fa-save me-1"></i> Save Check-Out Schedule
                 </button>
               </div>
             </div>

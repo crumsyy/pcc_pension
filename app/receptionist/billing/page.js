@@ -311,7 +311,21 @@ export default function ReceptionistBilling() {
     fetchBillingDetails(bID);
   };
 
-  const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'completed' | 'all'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'completed'
+
+  const ACTIVE_STATUS_LIST = [
+    'Active Stay',
+    'Checked In',
+    'Checked-In',
+    'Pending Room Verification',
+    'Pending Checkout',
+    'Checkout Requested',
+    'Room Verified',
+    'Bill Finalized',
+    'Final Billing Updated',
+    'Payment Completed',
+    'Paid'
+  ];
 
   const filteredBookings = activeBookings.filter(b => {
     const fullName = `${b.firstName} ${b.lastName}`.toLowerCase();
@@ -321,12 +335,16 @@ export default function ReceptionistBilling() {
     if (!matchesSearch) return false;
 
     if (statusFilter === 'active') {
-      return b.status === 'Checked In';
+      return ACTIVE_STATUS_LIST.includes(b.status);
     } else if (statusFilter === 'completed') {
       return b.status === 'Completed' || b.status === 'Checked Out';
     }
     return true; // 'all'
   });
+
+  const allCount = activeBookings.length;
+  const activeCount = activeBookings.filter(b => ACTIVE_STATUS_LIST.includes(b.status)).length;
+  const completedCount = activeBookings.filter(b => b.status === 'Completed' || b.status === 'Checked Out').length;
 
   return (
     <>
@@ -356,24 +374,24 @@ export default function ReceptionistBilling() {
                 <div className="btn-group btn-group-sm" role="group">
                   <button
                     type="button"
-                    className={`btn fw-semibold ${statusFilter === 'active' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    className={`btn fw-semibold ${statusFilter === 'all' ? 'btn-primary text-white' : 'btn-outline-secondary'}`}
+                    onClick={() => setStatusFilter('all')}
+                  >
+                    All Stays ({allCount})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn fw-semibold ${statusFilter === 'active' ? 'btn-info text-white' : 'btn-outline-secondary'}`}
                     onClick={() => setStatusFilter('active')}
                   >
-                    Active Stays (Checked In)
+                    Active Stays ({activeCount})
                   </button>
                   <button
                     type="button"
                     className={`btn fw-semibold ${statusFilter === 'completed' ? 'btn-success text-white' : 'btn-outline-secondary'}`}
                     onClick={() => setStatusFilter('completed')}
                   >
-                    Completed Stays (Settled)
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn fw-semibold ${statusFilter === 'all' ? 'btn-dark' : 'btn-outline-secondary'}`}
-                    onClick={() => setStatusFilter('all')}
-                  >
-                    All Stays
+                    Completed Stays ({completedCount})
                   </button>
                 </div>
               </div>
@@ -408,7 +426,7 @@ export default function ReceptionistBilling() {
                   ) : filteredBookings.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="text-center py-5 text-muted">
-                        No active stay records found matching search filters.
+                        No stay records found matching the selected filter.
                       </td>
                     </tr>
                   ) : (
