@@ -53,6 +53,16 @@ function LoginContent() {
     fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
   }, []);
 
+  const handleInputFocus = (e) => {
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setTimeout(() => {
+        try {
+          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (err) {}
+      }, 300);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -108,41 +118,58 @@ function LoginContent() {
         </div>
       </nav>
 
-      <section className="section">
+      <section className="section py-4 py-md-5">
         <div className="container">
           <div className="row justify-content-center">
-            <div className="col-lg-5">
+            <div className="col-12 col-md-8 col-lg-5">
               <div className="text-center mb-4">
                 <div className="section-eyebrow">Welcome Back</div>
-                <h2 className="section-title">Log In</h2>
-                <p className="text-muted">Access your guest account or staff dashboard.</p>
+                <h2 className="section-title mb-1">Log In</h2>
+                <p className="text-muted small">Access your guest account or staff dashboard.</p>
               </div>
 
-              {errorMsg && <div className="alert alert-danger">{errorMsg}</div>}
-              {successMsg && <div className="alert alert-success">{successMsg}</div>}
+              {errorMsg && (
+                <div className="alert alert-danger d-flex align-items-center gap-2 py-2.5 px-3 mb-3 shadow-sm" role="alert">
+                  <i className="bi bi-exclamation-circle-fill fs-5 text-danger flex-shrink-0"></i>
+                  <span style={{ fontSize: '0.9rem' }}>{errorMsg}</span>
+                </div>
+              )}
+              {successMsg && (
+                <div className="alert alert-success d-flex align-items-center gap-2 py-2.5 px-3 mb-3 shadow-sm" role="alert">
+                  <i className="bi bi-check-circle-fill fs-5 text-success flex-shrink-0"></i>
+                  <span style={{ fontSize: '0.9rem' }}>{successMsg}</span>
+                </div>
+              )}
 
-              <form onSubmit={handleSubmit} className="availability-bar">
+              <form onSubmit={handleSubmit} className="availability-bar p-3 p-md-4 shadow-sm rounded bg-white">
                 <div className="mb-3">
-                  <label className="form-label">Email Address</label>
+                  <label className="form-label small fw-bold" htmlFor="loginEmail">Email Address</label>
                   <input
+                    id="loginEmail"
+                    name="email"
                     type="email"
                     className="form-control"
                     placeholder="you@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onFocus={handleInputFocus}
                     required
                     autoFocus
                   />
                 </div>
+
                 <div className="mb-3">
-                  <label className="form-label">Password</label>
+                  <label className="form-label small fw-bold" htmlFor="loginPassword">Password</label>
                   <div className="password-field-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <input
+                      id="loginPassword"
+                      name="password"
                       type={showPassword ? "text" : "password"}
                       className="form-control"
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onFocus={handleInputFocus}
                       style={{ paddingRight: '2.8rem', flex: '1' }}
                       required
                     />
@@ -159,7 +186,7 @@ function LoginContent() {
                         border: 'none',
                         cursor: 'pointer',
                         color: '#66756b',
-                        padding: '2px',
+                        padding: '4px',
                         lineHeight: 1,
                         display: 'flex',
                         alignItems: 'center',
@@ -174,6 +201,7 @@ function LoginContent() {
                     </button>
                   </div>
                 </div>
+
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <div className="form-check">
                     <input
@@ -183,7 +211,7 @@ function LoginContent() {
                       checked={remember}
                       onChange={(e) => setRemember(e.target.checked)}
                     />
-                    <label className="form-check-label" htmlFor="remember" style={{ fontSize: "0.85rem" }}>
+                    <label className="form-check-label small" htmlFor="remember" style={{ fontSize: "0.85rem" }}>
                       Remember me
                     </label>
                   </div>
@@ -191,14 +219,24 @@ function LoginContent() {
                     Forgot password?
                   </Link>
                 </div>
+
+                {/* Bottom error alert if error occurred */}
+                {errorMsg && (
+                  <div className="alert alert-danger py-2 px-3 mb-3 small d-flex align-items-center gap-2" role="alert">
+                    <i className="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
                 <LoadingButton
                   type="submit"
-                  className="btn btn-pcc-primary w-100 fw-bold"
+                  className="btn btn-pcc-primary w-100 py-2.5 fw-bold shadow-sm"
                   isLoading={loading}
                   loadingText="Logging in..."
                 >
                   Log In
                 </LoadingButton>
+
                 <p className="text-center mt-3 mb-0" style={{ fontSize: "0.9rem" }}>
                   Don&apos;t have an account? <Link href="/auth/register" className="text-blue fw-semibold">Create one</Link>
                 </p>

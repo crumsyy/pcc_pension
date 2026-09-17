@@ -23,8 +23,9 @@ export async function POST(request) {
 
     const errors = [];
     const nameRegex = /^[A-Za-zÑñ\s'\-]+$/;
+    const addressRegex = /^[A-Za-z0-9Ññ\s.,'#\-]+$/;
 
-    // Input Validation (matches PHP register_process.php exactly)
+    // Input Validation
     if (!firstName || !nameRegex.test(firstName.trim())) {
       errors.push("First name must contain letters only.");
     }
@@ -51,23 +52,30 @@ export async function POST(request) {
         errors.push("You must be at least 18 years old to proceed.");
       }
     }
-    if (!city || !nameRegex.test(city.trim())) {
-      errors.push("City must contain letters only.");
+    if (!city || !addressRegex.test(city.trim())) {
+      errors.push("City contains invalid characters.");
     }
-    if (!province || !nameRegex.test(province.trim())) {
-      errors.push("Province must contain letters only.");
+    if (!province || !addressRegex.test(province.trim())) {
+      errors.push("Province contains invalid characters.");
     }
-    if (!contact || !/^[0-9]{11}$/.test(contact.trim())) {
-      errors.push("Contact number must be exactly 11 digits.");
+
+    // Normalize contact number (+63 or 639XX -> 09XX)
+    let cleanContact = contact ? String(contact).replace(/[^0-9]/g, '') : '';
+    if (cleanContact.startsWith('639') && cleanContact.length === 12) {
+      cleanContact = '0' + cleanContact.substring(2);
     }
+    if (!cleanContact || !/^09[0-9]{9}$/.test(cleanContact)) {
+      errors.push("Contact number must be an 11-digit mobile number starting with 09 (e.g. 09XXXXXXXXX).");
+    }
+
     if (!email || !/\S+@\S+\.\S+/.test(email.trim())) {
       errors.push("Please provide a valid email address.");
     }
-    
-    const hasUpper = /[A-Z]/.test(password);
-    const hasLower = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+    const hasUpper = /[A-Z]/.test(password || '');
+    const hasLower = /[a-z]/.test(password || '');
+    const hasNumber = /[0-9]/.test(password || '');
+    const hasSpecial = /[^A-Za-z0-9]/.test(password || '');
     if (!password || password.length < 8 || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
       errors.push("Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.");
     }
@@ -84,18 +92,98 @@ export async function POST(request) {
 
     const lowerEmail = email.trim().toLowerCase();
 
-    // Check duplicate email
-    const existingUsers = await dbQuery("SELECT userID FROM user WHERE email = ?", [lowerEmail]);
+    // Check existing email
+    const existingUsers = await dbQuery("SELECT userID, status FROM user WHERE email = ?", [lowerEmail]);
     if (existingUsers.length > 0) {
-      return NextResponse.json({ success: false, message: "This email is already registered. Please log in instead." }, { status: 400 });
+      const existingUser = existingUsers[0];
+      if (existingUser.status === 'Active') {
+        return NextResponse.json({
+          success: false,
+          message: "This email is already registered and active. Please log in instead."
+        }, { status: 400 });
+      }
+
+      // If user exists but is Inactive (never verified OTP), update credentials and refresh OTP code
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const otpCode = generateOtp();
+      const validityMinutes = parseInt(process.env.OTP_VALIDITY_MINUTES || '10');
+      const otpExpires = new Date(Date.now() + validityMinutes * 60 * 1000);
+
+      const db = await getDbConnection();
+      const connection = await db.getConnection();
+
+      try {
+        await connection.beginTransaction();
+
+        await connection.execute(
+          "UPDATE user SET password = ?, otp_code = ?, otp_expires = ? WHERE userID = ?",
+          [hashedPassword, otpCode, otpExpires, existingUser.userID]
+        );
+
+        const [existingGuests] = await connection.execute(
+          "SELECT guestID FROM guest WHERE userID = ? OR LOWER(email) = ? ORDER BY guestID DESC LIMIT 1",
+          [existingUser.userID, lowerEmail]
+        );
+
+        if (existingGuests && existingGuests.length > 0) {
+          await connection.execute(
+            "UPDATE guest SET firstName = ?, middleName = ?, lastName = ?, gender = ?, dateOfBirth = ?, city = ?, province = ?, contact = ?, email = ?, userID = ? WHERE guestID = ?",
+            [
+              firstName.trim(),
+              middleName ? middleName.trim() : '',
+              lastName.trim(),
+              gender,
+              dob,
+              city.trim(),
+              province.trim(),
+              cleanContact,
+              lowerEmail,
+              existingUser.userID,
+              existingGuests[0].guestID
+            ]
+          );
+        } else {
+          await connection.execute(
+            "INSERT INTO guest (firstName, middleName, lastName, gender, dateOfBirth, city, province, contact, email, userID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+              firstName.trim(),
+              middleName ? middleName.trim() : '',
+              lastName.trim(),
+              gender,
+              dob,
+              city.trim(),
+              province.trim(),
+              cleanContact,
+              lowerEmail,
+              existingUser.userID
+            ]
+          );
+        }
+
+        await connection.commit();
+      } catch (dbError) {
+        await connection.rollback();
+        throw dbError;
+      } finally {
+        connection.release();
+      }
+
+      // Send Verification Email
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
+      const emailSent = await sendOtpEmail(lowerEmail, fullName, otpCode);
+
+      return NextResponse.json({
+        success: true,
+        message: "Registration details updated. Please verify your email with the verification code.",
+        email: lowerEmail,
+        emailSent
+      });
     }
 
-    // Hash Password & Generate OTP
+    // New Registration
     const hashedPassword = await bcrypt.hash(password, 10);
     const otpCode = generateOtp();
     const validityMinutes = parseInt(process.env.OTP_VALIDITY_MINUTES || '10');
-    
-    // Calculate expiration date matching MySQL's date structure
     const otpExpires = new Date(Date.now() + validityMinutes * 60 * 1000);
 
     const db = await getDbConnection();
@@ -128,7 +216,7 @@ export async function POST(request) {
             dob,
             city.trim(),
             province.trim(),
-            contact.trim(),
+            cleanContact,
             lowerEmail,
             userID,
             matchedGuestID
@@ -145,7 +233,7 @@ export async function POST(request) {
             dob,
             city.trim(),
             province.trim(),
-            contact.trim(),
+            cleanContact,
             lowerEmail,
             userID
           ]

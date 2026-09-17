@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DateInput, { isValidDate, toDbDate } from "@/app/components/DateInput";
@@ -9,6 +9,7 @@ import LoadingButton from "@/app/components/LoadingButton";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const bottomErrorRef = useRef(null);
 
   // Form Fields State
   const [firstName, setFirstName] = useState("");
@@ -16,11 +17,6 @@ export default function RegisterPage() {
   const [lastName, setLastName] = useState("");
   const [gender, setGender] = useState("");
   const [dob, setDob] = useState("");
-  const [maxDate, setMaxDate] = useState("");
-
-  useEffect(() => {
-    setMaxDate(new Date().toISOString().split('T')[0]);
-  }, []);
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
   const [contact, setContact] = useState("");
@@ -33,6 +29,7 @@ export default function RegisterPage() {
 
   // Validation & Error states
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
   
   // Field specific invalid states
@@ -46,18 +43,38 @@ export default function RegisterPage() {
     setMaxDobStr(`${year18Ago}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
   }, []);
 
+  // Mobile focus centering
+  const handleInputFocus = (e) => {
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setTimeout(() => {
+        try {
+          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (err) {}
+      }, 300);
+    }
+  };
+
   // Input sanitization helpers
   const handleNameChange = (val, setter, fieldName) => {
-    // Letters, spaces, hyphens, and apostrophes only
     const sanitized = val.replace(/[^A-Za-zÑñ\s'\-]/g, "");
     setter(sanitized);
-    // Clear field error once changed
+    setFieldErrors((prev) => ({ ...prev, [fieldName]: false }));
+  };
+
+  const handleAddressChange = (val, setter, fieldName) => {
+    // Allow letters, numbers, spaces, periods, commas, and hyphens for addresses
+    const sanitized = val.replace(/[^A-Za-z0-9Ññ\s.,'#\-]/g, "");
+    setter(sanitized);
     setFieldErrors((prev) => ({ ...prev, [fieldName]: false }));
   };
 
   const handleContactChange = (val) => {
-    // Digits only, max 11 digits
-    const sanitized = val.replace(/[^0-9]/g, "").slice(0, 11);
+    let raw = val.replace(/[^0-9]/g, "");
+    // Auto-convert +639 or 639 into 09
+    if (raw.startsWith('639') && raw.length >= 12) {
+      raw = '0' + raw.substring(2);
+    }
+    const sanitized = raw.slice(0, 11);
     setContact(sanitized);
     setFieldErrors((prev) => ({ ...prev, contact: false }));
   };
@@ -65,22 +82,33 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
     setLoading(true);
 
     const errors = {};
     const namePattern = /^[A-Za-zÑñ\s'\-]+$/;
+    const addressPattern = /^[A-Za-z0-9Ññ\s.,'#\-]+$/;
 
-    // Frontend validations (matching register.php validation script)
+    // Frontend validations
     if (!firstName.trim() || !namePattern.test(firstName)) errors.firstName = true;
     if (middleName.trim() !== "" && !namePattern.test(middleName)) errors.middleName = true;
     if (!lastName.trim() || !namePattern.test(lastName)) errors.lastName = true;
     if (!gender) errors.gender = true;
-    if (!dob) errors.dob = true;
-    if (!city.trim() || !namePattern.test(city)) errors.city = true;
-    if (!province.trim() || !namePattern.test(province)) errors.province = true;
-    if (!/^[0-9]{11}$/.test(contact)) errors.contact = true;
+    if (!city.trim() || !addressPattern.test(city)) errors.city = true;
+    if (!province.trim() || !addressPattern.test(province)) errors.province = true;
+    
+    // Normalize and validate Philippine contact number
+    let cleanContact = contact.replace(/[^0-9]/g, "");
+    if (cleanContact.startsWith('639') && cleanContact.length === 12) {
+      cleanContact = '0' + cleanContact.substring(2);
+    }
+    if (!/^09[0-9]{9}$/.test(cleanContact)) {
+      errors.contact = true;
+    }
+
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) errors.email = true;
 
+    // Date of Birth validation
     if (!dob || !isValidDate(dob)) {
       errors.dob = true;
     } else {
@@ -96,29 +124,39 @@ export default function RegisterPage() {
 
       if (age < 18) {
         errors.dob = true;
-        setErrorMsg("You must be at least 18 years old to proceed.");
-        setFieldErrors({ ...errors, dob: true });
-        setLoading(false);
-        return;
       }
     }
 
-    // REQ190: Password strength check
+    // Password strength check (min 8 chars, uppercase, lowercase, number, special char)
     const strongPw = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
     if (!strongPw.test(password)) {
       errors.password = true;
     }
-    if (password !== confirmPassword) {
+    if (!confirmPassword || password !== confirmPassword) {
       errors.confirmPassword = true;
     }
     if (!terms) {
       errors.terms = true;
     }
 
+    // If any validation errors exist, highlight and smoothly scroll to the first one
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      setErrorMsg("Please correct the errors in the form before submitting.");
+      setErrorMsg("Please complete and correct the highlighted fields before submitting.");
       setLoading(false);
+
+      // Auto-scroll to the first invalid field
+      const fieldOrder = ['firstName', 'middleName', 'lastName', 'gender', 'dob', 'city', 'province', 'contact', 'email', 'password', 'confirmPassword', 'terms'];
+      const firstKey = fieldOrder.find(k => errors[k]);
+      if (firstKey) {
+        setTimeout(() => {
+          const el = document.getElementById(firstKey) || document.querySelector(`[name="${firstKey}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (el.focus) el.focus({ preventScroll: true });
+          }
+        }, 50);
+      }
       return;
     }
 
@@ -134,7 +172,7 @@ export default function RegisterPage() {
           dob: toDbDate(dob),
           city,
           province,
-          contact,
+          contact: cleanContact,
           email,
           password,
           confirmPassword,
@@ -145,17 +183,37 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMsg(data.message || "Registration failed. Please try again.");
+        const errorText = data.message || "Registration failed. Please review your details and try again.";
+        setErrorMsg(errorText);
         setLoading(false);
+        // Scroll error into view on mobile
+        if (bottomErrorRef.current) {
+          bottomErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         return;
       }
 
-      // Successful registration, redirect to verify-otp page
-      router.push(`/auth/verify-otp?email=${encodeURIComponent(email.toLowerCase())}`);
+      // Successful registration
+      setSuccessMsg("Account registered! Sending your verification code...");
+      
+      setTimeout(() => {
+        router.push(`/auth/verify-otp?email=${encodeURIComponent(email.toLowerCase())}`);
+      }, 500);
+
+      // Safety fallback redirect if router takes long
+      setTimeout(() => {
+        if (window.location.pathname.includes('/auth/register')) {
+          window.location.href = `/auth/verify-otp?email=${encodeURIComponent(email.toLowerCase())}`;
+        }
+      }, 2500);
+
     } catch (err) {
-      console.error(err);
-      setErrorMsg("An error occurred during registration. Please try again.");
+      console.error("Registration error:", err);
+      setErrorMsg("An unexpected network error occurred. Please check your connection and try again.");
       setLoading(false);
+      if (bottomErrorRef.current) {
+        bottomErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   };
 
@@ -173,76 +231,129 @@ export default function RegisterPage() {
         </div>
       </nav>
 
-      <section className="section">
+      <section className="section py-4 py-md-5">
         <div className="container">
           <div className="row justify-content-center">
-            <div className="col-lg-7">
+            <div className="col-12 col-md-10 col-lg-7">
               <div className="text-center mb-4">
                 <div className="section-eyebrow">Join Us</div>
-                <h2 className="section-title">Create Your Account</h2>
-                <p className="text-muted">Register to book rooms, track reservations, and get support from our front desk.</p>
+                <h2 className="section-title mb-1">Create Your Account</h2>
+                <p className="text-muted small">Register to book rooms, track reservations, and order meals.</p>
               </div>
 
-              {errorMsg && <div className="alert alert-danger">{errorMsg}</div>}
+              {/* Top alert (for desktop or when scrolled to top) */}
+              {errorMsg && (
+                <div className="alert alert-danger d-flex align-items-center gap-2 py-2.5 px-3 mb-4 shadow-sm" role="alert">
+                  <i className="bi bi-exclamation-circle-fill fs-5 text-danger flex-shrink-0"></i>
+                  <span style={{ fontSize: '0.9rem' }}>{errorMsg}</span>
+                </div>
+              )}
+              {successMsg && (
+                <div className="alert alert-success d-flex align-items-center gap-2 py-2.5 px-3 mb-4 shadow-sm" role="alert">
+                  <i className="bi bi-check-circle-fill fs-5 text-success flex-shrink-0"></i>
+                  <span style={{ fontSize: '0.9rem' }}>{successMsg}</span>
+                </div>
+              )}
 
-              <form onSubmit={handleSubmit} className="availability-bar" noValidate>
+              <form onSubmit={handleSubmit} className="availability-bar p-3 p-md-4 shadow-sm rounded bg-white" noValidate>
                 <div className="row g-3">
-                  <div className="col-md-4">
-                    <label className="form-label">First Name <span className="text-danger">*</span></label>
+                  {/* First Name */}
+                  <div className="col-12 col-md-4">
+                    <label className="form-label small fw-bold" htmlFor="firstName">
+                      First Name <span className="text-danger">*</span>
+                    </label>
                     <input
+                      id="firstName"
+                      name="firstName"
                       type="text"
-                      className={`form-control ${fieldErrors.firstName ? "is-invalid" : ""}`}
+                      className={`form-control ${fieldErrors.firstName ? "is-invalid border-danger" : ""}`}
                       placeholder="Juan"
                       value={firstName}
                       onChange={(e) => handleNameChange(e.target.value, setFirstName, "firstName")}
+                      onFocus={handleInputFocus}
                       required
                     />
-                    <div className="invalid-feedback">First name must contain letters only.</div>
+                    {fieldErrors.firstName && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">First name must contain letters only.</div>
+                    )}
                   </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Middle Name</label>
+
+                  {/* Middle Name */}
+                  <div className="col-12 col-md-4">
+                    <label className="form-label small fw-bold" htmlFor="middleName">
+                      Middle Name <span className="text-muted fw-normal">(Optional)</span>
+                    </label>
                     <input
+                      id="middleName"
+                      name="middleName"
                       type="text"
-                      className={`form-control ${fieldErrors.middleName ? "is-invalid" : ""}`}
-                      placeholder="(Optional)"
+                      className={`form-control ${fieldErrors.middleName ? "is-invalid border-danger" : ""}`}
+                      placeholder="Optional"
                       value={middleName}
                       onChange={(e) => handleNameChange(e.target.value, setMiddleName, "middleName")}
+                      onFocus={handleInputFocus}
                     />
-                    <div className="invalid-feedback">Middle name must contain letters only.</div>
+                    {fieldErrors.middleName && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">Middle name must contain letters only.</div>
+                    )}
                   </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Last Name <span className="text-danger">*</span></label>
+
+                  {/* Last Name */}
+                  <div className="col-12 col-md-4">
+                    <label className="form-label small fw-bold" htmlFor="lastName">
+                      Last Name <span className="text-danger">*</span>
+                    </label>
                     <input
+                      id="lastName"
+                      name="lastName"
                       type="text"
-                      className={`form-control ${fieldErrors.lastName ? "is-invalid" : ""}`}
+                      className={`form-control ${fieldErrors.lastName ? "is-invalid border-danger" : ""}`}
                       placeholder="Dela Cruz"
                       value={lastName}
                       onChange={(e) => handleNameChange(e.target.value, setLastName, "lastName")}
+                      onFocus={handleInputFocus}
                       required
                     />
-                    <div className="invalid-feedback">Last name must contain letters only.</div>
+                    {fieldErrors.lastName && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">Last name must contain letters only.</div>
+                    )}
                   </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Gender <span className="text-danger">*</span></label>
+
+                  {/* Gender */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-bold" htmlFor="gender">
+                      Gender <span className="text-danger">*</span>
+                    </label>
                     <select
-                      className={`form-select ${fieldErrors.gender ? "is-invalid" : ""}`}
+                      id="gender"
+                      name="gender"
+                      className={`form-select ${fieldErrors.gender ? "is-invalid border-danger" : ""}`}
                       value={gender}
                       onChange={(e) => {
                         setGender(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, gender: false }));
                       }}
+                      onFocus={handleInputFocus}
                       required
                     >
                       <option value="" disabled>Select gender</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                     </select>
-                    <div className="invalid-feedback">Please select a gender.</div>
+                    {fieldErrors.gender && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">Please select a gender.</div>
+                    )}
                   </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Date of Birth <span className="text-danger">*</span></label>
+
+                  {/* Date of Birth */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-bold" htmlFor="dob">
+                      Date of Birth <span className="text-danger">*</span>
+                    </label>
                     <DateInput
-                      className={`form-control ${fieldErrors.dob ? "is-invalid" : ""}`}
+                      id="dob"
+                      name="dob"
+                      className={`form-control ${fieldErrors.dob ? "is-invalid border-danger" : ""}`}
                       value={dob}
                       onChange={(e) => {
                         setDob(e.target.value);
@@ -251,73 +362,121 @@ export default function RegisterPage() {
                       max={maxDobStr}
                       required
                     />
-                    <div className="invalid-feedback">You must be at least 18 years old to proceed.</div>
+                    {fieldErrors.dob && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">
+                        Please provide a valid date of birth (must be at least 18 years old).
+                      </div>
+                    )}
                   </div>
-                  <div className="col-md-6">
-                    <label className="form-label">City <span className="text-danger">*</span></label>
+
+                  {/* City */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-bold" htmlFor="city">
+                      City / Municipality <span className="text-danger">*</span>
+                    </label>
                     <input
+                      id="city"
+                      name="city"
                       type="text"
-                      className={`form-control ${fieldErrors.city ? "is-invalid" : ""}`}
-                      placeholder="e.g. Koronadal"
+                      className={`form-control ${fieldErrors.city ? "is-invalid border-danger" : ""}`}
+                      placeholder="e.g. Koronadal City"
                       value={city}
-                      onChange={(e) => handleNameChange(e.target.value, setCity, "city")}
+                      onChange={(e) => handleAddressChange(e.target.value, setCity, "city")}
+                      onFocus={handleInputFocus}
                       required
                     />
-                    <div className="invalid-feedback">Letters only.</div>
+                    {fieldErrors.city && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">Please enter a valid city or municipality name.</div>
+                    )}
                   </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Province <span className="text-danger">*</span></label>
+
+                  {/* Province */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-bold" htmlFor="province">
+                      Province <span className="text-danger">*</span>
+                    </label>
                     <input
+                      id="province"
+                      name="province"
                       type="text"
-                      className={`form-control ${fieldErrors.province ? "is-invalid" : ""}`}
+                      className={`form-control ${fieldErrors.province ? "is-invalid border-danger" : ""}`}
                       placeholder="e.g. South Cotabato"
                       value={province}
-                      onChange={(e) => handleNameChange(e.target.value, setProvince, "province")}
+                      onChange={(e) => handleAddressChange(e.target.value, setProvince, "province")}
+                      onFocus={handleInputFocus}
                       required
                     />
-                    <div className="invalid-feedback">Letters only.</div>
+                    {fieldErrors.province && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">Please enter a valid province name.</div>
+                    )}
                   </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Contact Number <span className="text-danger">*</span></label>
+
+                  {/* Contact Number */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-bold" htmlFor="contact">
+                      Contact Number <span className="text-danger">*</span>
+                    </label>
                     <input
-                      type="text"
-                      className={`form-control ${fieldErrors.contact ? "is-invalid" : ""}`}
+                      id="contact"
+                      name="contact"
+                      type="tel"
+                      className={`form-control ${fieldErrors.contact ? "is-invalid border-danger" : ""}`}
                       placeholder="09XXXXXXXXX"
                       value={contact}
                       onChange={(e) => handleContactChange(e.target.value)}
+                      onFocus={handleInputFocus}
                       maxLength={11}
                       required
                     />
-                    <div className="invalid-feedback">Must be exactly 11 digits (e.g. 09XXXXXXXXX).</div>
+                    {fieldErrors.contact ? (
+                      <div className="text-danger small mt-1 fw-semibold d-block">Must be an 11-digit mobile number starting with 09 (e.g. 09123456789).</div>
+                    ) : (
+                      <div className="form-text small text-muted">Format: 09XXXXXXXXX (11 digits)</div>
+                    )}
                   </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Email Address <span className="text-danger">*</span></label>
+
+                  {/* Email Address */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-bold" htmlFor="email">
+                      Email Address <span className="text-danger">*</span>
+                    </label>
                     <input
+                      id="email"
+                      name="email"
                       type="email"
-                      className={`form-control ${fieldErrors.email ? "is-invalid" : ""}`}
+                      className={`form-control ${fieldErrors.email ? "is-invalid border-danger" : ""}`}
                       placeholder="you@email.com"
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value);
                         setFieldErrors((prev) => ({ ...prev, email: false }));
                       }}
+                      onFocus={handleInputFocus}
                       required
                     />
-                    <div className="invalid-feedback">Please enter a valid email address.</div>
+                    {fieldErrors.email && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">Please enter a valid email address.</div>
+                    )}
                   </div>
 
-                  <div className="col-md-6">
-                    <label className="form-label">Password <span className="text-danger">*</span></label>
+                  {/* Password */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-bold" htmlFor="password">
+                      Password <span className="text-danger">*</span>
+                    </label>
                     <div className="password-field-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                       <input
+                        id="password"
+                        name="password"
                         type={showPassword ? "text" : "password"}
-                        className={`form-control ${fieldErrors.password ? "is-invalid" : ""}`}
+                        className={`form-control ${fieldErrors.password ? "is-invalid border-danger" : ""}`}
                         placeholder="Min. 8 characters"
                         value={password}
                         onChange={(e) => {
                           setPassword(e.target.value);
                           setFieldErrors((prev) => ({ ...prev, password: false }));
                         }}
+                        onFocus={handleInputFocus}
                         style={{ paddingRight: '2.8rem', flex: '1' }}
                         required
                       />
@@ -334,7 +493,7 @@ export default function RegisterPage() {
                           border: 'none',
                           cursor: 'pointer',
                           color: '#66756b',
-                          padding: '2px',
+                          padding: '4px',
                           lineHeight: 1,
                           display: 'flex',
                           alignItems: 'center',
@@ -348,21 +507,33 @@ export default function RegisterPage() {
                         )}
                       </button>
                     </div>
-                    <div className="form-text">Min. 8 chars with uppercase, lowercase, number &amp; special character.</div>
-                    <div className="invalid-feedback" style={{ display: fieldErrors.password ? 'block' : 'none' }}>Password must contain uppercase, lowercase, number, and special character.</div>
+                    {fieldErrors.password ? (
+                      <div className="text-danger small mt-1 fw-semibold d-block">
+                        Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
+                      </div>
+                    ) : (
+                      <div className="form-text small text-muted">Min. 8 chars with uppercase, lowercase, number &amp; symbol.</div>
+                    )}
                   </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Confirm Password <span className="text-danger">*</span></label>
+
+                  {/* Confirm Password */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small fw-bold" htmlFor="confirmPassword">
+                      Confirm Password <span className="text-danger">*</span>
+                    </label>
                     <div className="password-field-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                       <input
+                        id="confirmPassword"
+                        name="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
-                        className={`form-control ${fieldErrors.confirmPassword ? "is-invalid" : ""}`}
+                        className={`form-control ${fieldErrors.confirmPassword ? "is-invalid border-danger" : ""}`}
                         placeholder="Re-enter your password"
                         value={confirmPassword}
                         onChange={(e) => {
                           setConfirmPassword(e.target.value);
                           setFieldErrors((prev) => ({ ...prev, confirmPassword: false }));
                         }}
+                        onFocus={handleInputFocus}
                         style={{ paddingRight: '2.8rem', flex: '1' }}
                         required
                       />
@@ -379,7 +550,7 @@ export default function RegisterPage() {
                           border: 'none',
                           cursor: 'pointer',
                           color: '#66756b',
-                          padding: '2px',
+                          padding: '4px',
                           lineHeight: 1,
                           display: 'flex',
                           alignItems: 'center',
@@ -393,12 +564,15 @@ export default function RegisterPage() {
                         )}
                       </button>
                     </div>
-                    <div className="invalid-feedback" style={{ display: fieldErrors.confirmPassword ? 'block' : 'none' }}>Passwords do not match. Please re-enter.</div>
+                    {fieldErrors.confirmPassword && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">Passwords do not match. Please re-enter.</div>
+                    )}
                   </div>
 
-                  <div className="col-12 form-check mt-1">
+                  {/* Terms & Conditions */}
+                  <div className="col-12 form-check mt-3 mb-2 ps-4">
                     <input
-                      className={`form-check-input ${fieldErrors.terms ? "is-invalid" : ""}`}
+                      className={`form-check-input ${fieldErrors.terms ? "is-invalid border-danger" : ""}`}
                       type="checkbox"
                       id="terms"
                       checked={terms}
@@ -408,18 +582,37 @@ export default function RegisterPage() {
                       }}
                       required
                     />
-                    <label className="form-check-label" htmlFor="terms" style={{ fontSize: "0.85rem" }}>
+                    <label className="form-check-label small" htmlFor="terms" style={{ fontSize: "0.86rem" }}>
                       I agree to the terms &amp; conditions and privacy policy of PCC Home Suite Home.
                     </label>
-                    <div className="invalid-feedback">You must agree to the terms &amp; conditions.</div>
+                    {fieldErrors.terms && (
+                      <div className="text-danger small mt-1 fw-semibold d-block">You must agree to the terms &amp; conditions to continue.</div>
+                    )}
                   </div>
 
+                  {/* Bottom Error & Notice Alert: positioned right above the submit button so mobile users immediately see it */}
+                  <div ref={bottomErrorRef} className="col-12">
+                    {errorMsg && (
+                      <div className="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 mb-2 shadow-sm" role="alert">
+                        <i className="bi bi-exclamation-triangle-fill text-danger flex-shrink-0"></i>
+                        <span style={{ fontSize: '0.88rem' }}>{errorMsg}</span>
+                      </div>
+                    )}
+                    {successMsg && (
+                      <div className="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mb-2 shadow-sm" role="alert">
+                        <i className="bi bi-check-circle-fill text-success flex-shrink-0"></i>
+                        <span style={{ fontSize: '0.88rem' }}>{successMsg}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
                   <div className="col-12">
                     <LoadingButton
                       type="submit"
-                      className="btn btn-pcc-primary w-100 py-2 fw-bold"
+                      className="btn btn-pcc-primary w-100 py-2.5 fw-bold shadow-sm"
                       isLoading={loading}
-                      loadingText="Registering..."
+                      loadingText="Registering account..."
                     >
                       Create Account
                     </LoadingButton>

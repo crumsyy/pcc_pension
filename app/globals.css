@@ -2175,3 +2175,35 @@ body.dark-theme .qr-payment-container h4 {
   animation: notifHighlightPulse 1s ease-in-out 3;
   border: 2px solid #0d6efd !important;
 }
+
+/* =====================================================================
+   Mobile Virtual Keyboard & Active Input Visibility System
+   ===================================================================== */
+input,
+select,
+textarea,
+.form-control,
+.form-select {
+  scroll-margin-top: 90px;
+  scroll-margin-bottom: 140px;
+}
+
+@media (max-width: 768px) {
+  /* Prevent iOS Safari from auto-zooming on focus by guaranteeing minimum 16px font */
+  input,
+  select,
+  textarea,
+  .form-control,
+  .form-select,
+  .form-control:focus,
+  .form-select:focus {
+    font-size: 16px !important;
+  }
+
+  /* Provide ample scrollable breathing room at bottom of auth forms when keyboard is open */
+  .section,
+  section.section,
+  .availability-bar {
+    padding-bottom: clamp(60px, 25vh, 180px);
+  }
+}

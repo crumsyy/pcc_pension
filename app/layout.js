@@ -1,6 +1,7 @@
 import "./globals.css";
 import Script from "next/script";
 import InactivityTimeout from "./components/InactivityTimeout";
+import MobileKeyboardViewportHelper from "./components/MobileKeyboardViewportHelper";
 
 export const metadata = {
   title: "PCC Home Suite Home | Koronadal City",
@@ -17,11 +18,19 @@ export const metadata = {
   }
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  interactiveWidget: "resizes-content" // Crucial for mobile virtual keyboards to resize viewport
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
         <InactivityTimeout />
+        <MobileKeyboardViewportHelper />
         {children}
         
         {/* Bootstrap 5 JS Bundle CDN */}
