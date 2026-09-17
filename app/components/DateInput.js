@@ -6,6 +6,7 @@ export default function DateInput({
   value,
   onChange,
   className = "form-control form-control-sm",
+  style,
   required = false,
   id,
   name,
@@ -60,12 +61,13 @@ export default function DateInput({
   const isConflict = Boolean(inputValue && disabledDates && disabledDates.includes(inputValue));
 
   return (
-    <div>
+    <div className="w-100" style={{ width: '100%' }}>
       <input
         type="date"
         id={id}
         name={name}
         className={`${className} ${isConflict ? 'is-invalid border-danger' : ''}`}
+        style={style}
         required={required}
         value={inputValue}
         onChange={handleChange}

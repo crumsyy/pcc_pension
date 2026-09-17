@@ -286,7 +286,7 @@ export default function AdminReports() {
   };
 
   // ===========================================================================
-  // PROFESSIONAL HOTEL PMS PDF REPORT GENERATOR
+  // PROFESSIONAL HOTEL PMS PDF REPORT GENERATOR (AUTHENTIC A4 DOCUMENT LOOK)
   // ===========================================================================
   const handleExportPDF = () => {
     if (!reportData) return;
@@ -298,17 +298,9 @@ export default function AdminReports() {
 
     const selectedRoomName = roomFilter
       ? (filterOptions.rooms.find(r => String(r.roomID) === String(roomFilter))?.roomNumber ? `Room ${filterOptions.rooms.find(r => String(r.roomID) === String(roomFilter))?.roomNumber}` : `Room #${roomFilter}`)
-      : 'All Rooms';
+      : 'All Active Rooms';
 
-    const activeFilterBadges = `
-      <div class="filters-meta">
-        <span><strong>Reporting Period:</strong> ${dateFrom} to ${dateTo}</span>
-        <span><strong>Scope:</strong> ${selectedRoomName}</span>
-        ${report === 'sales' ? `<span><strong>Payment Filter:</strong> ${paymentMethodFilter}</span><span><strong>Grouping:</strong> ${grouping}</span>` : ''}
-        ${report === 'inventory' ? `<span><strong>Classification:</strong> ${itemClassification}</span>` : ''}
-        ${report === 'guests' ? `<span><strong>Status:</strong> ${statusFilter}</span>` : ''}
-      </div>
-    `;
+    const docReference = `PCC-REP-${report.toUpperCase()}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
 
     if (report === 'sales') {
       reportTitle = 'Executive Sales & Financial Revenue Report';
@@ -317,7 +309,7 @@ export default function AdminReports() {
           <div class="kpi-card border-blue">
             <div class="kpi-label">NET REVENUE</div>
             <div class="kpi-value text-blue">₱${reportData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div class="kpi-sub">Gross: ₱${reportData.grossRevenue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+            <div class="kpi-sub">Gross: ₱${reportData.grossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </div>
           <div class="kpi-card border-green">
             <div class="kpi-label">TOTAL BOOKINGS</div>
@@ -326,14 +318,14 @@ export default function AdminReports() {
           </div>
           <div class="kpi-card border-red">
             <div class="kpi-label">DISCOUNTS APPLIED</div>
-            <div class="kpi-value text-red">₱${reportData.discountApplied.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-            <div class="kpi-sub">Guest privileges</div>
+            <div class="kpi-value text-red">₱${reportData.discountApplied.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div class="kpi-sub">Senior / PWD / Privilege Grants</div>
           </div>
           <div class="kpi-card border-purple">
-            <div class="kpi-label">PAYMENT BREAKDOWN</div>
-            <div class="kpi-value" style="font-size: 14px; margin-top: 4px;">
-              Cash: ₱${reportData.cashTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}<br />
-              GCash: ₱${reportData.gcashTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            <div class="kpi-label">PAYMENT SETTLEMENTS</div>
+            <div class="kpi-value text-purple" style="font-size: 13px; margin-top: 4px; line-height: 1.4;">
+              Cash: ₱${reportData.cashTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}<br />
+              GCash: ₱${reportData.gcashTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </div>
           </div>
         </div>
@@ -342,12 +334,12 @@ export default function AdminReports() {
       if (subTab === 'summary') {
         tableHeadersHtml = `
           <tr>
-            <th>Period</th>
-            <th class="text-center">Bookings</th>
-            <th class="text-right">Gross Revenue</th>
-            <th class="text-right">Discounts</th>
-            <th class="text-right">Net Revenue</th>
-            <th>Payment Methods</th>
+            <th style="width: 22%;">Period</th>
+            <th class="text-center" style="width: 14%;">Bookings</th>
+            <th class="text-right" style="width: 18%;">Gross Revenue</th>
+            <th class="text-right" style="width: 16%;">Discounts</th>
+            <th class="text-right" style="width: 18%;">Net Revenue</th>
+            <th style="width: 12%;">Settlement</th>
           </tr>
         `;
         tableRowsHtml = (reportData.salesRows || []).map(r => `
@@ -357,31 +349,29 @@ export default function AdminReports() {
             <td class="text-right">₱${r.grossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td class="text-right text-red">-₱${r.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td class="text-right text-blue bold">₱${r.netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td>${r.paymentMethods || 'Cash'}</td>
+            <td><span class="badge bg-secondary">${r.paymentMethods || 'Cash'}</span></td>
           </tr>
         `).join('');
       } else {
         tableHeadersHtml = `
           <tr>
-            <th>Trx #</th>
-            <th>Date & Time</th>
-            <th>Guest Name</th>
-            <th>Room</th>
-            <th>Method</th>
-            <th class="text-right">Gross</th>
-            <th class="text-right">Discount</th>
-            <th class="text-right">Net Paid</th>
+            <th style="width: 14%;">Folio / Trx</th>
+            <th style="width: 18%;">Date & Time</th>
+            <th style="width: 20%;">Guest Full Name</th>
+            <th style="width: 10%;">Room</th>
+            <th style="width: 10%;">Method</th>
+            <th class="text-right" style="width: 14%;">Gross</th>
+            <th class="text-right" style="width: 14%;">Net Paid</th>
           </tr>
         `;
         tableRowsHtml = (reportData.transactionLogs || []).map(r => `
           <tr>
-            <td>#TRX-${r.transactionID}</td>
+            <td><code class="ref-code">#TX-${r.transactionID}</code></td>
             <td>${r.date}</td>
             <td><strong>${r.guestName}</strong></td>
             <td>${r.roomNumber}</td>
-            <td>${r.paymentMethod}</td>
+            <td><span class="badge bg-secondary">${r.paymentMethod}</span></td>
             <td class="text-right">₱${r.grossAmount.toFixed(2)}</td>
-            <td class="text-right text-red">-₱${r.discountAmount.toFixed(2)}</td>
             <td class="text-right text-green bold">₱${r.netAmount.toFixed(2)}</td>
           </tr>
         `).join('');
@@ -397,19 +387,19 @@ export default function AdminReports() {
             <div class="kpi-sub">Across reporting window</div>
           </div>
           <div class="kpi-card border-blue">
-            <div class="kpi-label">TOTAL ROOMS</div>
+            <div class="kpi-label">TOTAL ROOMS MANAGED</div>
             <div class="kpi-value text-blue">${reportData.totalRooms} Total</div>
             <div class="kpi-sub">${reportData.occupiedNow} Occupied | ${reportData.availableNow} Available</div>
           </div>
           <div class="kpi-card border-purple">
             <div class="kpi-label">CHECK-INS & TURNOVER</div>
             <div class="kpi-value text-purple">${reportData.checkInsCount}</div>
-            <div class="kpi-sub">${reportData.checkOutsCount} check-outs</div>
+            <div class="kpi-sub">${reportData.checkOutsCount} check-outs executed</div>
           </div>
           <div class="kpi-card border-orange">
-            <div class="kpi-label">PEAK OCCUPANCY</div>
+            <div class="kpi-label">PEAK OCCUPANCY DATE</div>
             <div class="kpi-value text-orange">${reportData.peakOccupancyRate}%</div>
-            <div class="kpi-sub">on ${reportData.peakOccupancyDate}</div>
+            <div class="kpi-sub">Observed on ${reportData.peakOccupancyDate}</div>
           </div>
         </div>
       `;
@@ -417,27 +407,27 @@ export default function AdminReports() {
       if (subTab === 'trends') {
         tableHeadersHtml = `
           <tr>
-            <th>Date</th>
-            <th class="text-center">Occupied Rooms</th>
-            <th class="text-right">Occupancy Rate (%)</th>
+            <th style="width: 35%;">Date</th>
+            <th class="text-center" style="width: 30%;">Occupied Rooms</th>
+            <th class="text-right" style="width: 35%;">Occupancy Rate (%)</th>
           </tr>
         `;
         tableRowsHtml = (reportData.occupancyTrend || []).map(r => `
           <tr>
             <td><strong>${r.date}</strong></td>
             <td class="text-center">${r.occupied}</td>
-            <td class="text-right bold">${r.occupancyRate}%</td>
+            <td class="text-right bold text-blue">${r.occupancyRate}%</td>
           </tr>
         `).join('');
       } else {
         tableHeadersHtml = `
           <tr>
-            <th>Room Number</th>
-            <th>Floor</th>
-            <th>Room Type</th>
-            <th>Current Status</th>
-            <th class="text-center">Bookings Count</th>
-            <th class="text-center">Nights Occupied</th>
+            <th style="width: 18%;">Room Number</th>
+            <th style="width: 18%;">Floor</th>
+            <th style="width: 22%;">Room Type</th>
+            <th style="width: 16%;">Current Status</th>
+            <th class="text-center" style="width: 13%;">Total Stays</th>
+            <th class="text-center" style="width: 13%;">Nights Booked</th>
           </tr>
         `;
         tableRowsHtml = (reportData.roomPerformance || []).map(r => `
@@ -445,36 +435,36 @@ export default function AdminReports() {
             <td><strong>Room ${r.roomNumber}</strong></td>
             <td>${r.floorName}</td>
             <td>${r.roomTypeName}</td>
-            <td>${r.currentStatus}</td>
+            <td><span class="badge ${r.currentStatus === 'Available' ? 'bg-success' : r.currentStatus === 'Occupied' ? 'bg-primary' : 'bg-warning'}">${r.currentStatus}</span></td>
             <td class="text-center">${r.totalBookings}</td>
-            <td class="text-center bold">${r.totalNightsOccupied}</td>
+            <td class="text-center bold text-blue">${r.totalNightsOccupied}</td>
           </tr>
         `).join('');
       }
 
     } else if (report === 'inventory') {
-      reportTitle = 'Inventory, Store & F&B Movement Audit Report';
+      reportTitle = 'Inventory Management & F&B Movement Audit Report';
       kpiHtml = `
         <div class="kpi-grid">
           <div class="kpi-card border-blue">
-            <div class="kpi-label">MOST CONSUMED ITEM</div>
-            <div class="kpi-value text-blue" style="font-size: 15px;">${reportData.mostUsedItem}</div>
-            <div class="kpi-sub">${reportData.maxUsed} units consumed</div>
+            <div class="kpi-label">TOTAL STOCK CATALOG</div>
+            <div class="kpi-value text-blue">${reportData.summaries?.length || 0} Items</div>
+            <div class="kpi-sub">Amenities, F&B & products</div>
           </div>
           <div class="kpi-card border-red">
-            <div class="kpi-label">LOW STOCK WARNINGS</div>
-            <div class="kpi-value text-red">${reportData.lowStockCount || 0}</div>
-            <div class="kpi-sub">Items at or below reorder level</div>
+            <div class="kpi-label">CRITICAL LOW STOCK</div>
+            <div class="kpi-value text-red">${reportData.lowStockCount || 0} Items</div>
+            <div class="kpi-sub">At or below reorder threshold</div>
           </div>
           <div class="kpi-card border-green">
-            <div class="kpi-label">MOST BORROWED ASSET</div>
-            <div class="kpi-value text-green" style="font-size: 15px;">${reportData.mostBorrowed}</div>
-            <div class="kpi-sub">${reportData.maxBorrowed} times borrowed</div>
+            <div class="kpi-label">MOST CONSUMED ITEM</div>
+            <div class="kpi-value text-green" style="font-size: 14px;">${reportData.mostUsedItem || '—'}</div>
+            <div class="kpi-sub">${reportData.maxUsed || 0} units utilized</div>
           </div>
           <div class="kpi-card border-orange">
-            <div class="kpi-label">EXPIRED / DISPOSED</div>
-            <div class="kpi-value text-orange">${reportData.expiredTotalCount || 0}</div>
-            <div class="kpi-sub">${reportData.maxDisposed} units disposed</div>
+            <div class="kpi-label">TOTAL DISPOSED / LOSS</div>
+            <div class="kpi-value text-orange">${reportData.expiredTotalCount || 0} Qty</div>
+            <div class="kpi-sub">Expired or discarded units</div>
           </div>
         </div>
       `;
@@ -482,14 +472,13 @@ export default function AdminReports() {
       if (subTab === 'balances') {
         tableHeadersHtml = `
           <tr>
-            <th>Item Name</th>
-            <th>Category</th>
-            <th>Classification</th>
-            <th class="text-center">Rec'd</th>
-            <th class="text-center">Used</th>
-            <th class="text-center">Remaining</th>
-            <th class="text-center">Expired</th>
-            <th>Status</th>
+            <th style="width: 25%;">Item Description</th>
+            <th style="width: 15%;">Category</th>
+            <th style="width: 14%;">Classification</th>
+            <th class="text-center" style="width: 11%;">Received</th>
+            <th class="text-center" style="width: 11%;">Consumed</th>
+            <th class="text-center" style="width: 12%;">Current Stock</th>
+            <th class="text-center" style="width: 12%;">Inventory Status</th>
           </tr>
         `;
         tableRowsHtml = (reportData.summaries || []).map(s => `
@@ -500,31 +489,28 @@ export default function AdminReports() {
             <td class="text-center">${s.quantityReceived}</td>
             <td class="text-center">${s.quantityUsed}</td>
             <td class="text-center bold ${s.lowStock ? 'text-red' : 'text-green'}">${s.remainingStock} ${s.unit}</td>
-            <td class="text-center">${s.expiredQty > 0 ? `<span class="text-red">${s.expiredQty}</span>` : '—'}</td>
-            <td><span class="badge ${s.lowStock ? 'bg-danger' : 'bg-success'}">${s.lowStock ? 'LOW STOCK' : 'IN STOCK'}</span></td>
+            <td class="text-center"><span class="badge ${s.lowStock ? 'bg-danger' : 'bg-success'}">${s.lowStock ? 'LOW STOCK' : 'IN STOCK'}</span></td>
           </tr>
         `).join('');
       } else {
         tableHeadersHtml = `
           <tr>
-            <th>Date & Time</th>
-            <th>Ref #</th>
-            <th>Item Name</th>
-            <th>Type</th>
-            <th class="text-center">Qty</th>
-            <th>Staff User</th>
-            <th>Remarks</th>
+            <th style="width: 18%;">Date & Time</th>
+            <th style="width: 14%;">Reference #</th>
+            <th style="width: 22%;">Item Description</th>
+            <th style="width: 14%;">Movement Type</th>
+            <th class="text-center" style="width: 10%;">Quantity</th>
+            <th style="width: 22%;">Operator / Remarks</th>
           </tr>
         `;
         tableRowsHtml = (reportData.movements || []).map(m => `
           <tr>
             <td>${new Date(m.movementDateTime).toLocaleString()}</td>
-            <td><code>${m.referenceNumber || '—'}</code></td>
+            <td><code class="ref-code">${m.referenceNumber || '—'}</code></td>
             <td><strong>${m.itemName}</strong></td>
             <td>${m.movementType}</td>
             <td class="text-center bold ${m.quantity > 0 ? 'text-green' : 'text-red'}">${m.quantity > 0 ? `+${m.quantity}` : m.quantity}</td>
-            <td>${m.userEmail || 'System'}</td>
-            <td>${m.remarks || '—'}</td>
+            <td>${m.userEmail || 'System'} ${m.remarks ? `<br /><small class="text-muted">${m.remarks}</small>` : ''}</td>
           </tr>
         `).join('');
       }
@@ -536,22 +522,22 @@ export default function AdminReports() {
           <div class="kpi-card border-purple">
             <div class="kpi-label">TOTAL UNIQUE GUESTS</div>
             <div class="kpi-value text-purple">${reportData.totalGuestsCount || 0}</div>
-            <div class="kpi-sub">${reportData.returningGuestsCount || 0} returning | ${reportData.newGuestsCount || 0} new</div>
+            <div class="kpi-sub">${reportData.returningGuestsCount || 0} repeat | ${reportData.newGuestsCount || 0} new clients</div>
           </div>
           <div class="kpi-card border-blue">
-            <div class="kpi-label">AVERAGE LENGTH OF STAY</div>
+            <div class="kpi-label">AVERAGE STAY DURATION</div>
             <div class="kpi-value text-blue">${reportData.averageStayLength || 0} Nights</div>
-            <div class="kpi-sub">Per booking stay</div>
+            <div class="kpi-sub">Per guest booking folio</div>
           </div>
           <div class="kpi-card border-green">
-            <div class="kpi-label">RESERVATIONS ACTIVITY</div>
+            <div class="kpi-label">RESERVATION ACTIVITY</div>
             <div class="kpi-value text-green">${reportData.totalReservations || 0} Total</div>
             <div class="kpi-sub">${reportData.confirmedCount || 0} Confirmed | ${reportData.cancelledCount || 0} Cancelled</div>
           </div>
           <div class="kpi-card border-orange">
-            <div class="kpi-label">MOST FREQUENT GUEST</div>
-            <div class="kpi-value text-orange" style="font-size: 15px;">${reportData.mostFrequentGuest || '—'}</div>
-            <div class="kpi-sub">${reportData.maxVisits || 0} recorded stays</div>
+            <div class="kpi-label">TOP FREQUENT GUEST</div>
+            <div class="kpi-value text-orange" style="font-size: 14px;">${reportData.mostFrequentGuest || '—'}</div>
+            <div class="kpi-sub">${reportData.maxVisits || 0} recorded hotel stays</div>
           </div>
         </div>
       `;
@@ -559,15 +545,14 @@ export default function AdminReports() {
       if (subTab === 'stays') {
         tableHeadersHtml = `
           <tr>
-            <th>Guest Name</th>
-            <th>Contact / Email</th>
-            <th>Room Assigned</th>
-            <th>Check-In</th>
-            <th>Check-Out</th>
-            <th class="text-center">Nights</th>
-            <th class="text-right">Total Paid</th>
-            <th>Privilege Discount</th>
-            <th>Status</th>
+            <th style="width: 20%;">Guest Full Name</th>
+            <th style="width: 18%;">Contact & Email</th>
+            <th style="width: 12%;">Assigned Room</th>
+            <th style="width: 12%;">Check-In</th>
+            <th style="width: 12%;">Check-Out</th>
+            <th class="text-center" style="width: 8%;">Nights</th>
+            <th class="text-right" style="width: 12%;">Settled Amount</th>
+            <th style="width: 6%;">Status</th>
           </tr>
         `;
         tableRowsHtml = (reportData.guestRows || []).map(g => `
@@ -579,102 +564,239 @@ export default function AdminReports() {
             <td>${g.checkOut}</td>
             <td class="text-center">${g.lengthOfStay}</td>
             <td class="text-right bold text-green">₱${g.amountPaid.toFixed(2)}</td>
-            <td>${g.discountApplied}</td>
             <td><span class="badge bg-primary">${g.bookingStatus}</span></td>
           </tr>
         `).join('');
       } else {
         tableHeadersHtml = `
           <tr>
-            <th>Reservation ID</th>
-            <th>Guest Name</th>
-            <th>Contact</th>
-            <th>Room</th>
-            <th>Room Type</th>
-            <th>Reserved On</th>
-            <th>Target Check-In</th>
-            <th>Status</th>
+            <th style="width: 12%;">Reservation ID</th>
+            <th style="width: 20%;">Guest Full Name</th>
+            <th style="width: 16%;">Contact</th>
+            <th style="width: 12%;">Room</th>
+            <th style="width: 14%;">Room Type</th>
+            <th style="width: 14%;">Reservation Date</th>
+            <th style="width: 12%;">Status</th>
           </tr>
         `;
         tableRowsHtml = (reportData.reservationRows || []).map(r => `
           <tr>
-            <td><strong>#RES-${r.reservationID}</strong></td>
-            <td>${r.guestName}</td>
+            <td><code class="ref-code">#RES-${r.reservationID}</code></td>
+            <td><strong>${r.guestName}</strong></td>
             <td>${r.contact}</td>
             <td>${r.roomNumber}</td>
             <td>${r.roomType}</td>
             <td>${r.reservationDate}</td>
-            <td>${r.checkInDate}</td>
             <td><span class="badge ${r.status === 'Confirmed' ? 'bg-success' : r.status === 'Cancelled' ? 'bg-danger' : 'bg-warning'}">${r.status}</span></td>
           </tr>
         `).join('');
       }
     }
 
-    const printWindow = window.open('', '_blank', 'width=1100,height=850');
+    const printWindow = window.open('', '_blank', 'width=1150,height=880');
     if (!printWindow) {
-      alert('Pop-up was blocked. Please allow pop-ups for this site to export PDF.');
+      alert('Pop-up was blocked. Please allow pop-ups for this site to export the PDF document.');
       return;
     }
 
+    const generationDateStr = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
+    const criteriaText = report === 'sales'
+      ? `Payment: ${paymentMethodFilter} | Grouping: ${grouping}`
+      : report === 'inventory'
+      ? `Classification: ${itemClassification}`
+      : report === 'guests'
+      ? `Status: ${statusFilter}`
+      : 'Standard Operations';
+
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
         <head>
-          <title>${reportTitle} - PCC Pension</title>
+          <title>${reportTitle} — PCC Home Suite Home</title>
           <meta charset="utf-8" />
           <style>
             @page {
               size: A4 portrait;
-              margin: 12mm 15mm;
+              margin: 14mm 15mm;
             }
-            * { box-sizing: border-box; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-              color: #1e293b;
-              line-height: 1.35;
-              font-size: 11px;
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            html, body {
               margin: 0;
               padding: 0;
-              background-color: #fff;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
+              background-color: #e2e8f0;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #0f172a;
+              line-height: 1.4;
+              font-size: 11px;
             }
-            .header-wrap {
-              border-bottom: 2px solid #2155B5;
-              padding-bottom: 12px;
+            .screen-toolbar {
+              background-color: #1e293b;
+              color: #f8fafc;
+              padding: 10px 20px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              position: sticky;
+              top: 0;
+              z-index: 9999;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            }
+            .screen-toolbar-title {
+              font-size: 13px;
+              font-weight: 600;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .screen-toolbar-btn {
+              background: #2563eb;
+              color: #ffffff;
+              border: none;
+              padding: 7px 18px;
+              font-size: 12px;
+              font-weight: 600;
+              border-radius: 4px;
+              cursor: pointer;
+              transition: background 0.15s ease-in-out;
+            }
+            .screen-toolbar-btn:hover {
+              background: #1d4ed8;
+            }
+            .screen-toolbar-btn-secondary {
+              background: #475569;
+              color: #ffffff;
+              border: none;
+              padding: 7px 14px;
+              font-size: 12px;
+              font-weight: 500;
+              border-radius: 4px;
+              cursor: pointer;
+              margin-left: 8px;
+            }
+            .screen-toolbar-btn-secondary:hover {
+              background: #334155;
+            }
+            .page-container {
+              padding: 24px 0 40px 0;
+            }
+            /* A4 Physical Paper Look Sheet */
+            .page-document {
+              width: 210mm;
+              min-height: 297mm;
+              margin: 0 auto;
+              padding: 16mm 18mm;
+              background: #ffffff;
+              box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08);
+              border-radius: 2px;
+              position: relative;
+            }
+            /* Formal Letterhead */
+            .letterhead {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 3px double #cbd5e1;
+              padding-bottom: 14px;
               margin-bottom: 14px;
             }
-            .brand-title {
+            .brand-name {
               font-size: 20px;
-              font-weight: 800;
-              color: #2155B5;
-              letter-spacing: 0.5px;
+              font-weight: 900;
+              letter-spacing: 0.8px;
+              color: #1e3a8a;
               text-transform: uppercase;
               margin: 0 0 2px 0;
             }
             .brand-sub {
-              font-size: 10.5px;
+              font-size: 11px;
+              font-weight: 600;
+              color: #0d9488;
+              margin: 0 0 4px 0;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .brand-contact {
+              font-size: 9.5px;
               color: #64748b;
-              margin: 0 0 8px 0;
+              margin: 0;
+              line-height: 1.35;
             }
-            .report-title {
-              font-size: 15px;
-              font-weight: 700;
-              color: #0f172a;
-              margin: 6px 0 6px 0;
-            }
-            .filters-meta {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 12px;
-              font-size: 10px;
-              background: #f1f5f9;
-              padding: 6px 10px;
+            .ref-box {
+              text-align: right;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
               border-radius: 4px;
-              color: #334155;
+              padding: 6px 10px;
+              min-width: 170px;
             }
-            .filters-meta span { display: inline-block; }
+            .ref-code {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              font-size: 10px;
+              font-weight: 700;
+              color: #1e3a8a;
+            }
+            .ref-label {
+              font-size: 8.5px;
+              font-weight: 700;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.4px;
+            }
+            /* Document Header & Title */
+            .doc-header {
+              text-align: center;
+              margin-bottom: 14px;
+            }
+            .doc-title {
+              font-size: 16px;
+              font-weight: 800;
+              color: #0f172a;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin: 0 0 6px 0;
+            }
+            /* Metadata Grid Box */
+            .meta-box {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 8px 24px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-left: 4px solid #1e3a8a;
+              border-radius: 4px;
+              padding: 8px 12px;
+              margin-bottom: 16px;
+              font-size: 10px;
+            }
+            .meta-item {
+              display: flex;
+              align-items: baseline;
+            }
+            .meta-label {
+              font-weight: 700;
+              color: #475569;
+              min-width: 110px;
+              text-transform: uppercase;
+              font-size: 9px;
+            }
+            .meta-val {
+              color: #0f172a;
+              font-weight: 600;
+            }
+            /* KPI Grid */
             .kpi-grid {
               display: grid;
               grid-template-columns: repeat(4, 1fr);
@@ -682,120 +804,289 @@ export default function AdminReports() {
               margin-bottom: 16px;
             }
             .kpi-card {
-              background: #f8fafc;
+              background: #ffffff;
               border: 1px solid #e2e8f0;
               border-left-width: 4px;
               border-radius: 4px;
               padding: 8px 10px;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.03);
             }
-            .border-blue { border-left-color: #2155B5; }
+            .border-blue { border-left-color: #2563eb; }
             .border-green { border-left-color: #16a34a; }
             .border-red { border-left-color: #dc2626; }
             .border-purple { border-left-color: #7c3aed; }
             .border-orange { border-left-color: #ea580c; }
-            .kpi-label { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; }
-            .kpi-value { font-size: 16px; font-weight: 800; margin: 3px 0 2px 0; }
-            .kpi-sub { font-size: 9px; color: #94a3b8; }
-            .text-blue { color: #2155B5; }
+            .kpi-label {
+              font-size: 8.5px;
+              font-weight: 700;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.3px;
+            }
+            .kpi-value {
+              font-size: 15px;
+              font-weight: 800;
+              margin: 3px 0 2px 0;
+            }
+            .kpi-sub {
+              font-size: 8.5px;
+              color: #94a3b8;
+            }
+            .text-blue { color: #1e3a8a; }
             .text-green { color: #16a34a; }
             .text-red { color: #dc2626; }
             .text-purple { color: #7c3aed; }
             .text-orange { color: #ea580c; }
             .bold { font-weight: 700; }
+            /* Accounting Table */
             table {
               width: 100%;
               border-collapse: collapse;
               margin-top: 10px;
+              margin-bottom: 20px;
               page-break-inside: auto;
             }
-            tr { page-break-inside: avoid; page-break-after: auto; }
-            thead { display: table-header-group; }
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
+            }
+            thead {
+              display: table-header-group;
+            }
             th {
-              background-color: #2155B5 !important;
+              background-color: #1e3a8a !important;
               color: #ffffff !important;
               font-weight: 700;
-              padding: 6px 8px;
-              border: 1px solid #1d4ed8;
+              padding: 7px 8px;
+              border: 1px solid #1e3a8a;
               font-size: 9.5px;
               text-align: left;
+              text-transform: uppercase;
+              letter-spacing: 0.3px;
             }
             td {
-              padding: 5px 8px;
+              padding: 5.5px 8px;
               border: 1px solid #e2e8f0;
               font-size: 9.5px;
+              vertical-align: middle;
             }
-            tbody tr:nth-child(even) { background-color: #f8fafc; }
+            tbody tr:nth-child(even) {
+              background-color: #f8fafc;
+            }
+            tbody tr:hover {
+              background-color: #f1f5f9;
+            }
             .text-right { text-align: right; }
             .text-center { text-align: center; }
             .badge {
               display: inline-block;
-              padding: 2px 5px;
-              font-size: 8.5px;
+              padding: 2px 6px;
+              font-size: 8px;
               font-weight: 700;
               border-radius: 3px;
               text-transform: uppercase;
+              letter-spacing: 0.3px;
             }
             .bg-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
             .bg-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
             .bg-primary { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
             .bg-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-            .signature-section {
-              margin-top: 30px;
+            .bg-secondary { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+            /* Audit Certification & Sign-off */
+            .signoff-wrapper {
+              margin-top: 32px;
               page-break-inside: avoid;
             }
-            .signature-grid {
+            .signoff-title {
+              font-size: 9.5px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #475569;
+              margin-bottom: 18px;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 4px;
+            }
+            .signoff-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 40px;
-              margin-top: 25px;
+              gap: 50px;
             }
-            .sig-line {
-              border-top: 1px solid #94a3b8;
-              padding-top: 5px;
+            .signoff-box {
+              font-size: 9.5px;
+            }
+            .signoff-line {
+              border-top: 1.5px solid #334155;
+              padding-top: 6px;
+              margin-top: 40px;
+            }
+            .signoff-name {
+              font-weight: 800;
+              color: #0f172a;
               font-size: 10px;
+              text-transform: uppercase;
             }
-            .footer-note {
-              margin-top: 20px;
-              font-size: 8.5px;
+            .signoff-role {
+              color: #64748b;
+              font-size: 9px;
+            }
+            .doc-end {
+              text-align: center;
+              font-size: 9px;
+              font-weight: 700;
+              letter-spacing: 1px;
+              color: #94a3b8;
+              margin-top: 24px;
+              margin-bottom: 8px;
+            }
+            .footer-clause {
+              font-size: 8px;
               color: #94a3b8;
               text-align: center;
+              line-height: 1.4;
               border-top: 1px dashed #cbd5e1;
-              padding-top: 6px;
+              padding-top: 8px;
+            }
+            /* Media Print Optimization for A4 Paper */
+            @media print {
+              .no-print {
+                display: none !important;
+              }
+              html, body {
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+              }
+              .page-container {
+                padding: 0 !important;
+              }
+              .page-document {
+                width: 100% !important;
+                min-height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+              }
+              table {
+                page-break-inside: auto;
+              }
+              tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+              }
+              thead {
+                display: table-header-group;
+              }
             }
           </style>
         </head>
         <body>
-          <div class="header-wrap">
-            <h1 class="brand-title">PCC HOME SUITE HOME</h1>
-            <p class="brand-sub">Property & Pension House Management System — Executive Operations</p>
-            <div class="report-title">${reportTitle}</div>
-            ${activeFilterBadges}
+          <div class="screen-toolbar no-print">
+            <div class="screen-toolbar-title">
+              <span>📄</span>
+              <span>PCC PMS Document Report — A4 Paper Preview</span>
+            </div>
+            <div>
+              <button class="screen-toolbar-btn" onclick="window.print()">
+                🖨️ Print / Save as PDF
+              </button>
+              <button class="screen-toolbar-btn-secondary" onclick="window.close()">
+                Close
+              </button>
+            </div>
           </div>
 
-          ${kpiHtml}
-
-          <table>
-            <thead>${tableHeadersHtml}</thead>
-            <tbody>${tableRowsHtml}</tbody>
-          </table>
-
-          <div class="signature-section">
-            <div class="signature-grid">
-              <div>
-                <div class="sig-line">
-                  <strong>Prepared By:</strong> System Administrator<br />
-                  <span style="color: #64748b;">PCC Home Suite Home Operations</span>
+          <div class="page-container">
+            <div class="page-document">
+              <!-- Formal Letterhead -->
+              <div class="letterhead">
+                <div>
+                  <div class="brand-name">PCC Home Suite Home</div>
+                  <div class="brand-sub">Property & Pension House Management Operations</div>
+                  <div class="brand-contact">
+                    National Highway, Brgy. Dadiangas East, General Santos City, 9500<br />
+                    Tel: (083) 552-8888 | Mobile: +63 917 123 4567 | Email: info@pcchomesuite.com
+                  </div>
+                </div>
+                <div class="ref-box">
+                  <div class="ref-label">Official Document Ref</div>
+                  <div class="ref-code">${docReference}</div>
+                  <div class="ref-label" style="margin-top: 4px;">Security Classification</div>
+                  <div style="font-size: 8.5px; font-weight: 700; color: #16a34a;">CONFIDENTIAL / INTERNAL</div>
                 </div>
               </div>
-              <div>
-                <div class="sig-line">
-                  <strong>Approved / Audited By:</strong> General Manager<br />
-                  <span style="color: #64748b;">PCC Pension Administration</span>
+
+              <!-- Document Title -->
+              <div class="doc-header">
+                <div class="doc-title">${reportTitle}</div>
+              </div>
+
+              <!-- Metadata Summary Box -->
+              <div class="meta-box">
+                <div class="meta-item">
+                  <span class="meta-label">Reporting Period:</span>
+                  <span class="meta-val">${dateFrom} to ${dateTo}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Date Generated:</span>
+                  <span class="meta-val">${generationDateStr}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Target Scope:</span>
+                  <span class="meta-val">${selectedRoomName}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Filter Criteria:</span>
+                  <span class="meta-val">${criteriaText}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Generated By:</span>
+                  <span class="meta-val">System Administrator (Operations)</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Audit Status:</span>
+                  <span class="meta-val" style="color: #16a34a;">Active Operational Audit</span>
                 </div>
               </div>
-            </div>
-            <div class="footer-note">
-              Confidential document. For internal management, accounting and academic auditing only. Generated on ${new Date().toLocaleString()} by Administrator.
+
+              <!-- KPI Summary Cards -->
+              ${kpiHtml}
+
+              <!-- Accounting / Data Table -->
+              <table>
+                <thead>${tableHeadersHtml}</thead>
+                <tbody>${tableRowsHtml}</tbody>
+              </table>
+
+              <!-- Audit Certification & Sign-off Section -->
+              <div class="signoff-wrapper">
+                <div class="signoff-title">Administrative Audit & Verification Sign-Off</div>
+                <div class="signoff-grid">
+                  <div class="signoff-box">
+                    <div>Certified Correct & Prepared By:</div>
+                    <div class="signoff-line">
+                      <div class="signoff-name">System Administrator</div>
+                      <div class="signoff-role">Front Office & Administrative Operations</div>
+                      <div class="signoff-role">PCC Home Suite Home</div>
+                    </div>
+                  </div>
+                  <div class="signoff-box">
+                    <div>Audited & Approved By:</div>
+                    <div class="signoff-line">
+                      <div class="signoff-name">General Manager / Auditor</div>
+                      <div class="signoff-role">Property Administration & Financial Oversight</div>
+                      <div class="signoff-role">PCC Pension Administration</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="doc-end">*** END OF REPORT — CONFIDENTIAL ***</div>
+                <div class="footer-clause">
+                  This document contains privileged and confidential operational information belonging to PCC Home Suite Home. 
+                  Any unauthorized review, copying, distribution, or disclosure is strictly prohibited. Generated automatically via PCC Pension House Management System on ${generationDateStr}.
+                </div>
+              </div>
             </div>
           </div>
         </body>
@@ -805,7 +1096,7 @@ export default function AdminReports() {
     printWindow.focus();
     setTimeout(() => {
       printWindow.print();
-    }, 400);
+    }, 450);
   };
 
   return (
@@ -887,9 +1178,10 @@ export default function AdminReports() {
         <div className="row g-2 align-items-end">
           {/* Date Presets */}
           <div className="col-6 col-md-2">
-            <label className="form-label small fw-bold">Date Preset</label>
+            <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Date Preset</label>
             <select
               className="form-select form-select-sm"
+              style={{ height: '36px' }}
               value={datePreset}
               onChange={(e) => setDatePreset(e.target.value)}
             >
@@ -906,30 +1198,35 @@ export default function AdminReports() {
 
           {/* From Date */}
           <div className="col-6 col-md-2">
-            <label className="form-label small fw-bold">From</label>
+            <label className="form-label small fw-semibold text-muted mb-1 text-truncate">From</label>
             <DateInput
               value={dateFrom}
               disabled={datePreset !== 'Custom Range'}
               onChange={(e) => setDateFrom(e.target.value)}
+              className="form-control form-control-sm"
+              style={{ height: '36px' }}
             />
           </div>
 
           {/* To Date */}
           <div className="col-6 col-md-2">
-            <label className="form-label small fw-bold">To</label>
+            <label className="form-label small fw-semibold text-muted mb-1 text-truncate">To</label>
             <DateInput
               value={dateTo}
               disabled={datePreset !== 'Custom Range'}
               onChange={(e) => setDateTo(e.target.value)}
+              className="form-control form-control-sm"
+              style={{ height: '36px' }}
             />
           </div>
 
           {/* Room Filter (Sales, Occupancy, Guests) */}
           {report !== 'inventory' && (
             <div className="col-6 col-md-2">
-              <label className="form-label small fw-bold">Room Filter</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Room Filter</label>
               <select
                 className="form-select form-select-sm"
+                style={{ height: '36px' }}
                 value={roomFilter}
                 onChange={(e) => setRoomFilter(e.target.value)}
               >
@@ -946,9 +1243,10 @@ export default function AdminReports() {
           {/* Item Classification Filter (Inventory) */}
           {report === 'inventory' && (
             <div className="col-6 col-md-2">
-              <label className="form-label small fw-bold">Classification</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Classification</label>
               <select
                 className="form-select form-select-sm"
+                style={{ height: '36px' }}
                 value={itemClassification}
                 onChange={(e) => setItemClassification(e.target.value)}
               >
@@ -963,9 +1261,10 @@ export default function AdminReports() {
           {/* Payment Method Filter (Sales) */}
           {report === 'sales' && (
             <div className="col-6 col-md-2">
-              <label className="form-label small fw-bold">Payment Method</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Payment Method</label>
               <select
                 className="form-select form-select-sm"
+                style={{ height: '36px' }}
                 value={paymentMethodFilter}
                 onChange={(e) => setPaymentMethodFilter(e.target.value)}
               >
@@ -979,9 +1278,10 @@ export default function AdminReports() {
           {/* Grouping Filter (Sales) */}
           {report === 'sales' && (
             <div className="col-6 col-md-1">
-              <label className="form-label small fw-bold">Grouping</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Grouping</label>
               <select
                 className="form-select form-select-sm"
+                style={{ height: '36px' }}
                 value={grouping}
                 onChange={(e) => setGrouping(e.target.value)}
               >
@@ -996,9 +1296,10 @@ export default function AdminReports() {
           {/* Status Filter (Guests) */}
           {report === 'guests' && (
             <div className="col-6 col-md-2">
-              <label className="form-label small fw-bold">Booking Status</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Booking Status</label>
               <select
                 className="form-select form-select-sm"
+                style={{ height: '36px' }}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
@@ -1013,7 +1314,12 @@ export default function AdminReports() {
 
           {/* Refresh Action */}
           <div className="col-12 col-md-1">
-            <button className="btn btn-sm btn-pcc-primary text-white w-100 fw-semibold" onClick={fetchReport}>
+            <label className="form-label small fw-semibold text-muted mb-1 d-none d-md-block invisible">Action</label>
+            <button
+              className="btn btn-sm btn-pcc-primary text-white w-100 fw-semibold d-flex align-items-center justify-content-center"
+              style={{ height: '36px' }}
+              onClick={fetchReport}
+            >
               Generate
             </button>
           </div>

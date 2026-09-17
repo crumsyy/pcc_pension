@@ -392,7 +392,7 @@ export async function GET(request) {
       // Detailed Room Performance / Utilization table
       let perfSql = `
         SELECT rm.roomID, rm.roomNumber, rm.status as currentStatus, fl.name as floorName, rt.type as roomTypeName,
-               COALESCE(rr.rate, 0) as standardRate,
+               COALESCE(MAX(rr.rate), 0) as standardRate,
                COUNT(b.bookingID) as totalBookings,
                COALESCE(SUM(
                  CASE 
@@ -418,7 +418,7 @@ export async function GET(request) {
         perfSql += " AND rm.roomTypeID = ?";
         perfParams.push(parseInt(roomTypeID));
       }
-      perfSql += " GROUP BY rm.roomID ORDER BY totalBookings DESC, rm.roomNumber ASC";
+      perfSql += " GROUP BY rm.roomID, rm.roomNumber, rm.status, fl.name, rt.type ORDER BY totalBookings DESC, rm.roomNumber ASC";
       const roomPerformance = await dbQuery(perfSql, perfParams);
 
       // Peak booking dates
@@ -689,7 +689,7 @@ export async function GET(request) {
 
       // Reservations Activity Log
       let resSql = `
-        SELECT r.reservationID, DATE_FORMAT(r.createdAt, '%Y-%m-%dT%H:%i:%s') as createdAt, 
+        SELECT r.reservationID, 
                DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime, 
                DATE_FORMAT(r.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, 
                r.status, r.roomID,
@@ -699,7 +699,7 @@ export async function GET(request) {
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        WHERE DATE(r.createdAt) BETWEEN ? AND ?
+        WHERE DATE(r.reservationDateTime) BETWEEN ? AND ?
       `;
       const resParams = [from, to];
       if (roomID) {
@@ -714,7 +714,7 @@ export async function GET(request) {
         resSql += " AND r.status = ?";
         resParams.push(statusFilter);
       }
-      resSql += " ORDER BY r.createdAt DESC";
+      resSql += " ORDER BY r.reservationDateTime DESC";
 
       const reservationsList = await dbQuery(resSql, resParams);
 
@@ -725,7 +725,7 @@ export async function GET(request) {
         email: r.email || '—',
         roomNumber: r.roomNumber ? `Room ${r.roomNumber}` : '—',
         roomType: r.roomType || '—',
-        reservationDate: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—',
+        reservationDate: r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleDateString() : '—',
         checkInDate: r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleDateString() : '—',
         status: r.status
       }));
@@ -783,15 +783,15 @@ export async function GET(request) {
     // =========================================================================
     } else if (report === 'reservations') {
       const resList = await dbQuery(`
-        SELECT r.reservationID, DATE_FORMAT(r.createdAt, '%Y-%m-%dT%H:%i:%s') as createdAt, 
+        SELECT r.reservationID, 
                DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime, 
                r.status, g.firstName, g.lastName, g.contact, g.email, rm.roomNumber, rt.type as roomType
         FROM reservation r
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        WHERE DATE(r.createdAt) BETWEEN ? AND ?
-        ORDER BY r.createdAt DESC
+        WHERE DATE(r.reservationDateTime) BETWEEN ? AND ?
+        ORDER BY r.reservationDateTime DESC
       `, [from, to]);
 
       data.reservationRows = resList.map(r => ({
@@ -801,7 +801,7 @@ export async function GET(request) {
         email: r.email || '—',
         roomNumber: r.roomNumber,
         roomType: r.roomType,
-        reservationDate: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—',
+        reservationDate: r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleDateString() : '—',
         checkInDate: r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleDateString() : '—',
         status: r.status
       }));
