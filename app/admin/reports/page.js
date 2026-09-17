@@ -33,6 +33,17 @@ export default function AdminReports() {
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc' | 'desc'
   const itemsPerPage = 10;
 
+  // Switch report type cleanly without stale schema collisions
+  const handleSelectReport = (newReport) => {
+    if (newReport === report) return;
+    setReport(newReport);
+    setReportData(null);
+    setLoading(true);
+    setError('');
+    setCurrentPage(1);
+    setSearchTerm('');
+  };
+
   // Sync subTab whenever main report changes
   useEffect(() => {
     if (report === 'sales') setSubTab('summary');
@@ -116,7 +127,7 @@ export default function AdminReports() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate report');
 
-      setReportData(data.data || null);
+      setReportData({ ...(data.data || {}), _reportType: data.report || report });
       if (data.filterOptions) {
         setFilterOptions(data.filterOptions);
       }
@@ -136,6 +147,7 @@ export default function AdminReports() {
   // Reset Filters to defaults
   const handleResetFilters = () => {
     setDatePreset('This Month');
+    applyPresetDates('This Month');
     setRoomFilter('');
     setRoomTypeFilter('');
     setItemClassification('All');
@@ -308,24 +320,24 @@ export default function AdminReports() {
         <div class="kpi-grid">
           <div class="kpi-card border-blue">
             <div class="kpi-label">NET REVENUE</div>
-            <div class="kpi-value text-blue">₱${reportData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div class="kpi-sub">Gross: ₱${reportData.grossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div class="kpi-value text-blue">₱${(reportData?.totalRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div class="kpi-sub">Gross: ₱${(reportData?.grossRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </div>
           <div class="kpi-card border-green">
             <div class="kpi-label">TOTAL BOOKINGS</div>
-            <div class="kpi-value text-green">${reportData.numberBookings}</div>
-            <div class="kpi-sub">${reportData.completedBookings} completed stays</div>
+            <div class="kpi-value text-green">${reportData?.numberBookings ?? 0}</div>
+            <div class="kpi-sub">${reportData?.completedBookings ?? 0} completed stays</div>
           </div>
           <div class="kpi-card border-red">
             <div class="kpi-label">DISCOUNTS APPLIED</div>
-            <div class="kpi-value text-red">₱${reportData.discountApplied.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div class="kpi-value text-red">₱${(reportData?.discountApplied ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div class="kpi-sub">Senior / PWD / Privilege Grants</div>
           </div>
           <div class="kpi-card border-purple">
             <div class="kpi-label">PAYMENT SETTLEMENTS</div>
             <div class="kpi-value text-purple" style="font-size: 13px; margin-top: 4px; line-height: 1.4;">
-              Cash: ₱${reportData.cashTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}<br />
-              GCash: ₱${reportData.gcashTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              Cash: ₱${(reportData?.cashTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}<br />
+              GCash: ₱${(reportData?.gcashTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </div>
           </div>
         </div>
@@ -383,23 +395,23 @@ export default function AdminReports() {
         <div class="kpi-grid">
           <div class="kpi-card border-green">
             <div class="kpi-label">AVERAGE OCCUPANCY</div>
-            <div class="kpi-value text-green">${reportData.averageOccupancy}%</div>
+            <div class="kpi-value text-green">${reportData?.averageOccupancy ?? 0}%</div>
             <div class="kpi-sub">Across reporting window</div>
           </div>
           <div class="kpi-card border-blue">
             <div class="kpi-label">TOTAL ROOMS MANAGED</div>
-            <div class="kpi-value text-blue">${reportData.totalRooms} Total</div>
-            <div class="kpi-sub">${reportData.occupiedNow} Occupied | ${reportData.availableNow} Available</div>
+            <div class="kpi-value text-blue">${reportData?.totalRooms ?? 0} Total</div>
+            <div class="kpi-sub">${reportData?.occupiedNow ?? 0} Occupied | ${reportData?.availableNow ?? 0} Available</div>
           </div>
           <div class="kpi-card border-purple">
             <div class="kpi-label">CHECK-INS & TURNOVER</div>
-            <div class="kpi-value text-purple">${reportData.checkInsCount}</div>
-            <div class="kpi-sub">${reportData.checkOutsCount} check-outs executed</div>
+            <div class="kpi-value text-purple">${reportData?.checkInsCount ?? 0}</div>
+            <div class="kpi-sub">${reportData?.checkOutsCount ?? 0} check-outs executed</div>
           </div>
           <div class="kpi-card border-orange">
             <div class="kpi-label">PEAK OCCUPANCY DATE</div>
-            <div class="kpi-value text-orange">${reportData.peakOccupancyRate}%</div>
-            <div class="kpi-sub">Observed on ${reportData.peakOccupancyDate}</div>
+            <div class="kpi-value text-orange">${reportData?.peakOccupancyRate ?? 0}%</div>
+            <div class="kpi-sub">Observed on ${reportData?.peakOccupancyDate || '—'}</div>
           </div>
         </div>
       `;
@@ -443,7 +455,7 @@ export default function AdminReports() {
       }
 
     } else if (report === 'inventory') {
-      reportTitle = 'Inventory Management & F&B Movement Audit Report';
+      reportTitle = 'Inventory Management & Stock Audit Report';
       kpiHtml = `
         <div class="kpi-grid">
           <div class="kpi-card border-blue">
@@ -1121,8 +1133,8 @@ export default function AdminReports() {
           {
             id: 'inventory',
             icon: 'bi-box-seam',
-            title: 'Inventory & F&B Movement',
-            desc: 'Stock balances, cooked meals vs amenities consumption, low stock alerts, and audit trail.',
+            title: 'Inventory Report',
+            desc: 'Stock balances, consumable usage, stock movements audit trail, and replenishment alerts.',
             bg: '#0891b2'
           },
           {
@@ -1143,7 +1155,7 @@ export default function AdminReports() {
                 transform: report === cat.id ? 'translateY(-2px)' : 'none',
                 boxShadow: report === cat.id ? '0 4px 12px rgba(0,0,0,0.1)' : undefined
               }}
-              onClick={() => setReport(cat.id)}
+              onClick={() => handleSelectReport(cat.id)}
             >
               <div className="d-flex align-items-center gap-3">
                 <div className="rounded p-2 text-white" style={{ backgroundColor: cat.bg }}>
@@ -1155,7 +1167,12 @@ export default function AdminReports() {
                 </div>
               </div>
               <button
+                type="button"
                 className={`btn btn-sm mt-3 w-100 fw-semibold ${report === cat.id ? 'btn-dark' : 'btn-outline-secondary'}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelectReport(cat.id);
+                }}
               >
                 {report === cat.id ? '✓ Active Report' : 'Select Report'}
               </button>
@@ -1178,7 +1195,7 @@ export default function AdminReports() {
         <div className="row g-2 align-items-end">
           {/* Date Presets */}
           <div className="col-6 col-md-2">
-            <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Date Preset</label>
+            <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Date Preset</label>
             <select
               className="form-select form-select-sm"
               style={{ height: '36px' }}
@@ -1198,11 +1215,13 @@ export default function AdminReports() {
 
           {/* From Date */}
           <div className="col-6 col-md-2">
-            <label className="form-label small fw-semibold text-muted mb-1 text-truncate">From</label>
+            <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>From</label>
             <DateInput
               value={dateFrom}
-              disabled={datePreset !== 'Custom Range'}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setDatePreset('Custom Range');
+              }}
               className="form-control form-control-sm"
               style={{ height: '36px' }}
             />
@@ -1210,11 +1229,13 @@ export default function AdminReports() {
 
           {/* To Date */}
           <div className="col-6 col-md-2">
-            <label className="form-label small fw-semibold text-muted mb-1 text-truncate">To</label>
+            <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>To</label>
             <DateInput
               value={dateTo}
-              disabled={datePreset !== 'Custom Range'}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setDatePreset('Custom Range');
+              }}
               className="form-control form-control-sm"
               style={{ height: '36px' }}
             />
@@ -1223,7 +1244,7 @@ export default function AdminReports() {
           {/* Room Filter (Sales, Occupancy, Guests) */}
           {report !== 'inventory' && (
             <div className="col-6 col-md-2">
-              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Room Filter</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Room</label>
               <select
                 className="form-select form-select-sm"
                 style={{ height: '36px' }}
@@ -1240,10 +1261,30 @@ export default function AdminReports() {
             </div>
           )}
 
+          {/* Room Type Filter (Occupancy and Sales) */}
+          {(report === 'occupancy' || report === 'sales') && (
+            <div className="col-6 col-md-2">
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Room Type</label>
+              <select
+                className="form-select form-select-sm"
+                style={{ height: '36px' }}
+                value={roomTypeFilter}
+                onChange={(e) => setRoomTypeFilter(e.target.value)}
+              >
+                <option value="">All Room Types</option>
+                {filterOptions.roomTypes?.map(rt => (
+                  <option key={rt.roomTypeID} value={rt.roomTypeID}>
+                    {rt.type}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Item Classification Filter (Inventory) */}
           {report === 'inventory' && (
-            <div className="col-6 col-md-2">
-              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Classification</label>
+            <div className="col-6 col-md-3">
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Classification</label>
               <select
                 className="form-select form-select-sm"
                 style={{ height: '36px' }}
@@ -1260,17 +1301,17 @@ export default function AdminReports() {
 
           {/* Payment Method Filter (Sales) */}
           {report === 'sales' && (
-            <div className="col-6 col-md-2">
-              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Payment Method</label>
+            <div className="col-6 col-md-1">
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Payment</label>
               <select
                 className="form-select form-select-sm"
                 style={{ height: '36px' }}
                 value={paymentMethodFilter}
                 onChange={(e) => setPaymentMethodFilter(e.target.value)}
               >
-                <option value="All">All Methods</option>
-                <option value="Cash">Cash Only</option>
-                <option value="GCash">GCash / Online</option>
+                <option value="All">All</option>
+                <option value="Cash">Cash</option>
+                <option value="GCash">GCash</option>
               </select>
             </div>
           )}
@@ -1278,7 +1319,7 @@ export default function AdminReports() {
           {/* Grouping Filter (Sales) */}
           {report === 'sales' && (
             <div className="col-6 col-md-1">
-              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Grouping</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Grouping</label>
               <select
                 className="form-select form-select-sm"
                 style={{ height: '36px' }}
@@ -1296,7 +1337,7 @@ export default function AdminReports() {
           {/* Status Filter (Guests) */}
           {report === 'guests' && (
             <div className="col-6 col-md-2">
-              <label className="form-label small fw-semibold text-muted mb-1 text-truncate">Booking Status</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Booking Status</label>
               <select
                 className="form-select form-select-sm"
                 style={{ height: '36px' }}
@@ -1313,10 +1354,10 @@ export default function AdminReports() {
           )}
 
           {/* Refresh Action */}
-          <div className="col-12 col-md-1">
-            <label className="form-label small fw-semibold text-muted mb-1 d-none d-md-block invisible">Action</label>
+          <div className={`col-12 ${report === 'occupancy' ? 'col-md-2' : report === 'inventory' ? 'col-md-3' : report === 'guests' ? 'col-md-2' : 'col-md-1'}`}>
+            <label className="form-label small fw-semibold text-muted mb-1 d-none d-md-block invisible" style={{ minHeight: '18px' }}>Action</label>
             <button
-              className="btn btn-sm btn-pcc-primary text-white w-100 fw-semibold d-flex align-items-center justify-content-center"
+              className="btn btn-sm btn-pcc-primary text-white w-100 fw-semibold d-flex align-items-center justify-content-center shadow-xs"
               style={{ height: '36px' }}
               onClick={fetchReport}
             >
@@ -1337,7 +1378,7 @@ export default function AdminReports() {
         <div className="alert alert-danger shadow-sm mb-4" role="alert">
           <strong>⚠ Error generating report:</strong> {error}
         </div>
-      ) : reportData ? (
+      ) : reportData && reportData._reportType === report ? (
         <>
           {/* EXPORTS & REPORT SUB-TABS TOOLBAR */}
           <div className="card shadow-sm border-0 bg-white mb-3 p-2 d-print-none">
@@ -1450,25 +1491,25 @@ export default function AdminReports() {
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-primary border-4">
                     <span className="text-muted small fw-bold">TOTAL NET REVENUE</span>
                     <h3 className="fw-bold text-primary mb-0 mt-1">
-                      ₱{reportData.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ₱{(reportData?.totalRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h3>
                     <div className="text-muted small mt-2">
-                      Gross: ₱{(reportData.grossRevenue || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      Gross: ₱{(reportData?.grossRevenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                     </div>
                   </div>
                 </div>
                 <div className="col-6 col-md-2">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">BOOKINGS</span>
-                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData.numberBookings}</h3>
-                    <small className="text-muted">{reportData.completedBookings} completed</small>
+                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData?.numberBookings ?? 0}</h3>
+                    <small className="text-muted">{reportData?.completedBookings ?? 0} completed</small>
                   </div>
                 </div>
                 <div className="col-6 col-md-2">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">DISCOUNTS VALUE</span>
                     <h3 className="fw-bold text-danger mb-0 mt-1">
-                      ₱{reportData.discountApplied.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      ₱{(reportData?.discountApplied ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                     </h3>
                     <small className="text-muted">Privileges applied</small>
                   </div>
@@ -1477,7 +1518,7 @@ export default function AdminReports() {
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">CASH COLLECTED</span>
                     <h4 className="fw-bold text-dark mb-0 mt-1">
-                      ₱{reportData.cashTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      ₱{(reportData?.cashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </h4>
                     <small className="text-muted">Front desk cash</small>
                   </div>
@@ -1486,7 +1527,7 @@ export default function AdminReports() {
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">GCASH / ONLINE</span>
                     <h4 className="fw-bold text-info mb-0 mt-1">
-                      ₱{reportData.gcashTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      ₱{(reportData?.gcashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </h4>
                     <small className="text-muted">Online payment</small>
                   </div>
@@ -1626,33 +1667,33 @@ export default function AdminReports() {
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-success border-4">
                     <span className="text-muted small fw-bold">AVERAGE OCCUPANCY</span>
-                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData.averageOccupancy}%</h3>
+                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData?.averageOccupancy ?? 0}%</h3>
                     <div className="progress mt-2" style={{ height: '6px' }}>
-                      <div className="progress-bar bg-success" role="progressbar" style={{ width: `${Math.min(100, reportData.averageOccupancy)}%` }}></div>
+                      <div className="progress-bar bg-success" role="progressbar" style={{ width: `${Math.min(100, reportData?.averageOccupancy ?? 0)}%` }}></div>
                     </div>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">ROOMS INVENTORY</span>
-                    <h4 className="fw-bold text-dark mb-0 mt-1">{reportData.totalRooms} Total</h4>
+                    <h4 className="fw-bold text-dark mb-0 mt-1">{reportData?.totalRooms ?? 0} Total</h4>
                     <div className="text-muted small mt-1">
-                      {reportData.occupiedNow} Occupied | {reportData.availableNow} Available
+                      {reportData?.occupiedNow ?? 0} Occupied | {reportData?.availableNow ?? 0} Available
                     </div>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">CHECK-INS & ACTIVITY</span>
-                    <h3 className="fw-bold text-primary mb-0 mt-1">{reportData.checkInsCount}</h3>
-                    <small className="text-muted">{reportData.checkOutsCount} completed check-outs</small>
+                    <h3 className="fw-bold text-primary mb-0 mt-1">{reportData?.checkInsCount ?? 0}</h3>
+                    <small className="text-muted">{reportData?.checkOutsCount ?? 0} completed check-outs</small>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">PEAK OCCUPANCY</span>
-                    <h4 className="fw-bold text-warning mb-0 mt-1">{reportData.peakOccupancyRate}%</h4>
-                    <small className="text-muted">Recorded on {reportData.peakOccupancyDate}</small>
+                    <h4 className="fw-bold text-warning mb-0 mt-1">{reportData?.peakOccupancyRate ?? 0}%</h4>
+                    <small className="text-muted">Recorded on {reportData?.peakOccupancyDate || '—'}</small>
                   </div>
                 </div>
               </div>
@@ -1765,7 +1806,7 @@ export default function AdminReports() {
           )}
 
           {/* ================================================================= */}
-          {/* REPORT VIEW 3: INVENTORY & F&B MOVEMENT */}
+          {/* REPORT VIEW 3: INVENTORY REPORT */}
           {/* ================================================================= */}
           {report === 'inventory' && (
             <div>
@@ -1774,29 +1815,29 @@ export default function AdminReports() {
                 <div className="col-12 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-info border-4">
                     <span className="text-muted small fw-bold">MOST USED CONSUMABLE</span>
-                    <h4 className="fw-bold text-info mb-0 mt-1 text-truncate">{reportData.mostUsedItem}</h4>
-                    <small className="text-muted">{reportData.maxUsed} units consumed</small>
+                    <h4 className="fw-bold text-info mb-0 mt-1 text-truncate">{reportData?.mostUsedItem || '—'}</h4>
+                    <small className="text-muted">{reportData?.maxUsed ?? 0} units consumed</small>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-danger border-4">
                     <span className="text-muted small fw-bold">LOW STOCK ALERTS</span>
-                    <h3 className="fw-bold text-danger mb-0 mt-1">{reportData.lowStockCount || 0}</h3>
+                    <h3 className="fw-bold text-danger mb-0 mt-1">{reportData?.lowStockCount ?? 0}</h3>
                     <small className="text-muted">Items requiring replenishment</small>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">MOST BORROWED ASSET</span>
-                    <h4 className="fw-bold text-success mb-0 mt-1 text-truncate">{reportData.mostBorrowed}</h4>
-                    <small className="text-muted">{reportData.maxBorrowed} times borrowed</small>
+                    <h4 className="fw-bold text-success mb-0 mt-1 text-truncate">{reportData?.mostBorrowed || '—'}</h4>
+                    <small className="text-muted">{reportData?.maxBorrowed ?? 0} times borrowed</small>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">DISPOSED / EXPIRED</span>
-                    <h4 className="fw-bold text-warning mb-0 mt-1">{reportData.expiredTotalCount || 0} Expired</h4>
-                    <small className="text-muted">{reportData.maxDisposed} units disposed</small>
+                    <h4 className="fw-bold text-warning mb-0 mt-1">{reportData?.expiredTotalCount ?? 0} Expired</h4>
+                    <small className="text-muted">{reportData?.maxDisposed ?? 0} units disposed</small>
                   </div>
                 </div>
               </div>
@@ -1933,29 +1974,29 @@ export default function AdminReports() {
                 <div className="col-12 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-purple border-4">
                     <span className="text-muted small fw-bold">UNIQUE GUESTS</span>
-                    <h3 className="fw-bold text-dark mb-0 mt-1">{reportData.totalGuestsCount || 0}</h3>
-                    <small className="text-muted">{reportData.returningGuestsCount || 0} returning | {reportData.newGuestsCount || 0} new</small>
+                    <h3 className="fw-bold text-dark mb-0 mt-1">{reportData?.totalGuestsCount ?? 0}</h3>
+                    <small className="text-muted">{reportData?.returningGuestsCount ?? 0} returning | {reportData?.newGuestsCount ?? 0} new</small>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">AVG. LENGTH OF STAY</span>
-                    <h3 className="fw-bold text-primary mb-0 mt-1">{reportData.averageStayLength || 0} Nights</h3>
+                    <h3 className="fw-bold text-primary mb-0 mt-1">{reportData?.averageStayLength ?? 0} Nights</h3>
                     <small className="text-muted">Across all stay bookings</small>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">TOTAL RESERVATIONS</span>
-                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData.totalReservations || 0}</h3>
-                    <small className="text-muted">{reportData.confirmedCount || 0} confirmed | {reportData.cancelledCount || 0} cancelled</small>
+                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData?.totalReservations ?? 0}</h3>
+                    <small className="text-muted">{reportData?.confirmedCount ?? 0} confirmed | {reportData?.cancelledCount ?? 0} cancelled</small>
                   </div>
                 </div>
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">TOP RETURNING GUEST</span>
-                    <h4 className="fw-bold text-warning mb-0 mt-1 text-truncate">{reportData.mostFrequentGuest || '—'}</h4>
-                    <small className="text-muted">{reportData.maxVisits || 0} total stays on record</small>
+                    <h4 className="fw-bold text-warning mb-0 mt-1 text-truncate">{reportData?.mostFrequentGuest || '—'}</h4>
+                    <small className="text-muted">{reportData?.maxVisits ?? 0} total stays on record</small>
                   </div>
                 </div>
               </div>

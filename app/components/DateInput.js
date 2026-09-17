@@ -61,13 +61,13 @@ export default function DateInput({
   const isConflict = Boolean(inputValue && disabledDates && disabledDates.includes(inputValue));
 
   return (
-    <div className="w-100" style={{ width: '100%' }}>
+    <div className="w-100" style={{ width: '100%', margin: 0, padding: 0 }}>
       <input
         type="date"
         id={id}
         name={name}
         className={`${className} ${isConflict ? 'is-invalid border-danger' : ''}`}
-        style={style}
+        style={{ width: '100%', ...style }}
         required={required}
         value={inputValue}
         onChange={handleChange}

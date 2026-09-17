@@ -457,7 +457,7 @@ export async function GET(request) {
       data.averageOccupancy = parseFloat(averageOccupancy.toFixed(1));
 
     // =========================================================================
-    // REPORT 3: INVENTORY & F&B MOVEMENT REPORT
+    // REPORT 3: INVENTORY REPORT
     // =========================================================================
     } else if (report === 'inventory') {
       const safeDbQuery = async (queryStr, params = []) => {

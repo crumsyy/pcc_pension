@@ -36,30 +36,43 @@ export default function DashboardClient({ userName }) {
     }
   };
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = async (isBackground = false) => {
     try {
-      const res = await fetch('/api/admin/dashboard');
+      if (!isBackground) setLoading(true);
+      const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch dashboard data');
       setStats(data);
+      if (!isBackground) setError('');
     } catch (err) {
-      setError(err.message);
+      if (!isBackground) setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboardStats();
+    fetchDashboardStats(false);
     // Clock updates
     const updateTime = () => {
       const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
       setCurrentTime(new Date().toLocaleDateString('en-US', options));
     };
     updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
-  }, []);
+    const clockTimer = setInterval(updateTime, 1000);
+
+    // Real-time polling every 10 seconds when tab is active and not resetting
+    const pollTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !resetting && !showResetModal) {
+        fetchDashboardStats(true);
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(clockTimer);
+      clearInterval(pollTimer);
+    };
+  }, [resetting, showResetModal]);
 
   if (loading) {
     return (
@@ -115,7 +128,13 @@ export default function DashboardClient({ userName }) {
         <div>
           <div className="section-eyebrow">Administrator</div>
           <h2 className="section-title mb-0">Welcome, {userName || 'Admin'}!</h2>
-          <small className="text-muted">{currentTime}</small>
+          <div className="d-flex align-items-center gap-2 mt-1">
+            <small className="text-muted">{currentTime}</small>
+            <span className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
+              <span className="spinner-grow spinner-grow-sm text-success" style={{ width: '6px', height: '6px' }} role="status"></span>
+              Live Sync
+            </span>
+          </div>
         </div>
         <div>
           <button 
