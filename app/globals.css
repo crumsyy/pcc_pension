@@ -2045,8 +2045,7 @@ body.dark-theme .qr-payment-container h4 {
 .form-control[type="date"],
 .form-control[type="time"],
 .form-control[type="datetime-local"] {
-  margin-bottom: 1rem;
-  padding: 0.5rem;
+  margin-bottom: 0;
 }
 
 /* Updated Calendar Status Colors: Reserved (Yellow), Courtesy Hold (Orange), Booked (Green), Occupied (Blue), Under Maintenance (Red) */

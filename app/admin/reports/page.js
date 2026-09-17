@@ -1223,7 +1223,7 @@ export default function AdminReports() {
                 setDatePreset('Custom Range');
               }}
               className="form-control form-control-sm"
-              style={{ height: '36px' }}
+              style={{ height: '36px', margin: 0, marginBottom: 0 }}
             />
           </div>
 
@@ -1237,7 +1237,7 @@ export default function AdminReports() {
                 setDatePreset('Custom Range');
               }}
               className="form-control form-control-sm"
-              style={{ height: '36px' }}
+              style={{ height: '36px', margin: 0, marginBottom: 0 }}
             />
           </div>
 

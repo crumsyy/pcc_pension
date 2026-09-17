@@ -67,7 +67,7 @@ export default function DateInput({
         id={id}
         name={name}
         className={`${className} ${isConflict ? 'is-invalid border-danger' : ''}`}
-        style={{ width: '100%', ...style }}
+        style={{ width: '100%', margin: 0, marginBottom: 0, ...style }}
         required={required}
         value={inputValue}
         onChange={handleChange}
