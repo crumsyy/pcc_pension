@@ -1016,7 +1016,7 @@ function ReservationsClient() {
                             </>
                           );
                         })()}
-                        {!r.bookingID && (r.status === 'Pending' || r.status === 'Overdue Check-In') && (
+                        {!r.bookingID && ['Pending', 'Confirmed', 'Hold', 'Overdue Check-In'].includes(r.status) && (
                           <>
                             <button
                               type="button"

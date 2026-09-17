@@ -61,6 +61,9 @@ export default async function GuestDashboard() {
       ),
       dbQuery(
         `SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
+                COALESCE(b.remainingBalance, b.finalBalance, 0) as remainingBalance,
+                COALESCE(b.roomCharge, 0) as roomCharge,
+                COALESCE(b.downPaymentAmount, 0) as downPaymentAmount,
                 rm.roomNumber, rt.type as roomType
          FROM booking b
          JOIN room rm ON rm.roomID = b.roomID
@@ -113,7 +116,8 @@ export default async function GuestDashboard() {
     ]);
 
     // Calculate live detailed balance only once for the primary active stay booking to ensure instant page load
-    const activeBookingRaw = rawBookings.find(b => b.status === "Checked In" || b.status === "Late Checkout") || rawBookings.find(b => ['Confirmed', 'Pending', 'Booked', 'Pending Check-in'].includes(b.status));
+    const activeBookingRaw = rawBookings.find(b => ['Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized'].includes(b.status)) 
+      || rawBookings.find(b => ['Confirmed', 'Pending', 'Booked', 'Pending Check-in'].includes(b.status));
     let activeBill = null;
 
     if (activeBookingRaw) {
@@ -124,13 +128,13 @@ export default async function GuestDashboard() {
       if (activeBill && b.bookingID === activeBill.bookingID) {
         return {
           ...b,
-          remainingBalance: activeBill.remainingBalance || 0,
+          remainingBalance: activeBill.remainingBalance !== undefined ? activeBill.remainingBalance : (parseFloat(b.remainingBalance) || 0),
           incidentals: activeBill.incidentals || []
         };
       }
       return {
         ...b,
-        remainingBalance: 0,
+        remainingBalance: parseFloat(b.remainingBalance) || 0,
         incidentals: []
       };
     });

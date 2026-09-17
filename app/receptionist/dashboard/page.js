@@ -23,7 +23,7 @@ export default async function ReceptionistDashboard() {
     guestInquiriesList,
     guestOrdersList
   ] = await Promise.all([
-    dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Late Checkout')"),
+    dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized')"),
     dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked Out'"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
@@ -45,7 +45,7 @@ export default async function ReceptionistDashboard() {
       LEFT JOIN guest g ON g.guestID = b.guestID
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      WHERE b.status IN ('Checked In', 'Late Checkout')
+      WHERE b.status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized')
       ORDER BY rm.roomNumber ASC
     `),
     dbQuery(`
@@ -96,7 +96,7 @@ export default async function ReceptionistDashboard() {
              g.firstName, g.lastName, rm.roomNumber
       FROM orders o
       JOIN guest g ON g.guestID = o.guestID
-      LEFT JOIN booking b ON b.guestID = g.guestID AND b.status IN ('Checked In', 'Late Checkout')
+      LEFT JOIN booking b ON b.guestID = g.guestID AND b.status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized')
       LEFT JOIN room rm ON rm.roomID = b.roomID
       ORDER BY o.orderDateTime DESC
       LIMIT 6
@@ -357,10 +357,17 @@ export default async function ReceptionistDashboard() {
           {/* Currently Checked-In Rooms */}
           <div className="key-tag mb-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="room-type">Currently Checked-In Rooms</div>
+              <div className="room-type d-flex align-items-center gap-2">
+                <i className="bi bi-person-check-fill text-primary"></i>
+                <span>Currently In-House / Checked-In Guests ({checkInsList.length})</span>
+              </div>
+              <Link href="/receptionist/checkin" className="btn btn-sm btn-outline-primary fw-semibold d-flex align-items-center gap-1.5" style={{ fontSize: '0.80rem' }}>
+                <i className="bi bi-box-arrow-up-right"></i>
+                <span>Manage Check-In/Out</span>
+              </Link>
             </div>
             {checkInsList.length === 0 ? (
-              <p className="text-muted small">No guests currently checked in.</p>
+              <p className="text-muted small">No guests currently staying in rooms.</p>
             ) : (
               <div className="table-responsive">
                 <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>

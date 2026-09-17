@@ -543,15 +543,15 @@ export default function ReceptionistOrders() {
   }, [amenities, searchTerm]);
 
   const immediateOrders = useMemo(() => {
-    return orders.filter(o => o.orderStatus !== 'Pending Delivery' && (o.deliveryType === 'immediate' || (!o.deliveryType && !o.deliveryTime)));
+    return orders.filter(o => o.deliveryType === 'immediate' || (!o.deliveryType && !o.deliveryTime));
   }, [orders]);
 
   const scheduledOrders = useMemo(() => {
-    return orders.filter(o => o.orderStatus !== 'Pending Delivery' && (o.deliveryType === 'scheduled' || Boolean(o.deliveryTime)));
+    return orders.filter(o => o.deliveryType === 'scheduled' || Boolean(o.deliveryTime));
   }, [orders]);
 
   const pendingDeliveryOrders = useMemo(() => {
-    return orders.filter(o => o.orderStatus === 'Pending Delivery');
+    return orders.filter(o => o.orderStatus === 'Pending Delivery' || o.orderStatus === 'Pending');
   }, [orders]);
 
   const filteredHistoryOrders = useMemo(() => {
@@ -582,7 +582,7 @@ export default function ReceptionistOrders() {
           </label>
           <SearchableSelect
             options={activeBookings.map(b => {
-              const isCheckedIn = (b.bookingStatus === 'Checked In');
+              const isCheckedIn = (b.bookingStatus === 'Checked In' || b.bookingStatus === 'Active Stay');
               return {
                 value: String(b.guestID),
                 label: `Room ${b.roomNumber} — ${b.lastName}, ${b.firstName} (${isCheckedIn ? 'Checked In' : 'Pending Check-in'})`
@@ -592,7 +592,7 @@ export default function ReceptionistOrders() {
             onChange={(val) => setSelectedGuestID(val)}
             placeholder="Type to search guest or room..."
           />
-          {selectedBooking && selectedBooking.bookingStatus !== 'Checked In' && (
+          {selectedBooking && !['Checked In', 'Active Stay'].includes(selectedBooking.bookingStatus) && (
             <div className="alert alert-warning py-1.5 px-2.5 mt-2 mb-0 small d-flex align-items-center gap-1.5" style={{ fontSize: '0.75rem' }}>
               <i className="bi bi-info-circle-fill text-warning-emphasis flex-shrink-0"></i>
               <span><strong>Guest not yet checked in:</strong> Order will be recorded as <strong>Pending Delivery</strong> and will automatically activate once checked in.</span>
@@ -635,6 +635,11 @@ export default function ReceptionistOrders() {
                         <div className="fw-bold text-dark">{item.name}</div>
                         <div className="text-muted small">
                           ₱{item.price.toFixed(2)} each {item.isCookedMeal && <span className="badge bg-warning-subtle text-dark ms-1" style={{ fontSize: '0.65rem' }}>Meal</span>}
+                          {item.isCookedMeal && (
+                            <div className="text-success fw-semibold" style={{ fontSize: '0.68rem' }}>
+                              * Up to 2 pax free if room package includes breakfast
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1022,16 +1027,17 @@ export default function ReceptionistOrders() {
                               <span>View Order Details</span>
                             </button>
 
-                            {(o.orderStatus === 'Preparing' || o.orderStatus === 'Scheduled' || o.orderStatus === 'Placed') && (
+                            {['Preparing', 'Scheduled', 'Placed', 'Pending', 'Pending Delivery', 'Out for Delivery'].includes(o.orderStatus) && (
                               <>
                                 <button
                                   type="button"
-                                  className="btn btn-sm btn-success text-white fw-semibold d-flex align-items-center gap-1 shadow-xs px-2.5 py-1"
+                                  className="btn btn-sm btn-success text-white fw-semibold d-flex align-items-center gap-1.5 shadow-xs px-2.5 py-1"
                                   style={{ fontSize: '0.78rem', borderRadius: '6px' }}
-                                  onClick={() => handleUpdateOrderStatus(o.orderID, 'Completed')}
+                                  onClick={() => handleUpdateOrderStatus(o.orderID, 'Delivered')}
+                                  title="Confirm delivery to room"
                                 >
-                                  <i className="bi bi-check-lg"></i>
-                                  <span>Serve / Complete</span>
+                                  <i className="bi bi-check2-circle"></i>
+                                  <span>Confirm Delivered</span>
                                 </button>
                                 <button
                                   type="button"
@@ -1159,8 +1165,8 @@ export default function ReceptionistOrders() {
         {/* ORDER TRAY COLUMN (Shown when in catalog mode) */}
         {activeCategory !== 'history' && (
           <div className="col-12 col-lg-5 col-xl-4">
-            <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 sticky-top" style={{ top: '20px' }}>
-              <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+            <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 sticky-top d-flex flex-column" style={{ top: '20px', maxHeight: 'calc(100vh - 40px)' }}>
+              <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
                 <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                   <i className="bi bi-cart3 text-primary"></i>
                   <span>Order Tray</span>
@@ -1169,7 +1175,9 @@ export default function ReceptionistOrders() {
                   {cart.reduce((s, it) => s + it.quantity, 0)} Items
                 </span>
               </div>
-              {renderOrderTrayContent()}
+              <div className="flex-grow-1 overflow-auto pe-1" style={{ minHeight: 0 }}>
+                {renderOrderTrayContent()}
+              </div>
             </div>
           </div>
         )}

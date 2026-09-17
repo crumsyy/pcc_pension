@@ -1064,6 +1064,8 @@ function BookingsClient() {
       finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
     }
 
+    const isWalkIn = !formData.guestID;
+
     showConfirm('Create Booking', 'Are you sure you want to save this booking and record the down payment?', async () => {
       setIsSubmitting(true);
       try {
@@ -1072,7 +1074,7 @@ function BookingsClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'create',
-            isWalkIn: !formData.guestID,
+            isWalkIn,
             guestID: formData.guestID || null,
             firstName: guestForm.firstName,
             lastName: guestForm.lastName,
@@ -1109,12 +1111,10 @@ function BookingsClient() {
 
         const roomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
         const guestObj = isWalkIn ? null : guests.find(g => String(g.guestID) === String(formData.guestID));
-        const guestName = isWalkIn 
-          ? `${walkInForm.firstName} ${walkInForm.lastName}`.trim() 
-          : (guestObj ? `${guestObj.firstName} ${guestObj.lastName}` : 'Guest');
+        const guestName = `${guestForm.firstName || ''} ${guestForm.lastName || ''}`.trim() || (guestObj ? `${guestObj.firstName} ${guestObj.lastName}` : 'Guest');
 
         const pmObj = paymentMethods.find(m => String(m.paymentMethodID) === String(paymentMethodID));
-        const receiptTotalAmount = parseFloat(data.totalBookingAmount || dpAmount / (dpPctNum / 100) || netTotalAmount || 0);
+        const receiptTotalAmount = parseFloat(data.totalBookingAmount || dpAmount / (dpPctNum / 100) || netRoomStayCharge || 0);
 
         setDownPaymentReceipt({
           receiptNo: `DP-${Math.floor(Math.random() * 900000 + 100000)}`,

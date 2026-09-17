@@ -714,7 +714,14 @@ export default function ReceptionistBilling() {
                                 ) : (
                                   billDetails.productCharges.map((item, idx) => (
                                     <tr key={idx}>
-                                      <td>{item.name}</td>
+                                      <td>
+                                        <div className="fw-semibold text-dark">{item.name}</div>
+                                        {item.notes && (
+                                          <span className={`badge ${item.isFreeBreakfast ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'}`} style={{ fontSize: '0.68rem' }}>
+                                            {item.notes}
+                                          </span>
+                                        )}
+                                      </td>
                                       <td>₱{parseFloat(item.price).toFixed(2)}</td>
                                       <td>{item.quantity}</td>
                                       <td className="text-end fw-bold text-dark">₱{parseFloat(item.subtotal).toFixed(2)}</td>
@@ -1009,9 +1016,15 @@ export default function ReceptionistBilling() {
                               <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</span>
                             </div>
                           )}
+                          {billDetails.chargesSummary.cookedMeals !== undefined && (
+                            <div className="d-flex justify-content-between mb-2">
+                              <span className="text-muted">Cooked Meals (Kitchen):</span>
+                              <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.cookedMeals || 0).toFixed(2)}</span>
+                            </div>
+                          )}
                           <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Orders (Products &amp; Meals):</span>
-                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.products || 0).toFixed(2)}</span>
+                            <span className="text-muted">Orders (Store &amp; Minibar):</span>
+                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.storeProducts !== undefined ? billDetails.chargesSummary.storeProducts : (billDetails.chargesSummary.products || 0)).toFixed(2)}</span>
                           </div>
                           <div className="d-flex justify-content-between mb-2">
                             <span className="text-muted">Orders (Amenities):</span>

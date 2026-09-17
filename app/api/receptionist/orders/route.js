@@ -153,8 +153,7 @@ export async function POST(request) {
         }
         const activeBooking = bookingCheck[0];
         const activeBookingID = activeBooking.bookingID;
-        const activeRoomID = activeBooking.roomID;
-        const isOccupiedAndCheckedIn = (activeBooking.bookingStatus === 'Checked In' && activeBooking.roomStatus === 'Occupied');
+        const isOccupiedAndCheckedIn = (['Checked In', 'Active Stay', 'Late Checkout'].includes(activeBooking.bookingStatus) && ['Occupied', 'Reserved'].includes(activeBooking.roomStatus));
         const activeBorrowedBy = `${activeBooking.firstName} ${activeBooking.lastName}`.trim();
 
         // Prevent duplicate order creation within 10 seconds for the same guest

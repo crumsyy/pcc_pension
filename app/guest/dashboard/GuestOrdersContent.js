@@ -1216,8 +1216,8 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
 
         {/* ORDER TRAY / CART COLUMN (DESKTOP) */}
         <div className="col-12 col-md-5 col-lg-5 col-xl-4 d-none d-md-block">
-          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 sticky-top pcc-order-tray" style={{ top: '20px' }}>
-            <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 sticky-top pcc-order-tray d-flex flex-column" style={{ top: '20px', maxHeight: 'calc(100vh - 40px)' }}>
+            <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                 <i className="bi bi-cart3 text-primary"></i>
                 <span>Order Tray</span>
@@ -1226,7 +1226,9 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
                 {cart.reduce((s, it) => s + it.quantity, 0)} Items
               </span>
             </div>
-            {renderOrderTrayContent(false)}
+            <div className="flex-grow-1 overflow-auto pe-1" style={{ minHeight: 0 }}>
+              {renderOrderTrayContent(false)}
+            </div>
           </div>
         </div>
       </div>

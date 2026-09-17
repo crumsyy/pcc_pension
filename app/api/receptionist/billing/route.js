@@ -114,6 +114,8 @@ export async function GET(request) {
         roomCharge: details.finalRoomCharge
       },
       productCharges: details.productCharges,
+      cookedMealCharges: details.cookedMealCharges || [],
+      storeProductCharges: details.storeProductCharges || [],
       amenityCharges: details.amenityCharges,
       nonConsumableAmenities,
       incidentalCharges: details.incidentalCharges,
