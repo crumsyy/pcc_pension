@@ -2539,8 +2539,6 @@ function BookingsClient() {
         </div>
       )}
 
-
-      )}
       {/* FINALIZE BILL MODAL */}
       {finalizeBillModal.isOpen && finalizeBillModal.booking && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
