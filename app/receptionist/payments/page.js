@@ -111,7 +111,7 @@ function PaymentsClient() {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch billing calculations');
       setBillData(data);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      showAlert('error', 'Billing Notice', err.message);
     } finally {
       setLoadingBill(false);
     }
@@ -122,13 +122,17 @@ function PaymentsClient() {
   }, []);
 
   const handleBookingChange = (bID) => {
-    setSelectedBookingID(bID);
+    setSelectedBookingID(bID || '');
     setPaymentForm(prev => ({
       ...prev,
       discountID: '',
       cashReceived: ''
     }));
-    fetchBillingDetails(bID);
+    if (bID) {
+      fetchBillingDetails(bID);
+    } else {
+      setBillData(null);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -444,7 +448,7 @@ function PaymentsClient() {
               <form onSubmit={handleProcessPayment} className="d-flex flex-column overflow-hidden flex-grow-1">
                 <div className="card-body p-3 overflow-y-auto flex-grow-1">
                   <div className="mb-2">
-                    <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Select Checked-In Guest *</label>
+                    <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Select Guest / Room *</label>
                     {loading ? (
                       <div>Loading guest records...</div>
                     ) : (
@@ -454,11 +458,12 @@ function PaymentsClient() {
                           const guestTag = b.guestID ? `Guest-${b.guestID}` : '';
                           const firstLast = `${b.firstName || ''} ${b.lastName || ''}`.trim();
                           const lastFirst = `${b.lastName || ''}, ${b.firstName || ''}`.trim();
-                          const searchKW = `${firstLast} ${lastFirst} ${userTag} ${b.userID || ''} ${guestTag} ${b.guestID || ''} Room ${b.roomNumber} ${b.roomType || ''} ${b.contact || ''} BK-${b.bookingID}`;
+                          const statusTag = (b.status && b.status !== 'Checked In' && b.status !== 'Active Stay') ? ` [${b.status}]` : '';
+                          const searchKW = `${firstLast} ${lastFirst} ${userTag} ${b.userID || ''} ${guestTag} ${b.guestID || ''} Room ${b.roomNumber} ${b.roomType || ''} ${b.contact || ''} BK-${b.bookingID} ${b.status || ''}`;
 
                           return {
                             value: String(b.bookingID),
-                            label: `Room ${b.roomNumber} (${b.roomType}) — ${lastFirst}${b.userID ? ` (UID: ${b.userID})` : ''}`,
+                            label: `Room ${b.roomNumber} (${b.roomType}) — ${lastFirst}${b.userID ? ` (UID: ${b.userID})` : ''}${statusTag}`,
                             searchKeywords: searchKW
                           };
                         })}

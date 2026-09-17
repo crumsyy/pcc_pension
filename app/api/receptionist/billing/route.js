@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock, logBillingAudit } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock, logBillingAudit, ensureBookingBillingSchema } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -8,8 +8,25 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  await ensureBookingBillingSchema();
+
   const { searchParams } = new URL(request.url);
-  const bookingID = parseInt(searchParams.get('bookingID'));
+  let bookingID = parseInt(searchParams.get('bookingID'));
+  const guestID = parseInt(searchParams.get('guestID'));
+
+  if (!bookingID && guestID) {
+    try {
+      const activeForGuest = await dbQuery(
+        "SELECT bookingID FROM booking WHERE guestID = ? AND status NOT IN ('Cancelled', 'Canceled') ORDER BY bookingID DESC LIMIT 1",
+        [guestID]
+      );
+      if (activeForGuest.length > 0) {
+        bookingID = activeForGuest[0].bookingID;
+      }
+    } catch (e) {
+      console.warn("Could not resolve booking from guestID:", e);
+    }
+  }
 
   if (!bookingID) {
     return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
@@ -29,12 +46,13 @@ export async function GET(request) {
   try {
     const details = await getBookingBalanceDetails(bookingID);
     if (!details || !details.booking) {
-      return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      console.warn(`[Billing API] Booking ${bookingID} not found or details.booking is null. Details:`, details?.errorMessage || 'No error details');
+      return NextResponse.json({ error: details?.errorMessage ? `Billing notice: ${details.errorMessage}` : 'Booking not found.' }, { status: 404 });
     }
 
     const booking = details.booking;
-    if (booking.status === 'Pending Check-in' || booking.status === 'Pending' || booking.status === 'Cancelled' || booking.status === 'Canceled') {
-      return NextResponse.json({ error: 'Billing is only available for guests who have checked in or checked out.' }, { status: 400 });
+    if (booking.status === 'Cancelled' || booking.status === 'Canceled') {
+      return NextResponse.json({ error: 'This booking has been cancelled.' }, { status: 400 });
     }
 
     const cleanCheckInDate = (booking.checkInDateTime || '').replace('T', ' ');
@@ -46,7 +64,7 @@ export async function GET(request) {
         LEFT JOIN amenities a ON bt.itemType = 'Amenity' AND a.amenityID = bt.itemID
         LEFT JOIN products p ON bt.itemType = 'Product' AND p.productID = bt.itemID
         WHERE bt.bookingID = ?
-      `, [bookingID]),
+      `, [bookingID]).catch(() => []),
       dbQuery(`
         SELECT a.amenityID, a.name, COALESCE(a.sellingPrice, a.price, 0) as replacementCost, a.description,
                SUM(oa.quantity) as orderedQty
@@ -60,9 +78,9 @@ export async function GET(request) {
           AND (a.isArchived IS NULL OR a.isArchived = 0)
         GROUP BY a.amenityID, a.name, a.sellingPrice, a.price, a.description
         ORDER BY a.name ASC
-      `, [booking.guestID, cleanCheckInDate]),
-      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name"),
-      dbQuery("SELECT promotionID, name, percentage FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name")
+      `, [booking.guestID, cleanCheckInDate]).catch(() => []),
+      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name").catch(() => []),
+      dbQuery("SELECT promotionID, name, percentage FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name").catch(() => [])
     ]);
 
     const nonConsumableAmenities = nonConsumableList.map(a => {

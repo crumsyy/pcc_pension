@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom, logBillingAudit, ensurePaymentSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -8,18 +8,21 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  await ensureBookingBillingSchema();
+
   try {
     const [activeBookings, discounts, paymentMethods, paymentHistory] = await Promise.all([
       dbQuery(`
         SELECT b.bookingID, b.guestID, b.roomID, b.status, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
                COALESCE(b.remainingBalance, 0) as remainingBalance,
                g.userID, g.firstName, g.lastName, g.contact,
-               rm.roomNumber, rt.type as roomType
+               COALESCE(rm.roomNumber, 'N/A') as roomNumber, 
+               COALESCE(rt.type, 'Standard Room') as roomType
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
-        JOIN room rm ON rm.roomID = b.roomID
-        JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        WHERE b.status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Payment Completed', 'Paid', 'Checked Out', 'Completed')
+        LEFT JOIN room rm ON rm.roomID = b.roomID
+        LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        WHERE b.status IN ('Confirmed', 'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Payment Completed', 'Paid', 'Checked Out', 'Completed')
         ORDER BY rm.roomNumber
       `),
       dbQuery("SELECT discountID, name, percentage, eligibilityTypeID FROM discounts WHERE isArchived = 0"),
@@ -47,9 +50,9 @@ export async function GET(request) {
       `)
     ]);
 
-    // Filter activeBookings: Active Stay, Checked In and Late Checkout guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
+    // Filter activeBookings: Confirmed, Active Stay, Checked In and Late Checkout guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
     const filteredActiveBookings = activeBookings.filter(b => {
-      if (['Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Payment Completed', 'Paid'].includes(b.status)) {
+      if (['Confirmed', 'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Payment Completed', 'Paid'].includes(b.status)) {
         return true;
       }
       if (b.status === 'Checked Out' && parseFloat(b.remainingBalance || 0) > 0.05) {
@@ -77,6 +80,8 @@ export async function POST(request) {
   if (!session || (session.role !== 'Receptionist' && session.role !== 'Administrator')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  await ensureBookingBillingSchema();
 
   try {
     const body = await request.json();
