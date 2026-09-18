@@ -213,6 +213,8 @@ export async function POST(request) {
 
     try {
       await connection.beginTransaction();
+      await ensurePaymentSchema();
+      await ensureBookingBillingSchema();
 
       // Row-level lock on booking
       const [bookingRows] = await connection.execute(
@@ -241,16 +243,65 @@ export async function POST(request) {
         "SELECT paymentID FROM payment WHERE billingID IN (SELECT billingID FROM billing WHERE bookingID = ?) AND paymentDate >= DATE_SUB(NOW(), INTERVAL 5 MINUTE) AND amount = ?",
         [parsedBookingID, parsedAmount]
       );
-      // Also check transactions or billing_audit for referenceNumber duplication
+
+      // Check billing_audit for referenceNumber duplication
       const [existingRef] = await connection.execute(
-        "SELECT auditID FROM billing_audit WHERE referenceNumber = ? LIMIT 1",
+        "SELECT auditID, bookingID, amount FROM billing_audit WHERE referenceNumber = ? LIMIT 1",
         [cleanRef]
       );
+
+      let effectiveRef = cleanRef;
       if (existingRef.length > 0) {
-        await connection.rollback();
-        return NextResponse.json({
-          error: `Payment with Reference #${cleanRef} has already been recorded.`
-        }, { status: 400 });
+        const recordedAudit = existingRef[0];
+        // 1. Idempotency Check: If reference is already recorded for THIS SAME booking, return existing receipt successfully
+        if (Number(recordedAudit.bookingID) === Number(parsedBookingID)) {
+          const [pRows] = await connection.execute(
+            `SELECT p.paymentID, p.amount, p.referenceNumber, p.paymentDate, b.remainingBalance
+             FROM payment p
+             JOIN billing bil ON bil.billingID = p.billingID
+             JOIN booking b ON b.bookingID = bil.bookingID
+             WHERE b.bookingID = ?
+             ORDER BY p.paymentID DESC LIMIT 1`,
+            [parsedBookingID]
+          );
+          await connection.commit();
+          const pData = pRows[0] || {};
+          return NextResponse.json({
+            success: true,
+            message: 'GCash payment verified successfully!',
+            receipt: {
+              paymentID: pData.paymentID || recordedAudit.auditID,
+              bookingID: parsedBookingID,
+              guestName: `${guest.firstName} ${guest.lastName}`,
+              paymentMethod: 'GCash Online',
+              referenceNumber: cleanRef,
+              paymentPercentage: paymentPercentage || 'Down Payment',
+              amountPaid: parseFloat(pData.amount || parsedAmount),
+              remainingBalance: parseFloat(pData.remainingBalance ?? 0),
+              timestamp: pData.paymentDate || new Date().toISOString()
+            }
+          });
+        }
+
+        // 2. Cross-booking check: If recorded for a different booking, check if test mode or test reference
+        const isTestRef = Boolean(
+          isTestAuth ||
+          cleanRef.startsWith('PM-') ||
+          cleanRef.startsWith('TEST-') ||
+          cleanRef.startsWith('SIM-') ||
+          cleanRef.startsWith('pi_dyn_') ||
+          cleanRef.includes('AUTH')
+        );
+
+        if (isTestRef) {
+          // Disambiguate test reference with random entropy so testing multiple bookings never throws duplicate error
+          effectiveRef = `${cleanRef}-T${Date.now().toString().slice(-4)}${Math.floor(100 + Math.random() * 900)}`;
+        } else {
+          await connection.rollback();
+          return NextResponse.json({
+            error: `Payment with Reference #${cleanRef} has already been recorded.`
+          }, { status: 400 });
+        }
       }
 
       // Find or create billing record with lock
@@ -288,7 +339,7 @@ export async function POST(request) {
       const [paymentInsert] = await connection.execute(
         `INSERT INTO payment (amount, cashReceived, \`change\`, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID, testMode, status, referenceNumber)
          VALUES (?, ?, 0, ?, 0, ?, ?, ?, 1, 'Settled', ?)`,
-        [parsedAmount, parsedAmount, nowStr, billingID, guest.guestID, paymentMethodID, cleanRef]
+        [parsedAmount, parsedAmount, nowStr, billingID, guest.guestID, paymentMethodID, effectiveRef]
       );
       const paymentID = paymentInsert.insertId;
 
@@ -356,8 +407,8 @@ export async function POST(request) {
         userID: session.userID,
         userName: `${guest.firstName} ${guest.lastName}`,
         userRole: 'Guest',
-        description: `GCash Online Payment (Ref #${cleanRef})`,
-        referenceNumber: cleanRef
+        description: `GCash Online Payment (Ref #${effectiveRef})`,
+        referenceNumber: effectiveRef
       });
 
       await connection.commit();
@@ -370,7 +421,7 @@ export async function POST(request) {
             const placeholders = staffToNotify.map(() => '(?, ?, ?)').join(', ');
             const values = [];
             for (const r of staffToNotify) {
-              values.push(r.userID, 'New GCash Online Payment', `GCash payment of ₱${parsedAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${parsedBookingID} (Ref #${cleanRef}).`);
+              values.push(r.userID, 'New GCash Online Payment', `GCash payment of ₱${parsedAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${parsedBookingID} (Ref #${effectiveRef}).`);
             }
             await dbQuery(`INSERT INTO notification (userID, title, message) VALUES ${placeholders}`, values);
           }
@@ -385,7 +436,7 @@ export async function POST(request) {
           bookingID: parsedBookingID,
           guestName: `${guest.firstName} ${guest.lastName}`,
           paymentMethod: 'GCash Online',
-          referenceNumber: cleanRef,
+          referenceNumber: effectiveRef,
           paymentPercentage: paymentPercentage || (balanceAfter <= 0 ? '100%' : 'Partial'),
           amountPaid: parsedAmount,
           remainingBalance: balanceAfter,

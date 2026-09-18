@@ -1175,7 +1175,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (e) e.preventDefault();
     if (submittingBookingRef.current || processing) return;
 
-    const refToUse = (verifiedRef || gcashRef.trim() || paymongoSourceID || `PM-${Date.now()}`);
+    const uniqueFallbackRef = `PM-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const refToUse = (verifiedRef || gcashRef.trim() || paymongoSourceID || uniqueFallbackRef);
 
     if (paymongoStatus !== 'paid' && !isGuestGcashSettled && !verifiedRef) {
       setGuestGcashInlineError('Please complete and authorize your GCash payment first.');
@@ -1266,6 +1267,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       fetchRoomsAndStatus();
     } catch (err) {
       showAlert('error', 'Payment Error', err.message);
+      setIsGuestGcashSettled(false);
+      setGcashRef('');
+      setPaymongoStatus('idle');
+      setPaymongoSourceID(null);
+      setPaymongoCheckoutUrl(null);
+      setPaymongoQrUrl(null);
     } finally {
       setProcessing(false);
       submittingBookingRef.current = false;

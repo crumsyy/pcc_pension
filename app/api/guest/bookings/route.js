@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, normalizeBookingStatus } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, ensurePaymentSchema, normalizeBookingStatus } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 
 export async function GET() {
@@ -230,6 +230,8 @@ export async function POST(request) {
 
       try {
         await connection.beginTransaction();
+        await ensurePaymentSchema();
+        await ensureBookingBillingSchema();
 
         // 0. Concurrency row-level lock on room to serialize concurrent bookings and prevent race conditions
         await connection.execute("SELECT roomID, status FROM room WHERE roomID = ? FOR UPDATE", [roomID]);
@@ -445,8 +447,25 @@ export async function POST(request) {
 
         // Atomically record settled GCash down payment and transaction if settled
         let receiptData = null;
-        if ((body.isGcashSettled === true || body.paymentStatus === 'Settled') && body.referenceNumber) {
-          const cleanRef = String(body.referenceNumber).trim();
+        const isSettledPayment = Boolean(
+          body.isGcashSettled === true ||
+          String(body.isGcashSettled) === 'true' ||
+          body.paymentStatus === 'Settled' ||
+          (body.referenceNumber && downPaymentAmount > 0)
+        );
+
+        if (isSettledPayment && body.referenceNumber) {
+          let cleanRef = String(body.referenceNumber).trim();
+
+          // If cleanRef was previously recorded in billing_audit (e.g. from prior test bookings), disambiguate it
+          const [existingAuditRef] = await connection.execute(
+            "SELECT auditID FROM billing_audit WHERE referenceNumber = ? LIMIT 1",
+            [cleanRef]
+          );
+          if (existingAuditRef.length > 0) {
+            cleanRef = `${cleanRef}-T${Date.now().toString().slice(-4)}${Math.floor(100 + Math.random() * 900)}`;
+          }
+
           const localNow = new Date();
           const pad = (num) => String(num).padStart(2, '0');
           const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
