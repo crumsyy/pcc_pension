@@ -338,7 +338,6 @@ export async function POST(request) {
           finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         }
 
-        const breakfastID = breakfastOption === 'with' ? 2 : 1;
         // Insert booking with roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID
         const [insertBookingRes] = await conn.execute(
           `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID)

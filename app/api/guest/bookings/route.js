@@ -381,7 +381,6 @@ export async function POST(request) {
         const isCheckedInNow = Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
         const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
         const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
-        const breakfastID = breakfastOption === 'with' ? 2 : 1;
 
         // 3. Insert booking record with appropriate status, breakfastOption, and normalized breakfastID
         const [bookingRes] = await connection.execute(
