@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, logBillingAudit } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -135,6 +135,9 @@ export async function POST(request) {
 
     if (action === 'recalculate' || action === 'sync') {
       const details = await getBookingBalanceDetails(bookingID);
+      if (details?.billingID) {
+        await syncNormalizedBillingLineItems(null, details.billingID, bookingID);
+      }
       return NextResponse.json({
         success: true,
         balancing: {
@@ -213,6 +216,7 @@ export async function POST(request) {
           description: `Incidental Charge: ${description}`
         });
 
+        await syncNormalizedBillingLineItems(conn, billingID, bookingID);
         await conn.commit();
         const updatedDetails = await getBookingBalanceDetails(bookingID);
 
@@ -261,6 +265,7 @@ export async function POST(request) {
           );
         }
 
+        await syncNormalizedBillingLineItems(conn, billingID, bookingID);
         await conn.commit();
         const updatedDetails = await getBookingBalanceDetails(bookingID);
         const balanceAfter = updatedDetails.balance;
@@ -300,6 +305,7 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
+        await syncNormalizedBillingLineItems(conn, billingID, bookingID);
         await conn.commit();
         const checkoutRes = await completeBookingAndFreeRoom(bookingID);
         if (checkoutRes.error) {

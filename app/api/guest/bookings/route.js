@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, ensurePaymentSchema, normalizeBookingStatus } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, ensurePaymentSchema, normalizeBookingStatus, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 
 export async function GET() {
@@ -381,12 +381,13 @@ export async function POST(request) {
         const isCheckedInNow = Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
         const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
         const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
+        const breakfastID = breakfastOption === 'with' ? 2 : 1;
 
-        // 3. Insert booking record with appropriate status and breakfastOption
+        // 3. Insert booking record with appropriate status, breakfastOption, and normalized breakfastID
         const [bookingRes] = await connection.execute(
-          `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance, breakfastOption)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance, breakfastOption]
+          `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance, breakfastOption, breakfastID)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance, breakfastOption, breakfastID]
         );
         const bookingID = bookingRes.insertId;
 
@@ -473,8 +474,8 @@ export async function POST(request) {
 
           // 1. Insert payment record
           const [paymentInsert] = await connection.execute(
-            `INSERT INTO payment (amount, cashReceived, \`change\`, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID, testMode, status, referenceNumber)
-             VALUES (?, ?, 0, ?, ?, ?, ?, 2, 1, 'Settled', ?)`,
+            `INSERT INTO payment (amount, cashReceived, \`change\`, changeAmount, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID, testMode, status, referenceNumber)
+             VALUES (?, ?, 0, 0.00, ?, ?, ?, ?, 2, 1, 'Settled', ?)`,
             [downPaymentAmount, downPaymentAmount, nowStr, isFullyPaid, billingID, guest.guestID, cleanRef]
           );
           const paymentID = paymentInsert.insertId;
@@ -511,6 +512,7 @@ export async function POST(request) {
           [roomID]
         );
 
+        await syncNormalizedBillingLineItems(connection, billingID, bookingID);
         await connection.commit();
 
         // Non-blocking background notifications & email dispatch

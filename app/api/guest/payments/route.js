@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema, normalizeBookingStatus } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema, normalizeBookingStatus, syncNormalizedBillingLineItems } from '@/lib/db';
 import { getQRPhImageURL } from '@/lib/qrph';
 
 export async function POST(request) {
@@ -337,8 +337,8 @@ export async function POST(request) {
 
       // Insert payment record
       const [paymentInsert] = await connection.execute(
-        `INSERT INTO payment (amount, cashReceived, \`change\`, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID, testMode, status, referenceNumber)
-         VALUES (?, ?, 0, ?, 0, ?, ?, ?, 1, 'Settled', ?)`,
+        `INSERT INTO payment (amount, cashReceived, \`change\`, changeAmount, paymentDate, isFullyPaid, billingID, guestID, paymentMethodID, testMode, status, referenceNumber)
+         VALUES (?, ?, 0, 0.00, ?, 0, ?, ?, ?, 1, 'Settled', ?)`,
         [parsedAmount, parsedAmount, nowStr, billingID, guest.guestID, paymentMethodID, effectiveRef]
       );
       const paymentID = paymentInsert.insertId;
@@ -411,6 +411,7 @@ export async function POST(request) {
         referenceNumber: effectiveRef
       });
 
+      await syncNormalizedBillingLineItems(connection, billingID, parsedBookingID);
       await connection.commit();
 
       // Non-blocking staff notifications

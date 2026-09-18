@@ -47,6 +47,39 @@ async function ensureTable(connection, tableName, createSql) {
   }
 }
 
+async function ensureIndex(connection, tableName, indexName, columnsDefinition) {
+  try {
+    const [indexes] = await connection.execute(`SHOW INDEX FROM \`${tableName}\` WHERE Key_name = ?`, [indexName]);
+    if (indexes.length === 0) {
+      console.log(`Adding index ${indexName} to ${tableName}...`);
+      await connection.execute(`CREATE INDEX \`${indexName}\` ON \`${tableName}\` (${columnsDefinition})`);
+      console.log(`Successfully created index ${indexName}!`);
+    } else {
+      console.log(`Index ${indexName} on ${tableName} already exists. Skipping.`);
+    }
+  } catch (err) {
+    console.warn(`Note on index ${indexName} on ${tableName}:`, err.message);
+  }
+}
+
+async function ensureForeignKey(connection, tableName, constraintName, fkDefinition) {
+  try {
+    const [fks] = await connection.execute(
+      `SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?`,
+      [process.env.DB_NAME, tableName, constraintName]
+    );
+    if (fks.length === 0) {
+      console.log(`Adding foreign key constraint ${constraintName} to ${tableName}...`);
+      await connection.execute(`ALTER TABLE \`${tableName}\` ADD CONSTRAINT \`${constraintName}\` ${fkDefinition}`);
+      console.log(`Successfully added foreign key ${constraintName}!`);
+    } else {
+      console.log(`Foreign key ${constraintName} on ${tableName} already exists. Skipping.`);
+    }
+  } catch (err) {
+    console.warn(`Note on foreign key ${constraintName} on ${tableName}:`, err.message);
+  }
+}
+
 async function run() {
   console.log("Database Host:", process.env.DB_HOST);
   console.log("Database Name:", process.env.DB_NAME);
@@ -275,6 +308,45 @@ async function run() {
     await ensureColumn(connection, 'order_product', 'isComplimentary', 'TINYINT(1) DEFAULT 0');
     await ensureColumn(connection, 'order_product', 'unitPrice', 'DECIMAL(10,2) DEFAULT NULL');
     await ensureColumn(connection, 'billing', 'missingAmenitiesFee', 'DECIMAL(10,2) DEFAULT 0.00');
+
+    console.log("Ensuring 3NF normalized integrity columns...");
+    await ensureColumn(connection, 'booking', 'breakfastID', 'INT(11) DEFAULT 1');
+    await ensureColumn(connection, 'order_amenities', 'unitPrice', 'DECIMAL(10,2) DEFAULT NULL');
+    await ensureColumn(connection, 'payment', 'changeAmount', 'DECIMAL(10,2) DEFAULT 0.00');
+
+    console.log("Backfilling normalized fields...");
+    await connection.execute(`
+      UPDATE booking 
+      SET breakfastID = CASE 
+        WHEN breakfastOption LIKE '%with%' AND breakfastOption NOT LIKE '%without%' THEN 2 
+        ELSE 1 
+      END
+      WHERE breakfastID IS NULL OR breakfastID = 1
+    `).catch((e) => { console.warn("Backfill breakfastID note:", e.message); });
+
+    await connection.execute(`
+      UPDATE order_amenities oa
+      JOIN amenities a ON a.amenityID = oa.amenityID
+      SET oa.unitPrice = a.price
+      WHERE oa.unitPrice IS NULL
+    `).catch((e) => { console.warn("Backfill unitPrice note:", e.message); });
+
+    await connection.execute(`
+      UPDATE payment 
+      SET changeAmount = \`change\` 
+      WHERE (changeAmount = 0.00 OR changeAmount IS NULL) AND \`change\` > 0
+    `).catch((e) => { console.warn("Backfill changeAmount note:", e.message); });
+
+    console.log("Ensuring high-frequency composite indices for relational performance...");
+    await ensureIndex(connection, 'room_rate', 'idx_room_rate_lookup', '`roomTypeID`, `floorID`, `breakfastID`');
+    await ensureIndex(connection, 'booking', 'idx_booking_dates_status', '`roomID`, `status`, `checkInDateTime`, `checkOutDateTime`');
+    await ensureIndex(connection, 'orders', 'idx_orders_booking', '`bookingID`, `orderStatus`');
+    await ensureIndex(connection, 'billing', 'idx_billing_booking', '`bookingID`');
+    await ensureIndex(connection, 'payment', 'idx_payment_billing', '`billingID`');
+
+    console.log("Ensuring foreign key constraints...");
+    await ensureForeignKey(connection, 'orders', 'fk_orders_booking', 'FOREIGN KEY (`bookingID`) REFERENCES `booking` (`bookingID`) ON DELETE SET NULL');
+    await ensureForeignKey(connection, 'booking', 'fk_booking_breakfast', 'FOREIGN KEY (`breakfastID`) REFERENCES `breakfast_option` (`breakfastID`)');
 
     console.log("All database migrations verified!");
   } catch (error) {

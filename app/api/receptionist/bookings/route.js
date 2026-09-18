@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 
 export async function GET(request) {
@@ -338,11 +338,12 @@ export async function POST(request) {
           finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         }
 
-        // Insert booking with roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption
+        const breakfastID = breakfastOption === 'with' ? 2 : 1;
+        // Insert booking with roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID
         const [insertBookingRes] = await conn.execute(
-          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption)
-           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, roomRate, finalRoomCharge, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption]
+          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, roomRate, finalRoomCharge, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption, breakfastID]
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -420,8 +421,8 @@ export async function POST(request) {
         // Record Down Payment with 'Settled' status and referenceNumber
         const refNumber = body.referenceNumber || (parseInt(paymentMethodID) === 2 ? `GCASH-BK-${bookingID}` : `CASH-${Date.now().toString().slice(-6)}`);
         const [paymentInsert] = await conn.execute(
-          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
-           VALUES (?, ?, 0, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
+          `INSERT INTO payment (amount, cashReceived, \`change\`, changeAmount, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
+           VALUES (?, ?, 0, 0.00, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
           [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID, refNumber]
         );
         const paymentID = paymentInsert.insertId;
@@ -461,6 +462,7 @@ export async function POST(request) {
           console.error("Failed to notify admin of down payment:", adminNotifyErr);
         }
 
+        await syncNormalizedBillingLineItems(conn, billingID, bookingID);
         await conn.commit();
 
         // Dispatch Booking Confirmation Email

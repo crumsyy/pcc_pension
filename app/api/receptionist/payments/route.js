@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema, syncNormalizedBillingLineItems } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -154,9 +154,9 @@ export async function POST(request) {
 
       // 3. Insert payment
       const [paymentInsert] = await connection.execute(
-        `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1, 'Settled', ?)`,
-        [amount, cashVal, changeVal, billingID, guestID, staffID, paymentMethodID, discountID, refNumber]
+        `INSERT INTO payment (amount, cashReceived, \`change\`, changeAmount, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1, 'Settled', ?)`,
+        [amount, cashVal, changeVal, changeVal, billingID, guestID, staffID, paymentMethodID, discountID, refNumber]
       );
       const paymentID = paymentInsert.insertId;
 
@@ -231,6 +231,7 @@ export async function POST(request) {
         }
       }
 
+      await syncNormalizedBillingLineItems(connection, billingID, bookingID);
       await connection.commit();
 
       if (shouldCheckout) {
