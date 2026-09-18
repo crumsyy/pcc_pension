@@ -19,6 +19,7 @@ export default function BookingForm({
   onChangeCheckOutTime,
   useCurrentTimeIn = false,
   onChangeUseCurrentTimeIn,
+  allowCurrentTimeIn = false,
   minDate = '',
   nightsCount = 1,
   selectedRoom = null,
@@ -125,22 +126,24 @@ export default function BookingForm({
             disabled={Boolean(useCurrentTimeIn)}
             required
           />
-          <div className="form-check mt-1">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="bfUseCurrentTimeIn"
-              checked={Boolean(useCurrentTimeIn)}
-              onChange={(e) => handleToggleCurrentIn(e.target.checked)}
-            />
-            <label className="form-check-label small text-muted user-select-none fw-semibold text-dark" htmlFor="bfUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
-              Check-In Now (use current time)
-            </label>
-            <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
-              <i className="bi bi-info-circle me-1"></i>
-              Checked In immediately when selected; defaults to 2:00 PM when unselected.
+          {allowCurrentTimeIn && (
+            <div className="form-check mt-1">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="bfUseCurrentTimeIn"
+                checked={Boolean(useCurrentTimeIn)}
+                onChange={(e) => handleToggleCurrentIn(e.target.checked)}
+              />
+              <label className="form-check-label small text-muted user-select-none fw-semibold text-dark" htmlFor="bfUseCurrentTimeIn" style={{ fontSize: '0.75rem' }}>
+                Check-In Now (use current time)
+              </label>
+              <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
+                <i className="bi bi-info-circle me-1"></i>
+                Checked In immediately when selected; defaults to 2:00 PM when unselected.
+              </div>
             </div>
-          </div>
+          )}
           {isEarlyCheckIn && (
             <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
               ℹ Early Check-in ({earlyHours} hr{earlyHours > 1 ? 's' : ''} prior to 2:00 PM) fee of ₱{earlyFee.toFixed(2)} applied @ ₱50/hr.

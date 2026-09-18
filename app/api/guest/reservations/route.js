@@ -20,7 +20,7 @@ export async function GET(request) {
       SELECT r.reservationID, r.reservationDateTime, r.checkOutDateTime,
              r.isCourtesyHold, r.holdDurationHours, r.holdExpiryDateTime,
              r.warning12SentAt, r.warning6SentAt, r.releasedAt,
-             r.guestCount, r.specialRequests,
+             r.guestCount, r.specialRequests, r.breakfastOption,
              CASE 
                WHEN r.status IN ('On Hold', 'Courtesy Hold') AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'On Hold'
                WHEN r.status IN ('On Hold', 'Courtesy Hold') AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Cancelled'
@@ -35,7 +35,9 @@ export async function GET(request) {
       JOIN room rm ON rm.roomID = r.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
       JOIN floor fl ON fl.floorID = rm.floorID
-      LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1
+      LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID 
+                            AND rr.floorID = rm.floorID 
+                            AND rr.breakfastID = (CASE WHEN r.breakfastOption LIKE '%with%' AND r.breakfastOption NOT LIKE '%without%' THEN 2 ELSE 1 END)
       WHERE r.guestID = ?
       ORDER BY r.reservationDateTime DESC
     `, [guestID]) : [];
@@ -158,7 +160,7 @@ export async function POST(request) {
     }
 
     // Default action: Create reservation
-    const { roomID, checkInDate, checkOutDate, specialRequests, numGuests } = body; // checkInDate is YYYY-MM-DD
+    const { roomID, checkInDate, checkOutDate, specialRequests, numGuests, breakfastOption } = body; // checkInDate is YYYY-MM-DD
 
     if (!roomID || !checkInDate) {
       return NextResponse.json({ error: 'Room selection and Check-in date are required.' }, { status: 400 });
@@ -276,8 +278,8 @@ export async function POST(request) {
     const insertRes = await dbQuery(
       `INSERT INTO reservation (
         reservationDateTime, checkOutDateTime, guestCount, specialRequests, status,
-        guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail, breakfastOption
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         reservationDateTime,
         checkOutDateTimeFormatted,
@@ -289,7 +291,8 @@ export async function POST(request) {
         isCourtesyHold ? 1 : 0,
         isCourtesyHold ? holdDurationHours : null,
         holdExpiryDateTime,
-        guest.email || null
+        guest.email || null,
+        breakfastOption || 'with'
       ]
     );
 
@@ -331,6 +334,7 @@ export async function POST(request) {
         checkOutDate: checkOutDate || 'Standard 12:00 PM',
         specialRequests: specialRequests || 'None',
         numGuests: numGuests || 1,
+        breakfastOption: breakfastOption || 'with',
         status: 'Courtesy Hold',
         isCourtesyHold: true,
         holdDurationHours: 48,

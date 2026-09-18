@@ -579,13 +579,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
   };
 
-  const getDisabledDatesForRoom = (roomId) => {
+  const getDisabledDatesForRoom = (roomId, excludeResId = convertingReservationID) => {
     if (!roomId || !roomSchedules || roomSchedules.length === 0) return [];
     const disabledSet = new Set();
     const pad = (n) => String(n).padStart(2, '0');
     
     roomSchedules.forEach(sched => {
       if (String(sched.roomID) !== String(roomId)) return;
+      if (excludeResId && String(sched.reservationID) === String(excludeResId)) return;
       const inStr = (sched.checkInDateTime || '').substring(0, 10);
       const outStr = (sched.checkOutDateTime || '').substring(0, 10);
       if (!inStr) return;
@@ -609,7 +610,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     return Array.from(disabledSet);
   };
 
-  const checkScheduleConflict = (roomId, inDate, outDate) => {
+  const checkScheduleConflict = (roomId, inDate, outDate, excludeResId = convertingReservationID) => {
     if (!roomId || !inDate || !roomSchedules || roomSchedules.length === 0) return false;
     const reqIn = new Date(`${inDate}T14:00:00`);
     const reqOut = outDate ? new Date(`${outDate}T12:00:00`) : new Date(new Date(`${inDate}T14:00:00`).getTime() + 24 * 3600 * 1000);
@@ -617,6 +618,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     
     return roomSchedules.some(sched => {
       if (String(sched.roomID) !== String(roomId)) return false;
+      if (excludeResId && String(sched.reservationID) === String(excludeResId)) return false;
       const sIn = new Date((sched.checkInDateTime || '').replace(' ', 'T'));
       const sOut = new Date((sched.checkOutDateTime || '').replace(' ', 'T'));
       if (isNaN(sIn.getTime()) || isNaN(sOut.getTime())) return false;
@@ -1022,8 +1024,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkOutDate,
           checkInTime,
           checkOutTime,
-          useCurrentTime: Boolean(useCurrentTimeIn),
-          useCurrentTimeIn: Boolean(useCurrentTimeIn),
+          useCurrentTime: false,
+          useCurrentTimeIn: false,
           useCurrentTimeOut: false,
           earlyFee: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0,
           earlyHours: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyHours : 0,
@@ -1031,6 +1033,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           lateHours: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateHours : 0,
           checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
           checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
+          breakfastOption: breakfastOption || 'with',
           numGuests,
           specialRequests,
           isCourtesyHold: true,
@@ -1348,14 +1351,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     setCheckInTime(inTimeOnly);
     setCheckOutDate(outDateOnly);
     setCheckOutTime(outTimeOnly);
-    setNumGuests(reservation.guestCount || 1);
-    setBreakfastOption(reservation.breakfastOption || 'without');
+    setUseCurrentTimeIn(false);
+    const resGuests = parseInt(reservation.guestCount || 1);
+    setNumGuests(resGuests);
+    setBreakfastOption(reservation.breakfastOption || 'with');
     setSpecialRequests(reservation.specialRequests || '');
     setConvertingReservationID(reservation.reservationID);
     setPaymentOption('50');
     setGcashRef('');
     setIsGuestGcashSettled(false);
     setGuestGcashInlineError('');
+
+    const primaryName = `${initialGuest.firstName || 'Guest'} ${initialGuest.lastName || ''}`.trim();
+    const gList = [{ fullName: primaryName, age: 30, discountID: '', discountIdNumber: '' }];
+    for (let i = 2; i <= resGuests; i++) {
+      gList.push({ fullName: `Guest ${i}`, age: 30, discountID: '', discountIdNumber: '' });
+    }
+    setRegisteredGuests(gList);
 
     // Open booking form modal so guest sees the same booking form as when booking a room
     setActiveModal('book_form');
@@ -1867,7 +1879,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const secondFloorRooms = allRooms.filter(r => String(r.floorID) === '2' || r.floorName?.toLowerCase().includes('second') || r.floorName?.toLowerCase().includes('upper') || String(r.roomNumber).startsWith('2'));
   const fallbackRooms = allRooms.filter(r => !groundFloorRooms.some(g => g.roomID === r.roomID) && !secondFloorRooms.some(s => s.roomID === r.roomID));
 
-  const activeReservation = reservations.find(r => r.status === 'Courtesy Hold' || r.status === 'Pending' || r.status === 'Confirmed' || r.status === 'Overdue Check-In');
+  const activeReservation = reservations.find(r => {
+    const norm = normalizeReservationStatus(r.status);
+    return (norm === 'On Hold' || norm === 'Reserved') && r.status !== 'Cancelled' && r.status !== 'Booked';
+  });
   const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'].includes(b.status));
 
   useEffect(() => {
@@ -2360,14 +2375,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 {activeReservation && (
                   <div id="active-reservation-card" className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                     <div>
-                      {activeReservation.status === 'Courtesy Hold' ? (
+                      {(activeReservation.status === 'On Hold' || activeReservation.status === 'Courtesy Hold' || Boolean(activeReservation.isCourtesyHold)) ? (
                         <span className="badge mb-1" style={{ backgroundColor: '#fd7e14', color: '#fff' }}>Courtesy Hold</span>
                       ) : (
                         <span className="badge bg-success text-white mb-1">Active Reservation Request</span>
                       )}
                       <h6 className="fw-bold mb-0 text-dark">Room {activeReservation.roomNumber} ({activeReservation.roomType})</h6>
                       <div className="small text-muted mb-1">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>
-                      {activeReservation.status === 'Courtesy Hold' && (() => {
+                      {(activeReservation.status === 'On Hold' || activeReservation.status === 'Courtesy Hold' || Boolean(activeReservation.isCourtesyHold)) && (() => {
                         const holdInfo = getCourtesyHoldTimeInfo(activeReservation.holdExpiryDateTime);
                         return holdInfo && !holdInfo.expired ? (
                           <div className="small text-warning-emphasis fw-bold mb-2">
@@ -2384,7 +2399,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm" 
                         onClick={() => handleCancelReservation(activeReservation.reservationID)}
                       >
-                        {activeReservation.status === 'Courtesy Hold' ? 'Cancel Hold' : 'Cancel'}
+                        {(activeReservation.status === 'On Hold' || activeReservation.status === 'Courtesy Hold' || Boolean(activeReservation.isCourtesyHold)) ? 'Cancel Hold' : 'Cancel'}
                       </button>
                       <button 
                         className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm d-inline-flex align-items-center justify-content-center" 
@@ -3743,12 +3758,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
                           checkOutTime={checkOutTime}
                           onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
-                          useCurrentTimeIn={useCurrentTimeIn}
-                          onChangeUseCurrentTimeIn={(val) => setUseCurrentTimeIn(val)}
+                          useCurrentTimeIn={false}
+                          allowCurrentTimeIn={false}
                           minDate={minBookDateStr}
                           nightsCount={nightsCount}
                           selectedRoom={selectedRoom}
-                          roomSchedules={roomSchedules}
+                          roomSchedules={convertingReservationID ? roomSchedules.filter(s => String(s.reservationID) !== String(convertingReservationID)) : roomSchedules}
                           showCalendar={true}
                         />
                       </div>

@@ -366,19 +366,19 @@ export async function POST(request) {
           : Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
 
         let finalCheckInDateTime = checkInDateTime;
-        if (body.useCurrentTime === true || body.useCurrentTimeIn === true) {
+        if (!convResID && (body.useCurrentTime === true || body.useCurrentTimeIn === true)) {
           const localNow = new Date();
           const pad = (num) => String(num).padStart(2, '0');
           finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         }
         let finalCheckOutDateTime = checkOutDateTime;
-        if (body.useCurrentTimeOut === true) {
+        if (!convResID && body.useCurrentTimeOut === true) {
           const localNow = new Date();
           const pad = (num) => String(num).padStart(2, '0');
           finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         }
 
-        const isCheckedInNow = Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
+        const isCheckedInNow = !convResID && Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
         const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
         const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
 

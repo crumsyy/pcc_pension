@@ -131,9 +131,9 @@ export async function POST(request) {
 
       // B. Create pending booking record with accurate pricing
       const [insertBookingRes] = await conn.execute(
-        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption)
-         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, totalCharge, totalCharge, totalCharge, breakfastOption]
+        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption, breakfastID)
+         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, totalCharge, totalCharge, totalCharge, breakfastOption, breakfastID]
       );
       const bookingID = insertBookingRes.insertId;
 
