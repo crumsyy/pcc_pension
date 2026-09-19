@@ -1547,75 +1547,108 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handlePrintReceipt = () => {
     if (!receiptData) return;
-    const printWindow = window.open('', '_blank', 'width=450,height=700');
+    const printWindow = window.open('', '_blank', 'width=380,height=600');
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Receipt - PCC Home Suite Home</title>
           <style>
-            @page { size: 80mm auto; margin: 0; }
+            @page {
+              size: 80mm 200mm;
+              margin: 0;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
             body {
               font-family: 'Courier New', Courier, monospace, sans-serif;
               width: 80mm;
+              max-width: 80mm;
               margin: 0 auto;
-              padding: 12px 10px;
+              padding: 8px 6px;
               color: #000;
               background: #fff;
               font-size: 11px;
-              line-height: 1.3;
+              line-height: 1.35;
+            }
+            .receipt-box {
+              width: 100%;
+              max-width: 74mm;
+              margin: 0 auto;
             }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .bold { font-weight: bold; }
-            .logo { width: 48px; height: 48px; border-radius: 4px; margin-bottom: 4px; }
-            .brand-name { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 2px 0; }
-            .address { font-size: 9px; color: #333; margin-bottom: 6px; }
-            .divider { border-top: 1px dashed #000; margin: 8px 0; }
-            .double-divider { border-top: 2px solid #000; margin: 8px 0; }
-            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-            .info-table td { padding: 2px 0; vertical-align: top; }
-            .total-row { font-size: 12px; font-weight: bold; }
-            .footer { margin-top: 12px; text-align: center; font-size: 9px; color: #444; }
+            .logo { width: 42px; height: 42px; border-radius: 4px; margin-bottom: 3px; }
+            .brand-name { font-size: 13px; font-weight: bold; text-transform: uppercase; margin: 1px 0; letter-spacing: 0.5px; }
+            .address { font-size: 8.5px; color: #333; margin-bottom: 5px; line-height: 1.25; }
+            .divider { border-top: 1px dashed #000; margin: 6px 0; }
+            .double-divider { border-top: 2px solid #000; margin: 6px 0; }
+            .receipt-title { font-size: 10.5px; font-weight: bold; text-transform: uppercase; padding: 2px 0; }
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+            .info-table td { padding: 1.5px 0; vertical-align: top; font-size: 10.5px; }
+            .total-row { font-size: 11.5px; font-weight: bold; }
+            .footer { margin-top: 10px; text-align: center; font-size: 8.5px; color: #444; line-height: 1.3; }
+            @media print {
+              html, body {
+                width: 80mm !important;
+                max-width: 80mm !important;
+                margin: 0 auto !important;
+                padding: 4mm 3mm !important;
+                background: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .receipt-box {
+                width: 100% !important;
+                max-width: 74mm !important;
+                margin: 0 auto !important;
+              }
+            }
           </style>
         </head>
         <body>
-          <div class="text-center">
-            <img src="/assets/images/logo.jpg" class="logo" alt="PCC Logo" />
-            <div class="brand-name">PCC HOME SUITE HOME</div>
-            <div class="address">
-              Osmeña Street, Zone 1, Koronadal City<br/>
-              South Cotabato, Philippines<br/>
-              Tel: 09000000000 | Info: info@pccsuite.com
+          <div class="receipt-box">
+            <div class="text-center">
+              <img src="/assets/images/logo.jpg" class="logo" alt="PCC Logo" />
+              <div class="brand-name">PCC HOME SUITE HOME</div>
+              <div class="address">
+                Osmeña Street, Zone 1, Koronadal City<br/>
+                South Cotabato, Philippines<br/>
+                Tel: 09000000000 | Info: info@pccsuite.com
+              </div>
             </div>
-          </div>
 
-          <div class="divider"></div>
-          <div class="text-center bold" style="font-size: 11px;">OFFICIAL ONLINE GCASH RECEIPT</div>
-          <div class="divider"></div>
+            <div class="divider"></div>
+            <div class="text-center receipt-title">OFFICIAL ONLINE GCASH RECEIPT</div>
+            <div class="divider"></div>
 
-          <table class="info-table">
-            <tr><td>Date/Time:</td><td class="text-right">${new Date(receiptData.timestamp).toLocaleString()}</td></tr>
-            <tr><td>Receipt No:</td><td class="text-right">#REC-${receiptData.paymentID}</td></tr>
-            <tr><td>Booking Ref:</td><td class="text-right">#${receiptData.bookingID}</td></tr>
-            <tr><td>Guest Name:</td><td class="text-right bold">${receiptData.guestName}</td></tr>
-            <tr><td>Payment Method:</td><td class="text-right">${receiptData.paymentMethod}</td></tr>
-            <tr><td>GCash Ref No:</td><td class="text-right">${receiptData.referenceNumber}</td></tr>
-            <tr><td>Payment Option:</td><td class="text-right">${receiptData.paymentPercentage}</td></tr>
-          </table>
+            <table class="info-table">
+              <tr><td>Date/Time:</td><td class="text-right">${new Date(receiptData.timestamp).toLocaleString()}</td></tr>
+              <tr><td>Receipt No:</td><td class="text-right">#REC-${receiptData.paymentID}</td></tr>
+              <tr><td>Booking Ref:</td><td class="text-right">#${receiptData.bookingID}</td></tr>
+              <tr><td>Guest Name:</td><td class="text-right bold">${receiptData.guestName}</td></tr>
+              <tr><td>Payment Method:</td><td class="text-right">${receiptData.paymentMethod}</td></tr>
+              <tr><td>GCash Ref No:</td><td class="text-right">${receiptData.referenceNumber}</td></tr>
+              <tr><td>Payment Option:</td><td class="text-right">${receiptData.paymentPercentage}</td></tr>
+            </table>
 
-          <div class="divider"></div>
+            <div class="divider"></div>
 
-          <table class="info-table">
-            <tr class="total-row"><td>AMOUNT PAID:</td><td class="text-right">₱${parseFloat(receiptData.amountPaid).toFixed(2)}</td></tr>
-            <tr><td>Remaining Balance:</td><td class="text-right">₱${parseFloat(receiptData.remainingBalance).toFixed(2)}</td></tr>
-          </table>
+            <table class="info-table">
+              <tr class="total-row"><td>AMOUNT PAID:</td><td class="text-right">₱${parseFloat(receiptData.amountPaid).toFixed(2)}</td></tr>
+              <tr><td>Remaining Balance:</td><td class="text-right">₱${parseFloat(receiptData.remainingBalance).toFixed(2)}</td></tr>
+            </table>
 
-          <div class="double-divider"></div>
+            <div class="double-divider"></div>
 
-          <div class="footer">
-            <p class="bold" style="margin-bottom: 2px;">Thank you for staying at PCC Home Suite Home!</p>
-            <p style="margin: 0;">We look forward to serving you again.</p>
+            <div class="footer">
+              <p class="bold" style="margin-bottom: 2px;">Thank you for staying at PCC Home Suite Home!</p>
+              <p style="margin: 0;">We look forward to serving you again.</p>
+            </div>
           </div>
         </body>
       </html>
@@ -4068,46 +4101,66 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         </div>
       )}
 
-      {/* MODAL WORKFLOW: RECEIPT WINDOW */}
+      {/* MODAL WORKFLOW: RECEIPT WINDOW (COMPACT SMALL RECEIPT SIZE) */}
       {activeModal === 'receipt' && receiptData && (
         <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0 text-center p-3">
-              <div className="modal-body py-4">
-                <h4 className="fw-bold text-dark">Booking & Payment Confirmed!</h4>
-                <p className="text-muted small mb-4">Your GCash payment has been verified and your booking is confirmed.</p>
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '380px' }}>
+            <div className="modal-content shadow-lg border-0 text-center p-3" style={{ borderRadius: '14px' }}>
+              <div className="modal-body py-3 px-2">
+                <div className="mb-2">
+                  <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold" style={{ fontSize: '0.78rem' }}>
+                    <i className="bi bi-check-circle-fill me-1"></i>Payment Confirmed
+                  </span>
+                </div>
+                <h5 className="fw-bold text-dark mb-1">Official Payment Receipt</h5>
+                <p className="text-muted small mb-3" style={{ fontSize: '0.78rem' }}>Your GCash payment has been verified and confirmed.</p>
 
-                <div className="p-3 bg-light rounded text-start border mb-4" style={{ fontSize: '0.85rem' }}>
+                {/* COMPACT THERMAL SLIP CARD */}
+                <div className="p-3 bg-light rounded text-start border mb-3 font-monospace" style={{ fontSize: '0.80rem', borderStyle: 'dashed !important' }}>
+                  <div className="text-center pb-2 mb-2 border-bottom border-secondary border-opacity-25">
+                    <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>PCC HOME SUITE HOME</div>
+                    <div className="text-muted" style={{ fontSize: '0.70rem' }}>Koronadal City, South Cotabato</div>
+                  </div>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Receipt Number:</span>
+                    <span className="text-muted">Receipt No:</span>
                     <span className="fw-bold text-dark">#REC-{receiptData.paymentID}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Booking Reference:</span>
-                    <span className="fw-bold text-pcc-blue">#{receiptData.bookingID}</span>
+                    <span className="text-muted">Booking Ref:</span>
+                    <span className="fw-bold text-primary">#{receiptData.bookingID}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">GCash Reference No:</span>
-                    <span className="fw-bold text-dark">{receiptData.referenceNumber}</span>
+                    <span className="text-muted">Guest:</span>
+                    <span className="fw-bold text-dark">{receiptData.guestName}</span>
                   </div>
-                  <div className="d-flex justify-content-between mb-1 text-success fw-bold">
-                    <span>Amount Paid ({receiptData.paymentPercentage}):</span>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Payment:</span>
+                    <span className="text-dark">{receiptData.paymentMethod}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-muted">Ref No:</span>
+                    <span className="fw-bold text-dark text-break" style={{ fontSize: '0.75rem' }}>{receiptData.referenceNumber}</span>
+                  </div>
+                  <div className="d-flex justify-content-between pt-1.5 pb-1 border-top border-secondary border-opacity-25 text-success fw-bold">
+                    <span>Paid ({receiptData.paymentPercentage}):</span>
                     <span>₱{receiptData.amountPaid.toFixed(2)}</span>
                   </div>
-                  <div className="d-flex justify-content-between pt-2 border-top text-danger">
+                  <div className="d-flex justify-content-between pt-1 border-top border-secondary border-opacity-25 text-danger">
                     <span>Remaining Balance:</span>
                     <span className="fw-bold">₱{receiptData.remainingBalance.toFixed(2)}</span>
                   </div>
                 </div>
 
-                <div className="d-flex flex-wrap gap-2 justify-content-center">
-                  <button className="btn btn-primary text-white fw-bold" onClick={handlePrintReceipt}>
-                    <i className="bi bi-printer me-1.5"></i>Print Receipt
-                  </button>
-                  <button className="btn btn-success text-white fw-bold shadow-sm" onClick={() => generateReceiptPNG(receiptData)}>
-                    <i className="bi bi-download me-1.5"></i>Download Receipt (PNG)
-                  </button>
-                  <button className="btn btn-pcc-primary text-white fw-bold" onClick={() => { setActiveModal('none'); setViewMode('default'); setActiveTab('home'); }}>
+                <div className="d-flex flex-column gap-2">
+                  <div className="d-flex gap-2">
+                    <button className="btn btn-primary btn-sm flex-fill text-white fw-bold py-2" onClick={handlePrintReceipt}>
+                      <i className="bi bi-printer me-1"></i>Print Receipt
+                    </button>
+                    <button className="btn btn-success btn-sm flex-fill text-white fw-bold py-2 shadow-sm" onClick={() => generateReceiptPNG(receiptData)}>
+                      <i className="bi bi-download me-1"></i>Save (PNG)
+                    </button>
+                  </div>
+                  <button className="btn btn-outline-secondary btn-sm fw-bold py-1.5" onClick={() => { setActiveModal('none'); setViewMode('default'); setActiveTab('home'); }}>
                     Done &amp; View Portal
                   </button>
                 </div>

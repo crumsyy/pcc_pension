@@ -581,77 +581,110 @@ function BookingsClient() {
 
   const handlePrintDownPaymentReceipt = () => {
     if (!downPaymentReceipt) return;
-    const printWindow = window.open('', '_blank', 'width=450,height=700');
+    const printWindow = window.open('', '_blank', 'width=380,height=600');
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Down Payment Sales Invoice - PCC Home Suite Home</title>
           <style>
-            @page { size: 80mm auto; margin: 0; }
+            @page {
+              size: 80mm 200mm;
+              margin: 0;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
             body {
               font-family: 'Courier New', Courier, monospace, sans-serif;
               width: 80mm;
+              max-width: 80mm;
               margin: 0 auto;
-              padding: 12px 10px;
+              padding: 8px 6px;
               color: #000;
               background: #fff;
               font-size: 11px;
-              line-height: 1.3;
+              line-height: 1.35;
+            }
+            .receipt-box {
+              width: 100%;
+              max-width: 74mm;
+              margin: 0 auto;
             }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .bold { font-weight: bold; }
-            .logo { width: 48px; height: 48px; border-radius: 4px; margin-bottom: 4px; }
-            .brand-name { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 2px 0; }
-            .address { font-size: 9px; color: #333; margin-bottom: 6px; }
-            .divider { border-top: 1px dashed #000; margin: 8px 0; }
-            .double-divider { border-top: 2px solid #000; margin: 8px 0; }
-            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-            .info-table td { padding: 2px 0; vertical-align: top; }
-            .total-row { font-size: 12px; font-weight: bold; }
-            .footer { margin-top: 12px; text-align: center; font-size: 9px; color: #444; }
+            .logo { width: 42px; height: 42px; border-radius: 4px; margin-bottom: 3px; }
+            .brand-name { font-size: 13px; font-weight: bold; text-transform: uppercase; margin: 1px 0; letter-spacing: 0.5px; }
+            .address { font-size: 8.5px; color: #333; margin-bottom: 5px; line-height: 1.25; }
+            .divider { border-top: 1px dashed #000; margin: 6px 0; }
+            .double-divider { border-top: 2px solid #000; margin: 6px 0; }
+            .receipt-title { font-size: 10.5px; font-weight: bold; text-transform: uppercase; padding: 2px 0; }
+            .info-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+            .info-table td { padding: 1.5px 0; vertical-align: top; font-size: 10.5px; }
+            .total-row { font-size: 11.5px; font-weight: bold; }
+            .footer { margin-top: 10px; text-align: center; font-size: 8.5px; color: #444; line-height: 1.3; }
+            @media print {
+              html, body {
+                width: 80mm !important;
+                max-width: 80mm !important;
+                margin: 0 auto !important;
+                padding: 4mm 3mm !important;
+                background: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .receipt-box {
+                width: 100% !important;
+                max-width: 74mm !important;
+                margin: 0 auto !important;
+              }
+            }
           </style>
         </head>
         <body>
-          <div class="text-center">
-            <img src="/assets/images/logo.jpg" class="logo" alt="PCC Logo" />
-            <div class="brand-name">PCC HOME SUITE HOME</div>
-            <div class="address">
-              Osmeña Street, Zone 1, Koronadal City<br/>
-              South Cotabato, Philippines<br/>
-              Tel: 09000000000 | Info: info@pccsuite.com
+          <div class="receipt-box">
+            <div class="text-center">
+              <img src="/assets/images/logo.jpg" class="logo" alt="PCC Logo" />
+              <div class="brand-name">PCC HOME SUITE HOME</div>
+              <div class="address">
+                Osmeña Street, Zone 1, Koronadal City<br/>
+                South Cotabato, Philippines<br/>
+                Tel: 09000000000 | Info: info@pccsuite.com
+              </div>
             </div>
-          </div>
 
-          <div class="divider"></div>
-          <div class="text-center bold" style="font-size: 11px;">BOOKING DOWN PAYMENT SALES INVOICE</div>
-          <div class="divider"></div>
+            <div class="divider"></div>
+            <div class="text-center receipt-title">BOOKING DOWN PAYMENT SALES INVOICE</div>
+            <div class="divider"></div>
 
-          <table class="info-table">
-            <tr><td>Date/Time:</td><td class="text-right">${downPaymentReceipt.date}</td></tr>
-            <tr><td>Sales Invoice No:</td><td class="text-right">#INV-${downPaymentReceipt.receiptNo}</td></tr>
-            <tr><td>Booking Ref:</td><td class="text-right">#${downPaymentReceipt.bookingID}</td></tr>
-            <tr><td>Payment Method:</td><td class="text-right">${downPaymentReceipt.paymentMethodName}</td></tr>
-            <tr><td>Guest Name:</td><td class="text-right bold">${downPaymentReceipt.guestName}</td></tr>
-            <tr><td>Room:</td><td class="text-right">Room ${downPaymentReceipt.roomNumber} (${downPaymentReceipt.roomType})</td></tr>
-          </table>
+            <table class="info-table">
+              <tr><td>Date/Time:</td><td class="text-right">${downPaymentReceipt.date}</td></tr>
+              <tr><td>Sales Invoice No:</td><td class="text-right">#INV-${downPaymentReceipt.receiptNo}</td></tr>
+              <tr><td>Booking Ref:</td><td class="text-right">#${downPaymentReceipt.bookingID}</td></tr>
+              <tr><td>Payment Method:</td><td class="text-right">${downPaymentReceipt.paymentMethodName}</td></tr>
+              <tr><td>Guest Name:</td><td class="text-right bold">${downPaymentReceipt.guestName}</td></tr>
+              <tr><td>Room:</td><td class="text-right">Room ${downPaymentReceipt.roomNumber} (${downPaymentReceipt.roomType})</td></tr>
+            </table>
 
-          <div class="divider"></div>
+            <div class="divider"></div>
 
-          <table class="info-table">
-            <tr><td>Total Booking Charge:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.totalRoomCharge).toFixed(2)}</td></tr>
-            <tr><td>Required Down Payment (${downPaymentReceipt.downPaymentPercentage}%):</td><td class="text-right">₱${parseFloat(downPaymentReceipt.requiredDownpayment || downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
-            <tr class="total-row"><td>MONEY RECEIVED:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.cashReceived || downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
-            ${downPaymentReceipt.change > 0 ? `<tr><td>Change Issued:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.change).toFixed(2)}</td></tr>` : ''}
-            <tr><td>Remaining Balance:</td><td class="text-right bold">₱${parseFloat(downPaymentReceipt.remainingBalance).toFixed(2)}</td></tr>
-          </table>
+            <table class="info-table">
+              <tr><td>Total Booking Charge:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.totalRoomCharge).toFixed(2)}</td></tr>
+              <tr><td>Required Down Payment (${downPaymentReceipt.downPaymentPercentage}%):</td><td class="text-right">₱${parseFloat(downPaymentReceipt.requiredDownpayment || downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
+              <tr class="total-row"><td>MONEY RECEIVED:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.cashReceived || downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
+              ${downPaymentReceipt.change > 0 ? `<tr><td>Change Issued:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.change).toFixed(2)}</td></tr>` : ''}
+              <tr><td>Remaining Balance:</td><td class="text-right bold">₱${parseFloat(downPaymentReceipt.remainingBalance).toFixed(2)}</td></tr>
+            </table>
 
-          <div class="double-divider"></div>
+            <div class="double-divider"></div>
 
-          <div class="footer">
-            <p class="bold" style="margin-bottom: 2px;">Thank you for your reservation!</p>
-            <p style="margin: 0;">Please present this receipt upon check-in.</p>
+            <div class="footer">
+              <p class="bold" style="margin-bottom: 2px;">Thank you for your reservation!</p>
+              <p style="margin: 0;">Please present this receipt upon check-in.</p>
+            </div>
           </div>
         </body>
       </html>

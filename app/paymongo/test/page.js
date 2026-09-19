@@ -8,8 +8,8 @@ export function generateReceiptPNG(receipt) {
   if (!receipt || typeof document === 'undefined') return;
   const canvas = document.createElement('canvas');
   const dpr = 2;
-  const width = 460;
-  const height = 620;
+  const width = 360;
+  const height = 520;
   canvas.width = width * dpr;
   canvas.height = height * dpr;
   const ctx = canvas.getContext('2d');
@@ -21,34 +21,34 @@ export function generateReceiptPNG(receipt) {
 
   // Border
   ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(10, 10, width - 20, height - 20);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(8, 8, width - 16, height - 16);
 
   // Header Banner
   ctx.fillStyle = '#005ce6';
-  ctx.fillRect(10, 10, width - 20, 50);
+  ctx.fillRect(8, 8, width - 16, 42);
 
   // Header text
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 16px sans-serif';
+  ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('PCC HOME SUITE HOME', width / 2, 42);
+  ctx.fillText('PCC HOME SUITE HOME', width / 2, 34);
 
   // Subtitle
   ctx.fillStyle = '#1e293b';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.fillText('OFFICIAL GCASH ONLINE RECEIPT', width / 2, 85);
+  ctx.font = 'bold 11.5px sans-serif';
+  ctx.fillText('OFFICIAL GCASH ONLINE RECEIPT', width / 2, 70);
 
   ctx.fillStyle = '#64748b';
-  ctx.font = '11px sans-serif';
-  ctx.fillText('PayMongo Sandbox Test Mode', width / 2, 102);
+  ctx.font = '9.5px sans-serif';
+  ctx.fillText('PayMongo Sandbox Test Mode', width / 2, 85);
 
   // Dashed line
   ctx.strokeStyle = '#cbd5e1';
-  ctx.setLineDash([4, 4]);
+  ctx.setLineDash([3, 3]);
   ctx.beginPath();
-  ctx.moveTo(30, 118);
-  ctx.lineTo(width - 30, 118);
+  ctx.moveTo(24, 98);
+  ctx.lineTo(width - 24, 98);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -63,78 +63,78 @@ export function generateReceiptPNG(receipt) {
     ['Reference No:', receipt.referenceNumber || 'N/A'],
   ];
 
-  let currentY = 145;
+  let currentY = 120;
   items.forEach(([label, value]) => {
     ctx.fillStyle = '#64748b';
-    ctx.font = '12px sans-serif';
+    ctx.font = '10.5px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(label, 35, currentY);
+    ctx.fillText(label, 26, currentY);
 
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 12px sans-serif';
+    ctx.font = 'bold 10.5px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(String(value), width - 35, currentY);
+    ctx.fillText(String(value), width - 26, currentY);
 
-    currentY += 24;
+    currentY += 20;
   });
 
   // Divider
   ctx.strokeStyle = '#cbd5e1';
-  ctx.setLineDash([4, 4]);
+  ctx.setLineDash([3, 3]);
   ctx.beginPath();
-  ctx.moveTo(30, currentY + 10);
-  ctx.lineTo(width - 30, currentY + 10);
+  ctx.moveTo(24, currentY + 6);
+  ctx.lineTo(width - 24, currentY + 6);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  currentY += 35;
+  currentY += 28;
 
   // Amount Paid Row
   ctx.fillStyle = '#0f172a';
-  ctx.font = 'bold 14px sans-serif';
+  ctx.font = 'bold 12px sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('TOTAL AMOUNT PAID:', 35, currentY);
+  ctx.fillText('TOTAL AMOUNT PAID:', 26, currentY);
 
   ctx.fillStyle = '#16a34a';
-  ctx.font = 'bold 18px sans-serif';
+  ctx.font = 'bold 15px sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText(`₱${parseFloat(receipt.amountPaid || 0).toFixed(2)}`, width - 35, currentY);
+  ctx.fillText(`₱${parseFloat(receipt.amountPaid || 0).toFixed(2)}`, width - 26, currentY);
 
-  currentY += 28;
+  currentY += 24;
 
   // Remaining Balance Row
   ctx.fillStyle = '#64748b';
-  ctx.font = '12px sans-serif';
+  ctx.font = '10.5px sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('Remaining Balance:', 35, currentY);
+  ctx.fillText('Remaining Balance:', 26, currentY);
 
   ctx.fillStyle = '#0f172a';
-  ctx.font = 'bold 12px sans-serif';
+  ctx.font = 'bold 11px sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText(`₱${parseFloat(receipt.remainingBalance || 0).toFixed(2)}`, width - 35, currentY);
+  ctx.fillText(`₱${parseFloat(receipt.remainingBalance || 0).toFixed(2)}`, width - 26, currentY);
 
-  currentY += 35;
+  currentY += 28;
 
   // Status Stamp Box
   ctx.fillStyle = '#ecfdf5';
-  ctx.fillRect(35, currentY, width - 70, 36);
+  ctx.fillRect(26, currentY, width - 52, 30);
   ctx.strokeStyle = '#10b981';
   ctx.lineWidth = 1;
-  ctx.strokeRect(35, currentY, width - 70, 36);
+  ctx.strokeRect(26, currentY, width - 52, 30);
 
   ctx.fillStyle = '#047857';
-  ctx.font = 'bold 14px sans-serif';
+  ctx.font = 'bold 11.5px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('✓ PAYMENT COMPLETED & SETTLED', width / 2, currentY + 23);
+  ctx.fillText('✓ PAYMENT COMPLETED & SETTLED', width / 2, currentY + 19);
 
-  currentY += 65;
+  currentY += 52;
 
   // Footer Note
   ctx.fillStyle = '#94a3b8';
-  ctx.font = '10px sans-serif';
+  ctx.font = '9px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('Thank you for staying with PCC Home Suite Home!', width / 2, currentY);
-  ctx.fillText('Osmeña Street, Zone 1, Koronadal City, South Cotabato', width / 2, currentY + 16);
+  ctx.fillText('Osmeña Street, Zone 1, Koronadal City, South Cotabato', width / 2, currentY + 14);
 
   // Download
   const image = canvas.toDataURL('image/png');
