@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock, logBillingAudit, ensureBookingBillingSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock, logBillingAudit, ensureBookingBillingSchema, syncNormalizedBillingLineItems } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -291,6 +291,10 @@ export async function POST(request) {
           userRole: session.role,
           description: `Guest check-out completed and room freed to Available.`
         });
+
+        if (billingID) {
+          await syncNormalizedBillingLineItems(conn, billingID, bookingID);
+        }
 
         await conn.commit();
         await syncInventoryStock();

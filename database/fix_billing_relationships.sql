@@ -1,0 +1,105 @@
+-- =====================================================================
+-- PCC Home Suite Home: Relational Billing Integrity Migration
+-- Database: TiDB Cloud MySQL ('test')
+-- Aligned with Capstone 1 3NF Specification (Tables 45-97 & 98-129)
+-- =====================================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- 1. ROOM & ROOM_RATE RELATIONAL LINKAGE & INDICES
+-- Ensure room foreign keys
+ALTER TABLE `room`
+  ADD CONSTRAINT `fk_room_floor` FOREIGN KEY (`floorID`) REFERENCES `floor` (`floorID`),
+  ADD CONSTRAINT `fk_room_type` FOREIGN KEY (`roomTypeID`) REFERENCES `room_type` (`roomTypeID`);
+
+-- Ensure room_rate foreign keys
+ALTER TABLE `room_rate`
+  ADD CONSTRAINT `fk_rate_roomtype` FOREIGN KEY (`roomTypeID`) REFERENCES `room_type` (`roomTypeID`),
+  ADD CONSTRAINT `fk_rate_floor` FOREIGN KEY (`floorID`) REFERENCES `floor` (`floorID`),
+  ADD CONSTRAINT `fk_rate_breakfast` FOREIGN KEY (`breakfastID`) REFERENCES `breakfast_option` (`breakfastID`);
+
+-- Composite Index for instantaneous tuple lookup (roomTypeID, floorID, breakfastID)
+CREATE INDEX IF NOT EXISTS `idx_room_rate_lookup` 
+  ON `room_rate` (`roomTypeID`, `floorID`, `breakfastID`);
+
+-- 2. PRODUCT & AMENITY ORDER RELATIONS & UNIT PRICE BACKFILL
+ALTER TABLE `order_product`
+  ADD COLUMN IF NOT EXISTS `unitPrice` DECIMAL(10,2) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `isComplimentary` TINYINT(1) DEFAULT 0;
+
+ALTER TABLE `order_amenities`
+  ADD COLUMN IF NOT EXISTS `unitPrice` DECIMAL(10,2) DEFAULT NULL;
+
+-- Backfill NULL unitPrice from live catalog prices
+UPDATE `order_product` op
+JOIN `products` p ON p.`productID` = op.`productID`
+SET op.`unitPrice` = p.`price`
+WHERE op.`unitPrice` IS NULL;
+
+UPDATE `order_amenities` oa
+JOIN `amenities` a ON a.`amenityID` = oa.`amenityID`
+SET oa.`unitPrice` = a.`price`
+WHERE oa.`unitPrice` IS NULL;
+
+-- Enforce foreign keys for orders child tables
+ALTER TABLE `order_product`
+  ADD CONSTRAINT `fk_op_product` FOREIGN KEY (`productID`) REFERENCES `products` (`productID`);
+
+ALTER TABLE `order_amenities`
+  ADD CONSTRAINT `fk_oa_amenity` FOREIGN KEY (`amenityID`) REFERENCES `amenities` (`amenityID`);
+
+-- 3. MASTER-DETAIL BILLING TABLES VALIDATION
+CREATE TABLE IF NOT EXISTS `billing_room` (
+  `billingRoomID` INT(11) NOT NULL AUTO_INCREMENT,
+  `billingID` INT(11) NOT NULL,
+  `roomRateID` INT(11) NOT NULL,
+  `amount` DECIMAL(10,2) NOT NULL,
+  PRIMARY KEY (`billingRoomID`),
+  KEY `fk_br_billing` (`billingID`),
+  KEY `fk_br_rate` (`roomRateID`),
+  CONSTRAINT `fk_br_billing` FOREIGN KEY (`billingID`) REFERENCES `billing` (`billingID`) ON DELETE CASCADE,
+  CONSTRAINT `fk_br_rate` FOREIGN KEY (`roomRateID`) REFERENCES `room_rate` (`roomRateID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `billing_product` (
+  `billingProductID` INT(11) NOT NULL AUTO_INCREMENT,
+  `billingID` INT(11) NOT NULL,
+  `orderProductID` INT(11) NOT NULL,
+  `amount` DECIMAL(10,2) NOT NULL,
+  PRIMARY KEY (`billingProductID`),
+  KEY `fk_bp_billing` (`billingID`),
+  KEY `fk_bp_orderproduct` (`orderProductID`),
+  CONSTRAINT `fk_bp_billing` FOREIGN KEY (`billingID`) REFERENCES `billing` (`billingID`) ON DELETE CASCADE,
+  CONSTRAINT `fk_bp_orderproduct` FOREIGN KEY (`orderProductID`) REFERENCES `order_product` (`orderProductID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `billing_amenity` (
+  `billingAmenityID` INT(11) NOT NULL AUTO_INCREMENT,
+  `billingID` INT(11) NOT NULL,
+  `orderAmenityID` INT(11) NOT NULL,
+  `amount` DECIMAL(10,2) NOT NULL,
+  PRIMARY KEY (`billingAmenityID`),
+  KEY `fk_ba_billing` (`billingID`),
+  KEY `fk_ba_orderamenity` (`orderAmenityID`),
+  CONSTRAINT `fk_ba_billing` FOREIGN KEY (`billingID`) REFERENCES `billing` (`billingID`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ba_orderamenity` FOREIGN KEY (`orderAmenityID`) REFERENCES `order_amenities` (`orderAmenityID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Composite indices for master-detail joins
+CREATE INDEX IF NOT EXISTS `idx_br_billing_rate` ON `billing_room` (`billingID`, `roomRateID`);
+CREATE INDEX IF NOT EXISTS `idx_bp_billing_op` ON `billing_product` (`billingID`, `orderProductID`);
+CREATE INDEX IF NOT EXISTS `idx_ba_billing_oa` ON `billing_amenity` (`billingID`, `orderAmenityID`);
+
+-- Incidental charges table validation
+CREATE TABLE IF NOT EXISTS `incidental_charge` (
+  `chargeID` INT(11) NOT NULL AUTO_INCREMENT,
+  `bookingID` INT(11) NOT NULL,
+  `description` VARCHAR(255) NOT NULL,
+  `amount` DECIMAL(10,2) NOT NULL,
+  `createdAt` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`chargeID`),
+  KEY `idx_incidental_booking` (`bookingID`),
+  CONSTRAINT `fk_incidental_booking` FOREIGN KEY (`bookingID`) REFERENCES `booking` (`bookingID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET FOREIGN_KEY_CHECKS = 1;

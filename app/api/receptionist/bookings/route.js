@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 
 export async function GET(request) {
@@ -831,18 +831,27 @@ export async function POST(request) {
         );
       }
 
-      // Compute final accurate balance
-      const balance = await getBookingBalance(bookingID);
+      // Compute final accurate balance and billing details
+      const balanceDetails = await getBookingBalanceDetails(bookingID);
+      const balance = balanceDetails?.balance ?? 0;
+      const subtotal = balanceDetails?.subtotal ?? balance;
+      const downPaymentPaid = balanceDetails?.chargesSummary?.downPaymentPaid ?? 0;
 
       await dbQuery(
-        "UPDATE booking SET status = 'Bill Finalized', finalBalance = ?, finalBillingUpdatedAt = NOW(), billFinalizedAt = NOW() WHERE bookingID = ?",
-        [balance, bookingID]
-      );
-
-      await dbQuery(
-        "UPDATE billing SET balance = ?, totalAmount = ? WHERE bookingID = ?",
+        "UPDATE booking SET status = 'Bill Finalized', finalBalance = ?, remainingBalance = ?, finalBillingUpdatedAt = NOW(), billFinalizedAt = NOW() WHERE bookingID = ?",
         [balance, balance, bookingID]
       );
+
+      const [billingRows] = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
+      const billingID = billingRows?.billingID || null;
+
+      if (billingID) {
+        await dbQuery(
+          "UPDATE billing SET balance = ?, remainingBalance = ?, totalAmount = ?, downPaymentAmount = ? WHERE billingID = ?",
+          [balance, balance, subtotal, downPaymentPaid, billingID]
+        );
+        await syncNormalizedBillingLineItems(null, billingID, bookingID);
+      }
 
       // Notify guest in real-time
       const guestRes = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [guestID]);
