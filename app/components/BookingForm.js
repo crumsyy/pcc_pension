@@ -25,6 +25,7 @@ export default function BookingForm({
   selectedRoom = null,
   roomSchedules = [],
   showCalendar = true,
+  readOnlyDates = false,
   className = ''
 }) {
   const isEarlyCheckIn = checkInTime && checkInTime < '14:00';
@@ -51,6 +52,7 @@ export default function BookingForm({
   }
 
   const handleToggleCurrentIn = (checked) => {
+    if (readOnlyDates) return;
     if (onChangeUseCurrentTimeIn) onChangeUseCurrentTimeIn(checked);
     if (checked) {
       const now = new Date();
@@ -84,30 +86,36 @@ export default function BookingForm({
       <div className="row g-2">
         {/* Check-In Date */}
         <div className="col-md-6">
-          <label className="form-label fw-semibold small text-dark mb-1">
-            Check-in Date *
+          <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between">
+            <span>Check-in Date *</span>
+            {readOnlyDates && <span className="badge bg-secondary-subtle text-secondary border"><i className="bi bi-lock-fill me-1"></i>Locked</span>}
           </label>
           <input
             type="date"
-            className="form-control"
+            className={`form-control ${readOnlyDates ? 'bg-light text-muted' : ''}`}
             value={checkInDate}
             min={minDate}
-            onChange={(e) => onChangeCheckInDate && onChangeCheckInDate(e.target.value)}
+            onChange={(e) => !readOnlyDates && onChangeCheckInDate && onChangeCheckInDate(e.target.value)}
+            disabled={readOnlyDates}
+            style={readOnlyDates ? { cursor: 'not-allowed' } : undefined}
             required
           />
         </div>
 
         {/* Check-Out Date */}
         <div className="col-md-6">
-          <label className="form-label fw-semibold small text-dark mb-1">
-            Check-out Date *
+          <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between">
+            <span>Check-out Date *</span>
+            {readOnlyDates && <span className="badge bg-secondary-subtle text-secondary border"><i className="bi bi-lock-fill me-1"></i>Locked</span>}
           </label>
           <input
             type="date"
-            className="form-control"
+            className={`form-control ${readOnlyDates ? 'bg-light text-muted' : ''}`}
             value={checkOutDate}
             min={checkInDate || minDate}
-            onChange={(e) => onChangeCheckOutDate && onChangeCheckOutDate(e.target.value)}
+            onChange={(e) => !readOnlyDates && onChangeCheckOutDate && onChangeCheckOutDate(e.target.value)}
+            disabled={readOnlyDates}
+            style={readOnlyDates ? { cursor: 'not-allowed' } : undefined}
             required
           />
         </div>

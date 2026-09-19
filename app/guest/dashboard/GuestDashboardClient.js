@@ -329,6 +329,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [useCurrentTimeOut, setUseCurrentTimeOut] = useState(false);
 
   const handleCheckInDateChange = (val) => {
+    if (convertingReservationID) return;
     setCheckInDate(val);
     if (val) {
       const inDate = new Date(val + 'T00:00:00');
@@ -2444,23 +2445,170 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 )}
 
-                {activeBookingStay && (
-                  <ActiveStayPanel
-                    activeBookingStay={activeBookingStay}
-                    detailedBill={detailedBill}
-                    loadingBill={loadingBill}
-                    onViewLiveBill={() => {
-                      fetchDetailedBill(activeBookingStay.bookingID);
-                      setShowBillModal(true);
-                    }}
-                    onPay={(booking) => handleInitiatePay(booking)}
-                    onRequestCheckout={(booking) => handleRequestCheckout(booking)}
-                    onViewReceipt={(booking) => handleViewReceiptForBooking(booking)}
-                    onDownloadReceipt={(booking) => handleDownloadReceiptForBooking(booking)}
-                    formatBookingID={formatBookingID}
-                    renderBookingStatusTimeline={renderBookingStatusTimeline}
-                  />
-                )}
+                {/* MY BOOKINGS HISTORY & STATUS TIMELINE ON DASHBOARD */}
+                <div id="dashboard-bookings-history-section" className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                      <i className="bi bi-clock-history text-primary"></i>
+                      <span>My Bookings History &amp; Status Timeline</span>
+                    </h6>
+                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1" style={{ fontSize: '0.74rem' }}>
+                      {bookings.length} Stay{bookings.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {bookings.length === 0 ? (
+                    !resetBannerDismissed ? (
+                      <div className="alert alert-info py-3 px-3 border-0 bg-info-subtle rounded-3 mb-0">
+                        <div className="d-flex justify-content-between align-items-start gap-2">
+                          <div className="d-flex align-items-start gap-2">
+                            <i className="bi bi-info-circle-fill text-info mt-0.5 fs-5"></i>
+                            <div>
+                              <div className="fw-bold text-dark mb-0.5">Your booking history has been cleared for testing purposes.</div>
+                              <div className="small text-secondary">
+                                You can now test new reservations or bookings with fresh ID sequences.
+                              </div>
+                            </div>
+                          </div>
+                          <button 
+                            type="button" 
+                            className="btn btn-sm btn-secondary text-white py-0.5 px-2.5 small"
+                            style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                            onClick={() => {
+                              try { sessionStorage.setItem('pcc_guest_reset_banner_dismissed', '1'); } catch (e) {}
+                              setResetBannerDismissed(true);
+                            }}
+                          >
+                            Dismiss Notice &times;
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-muted small">
+                        <i className="bi bi-calendar-x fs-3 d-block mb-1 text-secondary opacity-50"></i>
+                        <span>No booking records found. You can reserve or book a room using the quick actions below!</span>
+                      </div>
+                    )
+                  ) : (
+                    <div className="d-flex flex-column gap-3">
+                      {bookings.map((b) => {
+                        const isCheckedOut = b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled';
+                        const remBal = isCheckedOut ? 0 : parseFloat(b.remainingBalance || 0);
+                        return (
+                          <div key={b.bookingID} className="card shadow-sm border mb-1 bg-white" style={{ borderRadius: '12px' }}>
+                            <div className="card-body p-3">
+                              <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
+                                <div>
+                                  <h5 className="card-title fw-bold text-dark mb-0">
+                                    Room {b.roomNumber} — {b.roomType || 'Standard Room'}
+                                  </h5>
+                                  <div className="text-secondary font-monospace small" style={{ fontSize: '0.78rem' }}>
+                                    Booking ID: #{formatBookingID(b.bookingID)} • User ID: #{guest.userID || guest.guestID}
+                                  </div>
+                                </div>
+                                <div className="d-flex align-items-center gap-2">
+                                  <StatusBadge status={b.status} />
+                                </div>
+                              </div>
+
+                              <p className="card-text text-muted small mb-2">
+                                <i className="bi bi-calendar-event me-1"></i> Check-in: <strong>{formatDate(b.checkInDateTime)}</strong> • Check-out: <strong>{formatDate(b.checkOutDateTime)}</strong>
+                                {b.breakfastOption && (
+                                  <span className="ms-2 badge bg-light text-dark border">
+                                    {b.breakfastOption === 'without' ? 'No Breakfast' : 'With Breakfast'}
+                                  </span>
+                                )}
+                              </p>
+
+                              <div className="d-flex justify-content-between align-items-center py-2 px-3 bg-light rounded mb-2">
+                                <span className="small text-muted fw-semibold">Billing Balance:</span>
+                                <span className={`fw-bold fs-6 ${remBal > 0 ? 'text-danger' : 'text-success'}`}>
+                                  ₱{remBal.toFixed(2)}
+                                </span>
+                              </div>
+
+                              {/* TIMELINE */}
+                              {renderBookingStatusTimeline(b.status)}
+
+                              {/* INSPECTION STATUS BANNER */}
+                              {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
+                                <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
+                                  <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
+                                  <div>
+                                    <strong>Room Inspection in Progress:</strong> Front desk and housekeeping staff are currently verifying your room condition and checking for incidental charges. Your final billing will be updated here shortly.
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ACTION BUTTONS */}
+                              <div className="booking-card-actions mt-2">
+                                <button 
+                                  type="button" 
+                                  className="btn btn-primary text-white"
+                                  onClick={() => setViewBillingBooking(b)}
+                                  aria-label="View Billing Breakdown"
+                                >
+                                  <i className="bi bi-receipt"></i> View Billing
+                                </button>
+
+                                {['Checked In', 'Checked-In', 'Active Stay'].includes(b.status) && (
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-secondary text-white"
+                                    onClick={() => handleRequestCheckout(b)}
+                                    aria-label="Request Checkout"
+                                  >
+                                    <i className="bi bi-box-arrow-right"></i> Request Checkout
+                                  </button>
+                                )}
+
+                                {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
+                                  <button type="button" className="btn btn-warning text-dark" disabled aria-label="Awaiting Bill Finalization">
+                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Awaiting Bill Finalization
+                                  </button>
+                                )}
+
+                                {['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) && (
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-primary fw-bold text-white shadow-sm"
+                                    onClick={() => handleInitiatePay(b)}
+                                    aria-label="Proceed to Payment"
+                                  >
+                                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment
+                                  </button>
+                                )}
+
+                                {['Paid', 'Payment Completed'].includes(b.status) && (
+                                  <button type="button" className="btn btn-success text-white" disabled aria-label="Paid">
+                                    <i className="bi bi-check2-all me-1"></i> Paid
+                                  </button>
+                                )}
+
+                                {['Completed', 'Checked Out', 'Checked-Out'].includes(b.status) && (
+                                  <button type="button" className="btn btn-secondary text-white" disabled aria-label="Completed">
+                                    <i className="bi bi-check-circle me-1"></i> Completed
+                                  </button>
+                                )}
+
+                                {normalizeBookingStatus(b.status) === 'Pending' && (
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-danger text-white" 
+                                    onClick={() => handleCancelBooking(b.bookingID)}
+                                    aria-label="Cancel Booking"
+                                  >
+                                    <i className="bi bi-x-circle"></i> Cancel
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 {/* QUICK ACTION BUTTONS */}
                 <h6 className="fw-bold text-dark mb-2.5">Quick Actions</h6>
@@ -3376,10 +3524,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <tr>
                         <td>Room Rate ({viewBillingBooking.roomType || 'Standard'})</td>
                         <td className="text-end fw-semibold">
-                          ₱{parseFloat(viewBillingBooking.billingDetails?.roomChargeSummary?.baseRoomCharge || viewBillingBooking.rate || 1500).toFixed(2)}
+                          ₱{parseFloat(
+                            viewBillingBooking.billingDetails?.chargesBreakdown?.room?.rate ||
+                            viewBillingBooking.billingDetails?.roomChargeSummary?.baseRoomCharge ||
+                            viewBillingBooking.billingDetails?.rate ||
+                            viewBillingBooking.rate ||
+                            1500
+                          ).toFixed(2)}
                         </td>
                       </tr>
-                      {viewBillingBooking.billingDetails?.roomChargeSummary?.breakfastOption === 'with' && (
+                      {(viewBillingBooking.billingDetails?.chargesBreakdown?.room?.breakfastOption === 'with' || viewBillingBooking.breakfastOption === 'with' || viewBillingBooking.billingDetails?.roomChargeSummary?.breakfastOption === 'with') && (
                         <tr>
                           <td>Breakfast Package (Included with Stay)</td>
                           <td className="text-end text-success fw-semibold">Included</td>
@@ -3781,23 +3935,39 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     </div>
                     <div className="col-lg-7">
                       <div className="p-3 bg-light rounded border h-100">
-                        <h6 className="fw-bold text-dark mb-2">Stay Schedule</h6>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <h6 className="fw-bold text-dark mb-0">Stay Schedule</h6>
+                          {convertingReservationID && (
+                            <span className="badge bg-warning text-dark border border-warning-subtle">
+                              <i className="bi bi-lock-fill me-1"></i>Dates Locked to Reservation #{convertingReservationID}
+                            </span>
+                          )}
+                        </div>
+                        {convertingReservationID && (
+                          <div className="alert alert-warning py-1.5 px-2.5 small mb-2 d-flex align-items-center gap-2">
+                            <i className="bi bi-lock-fill text-warning-emphasis"></i>
+                            <span style={{ fontSize: '0.78rem' }}>
+                              Stay schedule is locked to your reservation ({checkInDate} to {checkOutDate}). Date changes are not allowed when converting an on-hold reservation.
+                            </span>
+                          </div>
+                        )}
                         <BookingForm
                           checkInDate={checkInDate}
-                          onChangeCheckInDate={(newDate) => handleCheckInDateChange(newDate)}
+                          onChangeCheckInDate={(newDate) => { if (!convertingReservationID) handleCheckInDateChange(newDate); }}
                           checkOutDate={checkOutDate}
-                          onChangeCheckOutDate={(newDate) => setCheckOutDate(newDate)}
+                          onChangeCheckOutDate={(newDate) => { if (!convertingReservationID) setCheckOutDate(newDate); }}
                           checkInTime={checkInTime}
-                          onChangeCheckInTime={(newTime) => setCheckInTime(newTime)}
+                          onChangeCheckInTime={(newTime) => { if (!convertingReservationID) setCheckInTime(newTime); }}
                           checkOutTime={checkOutTime}
-                          onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
+                          onChangeCheckOutTime={(newTime) => { if (!convertingReservationID) setCheckOutTime(newTime); }}
                           useCurrentTimeIn={false}
                           allowCurrentTimeIn={false}
                           minDate={minBookDateStr}
                           nightsCount={nightsCount}
                           selectedRoom={selectedRoom}
                           roomSchedules={convertingReservationID ? roomSchedules.filter(s => String(s.reservationID) !== String(convertingReservationID)) : roomSchedules}
-                          showCalendar={true}
+                          showCalendar={!convertingReservationID}
+                          readOnlyDates={Boolean(convertingReservationID)}
                         />
                       </div>
                     </div>
@@ -3935,7 +4105,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   setGcashRef('');
                   setPaymongoStatus('idle');
                   setPaymongoSourceID(null);
-                  setActiveModal('none');
+                  setActiveModal('book_form');
                 }}></button>
               </div>
               <form onSubmit={handleConfirmGCashBookingPayment}>
@@ -4089,7 +4259,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       setGcashRef('');
                       setPaymongoStatus('idle');
                       setPaymongoSourceID(null);
-                      setActiveModal(convertingReservationID ? 'none' : 'book_form');
+                      setActiveModal('book_form');
                     }}
                   >
                     Back

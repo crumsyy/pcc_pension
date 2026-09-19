@@ -27,13 +27,15 @@ export async function GET() {
                WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND b.checkInDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 'No Show'
                ELSE b.status
              END as status,
-             b.reservationID, b.roomID, b.cancelRemarks,
+             b.reservationID, b.roomID, b.roomRate, b.breakfastOption, b.breakfastID, b.cancelRemarks,
              b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
-             rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID, COALESCE(rr.rate, 1500) as rate
+             rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID, COALESCE(rr.rate, b.roomRate, 1500) as rate
       FROM booking b
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1
+      LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID 
+                            AND rr.floorID = rm.floorID 
+                            AND rr.breakfastID = COALESCE(b.breakfastID, CASE WHEN b.breakfastOption LIKE '%with%' AND b.breakfastOption NOT LIKE '%without%' THEN 2 ELSE 1 END)
       WHERE b.guestID = ?
       ORDER BY b.checkInDateTime DESC
     `, [guestID]);
@@ -240,7 +242,7 @@ export async function POST(request) {
         const convResID = reservationID ? parseInt(reservationID) : null;
         if (convResID) {
           const [resLock] = await connection.execute(
-            "SELECT reservationID, status, guestID FROM reservation WHERE reservationID = ? FOR UPDATE",
+            "SELECT reservationID, status, guestID, roomID, reservationDateTime, checkOutDateTime, breakfastOption, guestCount FROM reservation WHERE reservationID = ? FOR UPDATE",
             [convResID]
           );
           if (resLock.length === 0) {
@@ -254,6 +256,17 @@ export async function POST(request) {
             return NextResponse.json({
               error: "This reservation has already been converted into a booking."
             }, { status: 409 });
+          }
+
+          // Strict schedule lock: Check-in and Check-out dates CANNOT be altered when converting a reservation
+          const resInDate = resLock[0].reservationDateTime ? new Date(resLock[0].reservationDateTime).toISOString().substring(0, 10) : checkInDate;
+          const resOutDate = resLock[0].checkOutDateTime ? new Date(resLock[0].checkOutDateTime).toISOString().substring(0, 10) : checkOutDate;
+          if (checkInDate !== resInDate || (checkOutDate && resOutDate && checkOutDate !== resOutDate)) {
+            await connection.rollback();
+            connection.release();
+            return NextResponse.json({
+              error: `Stay dates cannot be altered when converting a reservation. Scheduled dates are locked to ${resInDate} to ${resOutDate}.`
+            }, { status: 400 });
           }
         }
 

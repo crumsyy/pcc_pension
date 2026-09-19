@@ -49,25 +49,37 @@ export default async function GuestDashboard() {
     // 2. Fetch reservations, bookings, and all active rooms in parallel
     const [reservations, rawBookings, allRooms, roomSchedules] = await Promise.all([
       dbQuery(
-        `SELECT r.reservationID, r.reservationDateTime, r.status,
-                rm.roomNumber, rt.type as roomType, fl.name as floor
+        `SELECT r.reservationID, r.reservationDateTime, r.checkOutDateTime,
+                r.isCourtesyHold, r.holdDurationHours, r.holdExpiryDateTime,
+                r.guestCount, r.specialRequests, r.breakfastOption,
+                r.roomID, r.status,
+                rm.roomNumber, rm.floorID, rt.type as roomType, fl.name as floor,
+                COALESCE(rr.rate, 1500) as rate
          FROM reservation r
          JOIN room rm ON rm.roomID = r.roomID
          JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
          JOIN floor fl ON fl.floorID = rm.floorID
+         LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID 
+                               AND rr.floorID = rm.floorID 
+                               AND rr.breakfastID = (CASE WHEN r.breakfastOption LIKE '%with%' AND r.breakfastOption NOT LIKE '%without%' THEN 2 ELSE 1 END)
          WHERE r.guestID = ?
          ORDER BY r.reservationDateTime DESC`,
         [guest.guestID]
       ),
       dbQuery(
         `SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
+                b.reservationID, b.roomID, b.roomRate, b.breakfastOption, b.breakfastID,
                 COALESCE(b.remainingBalance, b.finalBalance, 0) as remainingBalance,
                 COALESCE(b.roomCharge, 0) as roomCharge,
                 COALESCE(b.downPaymentAmount, 0) as downPaymentAmount,
-                rm.roomNumber, rt.type as roomType
+                rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID,
+                COALESCE(rr.rate, b.roomRate, 1500) as rate
          FROM booking b
          JOIN room rm ON rm.roomID = b.roomID
          JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+         LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID 
+                               AND rr.floorID = rm.floorID 
+                               AND rr.breakfastID = COALESCE(b.breakfastID, CASE WHEN b.breakfastOption LIKE '%with%' AND b.breakfastOption NOT LIKE '%without%' THEN 2 ELSE 1 END)
          WHERE b.guestID = ?
          ORDER BY b.checkInDateTime DESC`,
         [guest.guestID]
