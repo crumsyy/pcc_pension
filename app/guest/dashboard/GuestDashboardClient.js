@@ -500,23 +500,83 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [settleGcashRef, setSettleGcashRef] = useState('');
   const [settleProcessing, setSettleProcessing] = useState(false);
 
-  // Handle redirect query params from PayMongo test simulation page
+  // Handle redirect query params from PayMongo (live GCash deep-link return or test simulation)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
+    const payment = urlParams.get('payment');
     const payStatus = urlParams.get('paymentStatus');
     const returnedBookingID = urlParams.get('bookingID');
 
-    if (payStatus === 'completed') {
-      showAlert('success', 'Payment Completed', 'Your GCash payment simulation was authorized and settled successfully! You can view or download your official receipt.');
-      fetchRoomsAndStatus();
+    if (payment === 'success' || payStatus === 'completed') {
       if (returnedBookingID) {
-        fetchDetailedBill(returnedBookingID);
+        showAlert('info', 'Verifying Payment', 'Connecting to PayMongo to verify your GCash payment. Please wait a moment...');
+        
+        // Fast polling listener hitting /api/guest/bookings/status every 2.5 seconds
+        let attempts = 0;
+        const maxAttempts = 24; // 60 seconds max
+        const pollInterval = setInterval(async () => {
+          attempts += 1;
+          try {
+            const res = await fetch(`/api/guest/bookings/status?bookingID=${returnedBookingID}`);
+            const data = await res.json();
+            if (res.ok && (data.isConfirmed || data.status === 'Confirmed' || (data.remainingBalance !== undefined && data.remainingBalance <= 0))) {
+              clearInterval(pollInterval);
+
+              // Play success chime
+              try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+              } catch (e) {
+                // Audio context fallback
+              }
+
+              // Display confirmation toast
+              showAlert('success', 'Payment Confirmed!', 'Your GCash transaction has been verified and settled successfully!');
+
+              // Automatically open the 80mm thermal receipt modal
+              if (data.receipt) {
+                setReceiptData(data.receipt);
+                setActiveModal('receipt');
+              }
+
+              fetchRoomsAndStatus();
+              fetchDetailedBill(returnedBookingID);
+
+              // Clean URL
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, '', cleanUrl);
+            } else if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              showAlert('warning', 'Payment Verification Pending', 'Your payment is being finalized. Your receipt will appear as soon as the transaction is confirmed.');
+              fetchRoomsAndStatus();
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, '', cleanUrl);
+            }
+          } catch (err) {
+            console.error("Booking status polling error:", err);
+          }
+        }, 2500);
+
+        return () => clearInterval(pollInterval);
+      } else {
+        showAlert('success', 'Payment Completed', 'Your GCash payment was processed successfully.');
+        fetchRoomsAndStatus();
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
       }
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, '', cleanUrl);
-    } else if (payStatus === 'declined') {
-      showAlert('error', 'Payment Declined', 'Payment Declined, Try Again');
+    } else if (payment === 'failed' || payStatus === 'declined') {
+      showAlert('error', 'Payment Cancelled or Declined', 'Your GCash transaction was not completed. Please try again.');
       fetchRoomsAndStatus();
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, '', cleanUrl);
@@ -1105,13 +1165,81 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   };
 
   const handleProceedToSandboxGCash = async () => {
-    let url = paymongoCheckoutUrl;
-    if (!url) {
-      const data = await initiatePayMongoSource();
-      url = data?.checkoutUrl;
+    if (!selectedRoom || !checkInDate || !checkOutDate) {
+      showAlert('warning', 'Missing Details', 'Please select a room and stay dates before proceeding.');
+      return;
     }
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+
+    setPaymongoLoading(true);
+    setGuestGcashInlineError('');
+
+    try {
+      // 1. Create or ensure pending booking in DB with isPendingCheckout
+      const bookRes = await fetch('/api/guest/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          isPendingCheckout: true,
+          reservationID: convertingReservationID,
+          roomID: selectedRoom.roomID,
+          checkInDate,
+          checkOutDate,
+          checkInTime,
+          checkOutTime,
+          useCurrentTime: Boolean(useCurrentTimeIn),
+          useCurrentTimeIn: Boolean(useCurrentTimeIn),
+          useCurrentTimeOut: false,
+          earlyFee: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0,
+          earlyHours: earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyHours : 0,
+          lateFee: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateFee : 0,
+          lateHours: lateCheckOutInfo.isLate ? lateCheckOutInfo.lateHours : 0,
+          checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
+          checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
+          breakfastOption: breakfastOption || 'without',
+          roomRate,
+          numGuests: inputPax,
+          extraGuestsCount,
+          extraGuestFee,
+          registeredGuests,
+          paymentMethod: 'GCash',
+          paymentStatus: 'Pending',
+          totalAmount: netTotalAmount,
+          downPaymentAmount: amountToPayNow,
+          downPaymentPercentage: paymentPctNumber,
+          remainingBalance: remainingBalanceAfterPay
+        })
+      });
+
+      const bookData = await bookRes.json();
+      if (!bookRes.ok) throw new Error(bookData.error || 'Failed to initialize booking.');
+      const targetBookingID = bookData.bookingID;
+
+      // 2. Request zero-trust checkout from /api/guest/payments/create-checkout
+      const checkoutRes = await fetch('/api/guest/payments/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingID: targetBookingID,
+          paymentType: 'downpayment'
+        })
+      });
+
+      const checkoutData = await checkoutRes.json();
+      if (!checkoutRes.ok) throw new Error(checkoutData.error || 'Failed to create PayMongo GCash checkout.');
+
+      if (checkoutData.checkoutUrl) {
+        // Deep-link to live GCash checkout
+        window.location.href = checkoutData.checkoutUrl;
+      } else {
+        throw new Error('No checkout URL returned from payment gateway.');
+      }
+    } catch (err) {
+      console.error("Proceed to GCash error:", err);
+      setGuestGcashInlineError(err.message || 'Failed to connect to GCash.');
+      showAlert('error', 'GCash Checkout Error', err.message || 'Failed to initiate GCash checkout.');
+    } finally {
+      setPaymongoLoading(false);
     }
   };
 
@@ -1419,7 +1547,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     );
   };
 
-  const handleInitiatePay = (booking) => {
+  const handleInitiatePay = async (booking) => {
     if (!booking) return;
     const isBillFinalized = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(booking.status) || normalizeBookingStatus(booking.status) === 'Bill Finalized';
     const isDeclined = booking.status === 'Payment Declined' || booking.status === 'Declined';
@@ -1427,8 +1555,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       showAlert('warning', 'Bill Not Ready', "Check-out must be requested first and receptionist must finalize your bill before payment.");
       return;
     }
-    const rem = booking.remainingBalance ?? detailedBill?.balancing?.remainingBalance ?? detailedBill?.remainingBalance ?? 0;
-    window.location.href = `/paymongo/test?bookingID=${booking.bookingID}&amount=${rem}`;
+
+    try {
+      showAlert('info', 'Connecting to GCash', 'Preparing your live GCash checkout session...');
+      const res = await fetch('/api/guest/payments/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingID: booking.bookingID,
+          paymentType: 'full'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to initialize checkout.');
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error('Checkout URL not returned.');
+      }
+    } catch (err) {
+      showAlert('error', 'Checkout Error', err.message || 'Unable to initiate GCash payment.');
+    }
   };
 
   const handleViewReceiptForBooking = async (booking) => {
