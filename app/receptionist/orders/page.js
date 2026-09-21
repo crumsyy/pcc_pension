@@ -575,7 +575,66 @@ function ReceptionistOrdersContent() {
     });
   };
 
+  const isOrderDeliveryTimeReached = (order) => {
+    if (!order) return true;
+    const isScheduled = order.deliveryType === 'scheduled' || Boolean(order.deliveryTime);
+    if (!isScheduled || !order.deliveryDate) return true;
+
+    const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const todayManila = manilaDateFormatter.format(new Date()); // YYYY-MM-DD
+    const orderDelDate = String(order.deliveryDate).substring(0, 10);
+
+    if (orderDelDate > todayManila) {
+      return false;
+    }
+
+    if (orderDelDate === todayManila && order.deliveryTime) {
+      const manilaFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const parts = manilaFormatter.formatToParts(new Date());
+      const p = {};
+      parts.forEach(({ type, value }) => { p[type] = value; });
+      const currentManilaMinutes = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+
+      const [timePart, meridiem] = String(order.deliveryTime).split(' ');
+      const [hrStr, minStr] = (timePart || '00:00').split(':');
+      let dHour = parseInt(hrStr, 10) || 0;
+      if (meridiem === 'PM' && dHour !== 12) dHour += 12;
+      if (meridiem === 'AM' && dHour === 12) dHour = 0;
+      const deliveryMinutes = dHour * 60 + (parseInt(minStr, 10) || 0);
+
+      if (currentManilaMinutes < deliveryMinutes) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleUpdateOrderStatus = (orderID, status) => {
+    const targetOrder = orders.find(ord => ord.orderID === orderID);
+
+    if (status === 'Delivered' && targetOrder) {
+      const isScheduled = targetOrder.deliveryType === 'scheduled' || Boolean(targetOrder.deliveryTime);
+      if (isScheduled && !isOrderDeliveryTimeReached(targetOrder)) {
+        showAlert(
+          'warning',
+          'Cannot Confirm Delivered Yet',
+          `Cannot confirm delivery yet because the order is not on time. This scheduled order is set for delivery on ${targetOrder.deliveryDate ? targetOrder.deliveryDate + ' ' : ''}${targetOrder.deliveryTime ? 'at ' + targetOrder.deliveryTime : 'its scheduled slot'}. Please wait until the scheduled delivery window arrives.`
+        );
+        return;
+      }
+    }
+
     showConfirm('Update Order Status', `Mark order #${orderID} as ${status}?`, async () => {
       try {
         const res = await fetch('/api/receptionist/orders', {
@@ -1140,16 +1199,24 @@ function ReceptionistOrdersContent() {
 
                             {['Preparing', 'Scheduled', 'Placed', 'Pending', 'Pending Delivery', 'Out for Delivery'].includes(o.orderStatus) && (
                               <>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-success text-white fw-semibold d-flex align-items-center gap-1.5 shadow-xs px-2.5 py-1"
-                                  style={{ fontSize: '0.78rem', borderRadius: '6px' }}
-                                  onClick={() => handleUpdateOrderStatus(o.orderID, 'Delivered')}
-                                  title="Confirm delivery to room"
-                                >
-                                  <i className="bi bi-check2-circle"></i>
-                                  <span>Confirm Delivered</span>
-                                </button>
+                                {(() => {
+                                  const isReadyForDelivery = isOrderDeliveryTimeReached(o);
+                                  return (
+                                    <button
+                                      type="button"
+                                      className={`btn btn-sm ${isReadyForDelivery ? 'btn-success text-white' : 'btn-outline-secondary'} fw-semibold d-flex align-items-center gap-1.5 shadow-xs px-2.5 py-1`}
+                                      style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                                      onClick={() => handleUpdateOrderStatus(o.orderID, 'Delivered')}
+                                      title={isReadyForDelivery ? "Confirm delivery to room" : `Scheduled for ${o.deliveryDate || ''} ${o.deliveryTime || ''} (Not on time yet)`}
+                                    >
+                                      <i className={`bi ${isReadyForDelivery ? 'bi-check2-circle' : 'bi-clock-history'}`}></i>
+                                      <span>Confirm Delivered</span>
+                                      {!isReadyForDelivery && (
+                                        <span className="badge bg-warning text-dark px-1.5 py-0.5 ms-1" style={{ fontSize: '0.62rem' }}>Not Yet</span>
+                                      )}
+                                    </button>
+                                  );
+                                })()}
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-outline-danger fw-semibold d-flex align-items-center gap-1 shadow-xs px-2.5 py-1"

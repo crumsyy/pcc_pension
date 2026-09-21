@@ -258,7 +258,7 @@ export default function ReceptionistReservationForm({
           <option value="">-- Choose Room --</option>
           {rooms.map(rm => (
             <option key={rm.roomID} value={rm.roomID}>
-              Room {rm.roomNumber} ({rm.roomType}) – {rm.status} – ₱{parseFloat(rm.rate || 0).toFixed(2)}/night
+              Room {rm.roomNumber} ({rm.roomType || 'Standard Room'}) – {rm.status} – ₱{parseFloat(rm.rate || 0).toFixed(2)}/night
             </option>
           ))}
         </select>

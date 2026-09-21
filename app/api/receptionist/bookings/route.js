@@ -34,37 +34,44 @@ export async function GET(request) {
                b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
                g.userID, g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
-               rm.roomNumber, rm.occupancyLimit, rt.type as roomType, rm.image
+                rm.roomNumber, rm.occupancyLimit, COALESCE(rt.type, 'Standard Room') as roomType, rm.image
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
-        JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
         WHERE rm.isArchived = 0
         ORDER BY b.checkInDateTime DESC
       `),
       dbQuery("SELECT guestID, userID, firstName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, rt.type as roomType,
-               (
-                 SELECT rr2.rate 
-                 FROM room_rate rr2 
-                 WHERE rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2 
-                 LIMIT 1
+        SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, COALESCE(rt.type, 'Standard Room') as roomType,
+               r.breakfastRate,
+               COALESCE(
+                 (
+                   SELECT rr2.rate 
+                   FROM room_rate rr2 
+                   WHERE rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2 
+                   LIMIT 1
+                 ), 1400.00
                ) as rateWithBreakfast,
-               (
-                 SELECT rr1.rate 
-                 FROM room_rate rr1 
-                 WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1 
-                 LIMIT 1
+               COALESCE(
+                 (
+                   SELECT rr1.rate 
+                   FROM room_rate rr1 
+                   WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1 
+                   LIMIT 1
+                 ), 1200.00
                ) as rateWithoutBreakfast,
-               (
-                 SELECT rr1.rate 
-                 FROM room_rate rr1 
-                 WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1 
-                 LIMIT 1
+               COALESCE(
+                 (
+                   SELECT rr1.rate 
+                   FROM room_rate rr1 
+                   WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1 
+                   LIMIT 1
+                 ), 1200.00
                ) as rate
         FROM room r 
-        JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
+        LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
         WHERE r.isArchived = 0 
         ORDER BY r.roomNumber
       `),
@@ -485,7 +492,7 @@ export async function POST(request) {
         // Dispatch Booking Confirmation Email
         try {
           const [roomInfo] = await conn.execute(
-            "SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
+            "SELECT rm.roomNumber, COALESCE(rt.type, 'Standard Room') as roomType FROM room rm LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
             [roomID]
           );
           const [gInfo] = await conn.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);

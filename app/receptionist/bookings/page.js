@@ -1377,7 +1377,21 @@ function BookingsClient() {
       return bIn < reqOut && bOut > reqIn;
     });
 
-    return !hasOverlap;
+    if (hasOverlap) return false;
+
+    if (roomSchedules && roomSchedules.length > 0) {
+      const hasSchedOverlap = roomSchedules.some(sched => {
+        if (String(sched.roomID) !== String(roomID)) return false;
+        if (['Cancelled', 'Checked Out', 'No Show', 'Released', 'Completed'].includes(sched.status)) return false;
+        const sIn = new Date((sched.checkInDateTime || '').replace(' ', 'T'));
+        const sOut = new Date((sched.checkOutDateTime || '').replace(' ', 'T'));
+        if (isNaN(sIn.getTime()) || isNaN(sOut.getTime())) return false;
+        return sIn < reqOut && sOut > reqIn;
+      });
+      if (hasSchedOverlap) return false;
+    }
+
+    return true;
   };
 
   const getStatusBadge = (status) => {
@@ -1783,7 +1797,7 @@ function BookingsClient() {
                         }}
                       >
                         <option value="" disabled>Select Room Type</option>
-                        {[...new Set(rooms.map(rm => rm.roomType))].map(type => (
+                        {[...new Set(rooms.map(rm => rm.roomType || 'Standard Room'))].map(type => (
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>
@@ -1802,7 +1816,7 @@ function BookingsClient() {
                           {selectedRoomType ? "Select Available Room" : "Choose Room Type first"}
                         </option>
                         {rooms
-                          .filter(rm => rm.roomType === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, useCurrentTimeIn))
+                          .filter(rm => (rm.roomType || 'Standard Room') === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, useCurrentTimeIn))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
                               Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}

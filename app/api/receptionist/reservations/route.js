@@ -108,14 +108,14 @@ export async function GET(request) {
                 r.guestID, r.roomID,
                 g.firstName, g.lastName, g.contact, COALESCE(r.guestEmail, g.email) as email,
                 DATE_FORMAT(g.dateOfBirth, '%Y-%m-%d') as dateOfBirth, g.gender,
-                rm.roomNumber, rt.type as roomType, rm.image,
-                rr1.rate as rateWithBreakfast, rr2.rate as rateWithoutBreakfast,
-                COALESCE(rr_opt.rate, rr2.rate, 0) as rate,
+                rm.roomNumber, COALESCE(rt.type, 'Standard Room') as roomType, rm.image,
+                COALESCE(rr1.rate, 1400.00) as rateWithBreakfast, COALESCE(rr2.rate, 1200.00) as rateWithoutBreakfast,
+                COALESCE(rr_opt.rate, rr2.rate, 1200.00) as rate,
                 b.bookingID, b.status as bookingStatus
         FROM reservation r
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
-        JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
         LEFT JOIN room_rate rr_opt ON rr_opt.roomTypeID = rm.roomTypeID AND rr_opt.floorID = rm.floorID AND rr_opt.breakfastID = (CASE WHEN r.breakfastOption LIKE '%with%' AND r.breakfastOption NOT LIKE '%without%' THEN 2 ELSE 1 END)
         LEFT JOIN room_rate rr1 ON rr1.roomTypeID = rm.roomTypeID AND rr1.floorID = rm.floorID AND rr1.breakfastID = 2
         LEFT JOIN room_rate rr2 ON rr2.roomTypeID = rm.roomTypeID AND rr2.floorID = rm.floorID AND rr2.breakfastID = 1
@@ -125,12 +125,13 @@ export async function GET(request) {
       `),
       dbQuery("SELECT guestID, userID, firstName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
-        SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, r.occupancyLimit, r.image,
-               rr1.rate as rateWithBreakfast,
-               rr2.rate as rateWithoutBreakfast,
-               COALESCE(rr2.rate, rr1.rate, 0) as rate
+        SELECT r.roomID, r.roomNumber, r.status, COALESCE(rt.type, 'Standard Room') as roomType, r.occupancyLimit, r.image,
+               r.breakfastRate,
+               COALESCE(rr1.rate, 1400.00) as rateWithBreakfast,
+               COALESCE(rr2.rate, 1200.00) as rateWithoutBreakfast,
+               COALESCE(rr2.rate, rr1.rate, 1200.00) as rate
         FROM room r 
-        JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
+        LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
         LEFT JOIN room_rate rr1 ON rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 2
         LEFT JOIN room_rate rr2 ON rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 1
         WHERE r.isArchived = 0 
@@ -332,7 +333,7 @@ export async function POST(request) {
 
       // Dispatch Courtesy Hold Confirmation Email
       try {
-        const roomData = await dbQuery("SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?", [roomID]);
+        const roomData = await dbQuery("SELECT rm.roomNumber, COALESCE(rt.type, 'Standard Room') as roomType FROM room rm LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?", [roomID]);
         const guestName = `${body.firstName || ''} ${body.lastName || ''}`.trim() || 'Valued Guest';
         sendCourtesyHoldCreatedEmail(guestEmail, guestName, {
           reservationID: insertRes.insertId,
@@ -550,7 +551,7 @@ export async function POST(request) {
         // Dispatch Booking Confirmation Email
         try {
           const [roomInfo] = await conn.execute(
-            "SELECT rm.roomNumber, rt.type as roomType FROM room rm JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
+            "SELECT rm.roomNumber, COALESCE(rt.type, 'Standard Room') as roomType FROM room rm LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
             [roomID]
           );
           const guestFullName = `${currentGuest.firstName || ''} ${currentGuest.lastName || ''}`.trim() || 'Valued Guest';

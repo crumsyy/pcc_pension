@@ -534,8 +534,8 @@ export async function POST(request) {
       }
 
       // Check booking and reservation guestCount
-      const [bRows] = await dbQuery(
-        `SELECT b.bookingID, b.guestID, COALESCE(r.guestCount, 1) as guestCount 
+      const bRows = await dbQuery(
+        `SELECT b.bookingID, b.guestID, COALESCE(b.guestCount, r.guestCount, 1) as guestCount 
          FROM booking b 
          LEFT JOIN reservation r ON r.reservationID = b.reservationID 
          WHERE b.bookingID = ?`,
@@ -597,10 +597,14 @@ export async function POST(request) {
         );
       }
 
+      const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
+      const billingID = billingRes[0]?.billingID || null;
+      if (billingID) {
+        await syncNormalizedBillingLineItems(null, billingID, bookingID);
+      }
+
       const balanceAfter = await getBookingBalance(bookingID);
       const discountSaved = Math.max(0, Math.round((balanceBefore - balanceAfter) * 100) / 100);
-      const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? LIMIT 1", [bookingID]);
-      const billingID = billingRes[0]?.billingID || null;
 
       const descList = parsedDiscounts.map(d => `${d.fullName} (${d.discountIdNumber})`).join(', ');
       await logBillingAudit(null, {
@@ -626,6 +630,13 @@ export async function POST(request) {
       const bookingID = parseInt(body.bookingID);
       if (!bookingID) return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
       await dbQuery("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+
+      const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
+      const billingID = billingRes[0]?.billingID || null;
+      if (billingID) {
+        await syncNormalizedBillingLineItems(null, billingID, bookingID);
+      }
+
       return NextResponse.json({ success: true, message: 'All applied discounts removed from billing.' });
     }
 
@@ -671,6 +682,12 @@ export async function POST(request) {
            WHERE bookingGuestID = ? AND bookingID = ?`,
           [dbDiscountID, dbPromotionID, discountIdNumber, g.bookingGuestID, bookingID]
         );
+      }
+
+      const [billingRows] = await conn.execute("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
+      const billingID = billingRows[0]?.billingID || null;
+      if (billingID) {
+        await syncNormalizedBillingLineItems(conn, billingID, bookingID);
       }
 
       await conn.commit();

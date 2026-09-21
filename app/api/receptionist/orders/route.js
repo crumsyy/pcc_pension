@@ -464,6 +464,62 @@ export async function POST(request) {
       try {
         await connection.beginTransaction();
 
+        // If marking Delivered, ensure scheduled order delivery time has arrived
+        if (newStatus === 'Delivered' || newStatus === 'Completed') {
+          const [orderRows] = await connection.execute(
+            "SELECT orderID, deliveryType, deliveryDate, deliveryTime, orderStatus FROM orders WHERE orderID = ?",
+            [orderID]
+          );
+          if (orderRows.length > 0) {
+            const ord = orderRows[0];
+            const isScheduled = ord.deliveryType === 'scheduled' || Boolean(ord.deliveryTime);
+            if (isScheduled && ord.deliveryDate) {
+              const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Asia/Manila',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+              });
+              const todayManila = manilaDateFormatter.format(new Date()); // YYYY-MM-DD
+              const orderDelDate = String(ord.deliveryDate).substring(0, 10);
+
+              if (orderDelDate > todayManila) {
+                await connection.rollback();
+                return NextResponse.json({
+                  error: `Cannot confirm delivery yet. This scheduled order is set for delivery on ${ord.deliveryDate}${ord.deliveryTime ? ' at ' + ord.deliveryTime : ''}. Please wait until the scheduled delivery time arrives.`
+                }, { status: 400 });
+              }
+
+              if (orderDelDate === todayManila && ord.deliveryTime) {
+                const manilaFormatter = new Intl.DateTimeFormat('en-US', {
+                  timeZone: 'Asia/Manila',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false
+                });
+                const parts = manilaFormatter.formatToParts(new Date());
+                const p = {};
+                parts.forEach(({ type, value }) => { p[type] = value; });
+                const currentManilaMinutes = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
+
+                const [timePart, meridiem] = ord.deliveryTime.split(' ');
+                const [hrStr, minStr] = timePart.split(':');
+                let dHour = parseInt(hrStr, 10);
+                if (meridiem === 'PM' && dHour !== 12) dHour += 12;
+                if (meridiem === 'AM' && dHour === 12) dHour = 0;
+                const deliveryMinutes = dHour * 60 + parseInt(minStr, 10);
+
+                if (currentManilaMinutes < deliveryMinutes) {
+                  await connection.rollback();
+                  return NextResponse.json({
+                    error: `Cannot confirm delivery yet. This scheduled order is set for delivery at ${ord.deliveryTime}. Please wait until the scheduled delivery time arrives.`
+                  }, { status: 400 });
+                }
+              }
+            }
+          }
+        }
+
         // If canceling, check 2-minute restriction for cooked meals (Rule 8)
         if (newStatus === 'Canceled') {
           const [statusRes] = await connection.execute(

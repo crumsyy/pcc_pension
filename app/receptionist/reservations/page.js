@@ -1254,7 +1254,7 @@ function ReservationsClient() {
                         }}
                       >
                         <option value="" disabled>Select Room Type</option>
-                        {[...new Set(rooms.map(rm => rm.roomType))].map(type => (
+                        {[...new Set(rooms.map(rm => rm.roomType || 'Standard Room'))].map(type => (
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>
@@ -1279,10 +1279,13 @@ function ReservationsClient() {
                           {selectedRoomType ? "Select Available Room" : "Choose Room Type first"}
                         </option>
                         {rooms
-                          .filter(rm => rm.roomType === selectedRoomType && (rm.status === 'Available' || String(rm.roomID) === String(formData.roomID)))
+                          .filter(rm => (rm.roomType || 'Standard Room') === selectedRoomType && (
+                            String(rm.roomID) === String(formData.roomID) ||
+                            !checkScheduleConflict(rm.roomID, resDate, checkOutDate, selectedRes?.reservationID)
+                          ))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
-                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax)
+                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
                             </option>
                           ))
                         }
