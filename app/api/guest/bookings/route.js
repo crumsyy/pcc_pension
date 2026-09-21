@@ -220,12 +220,7 @@ export async function POST(request) {
       }
 
       // GCash Down Payment Settlement Validation
-      if ((body.paymentMethod === 'GCash' || parseInt(body.paymentMethodID) === 2) && 
-          body.paymentStatus !== 'Settled' && 
-          !body.isGcashSettled && 
-          !body.referenceNumber && 
-          !body.isPendingCheckout && 
-          body.paymentStatus !== 'Pending') {
+      if ((body.paymentMethod === 'GCash' || parseInt(body.paymentMethodID) === 2) && body.paymentStatus !== 'Settled' && !body.isGcashSettled && !body.referenceNumber) {
         return NextResponse.json({ error: "Cannot proceed: GCash payment not settled." }, { status: 400 });
       }
 
@@ -397,7 +392,7 @@ export async function POST(request) {
         }
 
         const isCheckedInNow = !convResID && Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
-        const bookingStatus = isCheckedInNow ? 'Active Stay' : (body.isPendingCheckout ? 'Pending Down Payment' : 'Pending');
+        const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
         const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
 
         // 3. Insert booking record with appropriate status, breakfastOption, and normalized breakfastID
