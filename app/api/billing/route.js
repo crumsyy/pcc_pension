@@ -21,7 +21,7 @@ export async function GET(request) {
 
     if (!bookingID) {
       const activeRes = await dbQuery(
-        "SELECT bookingID FROM booking WHERE guestID = ? AND status IN ('Checked In', 'Late Checkout', 'Confirmed', 'Pending') ORDER BY checkInDateTime DESC LIMIT 1",
+        "SELECT bookingID FROM booking WHERE guestID = ? AND status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Confirmed', 'Pending', 'Booked', 'Checkout Requested', 'Pending Room Verification', 'Room Verified', 'Final Billing Updated', 'Bill Finalized', 'Payment Completed', 'Paid') ORDER BY checkInDateTime DESC LIMIT 1",
         [guestID]
       );
       if (activeRes.length > 0) {

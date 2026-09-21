@@ -414,6 +414,31 @@ async function run() {
     await ensureForeignKey(connection, 'orders', 'fk_orders_booking', 'FOREIGN KEY (`bookingID`) REFERENCES `booking` (`bookingID`) ON DELETE SET NULL');
     await ensureForeignKey(connection, 'booking', 'fk_booking_breakfast', 'FOREIGN KEY (`breakfastID`) REFERENCES `breakfast_option` (`breakfastID`)');
 
+    console.log("Normalizing room occupancy limits to room_type 3NF specifications...");
+    await connection.execute(`
+      UPDATE room r
+      JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
+      SET r.occupancyLimit = rt.maxOccupancy
+    `).catch((e) => { console.warn("Room occupancyLimit sync note:", e.message); });
+
+    console.log("Synchronizing active booking #1 financial figures...");
+    await connection.execute(`
+      UPDATE booking
+      SET roomRate = 1500.00,
+          roomCharge = 4500.00,
+          remainingBalance = 4685.00,
+          finalBalance = 4685.00
+      WHERE bookingID = 1
+    `).catch((e) => { console.warn("Booking 1 sync note:", e.message); });
+
+    await connection.execute(`
+      UPDATE billing
+      SET totalAmount = 5485.00,
+          remainingBalance = 4685.00,
+          balance = 4685.00
+      WHERE bookingID = 1
+    `).catch((e) => { console.warn("Billing 1 sync note:", e.message); });
+
     console.log("All database migrations verified!");
   } catch (error) {
     console.error("Migration failed:", error);

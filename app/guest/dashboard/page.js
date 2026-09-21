@@ -91,6 +91,9 @@ export default async function GuestDashboard() {
       dbQuery(
         `SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit, r.image, r.description,
                 r.breakfastRate,
+                COALESCE(rt.minOccupancy, 2) as roomBasePax,
+                COALESCE(rt.minOccupancy, 2) as minOccupancy,
+                COALESCE(rt.maxOccupancy, r.occupancyLimit, 4) as maxOccupancy,
                 COALESCE(rt.type, 'Standard Room') as roomType,
                 COALESCE(fl.name, 'Ground Floor') as floorName,
                 (
@@ -132,7 +135,7 @@ export default async function GuestDashboard() {
     ]);
 
     // Calculate live detailed balance only once for the primary active stay booking to ensure instant page load
-    const activeBookingRaw = rawBookings.find(b => ['Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized'].includes(b.status)) 
+    const activeBookingRaw = rawBookings.find(b => ['Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'].includes(b.status)) 
       || rawBookings.find(b => ['Confirmed', 'Pending', 'Booked', 'Pending Check-in'].includes(b.status));
     let activeBill = null;
 

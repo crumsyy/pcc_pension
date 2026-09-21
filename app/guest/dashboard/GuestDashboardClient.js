@@ -855,7 +855,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate)) || 0)
         : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
     : 0;
-  const roomBasePax = selectedRoom ? parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit || 4) : 4;
+  const roomBasePax = selectedRoom ? parseInt(selectedRoom.roomBasePax || selectedRoom.minOccupancy || 2) : 2;
   const inputPax = parseInt(numGuests) || 1;
   const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
   const extraGuestFee = extraGuestsCount * 100 * nightsCount; // ₱100 per extra guest per night
@@ -1436,24 +1436,32 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     try {
       const res = await fetch(`/api/billing?bookingID=${booking.bookingID}`);
       const data = await res.json();
-      const lastPayment = data.payments?.[0];
+      const payments = data.payments || [];
+      const latestPayment = payments.length > 0 ? payments[payments.length - 1] : null;
+      const totalPaid = data.balancing?.paidTotal ?? payments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
+      const remainingBalance = data.balancing?.remainingBalance ?? parseFloat(booking.remainingBalance) ?? 0;
+      const isDownPayment = remainingBalance > 0;
+      const paymentPercentage = isDownPayment ? '50% Down Payment' : '100% Full Settlement';
+
       const receipt = {
-        receiptNumber: lastPayment?.paymentID ? `REC-${lastPayment.paymentID}` : `REC-${booking.bookingID}`,
-        paymentID: lastPayment?.paymentID || booking.bookingID,
+        receiptNumber: latestPayment?.paymentID ? `REC-${latestPayment.paymentID}` : `REC-${booking.bookingID}`,
+        paymentID: latestPayment?.paymentID || booking.bookingID,
         bookingID: booking.bookingID,
-        guestName: guestProfile ? `${guestProfile.firstName} ${guestProfile.lastName}` : (data.guest ? `${data.guest.firstName} ${data.guest.lastName}` : 'Guest'),
+        guestName: guestProfile ? `${guestProfile.firstName} ${guestProfile.lastName}` : (data.booking ? `${data.booking.firstName} ${data.booking.lastName}` : 'Guest'),
         roomNumber: booking.roomNumber || data.booking?.roomNumber || 'N/A',
         roomType: booking.roomType || data.booking?.roomType || 'Room',
-        paymentMethod: lastPayment?.paymentMethod || 'GCash (PayMongo Test Mode)',
-        referenceNumber: lastPayment?.referenceNumber || 'PM-SETTLED',
-        paymentPercentage: '100% Final Settlement',
-        amountPaid: parseFloat(lastPayment?.amount || booking.totalAmount || data.balancing?.subtotal || 0),
-        remainingBalance: 0,
-        timestamp: lastPayment?.paymentDate || new Date().toISOString()
+        paymentMethod: latestPayment?.paymentMethod || 'GCash (PayMongo)',
+        referenceNumber: latestPayment?.referenceNumber || 'PM-SETTLED',
+        paymentPercentage,
+        amountPaid: parseFloat(latestPayment?.amount || totalPaid || booking.downPaymentAmount || 0),
+        totalPaid: parseFloat(totalPaid),
+        remainingBalance: parseFloat(remainingBalance),
+        timestamp: latestPayment?.paymentDate || new Date().toISOString()
       };
       setReceiptData(receipt);
       setActiveModal('receipt');
     } catch {
+      const fallbackRem = parseFloat(booking.remainingBalance) || 0;
       const fallbackReceipt = {
         receiptNumber: `REC-${booking.bookingID}`,
         paymentID: booking.bookingID,
@@ -1461,11 +1469,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         guestName: guestProfile ? `${guestProfile.firstName} ${guestProfile.lastName}` : 'Guest',
         roomNumber: booking.roomNumber,
         roomType: booking.roomType,
-        paymentMethod: 'GCash (PayMongo Test Mode)',
+        paymentMethod: 'GCash (PayMongo)',
         referenceNumber: 'PM-SETTLED',
-        paymentPercentage: '100% Final Settlement',
-        amountPaid: parseFloat(booking.totalAmount || 0),
-        remainingBalance: 0,
+        paymentPercentage: fallbackRem > 0 ? '50% Down Payment' : '100% Full Settlement',
+        amountPaid: parseFloat(booking.downPaymentAmount || booking.totalAmount || 0),
+        remainingBalance: fallbackRem,
         timestamp: new Date().toISOString()
       };
       setReceiptData(fallbackReceipt);
@@ -1478,23 +1486,31 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     try {
       const res = await fetch(`/api/billing?bookingID=${booking.bookingID}`);
       const data = await res.json();
-      const lastPayment = data.payments?.[0];
+      const payments = data.payments || [];
+      const latestPayment = payments.length > 0 ? payments[payments.length - 1] : null;
+      const totalPaid = data.balancing?.paidTotal ?? payments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
+      const remainingBalance = data.balancing?.remainingBalance ?? parseFloat(booking.remainingBalance) ?? 0;
+      const isDownPayment = remainingBalance > 0;
+      const paymentPercentage = isDownPayment ? '50% Down Payment' : '100% Full Settlement';
+
       const receipt = {
-        receiptNumber: lastPayment?.paymentID ? `REC-${lastPayment.paymentID}` : `REC-${booking.bookingID}`,
-        paymentID: lastPayment?.paymentID || booking.bookingID,
+        receiptNumber: latestPayment?.paymentID ? `REC-${latestPayment.paymentID}` : `REC-${booking.bookingID}`,
+        paymentID: latestPayment?.paymentID || booking.bookingID,
         bookingID: booking.bookingID,
-        guestName: guestProfile ? `${guestProfile.firstName} ${guestProfile.lastName}` : (data.guest ? `${data.guest.firstName} ${data.guest.lastName}` : 'Guest'),
+        guestName: guestProfile ? `${guestProfile.firstName} ${guestProfile.lastName}` : (data.booking ? `${data.booking.firstName} ${data.booking.lastName}` : 'Guest'),
         roomNumber: booking.roomNumber || data.booking?.roomNumber || 'N/A',
         roomType: booking.roomType || data.booking?.roomType || 'Room',
-        paymentMethod: lastPayment?.paymentMethod || 'GCash (PayMongo Test Mode)',
-        referenceNumber: lastPayment?.referenceNumber || 'PM-SETTLED',
-        paymentPercentage: '100% Final Settlement',
-        amountPaid: parseFloat(lastPayment?.amount || booking.totalAmount || data.balancing?.subtotal || 0),
-        remainingBalance: 0,
-        timestamp: lastPayment?.paymentDate || new Date().toISOString()
+        paymentMethod: latestPayment?.paymentMethod || 'GCash (PayMongo)',
+        referenceNumber: latestPayment?.referenceNumber || 'PM-SETTLED',
+        paymentPercentage,
+        amountPaid: parseFloat(latestPayment?.amount || totalPaid || booking.downPaymentAmount || 0),
+        totalPaid: parseFloat(totalPaid),
+        remainingBalance: parseFloat(remainingBalance),
+        timestamp: latestPayment?.paymentDate || new Date().toISOString()
       };
       generateReceiptPNG(receipt);
     } catch {
+      const fallbackRem = parseFloat(booking.remainingBalance) || 0;
       const fallbackReceipt = {
         receiptNumber: `REC-${booking.bookingID}`,
         paymentID: booking.bookingID,
@@ -1502,11 +1518,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         guestName: guestProfile ? `${guestProfile.firstName} ${guestProfile.lastName}` : 'Guest',
         roomNumber: booking.roomNumber,
         roomType: booking.roomType,
-        paymentMethod: 'GCash (PayMongo Test Mode)',
+        paymentMethod: 'GCash (PayMongo)',
         referenceNumber: 'PM-SETTLED',
-        paymentPercentage: '100% Final Settlement',
-        amountPaid: parseFloat(booking.totalAmount || 0),
-        remainingBalance: 0,
+        paymentPercentage: fallbackRem > 0 ? '50% Down Payment' : '100% Full Settlement',
+        amountPaid: parseFloat(booking.downPaymentAmount || booking.totalAmount || 0),
+        remainingBalance: fallbackRem,
         timestamp: new Date().toISOString()
       };
       generateReceiptPNG(fallbackReceipt);

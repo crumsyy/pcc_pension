@@ -130,4 +130,23 @@ CREATE TABLE IF NOT EXISTS `incidental_charge` (
   CONSTRAINT `fk_incidental_booking` FOREIGN KEY (`bookingID`) REFERENCES `booking` (`bookingID`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 4. NORMALIZE ROOM OCCUPANCY LIMITS TO MATCH ROOM_TYPE 3NF DATA
+UPDATE `room` r
+JOIN `room_type` rt ON rt.`roomTypeID` = r.`roomTypeID`
+SET r.`occupancyLimit` = rt.`maxOccupancy`;
+
+-- 5. SYNCHRONIZE BOOKING #1 CHARGES AND AMOUNTS
+UPDATE `booking`
+SET `roomRate` = 1500.00,
+    `roomCharge` = 4500.00,
+    `remainingBalance` = 4685.00,
+    `finalBalance` = 4685.00
+WHERE `bookingID` = 1;
+
+UPDATE `billing`
+SET `totalAmount` = 5485.00,
+    `remainingBalance` = 4685.00,
+    `balance` = 4685.00
+WHERE `bookingID` = 1;
+
 SET FOREIGN_KEY_CHECKS = 1;

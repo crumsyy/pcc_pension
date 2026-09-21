@@ -342,6 +342,7 @@ function CheckInClient() {
   const departures = bookings.filter(b => [
     'Checked In',
     'Active Stay',
+    'Checkout Requested',
     'Pending Room Verification',
     'Pending Checkout',
     'Room Verified',

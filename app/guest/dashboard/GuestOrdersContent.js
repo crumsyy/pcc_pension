@@ -718,12 +718,27 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   const allTodaySlotsPassed = isClientMounted && isSelectedDateToday && evaluatedSlots.every(s => s.isPast);
 
   const effectiveBooking = activeBooking || activeBookingStay;
-  const isCheckedIn = (effectiveBooking?.bookingStatus === 'Checked In' || effectiveBooking?.status === 'Checked In');
+  const activeStayStatuses = [
+    'Checked In',
+    'Active Stay',
+    'Confirmed',
+    'Booked',
+    'Checkout Requested',
+    'Pending Room Verification',
+    'Pending Checkout',
+    'Room Verified',
+    'Final Billing Updated',
+    'Bill Finalized',
+    'Late Checkout'
+  ];
+  const isCheckedIn = Boolean(
+    effectiveBooking && activeStayStatuses.includes(effectiveBooking.bookingStatus || effectiveBooking.status)
+  );
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
     if (!isCheckedIn) {
-      setFeedback({ type: 'danger', message: 'Orders can only be placed once you’ve checked in.' });
+      setFeedback({ type: 'danger', message: 'Orders can only be placed once you have an active stay or booking.' });
       return;
     }
     if (cart.length === 0) {
@@ -824,7 +839,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           <div className="alert alert-warning py-2.5 px-3 rounded-3 mb-3 d-flex align-items-center gap-2 border-warning shadow-xs" style={{ fontSize: '0.82rem' }}>
             <i className="bi bi-info-circle-fill text-warning-emphasis fs-6 flex-shrink-0"></i>
             <div>
-              <strong>Ordering Restricted:</strong> Ordering will be available once you’ve checked in.
+              <strong>Ordering Restricted:</strong> Ordering is available once you have an active stay or booking.
             </div>
           </div>
         )}
@@ -1003,7 +1018,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
         {!isCheckedIn && (
           <div className="alert alert-info py-2 px-3 small mb-2 d-flex align-items-center gap-2" style={{ fontSize: '0.76rem' }}>
             <i className="bi bi-lock-fill text-primary flex-shrink-0"></i>
-            <span>Ordering will be available once you’ve checked in.</span>
+            <span>Ordering is available once you have an active stay or booking.</span>
           </div>
         )}
         <LoadingButton
@@ -1015,7 +1030,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           disabled={!isCheckedIn || (hasScheduledItemsInCart && allTodaySlotsPassed && isSelectedDateToday)}
         >
           <i className={`bi ${isCheckedIn ? 'bi-send-fill' : 'bi-lock-fill'} me-1.5`}></i>
-          <span>{isCheckedIn ? 'Submit Room Order' : 'Ordering Locked (Check-In Required)'}</span>
+          <span>{isCheckedIn ? 'Submit Room Order' : 'Ordering Locked (Active Stay Required)'}</span>
         </LoadingButton>
       </form>
     );

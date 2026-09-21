@@ -188,9 +188,22 @@ export async function POST(request) {
       LIMIT 1
     `, [guest.guestID]);
 
-    if (bookings.length === 0 || bookings[0].bookingStatus !== 'Checked In') {
+    const activeStayStatuses = [
+      'Checked In',
+      'Active Stay',
+      'Confirmed',
+      'Booked',
+      'Checkout Requested',
+      'Pending Room Verification',
+      'Pending Checkout',
+      'Room Verified',
+      'Final Billing Updated',
+      'Bill Finalized',
+      'Late Checkout'
+    ];
+    if (bookings.length === 0 || !activeStayStatuses.includes(bookings[0].bookingStatus)) {
       return NextResponse.json({
-        error: "Orders can only be placed once you’ve checked in."
+        error: "Orders can only be placed once you have an active stay or confirmed booking."
       }, { status: 403 });
     }
 
