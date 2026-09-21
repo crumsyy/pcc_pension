@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
 import { validateReservationDate } from '@/lib/validation';
 
 export async function GET(request) {
@@ -30,7 +30,7 @@ export async function GET(request) {
              END as status,
              r.roomID,
              rm.roomNumber, rm.floorID, rt.type as roomType, fl.name as floor,
-             COALESCE(rr.rate, 1500) as rate
+             rr.rate as rate
       FROM reservation r
       JOIN room rm ON rm.roomID = r.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
@@ -49,9 +49,10 @@ export async function GET(request) {
              COALESCE(rt.type, 'Standard Room') as roomType,
              COALESCE(fl.name, 'Ground Floor') as floorName,
              (
-               SELECT COALESCE(MIN(rr.rate), 1500)
-               FROM room_rate rr
-               WHERE rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID
+               SELECT rr1.rate
+               FROM room_rate rr1
+               WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1
+               LIMIT 1
              ) as rate,
              (
                SELECT rr1.rate
@@ -369,8 +370,8 @@ export async function PATCH(request) {
 
     const [reservation] = await dbQuery(`
       SELECT r.*, rm.roomNumber, rm.status as currentRoomStatus, rm.isArchived, rm.occupancyLimit,
-             COALESCE(rr1.rate, 1500) as rateWithoutBreakfast,
-             COALESCE(rr2.rate, 1700) as rateWithBreakfast
+             rr1.rate as rateWithoutBreakfast,
+             rr2.rate as rateWithBreakfast
       FROM reservation r
       JOIN room rm ON rm.roomID = r.roomID
       LEFT JOIN room_rate rr1 ON rr1.roomTypeID = rm.roomTypeID AND rr1.floorID = rm.floorID AND rr1.breakfastID = 1
@@ -423,19 +424,21 @@ export async function PATCH(request) {
       }, { status: 400 });
     }
 
-    // Rate, nights & flat extra guest fee (extraGuests * 100)
+    // Rate, nights & extra guest fee
     const dIn = new Date(checkInDateTime.replace(' ', 'T'));
     const dOut = new Date(checkOutDateTime.replace(' ', 'T'));
     const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
     const isWithBreakfast = (body.breakfastOption || reservation.breakfastOption || 'with') === 'with';
-    const roomRate = isWithBreakfast ? parseFloat(reservation.rateWithBreakfast || 1700) : parseFloat(reservation.rateWithoutBreakfast || 1500);
+    const breakfastOption = isWithBreakfast ? 'With Breakfast' : 'Without Breakfast';
+    const breakfastID = isWithBreakfast ? 2 : 1;
+    const roomRate = isWithBreakfast ? parseFloat(reservation.rateWithBreakfast || 0) : parseFloat(reservation.rateWithoutBreakfast || 0);
     const roomBasePax = parseInt(reservation.occupancyLimit || 2);
     const totalGuests = parseInt(body.numGuests || reservation.guestCount || 1);
     const extraGuests = Math.max(0, totalGuests - roomBasePax);
-    const extraGuestFee = extraGuests * 100; // Flat ₱100 per extra guest
-    const totalAmount = parseFloat(body.totalAmount) || ((roomRate * nights) + extraGuestFee);
+    const extraGuestFee = extraGuests * 100 * nights;
+    const totalAmount = (roomRate * nights) + extraGuestFee;
     const downPaymentPercentage = parseInt(body.downPaymentPercentage || 50);
-    const downPaymentAmount = parseFloat(body.downPaymentAmount) || Math.round(totalAmount * (downPaymentPercentage / 100) * 100) / 100;
+    const downPaymentAmount = Math.round(totalAmount * (downPaymentPercentage / 100) * 100) / 100;
     const remainingBalance = Math.max(0, totalAmount - downPaymentAmount);
 
     const pool = await getDbConnection();
@@ -452,9 +455,9 @@ export async function PATCH(request) {
 
       // 2. Create pending booking record linked to reservationID
       const [insertBookingRes] = await conn.execute(
-        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance)
-         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomRate, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
+        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance, breakfastOption, breakfastID, guestCount)
+         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomRate, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance, breakfastOption, breakfastID, totalGuests]
       );
       const bookingID = insertBookingRes.insertId;
 
@@ -470,9 +473,11 @@ export async function PATCH(request) {
       const [billingInsert] = await conn.execute(
         `INSERT INTO billing (billingDateTime, guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance)
          VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?)`,
-        [res.guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
+        [guestID, bookingID, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance]
       );
       const billingID = billingInsert.insertId;
+
+      await syncNormalizedBillingLineItems(bookingID, billingID, conn);
 
       // 5. If payment info provided (GCash reference), record payment
       const paymentRef = body.referenceNumber || `GCASH-CONV-${reservationID}`;

@@ -858,7 +858,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const roomBasePax = selectedRoom ? parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit || 4) : 4;
   const inputPax = parseInt(numGuests) || 1;
   const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
-  const extraGuestFee = extraGuestsCount * 100; // Flat ₱100 per extra guest
+  const extraGuestFee = extraGuestsCount * 100 * nightsCount; // ₱100 per extra guest per night
   // Early Check-In Fee Preview Calculation (based on selected checkInTime < 14:00 or current arrival day)
   const calculateEarlyCheckInPreview = () => {
     if (!checkInDate) return { isEarly: false, earlyHours: 0, earlyFee: 0 };
@@ -4018,7 +4018,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           Standard Room Capacity: <strong>Up to {roomBasePax} Pax</strong>
                           {extraGuestsCount > 0 && (
                             <span className="text-primary fw-bold ms-1">
-                              (+₱{(extraGuestFee).toFixed(2)} for {extraGuestsCount} extra guest(s) @ ₱100 flat)
+                              (+₱{(extraGuestFee).toFixed(2)} for {extraGuestsCount} extra guest(s) @ ₱100/night)
                             </span>
                           )}
                         </div>

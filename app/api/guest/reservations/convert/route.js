@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { getDbConnection, dbQuery, logBillingAudit } from '@/lib/db';
+import { getDbConnection, dbQuery, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
 
 export async function POST(request) {
   const session = await getSession();
@@ -105,9 +105,11 @@ export async function POST(request) {
         [reservationID]
       );
 
-      // Resolve breakfast tier and room rate
-      const breakfastOption = reservation.breakfastOption || 'without';
-      const breakfastID = breakfastOption === 'with' ? 2 : 1;
+      // Resolve breakfast tier and room rate dynamically from database
+      const rawBreakfastOption = reservation.breakfastOption || 'without';
+      const hasBreakfast = (rawBreakfastOption && rawBreakfastOption.toLowerCase().includes('with') && !rawBreakfastOption.toLowerCase().includes('without'));
+      const breakfastID = hasBreakfast ? 2 : 1;
+      const breakfastOption = hasBreakfast ? 'with' : 'without';
 
       const [rateRows] = await conn.execute(`
         SELECT rr.rate
@@ -116,7 +118,21 @@ export async function POST(request) {
         WHERE r.roomID = ?
         LIMIT 1
       `, [breakfastID, reservation.roomID]);
-      const roomPrice = rateRows[0]?.rate ? parseFloat(rateRows[0].rate) : 1500;
+      
+      let roomPrice = 0;
+      if (rateRows && rateRows.length > 0 && rateRows[0]?.rate != null) {
+        roomPrice = parseFloat(rateRows[0].rate);
+      } else {
+        const [defRate] = await conn.execute(`
+          SELECT rr.rate
+          FROM room r
+          JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID
+          WHERE r.roomID = ?
+          ORDER BY rr.rate ASC
+          LIMIT 1
+        `, [reservation.roomID]);
+        roomPrice = defRate[0]?.rate ? parseFloat(defRate[0].rate) : 0;
+      }
 
       const dIn = new Date(checkInDateTime);
       const dOut = new Date(checkOutDateTime);
@@ -129,11 +145,11 @@ export async function POST(request) {
       const extraGuestFee = extraGuests * 100 * nights;
       const totalCharge = (roomPrice * nights) + extraGuestFee;
 
-      // B. Create pending booking record with accurate pricing
+      // B. Create pending booking record with accurate pricing and guestCount
       const [insertBookingRes] = await conn.execute(
-        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption, breakfastID)
-         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, totalCharge, totalCharge, totalCharge, breakfastOption, breakfastID]
+        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption, breakfastID, guestCount)
+         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, totalCharge, totalCharge, totalCharge, breakfastOption, breakfastID, totalPax]
       );
       const bookingID = insertBookingRes.insertId;
 
@@ -160,6 +176,8 @@ export async function POST(request) {
         [nowStr, guestID, bookingID, totalCharge, totalCharge, totalCharge]
       );
       const billingID = billingInsert.insertId;
+
+      await syncNormalizedBillingLineItems(conn, billingID, bookingID);
 
       // E. Update room status to Reserved
       await conn.execute(

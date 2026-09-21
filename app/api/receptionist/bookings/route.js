@@ -45,16 +45,27 @@ export async function GET(request) {
       dbQuery("SELECT guestID, userID, firstName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, rt.type as roomType,
-               MAX(COALESCE(rr_with.rate, rr_default.rate, 1500)) as rateWithBreakfast,
-               MAX(COALESCE(rr_without.rate, rr_with.rate - 200, 1300)) as rateWithoutBreakfast,
-               MAX(COALESCE(rr_with.rate, rr_default.rate, 1500)) as rate
+               (
+                 SELECT rr2.rate 
+                 FROM room_rate rr2 
+                 WHERE rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2 
+                 LIMIT 1
+               ) as rateWithBreakfast,
+               (
+                 SELECT rr1.rate 
+                 FROM room_rate rr1 
+                 WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1 
+                 LIMIT 1
+               ) as rateWithoutBreakfast,
+               (
+                 SELECT rr1.rate 
+                 FROM room_rate rr1 
+                 WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1 
+                 LIMIT 1
+               ) as rate
         FROM room r 
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
-        LEFT JOIN room_rate rr_with ON rr_with.roomTypeID = r.roomTypeID AND rr_with.floorID = r.floorID AND rr_with.breakfastID = 2
-        LEFT JOIN room_rate rr_without ON rr_without.roomTypeID = r.roomTypeID AND rr_without.floorID = r.floorID AND rr_without.breakfastID = 1
-        LEFT JOIN room_rate rr_default ON rr_default.roomTypeID = r.roomTypeID AND rr_default.floorID = r.floorID
         WHERE r.isArchived = 0 
-        GROUP BY r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, rt.type
         ORDER BY r.roomNumber
       `),
       dbQuery(`
@@ -247,13 +258,19 @@ export async function POST(request) {
         const breakfastOption = body.breakfastOption === 'with' ? 'with' : 'without';
         const breakfastID = breakfastOption === 'with' ? 2 : 1;
 
-        let roomRate = parseFloat(body.roomRate || 0);
-        if (!roomRate || isNaN(roomRate) || roomRate <= 0) {
-          const [roomData] = await conn.execute(
-            "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ? WHERE r.roomID = ?",
-            [breakfastID, roomID]
+        const [roomData] = await conn.execute(
+          "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ? WHERE r.roomID = ?",
+          [breakfastID, roomID]
+        );
+        let roomRate = 0;
+        if (roomData.length > 0 && roomData[0].rate != null) {
+          roomRate = parseFloat(roomData[0].rate);
+        } else {
+          const [defData] = await conn.execute(
+            "SELECT rr.rate FROM room r JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID WHERE r.roomID = ? ORDER BY rr.rate ASC LIMIT 1",
+            [roomID]
           );
-          roomRate = roomData.length > 0 && roomData[0].rate ? parseFloat(roomData[0].rate) : 1500;
+          roomRate = defData.length > 0 && defData[0].rate != null ? parseFloat(defData[0].rate) : 0;
         }
 
         const rawRoomCharge = roomRate * diffDays;
@@ -338,11 +355,12 @@ export async function POST(request) {
           finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         }
 
-        // Insert booking with roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID
+        const totalGuestsCount = guests.length > 0 ? guests.length : 1;
+        // Insert booking with roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount
         const [insertBookingRes] = await conn.execute(
-          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID)
-           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, roomRate, finalRoomCharge, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption, breakfastID]
+          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, roomRate, finalRoomCharge, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption, breakfastID, totalGuestsCount]
         );
         const bookingID = insertBookingRes.insertId;
 

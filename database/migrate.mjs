@@ -314,6 +314,62 @@ async function run() {
     await ensureColumn(connection, 'order_amenities', 'unitPrice', 'DECIMAL(10,2) DEFAULT NULL');
     await ensureColumn(connection, 'payment', 'changeAmount', 'DECIMAL(10,2) DEFAULT 0.00');
 
+    console.log("Ensuring master-detail billing and incidental tables exist...");
+    await ensureTable(connection, 'billing_room', `
+      CREATE TABLE IF NOT EXISTS \`billing_room\` (
+        \`billingRoomID\` INT(11) NOT NULL AUTO_INCREMENT,
+        \`billingID\` INT(11) NOT NULL,
+        \`roomRateID\` INT(11) NOT NULL,
+        \`amount\` DECIMAL(10,2) NOT NULL,
+        PRIMARY KEY (\`billingRoomID\`),
+        KEY \`fk_br_billing\` (\`billingID\`),
+        KEY \`fk_br_rate\` (\`roomRateID\`),
+        CONSTRAINT \`fk_br_billing\` FOREIGN KEY (\`billingID\`) REFERENCES \`billing\` (\`billingID\`) ON DELETE CASCADE,
+        CONSTRAINT \`fk_br_rate\` FOREIGN KEY (\`roomRateID\`) REFERENCES \`room_rate\` (\`roomRateID\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    await ensureTable(connection, 'billing_product', `
+      CREATE TABLE IF NOT EXISTS \`billing_product\` (
+        \`billingProductID\` INT(11) NOT NULL AUTO_INCREMENT,
+        \`billingID\` INT(11) NOT NULL,
+        \`orderProductID\` INT(11) NOT NULL,
+        \`amount\` DECIMAL(10,2) NOT NULL,
+        PRIMARY KEY (\`billingProductID\`),
+        KEY \`fk_bp_billing\` (\`billingID\`),
+        KEY \`fk_bp_orderproduct\` (\`orderProductID\`),
+        CONSTRAINT \`fk_bp_billing\` FOREIGN KEY (\`billingID\`) REFERENCES \`billing\` (\`billingID\`) ON DELETE CASCADE,
+        CONSTRAINT \`fk_bp_orderproduct\` FOREIGN KEY (\`orderProductID\`) REFERENCES \`order_product\` (\`orderProductID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    await ensureTable(connection, 'billing_amenity', `
+      CREATE TABLE IF NOT EXISTS \`billing_amenity\` (
+        \`billingAmenityID\` INT(11) NOT NULL AUTO_INCREMENT,
+        \`billingID\` INT(11) NOT NULL,
+        \`orderAmenityID\` INT(11) NOT NULL,
+        \`amount\` DECIMAL(10,2) NOT NULL,
+        PRIMARY KEY (\`billingAmenityID\`),
+        KEY \`fk_ba_billing\` (\`billingID\`),
+        KEY \`fk_ba_orderamenity\` (\`orderAmenityID\`),
+        CONSTRAINT \`fk_ba_billing\` FOREIGN KEY (\`billingID\`) REFERENCES \`billing\` (\`billingID\`) ON DELETE CASCADE,
+        CONSTRAINT \`fk_ba_orderamenity\` FOREIGN KEY (\`orderAmenityID\`) REFERENCES \`order_amenities\` (\`orderAmenityID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    await ensureTable(connection, 'incidental_charge', `
+      CREATE TABLE IF NOT EXISTS \`incidental_charge\` (
+        \`chargeID\` INT(11) NOT NULL AUTO_INCREMENT,
+        \`bookingID\` INT(11) NOT NULL,
+        \`description\` VARCHAR(255) NOT NULL,
+        \`amount\` DECIMAL(10,2) NOT NULL,
+        \`createdAt\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`chargeID\`),
+        KEY \`idx_incidental_booking\` (\`bookingID\`),
+        CONSTRAINT \`fk_incidental_booking\` FOREIGN KEY (\`bookingID\`) REFERENCES \`booking\` (\`bookingID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
     console.log("Backfilling normalized fields...");
     await connection.execute(`
       UPDATE booking 
@@ -321,15 +377,22 @@ async function run() {
         WHEN breakfastOption LIKE '%with%' AND breakfastOption NOT LIKE '%without%' THEN 2 
         ELSE 1 
       END
-      WHERE breakfastID IS NULL OR breakfastID = 1
+      WHERE breakfastID IS NULL OR (breakfastOption LIKE '%with%' AND breakfastOption NOT LIKE '%without%' AND breakfastID = 1)
     `).catch((e) => { console.warn("Backfill breakfastID note:", e.message); });
+
+    await connection.execute(`
+      UPDATE order_product op
+      JOIN products p ON p.productID = op.productID
+      SET op.unitPrice = p.price
+      WHERE op.unitPrice IS NULL OR op.unitPrice = 0
+    `).catch((e) => { console.warn("Backfill order_product unitPrice note:", e.message); });
 
     await connection.execute(`
       UPDATE order_amenities oa
       JOIN amenities a ON a.amenityID = oa.amenityID
       SET oa.unitPrice = a.price
-      WHERE oa.unitPrice IS NULL
-    `).catch((e) => { console.warn("Backfill unitPrice note:", e.message); });
+      WHERE oa.unitPrice IS NULL OR oa.unitPrice = 0
+    `).catch((e) => { console.warn("Backfill order_amenities unitPrice note:", e.message); });
 
     await connection.execute(`
       UPDATE payment 
@@ -343,6 +406,9 @@ async function run() {
     await ensureIndex(connection, 'orders', 'idx_orders_booking', '`bookingID`, `orderStatus`');
     await ensureIndex(connection, 'billing', 'idx_billing_booking', '`bookingID`');
     await ensureIndex(connection, 'payment', 'idx_payment_billing', '`billingID`');
+    await ensureIndex(connection, 'billing_room', 'idx_br_billing_rate', '`billingID`, `roomRateID`');
+    await ensureIndex(connection, 'billing_product', 'idx_bp_billing_op', '`billingID`, `orderProductID`');
+    await ensureIndex(connection, 'billing_amenity', 'idx_ba_billing_oa', '`billingID`, `orderAmenityID`');
 
     console.log("Ensuring foreign key constraints...");
     await ensureForeignKey(connection, 'orders', 'fk_orders_booking', 'FOREIGN KEY (`bookingID`) REFERENCES `booking` (`bookingID`) ON DELETE SET NULL');

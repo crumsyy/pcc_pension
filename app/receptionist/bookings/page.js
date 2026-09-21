@@ -876,7 +876,7 @@ function BookingsClient() {
       const rate = selectedRoom
         ? (breakfastOption === 'with'
             ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-            : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
+            : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
         : 0;
       const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit) || 4) : 4;
 
@@ -1038,7 +1038,7 @@ function BookingsClient() {
     const rate = selectedRoom
       ? (breakfastOption === 'with'
           ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-          : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
+          : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
       : 0;
 
     let nights = 0;
@@ -1840,7 +1840,7 @@ function BookingsClient() {
                             Base Price: <span className="text-pcc-blue fw-bold">₱{(
                               breakfastOption === 'with'
                                 ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
-                                : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0))
+                                : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
                             ).toFixed(2)}</span> / night
                           </div>
                           <small className="text-muted">
@@ -2120,7 +2120,7 @@ function BookingsClient() {
                     const rate = selectedRoomObj
                       ? (breakfastOption === 'with'
                           ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
-                          : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || (parseFloat(selectedRoomObj.rate) ? parseFloat(selectedRoomObj.rate) - 200 : 0)))
+                          : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0))
                       : 0;
                     const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
 

@@ -54,7 +54,7 @@ export default async function GuestDashboard() {
                 r.guestCount, r.specialRequests, r.breakfastOption,
                 r.roomID, r.status,
                 rm.roomNumber, rm.floorID, rt.type as roomType, fl.name as floor,
-                COALESCE(rr.rate, 1500) as rate
+                rr.rate as rate
          FROM reservation r
          JOIN room rm ON rm.roomID = r.roomID
          JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
@@ -73,13 +73,17 @@ export default async function GuestDashboard() {
                 COALESCE(b.roomCharge, 0) as roomCharge,
                 COALESCE(b.downPaymentAmount, 0) as downPaymentAmount,
                 rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID,
-                COALESCE(rr.rate, b.roomRate, 1500) as rate
+                COALESCE(rr.rate, b.roomRate, 0) as rate
          FROM booking b
          JOIN room rm ON rm.roomID = b.roomID
          JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
          LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID 
                                AND rr.floorID = rm.floorID 
-                               AND rr.breakfastID = COALESCE(b.breakfastID, CASE WHEN b.breakfastOption LIKE '%with%' AND b.breakfastOption NOT LIKE '%without%' THEN 2 ELSE 1 END)
+                               AND rr.breakfastID = (CASE 
+                                 WHEN b.breakfastOption LIKE '%with%' AND b.breakfastOption NOT LIKE '%without%' THEN 2 
+                                 WHEN b.breakfastID = 2 THEN 2 
+                                 ELSE 1 
+                               END)
          WHERE b.guestID = ?
          ORDER BY b.checkInDateTime DESC`,
         [guest.guestID]
@@ -90,7 +94,7 @@ export default async function GuestDashboard() {
                 COALESCE(rt.type, 'Standard Room') as roomType,
                 COALESCE(fl.name, 'Ground Floor') as floorName,
                 (
-                  SELECT COALESCE(MIN(rr.rate), 1500)
+                  SELECT MIN(rr.rate)
                   FROM room_rate rr
                   WHERE rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID
                 ) as rate,

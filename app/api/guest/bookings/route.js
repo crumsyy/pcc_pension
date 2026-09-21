@@ -29,13 +29,17 @@ export async function GET() {
              END as status,
              b.reservationID, b.roomID, b.roomRate, b.breakfastOption, b.breakfastID, b.cancelRemarks,
              b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
-             rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID, COALESCE(rr.rate, b.roomRate, 1500) as rate
+             rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID, rr.rate as rate
       FROM booking b
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
       LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID 
                             AND rr.floorID = rm.floorID 
-                            AND rr.breakfastID = COALESCE(b.breakfastID, CASE WHEN b.breakfastOption LIKE '%with%' AND b.breakfastOption NOT LIKE '%without%' THEN 2 ELSE 1 END)
+                            AND rr.breakfastID = (CASE 
+                              WHEN b.breakfastOption LIKE '%with%' AND b.breakfastOption NOT LIKE '%without%' THEN 2 
+                              WHEN b.breakfastID = 2 THEN 2 
+                              ELSE 1 
+                            END)
       WHERE b.guestID = ?
       ORDER BY b.checkInDateTime DESC
     `, [guestID]);
@@ -358,13 +362,27 @@ export async function POST(request) {
           LIMIT 1
         `, [breakfastID, roomID]);
 
-        const dbRate = rateRows[0]?.rate ? parseFloat(rateRows[0].rate) : 1500;
-        const roomPrice = parseFloat(body.roomRate || body.pricePerNight || body.rate || dbRate);
+        let dbRate = 0;
+        if (rateRows && rateRows.length > 0 && rateRows[0]?.rate != null) {
+          dbRate = parseFloat(rateRows[0].rate);
+        } else {
+          const [catRate] = await connection.execute(`
+            SELECT rr.rate
+            FROM room r
+            JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID
+            WHERE r.roomID = ?
+            ORDER BY rr.rate ASC
+            LIMIT 1
+          `, [roomID]);
+          dbRate = catRate[0]?.rate ? parseFloat(catRate[0].rate) : 0;
+        }
+
+        const roomPrice = dbRate;
         const dIn = new Date(checkInDate);
         const dOut = new Date(checkOutDate);
         const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
 
-        // Extra guests fee calculation
+        // Extra guests fee calculation: ₱100/night per excess occupant
         const [roomDataRows] = await connection.execute("SELECT occupancyLimit FROM room WHERE roomID = ?", [roomID]);
         const basePax = parseInt(roomDataRows[0]?.occupancyLimit || 4);
         const totalPax = parseInt(body.numGuests || body.guestCount || resGuestCount || (registeredGuests?.length || 1));
@@ -372,11 +390,9 @@ export async function POST(request) {
         const extraGuestFee = extraGuests * 100 * nights;
 
         const computedTotal = (roomPrice * nights) + extraGuestFee;
-        const totalAmount = parseFloat(body.totalAmount) || computedTotal;
-        const downPaymentAmount = parseFloat(body.downPaymentAmount) || Math.round(totalAmount * downPaymentRate * 100) / 100;
-        const remainingBalance = parseFloat(body.remainingBalance) !== undefined && !isNaN(parseFloat(body.remainingBalance))
-          ? parseFloat(body.remainingBalance)
-          : Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
+        const totalAmount = computedTotal;
+        const downPaymentAmount = Math.round(totalAmount * downPaymentRate * 100) / 100;
+        const remainingBalance = Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
 
         let finalCheckInDateTime = checkInDateTime;
         if (!convResID && (body.useCurrentTime === true || body.useCurrentTimeIn === true)) {
@@ -395,11 +411,11 @@ export async function POST(request) {
         const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
         const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
 
-        // 3. Insert booking record with appropriate status, breakfastOption, and normalized breakfastID
+        // 3. Insert booking record with appropriate status, breakfastOption, breakfastID, and guestCount
         const [bookingRes] = await connection.execute(
-          `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance, breakfastOption, breakfastID)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance, breakfastOption, breakfastID]
+          `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance, breakfastOption, breakfastID, guestCount)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance, breakfastOption, breakfastID, totalPax]
         );
         const bookingID = bookingRes.insertId;
 

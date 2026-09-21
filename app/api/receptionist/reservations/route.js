@@ -110,12 +110,13 @@ export async function GET(request) {
                 DATE_FORMAT(g.dateOfBirth, '%Y-%m-%d') as dateOfBirth, g.gender,
                 rm.roomNumber, rt.type as roomType, rm.image,
                 rr1.rate as rateWithBreakfast, rr2.rate as rateWithoutBreakfast,
-                COALESCE(rr1.rate, rr2.rate, 0) as rate,
+                COALESCE(rr_opt.rate, rr2.rate, 0) as rate,
                 b.bookingID, b.status as bookingStatus
         FROM reservation r
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
+        LEFT JOIN room_rate rr_opt ON rr_opt.roomTypeID = rm.roomTypeID AND rr_opt.floorID = rm.floorID AND rr_opt.breakfastID = (CASE WHEN r.breakfastOption LIKE '%with%' AND r.breakfastOption NOT LIKE '%without%' THEN 2 ELSE 1 END)
         LEFT JOIN room_rate rr1 ON rr1.roomTypeID = rm.roomTypeID AND rr1.floorID = rm.floorID AND rr1.breakfastID = 2
         LEFT JOIN room_rate rr2 ON rr2.roomTypeID = rm.roomTypeID AND rr2.floorID = rm.floorID AND rr2.breakfastID = 1
         LEFT JOIN booking b ON b.reservationID = r.reservationID
@@ -127,7 +128,7 @@ export async function GET(request) {
         SELECT r.roomID, r.roomNumber, r.status, rt.type as roomType, r.occupancyLimit, r.image,
                rr1.rate as rateWithBreakfast,
                rr2.rate as rateWithoutBreakfast,
-               COALESCE(rr1.rate, rr2.rate, 0) as rate
+               COALESCE(rr2.rate, rr1.rate, 0) as rate
         FROM room r 
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
         LEFT JOIN room_rate rr1 ON rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 2

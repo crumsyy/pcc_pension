@@ -22,6 +22,23 @@ ALTER TABLE `room_rate`
 CREATE INDEX IF NOT EXISTS `idx_room_rate_lookup` 
   ON `room_rate` (`roomTypeID`, `floorID`, `breakfastID`);
 
+-- Ensure booking has breakfastID (INT, default 1), foreign key fk_booking_breakfast, and guestCount (INT, default 1)
+ALTER TABLE `booking`
+  ADD COLUMN IF NOT EXISTS `breakfastID` INT(11) DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS `guestCount` INT(11) DEFAULT 1;
+
+-- Backfill any booking.breakfastID where NULL or inconsistent with breakfastOption
+UPDATE `booking`
+SET `breakfastID` = CASE 
+  WHEN `breakfastOption` LIKE '%with%' AND `breakfastOption` NOT LIKE '%without%' THEN 2 
+  ELSE 1 
+END
+WHERE `breakfastID` IS NULL OR (`breakfastOption` = 'with' AND `breakfastID` = 1);
+
+-- Ensure foreign key from booking to breakfast_option
+ALTER TABLE `booking`
+  ADD CONSTRAINT `fk_booking_breakfast` FOREIGN KEY (`breakfastID`) REFERENCES `breakfast_option` (`breakfastID`);
+
 -- 2. PRODUCT & AMENITY ORDER RELATIONS & UNIT PRICE BACKFILL
 ALTER TABLE `order_product`
   ADD COLUMN IF NOT EXISTS `unitPrice` DECIMAL(10,2) DEFAULT NULL,
@@ -34,12 +51,22 @@ ALTER TABLE `order_amenities`
 UPDATE `order_product` op
 JOIN `products` p ON p.`productID` = op.`productID`
 SET op.`unitPrice` = p.`price`
-WHERE op.`unitPrice` IS NULL;
+WHERE op.`unitPrice` IS NULL OR op.`unitPrice` = 0;
 
 UPDATE `order_amenities` oa
 JOIN `amenities` a ON a.`amenityID` = oa.`amenityID`
 SET oa.`unitPrice` = a.`price`
-WHERE oa.`unitPrice` IS NULL;
+WHERE oa.`unitPrice` IS NULL OR oa.`unitPrice` = 0;
+
+-- Ensure orders has bookingID, foreign key fk_orders_booking, and composite index
+ALTER TABLE `orders`
+  ADD COLUMN IF NOT EXISTS `bookingID` INT(11) DEFAULT NULL;
+
+ALTER TABLE `orders`
+  ADD CONSTRAINT `fk_orders_booking` FOREIGN KEY (`bookingID`) REFERENCES `booking` (`bookingID`);
+
+CREATE INDEX IF NOT EXISTS `idx_orders_booking_status`
+  ON `orders` (`bookingID`, `orderStatus`);
 
 -- Enforce foreign keys for orders child tables
 ALTER TABLE `order_product`
@@ -89,6 +116,7 @@ CREATE TABLE IF NOT EXISTS `billing_amenity` (
 CREATE INDEX IF NOT EXISTS `idx_br_billing_rate` ON `billing_room` (`billingID`, `roomRateID`);
 CREATE INDEX IF NOT EXISTS `idx_bp_billing_op` ON `billing_product` (`billingID`, `orderProductID`);
 CREATE INDEX IF NOT EXISTS `idx_ba_billing_oa` ON `billing_amenity` (`billingID`, `orderAmenityID`);
+CREATE INDEX IF NOT EXISTS `idx_billing_booking` ON `billing` (`bookingID`);
 
 -- Incidental charges table validation
 CREATE TABLE IF NOT EXISTS `incidental_charge` (

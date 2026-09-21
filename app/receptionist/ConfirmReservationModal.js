@@ -94,7 +94,7 @@ export default function ConfirmReservationModal({
   const rate = selectedRoom
     ? (isWithBk
       ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-      : (parseFloat(selectedRoom.rateWithoutBreakfast) || (parseFloat(selectedRoom.rate) ? parseFloat(selectedRoom.rate) - 200 : 0)))
+      : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
     : parseFloat(selectedRes.rate || 0);
 
   let nights = 1;
