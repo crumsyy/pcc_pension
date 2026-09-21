@@ -173,7 +173,15 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
     }
   };
 
-  const totalAmount = itemsState.reduce((sum, it) => sum + (parseFloat(it.price || 0) * (it.quantity || 1)), 0);
+  const subtotal = itemsState.reduce((sum, it) => sum + (parseFloat(it.price || 0) * (it.quantity || 1)), 0);
+  const complimentaryDeduction = itemsState.reduce((sum, it) => {
+    const isComp = it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1';
+    if (isComp) {
+      return sum + (parseFloat(it.price || 0) * (it.quantity || 1));
+    }
+    return sum;
+  }, 0);
+  const totalAmount = Math.max(0, subtotal - complimentaryDeduction);
 
   return (
     <div
@@ -238,8 +246,25 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
                   </div>
                 </div>
                 <div className="text-end">
-                  <span className="text-muted small d-block" style={{ fontSize: '0.72rem' }}>Total Amount</span>
-                  <strong className="text-success fs-6">₱{totalAmount.toFixed(2)}</strong>
+                  {complimentaryDeduction > 0 ? (
+                    <div>
+                      <div className="text-muted small" style={{ fontSize: '0.70rem' }}>
+                        Subtotal: ₱{subtotal.toFixed(2)}
+                      </div>
+                      <div className="text-success small fw-semibold" style={{ fontSize: '0.72rem' }}>
+                        Free Breakfast: -₱{complimentaryDeduction.toFixed(2)}
+                      </div>
+                      <div>
+                        <span className="text-muted small me-1">Net Charged:</span>
+                        <strong className="text-primary fs-6">₱{totalAmount.toFixed(2)}</strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-muted small d-block" style={{ fontSize: '0.72rem' }}>Total Amount</span>
+                      <strong className="text-primary fs-6">₱{totalAmount.toFixed(2)}</strong>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -297,9 +322,23 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
                                 />
                               ) : null}
                               <div>
-                                <div className="fw-semibold text-dark">{it.name}</div>
+                                <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                                  <span className="fw-semibold text-dark">{it.name}</span>
+                                  {(it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1') && (
+                                    <span className="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5" style={{ fontSize: '0.66rem' }}>
+                                      <i className="bi bi-gift-fill me-1"></i>Free Breakfast
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-muted small" style={{ fontSize: '0.72rem' }}>
-                                  ₱{parseFloat(it.price).toFixed(2)} each &bull; <span className="badge bg-light text-muted border p-0.5 px-1">{it.type}</span>
+                                  {(it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1') ? (
+                                    <span>
+                                      <s>₱{parseFloat(it.price).toFixed(2)} each</s> <strong className="text-success ms-1">₱0.00 (Included)</strong>
+                                    </span>
+                                  ) : (
+                                    `₱${parseFloat(it.price).toFixed(2)} each • `
+                                  )}
+                                  <span className="badge bg-light text-muted border p-0.5 px-1 ms-1">{it.type}</span>
                                 </div>
                               </div>
                             </div>
@@ -348,7 +387,14 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
                           </td>
 
                           <td className="text-end pe-3 py-2.5 fw-bold text-dark">
-                            ₱{subtotal.toFixed(2)}
+                            {(it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1') ? (
+                              <div>
+                                <s className="text-muted small">₱{subtotal.toFixed(2)}</s>
+                                <div className="text-success">₱0.00</div>
+                              </div>
+                            ) : (
+                              `₱${subtotal.toFixed(2)}`
+                            )}
                           </td>
                         </tr>
                       );

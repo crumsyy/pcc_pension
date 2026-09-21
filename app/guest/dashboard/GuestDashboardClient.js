@@ -3545,7 +3545,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             viewBillingBooking.billingDetails?.roomChargeSummary?.baseRoomCharge ||
                             viewBillingBooking.billingDetails?.rate ||
                             viewBillingBooking.rate ||
-                            1500
+                            0
                           ).toFixed(2)}
                         </td>
                       </tr>

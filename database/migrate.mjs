@@ -413,6 +413,13 @@ async function run() {
     console.log("Ensuring foreign key constraints...");
     await ensureForeignKey(connection, 'orders', 'fk_orders_booking', 'FOREIGN KEY (`bookingID`) REFERENCES `booking` (`bookingID`) ON DELETE SET NULL');
     await ensureForeignKey(connection, 'booking', 'fk_booking_breakfast', 'FOREIGN KEY (`breakfastID`) REFERENCES `breakfast_option` (`breakfastID`)');
+    await ensureForeignKey(connection, 'room', 'fk_room_floor', 'FOREIGN KEY (`floorID`) REFERENCES `floor` (`floorID`)');
+    await ensureForeignKey(connection, 'room', 'fk_room_type', 'FOREIGN KEY (`roomTypeID`) REFERENCES `room_type` (`roomTypeID`)');
+    await ensureForeignKey(connection, 'room_rate', 'fk_rate_roomtype', 'FOREIGN KEY (`roomTypeID`) REFERENCES `room_type` (`roomTypeID`)');
+    await ensureForeignKey(connection, 'room_rate', 'fk_rate_floor', 'FOREIGN KEY (`floorID`) REFERENCES `floor` (`floorID`)');
+    await ensureForeignKey(connection, 'room_rate', 'fk_rate_breakfast', 'FOREIGN KEY (`breakfastID`) REFERENCES `breakfast_option` (`breakfastID`)');
+    await ensureForeignKey(connection, 'order_product', 'fk_op_product', 'FOREIGN KEY (`productID`) REFERENCES `products` (`productID`)');
+    await ensureForeignKey(connection, 'order_amenities', 'fk_oa_amenity', 'FOREIGN KEY (`amenityID`) REFERENCES `amenities` (`amenityID`)');
 
     console.log("Normalizing room occupancy limits to room_type 3NF specifications...");
     await connection.execute(`

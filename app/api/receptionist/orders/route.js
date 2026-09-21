@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock, ensureOrdersSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, ensureOrdersSchema, syncNormalizedBillingLineItems } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -81,7 +81,7 @@ export async function GET(request) {
         ORDER BY a.name
       `),
       dbQuery(`
-        SELECT b.bookingID, b.guestID, b.status as bookingStatus, b.breakfastOption,
+        SELECT b.bookingID, b.guestID, b.status as bookingStatus, b.breakfastOption, b.breakfastID,
                g.firstName, g.lastName, rm.roomNumber, rm.status as roomStatus,
                (
                  SELECT COALESCE(SUM(op.quantity), 0)
@@ -144,21 +144,38 @@ export async function POST(request) {
       try {
         await connection.beginTransaction();
 
-        // Check active booking for this guest (supports checked-in guests and pending check-in overrides)
-        const [bookingCheck] = await connection.execute(
-          `SELECT b.bookingID, b.roomID, b.status as bookingStatus, b.breakfastOption, g.firstName, g.lastName, r.roomTypeID, r.floorID, r.status as roomStatus 
-           FROM booking b 
-           JOIN guest g ON g.guestID = b.guestID 
-           JOIN room r ON r.roomID = b.roomID
-           WHERE g.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show') 
-           ORDER BY b.bookingID DESC
-           LIMIT 1`,
-          [guestID]
-        );
-        if (bookingCheck.length === 0) {
+        // Check active booking for this guest / booking (supports checked-in guests and pending check-in overrides)
+        let activeBooking = null;
+        if (body.bookingID) {
+          const [bRows] = await connection.execute(
+            `SELECT b.bookingID, b.roomID, b.status as bookingStatus, b.breakfastOption, b.breakfastID, g.firstName, g.lastName, r.roomTypeID, r.floorID, r.status as roomStatus 
+             FROM booking b 
+             JOIN guest g ON g.guestID = b.guestID 
+             JOIN room r ON r.roomID = b.roomID
+             WHERE b.bookingID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show') 
+             LIMIT 1`,
+            [parseInt(body.bookingID)]
+          );
+          if (bRows.length > 0) activeBooking = bRows[0];
+        }
+
+        if (!activeBooking) {
+          const [bookingCheck] = await connection.execute(
+            `SELECT b.bookingID, b.roomID, b.status as bookingStatus, b.breakfastOption, b.breakfastID, g.firstName, g.lastName, r.roomTypeID, r.floorID, r.status as roomStatus 
+             FROM booking b 
+             JOIN guest g ON g.guestID = b.guestID 
+             JOIN room r ON r.roomID = b.roomID
+             WHERE g.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show') 
+             ORDER BY b.bookingID DESC
+             LIMIT 1`,
+            [guestID]
+          );
+          if (bookingCheck.length > 0) activeBooking = bookingCheck[0];
+        }
+
+        if (!activeBooking) {
           return NextResponse.json({ error: 'No active booking found for this guest.' }, { status: 400 });
         }
-        const activeBooking = bookingCheck[0];
         const activeBookingID = activeBooking.bookingID;
         const activeRoomID = activeBooking.roomID;
         const isOccupiedAndCheckedIn = (['Checked In', 'Active Stay', 'Late Checkout'].includes(activeBooking.bookingStatus) && ['Occupied', 'Reserved'].includes(activeBooking.roomStatus));
@@ -268,12 +285,11 @@ export async function POST(request) {
         );
         let currentCompCount = parseInt(compCheck[0]?.compCount || 0);
 
-        const [rateCheck] = await connection.execute(
-          `SELECT breakfastID FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = 2`,
-          [activeBooking.roomTypeID, activeBooking.floorID]
+        const roomHasBreakfast = (
+          (activeBooking.breakfastOption && activeBooking.breakfastOption.toLowerCase().includes('with') && !activeBooking.breakfastOption.toLowerCase().includes('without')) ||
+          parseInt(activeBooking.breakfastID) === 2
         );
-        const roomHasBreakfast = (activeBooking.breakfastOption === 'with') || (rateCheck.length > 0);
-        const maxCompAllowance = 2; // Up to 2 complimentary breakfast meals included with room package
+        const maxCompAllowance = roomHasBreakfast ? 2 : 0; // Strictly up to 2 complimentary meals if package includes breakfast
 
         // Separate items into Immediate vs Scheduled groups
         const immediateItems = items.filter(it => it.deliveryType !== 'scheduled');
@@ -284,6 +300,15 @@ export async function POST(request) {
           const itemID = parseInt(item.itemID);
           const quantity = parseInt(item.quantity);
           if (!itemID || isNaN(quantity) || quantity <= 0) return;
+
+          let itemPrice = 0;
+          if (item.type === 'Product') {
+            const [pRow] = await connection.execute("SELECT price FROM products WHERE productID = ?", [itemID]);
+            if (pRow.length > 0) itemPrice = parseFloat(pRow[0].price || 0);
+          } else {
+            const [aRow] = await connection.execute("SELECT price FROM amenities WHERE amenityID = ?", [itemID]);
+            if (aRow.length > 0) itemPrice = parseFloat(aRow[0].price || 0);
+          }
 
           if (item.isCookedMeal) {
             let compQty = 0;
@@ -296,14 +321,14 @@ export async function POST(request) {
 
             if (compQty > 0) {
               await connection.execute(
-                "INSERT INTO order_product(quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES(?, ?, ?, 1, ?, ?)",
-                [compQty, targetOrderID, itemID, targetDeliveryType, targetStatus]
+                "INSERT INTO order_product(quantity, orderID, productID, isComplimentary, unitPrice, deliveryType, itemStatus) VALUES(?, ?, ?, 1, ?, ?, ?)",
+                [compQty, targetOrderID, itemID, itemPrice, targetDeliveryType, targetStatus]
               );
             }
             if (paidQty > 0) {
               await connection.execute(
-                "INSERT INTO order_product(quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES(?, ?, ?, 0, ?, ?)",
-                [paidQty, targetOrderID, itemID, targetDeliveryType, targetStatus]
+                "INSERT INTO order_product(quantity, orderID, productID, isComplimentary, unitPrice, deliveryType, itemStatus) VALUES(?, ?, ?, 0, ?, ?, ?)",
+                [paidQty, targetOrderID, itemID, itemPrice, targetDeliveryType, targetStatus]
               );
             }
             return;
@@ -369,10 +394,10 @@ export async function POST(request) {
           }
 
           if (item.type === 'Product') {
-            await connection.execute("INSERT INTO order_product(quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES(?, ?, ?, 0, ?, ?)", [quantity, targetOrderID, itemID, targetDeliveryType, targetStatus]);
+            await connection.execute("INSERT INTO order_product(quantity, orderID, productID, isComplimentary, unitPrice, deliveryType, itemStatus) VALUES(?, ?, ?, 0, ?, ?, ?)", [quantity, targetOrderID, itemID, itemPrice, targetDeliveryType, targetStatus]);
             await connection.execute("UPDATE products SET quantity = GREATEST(0, quantity - ?) WHERE productID = ?", [quantity, itemID]);
           } else {
-            await connection.execute("INSERT INTO order_amenities(quantity, orderID, amenityID, deliveryType, itemStatus) VALUES(?, ?, ?, ?, ?)", [quantity, targetOrderID, itemID, targetDeliveryType, targetStatus]);
+            await connection.execute("INSERT INTO order_amenities(quantity, orderID, amenityID, unitPrice, deliveryType, itemStatus) VALUES(?, ?, ?, ?, ?, ?)", [quantity, targetOrderID, itemID, itemPrice, targetDeliveryType, targetStatus]);
             await connection.execute("UPDATE amenities SET quantity = GREATEST(0, quantity - ?) WHERE amenityID = ?", [quantity, itemID]);
           }
         };
@@ -403,6 +428,12 @@ export async function POST(request) {
           for (const it of scheduledItems) {
             await processItemBatch(schedOrderID, it, 'scheduled', 'Scheduled');
           }
+        }
+
+        // Immediately synchronize stay billing line items and master balance
+        const [billRows] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [activeBookingID]);
+        if (billRows.length > 0) {
+          await syncNormalizedBillingLineItems(connection, billRows[0].billingID, activeBookingID);
         }
 
         await connection.commit();
@@ -533,6 +564,15 @@ export async function POST(request) {
         await connection.execute("UPDATE orders SET orderStatus = ? WHERE orderID = ?", [newStatus, orderID]);
         await connection.execute("UPDATE order_product SET itemStatus = ? WHERE orderID = ?", [newStatus, orderID]).catch(() => {});
         await connection.execute("UPDATE order_amenities SET itemStatus = ? WHERE orderID = ?", [newStatus, orderID]).catch(() => {});
+
+        // Re-sync billing if order status changed (e.g. Canceled or Delivered)
+        const [ordInfo] = await connection.execute("SELECT bookingID FROM orders WHERE orderID = ?", [orderID]);
+        if (ordInfo.length > 0 && ordInfo[0].bookingID) {
+          const [bRows] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [ordInfo[0].bookingID]);
+          if (bRows.length > 0) {
+            await syncNormalizedBillingLineItems(connection, bRows[0].billingID, ordInfo[0].bookingID);
+          }
+        }
 
         await connection.commit();
         await syncInventoryStock();

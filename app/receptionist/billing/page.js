@@ -775,21 +775,40 @@ export default function ReceptionistBilling() {
                                     <td colSpan="4" className="text-center py-3 text-muted small">No product orders recorded.</td>
                                   </tr>
                                 ) : (
-                                  billDetails.productCharges.map((item, idx) => (
-                                    <tr key={idx}>
-                                      <td>
-                                        <div className="fw-semibold text-dark">{item.name}</div>
-                                        {item.notes && (
-                                          <span className={`badge ${item.isFreeBreakfast ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'}`} style={{ fontSize: '0.68rem' }}>
-                                            {item.notes}
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td>₱{parseFloat(item.price).toFixed(2)}</td>
-                                      <td>{item.quantity}</td>
-                                      <td className="text-end fw-bold text-dark">₱{parseFloat(item.subtotal).toFixed(2)}</td>
-                                    </tr>
-                                  ))
+                                  billDetails.productCharges.map((item, idx) => {
+                                    const isFree = item.isFreeBreakfast || item.price === 0 || item.subtotal === 0;
+                                    return (
+                                      <tr key={idx}>
+                                        <td>
+                                          <div className="fw-semibold text-dark">{item.name}</div>
+                                          {isFree ? (
+                                            <span className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 mt-0.5" style={{ fontSize: '0.68rem' }}>
+                                              <i className="bi bi-gift-fill"></i> {item.notes || 'Included with Room Package (Complimentary)'}
+                                            </span>
+                                          ) : item.notes ? (
+                                            <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mt-0.5" style={{ fontSize: '0.68rem' }}>
+                                              {item.notes}
+                                            </span>
+                                          ) : null}
+                                        </td>
+                                        <td>
+                                          {isFree ? (
+                                            <span className="text-success fw-semibold">₱0.00</span>
+                                          ) : (
+                                            `₱${parseFloat(item.price).toFixed(2)}`
+                                          )}
+                                        </td>
+                                        <td>{item.quantity}</td>
+                                        <td className="text-end fw-bold">
+                                          {isFree ? (
+                                            <span className="text-success">₱0.00</span>
+                                          ) : (
+                                            <span className="text-dark">₱{parseFloat(item.subtotal).toFixed(2)}</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
                                 )}
                               </tbody>
                             </table>

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
 
@@ -14,6 +15,23 @@ const getTodayManila = () => {
     }).format(new Date());
   } catch (e) {
     const d = new Date();
+    return d.toISOString().split('T')[0];
+  }
+};
+
+const getTomorrowManila = () => {
+  try {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(d);
+  } catch (e) {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
   }
 };
@@ -249,7 +267,10 @@ function DeliveryTimeline({ deliveryType, currentStatus }) {
   );
 }
 
-export default function ReceptionistOrders() {
+function ReceptionistOrdersContent() {
+  const searchParams = useSearchParams();
+  const highlightOrderID = searchParams ? searchParams.get('highlightOrderID') : null;
+
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [cookedMeals, setCookedMeals] = useState([]);
@@ -265,7 +286,7 @@ export default function ReceptionistOrders() {
   // Order Tray (Cart) State
   const [selectedGuestID, setSelectedGuestID] = useState('');
   const [cart, setCart] = useState([]); // Array of { itemID, type, name, price, quantity, isCookedMeal, image, deliveryType }
-  const [deliveryDate, setDeliveryDate] = useState(getTodayManila());
+  const [deliveryDate, setDeliveryDate] = useState(getTomorrowManila());
   const [deliveryTime, setDeliveryTime] = useState('07:30 AM');
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
@@ -349,6 +370,21 @@ export default function ReceptionistOrders() {
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
+
+  // Handle URL highlight param (?highlightOrderID=...)
+  useEffect(() => {
+    if (highlightOrderID && orders.length > 0) {
+      setActiveCategory('history');
+      setTimeout(() => {
+        const el = document.getElementById(`order-card-${highlightOrderID}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('order-highlight-pulse');
+          setTimeout(() => el.classList.remove('order-highlight-pulse'), 4500);
+        }
+      }, 350);
+    }
+  }, [highlightOrderID, orders]);
 
   // Delivery Slots Evaluation (between 06:00 AM and 10:30 AM)
   const allowedSlots = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
@@ -450,7 +486,10 @@ export default function ReceptionistOrders() {
   }, [activeBookings, selectedGuestID]);
 
   const complimentaryBreakfastAvailable = useMemo(() => {
-    if (!selectedBooking || selectedBooking.breakfastOption !== 'with') return 0;
+    if (!selectedBooking) return 0;
+    const opt = (selectedBooking.breakfastOption || '').toLowerCase();
+    const hasBreakfast = (opt.includes('with') && !opt.includes('without')) || selectedBooking.breakfastID === 2;
+    if (!hasBreakfast) return 0;
     const used = parseInt(selectedBooking.complimentaryBreakfastUsed || 0);
     return Math.max(0, 2 - used);
   }, [selectedBooking]);
@@ -499,13 +538,14 @@ export default function ReceptionistOrders() {
     showConfirm('Confirm Guest Order', `Place order (₱${cartTotal.toFixed(2)}) for Room ${selectedBooking?.roomNumber || 'Selected Room'}?`, async () => {
       setSubmittingOrder(true);
       try {
-        const targetDate = deliveryDate || todayManila;
+        const targetDate = deliveryDate || getTomorrowManila();
         const res = await fetch('/api/receptionist/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'create',
             guestID: selectedGuestID,
+            bookingID: selectedBooking?.bookingID,
             items: cart.map(item => ({
               itemID: item.itemID,
               type: item.type,
@@ -524,6 +564,7 @@ export default function ReceptionistOrders() {
 
         showAlert('success', 'Order Placed', 'Order placed successfully and recorded on the stay billing.');
         setCart([]);
+        setDeliveryDate(getTomorrowManila());
         fetchData();
         setActiveCategory('history');
       } catch (err) {
@@ -969,11 +1010,20 @@ export default function ReceptionistOrders() {
               ) : (
                 <div className="d-flex flex-column gap-3">
                   {filteredHistoryOrders.map(o => {
-                    const totalAmt = (o.items || []).reduce((sum, it) => sum + (parseFloat(it.price) * it.quantity), 0);
                     const isScheduled = o.deliveryType === 'scheduled' || Boolean(o.deliveryTime);
+                    const items = o.items || [];
+                    const orderSubtotal = items.reduce((sum, it) => sum + (parseFloat(it.price || it.unitPrice || 0) * it.quantity), 0);
+                    const orderComplimentaryDeduction = items.reduce((sum, it) => {
+                      const isComp = it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1';
+                      if (isComp) {
+                        return sum + (parseFloat(it.price || it.unitPrice || 0) * it.quantity);
+                      }
+                      return sum;
+                    }, 0);
+                    const orderNetTotal = Math.max(0, orderSubtotal - orderComplimentaryDeduction);
 
                     return (
-                      <div key={o.orderID} className="card order-card border shadow-xs rounded-3 overflow-hidden">
+                      <div key={o.orderID} id={`order-card-${o.orderID}`} className="card order-card border shadow-xs rounded-3 overflow-hidden">
                         <div className="card-header bg-white py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
                           <div className="d-flex align-items-center gap-2">
                             <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>Order #{o.orderID}</span>
@@ -1020,14 +1070,33 @@ export default function ReceptionistOrders() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {(o.items || []).map((it, idx) => {
+                                {items.map((it, idx) => {
                                   const itDelType = it.deliveryType || (isScheduled ? 'scheduled' : 'immediate');
                                   const itStatus = it.itemStatus || o.orderStatus;
+                                  const isComp = it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1';
+                                  const unitRate = parseFloat(it.price || it.unitPrice || 0);
+                                  const lineSubtotal = unitRate * it.quantity;
+
                                   return (
                                     <tr key={idx}>
                                       <td>
-                                        <div className="fw-semibold text-dark">{it.quantity}x {it.name}</div>
-                                        <div className="text-muted small" style={{ fontSize: '0.72rem' }}>₱{parseFloat(it.price).toFixed(2)} each</div>
+                                        <div className="d-flex align-items-center flex-wrap gap-1">
+                                          <span className="fw-semibold text-dark">{it.quantity}x {it.name}</span>
+                                          {isComp && (
+                                            <span className="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5" style={{ fontSize: '0.67rem' }}>
+                                              <i className="bi bi-gift-fill me-1"></i>Free Breakfast
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-muted small" style={{ fontSize: '0.72rem' }}>
+                                          {isComp ? (
+                                            <span>
+                                              <s>₱{unitRate.toFixed(2)} each</s> <strong className="text-success ms-1">₱0.00 (Included in Stay)</strong>
+                                            </span>
+                                          ) : (
+                                            `₱${unitRate.toFixed(2)} each`
+                                          )}
+                                        </div>
                                       </td>
                                       <td className="text-center">
                                         <span className="badge bg-light text-muted border px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
@@ -1039,8 +1108,15 @@ export default function ReceptionistOrders() {
                                           {itStatus}
                                         </span>
                                       </td>
-                                      <td className="text-end fw-bold text-dark">
-                                        ₱{(parseFloat(it.price) * it.quantity).toFixed(2)}
+                                      <td className="text-end">
+                                        {isComp ? (
+                                          <div>
+                                            <s className="text-muted small">₱{lineSubtotal.toFixed(2)}</s>
+                                            <div className="fw-bold text-success">₱0.00</div>
+                                          </div>
+                                        ) : (
+                                          <span className="fw-bold text-dark">₱{lineSubtotal.toFixed(2)}</span>
+                                        )}
                                       </td>
                                     </tr>
                                   );
@@ -1086,9 +1162,26 @@ export default function ReceptionistOrders() {
                               </>
                             )}
                           </div>
-                          <div>
-                            <span className="text-muted small me-2">Order Total:</span>
-                            <strong className="text-success fs-6">₱{totalAmt.toFixed(2)}</strong>
+                          <div className="text-end">
+                            {orderComplimentaryDeduction > 0 ? (
+                              <div className="d-flex flex-column align-items-end" style={{ fontSize: '0.80rem' }}>
+                                <div className="text-muted small">
+                                  Items Subtotal: <span className="fw-semibold text-dark">₱{orderSubtotal.toFixed(2)}</span>
+                                </div>
+                                <div className="text-success fw-semibold small">
+                                  <i className="bi bi-gift-fill me-1"></i>Free Breakfast: <span>-₱{orderComplimentaryDeduction.toFixed(2)}</span>
+                                </div>
+                                <div className="mt-0.5">
+                                  <span className="text-muted small me-1">Net Charged to Stay:</span>
+                                  <strong className="text-primary fs-6">₱{orderNetTotal.toFixed(2)}</strong>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="text-muted small me-2">Order Total:</span>
+                                <strong className="text-primary fs-6">₱{orderNetTotal.toFixed(2)}</strong>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1268,50 +1361,116 @@ export default function ReceptionistOrders() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(viewingOrder.items || []).map((it, i) => (
-                        <tr key={i}>
-                          <td className="fw-semibold text-dark">
-                            <div className="d-flex align-items-center gap-2">
-                              {it.image ? (
-                                <img
-                                  src={it.image}
-                                  alt={it.name}
-                                  className="rounded border flex-shrink-0"
-                                  style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                    const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
-                                    if (fb) fb.style.display = 'flex';
-                                  }}
-                                />
-                              ) : null}
-                              <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '32px', height: '32px', fontSize: '0.52rem', lineHeight: 1.1, display: it.image ? 'none' : 'flex' }}>
-                                <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
-                                No Image
-                              </div>
-                              <span>{it.name}</span>
-                            </div>
-                          </td>
-                          <td className="text-center">
-                            <span className={`badge ${it.deliveryType === 'scheduled' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-success-subtle text-success border border-success-subtle'} px-2 py-0.5`} style={{ fontSize: '0.70rem' }}>
-                              {it.deliveryType === 'scheduled' ? '⏰ With Breakfast' : '⚡ Immediate'}
-                            </span>
-                          </td>
-                          <td className="text-center">{it.quantity}x</td>
-                          <td className="text-end">₱{parseFloat(it.price).toFixed(2)}</td>
-                          <td className="text-end fw-bold">₱{(parseFloat(it.price) * it.quantity).toFixed(2)}</td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        const modalItems = viewingOrder.items || [];
+                        return modalItems.map((it, i) => {
+                          const isComp = it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1';
+                          const unitRate = parseFloat(it.price || it.unitPrice || 0);
+                          const lineSubtotal = unitRate * it.quantity;
+
+                          return (
+                            <tr key={i}>
+                              <td className="fw-semibold text-dark">
+                                <div className="d-flex align-items-center gap-2">
+                                  {it.image ? (
+                                    <img
+                                      src={it.image}
+                                      alt={it.name}
+                                      className="rounded border flex-shrink-0"
+                                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        const fb = e.currentTarget.parentElement?.querySelector('.image-fallback-sm');
+                                        if (fb) fb.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className="image-fallback-sm rounded border bg-light text-muted flex-column align-items-center justify-content-center text-center p-0.5 flex-shrink-0" style={{ width: '32px', height: '32px', fontSize: '0.52rem', lineHeight: 1.1, display: it.image ? 'none' : 'flex' }}>
+                                    <i className="bi bi-image" style={{ fontSize: '0.65rem' }}></i>
+                                    No Image
+                                  </div>
+                                  <div>
+                                    <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                                      <span>{it.name}</span>
+                                      {isComp && (
+                                        <span className="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5" style={{ fontSize: '0.65rem' }}>
+                                          <i className="bi bi-gift-fill me-1"></i>Free Breakfast
+                                        </span>
+                                      )}
+                                    </div>
+                                    {isComp && (
+                                      <div className="text-success small" style={{ fontSize: '0.70rem' }}>
+                                        Included with Room Package (Complimentary)
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="text-center">
+                                <span className={`badge ${it.deliveryType === 'scheduled' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-success-subtle text-success border border-success-subtle'} px-2 py-0.5`} style={{ fontSize: '0.70rem' }}>
+                                  {it.deliveryType === 'scheduled' ? '⏰ With Breakfast' : '⚡ Immediate'}
+                                </span>
+                              </td>
+                              <td className="text-center">{it.quantity}x</td>
+                              <td className="text-end">
+                                {isComp ? (
+                                  <div>
+                                    <s className="text-muted small">₱{unitRate.toFixed(2)}</s>
+                                    <div className="text-success fw-bold">₱0.00</div>
+                                  </div>
+                                ) : (
+                                  `₱${unitRate.toFixed(2)}`
+                                )}
+                              </td>
+                              <td className="text-end fw-bold">
+                                {isComp ? (
+                                  <div>
+                                    <s className="text-muted small">₱{lineSubtotal.toFixed(2)}</s>
+                                    <div className="text-success">₱0.00</div>
+                                  </div>
+                                ) : (
+                                  `₱${lineSubtotal.toFixed(2)}`
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded border">
-                  <span className="fw-bold text-dark fs-6">Total Order Amount:</span>
-                  <span className="fw-bold text-primary fs-5">
-                    ₱{(viewingOrder.items || []).reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0).toFixed(2)}
-                  </span>
-                </div>
+                {(() => {
+                  const modalItems = viewingOrder.items || [];
+                  const modalSubtotal = modalItems.reduce((sum, it) => sum + (parseFloat(it.price || it.unitPrice || 0) * it.quantity), 0);
+                  const modalComplimentaryDeduction = modalItems.reduce((sum, it) => {
+                    const isComp = it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1';
+                    if (isComp) {
+                      return sum + (parseFloat(it.price || it.unitPrice || 0) * it.quantity);
+                    }
+                    return sum;
+                  }, 0);
+                  const modalNetTotal = Math.max(0, modalSubtotal - modalComplimentaryDeduction);
+
+                  return (
+                    <div className="p-3 bg-light rounded border d-flex flex-column gap-1.5">
+                      <div className="d-flex justify-content-between align-items-center text-muted small">
+                        <span>Items Subtotal:</span>
+                        <span className="fw-semibold text-dark">₱{modalSubtotal.toFixed(2)}</span>
+                      </div>
+                      {modalComplimentaryDeduction > 0 && (
+                        <div className="d-flex justify-content-between align-items-center text-success small fw-semibold">
+                          <span><i className="bi bi-gift-fill me-1"></i>Complimentary Breakfast Deduction:</span>
+                          <span>-₱{modalComplimentaryDeduction.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <span className="fw-bold text-dark fs-6">Net Charged to Stay / Room:</span>
+                        <span className="fw-bold text-primary fs-5">₱{modalNetTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary text-white" onClick={() => setViewingOrder(null)}>
@@ -1334,6 +1493,31 @@ export default function ReceptionistOrders() {
         onConfirm={modalConfig.onConfirm}
         onCancel={modalConfig.onCancel}
       />
+
+      <style jsx global>{`
+        @keyframes orderHighlightPulse {
+          0% { box-shadow: 0 0 0 0 rgba(33, 85, 181, 0.7); transform: scale(1); }
+          50% { box-shadow: 0 0 0 10px rgba(33, 85, 181, 0.25); transform: scale(1.01); }
+          100% { box-shadow: 0 0 0 0 rgba(33, 85, 181, 0); transform: scale(1); }
+        }
+        .order-highlight-pulse {
+          animation: orderHighlightPulse 1.5s ease-in-out 3;
+          border: 2px solid #2155B5 !important;
+        }
+      `}</style>
     </div>
+  );
+}
+
+export default function ReceptionistOrders() {
+  return (
+    <Suspense fallback={
+      <div className="p-4 text-center">
+        <div className="spinner-border text-primary" role="status"></div>
+        <div className="text-muted mt-2 small">Loading Orders Workspace...</div>
+      </div>
+    }>
+      <ReceptionistOrdersContent />
+    </Suspense>
   );
 }

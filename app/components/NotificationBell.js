@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 export default function NotificationBell() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -78,6 +81,66 @@ export default function NotificationBell() {
       }
     } catch (err) {
       console.error("Failed to mark notification as read:", err);
+    }
+  };
+
+  const handleNotificationClick = async (n) => {
+    if (!n.isRead) {
+      await handleMarkRead(n.notificationID);
+    }
+    setIsOpen(false);
+
+    const fullText = `${n.title || ''} ${n.message || ''}`;
+    const lowerTitle = (n.title || '').toLowerCase();
+    const lowerMsg = (n.message || '').toLowerCase();
+
+    // Extract identifiers if available
+    const bookingMatch = fullText.match(/booking\s*#?\s*(\d+)/i) || fullText.match(/stay\s*#?\s*(\d+)/i);
+    const bookingID = bookingMatch ? bookingMatch[1] : '';
+
+    const orderMatch = fullText.match(/order\s*#?\s*(\d+)/i);
+    const orderID = orderMatch ? orderMatch[1] : '';
+
+    const resMatch = fullText.match(/reservation\s*#?\s*(\d+)/i);
+    const reservationID = resMatch ? resMatch[1] : '';
+
+    const isGuest = pathname ? pathname.startsWith('/guest') : false;
+
+    if (isGuest) {
+      if (lowerTitle.includes('order') || lowerMsg.includes('order')) {
+        router.push('/guest/dashboard?tab=orders');
+      } else if (lowerTitle.includes('payment') || lowerMsg.includes('payment') || lowerTitle.includes('bill')) {
+        router.push('/guest/dashboard?tab=billing');
+      } else if (lowerTitle.includes('inquiry') || lowerMsg.includes('inquiry')) {
+        router.push('/guest/inquiries');
+      } else {
+        router.push('/guest/dashboard');
+      }
+      return;
+    }
+
+    // Receptionist / Admin Routing
+    if (lowerTitle.includes('checkout') || lowerMsg.includes('checkout')) {
+      const url = bookingID ? `/receptionist/checkin?highlightBookingID=${bookingID}` : '/receptionist/checkin';
+      router.push(url);
+    } else if (lowerTitle.includes('check-in') || lowerMsg.includes('check-in') || lowerTitle.includes('arrival') || lowerMsg.includes('arrival')) {
+      const url = bookingID ? `/receptionist/checkin?highlightBookingID=${bookingID}` : '/receptionist/checkin';
+      router.push(url);
+    } else if (lowerTitle.includes('order') || lowerMsg.includes('order') || lowerTitle.includes('meal')) {
+      const url = orderID ? `/receptionist/orders?highlightOrderID=${orderID}` : '/receptionist/orders';
+      router.push(url);
+    } else if (lowerTitle.includes('payment') || lowerMsg.includes('payment') || lowerTitle.includes('down payment')) {
+      const url = bookingID ? `/receptionist/payments?bookingID=${bookingID}` : '/receptionist/payments';
+      router.push(url);
+    } else if (lowerTitle.includes('reservation') || lowerTitle.includes('courtesy hold') || lowerMsg.includes('reservation')) {
+      const url = reservationID ? `/receptionist/reservations?highlightResID=${reservationID}` : '/receptionist/reservations';
+      router.push(url);
+    } else if (lowerTitle.includes('inquiry') || lowerMsg.includes('inquiry')) {
+      router.push('/receptionist/inquiries');
+    } else if (lowerTitle.includes('inventory') || lowerTitle.includes('stock')) {
+      router.push('/admin/inventory');
+    } else if (bookingID) {
+      router.push(`/receptionist/checkin?highlightBookingID=${bookingID}`);
     }
   };
 
@@ -172,16 +235,20 @@ export default function NotificationBell() {
               notifications.map((n) => (
                 <div
                   key={n.notificationID}
-                  onClick={() => !n.isRead && handleMarkRead(n.notificationID)}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleNotificationClick(n)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleNotificationClick(n); }}
                   className={`p-2.5 mb-1.5 rounded-3 border transition-all ${
                     !n.isRead ? "bg-light border-primary-subtle shadow-xs" : "bg-white border-light text-muted"
                   }`}
                   style={{
-                    cursor: !n.isRead ? "pointer" : "default",
+                    cursor: "pointer",
                     fontSize: "0.8rem"
                   }}
+                  title="Click to view details"
                 >
-                  <div className="d-flex align-items-start gap-3">
+                  <div className="d-flex align-items-start gap-2.5">
                     <div className="d-flex align-items-center justify-content-center rounded-circle bg-light border flex-shrink-0 mt-0.5" style={{ width: "32px", height: "32px" }}>
                       <i className={`bi ${getNotificationIcon(n.title)} fs-6`}></i>
                     </div>
@@ -197,9 +264,14 @@ export default function NotificationBell() {
                       <p className="mb-1 text-secondary small" style={{ lineHeight: "1.3", fontSize: "0.78rem" }}>
                         {n.message}
                       </p>
-                      <small className="text-muted d-block" style={{ fontSize: "0.68rem" }}>
-                        {new Date(n.createdAt).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
-                      </small>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <small className="text-muted" style={{ fontSize: '0.68rem' }}>
+                          {new Date(n.createdAt).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
+                        </small>
+                        <small className="text-primary fw-semibold" style={{ fontSize: '0.68rem' }}>
+                          View <i className="bi bi-chevron-right ms-0.5"></i>
+                        </small>
+                      </div>
                     </div>
                   </div>
                 </div>

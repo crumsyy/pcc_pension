@@ -260,8 +260,17 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
   }, [orders]);
 
   const renderOrderCard = (o) => {
-    const totalAmt = (o.items || []).reduce((sum, it) => sum + (parseFloat(it.price) * it.quantity), 0);
     const isScheduled = o.deliveryType === 'scheduled' || Boolean(o.deliveryTime);
+    const items = o.items || [];
+    const orderSubtotal = items.reduce((sum, it) => sum + (parseFloat(it.price || it.unitPrice || 0) * it.quantity), 0);
+    const orderComplimentaryDeduction = items.reduce((sum, it) => {
+      const isComp = it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1';
+      if (isComp) {
+        return sum + (parseFloat(it.price || it.unitPrice || 0) * it.quantity);
+      }
+      return sum;
+    }, 0);
+    const orderNetTotal = Math.max(0, orderSubtotal - orderComplimentaryDeduction);
 
     return (
       <div key={o.orderID} className="card order-card border shadow-xs rounded-3 mb-3 overflow-hidden">
@@ -317,14 +326,33 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
                 </tr>
               </thead>
               <tbody>
-                {(o.items || []).map((it, idx) => {
+                {items.map((it, idx) => {
                   const itDelType = it.deliveryType || (isScheduled ? 'scheduled' : 'immediate');
                   const itStatus = it.itemStatus || o.orderStatus;
+                  const isComp = it.isComplimentary === 1 || it.isComplimentary === true || String(it.isComplimentary) === '1';
+                  const unitRate = parseFloat(it.price || it.unitPrice || 0);
+                  const lineSubtotal = unitRate * it.quantity;
+
                   return (
                     <tr key={idx}>
                       <td>
-                        <div className="fw-semibold text-dark">{it.quantity}x {it.name}</div>
-                        <div className="text-muted small" style={{ fontSize: '0.72rem' }}>₱{parseFloat(it.price).toFixed(2)} each</div>
+                        <div className="d-flex align-items-center flex-wrap gap-1">
+                          <span className="fw-semibold text-dark">{it.quantity}x {it.name}</span>
+                          {isComp && (
+                            <span className="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5" style={{ fontSize: '0.67rem' }}>
+                              <i className="bi bi-gift-fill me-1"></i>Free Breakfast
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted small" style={{ fontSize: '0.72rem' }}>
+                          {isComp ? (
+                            <span>
+                              <s>₱{unitRate.toFixed(2)} each</s> <strong className="text-success ms-1">₱0.00 (Included)</strong>
+                            </span>
+                          ) : (
+                            `₱${unitRate.toFixed(2)} each`
+                          )}
+                        </div>
                       </td>
                       <td className="text-center">
                         <span className="badge bg-light text-muted border px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
@@ -336,8 +364,15 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
                           {itStatus}
                         </span>
                       </td>
-                      <td className="text-end fw-bold text-dark">
-                        ₱{(parseFloat(it.price) * it.quantity).toFixed(2)}
+                      <td className="text-end">
+                        {isComp ? (
+                          <div>
+                            <s className="text-muted small">₱{lineSubtotal.toFixed(2)}</s>
+                            <div className="fw-bold text-success">₱0.00</div>
+                          </div>
+                        ) : (
+                          <span className="fw-bold text-dark">₱{lineSubtotal.toFixed(2)}</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -360,9 +395,26 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
             </button>
             <small className="text-muted d-none d-sm-inline">&bull; Charged to Stay Billing</small>
           </div>
-          <div>
-            <span className="text-muted small me-2">Order Total:</span>
-            <strong className="text-success fs-6">₱{totalAmt.toFixed(2)}</strong>
+          <div className="text-end">
+            {orderComplimentaryDeduction > 0 ? (
+              <div className="d-flex flex-column align-items-end" style={{ fontSize: '0.80rem' }}>
+                <div className="text-muted small">
+                  Items Subtotal: <span className="fw-semibold text-dark">₱{orderSubtotal.toFixed(2)}</span>
+                </div>
+                <div className="text-success fw-semibold small">
+                  <i className="bi bi-gift-fill me-1"></i>Free Breakfast: <span>-₱{orderComplimentaryDeduction.toFixed(2)}</span>
+                </div>
+                <div className="mt-0.5">
+                  <span className="text-muted small me-1">Net Charged to Stay:</span>
+                  <strong className="text-primary fs-6">₱{orderNetTotal.toFixed(2)}</strong>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <span className="text-muted small me-2">Order Total:</span>
+                <strong className="text-primary fs-6">₱{orderNetTotal.toFixed(2)}</strong>
+              </div>
+            )}
           </div>
         </div>
       </div>

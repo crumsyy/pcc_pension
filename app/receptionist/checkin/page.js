@@ -8,6 +8,7 @@ import ReservationCalendar from '../../components/ReservationCalendar';
 function CheckInClient() {
   const searchParams = useSearchParams();
   const targetBookingID = searchParams.get('bookingID');
+  const highlightBookingID = searchParams.get('highlightBookingID') || searchParams.get('highlightStayID');
 
   const [bookings, setBookings] = useState([]);
   const [roomSchedules, setRoomSchedules] = useState([]);
@@ -237,6 +238,23 @@ function CheckInClient() {
     }
   }, [loading, targetBookingID, bookings]);
 
+  // Handle locating and highlighting stay from notification click (?highlightBookingID=...)
+  useEffect(() => {
+    if (!loading && highlightBookingID && bookings.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`departure-booking-${highlightBookingID}`) || 
+                   document.getElementById(`arrival-booking-${highlightBookingID}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('stay-highlight-pulse');
+          setTimeout(() => {
+            el.classList.remove('stay-highlight-pulse');
+          }, 6000);
+        }
+      }, 350);
+    }
+  }, [loading, highlightBookingID, bookings]);
+
   const handleCheckIn = (id, guestName) => {
     const performCheckIn = async (isEarlyConfirmed = false) => {
       try {
@@ -400,7 +418,7 @@ function CheckInClient() {
               ) : (
                 <div className="list-group">
                   {filterList(arrivals).map(b => (
-                    <div key={b.bookingID} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3 mb-2 border rounded">
+                    <div key={b.bookingID} id={`arrival-booking-${b.bookingID}`} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3 mb-2 border rounded">
                       <div>
                         <div className="fw-bold text-dark">
                           {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>User ID: #{b.userID || b.guestID}</span>
@@ -441,23 +459,35 @@ function CheckInClient() {
                 <p className="text-muted text-center py-4 small">No checked-in guests found.</p>
               ) : (
                 <div className="list-group">
-                  {filterList(departures).map(b => (
-                    <div key={b.bookingID} className="list-group-item list-group-item-action p-3 mb-2 border rounded">
-                      <div className="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                          <div className="fw-bold text-dark">
-                            {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>User ID: #{b.userID || b.guestID}</span>
+                  {filterList(departures).map(b => {
+                    const isTargetStay = highlightBookingID && String(highlightBookingID) === String(b.bookingID);
+                    const isCheckoutActionRequired = ['Pending Room Verification', 'Pending Checkout', 'Checkout Requested'].includes(b.status);
+
+                    return (
+                      <div key={b.bookingID} id={`departure-booking-${b.bookingID}`} className={`list-group-item list-group-item-action p-3 mb-2 border rounded transition-all ${isTargetStay ? 'stay-highlight-pulse' : ''}`}>
+                        {isCheckoutActionRequired && (
+                          <div className="mb-2">
+                            <span className="badge bg-warning text-dark border border-warning-subtle py-1 px-2 fw-bold d-inline-flex align-items-center gap-1">
+                              <i className="fa-solid fa-bell animate__animated animate__swing animate__infinite"></i>
+                              Action Required: Guest Requested Checkout
+                            </span>
                           </div>
-                          <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType}) • Stay #{b.bookingID}</small>
-                          <small className="text-muted d-block">Check-out Schedule: {new Date(b.checkOutDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</small>
-                          <small className="d-block mt-1">
-                            Remaining Balance: <strong className={b.remainingBalance > 0 ? "text-danger" : "text-success"}>₱{parseFloat(b.remainingBalance || 0).toFixed(2)}</strong>
-                          </small>
+                        )}
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <div>
+                            <div className="fw-bold text-dark">
+                              {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>User ID: #{b.userID || b.guestID}</span>
+                            </div>
+                            <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType}) • Stay #{b.bookingID}</small>
+                            <small className="text-muted d-block">Check-out Schedule: {new Date(b.checkOutDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</small>
+                            <small className="d-block mt-1">
+                              Remaining Balance: <strong className={b.remainingBalance > 0 ? "text-danger" : "text-success"}>₱{parseFloat(b.remainingBalance || 0).toFixed(2)}</strong>
+                            </small>
+                          </div>
+                          <span className={`booking-status-pill ${getStatusBadgeClass(b.status)}`}>
+                            {b.status}
+                          </span>
                         </div>
-                        <span className={`booking-status-pill ${getStatusBadgeClass(b.status)}`}>
-                          {b.status}
-                        </span>
-                      </div>
 
                       {/* WORKFLOW ACTION BUTTONS */}
                       <div className="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top">
@@ -549,7 +579,8 @@ function CheckInClient() {
                         </a>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               )}
             </div>
@@ -816,6 +847,30 @@ function CheckInClient() {
         onConfirm={modalConfig.onConfirm}
         onCancel={modalConfig.onCancel}
       />
+
+      <style jsx global>{`
+        @keyframes stayHighlightPulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+            border-color: #f59e0b !important;
+          }
+          50% {
+            box-shadow: 0 0 0 12px rgba(245, 158, 11, 0.25);
+            border-color: #d97706 !important;
+            background-color: #fffbeb !important;
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+            border-color: #f59e0b !important;
+          }
+        }
+        .stay-highlight-pulse {
+          animation: stayHighlightPulse 2s ease-in-out infinite;
+          border: 2px solid #f59e0b !important;
+          position: relative;
+          z-index: 10;
+        }
+      `}</style>
     </>
   );
 }

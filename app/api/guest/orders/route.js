@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit, ensureOrdersSchema, ensureProfilePictureSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit, ensureOrdersSchema, ensureProfilePictureSchema, syncNormalizedBillingLineItems } from '@/lib/db';
 
 // In-memory catalog cache with 60s TTL
 let catalogCache = null;
@@ -361,12 +361,11 @@ export async function POST(request) {
       );
       let currentCompCount = parseInt(compCheck[0]?.compCount || 0);
 
-      const [rateCheck] = await connection.execute(
-        `SELECT breakfastID FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = 2`,
-        [booking.roomTypeID, booking.floorID]
+      const roomHasBreakfast = (
+        (booking.breakfastOption && booking.breakfastOption.toLowerCase().includes('with') && !booking.breakfastOption.toLowerCase().includes('without')) ||
+        parseInt(booking.breakfastID) === 2
       );
-      const roomHasBreakfast = (booking.breakfastOption === 'with') || (rateCheck.length > 0);
-      const maxCompAllowance = 2;
+      const maxCompAllowance = roomHasBreakfast ? 2 : 0;
 
       for (const group of orderGroups) {
         const groupHasCookedMeal = group.items.some(it => it.type === 'Product' && (it.isCookedMeal || it.productCategoryID === 3));
@@ -407,16 +406,16 @@ export async function POST(request) {
                 if (compQty > 0) {
                   groupSummaryList.push(`${compQty}x ${p.name} (Complimentary)`);
                   await connection.execute(
-                    "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES (?, ?, ?, 1, ?, ?)",
-                    [compQty, orderID, itemID, itemDelType, initialItemStatus]
+                    "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, unitPrice, deliveryType, itemStatus) VALUES (?, ?, ?, 1, ?, ?, ?)",
+                    [compQty, orderID, itemID, price, itemDelType, initialItemStatus]
                   );
                 }
                 if (paidQty > 0) {
                   groupTotal += price * paidQty;
                   groupSummaryList.push(`${paidQty}x ${p.name}`);
                   await connection.execute(
-                    "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES (?, ?, ?, 0, ?, ?)",
-                    [paidQty, orderID, itemID, itemDelType, initialItemStatus]
+                    "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, unitPrice, deliveryType, itemStatus) VALUES (?, ?, ?, 0, ?, ?, ?)",
+                    [paidQty, orderID, itemID, price, itemDelType, initialItemStatus]
                   );
                 }
               } else {
@@ -424,8 +423,8 @@ export async function POST(request) {
                 groupSummaryList.push(`${qty}x ${p.name}`);
 
                 await connection.execute(
-                  "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, deliveryType, itemStatus) VALUES (?, ?, ?, 0, ?, ?)",
-                  [qty, orderID, itemID, itemDelType, initialItemStatus]
+                  "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, unitPrice, deliveryType, itemStatus) VALUES (?, ?, ?, 0, ?, ?, ?)",
+                  [qty, orderID, itemID, price, itemDelType, initialItemStatus]
                 );
               }
 
@@ -468,8 +467,8 @@ export async function POST(request) {
               groupSummaryList.push(`${qty}x ${a.name}`);
 
               await connection.execute(
-                "INSERT INTO order_amenities (quantity, orderID, amenityID, deliveryType, itemStatus) VALUES (?, ?, ?, ?, ?)",
-                [qty, orderID, itemID, itemDelType, initialItemStatus]
+                "INSERT INTO order_amenities (quantity, orderID, amenityID, unitPrice, deliveryType, itemStatus) VALUES (?, ?, ?, ?, ?, ?)",
+                [qty, orderID, itemID, price, itemDelType, initialItemStatus]
               );
 
               // FIFO Inventory deduction for amenities
@@ -521,6 +520,11 @@ export async function POST(request) {
         description: allOrderSummaries.join(' | '),
         referenceNumber: `ORD-${createdOrderIDs.join('-')}`
       });
+
+      // Synchronize stay billing line items and master balance immediately
+      if (billingID) {
+        await syncNormalizedBillingLineItems(connection, billingID, booking.bookingID);
+      }
 
       await connection.commit();
       catalogCache = null; // Invalidate cache so quantities update immediately
@@ -724,6 +728,12 @@ export async function PATCH(request) {
           orderID
         ]
       );
+
+      // Re-synchronize stay billing line items
+      const [guestBill] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [currentOrder.bookingID]);
+      if (guestBill.length > 0) {
+        await syncNormalizedBillingLineItems(connection, guestBill[0].billingID, currentOrder.bookingID);
+      }
 
       await connection.commit();
 
