@@ -755,42 +755,52 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
 
   const effectiveBooking = activeBooking || activeBookingStay;
 
-  const complimentaryBreakfastAvailable = useMemo(() => {
-    if (!effectiveBooking) return 0;
-    if (effectiveBooking.complimentaryBreakfastAvailable !== undefined) {
-      return parseInt(effectiveBooking.complimentaryBreakfastAvailable) || 0;
-    }
-    const opt = (effectiveBooking.breakfastOption || '').toLowerCase();
-    const hasBreakfast = (opt.includes('with') && !opt.includes('without')) || effectiveBooking.breakfastID === 2 || effectiveBooking.roomHasBreakfast;
-    if (!hasBreakfast) return 0;
-    const used = parseInt(effectiveBooking.complimentaryBreakfastUsed || 0);
-    return Math.max(0, 2 - used);
+  const hasBreakfastPackage = useMemo(() => {
+    if (!effectiveBooking) return false;
+    const opt = (effectiveBooking.breakfastOption || effectiveBooking.resBreakfastOption || '').toLowerCase();
+    return (opt.includes('with') && !opt.includes('without')) || parseInt(effectiveBooking.breakfastID) === 2 || Boolean(effectiveBooking.roomHasBreakfast);
   }, [effectiveBooking]);
 
-  const { cartSubtotal, complimentaryDeduction, cartTotal } = useMemo(() => {
+  const selectedDateStr = deliveryDate || todayStr;
+
+  const availableFreeForSelectedDate = useMemo(() => {
+    if (!effectiveBooking || !hasBreakfastPackage) return 0;
+    const targetDateUsed = effectiveBooking?.dailyUsedCompMap?.[selectedDateStr] || 0;
+    const remainingDailyForSelectedDate = Math.max(0, 2 - targetDateUsed);
+    const remainingStayAllowance = effectiveBooking?.remainingStayAllowance !== undefined
+      ? parseInt(effectiveBooking.remainingStayAllowance, 10)
+      : Math.max(0, (effectiveBooking?.stayComplimentaryAllowance || (2 * (effectiveBooking.nights || 1))) - (effectiveBooking?.complimentaryBreakfastUsed || 0));
+
+    return Math.min(remainingStayAllowance, remainingDailyForSelectedDate);
+  }, [effectiveBooking, hasBreakfastPackage, selectedDateStr]);
+
+  const { cartSubtotal, complimentaryDeduction, cartTotal, complimentaryCount } = useMemo(() => {
     let subtotal = 0;
     let cookedCount = 0;
     let compDeduction = 0;
+    let freeCount = 0;
 
     for (const item of cart) {
       const itemPrice = parseFloat(item.price || 0);
       const itemQty = parseInt(item.quantity || 0);
       subtotal += itemPrice * itemQty;
 
-      if (item.isCookedMeal && complimentaryBreakfastAvailable > 0) {
-        const canComp = Math.max(0, complimentaryBreakfastAvailable - cookedCount);
+      if (item.isCookedMeal && availableFreeForSelectedDate > 0) {
+        const canComp = Math.max(0, availableFreeForSelectedDate - cookedCount);
         const freeInItem = Math.min(itemQty, canComp);
         compDeduction += freeInItem * itemPrice;
         cookedCount += freeInItem;
+        freeCount += freeInItem;
       }
     }
 
     return {
       cartSubtotal: subtotal,
       complimentaryDeduction: compDeduction,
-      cartTotal: Math.max(0, subtotal - compDeduction)
+      cartTotal: Math.max(0, subtotal - compDeduction),
+      complimentaryCount: freeCount
     };
-  }, [cart, complimentaryBreakfastAvailable]);
+  }, [cart, availableFreeForSelectedDate]);
 
   // Delivery Slots Evaluation (between 06:00 AM and 10:30 AM)
   const allowedSlots = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
@@ -1090,6 +1100,22 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
               </small>
             </div>
 
+            {hasBreakfastPackage && (
+              <div className="mt-2.5 pt-2 border-top">
+                <div className="d-flex align-items-center justify-content-between mb-1">
+                  <span className="badge bg-success-subtle text-success border border-success-subtle py-1 px-2 fw-semibold" style={{ fontSize: '0.73rem' }}>
+                    <i className="bi bi-gift-fill me-1"></i>Complimentary Breakfast: {availableFreeForSelectedDate} free meal{availableFreeForSelectedDate === 1 ? '' : 's'} left for {selectedDateStr}
+                  </span>
+                </div>
+                {availableFreeForSelectedDate === 0 && (
+                  <div className="alert alert-info py-1.5 px-2 mt-1 mb-0 text-dark small" style={{ fontSize: '0.73rem' }}>
+                    <i className="bi bi-info-circle-fill text-primary me-1"></i>
+                    Daily complimentary breakfast quota (2 meals/day) has been reached for {selectedDateStr}. Additional meals are charged at catalog price.
+                  </div>
+                )}
+              </div>
+            )}
+
             {allTodaySlotsPassed && isSelectedDateToday && (
               <div className="alert alert-warning py-1.5 px-2 mt-2 mb-0 d-flex align-items-center gap-1 text-dark" style={{ fontSize: '0.74rem' }}>
                 <i className="bi bi-exclamation-circle-fill text-warning"></i>
@@ -1116,7 +1142,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           {complimentaryDeduction > 0 && (
             <div className="d-flex justify-content-between mb-1 small text-success">
               <span>
-                <i className="bi bi-gift-fill me-1"></i>Complimentary Breakfast (2 Free Meals):
+                <i className="bi bi-gift-fill me-1"></i>Complimentary Breakfast ({complimentaryCount} Free Meal{complimentaryCount > 1 ? 's' : ''}):
               </span>
               <span className="fw-bold">-₱{complimentaryDeduction.toFixed(2)}</span>
             </div>

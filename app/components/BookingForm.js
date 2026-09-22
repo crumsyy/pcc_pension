@@ -2,6 +2,14 @@
 
 import React from 'react';
 import ReservationCalendar from './ReservationCalendar';
+import { formatTo12Hour } from '@/lib/formatters';
+
+const TIME_SLOTS_30MIN = [
+  '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30',
+  '21:00', '21:30', '22:00', '22:30', '23:00', '23:30'
+];
 
 /**
  * BookingForm Component
@@ -120,20 +128,32 @@ export default function BookingForm({
           />
         </div>
 
-        {/* Check-In Time */}
+        {/* Check-In Time (12-Hour Presentation) */}
         <div className="col-md-6">
-          <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between">
+          <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between align-items-center">
             <span>Check-in Time *</span>
-            <small className="text-muted" style={{ fontSize: '0.72rem' }}>Std: 2:00 PM</small>
+            <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: '0.72rem' }}>
+              {formatTo12Hour(checkInTime || '14:00')}
+            </span>
           </label>
-          <input
-            type="time"
-            className={`form-control ${useCurrentTimeIn ? 'bg-light text-muted' : ''}`}
-            value={checkInTime}
+          <select
+            className={`form-select ${useCurrentTimeIn ? 'bg-light text-muted' : ''}`}
+            value={checkInTime?.substring(0, 5) || '14:00'}
             onChange={(e) => onChangeCheckInTime && onChangeCheckInTime(e.target.value)}
             disabled={Boolean(useCurrentTimeIn)}
             required
-          />
+          >
+            {checkInTime && !TIME_SLOTS_30MIN.includes(checkInTime.substring(0, 5)) && (
+              <option value={checkInTime.substring(0, 5)}>
+                {formatTo12Hour(checkInTime)} (Current Time)
+              </option>
+            )}
+            {TIME_SLOTS_30MIN.map((slot) => (
+              <option key={`in-${slot}`} value={slot}>
+                {formatTo12Hour(slot)}{slot === '14:00' ? ' (Standard 2:00 PM)' : ''}
+              </option>
+            ))}
+          </select>
           {allowCurrentTimeIn && (
             <div className="form-check mt-1">
               <input
@@ -148,30 +168,42 @@ export default function BookingForm({
               </label>
               <div className="form-text text-muted small mt-0.5" style={{ fontSize: '0.73rem' }}>
                 <i className="bi bi-info-circle me-1"></i>
-                Checked In immediately when selected; defaults to 2:00 PM when unselected.
+                Checked In immediately when selected; defaults to 02:00 PM when unselected.
               </div>
             </div>
           )}
           {isEarlyCheckIn && (
             <small className="text-warning-emphasis d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
-              ℹ Early Check-in ({earlyHours} hr{earlyHours > 1 ? 's' : ''} prior to 2:00 PM) fee of ₱{earlyFee.toFixed(2)} applied @ ₱50/hr.
+              ℹ Early Check-in ({earlyHours} hr{earlyHours > 1 ? 's' : ''} prior to 02:00 PM) fee of ₱{earlyFee.toFixed(2)} applied @ ₱50/hr.
             </small>
           )}
         </div>
 
-        {/* Check-Out Time */}
+        {/* Check-Out Time (12-Hour Presentation) */}
         <div className="col-md-6">
-          <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between">
+          <label className="form-label fw-semibold small text-dark mb-1 d-flex justify-content-between align-items-center">
             <span>Check-out Time *</span>
-            <small className="text-muted" style={{ fontSize: '0.72rem' }}>Std: 12:00 PM</small>
+            <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style={{ fontSize: '0.72rem' }}>
+              {formatTo12Hour(checkOutTime || '12:00')}
+            </span>
           </label>
-          <input
-            type="time"
-            className="form-control"
-            value={checkOutTime}
+          <select
+            className="form-select"
+            value={checkOutTime?.substring(0, 5) || '12:00'}
             onChange={(e) => onChangeCheckOutTime && onChangeCheckOutTime(e.target.value)}
             required
-          />
+          >
+            {checkOutTime && !TIME_SLOTS_30MIN.includes(checkOutTime.substring(0, 5)) && (
+              <option value={checkOutTime.substring(0, 5)}>
+                {formatTo12Hour(checkOutTime)}
+              </option>
+            )}
+            {TIME_SLOTS_30MIN.map((slot) => (
+              <option key={`out-${slot}`} value={slot}>
+                {formatTo12Hour(slot)}{slot === '12:00' ? ' (Standard 12:00 PM)' : ''}
+              </option>
+            ))}
+          </select>
           {isLateCheckOut && (
             <small className="text-danger d-block mt-0.5 fw-semibold" style={{ fontSize: '0.73rem' }}>
               ℹ Late Check-out ({lateHours} hr{lateHours > 1 ? 's' : ''} past 12:00 PM) fee of ₱{lateFee.toFixed(2)} applied @ ₱100/hr.

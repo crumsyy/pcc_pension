@@ -114,6 +114,7 @@ async function run() {
     await ensureColumn(connection, 'room', 'description', 'TEXT DEFAULT NULL');
     await ensureColumn(connection, 'room', 'occupancyLimit', 'INT NOT NULL DEFAULT 4');
     await ensureColumn(connection, 'room', 'image', 'VARCHAR(255) DEFAULT NULL');
+    await ensureColumn(connection, 'order_product', 'isComplimentary', 'TINYINT(1) NOT NULL DEFAULT 0');
 
     console.log("Altering booking table for cancellation reason...");
     await ensureColumn(connection, 'booking', 'cancelRemarks', 'VARCHAR(255) DEFAULT NULL');
@@ -401,6 +402,10 @@ async function run() {
     `).catch((e) => { console.warn("Backfill changeAmount note:", e.message); });
 
     console.log("Ensuring high-frequency composite indices for relational performance...");
+    await ensureIndex(connection, 'room', 'idx_room_occupancy', '`roomID`, `occupancyLimit`');
+    await ensureIndex(connection, 'booking', 'idx_booking_billing_perf', '`bookingID`, `status`, `roomID`');
+    await ensureIndex(connection, 'orders', 'idx_orders_delivery_date', '`bookingID`, `deliveryDate`, `orderStatus`');
+    await ensureIndex(connection, 'order_product', 'idx_order_comp_perf', '`orderID`, `isComplimentary`');
     await ensureIndex(connection, 'room_rate', 'idx_room_rate_lookup', '`roomTypeID`, `floorID`, `breakfastID`');
     await ensureIndex(connection, 'booking', 'idx_booking_dates_status', '`roomID`, `status`, `checkInDateTime`, `checkOutDateTime`');
     await ensureIndex(connection, 'orders', 'idx_orders_booking', '`bookingID`, `orderStatus`');
@@ -421,11 +426,11 @@ async function run() {
     await ensureForeignKey(connection, 'order_product', 'fk_op_product', 'FOREIGN KEY (`productID`) REFERENCES `products` (`productID`)');
     await ensureForeignKey(connection, 'order_amenities', 'fk_oa_amenity', 'FOREIGN KEY (`amenityID`) REFERENCES `amenities` (`amenityID`)');
 
-    console.log("Normalizing room occupancy limits to room_type 3NF specifications...");
+    console.log("Normalizing room occupancy limits as exclusive capacity threshold...");
     await connection.execute(`
       UPDATE room r
-      JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
-      SET r.occupancyLimit = rt.maxOccupancy
+      SET r.occupancyLimit = 4
+      WHERE r.occupancyLimit IS NULL OR r.occupancyLimit < 1
     `).catch((e) => { console.warn("Room occupancyLimit sync note:", e.message); });
 
     console.log("Synchronizing active booking #1 financial figures...");

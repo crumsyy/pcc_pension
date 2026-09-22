@@ -61,47 +61,31 @@ export async function GET(request) {
       bookingID,
       billingID: details.billingID,
       booking: details.booking,
-      chargesBreakdown: {
-        room: {
-          rate: details.rate,
-          nights: details.nights,
-          baseRoomCharge: details.baseRoomCharge,
-          roomChargeWithExtraPax: details.roomCharge,
-          finalRoomCharge: details.finalRoomCharge
-        },
-        additionalFees: {
-          extraGuestsCount: details.extraGuests,
-          extraGuestFee: details.extraGuestFee,
-          earlyCheckInFee: details.earlyCheckInFee,
-          lateCheckOutFee: details.lateCheckOutFee,
-          lateHours: details.lateHours,
-          lateCheckOutRule: details.lateCheckOutRule,
-          total: details.totalAdditionalFees
-        },
-        incidentalFees: {
-          charges: details.incidentalCharges,
-          total: details.regularIncidentalTotal
-        },
-        orders: {
-          products: details.productCharges,
-          amenities: details.amenityCharges,
-          productTotal: details.productTotal,
-          amenityTotal: details.amenityTotal,
-          total: details.ordersTotal
-        },
-        discounts: {
-          guests: details.finalGuestsList,
-          total: details.totalDiscount
-        }
-      },
+      chargesBreakdown: details.chargesBreakdown,
       balancing: {
         subtotal: details.subtotal,
         paidTotal: details.paidTotal,
         remainingBalance: details.balance
       },
       payments: details.paymentsList || [],
+      paymentsList: details.paymentsList || [],
       auditLogs: details.auditLogs || [],
-      chargesSummary: details.chargesSummary
+      chargesSummary: details.chargesSummary,
+      rate: details.rate,
+      nights: details.nights,
+      baseRoomCharge: details.baseRoomCharge,
+      extraPax: details.extraGuests,
+      extraGuestFee: details.extraGuestFee,
+      roomCapacity: details.chargesBreakdown?.room?.capacity || 4,
+      subtotal: details.subtotal,
+      paidTotal: details.paidTotal,
+      balance: details.balance,
+      remainingBalance: details.balance,
+      productCharges: details.productCharges || [],
+      cookedMealCharges: details.cookedMealCharges || [],
+      storeProductCharges: details.storeProductCharges || [],
+      amenityCharges: details.amenityCharges || [],
+      incidentalCharges: details.incidentalCharges || []
     });
   } catch (err) {
     console.error("Failed to fetch billing details:", err);

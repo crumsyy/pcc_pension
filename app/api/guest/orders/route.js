@@ -149,6 +149,18 @@ export async function GET(request) {
           parseInt(activeBooking.breakfastID) === 2
         );
 
+        // Calculate nights of stay
+        const inStr = (activeBooking.checkInDateTime || '').split(' ')[0] || (activeBooking.checkInDateTime || '').split('T')[0];
+        const outStr = (activeBooking.checkOutDateTime || '').split(' ')[0] || (activeBooking.checkOutDateTime || '').split('T')[0];
+        const checkInD = new Date(inStr + 'T00:00:00');
+        const checkOutD = new Date(outStr + 'T00:00:00');
+        let nights = 1;
+        if (!isNaN(checkInD.getTime()) && !isNaN(checkOutD.getTime()) && checkOutD > checkInD) {
+          nights = Math.max(1, Math.round((checkOutD.getTime() - checkInD.getTime()) / (1000 * 60 * 60 * 24)));
+        }
+
+        const maxStayAllowance = roomHasBreakfast ? (2 * nights) : 0;
+
         const [compUsedRows] = await dbQuery(
           `SELECT COALESCE(SUM(op.quantity), 0) as compCount 
            FROM order_product op 
@@ -157,13 +169,37 @@ export async function GET(request) {
           [activeBooking.bookingID]
         ).catch(() => [[]]);
         const complimentaryBreakfastUsed = parseInt(compUsedRows && compUsedRows[0]?.compCount || 0);
-        const complimentaryBreakfastAvailable = roomHasBreakfast ? Math.max(0, 2 - complimentaryBreakfastUsed) : 0;
+        const remainingStayAllowance = Math.max(0, maxStayAllowance - complimentaryBreakfastUsed);
+
+        // Query daily usage breakdown
+        const dailyRows = await dbQuery(
+          `SELECT DATE_FORMAT(COALESCE(o.deliveryDate, o.orderDateTime), '%Y-%m-%d') as deliveryDate,
+                  COALESCE(SUM(op.quantity), 0) as dailyCount
+           FROM order_product op
+           JOIN orders o ON o.orderID = op.orderID
+           WHERE o.bookingID = ? AND op.isComplimentary = 1 AND o.orderStatus != 'Canceled'
+           GROUP BY DATE_FORMAT(COALESCE(o.deliveryDate, o.orderDateTime), '%Y-%m-%d')`,
+          [activeBooking.bookingID]
+        ).catch(() => []);
+
+        const dailyUsedCompMap = {};
+        if (Array.isArray(dailyRows)) {
+          dailyRows.forEach(r => {
+            if (r.deliveryDate) {
+              dailyUsedCompMap[r.deliveryDate] = parseInt(r.dailyCount || 0, 10);
+            }
+          });
+        }
 
         activeBooking = {
           ...activeBooking,
+          nights,
           roomHasBreakfast,
+          stayComplimentaryAllowance: maxStayAllowance,
           complimentaryBreakfastUsed,
-          complimentaryBreakfastAvailable
+          remainingStayAllowance,
+          dailyUsedCompMap,
+          complimentaryBreakfastAvailable: remainingStayAllowance
         };
       }
     }
@@ -379,22 +415,56 @@ export async function POST(request) {
       const [billRows] = await connection.execute("SELECT billingID FROM billing WHERE bookingID = ?", [booking.bookingID]);
       const billingID = billRows[0]?.billingID || null;
 
-      // Complimentary Breakfast Entitlement: Up to 2 free cooked meals per stay if room package includes breakfast
-      const [compCheck] = await connection.execute(
-        `SELECT COALESCE(SUM(op.quantity), 0) as compCount 
-         FROM order_product op 
-         JOIN orders o ON o.orderID = op.orderID 
-         WHERE o.bookingID = ? AND op.isComplimentary = 1 AND o.orderStatus != 'Canceled'`,
-        [booking.bookingID]
-      );
-      let currentCompCount = parseInt(compCheck[0]?.compCount || 0);
+      // Complimentary Breakfast Entitlement: Up to 2 free cooked meals per calendar delivery date, stay cap = 2 * nights
+      const inStr = (booking.checkInDateTime || '').split(' ')[0] || (booking.checkInDateTime || '').split('T')[0];
+      const outStr = (booking.checkOutDateTime || '').split(' ')[0] || (booking.checkOutDateTime || '').split('T')[0];
+      const checkInD = new Date(inStr + 'T00:00:00');
+      const checkOutD = new Date(outStr + 'T00:00:00');
+      let nights = 1;
+      if (!isNaN(checkInD.getTime()) && !isNaN(checkOutD.getTime()) && checkOutD > checkInD) {
+        nights = Math.max(1, Math.round((checkOutD.getTime() - checkInD.getTime()) / (1000 * 60 * 60 * 24)));
+      }
 
       const roomHasBreakfast = (
         (booking.breakfastOption && booking.breakfastOption.toLowerCase().includes('with') && !booking.breakfastOption.toLowerCase().includes('without')) ||
         (booking.resBreakfastOption && booking.resBreakfastOption.toLowerCase().includes('with') && !booking.resBreakfastOption.toLowerCase().includes('without')) ||
         parseInt(booking.breakfastID) === 2
       );
-      const maxCompAllowance = roomHasBreakfast ? 2 : 0;
+
+      const maxStayAllowance = roomHasBreakfast ? (2 * nights) : 0;
+
+      // Query free meals already consumed across the ENTIRE stay with FOR UPDATE
+      const [stayCompRows] = await connection.execute(
+        `SELECT COALESCE(SUM(op.quantity), 0) AS totalStayUsedComp
+         FROM order_product op
+         JOIN orders o ON o.orderID = op.orderID
+         WHERE o.bookingID = ? 
+           AND op.isComplimentary = 1 
+           AND o.orderStatus NOT IN ('Canceled')
+         FOR UPDATE`,
+        [booking.bookingID]
+      );
+      let totalStayUsedComp = parseInt(stayCompRows[0]?.totalStayUsedComp || 0, 10);
+      let remainingStayAllowance = Math.max(0, maxStayAllowance - totalStayUsedComp);
+
+      // Target delivery date for scheduled cooked meals
+      const targetDeliveryDate = deliveryDate || nowStr.split(' ')[0];
+
+      // Query free meals already consumed for this specific targetDeliveryDate with FOR UPDATE
+      const [dailyCompRows] = await connection.execute(
+        `SELECT COALESCE(SUM(op.quantity), 0) AS dailyUsedComp
+         FROM order_product op
+         JOIN orders o ON o.orderID = op.orderID
+         WHERE o.bookingID = ? 
+           AND DATE(o.deliveryDate) = DATE(?)
+           AND op.isComplimentary = 1 
+           AND o.orderStatus NOT IN ('Canceled')
+         FOR UPDATE`,
+        [booking.bookingID, targetDeliveryDate]
+      );
+      let dailyUsedComp = parseInt(dailyCompRows[0]?.dailyUsedComp || 0, 10);
+      let remainingDailyAllowance = Math.max(0, 2 - dailyUsedComp);
+      let availableFreeForOrder = Math.min(remainingStayAllowance, remainingDailyAllowance);
 
       for (const group of orderGroups) {
         const groupHasCookedMeal = group.items.some(it => it.type === 'Product' && (it.isCookedMeal || it.productCategoryID === 3));
@@ -425,18 +495,19 @@ export async function POST(request) {
 
               if (p.productCategoryID === 3) {
                 let compQty = 0;
-                if (roomHasBreakfast && currentCompCount < maxCompAllowance) {
-                  const remComp = maxCompAllowance - currentCompCount;
-                  compQty = Math.min(qty, remComp);
-                  currentCompCount += compQty;
+                if (roomHasBreakfast && availableFreeForOrder > 0) {
+                  compQty = Math.min(qty, availableFreeForOrder);
+                  availableFreeForOrder -= compQty;
+                  remainingStayAllowance -= compQty;
+                  remainingDailyAllowance -= compQty;
                 }
                 const paidQty = qty - compQty;
 
                 if (compQty > 0) {
                   groupSummaryList.push(`${compQty}x ${p.name} (Complimentary)`);
                   await connection.execute(
-                    "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, unitPrice, deliveryType, itemStatus) VALUES (?, ?, ?, 1, ?, ?, ?)",
-                    [compQty, orderID, itemID, price, itemDelType, initialItemStatus]
+                    "INSERT INTO order_product (quantity, orderID, productID, isComplimentary, unitPrice, deliveryType, itemStatus) VALUES (?, ?, ?, 1, 0.00, ?, ?)",
+                    [compQty, orderID, itemID, itemDelType, initialItemStatus]
                   );
                 }
                 if (paidQty > 0) {

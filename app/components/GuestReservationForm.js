@@ -45,10 +45,8 @@ export default function GuestReservationForm({
     }
   }, [isFreeBreakfast, breakfastOption, onChangeBreakfastOption]);
 
-  const basePax = parseInt(selectedRoom?.occupancyLimit || roomBasePax || selectedRoom?.roomBasePax || 4, 10);
+  const basePax = Math.max(1, parseInt(selectedRoom?.occupancyLimit || 4, 10));
   const guestCount = numGuests === '' ? 1 : (parseInt(numGuests, 10) || 1);
-  const extraGuests = Math.max(0, guestCount - basePax);
-  const extraGuestFee = extraGuests * 100; // Flat ₱100 per extra guest
 
   let nightsCount = 1;
   if (checkInDate && checkOutDate) {
@@ -58,6 +56,9 @@ export default function GuestReservationForm({
       nightsCount = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
     }
   }
+
+  const extraGuests = Math.max(0, guestCount - basePax);
+  const extraGuestFee = extraGuests * 100 * nightsCount; // ₱100/night per extra guest
 
   const rateWithBfast = selectedRoom
     ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate) || 0))
@@ -160,7 +161,7 @@ export default function GuestReservationForm({
               Standard Room Capacity: <strong>Up to {basePax} Pax</strong>
               {extraGuests > 0 && (
                 <span className="text-primary fw-bold ms-1">
-                  (+₱{extraGuestFee.toFixed(2)} for {extraGuests} extra guest{extraGuests > 1 ? 's' : ''} @ ₱100 flat)
+                  (+₱{extraGuestFee.toFixed(2)} for {extraGuests} extra guest{extraGuests > 1 ? 's' : ''} @ ₱100/night)
                 </span>
               )}
             </div>
@@ -170,7 +171,7 @@ export default function GuestReservationForm({
         {extraGuests > 0 && (
           <div className="alert alert-warning py-1.5 px-2.5 small mb-0 mt-2" style={{ fontSize: '0.78rem' }}>
             <i className="bi bi-info-circle-fill me-1"></i>
-            Extra Guest Fee: <strong>₱100 flat per extra guest</strong> applied for {extraGuests} guest(s) exceeding standard capacity ({basePax}). Total fee: ₱{extraGuestFee.toFixed(2)}.
+            Extra Guest Fee: <strong>₱100/night per extra guest</strong> applied for {extraGuests} guest(s) exceeding standard capacity ({basePax}). Total fee: ₱{extraGuestFee.toFixed(2)}.
           </div>
         )}
       </div>

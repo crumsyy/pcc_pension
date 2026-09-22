@@ -22,7 +22,7 @@ import './styles.css';
 import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
 import { generateReceiptPNG } from '@/app/paymongo/test/page';
-import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber } from '@/lib/formatters';
+import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber, formatTo12Hour, formatDateTime12H } from '@/lib/formatters';
 
 function getCourtesyHoldTimeInfo(expiryStr) {
   if (!expiryStr) return { expired: true, text: 'Expired', inGrace: false, hours: 0, mins: 0 };
@@ -384,22 +384,39 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [showAuditTrailModal, setShowAuditTrailModal] = useState(false);
   const [detailedBill, setDetailedBill] = useState(initialActiveBill);
   const [loadingBill, setLoadingBill] = useState(false);
+  const detailedBillCacheRef = useRef(new Map());
 
-  const fetchDetailedBill = async (bookingID) => {
-    if (!bookingID) return;
+  const fetchDetailedBill = async (bookingID, forceRefresh = false) => {
+    if (!bookingID) return null;
+    if (!forceRefresh && detailedBillCacheRef.current.has(bookingID)) {
+      const cached = detailedBillCacheRef.current.get(bookingID);
+      setDetailedBill(cached);
+      return cached;
+    }
     setLoadingBill(true);
     try {
       const res = await fetch(`/api/billing?bookingID=${bookingID}`);
       const data = await res.json();
       if (res.ok && data.success) {
+        detailedBillCacheRef.current.set(bookingID, data);
         setDetailedBill(data);
         setActiveBill(data);
+        return data;
       }
     } catch (e) {
       console.error("Failed to fetch detailed billing:", e);
     } finally {
       setLoadingBill(false);
     }
+  };
+
+  const handleOpenBillingModal = async (booking) => {
+    if (!booking) return;
+    setViewBillingBooking(booking);
+    if (detailedBillCacheRef.current.has(booking.bookingID)) {
+      setDetailedBill(detailedBillCacheRef.current.get(booking.bookingID));
+    }
+    await fetchDetailedBill(booking.bookingID);
   };
 
   // Edit Profile Modal State
@@ -855,7 +872,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate)) || 0)
         : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
     : 0;
-  const roomBasePax = selectedRoom ? parseInt(selectedRoom.roomBasePax || selectedRoom.minOccupancy || 2) : 2;
+  const roomBasePax = selectedRoom ? parseInt(selectedRoom.occupancyLimit || selectedRoom.roomBasePax || 4, 10) : 4;
   const inputPax = parseInt(numGuests) || 1;
   const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
   const extraGuestFee = extraGuestsCount * 100 * nightsCount; // ₱100 per extra guest per night
@@ -2561,7 +2578,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 <button 
                                   type="button" 
                                   className="btn btn-primary text-white"
-                                  onClick={() => setViewBillingBooking(b)}
+                                  onClick={() => handleOpenBillingModal(b)}
                                   aria-label="View Billing Breakdown"
                                 >
                                   <i className="bi bi-receipt"></i> View Billing
@@ -3400,7 +3417,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 <button 
                                   type="button" 
                                   className="btn btn-primary text-white"
-                                  onClick={() => setViewBillingBooking(b)}
+                                  onClick={() => handleOpenBillingModal(b)}
                                   aria-label="View Billing Breakdown"
                                 >
                                   <i className="bi bi-receipt"></i> View Billing
@@ -3504,259 +3521,344 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
 
       {/* VIEW BILLING BREAKDOWN MODAL */}
-      {viewBillingBooking && (
-        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px' }}>
-              <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)' }}>
-                <div>
-                  <h5 className="modal-title fw-bold mb-0">Billing Breakdown — Room {viewBillingBooking.roomNumber}</h5>
-                  <div className="small opacity-75 font-monospace">Stay #{viewBillingBooking.bookingID} • {viewBillingBooking.roomType || 'Room'}</div>
+      {viewBillingBooking && (() => {
+        const billData = (detailedBill && (detailedBill.bookingID === viewBillingBooking.bookingID || detailedBill.booking?.bookingID === viewBillingBooking.bookingID)) ? detailedBill : (viewBillingBooking.billingDetails || viewBillingBooking);
+        const roomBreakdown = billData?.chargesBreakdown?.room || {};
+        const baseRate = parseFloat(roomBreakdown.rate || billData?.rate || viewBillingBooking.rate || 0);
+        const stayNights = parseInt(roomBreakdown.nights || billData?.nights || viewBillingBooking.nights || 1, 10);
+        const baseRoomCharge = parseFloat(roomBreakdown.baseCharge || (baseRate * stayNights));
+        const roomCapacity = parseInt(roomBreakdown.capacity || billData?.roomCapacity || viewBillingBooking.occupancyLimit || 4, 10);
+        const extraPaxCount = parseInt(roomBreakdown.extraPax !== undefined ? roomBreakdown.extraPax : (billData?.extraGuests || billData?.extraPax || 0), 10);
+        const extraGuestFee = parseFloat(roomBreakdown.extraGuestFee !== undefined ? roomBreakdown.extraGuestFee : (billData?.extraGuestFee || 0));
+        const breakfastOption = roomBreakdown.breakfastOption || billData?.breakfastOption || viewBillingBooking.breakfastOption || 'with';
+        const productsList = billData?.chargesBreakdown?.orders?.products || billData?.productCharges || billData?.cookedMealCharges || [];
+        const amenitiesList = billData?.chargesBreakdown?.orders?.amenities || billData?.amenityCharges || [];
+        const incidentalsList = billData?.chargesBreakdown?.incidentalFees?.charges || viewBillingBooking.incidentals || billData?.incidentalCharges || [];
+        const paymentsList = billData?.chargesBreakdown?.payments?.list || billData?.paymentsList || [];
+        const grossTotal = parseFloat(billData?.chargesBreakdown?.summary?.grossTotal || billData?.balancing?.subtotal || billData?.totalAmount || viewBillingBooking.rate || 0);
+        const totalDiscounts = parseFloat(billData?.chargesBreakdown?.summary?.totalDiscounts || billData?.chargesBreakdown?.discounts?.total || billData?.totalDiscount || 0);
+        const totalPaid = parseFloat(billData?.chargesBreakdown?.summary?.totalPaid || billData?.balancing?.paidTotal || billData?.paidTotal || 0);
+        const balanceDue = parseFloat(billData?.chargesBreakdown?.summary?.balanceDue || viewBillingBooking.remainingBalance || 0);
+
+        return (
+          <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+              <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px' }}>
+                <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)' }}>
+                  <div>
+                    <h5 className="modal-title fw-bold mb-0">Billing Breakdown â€” Room {viewBillingBooking.roomNumber}</h5>
+                    <div className="small opacity-75 font-monospace">Stay #{viewBillingBooking.bookingID} â€¢ {viewBillingBooking.roomType || 'Room'}</div>
+                  </div>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setViewBillingBooking(null)}></button>
                 </div>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setViewBillingBooking(null)}></button>
-              </div>
-              <div className="modal-body p-3 p-md-4" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
-                {/* Stay Summary Card */}
-                <div className="p-3 bg-light rounded border mb-3">
-                  <div className="row g-2 small">
-                    <div className="col-sm-6">
-                      <span className="text-muted d-block">Scheduled Stay:</span>
-                      <strong>{formatDate(viewBillingBooking.checkInDateTime)} &rarr; {formatDate(viewBillingBooking.checkOutDateTime)}</strong>
-                    </div>
-                    <div className="col-sm-6">
-                      <span className="text-muted d-block">Current Status:</span>
-                      <span className={`booking-status-pill ${getStatusBadgeClass(viewBillingBooking.status)}`}>
-                        {viewBillingBooking.status}
-                      </span>
+                <div className="modal-body p-3 p-md-4" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+                  {/* Stay Summary Card */}
+                  <div className="p-3 bg-light rounded border mb-3">
+                    <div className="row g-2 small">
+                      <div className="col-sm-6">
+                        <span className="text-muted d-block">Scheduled Stay:</span>
+                        <strong>{formatDateTime12H(viewBillingBooking.checkInDateTime)} &rarr; {formatDateTime12H(viewBillingBooking.checkOutDateTime)}</strong>
+                      </div>
+                      <div className="col-sm-6">
+                        <span className="text-muted d-block">Current Status:</span>
+                        <span className={`booking-status-pill ${getStatusBadgeClass(viewBillingBooking.status)}`}>
+                          {viewBillingBooking.status}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Itemized Room Charges */}
-                <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                  <i className="bi bi-door-open-fill text-primary"></i> Room Charges
-                </h6>
-                <div className="table-responsive mb-3">
-                  <table className="table table-sm table-bordered align-middle small mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Item Description</th>
-                        <th className="text-end" style={{ width: '120px' }}>Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Room Rate ({viewBillingBooking.roomType || 'Standard'})</td>
-                        <td className="text-end fw-semibold">
-                          ₱{parseFloat(
-                            viewBillingBooking.billingDetails?.chargesBreakdown?.room?.rate ||
-                            viewBillingBooking.billingDetails?.roomChargeSummary?.baseRoomCharge ||
-                            viewBillingBooking.billingDetails?.rate ||
-                            viewBillingBooking.rate ||
-                            0
-                          ).toFixed(2)}
-                        </td>
-                      </tr>
-                      {(viewBillingBooking.billingDetails?.chargesBreakdown?.room?.breakfastOption === 'with' || viewBillingBooking.breakfastOption === 'with' || viewBillingBooking.billingDetails?.roomChargeSummary?.breakfastOption === 'with') && (
-                        <tr>
-                          <td>Breakfast Package (Included with Stay)</td>
-                          <td className="text-end text-success fw-semibold">Included</td>
-                        </tr>
-                      )}
-                      {parseFloat(viewBillingBooking.billingDetails?.roomChargeSummary?.totalDiscount || 0) > 0 && (
-                        <tr>
-                          <td className="text-success">Discount Applied</td>
-                          <td className="text-end text-success fw-semibold">
-                            -₱{parseFloat(viewBillingBooking.billingDetails.roomChargeSummary.totalDiscount).toFixed(2)}
-                          </td>
-                        </tr>
-                      )}
-                      {((parseFloat(viewBillingBooking.billingDetails?.extraGuestFee || 0) > 0) || (parseFloat(viewBillingBooking.billingDetails?.chargesBreakdown?.additionalFees?.extraGuestFee || 0) > 0) || (parseInt(viewBillingBooking.billingDetails?.extraGuests || 0) > 0)) && (
-                        <tr>
-                          <td>
-                            Additional Guest Fee ({viewBillingBooking.billingDetails?.extraGuests || viewBillingBooking.billingDetails?.chargesBreakdown?.additionalFees?.extraGuestsCount || 1} Extra Pax @ ₱100/night)
-                          </td>
-                          <td className="text-end text-danger fw-semibold">
-                            ₱{parseFloat(
-                              viewBillingBooking.billingDetails?.extraGuestFee ||
-                              viewBillingBooking.billingDetails?.chargesBreakdown?.additionalFees?.extraGuestFee ||
-                              0
-                            ).toFixed(2)}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Itemized Incidental Charges */}
-                <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                  <i className="bi bi-shield-check text-warning"></i> Incidental &amp; Extra Charges
-                </h6>
-                <div className="table-responsive mb-3">
-                  <table className="table table-sm table-bordered align-middle small mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Fee Description</th>
-                        <th className="text-end" style={{ width: '120px' }}>Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(!viewBillingBooking.incidentals || viewBillingBooking.incidentals.length === 0) ? (
-                        <tr>
-                          <td colSpan="2" className="text-center text-muted py-2">No incidental charges added.</td>
-                        </tr>
-                      ) : (
-                        viewBillingBooking.incidentals.map((inc, idx) => (
-                          <tr key={inc.chargeID || idx}>
-                            <td>
-                              <div>{inc.description}</div>
-                              {inc.createdAt && <span className="text-muted" style={{ fontSize: '0.72rem' }}>{inc.createdAt}</span>}
-                            </td>
-                            <td className="text-end fw-semibold text-danger">₱{parseFloat(inc.amount).toFixed(2)}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Room Service / Orders if present */}
-                {viewBillingBooking.billingDetails?.productCharges?.length > 0 && (
-                  <>
-                    <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                      <i className="bi bi-cup-hot-fill text-success"></i> Room Service &amp; Store Orders
-                    </h6>
-                    <div className="table-responsive mb-3">
-                      <table className="table table-sm table-bordered align-middle small mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Item</th>
-                            <th className="text-center" style={{ width: '60px' }}>Qty</th>
-                            <th className="text-end" style={{ width: '120px' }}>Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {viewBillingBooking.billingDetails.productCharges.map((item, idx) => (
-                            <tr key={idx}>
-                              <td>{item.name} {item.isFreeBreakfast && <span className="badge bg-success-subtle text-success ms-1">Package</span>}</td>
-                              <td className="text-center">{item.quantity}</td>
-                              <td className="text-end fw-semibold">₱{parseFloat(item.subtotal || 0).toFixed(2)}</td>
+                  {loadingBill && !billData?.chargesBreakdown && !billData?.roomChargeSummary ? (
+                    <div className="py-4">
+                      <div className="placeholder-glow mb-3">
+                        <div className="placeholder col-12 rounded py-3 mb-2 bg-secondary-subtle"></div>
+                        <div className="placeholder col-8 rounded py-2 mb-2 bg-secondary-subtle"></div>
+                        <div className="placeholder col-10 rounded py-2 mb-2 bg-secondary-subtle"></div>
+                        <div className="placeholder col-6 rounded py-2 bg-secondary-subtle"></div>
+                      </div>
+                      <div className="text-center text-muted small">
+                        <span className="spinner-border spinner-border-sm text-primary me-2"></span>
+                        Loading itemized ledger breakdown...
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Itemized Room Charges */}
+                      <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                        <i className="bi bi-door-open-fill text-primary"></i> Room Accommodation Charges
+                      </h6>
+                      <div className="table-responsive mb-3">
+                        <table className="table table-sm table-bordered align-middle small mb-0">
+                          <thead className="table-light">
+                            <tr>
+                              <th>Description &amp; Calculation Formula</th>
+                              <th className="text-end" style={{ width: '130px' }}>Amount</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-
-                {/* Hotel Amenities Ordered */}
-                {(viewBillingBooking.billingDetails?.amenityCharges?.length > 0 || viewBillingBooking.billingDetails?.chargesBreakdown?.orders?.amenities?.length > 0) && (
-                  <>
-                    <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                      <i className="bi bi-box2-heart-fill text-primary"></i> Hotel Amenities Ordered
-                    </h6>
-                    <div className="table-responsive mb-3">
-                      <table className="table table-sm table-bordered align-middle small mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Amenity Item</th>
-                            <th className="text-center" style={{ width: '60px' }}>Qty</th>
-                            <th className="text-end" style={{ width: '120px' }}>Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(viewBillingBooking.billingDetails?.amenityCharges || viewBillingBooking.billingDetails?.chargesBreakdown?.orders?.amenities || []).map((item, idx) => (
-                            <tr key={idx}>
-                              <td>{item.name}</td>
-                              <td className="text-center">{item.quantity}</td>
-                              <td className="text-end fw-semibold">₱{parseFloat(item.subtotal || (item.quantity * item.price) || 0).toFixed(2)}</td>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td>
+                                <div className="fw-semibold">Room Accommodation ({viewBillingBooking.roomType || 'Standard'})</div>
+                                <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+                                  â‚±{baseRate.toLocaleString('en-US', { minimumFractionDigits: 2 })} / night Ã— {stayNights} Night{stayNights > 1 ? 's' : ''}
+                                </div>
+                              </td>
+                              <td className="text-end fw-semibold">
+                                â‚±{baseRoomCharge.toFixed(2)}
+                              </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
+                            {extraPaxCount > 0 ? (
+                              <tr>
+                                <td>
+                                  <div className="fw-semibold text-danger">Extra Guest Surcharge</div>
+                                  <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+                                    {extraPaxCount} Extra Pax Ã— {stayNights} Night{stayNights > 1 ? 's' : ''} @ â‚±100.00/night
+                                  </div>
+                                  <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                    (Base Room Capacity: {roomCapacity} Pax)
+                                  </div>
+                                </td>
+                                <td className="text-end fw-semibold text-danger">
+                                  â‚±{extraGuestFee.toFixed(2)}
+                                </td>
+                              </tr>
+                            ) : (
+                              <tr>
+                                <td>
+                                  <div className="text-muted">Room Capacity Allocation</div>
+                                  <div className="text-muted" style={{ fontSize: '0.74rem' }}>
+                                    Standard Base Capacity: {roomCapacity} Pax (No extra guest surcharge)
+                                  </div>
+                                </td>
+                                <td className="text-end text-muted fw-semibold">â€”</td>
+                              </tr>
+                            )}
+                            {breakfastOption === 'with' && (
+                              <tr>
+                                <td>
+                                  <div className="fw-semibold text-success">Complimentary Breakfast Included</div>
+                                  <div className="text-muted" style={{ fontSize: '0.74rem' }}>
+                                    Daily quota: up to 2 complimentary meals per calendar date (Stay allowance: {2 * stayNights} complimentary meals)
+                                  </div>
+                                </td>
+                                <td className="text-end text-success fw-semibold">Included (â‚±0.00)</td>
+                              </tr>
+                            )}
+                            {totalDiscounts > 0 && (
+                              <tr>
+                                <td>
+                                  <div className="fw-semibold text-success">Discounts Applied</div>
+                                  {((billData.chargesBreakdown?.discounts?.beneficiaries || billData.finalGuestsList || []).filter(g => g.discountID || g.promotionID)).map((ben, bIdx) => (
+                                    <div key={bIdx} className="text-muted" style={{ fontSize: '0.74rem' }}>
+                                      â€¢ {ben.fullName || ben.beneficiaryName || `Beneficiary #${bIdx + 1}`} ({ben.discountName || ben.name || 'Senior/PWD'} - {ben.percentage || 20}%)
+                                    </div>
+                                  ))}
+                                </td>
+                                <td className="text-end text-success fw-semibold">
+                                  -â‚±{totalDiscounts.toFixed(2)}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
 
-                {/* Payment History Breakdown */}
-                <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                  <i className="bi bi-cash-stack text-success"></i> Payments Recorded
-                </h6>
-                <div className="table-responsive mb-3">
-                  <table className="table table-sm table-bordered align-middle small mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Payment Detail</th>
-                        <th>Method</th>
-                        <th className="text-end" style={{ width: '120px' }}>Amount Paid</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(!viewBillingBooking.billingDetails?.paymentsList || viewBillingBooking.billingDetails.paymentsList.length === 0) ? (
-                        <tr>
-                          <td colSpan="3" className="text-center text-muted py-2">No payments recorded yet.</td>
-                        </tr>
-                      ) : (
-                        viewBillingBooking.billingDetails.paymentsList.map((p, idx) => (
-                          <tr key={p.paymentID || idx}>
-                            <td>Payment #{p.paymentID} <span className="text-muted small">({p.paymentDate})</span></td>
-                            <td>{p.paymentMethod || 'GCash'}</td>
-                            <td className="text-end fw-semibold text-success">₱{parseFloat(p.amount).toFixed(2)}</td>
-                          </tr>
-                        ))
+                      {/* Store Orders & Room Service */}
+                      {productsList.length > 0 && (
+                        <>
+                          <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                            <i className="bi bi-cup-hot-fill text-success"></i> Store &amp; Breakfast Orders
+                          </h6>
+                          <div className="table-responsive mb-3">
+                            <table className="table table-sm table-bordered align-middle small mb-0">
+                              <thead className="table-light">
+                                <tr>
+                                  <th>Item Description</th>
+                                  <th style={{ width: '130px' }}>Delivery Date</th>
+                                  <th className="text-center" style={{ width: '60px' }}>Qty</th>
+                                  <th className="text-end" style={{ width: '110px' }}>Subtotal</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {productsList.map((item, idx) => {
+                                  const isComp = Boolean(item.isComplimentary || parseFloat(item.price) === 0 || item.isFreeBreakfast);
+                                  const subtotal = isComp ? 0 : parseFloat(item.subtotal || (item.price * item.quantity) || 0);
+                                  return (
+                                    <tr key={idx}>
+                                      <td>
+                                        <div className="fw-semibold">{item.name}</div>
+                                        {isComp && (
+                                          <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.70rem' }}>
+                                            Complimentary Package (â‚±0.00)
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="text-muted" style={{ fontSize: '0.76rem' }}>
+                                        {item.deliveryDate ? formatDateTime12H(item.deliveryDate) : 'â€”'}
+                                      </td>
+                                      <td className="text-center">{item.quantity}</td>
+                                      <td className="text-end fw-semibold">
+                                        {isComp ? <span className="text-success">â‚±0.00</span> : `â‚±${subtotal.toFixed(2)}`}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
                       )}
-                    </tbody>
-                  </table>
+
+                      {/* Amenities Ordered */}
+                      {amenitiesList.length > 0 && (
+                        <>
+                          <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                            <i className="bi bi-box2-heart-fill text-primary"></i> Hotel Amenities Ordered
+                          </h6>
+                          <div className="table-responsive mb-3">
+                            <table className="table table-sm table-bordered align-middle small mb-0">
+                              <thead className="table-light">
+                                <tr>
+                                  <th>Amenity Item</th>
+                                  <th className="text-center" style={{ width: '60px' }}>Qty</th>
+                                  <th className="text-end" style={{ width: '110px' }}>Subtotal</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {amenitiesList.map((item, idx) => (
+                                  <tr key={idx}>
+                                    <td>{item.name}</td>
+                                    <td className="text-center">{item.quantity}</td>
+                                    <td className="text-end fw-semibold">
+                                      â‚±{parseFloat(item.subtotal || (item.quantity * item.price) || 0).toFixed(2)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Itemized Incidental Charges */}
+                      <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                        <i className="bi bi-shield-check text-warning"></i> Incidental Fees &amp; Damages
+                      </h6>
+                      <div className="table-responsive mb-3">
+                        <table className="table table-sm table-bordered align-middle small mb-0">
+                          <thead className="table-light">
+                            <tr>
+                              <th>Fee Description</th>
+                              <th className="text-end" style={{ width: '120px' }}>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {incidentalsList.length === 0 ? (
+                              <tr>
+                                <td colSpan="2" className="text-center text-muted py-2">No incidental charges added.</td>
+                              </tr>
+                            ) : (
+                              incidentalsList.map((inc, idx) => (
+                                <tr key={inc.chargeID || idx}>
+                                  <td>
+                                    <div>{inc.description}</div>
+                                    {inc.createdAt && <span className="text-muted" style={{ fontSize: '0.72rem' }}>{formatDateTime12H(inc.createdAt)}</span>}
+                                  </td>
+                                  <td className="text-end fw-semibold text-danger">â‚±{parseFloat(inc.amount).toFixed(2)}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Payment History Breakdown */}
+                      <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                        <i className="bi bi-cash-stack text-success"></i> Payments Recorded
+                      </h6>
+                      <div className="table-responsive mb-3">
+                        <table className="table table-sm table-bordered align-middle small mb-0">
+                          <thead className="table-light">
+                            <tr>
+                              <th>Payment Detail</th>
+                              <th>Method</th>
+                              <th className="text-end" style={{ width: '120px' }}>Amount Paid</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paymentsList.length === 0 ? (
+                              <tr>
+                                <td colSpan="3" className="text-center text-muted py-2">No payments recorded yet.</td>
+                              </tr>
+                            ) : (
+                              paymentsList.map((p, idx) => (
+                                <tr key={p.paymentID || idx}>
+                                  <td>Payment #{p.paymentID} <span className="text-muted small">({p.paymentDate ? formatDateTime12H(p.paymentDate) : ''})</span></td>
+                                  <td>{p.paymentMethod || 'GCash'}</td>
+                                  <td className="text-end fw-semibold text-success">â‚±{parseFloat(p.amount).toFixed(2)}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Balance Summary Box */}
+                      <div className="p-3 bg-light rounded border">
+                        <div className="d-flex justify-content-between mb-1 small">
+                          <span className="text-muted">Total Charges:</span>
+                          <strong className="text-dark">
+                            â‚±{grossTotal.toFixed(2)}
+                          </strong>
+                        </div>
+                        {totalDiscounts > 0 && (
+                          <div className="d-flex justify-content-between mb-1 small text-success">
+                            <span>Total Discounts:</span>
+                            <strong>-â‚±{totalDiscounts.toFixed(2)}</strong>
+                          </div>
+                        )}
+                        <div className="d-flex justify-content-between mb-1 small">
+                          <span className="text-muted">Total Payments Made:</span>
+                          <strong className="text-success">
+                            â‚±{totalPaid.toFixed(2)}
+                          </strong>
+                        </div>
+                        <hr className="my-2" />
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="fw-bold text-dark">Remaining Final Balance:</span>
+                          <span className={`fw-bold fs-5 ${balanceDue > 0 ? 'text-danger' : 'text-success'}`}>
+                            â‚±{balanceDue.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                {/* Balance Summary Box */}
-                <div className="p-3 bg-light rounded border">
-                  <div className="d-flex justify-content-between mb-1 small">
-                    <span className="text-muted">Total Charges:</span>
-                    <strong className="text-dark">
-                      ₱{parseFloat(viewBillingBooking.billingDetails?.totalAmount || viewBillingBooking.rate || 0).toFixed(2)}
-                    </strong>
-                  </div>
-                  <div className="d-flex justify-content-between mb-1 small">
-                    <span className="text-muted">Total Payments Made:</span>
-                    <strong className="text-success">
-                      ₱{parseFloat(viewBillingBooking.billingDetails?.paidTotal || 0).toFixed(2)}
-                    </strong>
-                  </div>
-                  <hr className="my-2" />
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span className="fw-bold text-dark">Remaining Final Balance:</span>
-                    <span className={`fw-bold fs-5 ${parseFloat(viewBillingBooking.remainingBalance || 0) > 0 ? 'text-danger' : 'text-success'}`}>
-                      ₱{parseFloat(viewBillingBooking.remainingBalance || 0).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer bg-light border-top">
-                <button type="button" className="btn btn-secondary" onClick={() => setViewBillingBooking(null)}>
-                  Close
-                </button>
-                {normalizeBookingStatus(viewBillingBooking.status) === 'Bill Ready' && parseFloat(viewBillingBooking.remainingBalance || 0) > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-primary fw-bold px-4 text-white shadow-sm"
-                    aria-label="Proceed to Payment"
-                    onClick={() => {
-                      const target = viewBillingBooking;
-                      setViewBillingBooking(null);
-                      handleInitiatePay(target);
-                    }}
-                  >
-                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment
+                <div className="modal-footer bg-light border-top">
+                  <button type="button" className="btn btn-secondary" onClick={() => setViewBillingBooking(null)}>
+                    Close
                   </button>
-                )}
+                  {normalizeBookingStatus(viewBillingBooking.status) === 'Bill Ready' && balanceDue > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-primary fw-bold px-4 text-white shadow-sm"
+                      aria-label="Proceed to Payment"
+                      onClick={() => {
+                        const target = viewBillingBooking;
+                        setViewBillingBooking(null);
+                        handleInitiatePay(target);
+                      }}
+                    >
+                      <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL WORKFLOW: ROOM DETAILS MODAL */}
       {activeModal === 'room_details' && selectedRoom && (

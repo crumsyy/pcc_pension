@@ -91,9 +91,9 @@ export default async function GuestDashboard() {
       dbQuery(
         `SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit, r.image, r.description,
                 r.breakfastRate,
-                COALESCE(rt.minOccupancy, 2) as roomBasePax,
-                COALESCE(rt.minOccupancy, 2) as minOccupancy,
-                COALESCE(rt.maxOccupancy, r.occupancyLimit, 4) as maxOccupancy,
+                COALESCE(r.occupancyLimit, 4) as occupancyLimit,
+                COALESCE(r.occupancyLimit, 4) as roomBasePax,
+                COALESCE(r.occupancyLimit, 4) as maxOccupancy,
                 COALESCE(rt.type, 'Standard Room') as roomType,
                 COALESCE(fl.name, 'Ground Floor') as floorName,
                 (

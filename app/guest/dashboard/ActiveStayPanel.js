@@ -175,31 +175,62 @@ export default function ActiveStayPanel({
             </div>
 
             {loadingBill ? (
-              <div className="text-center py-3 text-muted small">
-                <span className="spinner-border spinner-border-sm text-primary me-2"></span>
-                <span>Loading itemized billing details...</span>
+              <div className="placeholder-glow py-3">
+                <div className="placeholder col-12 rounded py-2 mb-2 bg-secondary-subtle"></div>
+                <div className="placeholder col-8 rounded py-2 mb-2 bg-secondary-subtle"></div>
+                <div className="placeholder col-10 rounded py-2 mb-2 bg-secondary-subtle"></div>
+                <div className="placeholder col-6 rounded py-2 bg-secondary-subtle"></div>
+                <div className="text-center text-muted small mt-2">
+                  <span className="spinner-border spinner-border-sm text-primary me-2"></span>
+                  Loading itemized billing details...
+                </div>
               </div>
             ) : (
               <div className="d-flex flex-column gap-2" style={{ fontSize: '0.82rem' }}>
                 {/* 1. Room Charges */}
-                <div className="p-2.5 bg-white rounded border">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="fw-semibold text-dark">
-                      <i className="bi bi-door-closed me-1.5 text-primary"></i>
-                      {detailedBill?.booking?.roomType || activeBookingStay.roomType || 'Room'} ({detailedBill?.nights || detailedBill?.chargesBreakdown?.room?.nights || 1} Night(s))
-                    </span>
-                    <span className="fw-bold text-dark">
-                      ₱{parseFloat(detailedBill?.chargesBreakdown?.room?.finalRoomCharge || detailedBill?.finalRoomCharge || (activeBookingStay.rate * (detailedBill?.nights || 1)) || 0).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="text-muted small d-flex flex-wrap gap-2" style={{ fontSize: '0.74rem' }}>
-                    <span>Rate: ₱{parseFloat(detailedBill?.chargesBreakdown?.room?.rate || activeBookingStay.rate || 0).toFixed(2)}/night</span>
-                    <span>• Breakfast: <strong className="text-dark">{detailedBill?.booking?.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast Included'}</strong></span>
-                    {(detailedBill?.chargesBreakdown?.additionalFees?.extraGuestsCount > 0) && (
-                      <span>• Extra Pax: {detailedBill.chargesBreakdown.additionalFees.extraGuestsCount} (₱{parseFloat(detailedBill.chargesBreakdown.additionalFees.extraGuestFee).toFixed(2)})</span>
-                    )}
-                  </div>
-                </div>
+                {(() => {
+                  const roomBreakdown = detailedBill?.chargesBreakdown?.room || {};
+                  const baseRate = parseFloat(roomBreakdown.rate || detailedBill?.rate || activeBookingStay.rate || 0);
+                  const stayNights = parseInt(roomBreakdown.nights || detailedBill?.nights || 1, 10);
+                  const baseRoomCharge = parseFloat(roomBreakdown.baseCharge || (baseRate * stayNights));
+                  const roomCapacity = parseInt(roomBreakdown.capacity || detailedBill?.roomCapacity || activeBookingStay.occupancyLimit || 4, 10);
+                  const extraPaxCount = parseInt(roomBreakdown.extraPax !== undefined ? roomBreakdown.extraPax : (detailedBill?.extraGuests || detailedBill?.chargesBreakdown?.additionalFees?.extraGuestsCount || 0), 10);
+                  const extraGuestFee = parseFloat(roomBreakdown.extraGuestFee !== undefined ? roomBreakdown.extraGuestFee : (detailedBill?.extraGuestFee || detailedBill?.chargesBreakdown?.additionalFees?.extraGuestFee || 0));
+                  const totalRoomCharge = parseFloat(roomBreakdown.totalRoomCharge || detailedBill?.finalRoomCharge || (baseRoomCharge + extraGuestFee));
+
+                  return (
+                    <div className="p-2.5 bg-white rounded border">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <span className="fw-semibold text-dark">
+                          <i className="bi bi-door-closed me-1.5 text-primary"></i>
+                          {detailedBill?.booking?.roomType || activeBookingStay.roomType || 'Room'} ({stayNights} Night{stayNights > 1 ? 's' : ''})
+                        </span>
+                        <span className="fw-bold text-dark">
+                          ₱{totalRoomCharge.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="text-muted small d-flex flex-column gap-1" style={{ fontSize: '0.74rem' }}>
+                        <div className="d-flex justify-content-between">
+                          <span>• Base Accommodation: ₱{baseRate.toLocaleString('en-US', { minimumFractionDigits: 2 })}/night × {stayNights} Night{stayNights > 1 ? 's' : ''}</span>
+                          <span className="fw-semibold text-dark">₱{baseRoomCharge.toFixed(2)}</span>
+                        </div>
+                        {extraPaxCount > 0 ? (
+                          <div className="d-flex justify-content-between text-danger">
+                            <span>• Extra Pax: {extraPaxCount} Extra Pax × {stayNights} Night{stayNights > 1 ? 's' : ''} @ ₱100/night (Capacity: {roomCapacity} Pax)</span>
+                            <span className="fw-semibold">₱{extraGuestFee.toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <div className="text-muted">
+                            • Base Room Capacity: {roomCapacity} Pax (No extra guest surcharge)
+                          </div>
+                        )}
+                        <div>
+                          • Breakfast Option: <strong className="text-dark">{detailedBill?.booking?.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast Included (Up to 2/day)'}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 2. Cooked Meals */}
                 {((detailedBill?.chargesBreakdown?.orders?.products || detailedBill?.cookedMealCharges || []).some(p => p.productCategoryID === 3 || p.isComplimentary || (p.name && p.name.toLowerCase().includes('breakfast')))) && (

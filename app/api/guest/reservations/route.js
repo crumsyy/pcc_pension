@@ -432,7 +432,7 @@ export async function PATCH(request) {
     const breakfastOption = isWithBreakfast ? 'With Breakfast' : 'Without Breakfast';
     const breakfastID = isWithBreakfast ? 2 : 1;
     const roomRate = isWithBreakfast ? parseFloat(reservation.rateWithBreakfast || 0) : parseFloat(reservation.rateWithoutBreakfast || 0);
-    const roomBasePax = parseInt(reservation.occupancyLimit || 2);
+    const roomBasePax = Math.max(1, parseInt(reservation.occupancyLimit || 4, 10));
     const totalGuests = parseInt(body.numGuests || reservation.guestCount || 1);
     const extraGuests = Math.max(0, totalGuests - roomBasePax);
     const extraGuestFee = extraGuests * 100 * nights;
