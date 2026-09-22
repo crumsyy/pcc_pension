@@ -25,12 +25,19 @@ export async function GET(request) {
     let selectedMessages = [];
 
     if (selectedID) {
-      // Mark unread for receptionist as 0 when thread is opened
-      await dbQuery("UPDATE inquiry SET unreadReceptionist = 0 WHERE inquiryID = ?", [selectedID]);
-      await dbQuery("UPDATE inquiry_message SET isRead = 1 WHERE inquiryID = ? AND senderType = 'Guest'", [selectedID]);
-
+      // Read-only query: NEVER mark as read on GET/polling. Only mark_read action does.
       selectedMessages = await dbQuery(
-        "SELECT * FROM inquiry_message WHERE inquiryID = ? ORDER BY timestamp ASC",
+        `SELECT messageID, inquiryID, 
+                COALESCE(senderRole, LOWER(senderType)) as senderRole,
+                COALESCE(senderType, 'Guest') as senderType,
+                senderID, senderName, 
+                COALESCE(messageText, message) as messageText,
+                COALESCE(message, messageText) as message,
+                COALESCE(status, 'Delivered') as status,
+                isRead, createdAt, readAt, timestamp 
+         FROM inquiry_message 
+         WHERE inquiryID = ? 
+         ORDER BY createdAt ASC, timestamp ASC, messageID ASC`,
         [selectedID]
       );
     }
@@ -57,9 +64,10 @@ export async function POST(request) {
     const pad = (num) => String(num).padStart(2, '0');
     const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
 
-    // Get staff name
-    const staffRes = await dbQuery("SELECT firstName, lastName FROM staff WHERE userID = ?", [session.userID]);
+    // Get staff name and ID
+    const staffRes = await dbQuery("SELECT staffID, firstName, lastName FROM staff WHERE userID = ?", [session.userID]);
     const staffName = staffRes.length > 0 ? `${staffRes[0].firstName} ${staffRes[0].lastName}` : 'Front Desk Staff';
+    const staffID = staffRes.length > 0 ? staffRes[0].staffID : (session.userID || 0);
 
     if (action === 'reach_out') {
       const { guestName, email, contactNumber, message, guestID } = body;
@@ -75,11 +83,11 @@ export async function POST(request) {
       );
       const newInquiryID = inqRes.insertId;
 
-      // Insert first message
+      // Insert first message defaulting to 'Delivered'
       await dbQuery(
-        `INSERT INTO inquiry_message (inquiryID, senderType, senderName, message, isRead, timestamp)
-         VALUES (?, 'Receptionist', ?, ?, 1, ?)`,
-        [newInquiryID, staffName, message, nowStr]
+        `INSERT INTO inquiry_message (inquiryID, senderRole, senderType, senderID, senderName, messageText, message, status, isRead, createdAt, timestamp)
+         VALUES (?, 'receptionist', 'Receptionist', ?, ?, ?, ?, 'Delivered', 0, NOW(), NOW())`,
+        [newInquiryID, staffID, staffName, message, message]
       );
 
       // Dispatch in-app notification to the guest if guestID is available
@@ -112,11 +120,11 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Missing inquiry ID or response content.' }, { status: 400 });
       }
 
-      // Insert message into inquiry_message thread
+      // Insert message into inquiry_message thread defaulting to 'Delivered'
       await dbQuery(
-        `INSERT INTO inquiry_message (inquiryID, senderType, senderName, message, isRead, timestamp)
-         VALUES (?, 'Receptionist', ?, ?, 1, ?)`,
-        [inquiryID, staffName, response, nowStr]
+        `INSERT INTO inquiry_message (inquiryID, senderRole, senderType, senderID, senderName, messageText, message, status, isRead, createdAt, timestamp)
+         VALUES (?, 'receptionist', 'Receptionist', ?, ?, ?, ?, 'Delivered', 0, NOW(), NOW())`,
+        [inquiryID, staffID, staffName, response, response]
       );
 
       // Update inquiry status to Responded and increment unreadGuest
@@ -128,7 +136,17 @@ export async function POST(request) {
       );
 
       const messages = await dbQuery(
-        "SELECT * FROM inquiry_message WHERE inquiryID = ? ORDER BY timestamp ASC",
+        `SELECT messageID, inquiryID, 
+                COALESCE(senderRole, LOWER(senderType)) as senderRole,
+                COALESCE(senderType, 'Guest') as senderType,
+                senderID, senderName, 
+                COALESCE(messageText, message) as messageText,
+                COALESCE(message, messageText) as message,
+                COALESCE(status, 'Delivered') as status,
+                isRead, createdAt, readAt, timestamp 
+         FROM inquiry_message 
+         WHERE inquiryID = ? 
+         ORDER BY createdAt ASC, timestamp ASC, messageID ASC`,
         [inquiryID]
       );
 
@@ -147,9 +165,9 @@ export async function POST(request) {
 
       if (status === 'Closed') {
         await dbQuery(
-          `INSERT INTO inquiry_message (inquiryID, senderType, senderName, message, isRead, timestamp)
-           VALUES (?, 'System', 'System', 'Conversation closed by Receptionist.', 1, ?)`,
-          [inquiryID, nowStr]
+          `INSERT INTO inquiry_message (inquiryID, senderRole, senderType, senderID, senderName, messageText, message, status, isRead, createdAt, timestamp)
+           VALUES (?, 'bot', 'System', 0, 'System', 'Conversation closed by Receptionist.', 'Conversation closed by Receptionist.', 'Read', 1, NOW(), NOW())`,
+          [inquiryID]
         );
       }
 
@@ -160,9 +178,16 @@ export async function POST(request) {
       const inquiryID = parseInt(body.inquiryID);
       if (inquiryID) {
         await dbQuery("UPDATE inquiry SET unreadReceptionist = 0 WHERE inquiryID = ?", [inquiryID]);
-        await dbQuery("UPDATE inquiry_message SET isRead = 1 WHERE inquiryID = ? AND senderType = 'Guest'", [inquiryID]);
+        await dbQuery(
+          `UPDATE inquiry_message 
+           SET status = 'Read', isRead = 1, readAt = NOW() 
+           WHERE inquiryID = ? 
+             AND (senderRole != 'receptionist' OR senderRole IS NULL) 
+             AND status != 'Read'`,
+          [inquiryID]
+        );
       }
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, message: 'Inquiry thread marked as read.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

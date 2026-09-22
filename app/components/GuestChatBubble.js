@@ -16,17 +16,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
   const [dbInquiry, setDbInquiry] = useState(null);
   const chatBodyRef = useRef(null);
 
-  // Catalog for Chat Ordering
-  const [catalog, setCatalog] = useState({ products: [], cookedMeals: [], amenities: [] });
-  const [pendingOrderPill, setPendingOrderPill] = useState(null); // { itemID, name, type, price, quantity, total }
-  const [placingOrder, setPlacingOrder] = useState(false);
-  const [orderWizard, setOrderWizard] = useState({
-    step: null, // 'category', 'item', 'quantity', 'delivery_time'
-    category: '',
-    selectedItem: null,
-    quantity: 1,
-    deliveryTime: '08:00 AM'
-  });
+
 
   // Visitor Request Form States
   const [currentUser, setCurrentUser] = useState(null);
@@ -64,21 +54,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     }
   };
 
-  const fetchCatalog = async () => {
-    try {
-      const res = await fetch('/api/guest/orders');
-      if (res.ok) {
-        const data = await res.json();
-        setCatalog({
-          products: data.products || [],
-          cookedMeals: data.cookedMeals || [],
-          amenities: data.amenities || []
-        });
-      }
-    } catch (err) {
-      console.error("Failed to load catalog for chat ordering:", err);
-    }
-  };
+
 
   const fetchLiveInquiry = async () => {
     try {
@@ -100,18 +76,40 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     }
   };
 
+  const markThreadAsRead = async (inquiryID) => {
+    if (!inquiryID) return;
+    try {
+      await fetch('/api/guest/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_read', inquiryID })
+      });
+      setDbInquiry(prev => prev ? { ...prev, unreadGuest: 0 } : null);
+      setLiveMessages(prev => prev.map(m => m.senderType !== 'Guest' ? { ...m, isRead: 1, status: 'Read' } : m));
+    } catch (err) {
+      console.error("Failed to mark messages as read:", err);
+    }
+  };
+
   useEffect(() => {
     checkSession();
   }, []);
 
   useEffect(() => {
     if (isOpen) {
-      if (catalog.products.length === 0) {
-        fetchCatalog();
-      }
       fetchLiveInquiry();
     }
   }, [isOpen]);
+
+  // Mark thread as read ONLY when user actively opens the live chat
+  useEffect(() => {
+    if (isOpen && activeTabMode === 'live' && dbInquiry?.inquiryID) {
+      const hasUnread = dbInquiry.unreadGuest > 0 || liveMessages.some(m => m.senderType !== 'Guest' && m.status !== 'Read');
+      if (hasUnread) {
+        markThreadAsRead(dbInquiry.inquiryID);
+      }
+    }
+  }, [isOpen, activeTabMode, dbInquiry?.inquiryID, dbInquiry?.unreadGuest, liveMessages]);
 
   // Polling for live chat responses with adaptive frequency
   useEffect(() => {
@@ -130,7 +128,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
         }
       });
     });
-  }, [botMessages, liveMessages, activeTabMode, isOpen, showRequestForm, pendingOrderPill, isSendingMessage]);
+  }, [botMessages, liveMessages, activeTabMode, isOpen, showRequestForm, isSendingMessage]);
 
   const knowledgeBase = {
     rates: "PCC Room Rates Per Night:\n" +
@@ -158,46 +156,9 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
       "📍 Osmeña Street, Zone 1, Koronadal City, South Cotabato, Philippines\n" +
       "📞 Contact: 09000000000 | Email: info@pccsuite.com",
     reservation: "Reservations:\n" +
-      "You can reserve a room directly via our Booking portal or by requesting assistance from our Receptionist staff below!"
-  };
-
-  // Smart Order Parser: Detects items like "2 Bottled Waters", "1 Chicken Meal", "1 Pillow"
-  const parseOrderIntent = (msg) => {
-    const text = msg.toLowerCase();
-    const allItems = [
-      ...catalog.products.map(p => ({ ...p, type: 'Product' })),
-      ...catalog.cookedMeals.map(m => ({ ...m, type: 'Product', isCookedMeal: true })),
-      ...catalog.amenities.map(a => ({ ...a, type: 'Amenity' }))
-    ];
-
-    for (const item of allItems) {
-      const itemName = item.name.toLowerCase();
-      // Check if text mentions item name or key tokens
-      const keywords = itemName.split(/\s+/).filter(w => w.length > 2);
-      const isMatch = keywords.some(kw => text.includes(kw));
-
-      if (isMatch) {
-        // Extract quantity from text (e.g. "2 water" -> 2)
-        const matchNumber = text.match(/\b(\d+)\b/);
-        const qty = matchNumber ? parseInt(matchNumber[1]) : 1;
-        const price = parseFloat(item.price);
-        const itemID = item.productID || item.amenityID;
-
-        const now = new Date();
-        const currentMins = now.getHours() * 60 + now.getMinutes();
-        return {
-          itemID,
-          name: item.name,
-          type: item.type,
-          price,
-          quantity: qty,
-          total: price * qty,
-          isCookedMeal: !!item.isCookedMeal,
-          isRestrictedWindow: false
-        };
-      }
-    }
-    return null;
+      "You can reserve a room directly via our Booking portal or by requesting assistance from our Receptionist staff below!",
+    orders: "Room Service & Orders:\n" +
+      "To order breakfast meals, beverages, snacks, or extra room amenities, please go to the 'Room Service & Orders' tab on your dashboard."
   };
 
   const getBotReply = (msg) => {
@@ -208,6 +169,9 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     if (text.includes('checkin') || text.includes('checkout') || text.includes('check-in') || text.includes('check-out') || text.includes('time')) {
       return knowledgeBase.checkin;
     }
+    if (text.includes('order') || text.includes('food') || text.includes('breakfast') || text.includes('meal') || text.includes('snack') || text.includes('drink') || text.includes('coffee') || text.includes('water')) {
+      return knowledgeBase.orders;
+    }
     if (text.includes('amenity') || text.includes('wifi') || text.includes('facility') || text.includes('shower')) {
       return knowledgeBase.amenities;
     }
@@ -217,7 +181,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     if (text.includes('reserve') || text.includes('book') || text.includes('reservation')) {
       return knowledgeBase.reservation;
     }
-    return "I can help with room rates, check-in times, amenities, location, or room ordering (e.g., '1 Bottled Water' or '1 Chicken Meal'). You can also click 'Request Receptionist' to speak directly with staff!";
+    return "I can help with room rates, check-in times, amenities, location, or reservations. For food and room service, please visit the Orders tab. You can also click 'Request Receptionist' to chat directly with our staff!";
   };
 
   const handleSendBotMessage = (text) => {
@@ -227,237 +191,11 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     setInput('');
     setIsSendingMessage(true);
 
-    // Check if message is an ordering request
-    const detectedOrder = parseOrderIntent(text);
-    if (detectedOrder) {
-      if (detectedOrder.isRestrictedWindow) {
-        setTimeout(() => {
-          setBotMessages(prev => [...prev, {
-            sender: 'bot',
-            text: `⚠️ Ordering Window Restricted: Cooked meals (breakfast) can only be ordered between 6:00 AM and 10:30 AM.`
-          }]);
-          setIsSendingMessage(false);
-        }, 400);
-        return;
-      }
-
-      setTimeout(() => {
-        setPendingOrderPill(detectedOrder);
-        setBotMessages(prev => [...prev, {
-          sender: 'bot',
-          text: `I detected your order request for ${detectedOrder.quantity}x ${detectedOrder.name}. Please confirm below to add it to your stay billing.`
-        }]);
-        setIsSendingMessage(false);
-      }, 400);
-      return;
-    }
-
     setTimeout(() => {
       const reply = getBotReply(text);
       setBotMessages(prev => [...prev, { sender: 'bot', text: reply }]);
       setIsSendingMessage(false);
     }, 400);
-  };
-
-  const handleConfirmOrder = async () => {
-    if (!pendingOrderPill || placingOrder) return;
-    setPlacingOrder(true);
-
-    try {
-      const res = await fetch('/api/guest/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: [
-            {
-              itemID: pendingOrderPill.itemID,
-              type: pendingOrderPill.type,
-              quantity: pendingOrderPill.quantity,
-              name: pendingOrderPill.name
-            }
-          ],
-          deliveryDate: pendingOrderPill.deliveryDate || null,
-          deliveryTime: pendingOrderPill.isCookedMeal ? (pendingOrderPill.deliveryTime || '08:00 AM') : null
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to place order');
-
-      setBotMessages(prev => [...prev, {
-        sender: 'bot',
-        text: `✅ Order Placed! ${pendingOrderPill.quantity}x ${pendingOrderPill.name} (Total: ₱${pendingOrderPill.total.toFixed(2)}) has been added to your stay SOA.`
-      }]);
-
-      setPendingOrderPill(null);
-    } catch (err) {
-      setBotMessages(prev => [...prev, {
-        sender: 'bot',
-        text: `❌ Order Error: ${err.message}`
-      }]);
-    } finally {
-      setPlacingOrder(false);
-    }
-  };
-
-  const handleQuickOption = (key, label) => {
-    setBotMessages(prev => [...prev, { sender: 'user', text: label }]);
-    setIsSendingMessage(true);
-    setTimeout(() => {
-      const reply = knowledgeBase[key];
-      setBotMessages(prev => [...prev, { sender: 'bot', text: reply }]);
-      setIsSendingMessage(false);
-    }, 350);
-  };
-
-  const handleStartOrderWizard = () => {
-    setOrderWizard({
-      step: 'category',
-      category: '',
-      selectedItem: null,
-      quantity: 1,
-      deliveryTime: '08:00 AM'
-    });
-    setBotMessages(prev => [
-      ...prev,
-      { sender: 'user', text: 'Order Food / Items' },
-      { sender: 'bot', text: '🛒 Step 1 of 4: What category of items would you like to order?' }
-    ]);
-  };
-
-  const getManilaDateInfo = () => {
-    try {
-      const formatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Manila',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-      const timeFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Asia/Manila',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      const todayStr = formatter.format(new Date());
-      const tParts = timeFormatter.formatToParts(new Date());
-      const p = {};
-      tParts.forEach(({ type, value }) => { p[type] = value; });
-      const currentMins = parseInt(p.hour, 10) * 60 + parseInt(p.minute, 10);
-      
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = formatter.format(tomorrow);
-
-      return { todayStr, tomorrowStr, currentMins };
-    } catch (e) {
-      const d = new Date();
-      const todayStr = d.toISOString().split('T')[0];
-      d.setDate(d.getDate() + 1);
-      const tomorrowStr = d.toISOString().split('T')[0];
-      return { todayStr, tomorrowStr, currentMins: 0 };
-    }
-  };
-
-  const handleSelectOrderCategory = (cat) => {
-    if (cat === 'Cooked Meals') {
-      const { currentMins } = getManilaDateInfo();
-      if (currentMins > 630) {
-        setOrderWizard(prev => ({ ...prev, step: 'item', category: cat, isAdvanceTomorrow: true }));
-        setBotMessages(prev => [
-          ...prev,
-          { sender: 'user', text: cat },
-          { sender: 'bot', text: '🍽️ Advance Breakfast Order: Orders placed now will be scheduled for tomorrow morning (6:30 AM - 10:30 AM). Select an item below:' }
-        ]);
-        return;
-      }
-    }
-
-    setOrderWizard(prev => ({ ...prev, step: 'item', category: cat, isAdvanceTomorrow: false }));
-    setBotMessages(prev => [
-      ...prev,
-      { sender: 'user', text: cat },
-      { sender: 'bot', text: `🍽️ Step 2 of 4: Select an item from ${cat}:` }
-    ]);
-  };
-
-  const handleSelectOrderItem = (item) => {
-    setOrderWizard(prev => ({ ...prev, step: 'quantity', selectedItem: item }));
-    setBotMessages(prev => [
-      ...prev,
-      { sender: 'user', text: `${item.name} (₱${parseFloat(item.price).toFixed(2)})` },
-      { sender: 'bot', text: `🔢 Step 3 of 4: How many units of ${item.name} would you like?` }
-    ]);
-  };
-
-  const handleSelectOrderQty = (qty) => {
-    const isMeal = orderWizard.category === 'Cooked Meals' || orderWizard.selectedItem?.isCookedMeal;
-    const nextStep = isMeal ? 'delivery_time' : 'confirm';
-
-    setOrderWizard(prev => ({ ...prev, step: nextStep, quantity: qty }));
-
-    if (isMeal) {
-      setBotMessages(prev => [
-        ...prev,
-        { sender: 'user', text: `${qty}x` },
-        { sender: 'bot', text: '⏰ Step 4 of 4: Select preferred room delivery time (6:00 AM - 10:30 AM):' }
-      ]);
-    } else {
-      const price = parseFloat(orderWizard.selectedItem.price);
-      const total = price * qty;
-      const pill = {
-        itemID: orderWizard.selectedItem.productID || orderWizard.selectedItem.amenityID,
-        name: orderWizard.selectedItem.name,
-        type: orderWizard.category === 'Amenities' ? 'Amenity' : 'Product',
-        price,
-        quantity: qty,
-        total,
-        isCookedMeal: false,
-        deliveryTime: null
-      };
-      setPendingOrderPill(pill);
-      setOrderWizard({ step: null, category: '', selectedItem: null, quantity: 1, deliveryTime: '08:00 AM' });
-      setBotMessages(prev => [
-        ...prev,
-        { sender: 'user', text: `${qty}x` },
-        { sender: 'bot', text: `Order prepared! Please confirm below to add ${qty}x ${pill.name} to your stay billing.` }
-      ]);
-    }
-  };
-
-  const handleSelectDeliveryTime = (timeStr) => {
-    const { todayStr, tomorrowStr, currentMins } = getManilaDateInfo();
-    const [timePart, meridiem] = timeStr.split(' ');
-    const [h, m] = timePart.split(':');
-    let hr = parseInt(h, 10);
-    if (meridiem === 'PM' && hr !== 12) hr += 12;
-    if (meridiem === 'AM' && hr === 12) hr = 0;
-    const slotMin = hr * 60 + parseInt(m, 10);
-
-    const isTomorrow = orderWizard.isAdvanceTomorrow || (slotMin <= currentMins);
-    const targetDate = isTomorrow ? tomorrowStr : todayStr;
-    const targetDateLabel = isTomorrow ? `Tomorrow (${tomorrowStr})` : `Today (${todayStr})`;
-
-    const price = parseFloat(orderWizard.selectedItem.price);
-    const total = price * orderWizard.quantity;
-    const pill = {
-      itemID: orderWizard.selectedItem.productID || orderWizard.selectedItem.amenityID,
-      name: orderWizard.selectedItem.name,
-      type: 'Product',
-      price,
-      quantity: orderWizard.quantity,
-      total,
-      isCookedMeal: true,
-      deliveryDate: targetDate,
-      deliveryTime: timeStr
-    };
-    setPendingOrderPill(pill);
-    setOrderWizard({ step: null, category: '', selectedItem: null, quantity: 1, deliveryTime: '08:00 AM', isAdvanceTomorrow: false });
-    setBotMessages(prev => [
-      ...prev,
-      { sender: 'user', text: `Delivery @ ${timeStr}` },
-      { sender: 'bot', text: `Breakfast order prepared for delivery ${targetDateLabel} at ${timeStr}! Please confirm below to add to your stay billing.` }
-    ]);
   };
 
   const handleDirectReceptionistRequest = async () => {
@@ -563,20 +301,17 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     setInput('');
     setIsSendingMessage(true);
 
-    // Check if guest typed an order during live chat
-    const detectedOrder = parseOrderIntent(msgToSend);
-    if (detectedOrder) {
-      setPendingOrderPill(detectedOrder);
-    }
-
     // Optimistic update
     const tempMsg = {
       messageID: Date.now(),
+      senderRole: 'guest',
       senderType: 'Guest',
       senderName: requestForm.name || (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : 'You') || 'You',
       message: msgToSend,
-      timestamp: new Date().toISOString(),
-      isRead: 0
+      status: 'Delivered',
+      isRead: 0,
+      createdAt: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     };
     setLiveMessages(prev => [...prev, tempMsg]);
 
@@ -857,13 +592,13 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   </div>
                   {m.senderType === 'Guest' && (
                     <div className="text-end px-1 mt-0.5" style={{ fontSize: '0.65rem' }}>
-                      {m.isRead ? (
-                        <span className="text-primary fw-semibold" title="Read by Receptionist">
-                          ✓✓ Read
+                      {m.status === 'Read' || m.isRead === 1 ? (
+                        <span className="text-primary fw-semibold d-inline-flex align-items-center gap-1" title="Read by Receptionist">
+                          <i className="bi bi-check2-all text-primary"></i> Read {m.readAt ? new Date(m.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       ) : (
-                        <span className="text-muted" title="Delivered to Receptionist">
-                          ✓ Delivered
+                        <span className="text-muted d-inline-flex align-items-center gap-1" title="Delivered to Receptionist">
+                          <i className="bi bi-check2"></i> Delivered
                         </span>
                       )}
                     </div>
@@ -911,112 +646,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
             </div>
           )}
 
-          {/* INTERACTIVE STEP-BY-STEP ORDERING CHOICES */}
-          {orderWizard.step === 'category' && (
-            <div className="d-flex flex-column gap-1.5 my-2 animate__animated animate__fadeIn">
-              <button className="btn btn-xs btn-outline-primary text-start fw-semibold py-1.5 px-3 rounded-pill bg-white shadow-sm" onClick={() => handleSelectOrderCategory('Cooked Meals')} style={{ fontSize: '0.75rem' }}>
-                🍔 Cooked Meals (6:00 AM - 10:30 AM)
-              </button>
-              <button className="btn btn-xs btn-outline-primary text-start fw-semibold py-1.5 px-3 rounded-pill bg-white shadow-sm" onClick={() => handleSelectOrderCategory('Products')} style={{ fontSize: '0.75rem' }}>
-                🥤 Drinks &amp; Snacks
-              </button>
-              <button className="btn btn-xs btn-outline-primary text-start fw-semibold py-1.5 px-3 rounded-pill bg-white shadow-sm" onClick={() => handleSelectOrderCategory('Amenities')} style={{ fontSize: '0.75rem' }}>
-                🧺 Amenities &amp; Toiletries
-              </button>
-            </div>
-          )}
 
-          {orderWizard.step === 'item' && (
-            <div className="d-flex flex-wrap gap-1.5 my-2 animate__animated animate__fadeIn" style={{ maxHeight: '160px', overflowY: 'auto' }}>
-              {(orderWizard.category === 'Cooked Meals'
-                ? catalog.cookedMeals
-                : orderWizard.category === 'Products'
-                ? catalog.products
-                : catalog.amenities
-              ).map(item => (
-                <button
-                  key={item.productID || item.amenityID}
-                  className="btn btn-xs btn-outline-dark text-start py-1 px-2.5 rounded-pill bg-white shadow-sm"
-                  style={{ fontSize: '0.75rem' }}
-                  onClick={() => handleSelectOrderItem(item)}
-                >
-                  {item.name} — ₱{parseFloat(item.price).toFixed(2)}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {orderWizard.step === 'quantity' && (
-            <div className="d-flex flex-wrap gap-1.5 my-2 animate__animated animate__fadeIn">
-              {[1, 2, 3, 4, 5].map(qty => (
-                <button
-                  key={qty}
-                  className="btn btn-xs btn-outline-primary px-3 py-1 rounded-pill fw-bold bg-white shadow-sm"
-                  style={{ fontSize: '0.78rem' }}
-                  onClick={() => handleSelectOrderQty(qty)}
-                >
-                  {qty}x
-                </button>
-              ))}
-            </div>
-          )}
-
-          {orderWizard.step === 'delivery_time' && (
-            <div className="d-flex flex-wrap gap-1.5 my-2 animate__animated animate__fadeIn">
-              {['06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'].map(timeStr => (
-                <button
-                  key={timeStr}
-                  className="btn btn-xs btn-outline-success px-2.5 py-1 rounded-pill fw-semibold bg-white shadow-sm"
-                  style={{ fontSize: '0.75rem' }}
-                  onClick={() => handleSelectDeliveryTime(timeStr)}
-                >
-                  ⏰ {timeStr}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* INTERACTIVE CHAT ORDER CONFIRMATION PILL CARD */}
-          {pendingOrderPill && (
-            <div className="card border-primary shadow-sm p-2 bg-light text-start animate__animated animate__fadeIn mb-2" style={{ borderLeft: '4px solid var(--pcc-blue)', fontSize: '0.78rem' }}>
-              <div className="d-flex justify-content-between align-items-center mb-1">
-                <span className="fw-bold text-dark">Confirm Room Order</span>
-                <span className="badge bg-primary text-white">₱{pendingOrderPill.total.toFixed(2)}</span>
-              </div>
-              <div className="text-muted mb-1">
-                Item: <strong>{pendingOrderPill.quantity}x {pendingOrderPill.name}</strong> @ ₱{pendingOrderPill.price.toFixed(2)}
-              </div>
-              {pendingOrderPill.deliveryTime && (
-                <div className="text-primary fw-semibold small mb-2" style={{ fontSize: '0.74rem' }}>
-                  ⏰ Scheduled Delivery: {pendingOrderPill.deliveryDate ? `${pendingOrderPill.deliveryDate} ` : ''}{pendingOrderPill.deliveryTime}
-                </div>
-              )}
-              <div className="d-flex gap-2">
-                <button
-                  className="btn btn-xs btn-danger text-white flex-grow-1"
-                  onClick={() => setPendingOrderPill(null)}
-                  style={{ fontSize: '0.72rem' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn btn-xs btn-success text-white flex-grow-1 fw-bold d-inline-flex align-items-center justify-content-center gap-1.5"
-                  onClick={handleConfirmOrder}
-                  disabled={placingOrder}
-                  style={{ fontSize: '0.72rem' }}
-                >
-                  {placingOrder ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '0.8rem', height: '0.8rem', borderWidth: '1.5px' }}></span>
-                      Processing...
-                    </>
-                  ) : (
-                    'Confirm & Place Order'
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* BOTTOM AREA */}
@@ -1026,6 +656,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               /* CHATBOT QUICK REPLIES AND REQUEST RECEPTIONIST BUTTON */
               <div className="p-2 bg-light border-bottom d-flex flex-wrap gap-1" style={{ fontSize: '0.72rem' }}>
                 <button
+                  type="button"
                   className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
                   onClick={() => handleQuickOption('rates', 'Room Rates')}
                   style={{ fontSize: '0.72rem' }}
@@ -1033,6 +664,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   Room Rates
                 </button>
                 <button
+                  type="button"
                   className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
                   onClick={() => handleQuickOption('checkin', 'Check-In Times')}
                   style={{ fontSize: '0.72rem' }}
@@ -1040,6 +672,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   Check-In Times
                 </button>
                 <button
+                  type="button"
                   className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
                   onClick={() => handleQuickOption('amenities', 'Amenities')}
                   style={{ fontSize: '0.72rem' }}
@@ -1047,6 +680,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   Amenities
                 </button>
                 <button
+                  type="button"
                   className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
                   onClick={() => handleQuickOption('location', 'Location')}
                   style={{ fontSize: '0.72rem' }}
@@ -1054,6 +688,15 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                   Location
                 </button>
                 <button
+                  type="button"
+                  className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
+                  onClick={() => handleQuickOption('orders', 'Room Service Info')}
+                  style={{ fontSize: '0.72rem' }}
+                >
+                  Room Service
+                </button>
+                <button
+                  type="button"
                   className="btn btn-xs btn-pcc-primary py-1 px-2 rounded-pill text-white fw-bold w-100 mt-1 d-flex align-items-center justify-content-center gap-1.5"
                   onClick={handleOpenRequestForm}
                   disabled={submittingRequest}

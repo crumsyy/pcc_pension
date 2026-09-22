@@ -38,15 +38,19 @@ export async function GET(request) {
 
     const inquiry = inquiries[0];
 
-    // Mark guest unread count as 0 only if there are unread messages
-    if (inquiry.unreadGuest > 0) {
-      await dbQuery("UPDATE inquiry SET unreadGuest = 0 WHERE inquiryID = ?", [inquiry.inquiryID]);
-      await dbQuery("UPDATE inquiry_message SET isRead = 1 WHERE inquiryID = ? AND senderType = 'Receptionist'", [inquiry.inquiryID]);
-    }
-
-    // Fetch message history thread
+    // Fetch message history thread (read-only query - NEVER mark as read on GET/polling)
     const messages = await dbQuery(
-      "SELECT * FROM inquiry_message WHERE inquiryID = ? ORDER BY timestamp ASC",
+      `SELECT messageID, inquiryID, 
+              COALESCE(senderRole, LOWER(senderType)) as senderRole,
+              COALESCE(senderType, 'Guest') as senderType,
+              senderID, senderName, 
+              COALESCE(messageText, message) as messageText,
+              COALESCE(message, messageText) as message,
+              COALESCE(status, 'Delivered') as status,
+              isRead, createdAt, readAt, timestamp 
+       FROM inquiry_message 
+       WHERE inquiryID = ? 
+       ORDER BY createdAt ASC, timestamp ASC, messageID ASC`,
       [inquiry.inquiryID]
     );
 
@@ -62,6 +66,27 @@ export async function POST(request) {
     await ensureInquirySchema();
     const session = await getSession();
     const body = await request.json();
+
+    // Dedicated action to mark messages as read ONLY when user actively opens the thread
+    if (body.action === 'mark_read') {
+      const inquiryID = parseInt(body.inquiryID);
+      if (!inquiryID) {
+        return NextResponse.json({ error: 'Missing inquiry ID.' }, { status: 400 });
+      }
+
+      await dbQuery("UPDATE inquiry SET unreadGuest = 0 WHERE inquiryID = ?", [inquiryID]);
+      await dbQuery(
+        `UPDATE inquiry_message 
+         SET status = 'Read', isRead = 1, readAt = NOW() 
+         WHERE inquiryID = ? 
+           AND (senderRole != 'guest' OR senderRole IS NULL) 
+           AND status != 'Read'`,
+        [inquiryID]
+      );
+
+      return NextResponse.json({ success: true, message: 'Messages marked as read.' });
+    }
+
     const message = body.message?.trim();
     const contactNumber = body.contactNumber?.trim() || null;
 
@@ -71,6 +96,7 @@ export async function POST(request) {
 
     let name = body.name?.trim() || "Guest Visitor";
     let email = body.email?.trim() || "visitor@pcc.com";
+    let senderID = (session && session.userID) ? session.userID : 0;
 
     if (session && session.userID) {
       const guestRes = await dbQuery("SELECT firstName, lastName, email, contact FROM guest WHERE userID = ?", [session.userID]);
@@ -110,11 +136,11 @@ export async function POST(request) {
       inquiryID = insertRes.insertId;
     }
 
-    // Insert message into inquiry_message thread
+    // Insert message into inquiry_message thread defaulting strictly to 'Delivered'
     await dbQuery(
-      `INSERT INTO inquiry_message (inquiryID, senderType, senderName, message, isRead, timestamp) 
-       VALUES (?, 'Guest', ?, ?, 0, ?)`,
-      [inquiryID, name, message, nowStr]
+      `INSERT INTO inquiry_message (inquiryID, senderRole, senderType, senderID, senderName, messageText, message, status, isRead, createdAt, timestamp) 
+       VALUES (?, 'guest', 'Guest', ?, ?, ?, ?, 'Delivered', 0, NOW(), NOW())`,
+      [inquiryID, senderID, name, message, message]
     );
 
     // Notify all active receptionists & admins via notification bell
@@ -128,7 +154,17 @@ export async function POST(request) {
 
     // Fetch updated message thread
     const updatedMessages = await dbQuery(
-      "SELECT * FROM inquiry_message WHERE inquiryID = ? ORDER BY timestamp ASC",
+      `SELECT messageID, inquiryID, 
+              COALESCE(senderRole, LOWER(senderType)) as senderRole,
+              COALESCE(senderType, 'Guest') as senderType,
+              senderID, senderName, 
+              COALESCE(messageText, message) as messageText,
+              COALESCE(message, messageText) as message,
+              COALESCE(status, 'Delivered') as status,
+              isRead, createdAt, readAt, timestamp 
+       FROM inquiry_message 
+       WHERE inquiryID = ? 
+       ORDER BY createdAt ASC, timestamp ASC, messageID ASC`,
       [inquiryID]
     );
 

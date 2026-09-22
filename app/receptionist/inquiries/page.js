@@ -61,6 +61,20 @@ export default function ReceptionistInquiries() {
       if (data.selectedMessages && data.selectedMessages.length > 0) {
         setMessages(data.selectedMessages);
       }
+
+      // If receptionist is actively viewing this inquiry thread in an active window, mark incoming as read
+      if (selectedInquiry?.inquiryID && typeof document !== 'undefined' && document.hasFocus()) {
+        const currentInq = (data.inquiries || []).find(i => i.inquiryID === selectedInquiry.inquiryID);
+        if (currentInq && currentInq.unreadReceptionist > 0) {
+          fetch('/api/receptionist/inquiries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'mark_read', inquiryID: selectedInquiry.inquiryID })
+          }).then(() => {
+            setInquiries(prev => prev.map(item => item.inquiryID === selectedInquiry.inquiryID ? { ...item, unreadReceptionist: 0 } : item));
+          }).catch(() => {});
+        }
+      }
     } catch (err) {
       if (!silent) showAlert('error', 'Error', err.message);
     } finally {
@@ -117,13 +131,24 @@ export default function ReceptionistInquiries() {
     lastInquiryIDRef.current = selectedInquiry?.inquiryID;
   }, [messages, selectedInquiry?.inquiryID, loadingMessages]);
 
-  const handleSelectInquiry = (inq) => {
+  const handleSelectInquiry = async (inq) => {
     if (selectedInquiry?.inquiryID === inq.inquiryID) return;
     setSelectedInquiry(inq);
     setMessages([]); // Clear previous messages immediately to prevent flashing jitter
     setLoadingMessages(true);
     fetchMessagesForInquiry(inq.inquiryID);
-    // Mark as read in state
+
+    // Explicitly mark as read on user selection/click
+    try {
+      await fetch('/api/receptionist/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_read', inquiryID: inq.inquiryID })
+      });
+    } catch (readErr) {
+      console.error("Failed to mark inquiry as read:", readErr);
+    }
+
     setInquiries(prev => prev.map(item => item.inquiryID === inq.inquiryID ? { ...item, unreadReceptionist: 0 } : item));
   };
 
@@ -141,14 +166,17 @@ export default function ReceptionistInquiries() {
     const msgToSend = replyText.trim();
     setReplyText('');
 
-    // Optimistic UI update
+    // Optimistic UI update defaulting to Delivered
     const tempMsg = {
       messageID: Date.now(),
       inquiryID: selectedInquiry.inquiryID,
+      senderRole: 'receptionist',
       senderType: 'Receptionist',
       senderName: 'Front Desk Staff',
       message: msgToSend,
-      isRead: 1,
+      status: 'Delivered',
+      isRead: 0,
+      createdAt: new Date().toISOString(),
       timestamp: new Date().toISOString()
     };
     setMessages(prev => [...prev, tempMsg]);
@@ -492,6 +520,19 @@ export default function ReceptionistInquiries() {
                             >
                               {m.message}
                             </div>
+                            {isStaff && m.senderType !== 'System' && (
+                              <div className="text-end px-1 mt-0.5" style={{ fontSize: '0.65rem' }}>
+                                {m.status === 'Read' || m.isRead === 1 ? (
+                                  <span className="text-primary fw-semibold d-inline-flex align-items-center gap-1" title="Read by Guest">
+                                    <i className="bi bi-check2-all text-primary"></i> Read {m.readAt ? new Date(m.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted d-inline-flex align-items-center gap-1" title="Delivered to Guest">
+                                    <i className="bi bi-check2"></i> Delivered
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })

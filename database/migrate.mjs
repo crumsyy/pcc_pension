@@ -160,6 +160,36 @@ async function run() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
 
+    await ensureTable(connection, 'inquiry_message', `
+      CREATE TABLE IF NOT EXISTS \`inquiry_message\` (
+        \`messageID\` INT(11) NOT NULL AUTO_INCREMENT,
+        \`inquiryID\` INT(11) NOT NULL,
+        \`senderRole\` ENUM('guest', 'receptionist', 'admin', 'bot') NOT NULL DEFAULT 'guest',
+        \`senderType\` ENUM('Guest', 'Receptionist', 'System') NOT NULL DEFAULT 'Guest',
+        \`senderID\` INT(11) NOT NULL DEFAULT 0,
+        \`senderName\` VARCHAR(100) NOT NULL DEFAULT 'Guest',
+        \`messageText\` TEXT NOT NULL,
+        \`message\` TEXT NOT NULL,
+        \`status\` VARCHAR(20) NOT NULL DEFAULT 'Delivered',
+        \`isRead\` TINYINT(1) DEFAULT 0,
+        \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`readAt\` DATETIME DEFAULT NULL,
+        \`timestamp\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`messageID\`),
+        KEY \`idx_inqmsg_inquiryID\` (\`inquiryID\`),
+        KEY \`idx_inquiry_thread_status\` (\`inquiryID\`, \`status\`, \`createdAt\`),
+        KEY \`idx_inquiry_unread\` (\`inquiryID\`, \`senderRole\`, \`status\`),
+        CONSTRAINT \`fk_inqmsg_inquiry\` FOREIGN KEY (\`inquiryID\`) REFERENCES \`inquiry\` (\`inquiryID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    await ensureColumn(connection, 'inquiry_message', 'senderRole', "ENUM('guest', 'receptionist', 'admin', 'bot') NOT NULL DEFAULT 'guest'");
+    await ensureColumn(connection, 'inquiry_message', 'senderID', "INT(11) NOT NULL DEFAULT 0");
+    await ensureColumn(connection, 'inquiry_message', 'messageText', "TEXT NULL");
+    await ensureColumn(connection, 'inquiry_message', 'status', "VARCHAR(20) NOT NULL DEFAULT 'Delivered'");
+    await ensureColumn(connection, 'inquiry_message', 'readAt', "DATETIME DEFAULT NULL");
+    await ensureColumn(connection, 'inquiry_message', 'createdAt', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+
     await ensureTable(connection, 'notification', `
       CREATE TABLE \`notification\` (
         \`notificationID\` int(11) NOT NULL AUTO_INCREMENT,
@@ -433,6 +463,35 @@ async function run() {
     await ensureIndex(connection, 'billing_room', 'idx_br_billing_rate', '`billingID`, `roomRateID`');
     await ensureIndex(connection, 'billing_product', 'idx_bp_billing_op', '`billingID`, `orderProductID`');
     await ensureIndex(connection, 'billing_amenity', 'idx_ba_billing_oa', '`billingID`, `orderAmenityID`');
+    await ensureIndex(connection, 'inquiry_message', 'idx_inquiry_thread_status', '`inquiryID`, `status`, `createdAt`');
+    await ensureIndex(connection, 'inquiry_message', 'idx_inquiry_unread', '`inquiryID`, `senderRole`, `status`');
+
+    console.log("Backfilling inquiry message normalization...");
+    await connection.execute(`
+      UPDATE inquiry_message 
+      SET status = 'Delivered' 
+      WHERE status IS NULL OR status = ''
+    `).catch(() => {});
+    await connection.execute(`
+      UPDATE inquiry_message 
+      SET senderRole = LOWER(senderType) 
+      WHERE senderRole IS NULL OR senderRole = ''
+    `).catch(() => {});
+    await connection.execute(`
+      UPDATE inquiry_message 
+      SET messageText = message 
+      WHERE messageText IS NULL OR messageText = ''
+    `).catch(() => {});
+    await connection.execute(`
+      UPDATE inquiry_message 
+      SET message = messageText 
+      WHERE (message IS NULL OR message = '') AND messageText IS NOT NULL
+    `).catch(() => {});
+    await connection.execute(`
+      UPDATE inquiry_message 
+      SET readAt = timestamp 
+      WHERE (status = 'Read' OR isRead = 1) AND readAt IS NULL
+    `).catch(() => {});
 
     console.log("Ensuring foreign key constraints...");
     await ensureForeignKey(connection, 'orders', 'fk_orders_booking', 'FOREIGN KEY (`bookingID`) REFERENCES `booking` (`bookingID`) ON DELETE SET NULL');
