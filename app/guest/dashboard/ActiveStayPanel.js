@@ -143,21 +143,21 @@ export default function ActiveStayPanel({
                 </Button>
 
                 <Button
-                  variant="warning"
-                  className="btn-spaced shadow-sm fw-bold text-dark"
+                  variant={isRoomVerified ? "warning" : (isAlreadyRequested ? "secondary" : "warning")}
+                  className={`btn-spaced shadow-sm fw-bold ${isRoomVerified ? 'text-dark' : ''}`}
                   disabled={isAlreadyRequested || requestingCheckout || activeBookingStay.status === 'Completed'}
                   onClick={handleRequestCheckoutClick}
                 >
-                  <i className="bi bi-box-arrow-right me-2"></i>
-                  {isAlreadyRequested ? 'Checkout Requested' : (requestingCheckout ? 'Sending Request...' : 'Request Checkout')}
+                  <i className={`bi ${isRoomVerified ? 'bi-hourglass-split' : (isAlreadyRequested ? 'bi-clock-history' : 'bi-box-arrow-right')} me-2`}></i>
+                  {isRoomVerified ? 'Pending Bill' : (isAlreadyRequested ? 'Checkout Requested' : (requestingCheckout ? 'Sending Request...' : 'Request Checkout'))}
                 </Button>
               </div>
             </div>
 
-            {checkoutNotice && (
+            {(checkoutNotice || isRoomVerified) && (
               <div className="alert alert-warning py-2 px-3 small mt-2 mb-0 d-flex align-items-center gap-2 fw-semibold" role="alert">
                 <i className="bi bi-info-circle-fill text-warning-emphasis"></i>
-                <span>{checkoutNotice}</span>
+                <span>{isRoomVerified ? "Room inspection verified by Front Desk. Receptionist is now finalizing your bill." : checkoutNotice}</span>
               </div>
             )}
           </div>

@@ -525,7 +525,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
   );
 });
 
-export default function GuestOrdersContent({ guest, activeBookingStay, initialCategory = 'all' }) {
+export default function GuestOrdersContent({ guest, activeBookingStay, initialCategory = 'all', showAlert }) {
   const [products, setProducts] = useState(cachedOrdersCatalog?.products || []);
   const [cookedMeals, setCookedMeals] = useState(cachedOrdersCatalog?.cookedMeals || []);
   const [amenities, setAmenities] = useState(cachedOrdersCatalog?.amenities || []);
@@ -559,6 +559,12 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   const [deliveryTime, setDeliveryTime] = useState('07:30 AM');
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [isClientMounted, setIsClientMounted] = useState(false);
+  const [orderSuccessModal, setOrderSuccessModal] = useState({
+    isOpen: false,
+    orderID: null,
+    totalAmount: 0,
+    summary: ''
+  });
 
   useEffect(() => {
     try {
@@ -747,9 +753,44 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
     setCart(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const cartTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  }, [cart]);
+  const effectiveBooking = activeBooking || activeBookingStay;
+
+  const complimentaryBreakfastAvailable = useMemo(() => {
+    if (!effectiveBooking) return 0;
+    if (effectiveBooking.complimentaryBreakfastAvailable !== undefined) {
+      return parseInt(effectiveBooking.complimentaryBreakfastAvailable) || 0;
+    }
+    const opt = (effectiveBooking.breakfastOption || '').toLowerCase();
+    const hasBreakfast = (opt.includes('with') && !opt.includes('without')) || effectiveBooking.breakfastID === 2 || effectiveBooking.roomHasBreakfast;
+    if (!hasBreakfast) return 0;
+    const used = parseInt(effectiveBooking.complimentaryBreakfastUsed || 0);
+    return Math.max(0, 2 - used);
+  }, [effectiveBooking]);
+
+  const { cartSubtotal, complimentaryDeduction, cartTotal } = useMemo(() => {
+    let subtotal = 0;
+    let cookedCount = 0;
+    let compDeduction = 0;
+
+    for (const item of cart) {
+      const itemPrice = parseFloat(item.price || 0);
+      const itemQty = parseInt(item.quantity || 0);
+      subtotal += itemPrice * itemQty;
+
+      if (item.isCookedMeal && complimentaryBreakfastAvailable > 0) {
+        const canComp = Math.max(0, complimentaryBreakfastAvailable - cookedCount);
+        const freeInItem = Math.min(itemQty, canComp);
+        compDeduction += freeInItem * itemPrice;
+        cookedCount += freeInItem;
+      }
+    }
+
+    return {
+      cartSubtotal: subtotal,
+      complimentaryDeduction: compDeduction,
+      cartTotal: Math.max(0, subtotal - compDeduction)
+    };
+  }, [cart, complimentaryBreakfastAvailable]);
 
   // Delivery Slots Evaluation (between 06:00 AM and 10:30 AM)
   const allowedSlots = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM'];
@@ -833,6 +874,9 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to place order');
 
+      const placedTotal = cartTotal;
+      const placedOrderID = data.orderID || data.orderIDs?.[0] || 'Confirmed';
+
       setFeedback({
         type: 'success',
         message: 'Order placed successfully! Your items have been added to your stay billing.'
@@ -844,8 +888,22 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
       // Invalidate client cache to refresh quantities
       cachedOrdersCatalog = null;
       fetchCatalog();
+
+      // Show dialog box "Order Submitted"
+      setOrderSuccessModal({
+        isOpen: true,
+        orderID: placedOrderID,
+        totalAmount: placedTotal,
+        summary: data.summary || 'Your room order has been placed and received.'
+      });
+      if (typeof showAlert === 'function') {
+        showAlert('success', 'Order Submitted', 'Your order has been submitted successfully and recorded. Front Desk has been notified.');
+      }
     } catch (err) {
       setFeedback({ type: 'danger', message: err.message });
+      if (typeof showAlert === 'function') {
+        showAlert('error', 'Order Failed', err.message || 'Failed to submit room order.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1054,8 +1112,16 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
         <div className="p-3 bg-light rounded-2 border mb-3">
           <div className="d-flex justify-content-between mb-1 small text-muted">
             <span>Subtotal:</span>
-            <span>₱{cartTotal.toFixed(2)}</span>
+            <span>₱{cartSubtotal.toFixed(2)}</span>
           </div>
+          {complimentaryDeduction > 0 && (
+            <div className="d-flex justify-content-between mb-1 small text-success">
+              <span>
+                <i className="bi bi-gift-fill me-1"></i>Complimentary Breakfast (2 Free Meals):
+              </span>
+              <span className="fw-bold">-₱{complimentaryDeduction.toFixed(2)}</span>
+            </div>
+          )}
           <div className="d-flex justify-content-between mb-1 small text-muted">
             <span>Delivery / Room Service Fee:</span>
             <span className="text-success fw-bold">FREE</span>
@@ -1395,6 +1461,80 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
             await fetchCatalog();
           }}
         />
+      )}
+      {/* ORDER SUBMITTED SUCCESS DIALOG MODAL */}
+      {orderSuccessModal.isOpen && (
+        <div
+          className="modal d-block animate__animated animate__fadeIn"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1080 }}
+        >
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '460px' }}>
+            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+              <div className="modal-header border-0 text-white p-3 px-4" style={{ backgroundColor: 'var(--pcc-blue, #2155B5)' }}>
+                <div className="d-flex align-items-center gap-2">
+                  <i className="bi bi-check-circle-fill fs-5 text-warning"></i>
+                  <h5 className="modal-title fw-bold mb-0" style={{ fontSize: '1.05rem' }}>Order Submitted</h5>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  aria-label="Close"
+                  onClick={() => setOrderSuccessModal(prev => ({ ...prev, isOpen: false }))}
+                ></button>
+              </div>
+              <div className="modal-body text-center p-4">
+                <div
+                  className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3 shadow-xs"
+                  style={{ width: '72px', height: '72px', backgroundColor: '#e8f5e9', color: '#2e7d32' }}
+                >
+                  <i className="bi bi-send-check-fill" style={{ fontSize: '2.2rem' }}></i>
+                </div>
+                <h4 className="fw-bold text-dark mb-1">Order Submitted</h4>
+                <p className="text-muted small mb-3">
+                  Your room order has been placed and recorded successfully. It has been sent to Front Desk &amp; Room Service and added to your stay billing.
+                </p>
+
+                <div className="p-3 bg-light rounded-3 border text-start mb-3" style={{ fontSize: '0.84rem' }}>
+                  <div className="d-flex justify-content-between mb-1.5 pb-1 border-bottom">
+                    <span className="text-muted">Order Tracking Ref:</span>
+                    <strong className="text-primary font-monospace">#{orderSuccessModal.orderID}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1.5 pb-1 border-bottom">
+                    <span className="text-muted">Total Charged:</span>
+                    <strong className="text-dark">₱{orderSuccessModal.totalAmount.toFixed(2)}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Status:</span>
+                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning">
+                      Recorded / In Queue
+                    </span>
+                  </div>
+                </div>
+
+                <div className="alert alert-info py-2 px-3 small text-start d-flex align-items-center gap-2 mb-0" style={{ fontSize: '0.76rem' }}>
+                  <i className="bi bi-info-circle-fill text-primary flex-shrink-0 fs-6"></i>
+                  <div>You can track real-time delivery and preparation status anytime under <strong>Order History</strong>.</div>
+                </div>
+              </div>
+              <div className="modal-footer border-0 p-3 pt-0 d-flex justify-content-center">
+                <button
+                  type="button"
+                  className="btn btn-primary px-4 py-2 fw-bold text-white shadow-sm"
+                  style={{ backgroundColor: 'var(--pcc-blue, #2155B5)', borderRadius: '8px' }}
+                  onClick={() => {
+                    setOrderSuccessModal(prev => ({ ...prev, isOpen: false }));
+                    setActiveCategory('history');
+                    fetchOrderHistory();
+                  }}
+                >
+                  <i className="bi bi-clock-history me-1.5"></i>
+                  <span>View in Order History</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

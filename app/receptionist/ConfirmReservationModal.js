@@ -309,7 +309,7 @@ export default function ConfirmReservationModal({
                     </div>
                   </div>
                   <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
-                    Max Pax: {selectedRoom?.occupancyLimit || 2} Guests
+                    Max Pax: {selectedRoom?.occupancyLimit || 4} Guests
                   </span>
                 </div>
               </div>

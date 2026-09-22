@@ -716,7 +716,7 @@ export default function ReceptionistBilling() {
                               <div className="col-sm-6 col-md-4">
                                 <div className="p-2 bg-white rounded border h-100">
                                   <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Room Standard Capacity:</span>
-                                  <span className="fw-bold fs-6 text-dark">{billDetails.booking.roomBasePax || billDetails.booking.occupancyLimit || 4} Pax Max</span>
+                                  <span className="fw-bold fs-6 text-dark">{billDetails.booking.occupancyLimit || billDetails.booking.roomBasePax || 4} Pax Max</span>
                                 </div>
                               </div>
                               <div className="col-sm-12 col-md-4">

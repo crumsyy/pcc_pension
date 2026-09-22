@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, ensurePaymentSchema, logBillingAudit } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, ensurePaymentSchema, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendCourtesyHoldCreatedEmail, sendBookingConfirmationEmail } from '@/lib/mailer';
 import { validateReservationDate } from '@/lib/validation';
 
@@ -546,15 +546,28 @@ export async function POST(request) {
           referenceNumber: refNumber
         });
 
+        await syncNormalizedBillingLineItems(conn, billingID, bookingID);
         await conn.commit();
 
-        // Dispatch Booking Confirmation Email
+        // Dispatch Booking Confirmation Email with authoritative DB balance
         try {
           const [roomInfo] = await conn.execute(
             "SELECT rm.roomNumber, COALESCE(rt.type, 'Standard Room') as roomType FROM room rm LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
             [roomID]
           );
           const guestFullName = `${currentGuest.firstName || ''} ${currentGuest.lastName || ''}`.trim() || 'Valued Guest';
+
+          const [syncBill] = await conn.execute(
+            "SELECT remainingBalance, downPaymentAmount FROM billing WHERE billingID = ?",
+            [billingID]
+          );
+          const finalRemBalance = syncBill && syncBill[0]?.remainingBalance != null
+            ? parseFloat(syncBill[0].remainingBalance)
+            : Math.max(0, parseFloat(body.remainingBalance || 0));
+          const finalDownPayment = syncBill && syncBill[0]?.downPaymentAmount != null
+            ? parseFloat(syncBill[0].downPaymentAmount)
+            : downPaymentAmount;
+
           sendBookingConfirmationEmail(updatedEmail, guestFullName, {
             bookingID,
             roomNumber: roomInfo[0]?.roomNumber || '',
@@ -562,8 +575,8 @@ export async function POST(request) {
             status: bookingStatus,
             checkInDateTime: finalCheckInDateTime,
             checkOutDateTime,
-            downPaymentAmount,
-            remainingBalance: Math.max(0, parseFloat(body.remainingBalance || 0)),
+            downPaymentAmount: finalDownPayment,
+            remainingBalance: finalRemBalance,
             paymentMethod: parseInt(paymentMethodID) === 2 ? 'GCash' : 'Cash',
             referenceNumber: refNumber
           }).catch(() => {});

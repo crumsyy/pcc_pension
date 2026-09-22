@@ -573,7 +573,18 @@ export async function POST(request) {
               await dbQuery(`INSERT INTO notification (userID, title, message) VALUES ${placeholders}`, flatValues);
             }
 
-            // Dispatch Booking Confirmation Email detached
+            const [finalBill] = await dbQuery(
+              "SELECT remainingBalance, downPaymentAmount FROM billing WHERE billingID = ?",
+              [billingID]
+            ).catch(() => [[]]);
+            const finalRemainingBalance = (finalBill && finalBill[0]?.remainingBalance != null)
+              ? parseFloat(finalBill[0].remainingBalance)
+              : remainingBalance;
+            const finalDownPayment = (finalBill && finalBill[0]?.downPaymentAmount != null)
+              ? parseFloat(finalBill[0].downPaymentAmount)
+              : downPaymentAmount;
+
+            // Dispatch Booking Confirmation Email detached with authoritative balance
             sendBookingConfirmationEmail(guest.email, `${guest.firstName} ${guest.lastName}`, {
               bookingID,
               roomNumber: roomInfo[0]?.roomNumber || '',
@@ -581,8 +592,8 @@ export async function POST(request) {
               status: bookingStatus,
               checkInDateTime: finalCheckInDateTime,
               checkOutDateTime: finalCheckOutDateTime,
-              downPaymentAmount,
-              remainingBalance,
+              downPaymentAmount: finalDownPayment,
+              remainingBalance: finalRemainingBalance,
               paymentMethod: 'GCash',
               referenceNumber: body.referenceNumber || null
             }).catch((mErr) => {

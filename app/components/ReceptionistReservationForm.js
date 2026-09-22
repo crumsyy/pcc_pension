@@ -59,7 +59,7 @@ export default function ReceptionistReservationForm({
     }
   }, [isFreeBreakfast, breakfastOption, setBreakfastOption]);
 
-  const basePax = parseInt(selectedRoom?.roomBasePax || selectedRoom?.occupancyLimit || 2, 10);
+  const basePax = parseInt(selectedRoom?.occupancyLimit || selectedRoom?.roomBasePax || 4, 10);
   const numGuests = guestCount === '' ? 1 : (parseInt(guestCount, 10) || 1);
   const extraGuests = Math.max(0, numGuests - basePax);
   const extraGuestFee = extraGuests * 100; // Flat ₱100 per extra guest

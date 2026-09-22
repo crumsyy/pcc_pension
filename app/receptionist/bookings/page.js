@@ -541,7 +541,7 @@ function BookingsClient() {
     if (!selectedRoomObj) return;
 
     const rate = parseFloat(selectedRoomObj.rate) || 0;
-    const maxOccupancy = parseInt(selectedRoomObj.roomBasePax || selectedRoomObj.occupancyLimit) || 4;
+    const maxOccupancy = parseInt(selectedRoomObj.occupancyLimit || selectedRoomObj.roomBasePax) || 4;
 
     let nights = 0;
     if (checkInDate && checkOutDate) {
@@ -878,7 +878,7 @@ function BookingsClient() {
             ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
             : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
         : 0;
-      const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit) || 4) : 4;
+      const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit || selectedRoom.roomBasePax) || 4) : 4;
 
       let nights = 0;
       if (checkInDate && checkOutDate) {
@@ -1019,7 +1019,7 @@ function BookingsClient() {
     }
 
     const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
-    const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.roomBasePax || selectedRoom.occupancyLimit) || 4) : 4;
+    const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit || selectedRoom.roomBasePax) || 4) : 4;
 
     const preparedGuests = [];
     const primaryName = `${guestForm.firstName} ${guestForm.lastName}`.trim() || 'Primary Guest';
@@ -1819,7 +1819,7 @@ function BookingsClient() {
                           .filter(rm => (rm.roomType || 'Standard Room') === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, useCurrentTimeIn))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
-                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
+                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 4} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
                             </option>
                           ))
                         }
@@ -1863,7 +1863,7 @@ function BookingsClient() {
                         </div>
                       </div>
                       <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
-                        Maximum Occupancy: {selectedRoomObj.occupancyLimit || 2} Guests
+                        Maximum Occupancy: {selectedRoomObj.occupancyLimit || 4} Guests
                       </span>
                     </div>
                   )}
@@ -1877,7 +1877,7 @@ function BookingsClient() {
                           type="number"
                           className="form-control form-control-sm mt-1"
                           min="1"
-                          max={selectedRoomObj ? (selectedRoomObj.occupancyLimit || 2) + 5 : 10}
+                          max={selectedRoomObj ? (selectedRoomObj.occupancyLimit || 4) + 5 : 10}
                           value={numGuestsCount}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -1890,10 +1890,10 @@ function BookingsClient() {
                         />
                       </div>
                       <div className="col-md-6">
-                        {selectedRoomObj && numGuestsCount > (selectedRoomObj.occupancyLimit || 2) && (
+                        {selectedRoomObj && numGuestsCount > (selectedRoomObj.occupancyLimit || 4) && (
                           <div className="alert alert-warning py-1.5 mb-0 small fw-bold">
-                            Excess Guests: {numGuestsCount - selectedRoomObj.occupancyLimit} Additional Guest(s)
-                            <div>Fee: ₱{(numGuestsCount - selectedRoomObj.occupancyLimit) * 100}/night applied.</div>
+                            Excess Guests: {numGuestsCount - (selectedRoomObj.occupancyLimit || 4)} Additional Guest(s)
+                            <div>Fee: ₱{(numGuestsCount - (selectedRoomObj.occupancyLimit || 4)) * 100}/night applied.</div>
                           </div>
                         )}
                       </div>
@@ -2136,7 +2136,7 @@ function BookingsClient() {
                           ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
                           : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0))
                       : 0;
-                    const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
+                    const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 4) : 4;
 
                     let nights = 0;
                     if (checkInDate && checkOutDate) {

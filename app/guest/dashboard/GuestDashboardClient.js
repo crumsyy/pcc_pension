@@ -2578,11 +2578,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
-                                  <button type="button" className="btn btn-warning text-dark" disabled aria-label="Awaiting Bill Finalization">
-                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Awaiting Bill Finalization
-                                  </button>
-                                )}
+                                {b.status === 'Room Verified' ? (
+                                   <button type="button" className="btn btn-warning text-dark fw-bold" disabled aria-label="Pending Bill" title="Room verified by front desk. Receptionist is finalizing your bill.">
+                                     <i className="bi bi-hourglass-split me-1"></i> Pending Bill
+                                   </button>
+                                 ) : ['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) ? (
+                                   <button type="button" className="btn btn-secondary text-white" disabled aria-label="Checkout Requested" title="Checkout requested. Awaiting room inspection.">
+                                     <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checkout Requested
+                                   </button>
+                                 ) : null}
 
                                 {['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) && (
                                   <button 
@@ -3014,7 +3018,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
             {/* TAB: ORDERS TAB */}
             {activeTab === 'orders' && (
-              <GuestOrdersContent guest={guest} activeBookingStay={activeBookingStay} initialCategory="all" />
+              <GuestOrdersContent guest={guest} activeBookingStay={activeBookingStay} initialCategory="all" showAlert={showAlert} />
             )}
 
             {/* TAB 3: CHAT TAB */}
@@ -3413,11 +3417,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
-                                  <button type="button" className="btn btn-warning text-dark" disabled aria-label="Awaiting Bill Finalization">
-                                    <span className="spinner-border spinner-border-sm me-1" role="status"></span> Awaiting Bill Finalization
-                                  </button>
-                                )}
+                                {b.status === 'Room Verified' ? (
+                                   <button type="button" className="btn btn-warning text-dark fw-bold" disabled aria-label="Pending Bill" title="Room verified by front desk. Receptionist is finalizing your bill.">
+                                     <i className="bi bi-hourglass-split me-1"></i> Pending Bill
+                                   </button>
+                                 ) : ['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) ? (
+                                   <button type="button" className="btn btn-secondary text-white" disabled aria-label="Checkout Requested" title="Checkout requested. Awaiting room inspection.">
+                                     <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checkout Requested
+                                   </button>
+                                 ) : null}
 
                                 {['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) && (
                                   <button 
@@ -3563,6 +3571,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           </td>
                         </tr>
                       )}
+                      {((parseFloat(viewBillingBooking.billingDetails?.extraGuestFee || 0) > 0) || (parseFloat(viewBillingBooking.billingDetails?.chargesBreakdown?.additionalFees?.extraGuestFee || 0) > 0) || (parseInt(viewBillingBooking.billingDetails?.extraGuests || 0) > 0)) && (
+                        <tr>
+                          <td>
+                            Additional Guest Fee ({viewBillingBooking.billingDetails?.extraGuests || viewBillingBooking.billingDetails?.chargesBreakdown?.additionalFees?.extraGuestsCount || 1} Extra Pax @ ₱100/night)
+                          </td>
+                          <td className="text-end text-danger fw-semibold">
+                            ₱{parseFloat(
+                              viewBillingBooking.billingDetails?.extraGuestFee ||
+                              viewBillingBooking.billingDetails?.chargesBreakdown?.additionalFees?.extraGuestFee ||
+                              0
+                            ).toFixed(2)}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -3620,6 +3642,35 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               <td>{item.name} {item.isFreeBreakfast && <span className="badge bg-success-subtle text-success ms-1">Package</span>}</td>
                               <td className="text-center">{item.quantity}</td>
                               <td className="text-end fw-semibold">₱{parseFloat(item.subtotal || 0).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+
+                {/* Hotel Amenities Ordered */}
+                {(viewBillingBooking.billingDetails?.amenityCharges?.length > 0 || viewBillingBooking.billingDetails?.chargesBreakdown?.orders?.amenities?.length > 0) && (
+                  <>
+                    <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                      <i className="bi bi-box2-heart-fill text-primary"></i> Hotel Amenities Ordered
+                    </h6>
+                    <div className="table-responsive mb-3">
+                      <table className="table table-sm table-bordered align-middle small mb-0">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Amenity Item</th>
+                            <th className="text-center" style={{ width: '60px' }}>Qty</th>
+                            <th className="text-end" style={{ width: '120px' }}>Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(viewBillingBooking.billingDetails?.amenityCharges || viewBillingBooking.billingDetails?.chargesBreakdown?.orders?.amenities || []).map((item, idx) => (
+                            <tr key={idx}>
+                              <td>{item.name}</td>
+                              <td className="text-center">{item.quantity}</td>
+                              <td className="text-end fw-semibold">₱{parseFloat(item.subtotal || (item.quantity * item.price) || 0).toFixed(2)}</td>
                             </tr>
                           ))}
                         </tbody>

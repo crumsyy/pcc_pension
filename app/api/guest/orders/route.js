@@ -130,8 +130,11 @@ export async function GET(request) {
     let activeBooking = null;
     if (guestID > 0) {
       const activeBookings = await dbQuery(`
-        SELECT b.bookingID, b.status as bookingStatus, b.roomID, r.roomNumber, r.status as roomStatus
+        SELECT b.bookingID, b.status as bookingStatus, b.roomID, b.breakfastID, b.breakfastOption,
+               res.breakfastOption as resBreakfastOption,
+               r.roomNumber, r.status as roomStatus
         FROM booking b
+        LEFT JOIN reservation res ON res.reservationID = b.reservationID
         LEFT JOIN room r ON r.roomID = b.roomID
         WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
         ORDER BY b.bookingID DESC
@@ -139,6 +142,29 @@ export async function GET(request) {
       `, [guestID]);
       if (activeBookings.length > 0) {
         activeBooking = activeBookings[0];
+
+        const roomHasBreakfast = (
+          (activeBooking.breakfastOption && activeBooking.breakfastOption.toLowerCase().includes('with') && !activeBooking.breakfastOption.toLowerCase().includes('without')) ||
+          (activeBooking.resBreakfastOption && activeBooking.resBreakfastOption.toLowerCase().includes('with') && !activeBooking.resBreakfastOption.toLowerCase().includes('without')) ||
+          parseInt(activeBooking.breakfastID) === 2
+        );
+
+        const [compUsedRows] = await dbQuery(
+          `SELECT COALESCE(SUM(op.quantity), 0) as compCount 
+           FROM order_product op 
+           JOIN orders o ON o.orderID = op.orderID 
+           WHERE o.bookingID = ? AND op.isComplimentary = 1 AND o.orderStatus != 'Canceled'`,
+          [activeBooking.bookingID]
+        ).catch(() => [[]]);
+        const complimentaryBreakfastUsed = parseInt(compUsedRows && compUsedRows[0]?.compCount || 0);
+        const complimentaryBreakfastAvailable = roomHasBreakfast ? Math.max(0, 2 - complimentaryBreakfastUsed) : 0;
+
+        activeBooking = {
+          ...activeBooking,
+          roomHasBreakfast,
+          complimentaryBreakfastUsed,
+          complimentaryBreakfastAvailable
+        };
       }
     }
 
@@ -179,9 +205,11 @@ export async function POST(request) {
     const guest = guests[0];
 
     const bookings = await dbQuery(`
-      SELECT b.bookingID, b.roomID, b.status as bookingStatus, b.breakfastOption,
+      SELECT b.bookingID, b.roomID, b.status as bookingStatus, b.breakfastOption, b.breakfastID,
+             res.breakfastOption as resBreakfastOption,
              r.status as roomStatus, r.roomTypeID, r.floorID
       FROM booking b
+      LEFT JOIN reservation res ON res.reservationID = b.reservationID
       LEFT JOIN room r ON r.roomID = b.roomID
       WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
       ORDER BY b.bookingID DESC
@@ -363,6 +391,7 @@ export async function POST(request) {
 
       const roomHasBreakfast = (
         (booking.breakfastOption && booking.breakfastOption.toLowerCase().includes('with') && !booking.breakfastOption.toLowerCase().includes('without')) ||
+        (booking.resBreakfastOption && booking.resBreakfastOption.toLowerCase().includes('with') && !booking.resBreakfastOption.toLowerCase().includes('without')) ||
         parseInt(booking.breakfastID) === 2
       );
       const maxCompAllowance = roomHasBreakfast ? 2 : 0;

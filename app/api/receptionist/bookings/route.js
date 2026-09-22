@@ -489,7 +489,7 @@ export async function POST(request) {
         await syncNormalizedBillingLineItems(conn, billingID, bookingID);
         await conn.commit();
 
-        // Dispatch Booking Confirmation Email
+        // Dispatch Booking Confirmation Email with authoritative DB balance
         try {
           const [roomInfo] = await conn.execute(
             "SELECT rm.roomNumber, COALESCE(rt.type, 'Standard Room') as roomType FROM room rm LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID WHERE rm.roomID = ?",
@@ -497,6 +497,18 @@ export async function POST(request) {
           );
           const [gInfo] = await conn.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
           const guestFullName = gInfo.length > 0 ? `${gInfo[0].firstName} ${gInfo[0].lastName}` : 'Valued Guest';
+
+          const [syncBill] = await conn.execute(
+            "SELECT remainingBalance, downPaymentAmount FROM billing WHERE billingID = ?",
+            [billingID]
+          );
+          const finalRemBalance = syncBill && syncBill[0]?.remainingBalance != null
+            ? parseFloat(syncBill[0].remainingBalance)
+            : Math.max(0, totalAmount - downPaymentAmount);
+          const finalDownPayment = syncBill && syncBill[0]?.downPaymentAmount != null
+            ? parseFloat(syncBill[0].downPaymentAmount)
+            : downPaymentAmount;
+
           sendBookingConfirmationEmail(guestEmail, guestFullName, {
             bookingID,
             roomNumber: roomInfo[0]?.roomNumber || '',
@@ -504,8 +516,8 @@ export async function POST(request) {
             status,
             checkInDateTime,
             checkOutDateTime,
-            downPaymentAmount,
-            remainingBalance: initialBalance,
+            downPaymentAmount: finalDownPayment,
+            remainingBalance: finalRemBalance,
             paymentMethod: parseInt(paymentMethodID) === 2 ? 'GCash' : 'Cash',
             referenceNumber: refNumber
           }).catch(() => {});

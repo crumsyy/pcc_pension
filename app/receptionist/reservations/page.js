@@ -1285,7 +1285,7 @@ function ReservationsClient() {
                           ))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
-                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 2} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
+                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 4} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
                             </option>
                           ))
                         }
@@ -1342,7 +1342,7 @@ function ReservationsClient() {
                         </div>
                       </div>
                       <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
-                        Maximum Occupancy: {selectedRoomObj.occupancyLimit || 2} Guests
+                        Maximum Occupancy: {selectedRoomObj.occupancyLimit || 4} Guests
                       </span>
                     </div>
                   )}
@@ -1357,25 +1357,25 @@ function ReservationsClient() {
                             type="number"
                             className="form-control form-control-sm mt-1"
                             min="1"
-                            max={(selectedRoomObj.occupancyLimit || 2) + 5}
+                            max={(selectedRoomObj.occupancyLimit || 4) + 5}
                             value={guestCount}
                             onChange={(e) => setGuestCount(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
                             required
                           />
                           <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
-                            Standard Room Capacity: <strong>Up to {selectedRoomObj.occupancyLimit || 2} Pax</strong>
-                            {Number(guestCount) > (selectedRoomObj.occupancyLimit || 2) && (
+                            Standard Room Capacity: <strong>Up to {selectedRoomObj.occupancyLimit || 4} Pax</strong>
+                            {Number(guestCount) > (selectedRoomObj.occupancyLimit || 4) && (
                               <span className="text-primary fw-bold ms-1">
-                                (+₱{(Number(guestCount) - (selectedRoomObj.occupancyLimit || 2)) * 100} for {Number(guestCount) - (selectedRoomObj.occupancyLimit || 2)} extra guest(s) @ ₱100 flat)
+                                (+₱{(Number(guestCount) - (selectedRoomObj.occupancyLimit || 4)) * 100} for {Number(guestCount) - (selectedRoomObj.occupancyLimit || 4)} extra guest(s) @ ₱100 flat)
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="col-md-6">
-                          {Number(guestCount) > (selectedRoomObj.occupancyLimit || 2) && (
+                          {Number(guestCount) > (selectedRoomObj.occupancyLimit || 4) && (
                             <div className="alert alert-warning py-1.5 px-2.5 mb-0 small fw-bold">
-                              Extra Guest Fee: ₱100 flat per extra guest applied for {Number(guestCount) - (selectedRoomObj.occupancyLimit || 2)} guest(s).
-                              <div>Total Extra Fee: ₱{(Number(guestCount) - (selectedRoomObj.occupancyLimit || 2)) * 100}.00</div>
+                              Extra Guest Fee: ₱100 flat per extra guest applied for {Number(guestCount) - (selectedRoomObj.occupancyLimit || 4)} guest(s).
+                              <div>Total Extra Fee: ₱{(Number(guestCount) - (selectedRoomObj.occupancyLimit || 4)) * 100}.00</div>
                             </div>
                           )}
                         </div>
@@ -1494,7 +1494,7 @@ function ReservationsClient() {
                           ? (parseFloat(selectedRoomObj.rateWithBreakfast) || (selectedRoomObj.breakfastRate !== null && selectedRoomObj.breakfastRate !== undefined ? parseFloat(selectedRoomObj.rate) + parseFloat(selectedRoomObj.breakfastRate) : parseFloat(selectedRoomObj.rate)) || 0)
                           : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0))
                       : 0;
-                    const maxPax = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 2) : 2;
+                    const maxPax = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 4) : 4;
                     const guestVal = guestCount === '' ? 1 : (parseInt(guestCount, 10) || 1);
                     const excessPax = Math.max(0, guestVal - maxPax);
                     const extraGuestFee = excessPax * 100; // Flat ₱100 per extra guest
