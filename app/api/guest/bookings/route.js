@@ -45,26 +45,28 @@ export async function GET() {
     `, [guestID]);
 
     const bookingsWithDetails = await Promise.all(bookings.map(async b => {
-      const remainingBalance = await getBookingBalance(b.bookingID);
-      const registeredGuests = await dbQuery(`
-        SELECT bg.*, d.name as discountName, d.percentage as discountPercentage
-        FROM booking_guest_details bg
-        LEFT JOIN discounts d ON d.discountID = bg.discountID
-        WHERE bg.bookingID = ?
-      `, [b.bookingID]);
-      const incidentals = await dbQuery(`
-        SELECT chargeID, description, amount, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt
-        FROM incidental_charge
-        WHERE bookingID = ?
-        ORDER BY chargeID ASC
-      `, [b.bookingID]);
-      const billingDetails = await getBookingBalanceDetails(b.bookingID).catch(() => null);
+      const [registeredGuests, incidentals, billingDetails] = await Promise.all([
+        dbQuery(`
+          SELECT bg.*, d.name as discountName, d.percentage as discountPercentage
+          FROM booking_guest_details bg
+          LEFT JOIN discounts d ON d.discountID = bg.discountID
+          WHERE bg.bookingID = ?
+        `, [b.bookingID]).catch(() => []),
+        dbQuery(`
+          SELECT chargeID, description, amount, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt
+          FROM incidental_charge
+          WHERE bookingID = ?
+          ORDER BY chargeID ASC
+        `, [b.bookingID]).catch(() => []),
+        getBookingBalanceDetails(b.bookingID).catch(() => null)
+      ]);
+      const remainingBalance = billingDetails?.balance !== undefined ? billingDetails.balance : (parseFloat(b.finalBalance) || 0);
       return {
         ...b,
         status: normalizeBookingStatus(b.status),
         rawStatus: b.status,
         remainingBalance,
-        registeredGuests,
+        registeredGuests: registeredGuests || [],
         incidentals: incidentals || [],
         billingDetails: billingDetails || null
       };
@@ -389,9 +391,9 @@ export async function POST(request) {
         const extraGuests = Math.max(0, totalPax - basePax);
         const extraGuestFee = extraGuests * 100 * nights;
 
-        const computedTotal = (roomPrice * nights) + extraGuestFee;
-        const totalAmount = computedTotal;
-        const downPaymentAmount = Math.round(totalAmount * downPaymentRate * 100) / 100;
+        const baseRoomCharge = Math.round(roomPrice * nights * 100) / 100;
+        const downPaymentAmount = Math.round(baseRoomCharge * downPaymentRate * 100) / 100;
+        const totalAmount = baseRoomCharge + extraGuestFee;
         const remainingBalance = Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
 
         let finalCheckInDateTime = checkInDateTime;

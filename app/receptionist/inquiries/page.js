@@ -101,12 +101,25 @@ export default function ReceptionistInquiries() {
     fetchInquiries();
   }, []);
 
-  // Fast polling (every 1.2s) for active inquiry list and message thread updates
+  // Adaptive polling (1.5s active conversation, 4s idle) with visibility guard to prevent tab CPU/network leaks
   useEffect(() => {
+    const pollInterval = selectedInquiry?.inquiryID ? 1500 : 4000;
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       fetchInquiries(true);
-    }, 1200);
-    return () => clearInterval(interval);
+    }, pollInterval);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchInquiries(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [selectedInquiry?.inquiryID]);
 
   // Always start and align view at the bottom of the conversation when switching or receiving messages

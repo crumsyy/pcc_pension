@@ -110,8 +110,10 @@ export async function POST(request) {
 
     // If Guest, ensure booking ownership
     if (session.role === 'Guest') {
-      const guestRes = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
-      const ownerCheck = await dbQuery("SELECT guestID FROM booking WHERE bookingID = ?", [bookingID]);
+      const [guestRes, ownerCheck] = await Promise.all([
+        dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]),
+        dbQuery("SELECT guestID FROM booking WHERE bookingID = ?", [bookingID])
+      ]);
       if (ownerCheck.length === 0 || guestRes.length === 0 || ownerCheck[0].guestID !== guestRes[0].guestID) {
         return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
       }

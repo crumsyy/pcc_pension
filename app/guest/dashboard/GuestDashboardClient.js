@@ -809,7 +809,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   // 4-second background auto-polling for reservations, bookings, room availability, and notifications
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const pollDashboard = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       try {
         const [resResp, bookResp, notifResp, billResp] = await Promise.all([
           fetch('/api/guest/reservations'),
@@ -854,8 +855,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       } catch (err) {
         // silent polling
       }
-    }, 4000);
-    return () => clearInterval(interval);
+    };
+
+    const interval = setInterval(pollDashboard, 4000);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        pollDashboard();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Calculations for Stay & Billing
@@ -948,12 +962,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const lateCheckOutInfo = calculateLateCheckOutPreview();
 
   const totalAutoFees = (earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0) + (lateCheckOutInfo.isLate ? lateCheckOutInfo.lateFee : 0);
-  const originalTotal = (roomRate * nightsCount) + extraGuestFee;
+  const baseRoomCharge = Math.round(roomRate * nightsCount * 100) / 100;
+  const originalTotal = baseRoomCharge + extraGuestFee;
   const totalDiscount = 0;
   const netTotalAmount = originalTotal + totalAutoFees;
   const paymentPctNumber = parseInt(paymentOption) || 50;
-  const amountToPayNow = Math.round(netTotalAmount * (paymentPctNumber / 100) * 100) / 100;
-  const remainingBalanceAfterPay = Math.max(0, Math.round((netTotalAmount - amountToPayNow) * 100) / 100);
+  // Down payment is calculated EXCLUSIVELY from the base room charge (standard 50% or 100%)
+  const amountToPayNow = Math.round(baseRoomCharge * (paymentPctNumber / 100) * 100) / 100;
+  // Remaining balance = (baseRoomCharge + extraGuestFee + totalAutoFees) - amountToPayNow
+  const remainingBalanceAfterPay = Math.max(0, Math.round(((baseRoomCharge + extraGuestFee + totalAutoFees) - amountToPayNow) * 100) / 100);
 
   // Dashboard Metrics
   const totalStaysCount = bookings.length;
@@ -4211,9 +4228,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                     <div className="p-3 bg-light rounded border" style={{ fontSize: '0.88rem' }}>
                       <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted">Room Rent Subtotal ({nightsCount} nights):</span>
-                        <span className="fw-semibold">₱{originalTotal.toFixed(2)}</span>
+                        <span className="text-muted">Base Room Rate ({nightsCount} night{nightsCount > 1 ? 's' : ''}):</span>
+                        <span className="fw-semibold text-dark">₱{baseRoomCharge.toFixed(2)}</span>
                       </div>
+                      {extraGuestFee > 0 && (
+                        <div className="d-flex justify-content-between mb-1 text-secondary">
+                          <span>Additional Guest Fee ({extraGuestsCount} extra pax):</span>
+                          <span className="fw-semibold">₱{extraGuestFee.toFixed(2)} <span className="small text-muted">(Payable upon Check-in / Final Billing)</span></span>
+                        </div>
+                      )}
                       {earlyCheckInInfo.isEarly && (
                         <div className="d-flex justify-content-between mb-1 text-warning-emphasis fw-semibold">
                           <span>Early Check-In Fee ({earlyCheckInInfo.earlyHours} hr{earlyCheckInInfo.earlyHours > 1 ? 's' : ''} @ ₱50/hr):</span>
@@ -4235,6 +4258,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <div className="d-flex justify-content-between pt-2 border-top fw-bold text-primary" style={{ fontSize: '1.05rem' }}>
                         <span>Net Booking Amount Due:</span>
                         <span>₱{netTotalAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between pt-1 text-success fw-bold">
+                        <span>Required Down Payment (50% of Room Charge):</span>
+                        <span>₱{Math.round(baseRoomCharge * 0.5 * 100 / 100).toFixed(2)}</span>
                       </div>
                     </div>
                 </div>
@@ -4284,19 +4311,31 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <span className="badge bg-warning text-dark ms-2">TEST MODE</span>
                   </div>
 
-                  <GuestBookingForm paymentOption={paymentOption} setPaymentOption={setPaymentOption} />
+                  <GuestBookingForm
+                    paymentOption={paymentOption}
+                    setPaymentOption={setPaymentOption}
+                    baseRoomCharge={baseRoomCharge}
+                    extraGuestFee={extraGuestFee}
+                    totalAmount={netTotalAmount}
+                  />
 
                   <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
                     <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">Total Net Booking Amount:</span>
-                      <span className="fw-semibold text-dark">₱{netTotalAmount.toFixed(2)}</span>
+                      <span className="text-muted">Base Room Rate ({nightsCount} night{nightsCount > 1 ? 's' : ''}):</span>
+                      <span className="fw-semibold text-dark">₱{baseRoomCharge.toFixed(2)}</span>
                     </div>
+                    {extraGuestFee > 0 && (
+                      <div className="d-flex justify-content-between mb-1 text-secondary">
+                        <span>Additional Guest Fee (₱{extraGuestFee.toFixed(2)}):</span>
+                        <span className="fw-semibold text-warning-emphasis">Payable upon Check-in / Final Billing</span>
+                      </div>
+                    )}
                     <div className="d-flex justify-content-between mb-1">
                       <span className="text-muted">Selected Percentage:</span>
-                      <span className="fw-semibold text-primary">{paymentPctNumber}%</span>
+                      <span className="fw-semibold text-primary">{paymentPctNumber}% of Base Room</span>
                     </div>
                     <div className="d-flex justify-content-between mb-1 text-success fw-bold" style={{ fontSize: '1rem' }}>
-                      <span>Amount to Pay Now via GCash:</span>
+                      <span>Required Down Payment (Pay Now via GCash):</span>
                       <span>₱{amountToPayNow.toFixed(2)}</span>
                     </div>
                     <div className="d-flex justify-content-between pt-2 border-top text-danger small">

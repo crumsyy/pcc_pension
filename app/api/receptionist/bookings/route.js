@@ -295,6 +295,10 @@ export async function POST(request) {
           }
         }
         const finalRoomCharge = Math.max(0, Math.round((rawRoomCharge - roomDiscountAmount) * 100) / 100);
+        const roomBasePax = Math.max(1, parseInt(roomData[0]?.occupancyLimit || 4, 10));
+        const totalGuestsCount = guests.length > 0 ? guests.length : 1;
+        const extraPax = Math.max(0, totalGuestsCount - roomBasePax);
+        const extraGuestFee = Math.round(extraPax * 100 * diffDays * 100) / 100;
 
         // Down payment applies STRICTLY to room stay charges; extra guest fees are EXCLUDED
         const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 50) / 100;
@@ -307,7 +311,7 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
-        const initialBalance = Math.max(0, Math.round((finalRoomCharge - downPaymentAmount) * 100) / 100);
+        const initialBalance = Math.max(0, Math.round(((finalRoomCharge + extraGuestFee) - downPaymentAmount) * 100) / 100);
 
         // Validation for GCash down payment: If paymentMethod = GCash and payment status != Settled, block booking save
         if (parseInt(paymentMethodID) === 2 && body.paymentStatus !== 'Settled' && !body.isGcashSettled) {

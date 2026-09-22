@@ -13,34 +13,32 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const selectedID = searchParams.get('inquiryID') ? parseInt(searchParams.get('inquiryID')) : null;
 
-    // Fetch all inquiries ordered by latest message / creation date
-    const inquiries = await dbQuery(`
-      SELECT i.*, 
-             (SELECT message FROM inquiry_message im WHERE im.inquiryID = i.inquiryID ORDER BY im.timestamp DESC LIMIT 1) as lastMessage,
-             (SELECT timestamp FROM inquiry_message im WHERE im.inquiryID = i.inquiryID ORDER BY im.timestamp DESC LIMIT 1) as lastMessageTime
-      FROM inquiry i
-      ORDER BY COALESCE(lastMessageTime, i.createdAt) DESC
-    `);
-
-    let selectedMessages = [];
-
-    if (selectedID) {
-      // Read-only query: NEVER mark as read on GET/polling. Only mark_read action does.
-      selectedMessages = await dbQuery(
-        `SELECT messageID, inquiryID, 
-                COALESCE(senderRole, LOWER(senderType)) as senderRole,
-                COALESCE(senderType, 'Guest') as senderType,
-                senderID, senderName, 
-                COALESCE(messageText, message) as messageText,
-                COALESCE(message, messageText) as message,
-                COALESCE(status, 'Delivered') as status,
-                isRead, createdAt, readAt, timestamp 
-         FROM inquiry_message 
-         WHERE inquiryID = ? 
-         ORDER BY createdAt ASC, timestamp ASC, messageID ASC`,
-        [selectedID]
-      );
-    }
+    // Fetch all inquiries and selected thread messages in parallel
+    const [inquiries, selectedMessages] = await Promise.all([
+      dbQuery(`
+        SELECT i.*, 
+               (SELECT message FROM inquiry_message im WHERE im.inquiryID = i.inquiryID ORDER BY im.timestamp DESC LIMIT 1) as lastMessage,
+               (SELECT timestamp FROM inquiry_message im WHERE im.inquiryID = i.inquiryID ORDER BY im.timestamp DESC LIMIT 1) as lastMessageTime
+        FROM inquiry i
+        ORDER BY COALESCE(lastMessageTime, i.createdAt) DESC
+      `),
+      selectedID
+        ? dbQuery(
+            `SELECT messageID, inquiryID, 
+                    COALESCE(senderRole, LOWER(senderType)) as senderRole,
+                    COALESCE(senderType, 'Guest') as senderType,
+                    senderID, senderName, 
+                    COALESCE(messageText, message) as messageText,
+                    COALESCE(message, messageText) as message,
+                    COALESCE(status, 'Delivered') as status,
+                    isRead, createdAt, readAt, timestamp 
+             FROM inquiry_message 
+             WHERE inquiryID = ? 
+             ORDER BY createdAt ASC, timestamp ASC, messageID ASC`,
+            [selectedID]
+          )
+        : Promise.resolve([])
+    ]);
 
     return NextResponse.json({ success: true, inquiries, selectedMessages, inquiryID: selectedID });
   } catch (error) {

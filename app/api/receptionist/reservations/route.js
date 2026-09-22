@@ -485,8 +485,8 @@ export async function POST(request) {
 
         // 2. Insert booking with appropriate status ('Active Stay' if Book and Check-In Now, else 'Pending')
         const [insertBookingRes] = await conn.execute(
-          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, breakfastOption) VALUES(?, ?, ?, ?, ?, ?, ?)",
-          [finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID, reservation.breakfastOption || 'with']
+          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, breakfastOption, guestCount) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+          [finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID, reservation.breakfastOption || 'with', reservation.guestCount || 1]
         );
         const bookingID = insertBookingRes.insertId;
 

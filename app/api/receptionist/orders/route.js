@@ -10,26 +10,24 @@ export async function GET(request) {
 
   try {
     await ensureOrdersSchema();
-    // 1. Fetch all orders with guest and historical room information
-    const ordersRaw = await dbQuery(`
-      SELECT o.*, g.firstName, g.lastName, 
-             COALESCE(r_direct.roomNumber, r.roomNumber, r_prev.roomNumber, 'N/A') as roomNumber 
-      FROM orders o
-      JOIN guest g ON g.guestID = o.guestID
-      LEFT JOIN booking b_direct ON b_direct.bookingID = o.bookingID
-      LEFT JOIN room r_direct ON r_direct.roomID = b_direct.roomID
-      LEFT JOIN booking b ON b.guestID = g.guestID AND b.status IN ('Checked In', 'Active Stay', 'Confirmed', 'Booked', 'Room Verified')
-      LEFT JOIN room r ON r.roomID = b.roomID
-      LEFT JOIN (
-        SELECT guestID, MAX(bookingID) as maxID FROM booking GROUP BY guestID
-      ) b_latest ON b_latest.guestID = g.guestID
-      LEFT JOIN booking b_prev ON b_prev.bookingID = b_latest.maxID
-      LEFT JOIN room r_prev ON r_prev.roomID = b_prev.roomID
-      ORDER BY o.orderDateTime DESC
-    `);
-
-    // 2. Fetch order items (products and amenities)
-    const [orderProducts, orderAmenities] = await Promise.all([
+    // 1. Fetch all orders, line items, catalog, and active stays in parallel
+    const [ordersRaw, orderProducts, orderAmenities, products, amenities, activeBookings, borrowLogs] = await Promise.all([
+      dbQuery(`
+        SELECT o.*, g.firstName, g.lastName, 
+               COALESCE(r_direct.roomNumber, r.roomNumber, r_prev.roomNumber, 'N/A') as roomNumber 
+        FROM orders o
+        JOIN guest g ON g.guestID = o.guestID
+        LEFT JOIN booking b_direct ON b_direct.bookingID = o.bookingID
+        LEFT JOIN room r_direct ON r_direct.roomID = b_direct.roomID
+        LEFT JOIN booking b ON b.guestID = g.guestID AND b.status IN ('Checked In', 'Active Stay', 'Confirmed', 'Booked', 'Room Verified')
+        LEFT JOIN room r ON r.roomID = b.roomID
+        LEFT JOIN (
+          SELECT guestID, MAX(bookingID) as maxID FROM booking GROUP BY guestID
+        ) b_latest ON b_latest.guestID = g.guestID
+        LEFT JOIN booking b_prev ON b_prev.bookingID = b_latest.maxID
+        LEFT JOIN room r_prev ON r_prev.roomID = b_prev.roomID
+        ORDER BY o.orderDateTime DESC
+      `),
       dbQuery(`
         SELECT op.orderID, op.quantity, op.isComplimentary,
                COALESCE(op.deliveryType, 'immediate') as deliveryType,
@@ -45,25 +43,7 @@ export async function GET(request) {
                a.amenityID as itemID, a.name, a.price, a.image, 'Amenity' as type
         FROM order_amenities oa
         JOIN amenities a ON a.amenityID = oa.amenityID
-      `)
-    ]);
-
-    const orders = ordersRaw.map(o => {
-      const products = orderProducts.filter(op => op.orderID === o.orderID);
-      const amenities = orderAmenities.filter(oa => oa.orderID === o.orderID);
-      const allItems = [...products, ...amenities];
-      const immediateItems = allItems.filter(it => it.deliveryType === 'immediate');
-      const scheduledItems = allItems.filter(it => it.deliveryType === 'scheduled');
-      return {
-        ...o,
-        items: allItems,
-        immediateItems,
-        scheduledItems
-      };
-    });
-
-    // 3. Fetch products, amenities and active bookings for dropdowns
-    const [products, amenities, activeBookings, borrowLogs] = await Promise.all([
+      `),
       dbQuery(`
         SELECT p.productID, p.name, p.price, p.image,
                CASE WHEN p.productCategoryID = 3 THEN 9999 ELSE COALESCE(SUM(ib.remainingQuantity), 0) END as quantity,
@@ -106,6 +86,20 @@ export async function GET(request) {
         ORDER BY bt.borrowDateTime DESC
       `)
     ]);
+
+    const orders = ordersRaw.map(o => {
+      const products = orderProducts.filter(op => op.orderID === o.orderID);
+      const amenities = orderAmenities.filter(oa => oa.orderID === o.orderID);
+      const allItems = [...products, ...amenities];
+      const immediateItems = allItems.filter(it => it.deliveryType === 'immediate');
+      const scheduledItems = allItems.filter(it => it.deliveryType === 'scheduled');
+      return {
+        ...o,
+        items: allItems,
+        immediateItems,
+        scheduledItems
+      };
+    });
 
     const activeProducts = products.filter(p => p.productCategoryID !== 3);
     const cookedMeals = products.filter(p => p.productCategoryID === 3);
@@ -176,6 +170,7 @@ export async function POST(request) {
         }
 
         if (!activeBooking) {
+          await connection.rollback();
           return NextResponse.json({ error: 'No active booking found for this guest.' }, { status: 400 });
         }
         const activeBookingID = activeBooking.bookingID;

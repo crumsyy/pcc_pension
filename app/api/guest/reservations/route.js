@@ -435,11 +435,11 @@ export async function PATCH(request) {
     const roomBasePax = Math.max(1, parseInt(reservation.occupancyLimit || 4, 10));
     const totalGuests = parseInt(body.numGuests || reservation.guestCount || 1);
     const extraGuests = Math.max(0, totalGuests - roomBasePax);
-    const extraGuestFee = extraGuests * 100 * nights;
-    const totalAmount = (roomRate * nights) + extraGuestFee;
-    const downPaymentPercentage = parseInt(body.downPaymentPercentage || 50);
-    const downPaymentAmount = Math.round(totalAmount * (downPaymentPercentage / 100) * 100) / 100;
-    const remainingBalance = Math.max(0, totalAmount - downPaymentAmount);
+    const baseRoomCharge = Math.round(roomRate * nights * 100) / 100;
+    const totalAmount = baseRoomCharge + extraGuestFee;
+    const downPaymentPercentage = parseInt(body.downPaymentPercentage || 50, 10);
+    const downPaymentAmount = Math.round(baseRoomCharge * (downPaymentPercentage / 100) * 100) / 100;
+    const remainingBalance = Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
 
     const pool = await getDbConnection();
     const conn = await pool.getConnection();

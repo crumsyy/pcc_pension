@@ -106,10 +106,16 @@ export default function ConfirmReservationModal({
     }
   }
 
+  const selectedRoomObj = (rooms || []).find(r => String(r.roomID) === String(selectedRes.roomID));
+  const roomBasePax = Math.max(1, parseInt(selectedRes.occupancyLimit || selectedRoomObj?.occupancyLimit || 4, 10));
+  const totalPax = parseInt(selectedRes.guestCount || 1, 10);
+  const extraGuests = Math.max(0, totalPax - roomBasePax);
+  const extraGuestFee = extraGuests * 100 * nights;
+
   const totalRoomCharge = rate * nights;
   const dpPctNum = parseInt(downPaymentOption, 10) || 30;
-  const requiredDownpayment = totalRoomCharge * (dpPctNum / 100);
-  const remainingBal = Math.max(0, totalRoomCharge - requiredDownpayment);
+  const requiredDownpayment = Math.round(totalRoomCharge * (dpPctNum / 100) * 100) / 100;
+  const remainingBal = Math.max(0, Math.round(((totalRoomCharge + extraGuestFee) - requiredDownpayment) * 100) / 100);
   const isCheckInToday = checkInDate && toDbDate(checkInDate) === todayDbDate;
 
   const handleToggleCurrentIn = (checked) => {
@@ -427,16 +433,22 @@ export default function ConfirmReservationModal({
                   <span className="fw-semibold">{nights} Night(s)</span>
                 </div>
                 <div className="d-flex justify-content-between border-top pt-1.5 mb-1 fw-bold text-pcc-blue" style={{ fontSize: '1rem' }}>
-                  <span>Net Total Booking Amount:</span>
+                  <span>Base Room Charge:</span>
                   <span>₱{totalRoomCharge.toFixed(2)}</span>
                 </div>
                 <div className="d-flex justify-content-between text-success fw-bold">
-                  <span>Required Down Payment ({dpPctNum}% Tier):</span>
+                  <span>Required Down Payment ({dpPctNum}% of Room Charge):</span>
                   <span className="fs-6">₱{requiredDownpayment.toFixed(2)}</span>
                 </div>
-                <div className="d-flex justify-content-between text-muted small">
+                {extraGuests > 0 && (
+                  <div className="d-flex justify-content-between text-primary small">
+                    <span>Additional Guest Fee ({extraGuests} Extra Pax × {nights} Night{nights > 1 ? 's' : ''}):</span>
+                    <span className="fw-semibold">+₱{extraGuestFee.toFixed(2)} <span className="text-muted fw-normal">(Payable at Check-in)</span></span>
+                  </div>
+                )}
+                <div className="d-flex justify-content-between text-muted small pt-1 border-top">
                   <span>Remaining Balance at Check-in:</span>
-                  <span>₱{remainingBal.toFixed(2)}</span>
+                  <span className="fw-bold text-dark">₱{remainingBal.toFixed(2)}</span>
                 </div>
               </div>
 

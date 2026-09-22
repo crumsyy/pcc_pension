@@ -339,6 +339,9 @@ async function run() {
     await ensureColumn(connection, 'order_product', 'isComplimentary', 'TINYINT(1) DEFAULT 0');
     await ensureColumn(connection, 'order_product', 'unitPrice', 'DECIMAL(10,2) DEFAULT NULL');
     await ensureColumn(connection, 'billing', 'missingAmenitiesFee', 'DECIMAL(10,2) DEFAULT 0.00');
+    await ensureColumn(connection, 'billing', 'reservationID', 'INT DEFAULT NULL');
+    await ensureColumn(connection, 'billing', 'billingStatus', "VARCHAR(50) DEFAULT 'Pending'");
+    await ensureColumn(connection, 'inquiry', 'updatedAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
 
     console.log("Ensuring 3NF normalized integrity columns...");
     await ensureColumn(connection, 'booking', 'breakfastID', 'INT(11) DEFAULT 1');
@@ -465,6 +468,9 @@ async function run() {
     await ensureIndex(connection, 'billing_amenity', 'idx_ba_billing_oa', '`billingID`, `orderAmenityID`');
     await ensureIndex(connection, 'inquiry_message', 'idx_inquiry_thread_status', '`inquiryID`, `status`, `createdAt`');
     await ensureIndex(connection, 'inquiry_message', 'idx_inquiry_unread', '`inquiryID`, `senderRole`, `status`');
+    await ensureIndex(connection, 'billing', 'idx_billing_lookup', '`bookingID`, `reservationID`, `billingStatus`');
+    await ensureIndex(connection, 'inquiry', 'idx_inquiry_active', '`guestID`, `status`, `updatedAt`');
+    await ensureIndex(connection, 'booking', 'idx_booking_active_stay', '`guestID`, `status`, `checkInDateTime`');
 
     console.log("Backfilling inquiry message normalization...");
     await connection.execute(`

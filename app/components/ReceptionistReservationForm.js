@@ -61,9 +61,6 @@ export default function ReceptionistReservationForm({
 
   const basePax = parseInt(selectedRoom?.occupancyLimit || selectedRoom?.roomBasePax || 4, 10);
   const numGuests = guestCount === '' ? 1 : (parseInt(guestCount, 10) || 1);
-  const extraGuests = Math.max(0, numGuests - basePax);
-  const extraGuestFee = extraGuests * 100; // Flat ₱100 per extra guest
-
   let nightsCount = 1;
   if (resDate && checkOutDate) {
     const inD = new Date(resDate + 'T00:00:00');
@@ -72,6 +69,9 @@ export default function ReceptionistReservationForm({
       nightsCount = Math.max(1, Math.round((outD - inD) / (1000 * 60 * 60 * 24)));
     }
   }
+
+  const extraGuests = Math.max(0, numGuests - basePax);
+  const extraGuestFee = extraGuests * 100 * nightsCount; // ₱100/night per extra guest
 
   const rateWithBfast = selectedRoom
     ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate) || 0))
@@ -448,23 +448,27 @@ export default function ReceptionistReservationForm({
           </h6>
           <div className="d-flex justify-content-between mb-1">
             <span className="text-muted">
-              Room Stay ({nightsCount} night{nightsCount > 1 ? 's' : ''} @ ₱{activeRate.toFixed(2)}/night):
+              Base Room Rate ({nightsCount} night{nightsCount > 1 ? 's' : ''} @ ₱{activeRate.toFixed(2)}/night):
             </span>
             <span className="fw-semibold">₱{roomSubtotal.toFixed(2)}</span>
           </div>
+          <div className="d-flex justify-content-between mb-1 text-success fw-bold">
+            <span>Required Down Payment (50% of Room Charge):</span>
+            <span>₱{(roomSubtotal * 0.5).toFixed(2)}</span>
+          </div>
           {extraGuests > 0 && (
             <div className="d-flex justify-content-between mb-1 text-primary">
-              <span>Extra Guest Fee ({extraGuests} Extra Pax @ ₱100 flat):</span>
-              <span className="fw-semibold">+₱{extraGuestFee.toFixed(2)}</span>
+              <span>Additional Guest Fee ({extraGuests} Extra Pax × {nightsCount} Night{nightsCount > 1 ? 's' : ''}):</span>
+              <span className="fw-semibold">+₱{extraGuestFee.toFixed(2)} <small className="text-muted fw-normal">(Payable upon Check-in / Final Billing)</small></span>
             </div>
           )}
           <div className="d-flex justify-content-between pt-2 border-top fw-bold text-dark" style={{ fontSize: '1.02rem' }}>
-            <span>Estimated Total:</span>
+            <span>Estimated Total Stay Cost:</span>
             <span className="text-primary">₱{estimatedTotal.toFixed(2)}</span>
           </div>
           <div className="mt-2 pt-2 border-top text-muted small" style={{ fontSize: '0.75rem' }}>
             <i className="bi bi-shield-check text-success me-1"></i>
-            <strong>Courtesy Hold:</strong> ₱0.00 due now. Total payable upon booking conversion or check-in.
+            <strong>Courtesy Hold:</strong> ₱0.00 due now. 50% down payment required upon booking conversion; excess pax fee payable at check-in.
           </div>
         </div>
       )}
