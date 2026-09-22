@@ -14,6 +14,8 @@ export default function ReceptionistBilling() {
   const [guestDiscountsForm, setGuestDiscountsForm] = useState([]);
 
   const [isAddingIncidental, setIsAddingIncidental] = useState(false);
+  const [submittingIncidental, setSubmittingIncidental] = useState(false);
+  const [deletingIncidentalId, setDeletingIncidentalId] = useState(null);
   const [incidentalForm, setIncidentalForm] = useState({ description: '', amount: '' });
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -300,27 +302,35 @@ export default function ReceptionistBilling() {
 
   const handleDeleteIncidentalSubmit = async (chargeID) => {
     showConfirm('Delete Incidental Charge', 'Are you sure you want to remove this charge?', async () => {
+      setDeletingIncidentalId(chargeID);
       try {
         const res = await fetch('/api/receptionist/billing', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'delete_incidental',
-            chargeID
+            chargeID,
+            bookingID: selectedBookingID
           })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to delete incidental charge');
 
-        showAlert('success', 'Success', 'Incidental charge deleted.');
-        fetchBillingDetails(selectedBookingID);
+        showAlert('success', 'Incidental Deleted', 'Incidental charge deleted.');
+        await fetchBillingDetails(selectedBookingID);
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setDeletingIncidentalId(null);
       }
     });
   };
 
   const handleCheckOutGuest = async () => {
+    if (billDetails && billDetails.chargesSummary && billDetails.chargesSummary.balance > 0.05) {
+      showAlert('error', 'Checkout Blocked', `Cannot check out guest with an outstanding balance of ₱${parseFloat(billDetails.chargesSummary.balance).toFixed(2)}. Please settle the bill first.`);
+      return;
+    }
     showConfirm('Complete Check-out', 'Are you sure you want to complete check-out for this guest? The room will be released to Available status.', async () => {
       try {
         const res = await fetch('/api/receptionist/billing', {
@@ -345,6 +355,8 @@ export default function ReceptionistBilling() {
 
   const handleAddIncidentalSubmit = async (e) => {
     e.preventDefault();
+    if (submittingIncidental) return;
+    setSubmittingIncidental(true);
     try {
       const res = await fetch('/api/receptionist/billing', {
         method: 'POST',
@@ -359,11 +371,14 @@ export default function ReceptionistBilling() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add incidental charge');
 
-      showAlert('success', 'Success', 'Incidental charge added.');
       setIsAddingIncidental(false);
-      fetchBillingDetails(selectedBookingID);
+      setIncidentalForm({ description: '', amount: '' });
+      showAlert('success', 'Incidental Added', 'Incidental charge added successfully.');
+      await fetchBillingDetails(selectedBookingID);
     } catch (err) {
       showAlert('error', 'Error', err.message);
+    } finally {
+      setSubmittingIncidental(false);
     }
   };
 
@@ -1095,9 +1110,14 @@ export default function ReceptionistBilling() {
                                           className="btn btn-sm btn-danger text-white d-inline-flex align-items-center justify-content-center"
                                           style={{ width: '28px', height: '28px' }}
                                           title="Delete Incidental"
+                                          disabled={deletingIncidentalId === item.chargeID}
                                           onClick={() => handleDeleteIncidentalSubmit(item.chargeID)}
                                         >
-                                          <i className="fa-solid fa-trash"></i>
+                                          {deletingIncidentalId === item.chargeID ? (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '12px', height: '12px' }}></span>
+                                          ) : (
+                                            <i className="fa-solid fa-trash"></i>
+                                          )}
                                         </button>
                                       </td>
                                     </tr>
@@ -1494,8 +1514,13 @@ export default function ReceptionistBilling() {
                   </div>
                 </div>
                 <div className="modal-footer border-top-0">
-                  <button type="submit" className="btn btn-danger text-white">Add Charge</button>
-                  <button type="button" className="btn btn-secondary text-white" onClick={() => setIsAddingIncidental(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-danger text-white d-inline-flex align-items-center gap-1.5" disabled={submittingIncidental}>
+                    {submittingIncidental && (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    )}
+                    <span>{submittingIncidental ? 'Adding Charge...' : 'Add Charge'}</span>
+                  </button>
+                  <button type="button" className="btn btn-secondary text-white" disabled={submittingIncidental} onClick={() => setIsAddingIncidental(false)}>Cancel</button>
                 </div>
               </form>
             </div>

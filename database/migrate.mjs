@@ -371,6 +371,19 @@ async function run() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
 
+    await ensureTable(connection, 'booking_incidentals', `
+      CREATE TABLE IF NOT EXISTS \`booking_incidentals\` (
+        \`incidentalID\` INT(11) NOT NULL AUTO_INCREMENT,
+        \`bookingID\` INT(11) NOT NULL,
+        \`description\` VARCHAR(255) NOT NULL,
+        \`amount\` DECIMAL(10,2) NOT NULL,
+        \`createdAt\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`incidentalID\`),
+        KEY \`idx_bkinc_booking\` (\`bookingID\`),
+        CONSTRAINT \`fk_bkinc_booking\` FOREIGN KEY (\`bookingID\`) REFERENCES \`booking\` (\`bookingID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
     console.log("Backfilling normalized fields...");
     await connection.execute(`
       UPDATE booking 
@@ -387,6 +400,12 @@ async function run() {
       SET op.unitPrice = p.price
       WHERE op.unitPrice IS NULL OR op.unitPrice = 0
     `).catch((e) => { console.warn("Backfill order_product unitPrice note:", e.message); });
+
+    await connection.execute(`
+      UPDATE orders 
+      SET orderStatus = 'Preparing' 
+      WHERE orderStatus = 'Out for Delivery'
+    `).catch((e) => { console.warn("Backfill orders status note:", e.message); });
 
     await connection.execute(`
       UPDATE order_amenities oa

@@ -712,7 +712,7 @@ export async function PATCH(request) {
     const currentStatus = (currentOrder.orderStatus || '').toLowerCase();
 
     // Check if order status permits modifications (only before preparation begins)
-    const nonModifiable = ['preparing', 'served', 'out for delivery', 'completed', 'delivered', 'canceled', 'cancelled'];
+    const nonModifiable = ['preparing', 'served', 'completed', 'delivered', 'canceled', 'cancelled'];
     if (nonModifiable.some(s => currentStatus.includes(s))) {
       return NextResponse.json({
         error: `Order #${orderID} is already ${currentOrder.orderStatus} and can no longer be modified.`

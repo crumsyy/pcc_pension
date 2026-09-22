@@ -142,13 +142,11 @@ function DeliveryTimeline({ deliveryType, currentStatus }) {
         { key: 'Placed', label: 'Placed' },
         { key: 'Scheduled', label: 'Scheduled' },
         { key: 'Preparing', label: 'Preparing' },
-        { key: 'Out for Delivery', label: 'Out for Delivery' },
         { key: 'Completed', label: 'Completed' }
       ]
     : [
         { key: 'Placed', label: 'Placed' },
         { key: 'Preparing', label: 'Preparing' },
-        { key: 'Out for Delivery', label: 'Out for Delivery' },
         { key: 'Completed', label: 'Completed' }
       ];
 
@@ -156,15 +154,13 @@ function DeliveryTimeline({ deliveryType, currentStatus }) {
     const s = (status || '').toLowerCase();
     if (s.includes('cancel')) return -1;
     if (isScheduled) {
-      if (s.includes('complete') || s === 'delivered') return 4;
-      if (s.includes('out for delivery') || s === 'served') return 3;
-      if (s.includes('prepar')) return 2;
+      if (s.includes('complete') || s === 'delivered') return 3;
+      if (s.includes('prepar') || s.includes('out for delivery') || s === 'served') return 2;
       if (s.includes('schedul')) return 1;
       return 0;
     } else {
-      if (s.includes('complete') || s === 'delivered') return 3;
-      if (s.includes('out for delivery') || s === 'served') return 2;
-      if (s.includes('prepar')) return 1;
+      if (s.includes('complete') || s === 'delivered') return 2;
+      if (s.includes('prepar') || s.includes('out for delivery') || s === 'served') return 1;
       return 0;
     }
   };
@@ -693,7 +689,7 @@ function ReceptionistOrdersContent() {
     if (s.includes('pending delivery')) return 'bg-warning-subtle text-warning-emphasis border border-warning';
     if (s.includes('cancel')) return 'bg-danger text-white';
     if (s.includes('complete') || s === 'delivered') return 'bg-success text-white';
-    if (s.includes('out for delivery') || s === 'served') return 'bg-primary text-white';
+    if (s === 'served') return 'bg-primary text-white';
     if (s.includes('prepar')) return 'bg-info text-dark';
     if (s.includes('schedul')) return 'bg-secondary text-white';
     return 'bg-warning text-dark';
@@ -1197,7 +1193,7 @@ function ReceptionistOrdersContent() {
                               <span>View Order Details</span>
                             </button>
 
-                            {['Preparing', 'Scheduled', 'Placed', 'Pending', 'Pending Delivery', 'Out for Delivery'].includes(o.orderStatus) && (
+                            {['Preparing', 'Scheduled', 'Placed', 'Pending', 'Pending Delivery'].includes(o.orderStatus) && (
                               <>
                                 {(() => {
                                   const isReadyForDelivery = isOrderDeliveryTimeReached(o);

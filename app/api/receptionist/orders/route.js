@@ -484,7 +484,10 @@ export async function POST(request) {
 
     if (action === 'update_status') {
       const orderID = parseInt(body.orderID);
-      const newStatus = body.status; // 'Pending', 'Preparing', 'Served', 'Completed', 'Canceled'
+      let newStatus = body.status; // 'Pending', 'Preparing', 'Served', 'Completed', 'Canceled'
+      if (newStatus === 'Out for Delivery') {
+        newStatus = 'Preparing';
+      }
 
       if (!orderID || !newStatus) {
         return NextResponse.json({ error: 'Missing orderID or status.' }, { status: 400 });

@@ -72,8 +72,8 @@ function CheckInClient() {
 
   const handleVerifyRoom = (id, roomNumber, guestName) => {
     showConfirm(
-      'Verify Room Condition',
-      `Mark Room ${roomNumber} (${guestName}) as verified by staff? This confirms housekeeping/front desk inspection is complete.`,
+      'Inspect Room Condition',
+      `Mark Room ${roomNumber} (${guestName}) as inspected? This will transition the stay to 'Pending Bill' for final ledger settlement.`,
       async () => {
         try {
           const res = await fetch('/api/receptionist/bookings', {
@@ -82,9 +82,9 @@ function CheckInClient() {
             body: JSON.stringify({ action: 'verify_room', bookingID: id })
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to verify room');
+          if (!res.ok) throw new Error(data.error || 'Failed to inspect room');
 
-          showAlert('success', 'Room Verified', data.message || `Room ${roomNumber} marked as verified.`);
+          showAlert('success', 'Room Inspected — Pending Bill', data.message || `Room ${roomNumber} inspected. Proceed to Billing Ledger to finalize folio.`);
           fetchBookings();
         } catch (err) {
           showAlert('error', 'Error', err.message);
@@ -461,11 +461,11 @@ function CheckInClient() {
                         {(b.status === 'Pending Room Verification' || b.status === 'Pending Checkout' || b.status === 'Checkout Requested') && (
                           <button
                             type="button"
-                            className="btn btn-sm btn-warning text-dark fw-bold d-inline-flex align-items-center gap-1"
+                            className="btn btn-sm btn-warning text-dark fw-bold d-inline-flex align-items-center gap-1 shadow-xs"
                             onClick={() => handleVerifyRoom(b.bookingID, b.roomNumber, b.firstName + ' ' + b.lastName)}
-                            aria-label="Verify Room Condition"
+                            aria-label="Inspect Room Condition"
                           >
-                            <i className="fa-solid fa-clipboard-check"></i> Verify Room
+                            <i className="fa-solid fa-clipboard-check"></i> Inspect Room
                           </button>
                         )}
 

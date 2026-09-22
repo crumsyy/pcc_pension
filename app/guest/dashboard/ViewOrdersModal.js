@@ -70,8 +70,8 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
   if (!isOpen || !order) return null;
 
   const orderStatus = (order.orderStatus || '').trim();
-  // An order can only be modified if it has not yet reached Preparing, Served, Out for Delivery, Completed, or Canceled
-  const isLocked = ['preparing', 'served', 'out for delivery', 'completed', 'delivered', 'canceled', 'cancelled']
+  // An order can only be modified if it has not yet reached Preparing, Served, Completed, or Canceled
+  const isLocked = ['preparing', 'served', 'completed', 'delivered', 'canceled', 'cancelled']
     .some(s => orderStatus.toLowerCase().includes(s));
 
   const hasScheduledItems = itemsState.some(it => it.deliveryType === 'scheduled');
@@ -96,7 +96,7 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
     if (s.includes('pending delivery')) return 'bg-warning-subtle text-warning-emphasis border border-warning';
     if (s.includes('cancel')) return 'bg-danger text-white';
     if (s.includes('complete') || s === 'delivered') return 'bg-success text-white';
-    if (s.includes('out for delivery') || s === 'served') return 'bg-primary text-white';
+    if (s === 'served') return 'bg-primary text-white';
     if (s.includes('prepar')) return 'bg-info text-dark';
     if (s.includes('schedul')) return 'bg-secondary text-white';
     return 'bg-warning text-dark';

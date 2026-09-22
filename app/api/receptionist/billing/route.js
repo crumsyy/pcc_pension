@@ -344,6 +344,10 @@ export async function POST(request) {
       const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? LIMIT 1", [bookingID]);
       const billingID = billingRes[0]?.billingID || null;
 
+      if (billingID) {
+        await syncNormalizedBillingLineItems(null, billingID, bookingID);
+      }
+
       await logBillingAudit(null, {
         billingID,
         bookingID,
@@ -362,12 +366,77 @@ export async function POST(request) {
 
     if (action === 'delete_incidental') {
       const chargeID = parseInt(body.chargeID);
+      let bookingID = parseInt(body.bookingID);
       if (!chargeID) {
         return NextResponse.json({ error: 'Missing charge ID.' }, { status: 400 });
       }
 
+      // 1. Look up charge details (and bookingID if not provided)
+      const chargeRows = await dbQuery(
+        "SELECT chargeID, bookingID, amount, description FROM incidental_charge WHERE chargeID = ?",
+        [chargeID]
+      );
+
+      if (chargeRows.length === 0) {
+        // Check if stored in legacy booking_incidentals
+        const bkRows = await dbQuery(
+          "SELECT incidentalID as chargeID, bookingID, amount, description FROM booking_incidentals WHERE incidentalID = ?",
+          [chargeID]
+        ).catch(() => []);
+        if (bkRows.length > 0) {
+          chargeRows.push(bkRows[0]);
+        }
+      }
+
+      if (chargeRows.length === 0) {
+        return NextResponse.json({ error: 'Incidental charge not found or already deleted.' }, { status: 404 });
+      }
+
+      const charge = chargeRows[0];
+      if (!bookingID) {
+        bookingID = charge.bookingID;
+      }
+      const chargeAmount = parseFloat(charge.amount || 0);
+      const balanceBefore = await getBookingBalance(bookingID);
+
+      // 2. Perform hard delete from both tables
       await dbQuery("DELETE FROM incidental_charge WHERE chargeID = ?", [chargeID]);
-      return NextResponse.json({ success: true, message: 'Incidental charge deleted successfully.' });
+      await dbQuery("DELETE FROM booking_incidentals WHERE incidentalID = ?", [chargeID]).catch(() => {});
+
+      // 3. Re-sync master billing ledger so remaining balance updates immediately
+      const billingRes = await dbQuery(
+        "SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1",
+        [bookingID]
+      );
+      const billingID = billingRes[0]?.billingID || null;
+
+      if (billingID) {
+        await syncNormalizedBillingLineItems(null, billingID, bookingID);
+      }
+
+      const balanceAfter = await getBookingBalance(bookingID);
+
+      // 4. Record audit trail
+      await logBillingAudit(null, {
+        billingID,
+        bookingID,
+        transactionType: 'Incidental Removed',
+        amount: chargeAmount,
+        balanceBefore,
+        balanceAfter,
+        userID: session.userID,
+        userName: session.email || 'Receptionist',
+        userRole: session.role,
+        description: `Removed Incidental Charge: ${charge.description} (₱${chargeAmount.toFixed(2)})`
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Incidental charge deleted successfully.',
+        bookingID,
+        chargeID,
+        balanceAfter
+      });
     }
 
     if (action === 'add_guest') {
@@ -505,14 +574,6 @@ export async function POST(request) {
       }
     }
 
-    if (action === 'delete_incidental') {
-      const chargeID = parseInt(body.chargeID);
-      if (!chargeID) {
-        return NextResponse.json({ error: 'Charge ID is required.' }, { status: 400 });
-      }
-      await dbQuery("DELETE FROM incidental_charge WHERE chargeID = ?", [chargeID]);
-      return NextResponse.json({ success: true, message: 'Incidental charge deleted successfully.' });
-    }
 
     if (action === 'apply_manual_discount' || action === 'apply_manual_discounts') {
       const bookingID = parseInt(body.bookingID);
