@@ -164,7 +164,14 @@ export async function GET(request) {
         paid: details.paidTotal,
         balance: details.balance,
         remainingBalance: details.chargesSummary?.remainingBalance !== undefined ? details.chargesSummary.remainingBalance : details.balance,
-        finalCheckoutBalance: details.chargesSummary?.finalCheckoutBalance || details.balance
+        finalCheckoutBalance: details.chargesSummary?.finalCheckoutBalance || details.balance,
+        stayComplimentaryAllowance: details.chargesSummary?.stayComplimentaryAllowance ?? 0,
+        complimentaryBreakfastUsed: details.chargesSummary?.complimentaryBreakfastUsed ?? details.complimentaryBreakfastUsed ?? 0
+      },
+      chargesBreakdown: details.chargesBreakdown || {},
+      breakfastSummary: details.chargesBreakdown?.breakfastSummary || {
+        complimentaryBreakfastUsed: details.complimentaryBreakfastUsed ?? 0,
+        stayComplimentaryAllowance: details.chargesSummary?.stayComplimentaryAllowance ?? 0
       },
       guestsList: details.finalGuestsList,
       billingID: details.billingID,

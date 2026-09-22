@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
+import { formatCurrency } from '../../lib/formatters';
 
 export default function ReceptionistBilling() {
   const [activeBookings, setActiveBookings] = useState([]);
@@ -854,6 +855,26 @@ export default function ReceptionistBilling() {
                                   )}
                                 </div>
                               </div>
+                              {billDetails.chargesSummary.breakfastOption === 'with' && (() => {
+                                const complimentaryBreakfastUsed = billDetails?.chargesBreakdown?.breakfastSummary?.complimentaryBreakfastUsed ?? billDetails?.chargesSummary?.complimentaryBreakfastUsed ?? billDetails?.complimentaryBreakfastUsed ?? 0;
+                                const stayComplimentaryAllowance = billDetails?.chargesBreakdown?.breakfastSummary?.stayComplimentaryAllowance ?? billDetails?.chargesSummary?.stayComplimentaryAllowance ?? (2 * (billDetails?.booking?.nights || 1));
+                                return (
+                                  <div className="col-12 mt-1">
+                                    <div className="p-2 bg-white rounded border d-flex justify-content-between align-items-center">
+                                      <div className="d-flex align-items-center gap-2">
+                                        <i className="bi bi-cup-hot-fill text-success fs-6"></i>
+                                        <div>
+                                          <span className="fw-bold text-success" style={{ fontSize: '0.74rem' }}>Complimentary Breakfast Package:</span>
+                                          <span className="text-muted ms-1" style={{ fontSize: '0.70rem' }}>Up to 2 complimentary meals/day (Stay allowance: {stayComplimentaryAllowance} meals)</span>
+                                        </div>
+                                      </div>
+                                      <span className="badge bg-success text-white font-monospace" style={{ fontSize: '0.72rem' }}>
+                                        {complimentaryBreakfastUsed} / {stayComplimentaryAllowance} Claimed
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                             {/* Applied Discounts breakdown if any */}
@@ -1387,7 +1408,7 @@ export default function ReceptionistBilling() {
                   <div className="alert alert-info py-2 small mb-3 d-flex align-items-center justify-content-between">
                     <div>
                       <i className="bi bi-info-circle me-1"></i>
-                      Discounts (e.g. Senior Citizen, PWD) are calculated per beneficiary's proportionate share of room charges.
+                      Discounts (e.g. Senior Citizen, PWD) are calculated per beneficiary&apos;s proportionate share of room charges.
                     </div>
                     <span className="badge bg-primary text-white">
                       Stay Capacity: {billDetails.chargesSummary?.totalGuests || 1} Pax

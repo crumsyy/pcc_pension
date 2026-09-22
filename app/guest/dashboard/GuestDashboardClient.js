@@ -22,7 +22,7 @@ import './styles.css';
 import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
 import { generateReceiptPNG } from '@/app/paymongo/test/page';
-import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber, formatTo12Hour, formatDateTime12H } from '@/lib/formatters';
+import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber, formatTo12Hour, formatDateTime12H, formatCurrency } from '@/lib/formatters';
 
 function getCourtesyHoldTimeInfo(expiryStr) {
   if (!expiryStr) return { expired: true, text: 'Expired', inGrace: false, hours: 0, mins: 0 };
@@ -3563,8 +3563,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px' }}>
                 <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)' }}>
                   <div>
-                    <h5 className="modal-title fw-bold mb-0">Billing Breakdown â€” Room {viewBillingBooking.roomNumber}</h5>
-                    <div className="small opacity-75 font-monospace">Stay #{viewBillingBooking.bookingID} â€¢ {viewBillingBooking.roomType || 'Room'}</div>
+                    <h5 className="modal-title fw-bold mb-0">Billing Breakdown &mdash; Room {viewBillingBooking.roomNumber}</h5>
+                    <div className="small opacity-75 font-monospace">Stay #{viewBillingBooking.bookingID} &bull; {viewBillingBooking.roomType || 'Room'}</div>
                   </div>
                   <button type="button" className="btn-close btn-close-white" onClick={() => setViewBillingBooking(null)}></button>
                 </div>
@@ -3617,11 +3617,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               <td>
                                 <div className="fw-semibold">Room Accommodation ({viewBillingBooking.roomType || 'Standard'})</div>
                                 <div className="text-muted" style={{ fontSize: '0.78rem' }}>
-                                  â‚±{baseRate.toLocaleString('en-US', { minimumFractionDigits: 2 })} / night Ã— {stayNights} Night{stayNights > 1 ? 's' : ''}
+                                  {formatCurrency(baseRate)} / night &times; {stayNights} Night{stayNights > 1 ? 's' : ''}
                                 </div>
                               </td>
                               <td className="text-end fw-semibold">
-                                â‚±{baseRoomCharge.toFixed(2)}
+                                {formatCurrency(baseRoomCharge)}
                               </td>
                             </tr>
                             {extraPaxCount > 0 ? (
@@ -3629,14 +3629,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 <td>
                                   <div className="fw-semibold text-danger">Extra Guest Surcharge</div>
                                   <div className="text-muted" style={{ fontSize: '0.78rem' }}>
-                                    {extraPaxCount} Extra Pax Ã— {stayNights} Night{stayNights > 1 ? 's' : ''} @ â‚±100.00/night
+                                    {extraPaxCount} Extra Pax &times; {stayNights} Night{stayNights > 1 ? 's' : ''} @ {formatCurrency(100)}/night
                                   </div>
                                   <div className="text-muted" style={{ fontSize: '0.72rem' }}>
                                     (Base Room Capacity: {roomCapacity} Pax)
                                   </div>
                                 </td>
                                 <td className="text-end fw-semibold text-danger">
-                                  â‚±{extraGuestFee.toFixed(2)}
+                                  {formatCurrency(extraGuestFee)}
                                 </td>
                               </tr>
                             ) : (
@@ -3647,7 +3647,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     Standard Base Capacity: {roomCapacity} Pax (No extra guest surcharge)
                                   </div>
                                 </td>
-                                <td className="text-end text-muted fw-semibold">â€”</td>
+                                <td className="text-end text-muted fw-semibold">&mdash;</td>
                               </tr>
                             )}
                             {breakfastOption === 'with' && (
@@ -3658,7 +3658,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     Daily quota: up to 2 complimentary meals per calendar date (Stay allowance: {2 * stayNights} complimentary meals)
                                   </div>
                                 </td>
-                                <td className="text-end text-success fw-semibold">Included (â‚±0.00)</td>
+                                <td className="text-end text-success fw-semibold">Included ({formatCurrency(0)})</td>
                               </tr>
                             )}
                             {totalDiscounts > 0 && (
@@ -3667,12 +3667,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   <div className="fw-semibold text-success">Discounts Applied</div>
                                   {((billData.chargesBreakdown?.discounts?.beneficiaries || billData.finalGuestsList || []).filter(g => g.discountID || g.promotionID)).map((ben, bIdx) => (
                                     <div key={bIdx} className="text-muted" style={{ fontSize: '0.74rem' }}>
-                                      â€¢ {ben.fullName || ben.beneficiaryName || `Beneficiary #${bIdx + 1}`} ({ben.discountName || ben.name || 'Senior/PWD'} - {ben.percentage || 20}%)
+                                      &bull; {ben.fullName || ben.beneficiaryName || `Beneficiary #${bIdx + 1}`} ({ben.discountName || ben.name || 'Senior/PWD'} - {ben.percentage || 20}%)
                                     </div>
                                   ))}
                                 </td>
                                 <td className="text-end text-success fw-semibold">
-                                  -â‚±{totalDiscounts.toFixed(2)}
+                                  -{formatCurrency(totalDiscounts)}
                                 </td>
                               </tr>
                             )}
@@ -3706,16 +3706,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                         <div className="fw-semibold">{item.name}</div>
                                         {isComp && (
                                           <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.70rem' }}>
-                                            Complimentary Package (â‚±0.00)
+                                            Complimentary Package ({formatCurrency(0)})
                                           </span>
                                         )}
                                       </td>
                                       <td className="text-muted" style={{ fontSize: '0.76rem' }}>
-                                        {item.deliveryDate ? formatDateTime12H(item.deliveryDate) : 'â€”'}
+                                        {item.deliveryDate ? formatDateTime12H(item.deliveryDate) : '&mdash;'}
                                       </td>
                                       <td className="text-center">{item.quantity}</td>
                                       <td className="text-end fw-semibold">
-                                        {isComp ? <span className="text-success">â‚±0.00</span> : `â‚±${subtotal.toFixed(2)}`}
+                                        {isComp ? <span className="text-success">{formatCurrency(0)}</span> : formatCurrency(subtotal)}
                                       </td>
                                     </tr>
                                   );
@@ -3747,7 +3747,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     <td>{item.name}</td>
                                     <td className="text-center">{item.quantity}</td>
                                     <td className="text-end fw-semibold">
-                                      â‚±{parseFloat(item.subtotal || (item.quantity * item.price) || 0).toFixed(2)}
+                                      {formatCurrency(item.subtotal || (item.quantity * item.price) || 0)}
                                     </td>
                                   </tr>
                                 ))}
@@ -3781,7 +3781,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     <div>{inc.description}</div>
                                     {inc.createdAt && <span className="text-muted" style={{ fontSize: '0.72rem' }}>{formatDateTime12H(inc.createdAt)}</span>}
                                   </td>
-                                  <td className="text-end fw-semibold text-danger">â‚±{parseFloat(inc.amount).toFixed(2)}</td>
+                                  <td className="text-end fw-semibold text-danger">{formatCurrency(inc.amount)}</td>
                                 </tr>
                               ))
                             )}
@@ -3812,7 +3812,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 <tr key={p.paymentID || idx}>
                                   <td>Payment #{p.paymentID} <span className="text-muted small">({p.paymentDate ? formatDateTime12H(p.paymentDate) : ''})</span></td>
                                   <td>{p.paymentMethod || 'GCash'}</td>
-                                  <td className="text-end fw-semibold text-success">â‚±{parseFloat(p.amount).toFixed(2)}</td>
+                                  <td className="text-end fw-semibold text-success">{formatCurrency(p.amount)}</td>
                                 </tr>
                               ))
                             )}
@@ -3825,26 +3825,26 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <div className="d-flex justify-content-between mb-1 small">
                           <span className="text-muted">Total Charges:</span>
                           <strong className="text-dark">
-                            â‚±{grossTotal.toFixed(2)}
+                            {formatCurrency(grossTotal)}
                           </strong>
                         </div>
                         {totalDiscounts > 0 && (
                           <div className="d-flex justify-content-between mb-1 small text-success">
                             <span>Total Discounts:</span>
-                            <strong>-â‚±{totalDiscounts.toFixed(2)}</strong>
+                            <strong>-{formatCurrency(totalDiscounts)}</strong>
                           </div>
                         )}
                         <div className="d-flex justify-content-between mb-1 small">
                           <span className="text-muted">Total Payments Made:</span>
                           <strong className="text-success">
-                            â‚±{totalPaid.toFixed(2)}
+                            {formatCurrency(totalPaid)}
                           </strong>
                         </div>
                         <hr className="my-2" />
                         <div className="d-flex justify-content-between align-items-center">
                           <span className="fw-bold text-dark">Remaining Final Balance:</span>
                           <span className={`fw-bold fs-5 ${balanceDue > 0 ? 'text-danger' : 'text-success'}`}>
-                            â‚±{balanceDue.toFixed(2)}
+                            {formatCurrency(balanceDue)}
                           </span>
                         </div>
                       </div>
