@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
-import { formatCurrency } from '../../lib/formatters';
+import { formatCurrency } from '@/lib/formatters';
 
 export default function ReceptionistBilling() {
   const [activeBookings, setActiveBookings] = useState([]);
