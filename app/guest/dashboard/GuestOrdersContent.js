@@ -810,7 +810,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
 
   const allTodaySlotsPassed = isClientMounted && isSelectedDateToday && evaluatedSlots.every(s => s.isPast);
 
-  const effectiveBooking = activeBooking || activeBookingStay;
   const activeStayStatuses = [
     'Checked In',
     'Active Stay',
