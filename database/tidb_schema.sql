@@ -320,7 +320,7 @@ INSERT INTO `room_rate` (`roomRateID`, `rate`, `roomTypeID`, `floorID`, `breakfa
 CREATE TABLE `reservation` (
   `reservationID` int(11) NOT NULL AUTO_INCREMENT,
   `reservationDateTime` datetime NOT NULL,
-  `status` enum('Confirmed','Pending','Canceled') NOT NULL DEFAULT 'Pending',
+  `status` varchar(50) NOT NULL DEFAULT 'Pending',
   `guestID` int(11) NOT NULL,
   `roomID` int(11) NOT NULL,
   PRIMARY KEY (`reservationID`),
@@ -337,7 +337,7 @@ CREATE TABLE `booking` (
   `bookingID` int(11) NOT NULL AUTO_INCREMENT,
   `checkInDateTime` datetime NOT NULL,
   `checkOutDateTime` datetime NOT NULL,
-  `status` enum('Confirmed','Checked In','Checked Out','Canceled','Pending') NOT NULL DEFAULT 'Pending',
+  `status` varchar(50) NOT NULL DEFAULT 'Pending',
   `reservationID` int(11) NOT NULL,
   `guestID` int(11) NOT NULL,
   `roomID` int(11) NOT NULL,

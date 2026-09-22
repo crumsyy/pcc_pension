@@ -34,12 +34,7 @@ function CheckInClient() {
     newCheckOut: ''
   });
 
-  const [finalBillModal, setFinalBillModal] = useState({
-    isOpen: false,
-    booking: null,
-    singleDesc: '',
-    singleAmount: ''
-  });
+
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -56,7 +51,8 @@ function CheckInClient() {
       case 'Pending Checkout':
         return 'bg-warning text-dark fw-bold';
       case 'Room Verified':
-        return 'bg-info text-white fw-bold';
+      case 'Pending Bill':
+        return 'bg-warning text-dark fw-bold border border-warning';
       case 'Bill Finalized':
       case 'Final Billing Updated':
         return 'bg-primary text-white fw-bold';
@@ -97,37 +93,7 @@ function CheckInClient() {
     );
   };
 
-  const handleSaveFinalBill = async (e) => {
-    if (e) e.preventDefault();
-    if (!finalBillModal.booking) return;
 
-    try {
-      const payload = {
-        action: 'update_final_billing',
-        bookingID: finalBillModal.booking.bookingID,
-        incidentals: []
-      };
-      if (finalBillModal.singleDesc.trim() && parseFloat(finalBillModal.singleAmount) > 0) {
-        payload.incidentals.push({
-          description: finalBillModal.singleDesc.trim(),
-          amount: parseFloat(finalBillModal.singleAmount)
-        });
-      }
-      const res = await fetch('/api/receptionist/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update final billing');
-
-      showAlert('success', 'Final Billing Updated', data.message || 'Billing updated. Guest has been notified.');
-      setFinalBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '' });
-      fetchBookings();
-    } catch (err) {
-      showAlert('error', 'Error', err.message);
-    }
-  };
 
   const handleOpenUpdateModal = (b) => {
     const dt = b.checkOutDateTime ? new Date(String(b.checkOutDateTime).replace(' ', 'T')) : new Date();
@@ -364,6 +330,7 @@ function CheckInClient() {
     'Pending Room Verification',
     'Pending Checkout',
     'Room Verified',
+    'Pending Bill',
     'Bill Finalized',
     'Final Billing Updated',
     'Payment Completed',
@@ -485,7 +452,7 @@ function CheckInClient() {
                             </small>
                           </div>
                           <span className={`booking-status-pill ${getStatusBadgeClass(b.status)}`}>
-                            {b.status}
+                            {b.status === 'Room Verified' ? 'Pending Bill' : b.status}
                           </span>
                         </div>
 
@@ -502,25 +469,8 @@ function CheckInClient() {
                           </button>
                         )}
 
-                        {b.status === 'Room Verified' && (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-info text-white fw-bold d-inline-flex align-items-center gap-1"
-                            onClick={() => setFinalBillModal({ isOpen: true, booking: b, singleDesc: '', singleAmount: '' })}
-                          >
-                            <i className="fa-solid fa-file-invoice-dollar"></i> Add Incidentals &amp; Finalize Bill
-                          </button>
-                        )}
-
                         {(b.status === 'Final Billing Updated' || b.status === 'Bill Finalized') && (
                           <>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-primary fw-bold d-inline-flex align-items-center gap-1"
-                              onClick={() => setFinalBillModal({ isOpen: true, booking: b, singleDesc: '', singleAmount: '' })}
-                            >
-                              <i className="fa-solid fa-plus"></i> Add Extra Incidentals
-                            </button>
                             <a
                               href={`/receptionist/qr-payment?bookingId=${b.bookingID}`}
                               target="_blank"
@@ -572,10 +522,10 @@ function CheckInClient() {
 
                         <a
                           href={`/receptionist/billing?bookingID=${b.bookingID}`}
-                          className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                          className={`btn btn-sm ${(b.status === 'Room Verified' || b.status === 'Pending Bill') ? 'btn-primary text-white fw-bold shadow-sm' : 'btn-outline-primary'} d-inline-flex align-items-center gap-1`}
                           title="View Full Billing Ledger"
                         >
-                          <i className="fa-solid fa-eye"></i> Billing Ledger
+                          <i className="fa-solid fa-file-invoice-dollar"></i> Billing Ledger
                         </a>
                       </div>
                     </div>
@@ -700,137 +650,6 @@ function CheckInClient() {
                   <i className="fa-solid fa-save me-1"></i> Save Check-Out Schedule
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* INCIDENTAL CHARGES & FINALIZE BILLING MODAL */}
-      {finalBillModal.isOpen && finalBillModal.booking && (
-        <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1080 }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px' }}>
-              <form onSubmit={handleSaveFinalBill}>
-                <div className="modal-header border-bottom px-4 py-3 bg-light">
-                  <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-                    <i className="fa-solid fa-file-invoice-dollar text-primary"></i> Room Inspection &amp; Final Billing
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setFinalBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '' })}
-                  ></button>
-                </div>
-                <div className="modal-body p-4">
-                  <div className="row g-3 mb-3">
-                    <div className="col-12 col-md-6">
-                      <div className="card bg-light border-0 p-3 h-100">
-                        <span className="text-muted small text-uppercase fw-semibold">Guest &amp; Room Info</span>
-                        <div className="fw-bold text-dark fs-5 mt-1">
-                          {finalBillModal.booking.firstName} {finalBillModal.booking.lastName}
-                        </div>
-                        <div className="text-muted small">
-                          Room {finalBillModal.booking.roomNumber} ({finalBillModal.booking.roomType})
-                        </div>
-                        <div className="text-muted small mt-1">
-                          Booking ID: #{finalBillModal.booking.bookingID}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-12 col-md-6">
-                      <div className="card bg-primary-subtle border border-primary-subtle p-3 h-100">
-                        <span className="text-primary small text-uppercase fw-semibold">Current Balance Due</span>
-                        <div className="fw-bold text-primary fs-4 mt-1">
-                          ₱{Number(finalBillModal.booking.remainingBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                        <div className="text-muted small mt-1">
-                          Status: <span className={`badge ${getStatusBadgeClass(finalBillModal.booking.status)}`}>{finalBillModal.booking.status}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Existing Incidental Charges */}
-                  {finalBillModal.booking.incidentals && finalBillModal.booking.incidentals.length > 0 && (
-                    <div className="mb-4">
-                      <label className="form-label fw-bold text-dark small mb-1">Previously Logged Incidentals</label>
-                      <div className="table-responsive border rounded">
-                        <table className="table table-sm table-striped mb-0 small">
-                          <thead className="table-light">
-                            <tr>
-                              <th>Description</th>
-                              <th className="text-muted">Recorded At</th>
-                              <th className="text-end">Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {finalBillModal.booking.incidentals.map((inc, idx) => (
-                              <tr key={idx}>
-                                <td>{inc.description}</td>
-                                <td className="text-muted">{inc.createdAt}</td>
-                                <td className="text-end fw-semibold">₱{Number(inc.amount).toFixed(2)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Add Incidental Charge */}
-                  <div className="p-3 border rounded bg-white mb-3">
-                    <label className="form-label fw-bold text-dark small d-flex align-items-center gap-1 mb-2">
-                      <i className="fa-solid fa-plus-circle text-primary"></i> Add New Incidental Charge (Optional)
-                    </label>
-                    <p className="text-muted small mb-3">
-                      Add any charges incurred during stay (minibar, damaged linens/items, extra amenities, laundry). Leave blank if no charges apply.
-                    </p>
-                    <div className="row g-2">
-                      <div className="col-12 col-sm-8">
-                        <label className="form-label small text-muted">Description / Reason</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="e.g., Minibar beverages, extra towel, broken glass"
-                          value={finalBillModal.singleDesc}
-                          onChange={(e) => setFinalBillModal(prev => ({ ...prev, singleDesc: e.target.value }))}
-                        />
-                      </div>
-                      <div className="col-12 col-sm-4">
-                        <label className="form-label small text-muted">Amount (₱)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="form-control"
-                          placeholder="0.00"
-                          value={finalBillModal.singleAmount}
-                          onChange={(e) => setFinalBillModal(prev => ({ ...prev, singleAmount: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-0">
-                    <i className="fa-solid fa-circle-info text-warning fs-5"></i>
-                    <div>
-                      Submitting will lock incidental charges, recalculate the final balance, update the booking status to <strong>Final Billing Updated</strong>, and notify the guest on their mobile portal with payment options.
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer border-top px-4 py-3 d-flex justify-content-end gap-2 bg-light">
-                  <button
-                    type="button"
-                    className="btn btn-secondary text-white"
-                    onClick={() => setFinalBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '' })}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary fw-bold text-white d-inline-flex align-items-center gap-1">
-                    <i className="fa-solid fa-check"></i> Finalize Bill &amp; Notify Guest
-                  </button>
-                </div>
-              </form>
             </div>
           </div>
         </div>

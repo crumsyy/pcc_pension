@@ -809,7 +809,7 @@ export async function POST(request) {
 
       await ensureBookingBillingSchema();
       await dbQuery(
-        "UPDATE booking SET status = 'Room Verified', roomVerifiedAt = NOW() WHERE bookingID = ?",
+        "UPDATE booking SET status = 'Pending Bill', roomVerifiedAt = NOW() WHERE bookingID = ?",
         [bookingID]
       );
 
@@ -827,12 +827,12 @@ export async function POST(request) {
 
       return NextResponse.json({
         success: true,
-        message: `Room ${roomNumber} verified successfully.`,
-        bookingStatus: 'Room Verified'
+        message: `Room ${roomNumber} verified successfully. Bill is now pending finalization.`,
+        bookingStatus: 'Pending Bill'
       });
     }
 
-    if (action === 'update_final_billing') {
+    if (action === 'finalize_bill' || action === 'update_final_billing') {
       const bookingID = parseInt(body.bookingID);
       const incidentals = body.incidentals || []; // array of { description, amount }
 
@@ -928,6 +928,14 @@ export async function POST(request) {
           requiresEarlyCheckOutConfirmation: true,
           message: "Are you sure you want to checkout even if it's still not the checkout time yet."
         });
+      }
+
+      // Strict Guard: Only set room available once payment or transaction completed
+      const currentBalance = await getBookingBalance(bookingID);
+      if (currentBalance > 0.05) {
+        return NextResponse.json({
+          error: `Cannot complete checkout. Outstanding balance of ₱${currentBalance.toFixed(2)} must be fully settled first.`
+        }, { status: 400 });
       }
 
       const checkoutRes = await completeBookingAndFreeRoom(bookingID);
