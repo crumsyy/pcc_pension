@@ -259,6 +259,16 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
 
   const renderOrderCard = (o) => {
     const isScheduled = o.deliveryType === 'scheduled' || Boolean(o.deliveryTime);
+    const isImmediate = !isScheduled;
+    const delDateStr = o.deliveryDate ? String(o.deliveryDate).substring(0, 10) : '';
+    const cutoffTime = delDateStr ? new Date(`${delDateStr}T05:00:00+08:00`) : null;
+    const isCutoffPassed = cutoffTime ? new Date() >= cutoffTime : false;
+    const isCanceled = (o.orderStatus || '').toLowerCase().includes('cancel');
+    const isCompleted = ['delivered', 'completed', 'served'].includes((o.orderStatus || '').toLowerCase());
+    const isPreparing = (o.orderStatus || '').toLowerCase().includes('prepar');
+
+    const canModify = isScheduled && !isCutoffPassed && !isCanceled && !isCompleted && !isPreparing;
+
     const items = o.items || [];
     const orderSubtotal = items.reduce((sum, it) => sum + (parseFloat(it.price || it.unitPrice || 0) * it.quantity), 0);
     const orderComplimentaryDeduction = items.reduce((sum, it) => {
@@ -271,7 +281,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
     const orderNetTotal = Math.max(0, orderSubtotal - orderComplimentaryDeduction);
 
     return (
-      <div key={o.orderID} className="card order-card border shadow-xs rounded-3 mb-3 overflow-hidden">
+      <div key={o.orderID} id={`order-item-${o.orderID}`} className="card order-card border shadow-xs rounded-3 mb-3 overflow-hidden">
         <div className="card-header bg-white py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
           <div className="d-flex align-items-center gap-2">
             <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>Order #{o.orderID}</span>
@@ -279,29 +289,49 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
               {new Date(o.orderDateTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
             </span>
           </div>
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-sm btn-primary text-white py-0.5 px-2 fw-semibold d-flex align-items-center gap-1 shadow-xs"
-              style={{ fontSize: '0.74rem', borderRadius: '5px' }}
-              onClick={() => onViewOrder && onViewOrder(o)}
-            >
-              <i className="bi bi-pencil-square"></i>
-              <span>Modify Order</span>
-            </button>
-            {o.orderStatus === 'Pending Delivery' ? (
-              <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
-                <i className="bi bi-hourglass-split me-1"></i>Pending Delivery (Awaiting Check-in)
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            {canModify ? (
+              <button
+                type="button"
+                className="btn btn-sm btn-primary text-white py-0.5 px-2 fw-semibold d-flex align-items-center gap-1 shadow-xs"
+                style={{ fontSize: '0.74rem', borderRadius: '5px' }}
+                onClick={() => onViewOrder && onViewOrder(o)}
+              >
+                <i className="bi bi-pencil-square"></i>
+                <span>Modify Order</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary text-white py-0.5 px-2 fw-semibold d-flex align-items-center gap-1 shadow-xs"
+                style={{ fontSize: '0.74rem', borderRadius: '5px' }}
+                onClick={() => onViewOrder && onViewOrder(o)}
+              >
+                <i className="bi bi-eye"></i>
+                <span>View Order</span>
+              </button>
+            )}
+
+            {isImmediate ? (
+              <span className="badge bg-secondary text-white px-2 py-1" style={{ fontSize: '0.74rem' }}>
+                <i className="bi bi-lightning-charge me-1"></i>Immediate Fulfillment — Non-cancellable
+              </span>
+            ) : isCutoffPassed && !isCanceled && !isCompleted ? (
+              <span className="badge bg-warning text-dark px-2 py-1" style={{ fontSize: '0.74rem' }}>
+                <i className="bi bi-lock-fill me-1"></i>Locked for Preparation (Cutoff 5:00 AM passed)
               </span>
             ) : isScheduled ? (
               <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
                 <i className="bi bi-clock-history me-1"></i>{o.deliveryDate ? `${o.deliveryDate} ` : ''}{o.deliveryTime || 'Breakfast'}
               </span>
-            ) : (
-              <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
-                <i className="bi bi-lightning-charge me-1"></i>Immediate Delivery
+            ) : null}
+
+            {o.orderStatus === 'Pending Delivery' && (
+              <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style={{ fontSize: '0.74rem' }}>
+                <i className="bi bi-hourglass-split me-1"></i>Pending Delivery (Awaiting Check-in)
               </span>
             )}
+
             <span className={`badge ${getStatusBadge(o.orderStatus)} px-2.5 py-1 rounded-pill`} style={{ fontSize: '0.75rem' }}>
               {o.orderStatus}
             </span>
@@ -388,9 +418,14 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
               style={{ fontSize: '0.78rem', borderRadius: '6px' }}
               onClick={() => onViewOrder && onViewOrder(o)}
             >
-              <i className="bi bi-eye"></i>
-              <span>View / Modify Order</span>
+              <i className={canModify ? "bi bi-pencil-square" : "bi bi-eye"}></i>
+              <span>{canModify ? "View / Modify Order" : "View Order Details"}</span>
             </button>
+            {canModify && delDateStr && (
+              <span className="text-muted small d-none d-sm-inline" style={{ fontSize: '0.75rem' }}>
+                &bull; Modifications allowed until 5:00 AM on {delDateStr}
+              </span>
+            )}
             <small className="text-muted d-none d-sm-inline">&bull; Charged to Stay Billing</small>
           </div>
           <div className="text-end">
@@ -896,6 +931,13 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
       cachedOrdersCatalog = null;
       fetchCatalog();
 
+      // Dispatch order updated event so billing breakdown cache is immediately refreshed
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('guest-order-updated', {
+          detail: { bookingID: activeBookingStay?.bookingID }
+        }));
+      }
+
       // Show dialog box "Order Submitted"
       setOrderSuccessModal({
         isOpen: true,
@@ -1117,7 +1159,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
             {allTodaySlotsPassed && isSelectedDateToday && (
               <div className="alert alert-warning py-1.5 px-2 mt-2 mb-0 d-flex align-items-center gap-1 text-dark" style={{ fontSize: '0.74rem' }}>
                 <i className="bi bi-exclamation-circle-fill text-warning"></i>
-                <span>Today's breakfast slots have passed. Please select tomorrow to schedule advance breakfast.</span>
+                <span>Today&apos;s breakfast slots have passed. Please select tomorrow to schedule advance breakfast.</span>
               </div>
             )}
           </div>
@@ -1482,6 +1524,11 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           onOrderUpdated={async () => {
             await fetchOrderHistory();
             await fetchCatalog();
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('guest-order-updated', {
+                detail: { bookingID: activeBookingStay?.bookingID }
+              }));
+            }
           }}
         />
       )}

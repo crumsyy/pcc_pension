@@ -70,6 +70,17 @@ export default function GuestBookingForm({
           </div>
         </div>
       )}
+
+      {/* Stay Commitment & Early Check-out Policy Notice */}
+      <div className="alert alert-info border-info-subtle mt-3 mb-0 d-flex align-items-start gap-2 py-2 px-3 small">
+        <i className="bi bi-info-circle-fill text-info fs-6 mt-0.5 flex-shrink-0"></i>
+        <div>
+          <div className="fw-semibold text-dark">Stay Commitment &amp; Early Check-out Policy</div>
+          <div className="text-secondary" style={{ fontSize: '0.78rem' }}>
+            Committed room dates are guaranteed for your arrival. In accordance with pension house policy, departures earlier than your scheduled check-out date do not reduce committed room nights; full accommodation charges for all booked nights remain strictly payable.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

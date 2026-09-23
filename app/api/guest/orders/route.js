@@ -533,7 +533,7 @@ export async function POST(request) {
                 const [batches] = await connection.execute(
                   `SELECT batchID, remainingQuantity FROM inventory_batch
                    WHERE itemType = 'Product' AND itemID = ? AND status IN ('Active', 'Low Stock') AND remainingQuantity > 0
-                   ORDER BY createdAt ASC`,
+                   ORDER BY COALESCE(expirationDate, '9999-12-31') ASC, dateReceived ASC, batchID ASC`,
                   [itemID]
                 );
 
@@ -551,9 +551,9 @@ export async function POST(request) {
 
                   // Insert movement log
                   await connection.execute(
-                    `INSERT INTO inventory_movement (movementType, quantity, referenceID, notes, itemType, itemID, createdAt)
-                     VALUES ('OUT', ?, ?, 'Order through Chat/Guest Portal', 'Product', ?, ?)`,
-                    [deduct, orderID, itemID, nowStr]
+                    `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+                     VALUES ('Product', ?, ?, ?, 'Stock Out', ?, 'Order through Chat/Guest Portal', ?)`,
+                    [itemID, -deduct, guest.userID || session.userID, `ORD-${orderID}`, b.batchID]
                   );
                 }
               }
@@ -575,7 +575,7 @@ export async function POST(request) {
               const [batches] = await connection.execute(
                 `SELECT batchID, remainingQuantity FROM inventory_batch
                  WHERE itemType = 'Amenity' AND itemID = ? AND status IN ('Active', 'Low Stock') AND remainingQuantity > 0
-                 ORDER BY createdAt ASC`,
+                 ORDER BY COALESCE(expirationDate, '9999-12-31') ASC, dateReceived ASC, batchID ASC`,
                 [itemID]
               );
 
@@ -592,9 +592,9 @@ export async function POST(request) {
                 );
 
                 await connection.execute(
-                  `INSERT INTO inventory_movement (movementType, quantity, referenceID, notes, itemType, itemID, createdAt)
-                   VALUES ('OUT', ?, ?, 'Amenity Order through Chat/Guest Portal', 'Amenity', ?, ?)`,
-                  [deduct, orderID, itemID, nowStr]
+                  `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+                   VALUES ('Amenity', ?, ?, ?, 'Stock Out', ?, 'Amenity Order through Chat/Guest Portal', ?)`,
+                  [itemID, -deduct, guest.userID || session.userID, `ORD-${orderID}`, b.batchID]
                 );
               }
             }
@@ -717,6 +717,24 @@ export async function PATCH(request) {
       return NextResponse.json({
         error: `Order #${orderID} is already ${currentOrder.orderStatus} and can no longer be modified.`
       }, { status: 400 });
+    }
+
+    // 1. Immediate orders cannot be modified once placed
+    if ((currentOrder.deliveryType || 'immediate') !== 'scheduled' && !currentOrder.deliveryTime) {
+      return NextResponse.json({
+        error: "Immediate orders cannot be modified once placed."
+      }, { status: 400 });
+    }
+
+    // 2. Scheduled cooked meals: cutoff is strictly 5:00 AM Manila Time on delivery date
+    if (currentOrder.deliveryDate) {
+      const delDateStr = String(currentOrder.deliveryDate).substring(0, 10);
+      const cutoffTime = new Date(`${delDateStr}T05:00:00+08:00`);
+      if (new Date() >= cutoffTime) {
+        return NextResponse.json({
+          error: "Meal preparation has already begun. Orders cannot be modified after 5:00 AM on the scheduled delivery date."
+        }, { status: 400 });
+      }
     }
 
     // Connect to db and start transaction
@@ -869,3 +887,132 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Operation failed: ' + error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  const session = await getSession();
+  if (!session || session.role !== 'Guest') {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+
+  try {
+    await ensureOrdersSchema();
+    const { searchParams } = new URL(request.url);
+    let orderID = searchParams.get('orderID');
+    if (!orderID) {
+      try {
+        const body = await request.json();
+        orderID = body.orderID;
+      } catch (e) {}
+    }
+
+    if (!orderID) {
+      return NextResponse.json({ error: 'orderID is required.' }, { status: 400 });
+    }
+
+    const guests = await dbQuery("SELECT guestID, firstName, lastName FROM guest WHERE userID = ?", [session.userID]);
+    if (guests.length === 0) {
+      return NextResponse.json({ error: 'Guest profile not found.' }, { status: 404 });
+    }
+    const guest = guests[0];
+
+    const ordersFound = await dbQuery(
+      "SELECT orderID, guestID, bookingID, orderStatus, deliveryType, deliveryTime, deliveryDate, hasCookedMeal FROM orders WHERE orderID = ? AND guestID = ?",
+      [parseInt(orderID, 10), guest.guestID]
+    );
+
+    if (ordersFound.length === 0) {
+      return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
+    }
+
+    const currentOrder = ordersFound[0];
+    const currentStatus = (currentOrder.orderStatus || '').toLowerCase();
+
+    if (currentStatus.includes('cancel')) {
+      return NextResponse.json({ error: 'Order is already canceled.' }, { status: 400 });
+    }
+
+    const nonCancellable = ['preparing', 'served', 'completed', 'delivered'];
+    if (nonCancellable.some(s => currentStatus.includes(s))) {
+      return NextResponse.json({
+        error: `Order #${orderID} is already ${currentOrder.orderStatus} and can no longer be canceled.`
+      }, { status: 400 });
+    }
+
+    // 1. Immediate orders cannot be canceled
+    if ((currentOrder.deliveryType || 'immediate') !== 'scheduled' && !currentOrder.deliveryTime) {
+      return NextResponse.json({
+        error: "Immediate orders cannot be canceled once placed."
+      }, { status: 400 });
+    }
+
+    // 2. Scheduled cooked meals: cutoff is strictly 5:00 AM Manila Time on delivery date
+    if (currentOrder.deliveryDate) {
+      const delDateStr = String(currentOrder.deliveryDate).substring(0, 10);
+      const cutoffTime = new Date(`${delDateStr}T05:00:00+08:00`);
+      if (new Date() >= cutoffTime) {
+        return NextResponse.json({
+          error: "Meal preparation has already begun. Orders cannot be canceled after 5:00 AM on the scheduled delivery date."
+        }, { status: 400 });
+      }
+    }
+
+    // Start cancellation transaction
+    const db = await getDbConnection();
+    const connection = await db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      await connection.execute(
+        "UPDATE orders SET orderStatus = 'Canceled' WHERE orderID = ?",
+        [orderID]
+      );
+      await connection.execute(
+        "UPDATE order_product SET itemStatus = 'Canceled' WHERE orderID = ?",
+        [orderID]
+      );
+      await connection.execute(
+        "UPDATE order_amenities SET itemStatus = 'Canceled' WHERE orderID = ?",
+        [orderID]
+      );
+
+      // Re-synchronize stay billing line items
+      const [guestBill] = await connection.execute(
+        "SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1",
+        [currentOrder.bookingID]
+      );
+      if (guestBill.length > 0) {
+        await syncNormalizedBillingLineItems(connection, guestBill[0].billingID, currentOrder.bookingID);
+      }
+
+      await connection.commit();
+
+      // Notify front desk/kitchen staff
+      try {
+        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+        for (const r of staffToNotify) {
+          await dbQuery(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'Scheduled Order Canceled', ?)",
+            [r.userID, `Guest ${guest.firstName} ${guest.lastName} canceled scheduled Order #${orderID} (Delivery: ${currentOrder.deliveryDate} ${currentOrder.deliveryTime || ''}).`]
+          );
+        }
+      } catch (ne) {
+        console.error("Failed to notify staff:", ne);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Order #${orderID} has been successfully canceled.`
+      });
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error("Failed to cancel guest order:", error);
+    return NextResponse.json({ error: 'Operation failed: ' + error.message }, { status: 500 });
+  }
+}
+

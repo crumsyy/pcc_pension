@@ -70,9 +70,19 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
   if (!isOpen || !order) return null;
 
   const orderStatus = (order.orderStatus || '').trim();
-  // An order can only be modified if it has not yet reached Preparing, Served, Completed, or Canceled
-  const isLocked = ['preparing', 'served', 'completed', 'delivered', 'canceled', 'cancelled']
+  const isScheduled = order.deliveryType === 'scheduled' || Boolean(order.deliveryTime);
+  const isImmediate = !isScheduled;
+
+  const delDateStr = order.deliveryDate ? String(order.deliveryDate).substring(0, 10) : '';
+  const cutoffTime = delDateStr ? new Date(`${delDateStr}T05:00:00+08:00`) : null;
+  const isCutoffPassed = cutoffTime ? new Date() >= cutoffTime : false;
+
+  const isLockedByStatus = ['preparing', 'served', 'completed', 'delivered', 'canceled', 'cancelled']
     .some(s => orderStatus.toLowerCase().includes(s));
+
+  // Immediate orders and orders past 5:00 AM Manila cutoff are strictly locked
+  const isLocked = isLockedByStatus || isImmediate || isCutoffPassed;
+  const canCancel = isScheduled && !isCutoffPassed && !isLockedByStatus;
 
   const hasScheduledItems = itemsState.some(it => it.deliveryType === 'scheduled');
 
@@ -269,18 +279,32 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
               </div>
 
               {/* NOTICE BANNER */}
-              {isLocked ? (
+              {isImmediate ? (
+                <div className="alert alert-secondary py-2 px-3 rounded-2 mb-3 small d-flex align-items-center gap-2" style={{ fontSize: '0.80rem' }}>
+                  <i className="bi bi-shield-lock-fill text-secondary flex-shrink-0"></i>
+                  <div>
+                    <strong>Immediate Fulfillment Order:</strong> Snacks, beverages, and guest amenities are dispatched directly upon placement and cannot be canceled or modified.
+                  </div>
+                </div>
+              ) : isCutoffPassed ? (
+                <div className="alert alert-warning py-2 px-3 rounded-2 mb-3 small d-flex align-items-center gap-2 border-warning" style={{ fontSize: '0.80rem' }}>
+                  <i className="bi bi-clock-fill text-warning flex-shrink-0"></i>
+                  <div>
+                    <strong>Locked for Preparation:</strong> The 5:00 AM modification cutoff for delivery date {delDateStr} has passed. Meal preparation has already begun and this order is locked.
+                  </div>
+                </div>
+              ) : isLockedByStatus ? (
                 <div className="alert alert-secondary py-2 px-3 rounded-2 mb-3 small d-flex align-items-center gap-2" style={{ fontSize: '0.80rem' }}>
                   <i className="bi bi-lock-fill text-secondary flex-shrink-0"></i>
                   <span>
-                    This order is already <strong>{order.orderStatus}</strong>. Delivery preferences are locked and can no longer be changed.
+                    This order is already <strong>{order.orderStatus}</strong> and can no longer be modified.
                   </span>
                 </div>
               ) : (
                 <div className="alert alert-info py-2 px-3 rounded-2 mb-3 small d-flex align-items-center gap-2 border-info-subtle" style={{ fontSize: '0.80rem' }}>
                   <i className="bi bi-info-circle-fill text-primary flex-shrink-0"></i>
                   <span>
-                    You can modify the delivery mode for products and amenities below. Cooked meals remain locked to scheduled breakfast.
+                    Scheduled breakfast meals can be modified or canceled strictly until <strong>5:00 AM on {delDateStr || 'delivery day'}</strong>.
                   </span>
                 </div>
               )}
@@ -446,9 +470,35 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
             {/* MODAL FOOTER */}
             <div className="modal-footer bg-light py-2.5 px-4 border-top d-flex justify-content-between align-items-center">
               <span className="text-muted small" style={{ fontSize: '0.78rem' }}>
-                {isLocked ? 'Order is being processed' : 'Save changes to update delivery instructions'}
+                {isImmediate ? 'Immediate fulfillment — non-cancellable' : isCutoffPassed ? 'Cutoff 5:00 AM passed (Locked)' : isLockedByStatus ? 'Order is being processed' : 'Modifications allowed until 5:00 AM'}
               </span>
               <div className="d-flex align-items-center gap-2">
+                {canCancel && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-danger text-white fw-semibold px-3"
+                    onClick={async () => {
+                      if (!window.confirm(`Are you sure you want to cancel scheduled Order #${order.orderID}? Any free breakfast entitlement or charges will be restored.`)) return;
+                      setSaving(true);
+                      setFeedback({ type: '', message: '' });
+                      try {
+                        const res = await fetch(`/api/guest/orders?orderID=${order.orderID}`, { method: 'DELETE' });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || 'Failed to cancel order.');
+                        setFeedback({ type: 'success', message: 'Order has been successfully canceled.' });
+                        if (onOrderUpdated) await onOrderUpdated();
+                        setTimeout(() => { onClose(); }, 900);
+                      } catch (err) {
+                        setFeedback({ type: 'danger', message: err.message });
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
+                  >
+                    Cancel Order
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-sm btn-secondary text-white fw-semibold px-3"

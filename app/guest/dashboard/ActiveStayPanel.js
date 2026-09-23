@@ -53,6 +53,14 @@ export default function ActiveStayPanel({
     if (onRequestCheckout) {
       return onRequestCheckout(activeBookingStay);
     }
+    const isEarly = activeBookingStay?.checkOutDateTime && (new Date() < new Date(activeBookingStay.checkOutDateTime));
+    const schedDateStr = activeBookingStay?.checkOutDateTime ? new Date(activeBookingStay.checkOutDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    let msg = `Are you sure you want to request check-out for Room ${activeBookingStay?.roomNumber || ''}? Receptionist will inspect room and finalize your bill.`;
+    if (isEarly) {
+      msg += `\n\nNotice on Early Departure: Your reservation was scheduled until ${schedDateStr}. Per pension house policy, the full base room charge for all booked nights remains payable.`;
+    }
+    if (!window.confirm(msg)) return;
+
     setRequestingCheckout(true);
     try {
       const res = await fetch('/api/guest/checkout-request', {

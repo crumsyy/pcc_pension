@@ -395,7 +395,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
     setLoadingBill(true);
     try {
-      const res = await fetch(`/api/billing?bookingID=${bookingID}`);
+      const url = forceRefresh
+        ? `/api/billing?bookingID=${bookingID}&t=${Date.now()}`
+        : `/api/billing?bookingID=${bookingID}`;
+      const res = await fetch(url);
       const data = await res.json();
       if (res.ok && data.success) {
         detailedBillCacheRef.current.set(bookingID, data);
@@ -416,8 +419,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (detailedBillCacheRef.current.has(booking.bookingID)) {
       setDetailedBill(detailedBillCacheRef.current.get(booking.bookingID));
     }
-    await fetchDetailedBill(booking.bookingID);
+    await fetchDetailedBill(booking.bookingID, true);
   };
+
+  // Listen for guest-order-updated events to immediately invalidate billing cache
+  useEffect(() => {
+    const handleOrderUpdated = (e) => {
+      const targetBId = e?.detail?.bookingID || activeBookingStay?.bookingID;
+      if (targetBId) {
+        detailedBillCacheRef.current.delete(targetBId);
+        fetchDetailedBill(targetBId, true);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('guest-order-updated', handleOrderUpdated);
+      return () => window.removeEventListener('guest-order-updated', handleOrderUpdated);
+    }
+  }, [activeBookingStay?.bookingID]);
 
   // Edit Profile Modal State
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
@@ -517,18 +535,35 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [settleGcashRef, setSettleGcashRef] = useState('');
   const [settleProcessing, setSettleProcessing] = useState(false);
 
-  // Handle redirect query params from PayMongo test simulation page
+  // Handle redirect query params from PayMongo test simulation page & notification deep links
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
     const payStatus = urlParams.get('paymentStatus');
     const returnedBookingID = urlParams.get('bookingID');
+    const highlightOrderID = urlParams.get('highlightOrderID');
+    const highlightBookingID = urlParams.get('highlightBookingID');
+    const highlightResID = urlParams.get('highlightResID');
+    const openBilling = urlParams.get('openBilling');
+
+    // Helper to pulse highlight on target element
+    const highlightElement = (el) => {
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('pulse-highlight');
+      el.classList.add('notification-highlight-pulse');
+      setTimeout(() => {
+        el.classList.remove('pulse-highlight');
+        el.classList.remove('notification-highlight-pulse');
+      }, 2500);
+    };
 
     if (payStatus === 'completed') {
       showAlert('success', 'Payment Completed', 'Your GCash payment simulation was authorized and settled successfully! You can view or download your official receipt.');
       fetchRoomsAndStatus();
       if (returnedBookingID) {
-        fetchDetailedBill(returnedBookingID);
+        detailedBillCacheRef.current.delete(Number(returnedBookingID));
+        fetchDetailedBill(returnedBookingID, true);
       }
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, '', cleanUrl);
@@ -538,7 +573,43 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, '', cleanUrl);
     }
-  }, []);
+
+    if (highlightOrderID) {
+      setActiveTab('orders');
+      setTimeout(() => {
+        const el = document.getElementById(`order-item-${highlightOrderID}`);
+        if (el) highlightElement(el);
+      }, 350);
+    } else if (openBilling && (highlightBookingID || returnedBookingID)) {
+      const bId = Number(highlightBookingID || returnedBookingID);
+      const bObj = bookings.find(b => b.bookingID === bId) || activeBookingStay;
+      if (bObj) {
+        handleOpenBillingModal(bObj);
+      }
+    } else if (highlightBookingID) {
+      const bId = Number(highlightBookingID);
+      if (activeBookingStay?.bookingID === bId) {
+        setActiveTab('home');
+        setTimeout(() => {
+          const el = document.getElementById('active-booking-card') || document.getElementById(`booking-card-${bId}`);
+          if (el) highlightElement(el);
+        }, 350);
+      } else {
+        setActiveTab('account');
+        setTimeout(() => {
+          const el = document.getElementById(`booking-card-${bId}`) || document.getElementById('bookings-history-section');
+          if (el) highlightElement(el);
+        }, 350);
+      }
+    } else if (highlightResID) {
+      const rId = Number(highlightResID);
+      setActiveTab('account');
+      setTimeout(() => {
+        const el = document.getElementById(`reservation-item-${rId}`) || document.getElementById('reservations-history-section');
+        if (el) highlightElement(el);
+      }, 350);
+    }
+  }, [bookings, activeBookingStay]);
 
   // Alert Dialog State
   const [modalConfig, setModalConfig] = useState({
@@ -698,14 +769,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const highlightElement = (el) => {
       if (!el) return;
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('pulse-highlight');
       el.classList.add('notification-highlight-pulse');
       setTimeout(() => {
+        el.classList.remove('pulse-highlight');
         el.classList.remove('notification-highlight-pulse');
-      }, 3000);
+      }, 2500);
     };
 
     // Extract potential ID e.g. "Booking #12", "Reservation #5", "Order #3"
     const resIdMatch = msg.match(/reservation\s*#?(\d+)/i) || title.match(/reservation\s*#?(\d+)/i);
+    const bookingIdMatch = msg.match(/booking\s*#?(\d+)/i) || title.match(/booking\s*#?(\d+)/i);
+    const orderIdMatch = msg.match(/order\s*#?(\d+)/i) || title.match(/order\s*#?(\d+)/i);
 
     // 1. Reservation / Courtesy Hold -> direct to active reservation or reservation history
     if (title.includes('reservation') || title.includes('hold') || msg.includes('reservation') || msg.includes('hold')) {
@@ -737,18 +812,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
     // 2. Booking / Stay / Check-In / Check-Out -> direct to active booking or booking history
     if (title.includes('booking') || title.includes('check-in') || title.includes('check-out') || title.includes('checkout') || msg.includes('booking') || msg.includes('check-in') || msg.includes('check-out')) {
-      if (activeBookingStay) {
+      const targetBookingID = bookingIdMatch ? parseInt(bookingIdMatch[1], 10) : (activeBookingStay?.bookingID || null);
+      if (activeBookingStay && (!targetBookingID || targetBookingID === activeBookingStay.bookingID)) {
         setActiveTab('home');
         setTimeout(() => {
-          const el = document.getElementById('active-booking-card');
-          highlightElement(el);
+          const el = document.getElementById('active-booking-card') || (targetBookingID ? document.getElementById(`booking-card-${targetBookingID}`) : null);
+          if (el) highlightElement(el);
         }, 120);
       } else {
         setActiveTab('account');
         setTimeout(() => {
-          const el = document.getElementById('bookings-history-section');
-          highlightElement(el);
-        }, 150);
+          const el = (targetBookingID ? document.getElementById(`booking-card-${targetBookingID}`) : null) || document.getElementById('bookings-history-section');
+          if (el) highlightElement(el);
+        }, 180);
       }
       return;
     }
@@ -756,16 +832,27 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     // 3. Room Service Orders -> direct to orders
     if (title.includes('order') || title.includes('room service') || msg.includes('order')) {
       setActiveTab('orders');
+      if (orderIdMatch) {
+        const targetOrderID = parseInt(orderIdMatch[1], 10);
+        setTimeout(() => {
+          const el = document.getElementById(`order-item-${targetOrderID}`);
+          if (el) highlightElement(el);
+        }, 220);
+      }
       return;
     }
 
-    // 4. Payment / Billing / GCash / Balance -> direct to billing breakdown or account
+    // 4. Payment / Billing / GCash / Balance -> direct to billing breakdown modal or active stay
     if (title.includes('payment') || title.includes('billing') || title.includes('gcash') || title.includes('soa') || msg.includes('payment') || msg.includes('balance')) {
-      if (activeBookingStay) {
+      const targetBookingID = bookingIdMatch ? parseInt(bookingIdMatch[1], 10) : (activeBookingStay?.bookingID || null);
+      const targetBooking = bookings.find(b => b.bookingID === targetBookingID) || activeBookingStay;
+      if (targetBooking) {
+        handleOpenBillingModal(targetBooking);
+      } else if (activeBookingStay) {
         setActiveTab('home');
         setTimeout(() => {
           const el = document.getElementById('stay-billing-breakdown');
-          highlightElement(el);
+          if (el) highlightElement(el);
         }, 120);
       } else {
         setActiveTab('account');
@@ -841,16 +928,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         }
         if (billResp.ok) {
           const billData = await billResp.json();
-          if (billData.success) {
+          if (billData.success && billData.bookingID) {
+            detailedBillCacheRef.current.set(billData.bookingID, billData);
             setActiveBill(billData);
-            setDetailedBill(billData);
-          } else {
-            setActiveBill(null);
-            setDetailedBill(null);
+            setDetailedBill(prev => {
+              if (!prev || prev.bookingID === billData.bookingID) {
+                return billData;
+              }
+              return prev;
+            });
           }
-        } else {
-          setActiveBill(null);
-          setDetailedBill(null);
         }
       } catch (err) {
         // silent polling
@@ -1429,9 +1516,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleRequestCheckout = (booking) => {
     if (!booking) return;
+
+    const isEarlyCheckout = booking.checkOutDateTime && (new Date() < new Date(booking.checkOutDateTime));
+    const schedDateStr = booking.checkOutDateTime ? new Date(booking.checkOutDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const nights = booking.numberOfDays || booking.totalNights || '';
+
+    let confirmMsg = `Are you ready to request checkout for Room ${booking.roomNumber}? Receptionist will be notified to finalize your bill.`;
+    if (isEarlyCheckout) {
+      confirmMsg += `\n\n⚠️ Notice on Early Departure: Your reservation was booked until ${schedDateStr}. Per pension house policy, the full base room charge for all ${nights ? nights + ' ' : ''}booked nights remains payable.`;
+    }
+
     showConfirm(
       'Request Checkout',
-      `Are you ready to request checkout for Room ${booking.roomNumber}? Receptionist will be notified to finalize your bill.`,
+      confirmMsg,
       async () => {
         try {
           const res = await fetch('/api/guest/checkout-request', {
@@ -2555,7 +2652,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         const isCheckedOut = b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled';
                         const remBal = isCheckedOut ? 0 : parseFloat(b.remainingBalance || 0);
                         return (
-                          <div key={b.bookingID} className="card shadow-sm border mb-1 bg-white" style={{ borderRadius: '12px' }}>
+                          <div
+                            key={b.bookingID}
+                            id={b.bookingID === activeBookingStay?.bookingID ? 'active-booking-card' : `booking-card-${b.bookingID}`}
+                            data-booking-id={b.bookingID}
+                            className="card shadow-sm border mb-1 bg-white"
+                            style={{ borderRadius: '12px' }}
+                          >
                             <div className="card-body p-3">
                               <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
                                 <div>
@@ -3426,7 +3529,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         const isCheckedOut = b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled';
                         const remBal = isCheckedOut ? 0 : parseFloat(b.remainingBalance || 0);
                         return (
-                          <div key={b.bookingID} className="card shadow-sm border mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                          <div
+                            key={b.bookingID}
+                            id={`booking-card-${b.bookingID}`}
+                            data-booking-id={b.bookingID}
+                            className="card shadow-sm border mb-3 bg-white"
+                            style={{ borderRadius: '12px' }}
+                          >
                             <div className="card-body p-3">
                               <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
                                 <div>
@@ -3910,6 +4019,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           <span className={`fw-bold fs-5 ${balanceDue > 0 ? 'text-danger' : 'text-success'}`}>
                             {formatCurrency(balanceDue)}
                           </span>
+                        </div>
+                      </div>
+
+                      {/* Stay Commitment & Early Check-out Policy Notice */}
+                      <div className="alert alert-info border-info-subtle mt-3 mb-0 d-flex align-items-start gap-2 py-2 px-3 small">
+                        <i className="bi bi-info-circle-fill text-info fs-6 mt-0.5 flex-shrink-0"></i>
+                        <div>
+                          <div className="fw-semibold text-dark">Stay Commitment &amp; Early Check-out Policy</div>
+                          <div className="text-secondary" style={{ fontSize: '0.78rem' }}>
+                            Room reservation nights are guaranteed upon confirmation. In accordance with pension house policy, checking out earlier than your scheduled check-out date does not reduce or refund committed room charges; the full accommodation charge for all booked nights remains strictly payable.
+                          </div>
                         </div>
                       </div>
                     </>

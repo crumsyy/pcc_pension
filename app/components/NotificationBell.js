@@ -108,13 +108,16 @@ export default function NotificationBell() {
 
     if (isGuest) {
       if (lowerTitle.includes('order') || lowerMsg.includes('order')) {
-        router.push('/guest/dashboard?tab=orders');
+        const url = orderID ? `/guest/dashboard?tab=orders&highlightOrderID=${orderID}` : '/guest/dashboard?tab=orders';
+        router.push(url);
       } else if (lowerTitle.includes('payment') || lowerMsg.includes('payment') || lowerTitle.includes('bill')) {
-        router.push('/guest/dashboard?tab=billing');
+        const url = bookingID ? `/guest/dashboard?tab=home&openBilling=${bookingID}` : '/guest/dashboard?tab=home';
+        router.push(url);
       } else if (lowerTitle.includes('inquiry') || lowerMsg.includes('inquiry')) {
         router.push('/guest/inquiries');
       } else {
-        router.push('/guest/dashboard');
+        const url = bookingID ? `/guest/dashboard?highlightBookingID=${bookingID}` : (reservationID ? `/guest/dashboard?highlightResID=${reservationID}` : '/guest/dashboard');
+        router.push(url);
       }
       return;
     }

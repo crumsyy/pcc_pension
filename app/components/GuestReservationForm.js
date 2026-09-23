@@ -219,6 +219,17 @@ export default function GuestReservationForm({
           <strong>Courtesy Hold:</strong> ₱0.00 due now. 50% down payment required upon booking conversion; excess pax fee payable at check-in.
         </div>
       </div>
+
+      {/* Stay Commitment & Early Check-out Policy Notice */}
+      <div className="alert alert-info border-info-subtle mt-2 mb-0 d-flex align-items-start gap-2 py-2 px-3 small">
+        <i className="bi bi-info-circle-fill text-info fs-6 mt-0.5 flex-shrink-0"></i>
+        <div>
+          <div className="fw-semibold text-dark">Stay Commitment &amp; Early Check-out Policy</div>
+          <div className="text-secondary" style={{ fontSize: '0.78rem' }}>
+            Confirmed booking dates guarantee your room reservation. In accordance with pension house policy, early check-out does not discount committed room nights; full accommodation charges for all reserved nights remain strictly payable.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
