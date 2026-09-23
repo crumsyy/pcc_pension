@@ -38,9 +38,12 @@ export default function ActiveStayPanel({
     0
   );
 
-  const isAlreadyRequested = ['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(effectiveStatus) || isCheckoutRequested;
-  const isRoomVerified = effectiveStatus === 'Room Verified';
-  const isBillFinalized = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(effectiveStatus);
+  const isAlreadyRequested = ['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Pending Bill'].includes(effectiveStatus) || isCheckoutRequested;
+  const isRoomVerified = ['Room Verified', 'Pending Bill'].includes(effectiveStatus);
+  const isBillFinalized = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(effectiveStatus) ||
+                          activeBookingStay.isBillFinalized === 1 ||
+                          detailedBill?.chargesSummary?.isBillFinalized === 1 ||
+                          detailedBill?.isBillFinalized === 1;
   const isBillReady = isBillFinalized;
   const isPaid = normalizeBookingStatus(effectiveStatus) === 'Paid' || effectiveStatus === 'Paid' || effectiveStatus === 'Payment Completed';
   const isDeclined = effectiveStatus === 'Payment Declined' || effectiveStatus === 'Payment Declined, Try Again' || effectiveStatus === 'Declined';
@@ -154,10 +157,20 @@ export default function ActiveStayPanel({
               </div>
             </div>
 
-            {(checkoutNotice || isRoomVerified) && (
-              <div className="alert alert-warning py-2 px-3 small mt-2 mb-0 d-flex align-items-center gap-2 fw-semibold" role="alert">
-                <i className="bi bi-info-circle-fill text-warning-emphasis"></i>
-                <span>{isRoomVerified ? "Room inspection verified by Front Desk. Receptionist is now finalizing your bill." : checkoutNotice}</span>
+            {(checkoutNotice || isRoomVerified || isBillFinalized) && (
+              <div className={`alert ${isBillFinalized ? (remainingBal > 0.05 ? 'alert-primary bg-primary-subtle text-primary-emphasis' : 'alert-success bg-success-subtle text-success-emphasis') : 'alert-warning bg-warning-subtle text-warning-emphasis'} py-2 px-3 small mt-2 mb-0 d-flex align-items-center gap-2 fw-semibold border-0 rounded-3`} role="alert">
+                <i className={`bi ${isBillFinalized ? (remainingBal > 0.05 ? 'bi-receipt fs-5' : 'bi-check-circle-fill fs-5') : 'bi-info-circle-fill'} flex-shrink-0`}></i>
+                <span>
+                  {isBillFinalized ? (
+                    remainingBal > 0.05 
+                      ? `Bill Finalized: Your final balance of ₱${remainingBal.toFixed(2)} is ready to settle.`
+                      : "Bill fully settled. Please proceed to the front desk to return your keycard."
+                  ) : (
+                    isRoomVerified 
+                      ? "Room inspection completed. Front desk is reviewing your final bill." 
+                      : (checkoutNotice || "Check-out request received. Front desk is inspecting room and reviewing bill.")
+                  )}
+                </span>
               </div>
             )}
           </div>
@@ -438,37 +451,46 @@ export default function ActiveStayPanel({
                         <Button
                           variant="primary"
                           className="btn-primary w-100 text-white fw-bold shadow-sm py-2"
-                          disabled={!canProceedToPayment}
+                          disabled={!canProceedToPayment || remainingBal <= 0.05}
                           onClick={() => {
                             if (!canProceedToPayment) {
-                              alert("Check-out must be initiated first and receptionist must finalize your bill before payment.");
+                              alert("Front desk must inspect room and finalize your bill before payment.");
                               return;
                             }
                             setShowPaymentModal(true);
                           }}
                           style={{
-                            backgroundColor: canProceedToPayment ? '#005ce6' : '#6c757d',
-                            borderColor: canProceedToPayment ? '#005ce6' : '#6c757d',
+                            backgroundColor: (canProceedToPayment && remainingBal > 0.05) ? '#005ce6' : '#6c757d',
+                            borderColor: (canProceedToPayment && remainingBal > 0.05) ? '#005ce6' : '#6c757d',
                             borderRadius: '8px',
-                            opacity: canProceedToPayment ? 1 : 0.65
+                            opacity: (canProceedToPayment && remainingBal > 0.05) ? 1 : 0.65
                           }}
-                          title={!canProceedToPayment ? "Check-out must be initiated first and receptionist must finalize your bill before payment." : "Proceed to GCash"}
+                          title={!canProceedToPayment ? "Front desk must inspect room and finalize your bill before payment." : "Pay Remaining Balance"}
                         >
                           <i className="bi bi-wallet2 me-2"></i>
-                          <span>{canProceedToPayment ? 'Proceed to GCash (PayMongo)' : 'Payment Locked (Check-out & Bill Finalization Required)'}</span>
+                          <span>
+                            {canProceedToPayment 
+                              ? (remainingBal > 0.05 ? `Pay Balance (₱${remainingBal.toFixed(2)})` : 'Bill Fully Settled')
+                              : 'Payment Locked (Bill Review Required)'}
+                          </span>
                         </Button>
                       </div>
 
-                      {!canProceedToPayment && (
+                      {!canProceedToPayment ? (
                         <div className="text-center text-muted small mt-1.5" style={{ fontSize: '0.74rem' }}>
                           <i className="bi bi-info-circle me-1 text-warning"></i>
                           {!isAlreadyRequested
-                            ? "Please request check-out first. Receptionist will inspect room and finalize bill before payment."
+                            ? "Please request check-out first. Front desk will inspect room and finalize bill before payment."
                             : isRoomVerified
-                            ? "Room verified by staff. Receptionist is finalizing your bill statement."
-                            : "Check-out request received. Receptionist will finalize your bill before payment."}
+                            ? "Room inspection completed. Front desk is reviewing your final bill."
+                            : "Check-out request received. Front desk will finalize your bill before payment."}
                         </div>
-                      )}
+                      ) : remainingBal <= 0.05 ? (
+                        <div className="text-center text-success small mt-1.5 fw-semibold" style={{ fontSize: '0.74rem' }}>
+                          <i className="bi bi-check-circle-fill me-1"></i>
+                          Bill fully settled. Please proceed to the front desk to return your keycard.
+                        </div>
+                      ) : null}
                     </>
                   )}
                 </div>

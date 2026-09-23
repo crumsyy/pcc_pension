@@ -1455,13 +1455,23 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleInitiatePay = (booking) => {
     if (!booking) return;
-    const isBillFinalized = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(booking.status) || normalizeBookingStatus(booking.status) === 'Bill Finalized';
+    const isFinalized = Boolean(
+      booking.isBillFinalized === 1 ||
+      booking.isBillFinalized === true ||
+      ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(booking.status) ||
+      normalizeBookingStatus(booking.status) === 'Bill Finalized' ||
+      (booking.bookingID === detailedBill?.bookingID && (detailedBill?.isBillFinalized === 1 || detailedBill?.chargesSummary?.isBillFinalized === 1))
+    );
     const isDeclined = booking.status === 'Payment Declined' || booking.status === 'Declined';
-    if (!isBillFinalized && !isDeclined) {
+    if (!isFinalized && !isDeclined) {
       showAlert('warning', 'Bill Not Ready', "Check-out must be requested first and receptionist must finalize your bill before payment.");
       return;
     }
     const rem = booking.remainingBalance ?? detailedBill?.balancing?.remainingBalance ?? detailedBill?.remainingBalance ?? 0;
+    if (rem <= 0.05) {
+      showAlert('info', 'Bill Settled', "Your bill is already fully settled (₱0.00 balance). Please return your keycard to the front desk to complete checkout.");
+      return;
+    }
     window.location.href = `/paymongo/test?bookingID=${booking.bookingID}&amount=${rem}`;
   };
 
@@ -1967,7 +1977,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const norm = normalizeReservationStatus(r.status);
     return (norm === 'On Hold' || norm === 'Reserved') && r.status !== 'Cancelled' && r.status !== 'Booked';
   });
-  const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Payment Completed'].includes(b.status));
+  const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Bill Finalized', 'Pending Bill', 'Checkout Requested', 'Payment Completed'].includes(b.status));
 
   useEffect(() => {
     if (activeBookingStay?.bookingID) {
@@ -2580,12 +2590,39 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               {/* TIMELINE */}
                               {renderBookingStatusTimeline(b.status)}
 
-                              {/* INSPECTION STATUS BANNER */}
-                              {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
+                              {/* INSPECTION / BILL FINALIZED STATUS BANNER */}
+                              {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) && (
                                 <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
                                   <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
                                   <div>
                                     <strong>Room Inspection in Progress:</strong> Front desk and housekeeping staff are currently verifying your room condition and checking for incidental charges. Your final billing will be updated here shortly.
+                                  </div>
+                                </div>
+                              )}
+
+                              {b.status === 'Room Verified' && (
+                                <div className="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-info-subtle text-info-emphasis rounded-3">
+                                  <i className="bi bi-clock-history fs-6 flex-shrink-0"></i>
+                                  <div>
+                                    <strong>Room Inspection Completed:</strong> Front desk is reviewing your stay details and finalizing your final bill. Payment will unlock once the front desk finalizes the billing statement.
+                                  </div>
+                                </div>
+                              )}
+
+                              {(b.isBillFinalized === 1 || ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) || (b.bookingID === detailedBill?.bookingID && (detailedBill?.isBillFinalized === 1 || detailedBill?.chargesSummary?.isBillFinalized === 1))) && remBal > 0.05 && (
+                                <div className="alert alert-primary py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-primary-subtle text-primary-emphasis rounded-3">
+                                  <i className="bi bi-receipt fs-6 flex-shrink-0"></i>
+                                  <div>
+                                    <strong>Bill Finalized:</strong> Your final balance of <strong>₱{remBal.toFixed(2)}</strong> is ready to settle.
+                                  </div>
+                                </div>
+                              )}
+
+                              {remBal <= 0.05 && ['Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
+                                <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-success-subtle text-success-emphasis rounded-3">
+                                  <i className="bi bi-check-circle-fill fs-6 flex-shrink-0"></i>
+                                  <div>
+                                    <strong>Bill Fully Settled:</strong> Balance is ₱0.00. Please proceed to front desk to return your keycard.
                                   </div>
                                 </div>
                               )}
@@ -2622,18 +2659,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                    </button>
                                  ) : null}
 
-                                {['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) && (
+                                {(b.isBillFinalized === 1 || ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) || (b.bookingID === detailedBill?.bookingID && (detailedBill?.isBillFinalized === 1 || detailedBill?.chargesSummary?.isBillFinalized === 1))) && remBal > 0.05 && (
                                   <button 
                                     type="button" 
                                     className="btn btn-primary fw-bold text-white shadow-sm"
                                     onClick={() => handleInitiatePay(b)}
                                     aria-label="Proceed to Payment"
                                   >
-                                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment
+                                    <i className="bi bi-credit-card-2-front me-1"></i> Pay Balance (₱{remBal.toFixed(2)})
                                   </button>
                                 )}
 
-                                {['Paid', 'Payment Completed'].includes(b.status) && (
+                                {remBal <= 0.05 && ['Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed', 'Room Verified'].includes(b.status) && (
                                   <button type="button" className="btn btn-success text-white" disabled aria-label="Paid">
                                     <i className="bi bi-check2-all me-1"></i> Paid
                                   </button>
@@ -3419,12 +3456,39 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               {/* TIMELINE */}
                               {renderBookingStatusTimeline(b.status)}
 
-                              {/* INSPECTION STATUS BANNER */}
-                              {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
+                              {/* INSPECTION / BILL FINALIZED STATUS BANNER */}
+                              {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) && (
                                 <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
                                   <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
                                   <div>
                                     <strong>Room Inspection in Progress:</strong> Front desk and housekeeping staff are currently verifying your room condition and checking for incidental charges. Your final billing will be updated here shortly.
+                                  </div>
+                                </div>
+                              )}
+
+                              {b.status === 'Room Verified' && (
+                                <div className="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-info-subtle text-info-emphasis rounded-3">
+                                  <i className="bi bi-clock-history fs-6 flex-shrink-0"></i>
+                                  <div>
+                                    <strong>Room Inspection Completed:</strong> Front desk is reviewing your stay details and finalizing your final bill. Payment will unlock once the front desk finalizes the billing statement.
+                                  </div>
+                                </div>
+                              )}
+
+                              {(b.isBillFinalized === 1 || ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) || (b.bookingID === detailedBill?.bookingID && (detailedBill?.isBillFinalized === 1 || detailedBill?.chargesSummary?.isBillFinalized === 1))) && remBal > 0.05 && (
+                                <div className="alert alert-primary py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-primary-subtle text-primary-emphasis rounded-3">
+                                  <i className="bi bi-receipt fs-6 flex-shrink-0"></i>
+                                  <div>
+                                    <strong>Bill Finalized:</strong> Your final balance of <strong>₱{remBal.toFixed(2)}</strong> is ready to settle.
+                                  </div>
+                                </div>
+                              )}
+
+                              {remBal <= 0.05 && ['Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid', 'Pending Checkout', 'Room Verified'].includes(b.status) && (
+                                <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-success-subtle text-success-emphasis rounded-3">
+                                  <i className="bi bi-check-circle-fill fs-6 flex-shrink-0"></i>
+                                  <div>
+                                    <strong>Bill Fully Settled:</strong> Balance is ₱0.00. Please proceed to front desk to return your keycard.
                                   </div>
                                 </div>
                               )}
@@ -3461,18 +3525,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                    </button>
                                  ) : null}
 
-                                {['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) && (
+                                {(b.isBillFinalized === 1 || ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) || (b.bookingID === detailedBill?.bookingID && (detailedBill?.isBillFinalized === 1 || detailedBill?.chargesSummary?.isBillFinalized === 1))) && remBal > 0.05 && (
                                   <button 
                                     type="button" 
                                     className="btn btn-primary fw-bold text-white shadow-sm"
                                     onClick={() => handleInitiatePay(b)}
                                     aria-label="Proceed to Payment"
                                   >
-                                    <i className="bi bi-credit-card-2-front me-1"></i> Proceed to Payment
+                                    <i className="bi bi-credit-card-2-front me-1"></i> Pay Balance (₱{remBal.toFixed(2)})
                                   </button>
                                 )}
 
-                                {['Paid', 'Payment Completed'].includes(b.status) && (
+                                {remBal <= 0.05 && ['Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed', 'Room Verified'].includes(b.status) && (
                                   <button type="button" className="btn btn-success text-white" disabled aria-label="Paid">
                                     <i className="bi bi-check2-all me-1"></i> Paid
                                   </button>

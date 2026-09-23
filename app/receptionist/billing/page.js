@@ -24,14 +24,16 @@ export default function ReceptionistBilling() {
   const [selectedBorrowItem, setSelectedBorrowItem] = useState(null);
   const [damageForm, setDamageForm] = useState({ status: 'Lost', amount: '', remarks: '' });
 
-  // Settle Bill State
+  // Settle Bill / Record Payment State
   const [isSettlingBill, setIsSettlingBill] = useState(false);
+  const [finalizingBill, setFinalizingBill] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
   const [settleForm, setSettleForm] = useState({
     paymentMethodID: '1',
     amount: '',
     cashReceived: '',
     referenceNumber: '',
-    finalizeBill: true
+    finalizeBill: false
   });
   const [paymentMethods, setPaymentMethods] = useState([]);
 
@@ -59,6 +61,22 @@ export default function ReceptionistBilling() {
     });
   };
 
+  const showConfirm = (title, message, onConfirm, confirmText = 'Confirm', cancelText = 'Cancel', type = 'warning') => {
+    setModalConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        if (onConfirm) onConfirm();
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
   const fetchActiveBookings = async () => {
     setLoadingList(true);
     try {
@@ -78,7 +96,7 @@ export default function ReceptionistBilling() {
     }
   };
 
-  const openSettleBillModal = () => {
+  const openRecordPaymentModal = () => {
     if (!billDetails) return;
     const bal = parseFloat(billDetails.chargesSummary?.balance || 0);
     setSettleForm({
@@ -86,9 +104,44 @@ export default function ReceptionistBilling() {
       amount: bal > 0 ? bal.toFixed(2) : '0.00',
       cashReceived: bal > 0 ? bal.toFixed(2) : '0.00',
       referenceNumber: '',
-      finalizeBill: true
+      finalizeBill: false
     });
     setIsSettlingBill(true);
+  };
+  const openSettleBillModal = openRecordPaymentModal;
+
+  const handleFinalizeBill = () => {
+    if (!billDetails || !selectedBookingID) return;
+    showConfirm(
+      'Finalize Folio',
+      'Finalize folio and allow guest payment? This will lock the itemized charges and allow the guest to pay their remaining balance online via the guest portal.',
+      async () => {
+        setFinalizingBill(true);
+        try {
+          const res = await fetch('/api/receptionist/billing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'finalize_bill',
+              bookingID: selectedBookingID
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to finalize bill');
+
+          showAlert('success', 'Bill Finalized', 'Bill finalized. Payment is now unlocked on the guest portal.');
+          fetchActiveBookings();
+          fetchBillingDetails(selectedBookingID);
+        } catch (err) {
+          showAlert('error', 'Error', err.message);
+        } finally {
+          setFinalizingBill(false);
+        }
+      },
+      'Finalize & Unlock Payment',
+      'Cancel',
+      'warning'
+    );
   };
 
   const handleSettleBillSubmit = async (e) => {
@@ -124,21 +177,9 @@ export default function ReceptionistBilling() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to process payment settlement');
+      if (!res.ok) throw new Error(data.error || 'Failed to record counter payment');
 
-      if (settleForm.finalizeBill) {
-        await fetch('/api/receptionist/bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'finalize_bill',
-            bookingID: selectedBookingID,
-            incidentals: []
-          })
-        }).catch(() => {});
-      }
-
-      showAlert('success', 'Bill Settled & Finalized', `Payment of ₱${amountToPay.toFixed(2)} recorded successfully.${methodID === 1 && change > 0 ? ` Change: ₱${change.toFixed(2)}.` : ''} Bill is now finalized.`);
+      showAlert('success', 'Payment Recorded', `Payment of ₱${amountToPay.toFixed(2)} recorded successfully.${methodID === 1 && change > 0 ? ` Change: ₱${change.toFixed(2)}.` : ''}`);
       setIsSettlingBill(false);
       fetchActiveBookings();
       fetchBillingDetails(selectedBookingID);
@@ -1290,49 +1331,112 @@ export default function ReceptionistBilling() {
                             </span>
                           </div>
 
-                          {billDetails.chargesSummary.balance > 0.05 ? (
-                            <div className="d-flex flex-column gap-2">
-                              <button
-                                type="button"
-                                className="btn btn-success text-white w-100 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                                onClick={openSettleBillModal}
-                              >
-                                <i className="fa-solid fa-cash-register"></i> Settle Bill
-                              </button>
-                              <a
-                                href={`/receptionist/payments?bookingID=${selectedBookingID}`}
-                                className="btn btn-outline-primary w-100 py-2 fw-semibold text-center d-flex align-items-center justify-content-center gap-1 text-decoration-none small"
-                              >
-                                <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
-                              </a>
-                            </div>
-                          ) : ['Checked Out', 'Completed'].includes(billDetails.booking.status) ? (
-                            <div className="alert alert-secondary text-center py-2.5 mb-0 fw-semibold">
-                              <i className="bi bi-check-circle-fill me-1 text-success"></i> Bill fully settled &amp; Guest Checked Out. Room is Available.
-                            </div>
-                          ) : (
-                            <div className="d-flex flex-column gap-2">
-                              <div className="alert alert-success text-center py-2 mb-0 fw-semibold">
-                                ✓ Bill fully settled (₱0.00 balance).
-                              </div>
-                              {['Pending Bill', 'Room Verified'].includes(billDetails.booking.status) && (
+                          {(() => {
+                            const balance = parseFloat(billDetails.chargesSummary?.balance || 0);
+                            const isFinalized = billDetails.chargesBreakdown?.isBillFinalized ||
+                                                billDetails.chargesSummary?.isBillFinalized === 1 ||
+                                                billDetails.isBillFinalized === 1 ||
+                                                billDetails.booking?.status === 'Bill Finalized';
+                            const isCheckedOut = ['Checked Out', 'Completed'].includes(billDetails.booking?.status);
+
+                            if (isCheckedOut) {
+                              return (
+                                <div className="alert alert-secondary text-center py-2.5 mb-0 fw-semibold">
+                                  <i className="bi bi-check-circle-fill me-1 text-success"></i> Bill fully settled &amp; Guest Checked Out. Room is Available.
+                                </div>
+                              );
+                            }
+
+                            // If remaining balance > 0.05
+                            if (balance > 0.05) {
+                              if (!isFinalized) {
+                                // Step 1: Finalize Bill & Allow Payment
+                                return (
+                                  <div className="d-flex flex-column gap-2">
+                                    <button
+                                      type="button"
+                                      className="btn btn-success fw-bold text-white shadow-sm w-100 py-2.5 d-flex align-items-center justify-content-center gap-2"
+                                      disabled={finalizingBill}
+                                      onClick={handleFinalizeBill}
+                                    >
+                                      {finalizingBill ? (
+                                        <>
+                                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                                          Finalizing Bill...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <i className="fa-solid fa-file-invoice-dollar me-1"></i> Finalize Bill &amp; Allow Payment
+                                        </>
+                                      )}
+                                    </button>
+                                    <a
+                                      href={`/receptionist/payments?bookingID=${selectedBookingID}`}
+                                      className="btn btn-outline-secondary w-100 py-2 fw-semibold text-center d-flex align-items-center justify-content-center gap-1 text-decoration-none small"
+                                    >
+                                      <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
+                                    </a>
+                                  </div>
+                                );
+                              } else {
+                                // Step 2: Bill Finalized — Awaiting Guest Settlement OR Counter Walk-in Payment
+                                return (
+                                  <div className="d-flex flex-column gap-2">
+                                    <div className="alert alert-warning py-2.5 px-3 small d-flex align-items-center gap-2 mb-0 border-0 bg-warning-subtle text-warning-emphasis rounded-3 fw-semibold">
+                                      <i className="bi bi-clock-history fs-5 flex-shrink-0"></i>
+                                      <div>
+                                        <div className="fw-bold">Bill Finalized — Awaiting Guest Settlement</div>
+                                        <div className="small fw-normal text-muted" style={{ fontSize: '0.74rem' }}>
+                                          Guest can pay online via their portal, or front desk can record a manual counter payment below.
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="btn btn-outline-primary fw-semibold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                                      onClick={openRecordPaymentModal}
+                                    >
+                                      <i className="fa-solid fa-cash-register me-1"></i> Record Walk-in Payment
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary text-white w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                                      disabled
+                                      title="Complete check-out will unlock once the balance is ₱0.00"
+                                    >
+                                      <i className="fa-solid fa-lock me-1"></i> Complete Check-out (Balance Due: ₱{balance.toFixed(2)})
+                                    </button>
+                                  </div>
+                                );
+                              }
+                            }
+
+                            // Balance <= 0.05: Bill fully settled!
+                            return (
+                              <div className="d-flex flex-column gap-2">
+                                <div className="alert alert-success text-center py-2 mb-0 fw-semibold">
+                                  ✓ Bill Fully Settled (₱0.00 Balance).
+                                </div>
                                 <button
                                   type="button"
-                                  className="btn btn-primary text-white w-100 py-2 fw-bold d-flex align-items-center justify-content-center gap-2"
-                                  onClick={handleFinalizeBillOnly}
+                                  className="btn btn-success text-white w-100 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                                  disabled={checkingOut}
+                                  onClick={handleCheckOutGuest}
                                 >
-                                  <i className="fa-solid fa-file-circle-check"></i> Finalize Bill
+                                  {checkingOut ? (
+                                    <>
+                                      <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                                      Checking Out...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="fa-solid fa-check"></i> Complete Guest Check-out
+                                    </>
+                                  )}
                                 </button>
-                              )}
-                              <button
-                                type="button"
-                                className="btn btn-success text-white w-100 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                                onClick={handleCheckOutGuest}
-                              >
-                                <i className="fa-solid fa-check"></i> Complete Guest Check-out
-                              </button>
-                            </div>
-                          )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -1615,7 +1719,7 @@ export default function ReceptionistBilling() {
               <form onSubmit={handleSettleBillSubmit}>
                 <div className="modal-header border-bottom px-4 py-3 bg-light">
                   <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-                    <i className="fa-solid fa-cash-register text-success"></i> Settle Bill &amp; Finalize
+                    <i className="fa-solid fa-cash-register text-primary"></i> Record Walk-in Counter Payment
                   </h5>
                   <button
                     type="button"
@@ -1627,6 +1731,7 @@ export default function ReceptionistBilling() {
                   <div className="alert alert-info py-2 px-3 small mb-3">
                     <div className="fw-bold text-dark">{billDetails.booking.firstName} {billDetails.booking.lastName}</div>
                     <div>Room <strong>{billDetails.booking.roomNumber}</strong> ({billDetails.booking.roomType}) • Stay #{billDetails.booking.bookingID}</div>
+                    <div className="text-muted mt-1" style={{ fontSize: '0.72rem' }}>Manual counter payment settlement for cash, walk-in GCash, or card.</div>
                   </div>
 
                   <div className="card bg-danger-subtle border border-danger-subtle p-3 mb-3 text-center">
@@ -1695,26 +1800,13 @@ export default function ReceptionistBilling() {
                   </div>
 
                   {settleForm.paymentMethodID === '1' && (
-                    <div className="p-3 bg-light rounded border d-flex justify-content-between align-items-center mb-3">
+                    <div className="p-3 bg-light rounded border d-flex justify-content-between align-items-center mb-1">
                       <span className="fw-semibold text-muted small">Change to Return:</span>
                       <span className="fw-bold text-success fs-5">
                         ₱{Math.max(0, (parseFloat(settleForm.cashReceived || 0) - parseFloat(settleForm.amount || 0))).toFixed(2)}
                       </span>
                     </div>
                   )}
-
-                  <div className="form-check mb-2">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="finalizeCheck"
-                      checked={settleForm.finalizeBill}
-                      onChange={(e) => setSettleForm(prev => ({ ...prev, finalizeBill: e.target.checked }))}
-                    />
-                    <label className="form-check-label small fw-semibold text-dark" htmlFor="finalizeCheck">
-                      Mark bill as finalized &amp; notify guest
-                    </label>
-                  </div>
                 </div>
                 <div className="modal-footer border-top px-4 py-3 d-flex justify-content-end gap-2 bg-light">
                   <button
@@ -1724,8 +1816,8 @@ export default function ReceptionistBilling() {
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-success fw-bold text-white d-inline-flex align-items-center gap-1 shadow-sm">
-                    <i className="fa-solid fa-check"></i> Confirm Payment &amp; Settle
+                  <button type="submit" className="btn btn-primary fw-bold text-white d-inline-flex align-items-center gap-1 shadow-sm">
+                    <i className="fa-solid fa-check"></i> Record Counter Payment
                   </button>
                 </div>
               </form>

@@ -166,13 +166,17 @@ export async function GET(request) {
         remainingBalance: details.chargesSummary?.remainingBalance !== undefined ? details.chargesSummary.remainingBalance : details.balance,
         finalCheckoutBalance: details.chargesSummary?.finalCheckoutBalance || details.balance,
         stayComplimentaryAllowance: details.chargesSummary?.stayComplimentaryAllowance ?? 0,
-        complimentaryBreakfastUsed: details.chargesSummary?.complimentaryBreakfastUsed ?? details.complimentaryBreakfastUsed ?? 0
+        complimentaryBreakfastUsed: details.chargesSummary?.complimentaryBreakfastUsed ?? details.complimentaryBreakfastUsed ?? 0,
+        isBillFinalized: details.chargesSummary?.isBillFinalized ?? details.isBillFinalized ?? 0,
+        billingStatus: details.chargesSummary?.billingStatus || details.billingStatus || 'Pending'
       },
       chargesBreakdown: details.chargesBreakdown || {},
       breakfastSummary: details.chargesBreakdown?.breakfastSummary || {
         complimentaryBreakfastUsed: details.complimentaryBreakfastUsed ?? 0,
         stayComplimentaryAllowance: details.chargesSummary?.stayComplimentaryAllowance ?? 0
       },
+      isBillFinalized: details.chargesSummary?.isBillFinalized ?? details.isBillFinalized ?? 0,
+      billingStatus: details.chargesSummary?.billingStatus || details.billingStatus || 'Pending',
       guestsList: details.finalGuestsList,
       billingID: details.billingID,
       discounts
@@ -204,6 +208,86 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { action } = body;
+
+    if (action === 'finalize_bill') {
+      const bookingID = parseInt(body.bookingID);
+      if (!bookingID) {
+        return NextResponse.json({ error: 'Missing booking ID for bill finalization.' }, { status: 400 });
+      }
+
+      const pool = await getDbConnection();
+      const conn = await pool.getConnection();
+
+      try {
+        await conn.beginTransaction();
+
+        const [bookingData] = await conn.execute(
+          "SELECT b.bookingID, b.status, b.guestID, g.userID as guestUserID, g.firstName, g.lastName FROM booking b JOIN guest g ON g.guestID = b.guestID WHERE b.bookingID = ?",
+          [bookingID]
+        );
+
+        if (bookingData.length === 0) {
+          await conn.rollback();
+          return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+        }
+
+        const booking = bookingData[0];
+        if (booking.status === 'Cancelled' || booking.status === 'Checked Out' || booking.status === 'Completed') {
+          await conn.rollback();
+          return NextResponse.json({ error: `Cannot finalize bill for a ${booking.status} booking.` }, { status: 400 });
+        }
+
+        // Ensure isBillFinalized column exists on billing table
+        await conn.execute("ALTER TABLE billing ADD COLUMN isBillFinalized TINYINT(1) NOT NULL DEFAULT 0").catch(() => {});
+        await conn.execute("ALTER TABLE booking ADD COLUMN billFinalizedAt DATETIME NULL").catch(() => {});
+
+        // Update billing table
+        await conn.execute(
+          "UPDATE billing SET isBillFinalized = 1, billingStatus = 'Bill Finalized', updatedAt = NOW() WHERE bookingID = ?",
+          [bookingID]
+        );
+
+        // Update booking table
+        await conn.execute(
+          "UPDATE booking SET status = 'Bill Finalized', billFinalizedAt = NOW(), updatedAt = NOW() WHERE bookingID = ?",
+          [bookingID]
+        );
+
+        // Audit log
+        await logBillingAudit(
+          bookingID,
+          'STATUS_CHANGE',
+          0,
+          'Bill finalized by front desk. Online payment unlocked for guest.',
+          session.user?.id || session.userId || null,
+          booking.status,
+          'Bill Finalized'
+        );
+
+        // Notify Guest if applicable
+        if (booking.guestUserID) {
+          await conn.execute(
+            "INSERT INTO notification (userID, title, message) VALUES (?, 'Bill Finalized', ?)",
+            [
+              booking.guestUserID,
+              `Your final bill for Booking #${bookingID} has been reviewed and finalized by the front desk. You can now pay your remaining balance through your portal.`
+            ]
+          ).catch(() => {});
+        }
+
+        await conn.commit();
+        return NextResponse.json({
+          success: true,
+          message: 'Bill has been finalized and payment is now unlocked for the guest.'
+        });
+      } catch (err) {
+        await conn.rollback();
+        console.error("Failed to finalize bill:", err);
+        return NextResponse.json({ error: 'Failed to finalize bill: ' + err.message }, { status: 500 });
+      } finally {
+        conn.release();
+      }
+    }
 
     if (action === 'checkout') {
       const bookingID = parseInt(body.bookingID);

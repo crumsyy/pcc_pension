@@ -341,6 +341,7 @@ async function run() {
     await ensureColumn(connection, 'billing', 'missingAmenitiesFee', 'DECIMAL(10,2) DEFAULT 0.00');
     await ensureColumn(connection, 'billing', 'reservationID', 'INT DEFAULT NULL');
     await ensureColumn(connection, 'billing', 'billingStatus', "VARCHAR(50) DEFAULT 'Pending'");
+    await ensureColumn(connection, 'billing', 'isBillFinalized', 'TINYINT(1) NOT NULL DEFAULT 0');
     await ensureColumn(connection, 'inquiry', 'updatedAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
 
     console.log("Ensuring 3NF normalized integrity columns...");
