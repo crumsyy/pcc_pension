@@ -3723,6 +3723,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         const breakfastOption = roomBreakdown.breakfastOption || billData?.breakfastOption || viewBillingBooking.breakfastOption || 'with';
         const productsList = billData?.chargesBreakdown?.orders?.products || billData?.productCharges || billData?.cookedMealCharges || [];
         const amenitiesList = billData?.chargesBreakdown?.orders?.amenities || billData?.amenityCharges || [];
+        const ordersSummaryList = billData?.ordersSummary?.orders || billData?.chargesBreakdown?.ordersSummary?.orders || [];
+        const totalOrdersCost = parseFloat(billData?.ordersSummary?.totalAmount ?? billData?.chargesBreakdown?.orders?.total ?? 0);
         const incidentalsList = billData?.chargesBreakdown?.incidentalFees?.charges || viewBillingBooking.incidentals || billData?.incidentalCharges || [];
         const paymentsList = billData?.chargesBreakdown?.payments?.list || billData?.paymentsList || [];
         const grossTotal = parseFloat(billData?.chargesBreakdown?.summary?.grossTotal || billData?.balancing?.subtotal || billData?.totalAmount || viewBillingBooking.rate || 0);
@@ -3853,81 +3855,130 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         </table>
                       </div>
 
-                      {/* Store Orders & Room Service */}
-                      {productsList.length > 0 && (
-                        <>
-                          <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                            <i className="bi bi-cup-hot-fill text-success"></i> Store &amp; Breakfast Orders
-                          </h6>
-                          <div className="table-responsive mb-3">
-                            <table className="table table-sm table-bordered align-middle small mb-0">
-                              <thead className="table-light">
-                                <tr>
-                                  <th>Item Description</th>
-                                  <th style={{ width: '130px' }}>Delivery Date</th>
-                                  <th className="text-center" style={{ width: '60px' }}>Qty</th>
-                                  <th className="text-end" style={{ width: '110px' }}>Subtotal</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {productsList.map((item, idx) => {
-                                  const isComp = Boolean(item.isComplimentary || parseFloat(item.price) === 0 || item.isFreeBreakfast);
-                                  const subtotal = isComp ? 0 : parseFloat(item.subtotal || (item.price * item.quantity) || 0);
-                                  return (
-                                    <tr key={idx}>
-                                      <td>
-                                        <div className="fw-semibold">{item.name}</div>
-                                        {isComp && (
-                                          <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.70rem' }}>
-                                            Complimentary Package ({formatCurrency(0)})
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="text-muted" style={{ fontSize: '0.76rem' }}>
-                                        {item.deliveryDate ? formatDateTime12H(item.deliveryDate) : '&mdash;'}
-                                      </td>
-                                      <td className="text-center">{item.quantity}</td>
-                                      <td className="text-end fw-semibold">
-                                        {isComp ? <span className="text-success">{formatCurrency(0)}</span> : formatCurrency(subtotal)}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </>
-                      )}
+                      {/* Consolidated Orders & Room Service */}
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                          <i className="bi bi-cart-check-fill text-primary"></i> Orders &amp; Room Service
+                        </h6>
+                        {(ordersSummaryList.length > 0 || productsList.length > 0 || amenitiesList.length > 0) && (
+                          <span className="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold" style={{ fontSize: '0.74rem' }}>
+                            Total: {formatCurrency(totalOrdersCost > 0 ? totalOrdersCost : (productsList.reduce((s, p) => s + parseFloat(p.subtotal || p.price * p.quantity || 0), 0) + amenitiesList.reduce((s, a) => s + parseFloat(a.subtotal || a.price * a.quantity || 0), 0)))}
+                          </span>
+                        )}
+                      </div>
 
-                      {/* Amenities Ordered */}
-                      {amenitiesList.length > 0 && (
-                        <>
-                          <h6 className="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                            <i className="bi bi-box2-heart-fill text-primary"></i> Hotel Amenities Ordered
-                          </h6>
-                          <div className="table-responsive mb-3">
-                            <table className="table table-sm table-bordered align-middle small mb-0">
-                              <thead className="table-light">
-                                <tr>
-                                  <th>Amenity Item</th>
-                                  <th className="text-center" style={{ width: '60px' }}>Qty</th>
-                                  <th className="text-end" style={{ width: '110px' }}>Subtotal</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {amenitiesList.map((item, idx) => (
+                      {ordersSummaryList.length === 0 && productsList.length === 0 && amenitiesList.length === 0 ? (
+                        <div className="p-3 text-center text-muted small bg-light rounded border mb-3">
+                          No room service or product orders recorded for this stay.
+                        </div>
+                      ) : ordersSummaryList.length > 0 ? (
+                        <div className="d-flex flex-column gap-2 mb-3">
+                          {ordersSummaryList.map((ord) => (
+                            <div key={ord.orderID} className="border rounded bg-white overflow-hidden shadow-xs">
+                              <div className="bg-light px-3 py-1.5 border-bottom d-flex justify-content-between align-items-center small">
+                                <div className="d-flex align-items-center gap-2 flex-wrap">
+                                  <span className="fw-bold text-dark">Order #{ord.orderID}</span>
+                                  {ord.deliveryType === 'scheduled' || ord.deliveryTime ? (
+                                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: '0.68rem' }}>
+                                      Scheduled: {ord.deliveryDate} ({ord.deliveryTime || 'Breakfast'})
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style={{ fontSize: '0.68rem' }}>
+                                      Immediate Fulfillment
+                                    </span>
+                                  )}
+                                  <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle" style={{ fontSize: '0.68rem' }}>
+                                    {ord.status || ord.orderStatus || 'Recorded'}
+                                  </span>
+                                </div>
+                                <span className="fw-bold text-dark">
+                                  {formatCurrency(ord.totalAmount || 0)}
+                                </span>
+                              </div>
+                              <div className="table-responsive">
+                                <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.76rem' }}>
+                                  <thead>
+                                    <tr className="text-secondary bg-white">
+                                      <th className="ps-3">Item Description</th>
+                                      <th className="text-center" style={{ width: '60px' }}>Qty</th>
+                                      <th className="text-end" style={{ width: '90px' }}>Unit Price</th>
+                                      <th className="text-end pe-3" style={{ width: '100px' }}>Subtotal</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(ord.items || []).map((it, itIdx) => {
+                                      const isComp = Boolean(it.isComplimentary || it.isFreeBreakfast || parseFloat(it.price || it.unitPrice || 0) === 0);
+                                      return (
+                                        <tr key={itIdx}>
+                                          <td className="ps-3">
+                                            <div className="fw-semibold text-dark">{it.name}</div>
+                                            {isComp && (
+                                              <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.65rem' }}>
+                                                Complimentary Breakfast ({formatCurrency(0)})
+                                              </span>
+                                            )}
+                                            {it.notes && (
+                                              <div className="text-muted" style={{ fontSize: '0.70rem' }}>{it.notes}</div>
+                                            )}
+                                          </td>
+                                          <td className="text-center">{it.quantity}</td>
+                                          <td className="text-end text-muted">
+                                            {isComp ? formatCurrency(0) : formatCurrency(it.price || it.unitPrice || 0)}
+                                          </td>
+                                          <td className="text-end pe-3 fw-bold">
+                                            {isComp ? (
+                                              <span className="text-success">{formatCurrency(0)}</span>
+                                            ) : (
+                                              formatCurrency(it.subtotal || 0)
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="table-responsive mb-3">
+                          <table className="table table-sm table-bordered align-middle small mb-0">
+                            <thead className="table-light">
+                              <tr>
+                                <th>Item Description</th>
+                                <th style={{ width: '130px' }}>Delivery / Service</th>
+                                <th className="text-center" style={{ width: '60px' }}>Qty</th>
+                                <th className="text-end" style={{ width: '110px' }}>Subtotal</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {productsList.concat(amenitiesList).map((item, idx) => {
+                                const isComp = Boolean(item.isComplimentary || parseFloat(item.price) === 0 || item.isFreeBreakfast);
+                                const subtotal = isComp ? 0 : parseFloat(item.subtotal || (item.price * item.quantity) || 0);
+                                return (
                                   <tr key={idx}>
-                                    <td>{item.name}</td>
+                                    <td>
+                                      <div className="fw-semibold">{item.name}</div>
+                                      {isComp && (
+                                        <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.70rem' }}>
+                                          Complimentary Package ({formatCurrency(0)})
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="text-muted" style={{ fontSize: '0.76rem' }}>
+                                      {item.deliveryDate ? formatDateTime12H(item.deliveryDate) : 'Fulfillment'}
+                                    </td>
                                     <td className="text-center">{item.quantity}</td>
                                     <td className="text-end fw-semibold">
-                                      {formatCurrency(item.subtotal || (item.quantity * item.price) || 0)}
+                                      {isComp ? <span className="text-success">{formatCurrency(0)}</span> : formatCurrency(subtotal)}
                                     </td>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
 
                       {/* Itemized Incidental Charges */}

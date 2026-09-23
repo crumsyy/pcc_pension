@@ -342,6 +342,9 @@ async function run() {
     await ensureColumn(connection, 'billing', 'reservationID', 'INT DEFAULT NULL');
     await ensureColumn(connection, 'billing', 'billingStatus', "VARCHAR(50) DEFAULT 'Pending'");
     await ensureColumn(connection, 'billing', 'isBillFinalized', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(connection, 'billing', 'updatedAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await ensureColumn(connection, 'booking', 'updatedAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await ensureColumn(connection, 'booking', 'billFinalizedAt', 'DATETIME NULL DEFAULT NULL');
     await ensureColumn(connection, 'orders', 'createdAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP');
     await ensureColumn(connection, 'inquiry', 'updatedAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
 

@@ -237,9 +237,11 @@ export async function POST(request) {
           return NextResponse.json({ error: `Cannot finalize bill for a ${booking.status} booking.` }, { status: 400 });
         }
 
-        // Ensure isBillFinalized column exists on billing table
+        // Ensure columns exist on billing and booking table before running updates
         await conn.execute("ALTER TABLE billing ADD COLUMN isBillFinalized TINYINT(1) NOT NULL DEFAULT 0").catch(() => {});
+        await conn.execute("ALTER TABLE billing ADD COLUMN updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP").catch(() => {});
         await conn.execute("ALTER TABLE booking ADD COLUMN billFinalizedAt DATETIME NULL").catch(() => {});
+        await conn.execute("ALTER TABLE booking ADD COLUMN updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP").catch(() => {});
 
         // Update billing table
         await conn.execute(
@@ -666,7 +668,7 @@ export async function POST(request) {
     }
 
 
-    if (action === 'apply_manual_discount' || action === 'apply_manual_discounts') {
+    if (action === 'apply_manual_discount' || action === 'apply_manual_discounts' || action === 'apply_discount') {
       const bookingID = parseInt(body.bookingID);
       if (!bookingID) {
         return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
@@ -706,6 +708,8 @@ export async function POST(request) {
 
       // Validate each discount
       const parsedDiscounts = [];
+      const seenCards = new Set();
+
       for (let i = 0; i < discountsList.length; i++) {
         const item = discountsList[i];
         if (!item.discountID) {
@@ -717,6 +721,14 @@ export async function POST(request) {
         if (!item.discountIdNumber || !item.discountIdNumber.trim()) {
           return NextResponse.json({ error: `Beneficiary #${i + 1} (${item.beneficiaryName.trim()}): ID card number is required for verification.` }, { status: 400 });
         }
+
+        const cardKey = item.discountIdNumber.trim().toLowerCase();
+        if (seenCards.has(cardKey)) {
+          return NextResponse.json({
+            error: `Duplicate discount entry: ID card number '${item.discountIdNumber.trim()}' was entered more than once.`
+          }, { status: 400 });
+        }
+        seenCards.add(cardKey);
 
         let dbDiscountID = null;
         let dbPromotionID = null;
@@ -735,6 +747,25 @@ export async function POST(request) {
           promotionID: dbPromotionID,
           discountIdNumber: item.discountIdNumber.trim()
         });
+      }
+
+      // Check if the exact same discounts are already applied (idempotency guard)
+      const existingDiscounts = await dbQuery(
+        `SELECT fullName, discountID, promotionID, discountIdNumber 
+         FROM booking_guest_details 
+         WHERE bookingID = ? AND (discountID IS NOT NULL OR promotionID IS NOT NULL)`,
+        [bookingID]
+      );
+
+      if (existingDiscounts && existingDiscounts.length === parsedDiscounts.length && existingDiscounts.length > 0) {
+        const norm = (arr) => arr.map(d => `${d.discountID || d.promotionID}_${(d.discountIdNumber || '').toLowerCase().trim()}`).sort().join('|');
+        if (norm(existingDiscounts) === norm(parsedDiscounts)) {
+          return NextResponse.json({
+            success: true,
+            alreadyApplied: true,
+            message: 'This discount configuration has already been applied to this booking.'
+          });
+        }
       }
 
       const balanceBefore = await getBookingBalance(bookingID);

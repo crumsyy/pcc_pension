@@ -27,6 +27,7 @@ export default function ReceptionistBilling() {
   // Settle Bill / Record Payment State
   const [isSettlingBill, setIsSettlingBill] = useState(false);
   const [finalizingBill, setFinalizingBill] = useState(false);
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [settleForm, setSettleForm] = useState({
     paymentMethodID: '1',
@@ -49,14 +50,17 @@ export default function ReceptionistBilling() {
     cancelText: 'Cancel'
   });
 
-  const showAlert = (type, title, message) => {
+  const showAlert = (type, title, message, onOk = null) => {
     setModalConfig({
       isOpen: true,
       type,
       title,
       message,
       confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        if (onOk) onOk();
+      },
       onCancel: null
     });
   };
@@ -129,9 +133,15 @@ export default function ReceptionistBilling() {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to finalize bill');
 
-          showAlert('success', 'Bill Finalized', 'Bill finalized. Payment is now unlocked on the guest portal.');
-          fetchActiveBookings();
-          fetchBillingDetails(selectedBookingID);
+          showAlert(
+            'success',
+            'Bill Finalized',
+            'The bill has been successfully finalized. Payment is now unlocked and available on both the Guest Portal and Front Desk Counter.',
+            () => {
+              fetchActiveBookings();
+              fetchBillingDetails(selectedBookingID);
+            }
+          );
         } catch (err) {
           showAlert('error', 'Error', err.message);
         } finally {
@@ -297,6 +307,7 @@ export default function ReceptionistBilling() {
       }
     }
 
+    setApplyingDiscount(true);
     try {
       const res = await fetch('/api/receptionist/billing', {
         method: 'POST',
@@ -316,6 +327,8 @@ export default function ReceptionistBilling() {
       fetchBillingDetails(selectedBookingID);
     } catch (err) {
       showAlert('error', 'Error', err.message);
+    } finally {
+      setApplyingDiscount(false);
     }
   };
 
@@ -940,93 +953,117 @@ export default function ReceptionistBilling() {
                             )}
                           </div>
 
-                          {/* Extra product orders */}
-                          <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Product Charges (Drinks/Snacks/Meals)</h6>
-                          <div className="table-responsive mb-2">
-                            <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
-                              <thead>
-                                <tr className="table-light">
-                                  <th>Product Name</th>
-                                  <th>Unit Price</th>
-                                  <th>Qty</th>
-                                  <th className="text-end">Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {billDetails.productCharges.length === 0 ? (
-                                  <tr>
-                                    <td colSpan="4" className="text-center py-3 text-muted small">No product orders recorded.</td>
-                                  </tr>
-                                ) : (
-                                  billDetails.productCharges.map((item, idx) => {
-                                    const isFree = item.isFreeBreakfast || item.price === 0 || item.subtotal === 0;
-                                    return (
-                                      <tr key={idx}>
-                                        <td>
-                                          <div className="fw-semibold text-dark">{item.name}</div>
-                                          {isFree ? (
-                                            <span className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 mt-0.5" style={{ fontSize: '0.68rem' }}>
-                                              <i className="bi bi-gift-fill"></i> {item.notes || 'Included with Room Package (Complimentary)'}
-                                            </span>
-                                          ) : item.notes ? (
-                                            <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mt-0.5" style={{ fontSize: '0.68rem' }}>
-                                              {item.notes}
-                                            </span>
-                                          ) : null}
-                                        </td>
-                                        <td>
-                                          {isFree ? (
-                                            <span className="text-success fw-semibold">₱0.00</span>
-                                          ) : (
-                                            `₱${parseFloat(item.price).toFixed(2)}`
-                                          )}
-                                        </td>
-                                        <td>{item.quantity}</td>
-                                        <td className="text-end fw-bold">
-                                          {isFree ? (
-                                            <span className="text-success">₱0.00</span>
-                                          ) : (
-                                            <span className="text-dark">₱{parseFloat(item.subtotal).toFixed(2)}</span>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    );
-                                  })
-                                )}
-                              </tbody>
-                            </table>
+                          {/* Consolidated Orders & Room Service */}
+                          <div className="d-flex justify-content-between align-items-center mb-2 border-bottom pb-1">
+                            <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5" style={{ fontSize: '0.84rem' }}>
+                              <i className="bi bi-cart-check-fill text-pcc-primary"></i>
+                              <span>Orders &amp; Room Service</span>
+                            </h6>
+                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold" style={{ fontSize: '0.74rem' }}>
+                              Total: ₱{parseFloat(billDetails.ordersSummary?.totalAmount ?? billDetails.chargesSummary?.orders ?? 0).toFixed(2)}
+                            </span>
                           </div>
 
-                          {/* Extra amenity orders */}
-                          <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Amenity Charges (Extra Foam/Linen/Toiletries)</h6>
-                          <div className="table-responsive mb-2">
-                            <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
-                              <thead>
-                                <tr className="table-light">
-                                  <th>Amenity Name</th>
-                                  <th>Unit Price</th>
-                                  <th>Qty</th>
-                                  <th className="text-end">Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {billDetails.amenityCharges.length === 0 ? (
-                                  <tr>
-                                    <td colSpan="4" className="text-center py-3 text-muted small">No extra amenity requests recorded.</td>
-                                  </tr>
-                                ) : (
-                                  billDetails.amenityCharges.map((item, idx) => (
-                                    <tr key={idx}>
-                                      <td>{item.name}</td>
-                                      <td>₱{parseFloat(item.price).toFixed(2)}</td>
-                                      <td>{item.quantity}</td>
-                                      <td className="text-end fw-bold text-dark">₱{parseFloat(item.subtotal).toFixed(2)}</td>
-                                    </tr>
-                                  ))
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
+                          {(!billDetails.ordersSummary?.orders || billDetails.ordersSummary.orders.length === 0) && (!billDetails.productCharges || billDetails.productCharges.length === 0) && (!billDetails.amenityCharges || billDetails.amenityCharges.length === 0) ? (
+                            <div className="p-3 text-center text-muted small bg-light rounded border mb-3">
+                              No room service or product orders recorded for this stay.
+                            </div>
+                          ) : (
+                            <div className="d-flex flex-column gap-2 mb-3">
+                              {(billDetails.ordersSummary?.orders && billDetails.ordersSummary.orders.length > 0) ? (
+                                billDetails.ordersSummary.orders.map((ord) => (
+                                  <div key={ord.orderID} className="border rounded bg-white overflow-hidden shadow-xs">
+                                    <div className="bg-light px-3 py-1.5 border-bottom d-flex justify-content-between align-items-center small">
+                                      <div className="d-flex align-items-center gap-2 flex-wrap">
+                                        <span className="fw-bold text-dark">Order #{ord.orderID}</span>
+                                        {ord.deliveryType === 'scheduled' || ord.deliveryTime ? (
+                                          <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: '0.68rem' }}>
+                                            Scheduled: {ord.deliveryDate} ({ord.deliveryTime || 'Breakfast'})
+                                          </span>
+                                        ) : (
+                                          <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style={{ fontSize: '0.68rem' }}>
+                                            Immediate Fulfillment
+                                          </span>
+                                        )}
+                                        <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle" style={{ fontSize: '0.68rem' }}>
+                                          {ord.orderStatus || 'Recorded'}
+                                        </span>
+                                      </div>
+                                      <span className="fw-bold text-dark">
+                                        ₱{parseFloat(ord.totalAmount || 0).toFixed(2)}
+                                      </span>
+                                    </div>
+                                    <div className="table-responsive">
+                                      <table className="table table-sm table-hover mb-0" style={{ fontSize: '0.76rem' }}>
+                                        <thead>
+                                          <tr className="text-secondary bg-white">
+                                            <th className="ps-3">Item Description</th>
+                                            <th className="text-center" style={{ width: '60px' }}>Qty</th>
+                                            <th className="text-end" style={{ width: '90px' }}>Unit Price</th>
+                                            <th className="text-end pe-3" style={{ width: '100px' }}>Subtotal</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {(ord.items || []).map((it, itIdx) => {
+                                            const isComp = Boolean(it.isComplimentary || it.isFreeBreakfast || parseFloat(it.price || it.unitPrice || 0) === 0);
+                                            return (
+                                              <tr key={itIdx}>
+                                                <td className="ps-3">
+                                                  <div className="fw-semibold text-dark">{it.name}</div>
+                                                  {isComp && (
+                                                    <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.65rem' }}>
+                                                      Complimentary Breakfast (₱0.00)
+                                                    </span>
+                                                  )}
+                                                  {it.notes && (
+                                                    <div className="text-muted" style={{ fontSize: '0.70rem' }}>{it.notes}</div>
+                                                  )}
+                                                </td>
+                                                <td className="text-center">{it.quantity}</td>
+                                                <td className="text-end text-muted">
+                                                  {isComp ? '₱0.00' : `₱${parseFloat(it.price || it.unitPrice || 0).toFixed(2)}`}
+                                                </td>
+                                                <td className="text-end pe-3 fw-bold">
+                                                  {isComp ? (
+                                                    <span className="text-success">₱0.00</span>
+                                                  ) : (
+                                                    `₱${parseFloat(it.subtotal || 0).toFixed(2)}`
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="table-responsive mb-2">
+                                  <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
+                                    <thead>
+                                      <tr className="table-light">
+                                        <th>Item Name</th>
+                                        <th>Unit Price</th>
+                                        <th>Qty</th>
+                                        <th className="text-end">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {[...(billDetails.productCharges || []), ...(billDetails.amenityCharges || [])].map((item, idx) => (
+                                        <tr key={idx}>
+                                          <td>{item.name}</td>
+                                          <td>₱{parseFloat(item.price || 0).toFixed(2)}</td>
+                                          <td>{item.quantity}</td>
+                                          <td className="text-end fw-bold text-dark">₱{parseFloat(item.subtotal || 0).toFixed(2)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Non-Consumable Amenities Checkout Inspection */}
                           <h6 className="fw-bold text-dark mb-1 border-bottom pb-1 mt-3" style={{ fontSize: '0.82rem' }}>
@@ -1286,19 +1323,11 @@ export default function ReceptionistBilling() {
                               <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</span>
                             </div>
                           )}
-                          {billDetails.chargesSummary.cookedMeals !== undefined && (
-                            <div className="d-flex justify-content-between mb-2">
-                              <span className="text-muted">Cooked Meals (Kitchen):</span>
-                              <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.cookedMeals || 0).toFixed(2)}</span>
-                            </div>
-                          )}
                           <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Orders (Store &amp; Minibar):</span>
-                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.storeProducts !== undefined ? billDetails.chargesSummary.storeProducts : (billDetails.chargesSummary.products || 0)).toFixed(2)}</span>
-                          </div>
-                          <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Orders (Amenities):</span>
-                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.amenities || 0).toFixed(2)}</span>
+                            <span className="text-muted">Orders &amp; Room Service:</span>
+                            <span className="fw-semibold text-dark">
+                              ₱{parseFloat(billDetails.ordersSummary?.totalAmount ?? billDetails.chargesSummary?.orders ?? 0).toFixed(2)}
+                            </span>
                           </div>
                           {parseFloat(billDetails.chargesSummary.incidentals || 0) > 0 && (
                             <div className="d-flex justify-content-between mb-3 text-danger">
@@ -1595,7 +1624,20 @@ export default function ReceptionistBilling() {
                   ) : <div />}
                   <div className="d-flex gap-2">
                     <button type="button" className="btn btn-secondary text-white" onClick={() => setIsEditingDiscounts(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Apply & Recalculate Bill</button>
+                    <button
+                      type="submit"
+                      className="btn btn-pcc-primary text-white fw-bold d-flex align-items-center gap-1"
+                      disabled={applyingDiscount || discountBeneficiaries.length === 0}
+                    >
+                      {applyingDiscount ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Applying...
+                        </>
+                      ) : (
+                        'Apply & Recalculate'
+                      )}
+                    </button>
                   </div>
                 </div>
               </form>
