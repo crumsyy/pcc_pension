@@ -1346,11 +1346,6 @@ function BookingsClient() {
     return matchesSearch && matchesStatus;
   });
 
-  const checkoutRequests = bookings.filter(b => {
-    const norm = normalizeBookingStatus(b.status);
-    return norm === 'Bill Finalized' || b.status === 'Checkout Requested' || Boolean(b.checkoutRequestedAt);
-  });
-
   const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, isCurrentTime = false) => {
     const room = rooms.find(r => String(r.roomID) === String(roomID));
     if (!room) return false;
@@ -1432,113 +1427,6 @@ function BookingsClient() {
         </button>
       </div>
 
-      {/* CHECKOUT REQUESTS NOTIFICATION & ACTION SECTION */}
-      {checkoutRequests.length > 0 && (
-        <div className="card shadow-sm border-0 border-start border-4 border-warning p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-          <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom gap-2">
-            <div className="d-flex align-items-center gap-2">
-              <i className="fa-solid fa-bell text-warning fs-5"></i>
-              <h5 className="fw-bold text-dark mb-0">Active Checkout Requests</h5>
-              <span className="badge bg-warning text-dark fw-bold rounded-pill px-2.5 py-1">
-                {checkoutRequests.length} Pending
-              </span>
-            </div>
-            <small className="text-muted">
-              Guests who requested checkout. Review incidental fees, finalize bill, and complete departure.
-            </small>
-          </div>
-
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
-              <thead className="table-light">
-                <tr>
-                  <th>Room</th>
-                  <th>Guest</th>
-                  <th>Booking Ref</th>
-                  <th>Requested Time</th>
-                  <th>Balance Due</th>
-                  <th>Status</th>
-                  <th className="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {checkoutRequests.map(req => {
-                  const reqBalance = parseFloat(req.remainingBalance ?? req.finalBalance ?? 0);
-                  const isBillFinalized = normalizeBookingStatus(req.status) === 'Bill Finalized';
-
-                  return (
-                    <tr key={`checkout-req-${req.bookingID}`}>
-                      <td>
-                        <strong className="text-pcc-blue fs-6">Room {req.roomNumber}</strong>
-                        <div className="small text-muted">{req.roomType}</div>
-                      </td>
-                      <td>
-                        <div className="fw-bold text-dark">{req.firstName} {req.lastName}</div>
-                        <small className="text-muted">{req.contact || req.email || 'No contact'}</small>
-                      </td>
-                      <td>
-                        <span className="badge bg-light text-dark border">#{req.bookingID}</span>
-                      </td>
-                      <td>
-                        <div className="text-dark">
-                          <i className="fa-regular fa-clock me-1 text-muted"></i>
-                          {req.checkoutRequestedAt
-                            ? new Date(req.checkoutRequestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : 'Requested'}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`fw-bold ${reqBalance > 0 ? 'text-danger' : 'text-success'}`}>
-                          ₱{reqBalance.toFixed(2)}
-                        </span>
-                      </td>
-                      <td>
-                        <StatusBadge status={req.status} />
-                      </td>
-                      <td className="text-end">
-                        <div className="d-flex justify-content-end gap-1.5 flex-wrap">
-                          {!isBillFinalized && (
-                            <button
-                              type="button"
-                              className="btn btn-sm text-white fw-bold shadow-xs d-inline-flex align-items-center gap-1"
-                              style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1', fontSize: '0.78rem' }}
-                              onClick={() => handleOpenFinalizeBillModal(req)}
-                            >
-                              <i className="fa-solid fa-receipt"></i>
-                              <span>Finalize Bill</span>
-                            </button>
-                          )}
-
-                          {isBillFinalized && reqBalance > 0 && (
-                            <Link
-                              href="/receptionist/bookings/checkout"
-                              className="btn btn-sm btn-success text-white fw-bold shadow-xs d-inline-flex align-items-center gap-1"
-                              style={{ fontSize: '0.78rem' }}
-                            >
-                              <i className="fa-solid fa-credit-card"></i>
-                              <span>Collect ₱{reqBalance.toFixed(2)}</span>
-                            </Link>
-                          )}
-
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-secondary text-white fw-bold shadow-xs d-inline-flex align-items-center gap-1"
-                            style={{ fontSize: '0.78rem' }}
-                            onClick={() => handleMarkCompleted(req)}
-                          >
-                            <i className="fa-solid fa-check"></i>
-                            <span>Mark Completed</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
         <div className="row g-2">
@@ -1951,12 +1839,19 @@ function BookingsClient() {
                           <div className="col-md-3">
                             <input
                               type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               className="form-control form-control-sm"
-                              placeholder="Valid ID No * (OSCA/PWD)"
+                              placeholder="Numeric ID No * (0-9)"
                               value={g.discountIdNumber}
                               onChange={(e) => {
-                                const val = e.target.value;
+                                const val = e.target.value.replace(/\D/g, '');
                                 setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountIdNumber: val } : item));
+                              }}
+                              onKeyDown={(e) => {
+                                if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
+                                  e.preventDefault();
+                                }
                               }}
                               required
                             />

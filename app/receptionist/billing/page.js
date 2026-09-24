@@ -279,7 +279,8 @@ export default function ReceptionistBilling() {
   const handleUpdateBeneficiaryField = (index, field, value) => {
     setDiscountBeneficiaries(prev => {
       const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: value };
+      const sanitized = field === 'discountIdNumber' ? value.replace(/\D/g, '') : value;
+      copy[index] = { ...copy[index], [field]: sanitized };
       return copy;
     });
   };
@@ -381,32 +382,37 @@ export default function ReceptionistBilling() {
     });
   };
 
-  const handleCheckOutGuest = async () => {
-    if (billDetails && billDetails.chargesSummary && billDetails.chargesSummary.balance > 0.05) {
-      showAlert('error', 'Checkout Blocked', `Cannot check out guest with an outstanding balance of ₱${parseFloat(billDetails.chargesSummary.balance).toFixed(2)}. Please settle the bill first.`);
+  const handleCompleteBooking = async () => {
+    const remainingBalance = parseFloat(billDetails?.chargesSummary?.remainingBalance ?? billDetails?.chargesSummary?.balance ?? 0);
+    if (remainingBalance > 0.05) {
+      showAlert('error', 'Action Blocked', `Cannot complete booking with an outstanding balance of ₱${remainingBalance.toFixed(2)}. Please settle the bill first.`);
       return;
     }
-    showConfirm('Complete Check-out', 'Are you sure you want to complete check-out for this guest? The room will be released to Available status.', async () => {
+    showConfirm('Complete Booking', 'Are you sure you want to complete this booking? The guest will be checked out, the room released to Available status, and the folio finalized.', async () => {
+      setCheckingOut(true);
       try {
         const res = await fetch('/api/receptionist/billing', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'checkout',
+            action: 'complete_booking',
             bookingID: selectedBookingID
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to complete checkout');
+        if (!res.ok) throw new Error(data.error || 'Failed to complete booking');
 
-        showAlert('success', 'Check-out Completed', 'The guest has been successfully checked out and the room is now Available.');
+        showAlert('success', 'Booking Completed', 'The booking has been successfully completed, the folio finalized, and the room is now Available.');
         fetchActiveBookings();
         fetchBillingDetails(selectedBookingID);
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setCheckingOut(false);
       }
     });
   };
+  const handleCheckOutGuest = handleCompleteBooking;
 
   const handleAddIncidentalSubmit = async (e) => {
     e.preventDefault();
@@ -1431,9 +1437,9 @@ export default function ReceptionistBilling() {
                                       type="button"
                                       className="btn btn-secondary text-white w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
                                       disabled
-                                      title="Complete check-out will unlock once the balance is ₱0.00"
+                                      title="Complete Booking will unlock once the balance is ₱0.00"
                                     >
-                                      <i className="fa-solid fa-lock me-1"></i> Complete Check-out (Balance Due: ₱{balance.toFixed(2)})
+                                      <i className="fa-solid fa-lock me-1"></i> Complete Booking (Balance Due: ₱{balance.toFixed(2)})
                                     </button>
                                   </div>
                                 );
@@ -1450,16 +1456,16 @@ export default function ReceptionistBilling() {
                                   type="button"
                                   className="btn btn-success text-white w-100 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
                                   disabled={checkingOut}
-                                  onClick={handleCheckOutGuest}
+                                  onClick={handleCompleteBooking}
                                 >
                                   {checkingOut ? (
                                     <>
                                       <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                                      Checking Out...
+                                      Completing Booking...
                                     </>
                                   ) : (
                                     <>
-                                      <i className="fa-solid fa-check"></i> Complete Guest Check-out
+                                      <i className="fa-solid fa-check"></i> Complete Booking
                                     </>
                                   )}
                                 </button>
@@ -1594,11 +1600,18 @@ export default function ReceptionistBilling() {
                           <label className="form-label fw-semibold small mb-1">Government / ID No. *</label>
                           <input
                             type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             className="form-control form-control-sm"
                             required
-                            placeholder="e.g. OSCA-12345 / PWD-9876"
+                            placeholder="e.g. 12345678 (Numeric Only)"
                             value={b.discountIdNumber}
-                            onChange={(e) => handleUpdateBeneficiaryField(idx, 'discountIdNumber', e.target.value)}
+                            onChange={(e) => handleUpdateBeneficiaryField(idx, 'discountIdNumber', e.target.value.replace(/\D/g, ''))}
+                            onKeyDown={(e) => {
+                              if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                         </div>
                       </div>

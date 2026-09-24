@@ -724,13 +724,25 @@ export async function POST(request) {
 
     if (action === 'checkin') {
       const bookingID = parseInt(body.bookingID);
-      const confirmEarlyCheckIn = !!body.confirmEarlyCheckIn;
+      const confirmEarlyCheckIn = !!body.confirmEarlyCheckIn || !!body.confirmAdvanceCheckIn;
       
       const res = await dbQuery("SELECT roomID, DATE_FORMAT(checkInDateTime, '%Y-%m-%d') as scheduledCheckInDate, checkInDateTime FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
       const { roomID, scheduledCheckInDate } = res[0];
+
+      // Retrieve room base rate and room number
+      const [rateData] = await dbQuery(`
+        SELECT COALESCE(
+          (SELECT rr.rate FROM room_rate rr WHERE rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1 LIMIT 1),
+          1200.00
+        ) as roomBaseRate, rm.roomNumber
+        FROM room rm
+        WHERE rm.roomID = ? LIMIT 1
+      `, [roomID]);
+      const roomBaseRate = parseFloat(rateData?.roomBaseRate || 1200.00);
+      const roomNumber = rateData?.roomNumber || 'N/A';
 
       // Get Philippine Time (UTC+8)
       const manilaFormatter = new Intl.DateTimeFormat('en-US', {
@@ -750,12 +762,40 @@ export async function POST(request) {
       const manilaHour = parseInt(p.hour, 10);
       const manilaMinute = parseInt(p.minute, 10);
 
+      let advanceNights = 0;
+      let additionalRoomCharge = 0;
       let earlyHours = 0;
       let earlyFee = 0;
 
-      // Early check-in applies strictly on the scheduled check-in date before 2:00 PM (14:00)
-      if (manilaDateStr === scheduledCheckInDate && manilaHour < 14) {
-        // Difference from standard 2:00 PM (14:00) check-in time
+      // 1. Advance Check-In: guest checks in 1 or more days ahead of scheduled check-in date
+      if (manilaDateStr < scheduledCheckInDate) {
+        const scheduledDateObj = new Date(scheduledCheckInDate + 'T00:00:00');
+        const currentDateObj = new Date(manilaDateStr + 'T00:00:00');
+        advanceNights = Math.max(1, Math.ceil((scheduledDateObj - currentDateObj) / (1000 * 60 * 60 * 24)));
+        additionalRoomCharge = advanceNights * roomBaseRate;
+
+        // Check if arrival hour is before standard 2:00 PM check-in time
+        if (manilaHour < 14) {
+          const exactRemainingMinutes = (14 * 60) - (manilaHour * 60 + manilaMinute);
+          earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
+          earlyFee = earlyHours * 50;
+        }
+
+        if (!confirmEarlyCheckIn) {
+          return NextResponse.json({
+            requiresAdvanceCheckInConfirmation: true,
+            advanceNights,
+            roomBaseRate,
+            additionalRoomCharge,
+            earlyHours,
+            earlyFee,
+            roomNumber,
+            title: 'Advance & Early Check-In Notice',
+            message: `This guest is checking in ${advanceNights} day(s) ahead of schedule. Room ${roomNumber} is available. Checking in today will add ${advanceNights} additional night charge(s) (₱${additionalRoomCharge.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) and early check-in fees to the bill.`
+          });
+        }
+      } else if (manilaDateStr === scheduledCheckInDate && manilaHour < 14) {
+        // Standard same-day early check-in before 2:00 PM
         const exactRemainingMinutes = (14 * 60) - (manilaHour * 60 + manilaMinute);
         earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
         earlyFee = earlyHours * 50;
@@ -765,6 +805,7 @@ export async function POST(request) {
             requiresEarlyCheckInConfirmation: true,
             earlyHours,
             earlyFee,
+            roomNumber,
             message: `This guest is checking in early (scheduled for ${scheduledCheckInDate} at 2:00 PM). Standard check-in is 2:00 PM. An early check-in fee of ₱${earlyFee.toFixed(2)} (${earlyHours} hour(s) @ ₱50/hr) will be automatically added to the bill.`
           });
         }
@@ -772,7 +813,16 @@ export async function POST(request) {
 
       const nowStr = `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
 
-      // If early check-in confirmed, record fee in incidental charges
+      // If advance check-in confirmed, record additional night charges in incidental charges / ledger
+      if (confirmEarlyCheckIn && advanceNights > 0 && additionalRoomCharge > 0) {
+        const advanceDesc = `Advance Check-In Additional Night Charge (${advanceNights} night(s) @ ₱${roomBaseRate.toFixed(2)})`;
+        await dbQuery(
+          "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
+          [bookingID, advanceDesc, additionalRoomCharge]
+        );
+      }
+
+      // If early check-in fee applies, record fee in incidental charges
       if (confirmEarlyCheckIn && earlyFee > 0) {
         const feeDesc = `Early Check-In Fee (${earlyHours} hr(s) @ ₱50.00/hr before 2:00 PM)`;
         await dbQuery(
@@ -787,9 +837,17 @@ export async function POST(request) {
       // Auto-transition Pending Delivery orders to active (Preparing)
       await dbQuery("UPDATE orders SET orderStatus = 'Preparing' WHERE bookingID = ? AND orderStatus = 'Pending Delivery'", [bookingID]);
 
+      const successParts = [];
+      if (advanceNights > 0) successParts.push(`${advanceNights} advance night(s) added (₱${additionalRoomCharge.toFixed(2)})`);
+      if (earlyFee > 0) successParts.push(`₱${earlyFee.toFixed(2)} early check-in fee added`);
+
       return NextResponse.json({
         success: true,
-        message: earlyFee > 0 ? `Guest checked in early successfully. ₱${earlyFee.toFixed(2)} Early Check-In Fee added to bill.` : 'Guest checked in successfully.',
+        message: successParts.length > 0 
+          ? `Guest checked in successfully. ${successParts.join(' and ')} to bill.` 
+          : 'Guest checked in successfully.',
+        advanceNights,
+        additionalRoomCharge,
         earlyFee,
         earlyHours
       });

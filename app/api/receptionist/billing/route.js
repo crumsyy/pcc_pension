@@ -291,16 +291,16 @@ export async function POST(request) {
       }
     }
 
-    if (action === 'checkout') {
+    if (action === 'checkout' || action === 'complete_booking') {
       const bookingID = parseInt(body.bookingID);
       if (!bookingID) {
-        return NextResponse.json({ error: 'Missing booking ID for checkout.' }, { status: 400 });
+        return NextResponse.json({ error: 'Missing booking ID for completing booking.' }, { status: 400 });
       }
 
       const balance = await getBookingBalance(bookingID);
       if (balance > 0.05) {
         return NextResponse.json({
-          error: `Cannot complete checkout. Outstanding balance of ₱${balance.toFixed(2)} must be settled first.`
+          error: `Cannot complete booking. Outstanding balance of ₱${balance.toFixed(2)} must be settled first.`
         }, { status: 400 });
       }
 
@@ -328,7 +328,7 @@ export async function POST(request) {
         const guestName = `${bookingData[0].firstName} ${bookingData[0].lastName}`;
 
         await conn.execute(
-          "UPDATE booking SET status = 'Checked Out', checkOutDateTime = ? WHERE bookingID = ?",
+          "UPDATE booking SET status = 'Checked Out', actualCheckOut = CURRENT_TIMESTAMP, checkOutDateTime = ? WHERE bookingID = ?",
           [nowStr, bookingID]
         );
 

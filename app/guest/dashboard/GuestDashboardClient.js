@@ -1218,8 +1218,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       showAlert('error', 'Booking Conflict', 'This room is already booked for the selected dates. Please choose an open date.');
       return;
     }
-    if (discountedGuests.some(g => !g.discountID || !g.discountIdNumber.trim())) {
-      showAlert('warning', 'Missing Discount Info', 'Please select a discount type and enter valid ID numbers for all discounted guests.');
+    if (discountedGuests.some(g => !g.discountID || !(g.discountIdNumber || '').replace(/\D/g, '').trim())) {
+      showAlert('warning', 'Missing Discount Info', 'Please select a discount type and enter valid numeric ID numbers for all discounted guests.');
       return;
     }
     setActiveModal('payment');

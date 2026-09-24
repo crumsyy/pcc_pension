@@ -263,20 +263,20 @@ function PaymentsClient() {
 
   const handleDirectCheckOut = async () => {
     if (!selectedBookingID) return;
-    showConfirm('Complete Check-out', 'This stay is fully settled. Complete check-out and mark the room Available?', async () => {
+    showConfirm('Complete Booking', 'This stay is fully settled. Complete booking and mark the room Available?', async () => {
       try {
         const res = await fetch('/api/receptionist/billing', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'checkout',
+            action: 'complete_booking',
             bookingID: selectedBookingID
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to checkout');
+        if (!res.ok) throw new Error(data.error || 'Failed to complete booking');
 
-        showAlert('success', 'Check-out Completed', 'Guest check-out completed and room is now Available.');
+        showAlert('success', 'Booking Completed', 'Booking completed and room is now Available.');
         setSelectedBookingID('');
         setBillData(null);
         fetchInitialData();
@@ -541,7 +541,7 @@ function PaymentsClient() {
                       className="btn btn-success text-white w-100 py-2.5 fw-bold shadow-sm"
                       onClick={handleDirectCheckOut}
                     >
-                      ✓ Complete Guest Check-out (Zero Balance)
+                      ✓ Complete Booking (Zero Balance)
                     </button>
                   ) : (
                     <button

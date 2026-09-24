@@ -154,14 +154,14 @@ function CheckInClient() {
     });
   };
 
-  const showConfirm = (title, message, onConfirmCallback) => {
+  const showConfirm = (title, message, onConfirmCallback, confirmText = 'Confirm', cancelText = 'Cancel') => {
     setModalConfig({
       isOpen: true,
       type: 'confirm',
       title,
       message,
-      confirmText: 'Confirm',
-      cancelText: 'Cancel',
+      confirmText,
+      cancelText,
       onConfirm: async () => {
         setModalConfig(prev => ({ ...prev, isOpen: false }));
         await onConfirmCallback();
@@ -230,12 +230,26 @@ function CheckInClient() {
           body: JSON.stringify({
             action: 'checkin',
             bookingID: id,
-            confirmEarlyCheckIn: isEarlyConfirmed
+            confirmEarlyCheckIn: isEarlyConfirmed,
+            confirmAdvanceCheckIn: isEarlyConfirmed
           })
         });
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || 'Failed to check in');
+
+        if (data.requiresAdvanceCheckInConfirmation) {
+          showConfirm(
+            data.title || 'Advance & Early Check-In Notice',
+            data.message || `This guest is checking in ${data.advanceNights} day(s) ahead of schedule. Room ${data.roomNumber} is available. Checking in today will add ${data.advanceNights} additional night charge(s) (₱${parseFloat(data.additionalRoomCharge || 0).toFixed(2)}) and early check-in fees to the bill.`,
+            async () => {
+              await performCheckIn(true);
+            },
+            'Confirm & Add Charges',
+            'Cancel'
+          );
+          return;
+        }
 
         if (data.requiresEarlyCheckInConfirmation) {
           showConfirm(
@@ -243,7 +257,9 @@ function CheckInClient() {
             `Standard check-in time is 2:00 PM. Are you sure you want to proceed with Early Check-In for ${guestName}? An additional early check-in fee of ₱${parseFloat(data.earlyFee).toFixed(2)} (${data.earlyHours} hour(s) @ ₱50/hr) will be automatically added to the guest's bill.`,
             async () => {
               await performCheckIn(true);
-            }
+            },
+            'Confirm & Add Charges',
+            'Cancel'
           );
           return;
         }
