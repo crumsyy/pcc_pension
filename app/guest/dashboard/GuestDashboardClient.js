@@ -159,7 +159,7 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '200px' }) {
 }
 
 export default function GuestDashboardClient({ initialGuest, initialReservations, initialBookings, initialActiveBill, initialAllRooms, initialRoomSchedules }) {
-  const [guest, setGuest] = useState(initialGuest);
+  const [guest, setGuest] = useState(initialGuest || {});
   const [reservations, setReservations] = useState(initialReservations || []);
   const [bookings, setBookings] = useState(initialBookings || []);
   const [activeBill, setActiveBill] = useState(initialActiveBill);
@@ -173,6 +173,53 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [loggingOut, setLoggingOut] = useState(false);
   const [resetBannerDismissed, setResetBannerDismissed] = useState(true);
   const [viewBillingBooking, setViewBillingBooking] = useState(null);
+
+  // Derived Active Booking & Active Reservation (hoisted to top so all effects and handlers have safe access)
+  const activeReservation = reservations.find(r => {
+    const norm = normalizeReservationStatus(r.status);
+    return (norm === 'On Hold' || norm === 'Reserved') && r.status !== 'Cancelled' && r.status !== 'Booked';
+  });
+  const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Bill Finalized', 'Pending Bill', 'Checkout Requested', 'Payment Completed'].includes(b.status));
+
+  // Custom Alert / Confirm Modal Dialog State & Handlers
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  });
+
+  const showAlert = (type, title, message) => {
+    setModalConfig({
+      isOpen: true,
+      type,
+      title,
+      message,
+      confirmText: 'OK',
+      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
+      onCancel: null
+    });
+  };
+
+  const showConfirm = (title, message, onConfirm) => {
+    setModalConfig({
+      isOpen: true,
+      type: 'warning',
+      title,
+      message,
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        onConfirm();
+      },
+      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
 
   useEffect(() => {
     try {
@@ -350,7 +397,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [isGuestGcashSettled, setIsGuestGcashSettled] = useState(false);
   const [guestGcashInlineError, setGuestGcashInlineError] = useState('');
   const [registeredGuests, setRegisteredGuests] = useState([
-    { fullName: `${initialGuest.firstName || 'Guest'} ${initialGuest.lastName || ''}`.trim(), age: 30, discountID: '', discountIdNumber: '' }
+    { fullName: `${initialGuest?.firstName || 'Guest'} ${initialGuest?.lastName || ''}`.trim(), age: 30, discountID: '', discountIdNumber: '' }
   ]);
   const [discountedGuests, setDiscountedGuests] = useState([]);
   const [convertingReservationID, setConvertingReservationID] = useState(null);
@@ -611,47 +658,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
   }, [bookings, activeBookingStay]);
 
-  // Alert Dialog State
-  const [modalConfig, setModalConfig] = useState({
-    isOpen: false,
-    type: 'success',
-    title: '',
-    message: '',
-    onConfirm: null,
-    onCancel: null,
-    confirmText: 'OK',
-    cancelText: 'Cancel'
-  });
 
-  const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
-      onCancel: null
-    });
-  };
-
-  const showConfirm = (title, message, onConfirm) => {
-    setModalConfig({
-      isOpen: true,
-      type: 'warning',
-      title,
-      message,
-      confirmText: 'Confirm',
-      cancelText: 'Cancel',
-      onConfirm: () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        onConfirm();
-      },
-      onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
-    });
-  };
-
-  const fetchRoomsAndStatus = async () => {
+  async function fetchRoomsAndStatus() {
     setLoadingRooms(true);
     try {
       const res = await fetch('/api/guest/reservations');
@@ -666,7 +674,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     } finally {
       setLoadingRooms(false);
     }
-  };
+  }
 
   const getDisabledDatesForRoom = (roomId, excludeResId = convertingReservationID) => {
     if (!roomId || !roomSchedules || roomSchedules.length === 0) return [];
@@ -2070,11 +2078,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const secondFloorRooms = allRooms.filter(r => String(r.floorID) === '2' || r.floorName?.toLowerCase().includes('second') || r.floorName?.toLowerCase().includes('upper') || String(r.roomNumber).startsWith('2'));
   const fallbackRooms = allRooms.filter(r => !groundFloorRooms.some(g => g.roomID === r.roomID) && !secondFloorRooms.some(s => s.roomID === r.roomID));
 
-  const activeReservation = reservations.find(r => {
-    const norm = normalizeReservationStatus(r.status);
-    return (norm === 'On Hold' || norm === 'Reserved') && r.status !== 'Cancelled' && r.status !== 'Booked';
-  });
-  const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Bill Finalized', 'Pending Bill', 'Checkout Requested', 'Payment Completed'].includes(b.status));
+
 
   useEffect(() => {
     if (activeBookingStay?.bookingID) {
