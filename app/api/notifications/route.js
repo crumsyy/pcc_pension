@@ -163,20 +163,37 @@ async function handleUpdateNotifications(request, session) {
     }
 
     const { action, notificationID } = body;
+    const notifId = notificationID || body.id;
+
+    // Ensure readAt column exists
+    await dbQuery("ALTER TABLE notification ADD COLUMN IF NOT EXISTS readAt DATETIME DEFAULT NULL").catch(() => {});
 
     // Single notification mark-as-read
-    if (notificationID || action === 'mark_read') {
-      const notifId = notificationID || body.id;
-      if (notifId) {
-        await dbQuery("UPDATE notification SET isRead = 1 WHERE notificationID = ? AND userID = ?", [notifId, userID]);
-        return NextResponse.json({ success: true, message: 'Notification marked as read.' });
-      }
+    if (notifId && notifId !== 'all' && action !== 'mark_all_read') {
+      await dbQuery(
+        "UPDATE notification SET isRead = 1, readAt = CURRENT_TIMESTAMP WHERE userID = ? AND (notificationID = ? OR ? = 'all')",
+        [userID, notifId, notifId]
+      );
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Notification marked as read.', 
+        updatedIDs: [parseInt(notifId, 10) || notifId] 
+      });
     }
 
-    // Mark all notifications as read (explicit action or default PUT without notificationID)
-    if (action === 'mark_all_read' || !notificationID) {
-      await dbQuery("UPDATE notification SET isRead = 1 WHERE userID = ?", [userID]);
-      return NextResponse.json({ success: true, message: 'All notifications marked as read.' });
+    // Mark all notifications as read (explicit action, notifId === 'all', or default without specific notificationID)
+    if (action === 'mark_all_read' || notifId === 'all' || !notifId) {
+      const unreadRows = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND isRead = 0", [userID]);
+      const updatedIDs = unreadRows.map(r => r.notificationID);
+      await dbQuery(
+        "UPDATE notification SET isRead = 1, readAt = CURRENT_TIMESTAMP WHERE userID = ?",
+        [userID]
+      );
+      return NextResponse.json({ 
+        success: true, 
+        message: 'All notifications marked as read.', 
+        updatedIDs 
+      });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -195,6 +212,14 @@ export async function POST(request) {
 }
 
 export async function PUT(request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return handleUpdateNotifications(request, session);
+}
+
+export async function PATCH(request) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

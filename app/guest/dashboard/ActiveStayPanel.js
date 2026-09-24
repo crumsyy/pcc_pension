@@ -55,9 +55,10 @@ export default function ActiveStayPanel({
     }
     const isEarly = activeBookingStay?.checkOutDateTime && (new Date() < new Date(activeBookingStay.checkOutDateTime));
     const schedDateStr = activeBookingStay?.checkOutDateTime ? new Date(activeBookingStay.checkOutDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-    let msg = `Are you sure you want to request check-out for Room ${activeBookingStay?.roomNumber || ''}? Receptionist will inspect room and finalize your bill.`;
+    const nights = activeBookingStay?.numberOfDays || activeBookingStay?.totalNights || '';
+    let msg = `Are you sure you want to request your final bill? Front desk staff will review your ledger and prepare your itemized balance.`;
     if (isEarly) {
-      msg += `\n\nNotice on Early Departure: Your reservation was scheduled until ${schedDateStr}. Per pension house policy, the full base room charge for all booked nights remains payable.`;
+      msg += `\n\nNotice on Early Departure: Your reservation was booked until ${schedDateStr}. Per pension house policy, the full base room charge for all ${nights ? nights + ' ' : ''}booked nights remains payable.`;
     }
     if (!window.confirm(msg)) return;
 
@@ -69,11 +70,11 @@ export default function ActiveStayPanel({
         body: JSON.stringify({ bookingID: activeBookingStay.bookingID })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to request checkout');
+      if (!res.ok) throw new Error(data.error || 'Failed to request final bill');
       setIsCheckoutRequested(true);
-      setCheckoutNotice("Checkout request sent. Receptionist will inspect room and finalize your bill.");
+      setCheckoutNotice("Final bill request sent. Front desk staff will review your ledger and prepare your itemized balance.");
     } catch (err) {
-      alert(err.message || 'Error sending checkout request');
+      alert(err.message || 'Error sending final bill request');
     } finally {
       setRequestingCheckout(false);
     }
@@ -140,7 +141,7 @@ export default function ActiveStayPanel({
                   <span>Billing &amp; Payments</span>
                 </div>
                 <small className="text-muted d-block mt-0.5" style={{ fontSize: '0.78rem' }}>
-                  Review itemized room charges, meals, and request checkout
+                  Review itemized room charges, meals, and request final bill
                 </small>
               </div>
 
@@ -160,7 +161,7 @@ export default function ActiveStayPanel({
                   onClick={handleRequestCheckoutClick}
                 >
                   <i className={`bi ${isRoomVerified ? 'bi-hourglass-split' : (isAlreadyRequested ? 'bi-clock-history' : 'bi-box-arrow-right')} me-2`}></i>
-                  {isRoomVerified ? 'Pending Bill' : (isAlreadyRequested ? 'Checkout Requested' : (requestingCheckout ? 'Sending Request...' : 'Request Checkout'))}
+                  {isRoomVerified ? 'Pending Bill' : (isAlreadyRequested ? 'Checkout Requested' : (requestingCheckout ? 'Sending Request...' : 'Request Final Bill'))}
                 </Button>
               </div>
             </div>
@@ -176,7 +177,7 @@ export default function ActiveStayPanel({
                   ) : (
                     isRoomVerified 
                       ? "Room inspection completed. Front desk is reviewing your final bill." 
-                      : (checkoutNotice || "Check-out request received. Front desk is inspecting room and reviewing bill.")
+                      : (checkoutNotice || "Final bill request received. Front desk is inspecting room and reviewing bill.")
                   )}
                 </span>
               </div>
@@ -488,10 +489,10 @@ export default function ActiveStayPanel({
                         <div className="text-center text-muted small mt-1.5" style={{ fontSize: '0.74rem' }}>
                           <i className="bi bi-info-circle me-1 text-warning"></i>
                           {!isAlreadyRequested
-                            ? "Please request check-out first. Front desk will inspect room and finalize bill before payment."
+                            ? "Please request your final bill first. Front desk will inspect room and finalize bill before payment."
                             : isRoomVerified
                             ? "Room inspection completed. Front desk is reviewing your final bill."
-                            : "Check-out request received. Front desk will finalize your bill before payment."}
+                            : "Final bill request received. Front desk will finalize your bill before payment."}
                         </div>
                       ) : remainingBal <= 0.05 ? (
                         <div className="text-center text-success small mt-1.5 fw-semibold" style={{ fontSize: '0.74rem' }}>

@@ -10,13 +10,18 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const clientReadIDsRef = useRef(new Set());
 
   const fetchNotifications = async () => {
     try {
       const res = await fetch("/api/notifications");
       if (res.ok) {
         const data = await res.json();
-        const list = data.notifications || [];
+        const rawList = data.notifications || [];
+        const list = rawList.map(n => ({
+          ...n,
+          isRead: clientReadIDsRef.current.has(n.notificationID) ? 1 : (n.isRead ? 1 : 0)
+        }));
         setNotifications(list);
         setUnreadCount(list.filter(n => !n.isRead).length);
       }
@@ -52,14 +57,19 @@ export default function NotificationBell() {
 
   const handleMarkAllRead = async () => {
     try {
+      setNotifications(prev => {
+        prev.forEach(n => clientReadIDsRef.current.add(n.notificationID));
+        return prev.map(n => ({ ...n, isRead: 1 }));
+      });
+      setUnreadCount(0);
       const res = await fetch("/api/notifications", {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mark_all_read" }),
       });
       if (res.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: 1 })));
-        setUnreadCount(0);
+        const data = await res.json();
+        (data.updatedIDs || []).forEach(id => clientReadIDsRef.current.add(id));
       }
     } catch (err) {
       console.error("Failed to mark notifications as read:", err);
@@ -68,16 +78,19 @@ export default function NotificationBell() {
 
   const handleMarkRead = async (notificationID) => {
     try {
+      clientReadIDsRef.current.add(notificationID);
+      setNotifications(prev =>
+        prev.map(n => (n.notificationID === notificationID ? { ...n, isRead: 1 } : n))
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
       const res = await fetch("/api/notifications", {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationID }),
+        body: JSON.stringify({ action: "mark_read", notificationID }),
       });
       if (res.ok) {
-        setNotifications(prev =>
-          prev.map(n => (n.notificationID === notificationID ? { ...n, isRead: 1 } : n))
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        const data = await res.json();
+        (data.updatedIDs || []).forEach(id => clientReadIDsRef.current.add(id));
       }
     } catch (err) {
       console.error("Failed to mark notification as read:", err);

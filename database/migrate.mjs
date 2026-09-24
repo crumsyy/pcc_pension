@@ -204,6 +204,8 @@ async function run() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
 
+    await ensureColumn(connection, 'notification', 'readAt', "DATETIME DEFAULT NULL");
+
     console.log("Checking and ensuring booking_guest_details table exists...");
     await ensureTable(connection, 'booking_guest_details', `
       CREATE TABLE \`booking_guest_details\` (

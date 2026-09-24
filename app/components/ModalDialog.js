@@ -8,7 +8,9 @@ export default function ModalDialog({
   onConfirm,
   onCancel,
   confirmText = 'OK',
-  cancelText = 'Cancel'
+  cancelText = 'Cancel',
+  confirmVariant,
+  cancelVariant
 }) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -74,6 +76,14 @@ export default function ModalDialog({
     }
   };
 
+  const isDangerConfirm = confirmVariant === 'danger';
+  const confirmClass = isDangerConfirm 
+    ? "btn btn-danger px-4 py-2 text-white d-inline-flex align-items-center justify-content-center"
+    : "btn btn-pcc-primary px-4 py-2 text-white d-inline-flex align-items-center justify-content-center";
+  const cancelClass = cancelVariant === 'secondary' || isDangerConfirm
+    ? "btn btn-secondary px-4 py-2 ms-2 text-white"
+    : "btn btn-danger px-4 py-2 ms-2 text-white";
+
   return (
     <div className="modal show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2100 }}>
       <div className="modal-dialog modal-dialog-centered" role="document" style={{ maxWidth: '420px' }}>
@@ -94,7 +104,7 @@ export default function ModalDialog({
             {onConfirm && (
               <button
                 type="button"
-                className="btn btn-pcc-primary px-4 py-2 text-white d-inline-flex align-items-center justify-content-center"
+                className={confirmClass}
                 onClick={handleConfirmClick}
                 disabled={isSubmitting}
                 style={{ borderRadius: '6px', minWidth: '110px' }}
@@ -112,7 +122,7 @@ export default function ModalDialog({
             {onCancel && (
               <button
                 type="button"
-                className="btn btn-danger px-4 py-2 ms-2 text-white"
+                className={cancelClass}
                 onClick={onCancel}
                 disabled={isSubmitting}
                 style={{ borderRadius: '6px' }}

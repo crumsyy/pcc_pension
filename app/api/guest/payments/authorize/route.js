@@ -46,10 +46,11 @@ export async function POST(request) {
       // Retrieve booking with lock
       const [bookingRows] = await conn.execute(
         `SELECT b.bookingID, b.guestID, b.roomID, b.status, b.remainingBalance, b.finalBalance,
-                r.roomNumber, r.roomType,
+                r.roomNumber, COALESCE(rt.type, 'Standard Room') AS roomType,
                 g.firstName, g.lastName, g.email, g.contact
          FROM booking b
          LEFT JOIN room r ON r.roomID = b.roomID
+         LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
          LEFT JOIN guest g ON g.guestID = b.guestID
          WHERE b.bookingID = ? FOR UPDATE`,
         [bookingID]

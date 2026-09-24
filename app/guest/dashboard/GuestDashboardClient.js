@@ -17,6 +17,7 @@ import BookingForm from '../../components/BookingForm';
 import GuestBookingForm from '../../components/GuestBookingForm';
 import GuestOrdersContent from './GuestOrdersContent';
 import ActiveStayPanel from './ActiveStayPanel';
+import PaymentModal from './PaymentModal';
 import StatusBadge, { normalizeBookingStatus, normalizeReservationStatus } from '../../components/StatusBadge';
 import './styles.css';
 import HeaderProfile from '../../components/HeaderProfile';
@@ -173,6 +174,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [loggingOut, setLoggingOut] = useState(false);
   const [resetBannerDismissed, setResetBannerDismissed] = useState(true);
   const [viewBillingBooking, setViewBillingBooking] = useState(null);
+  const [paymentModalBooking, setPaymentModalBooking] = useState(null);
+  const clientReadIDsRef = useRef(new Set());
 
   // Derived Active Booking & Active Reservation (hoisted to top so all effects and handlers have safe access)
   const activeReservation = reservations.find(r => {
@@ -728,8 +731,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       const res = await fetch('/api/notifications');
       const data = await res.json();
       if (data.notifications) {
-        setNotifications(data.notifications);
-        const unread = data.notifications.filter(n => !n.isRead).length;
+        const rawNotifs = data.notifications || [];
+        const mergedNotifs = rawNotifs.map(n => ({
+          ...n,
+          isRead: clientReadIDsRef.current.has(n.notificationID) ? 1 : (n.isRead ? 1 : 0)
+        }));
+        setNotifications(mergedNotifs);
+        const unread = mergedNotifs.filter(n => !n.isRead).length;
         setUnreadCount(unread);
       }
     } catch (err) {
@@ -739,13 +747,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleMarkAllNotificationsRead = async () => {
     try {
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: 1 })));
+      setNotifications(prev => {
+        prev.forEach(n => clientReadIDsRef.current.add(n.notificationID));
+        return prev.map(n => ({ ...n, isRead: 1 }));
+      });
       setUnreadCount(0);
-      await fetch("/api/notifications", {
-        method: "POST",
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mark_all_read" }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        (data.updatedIDs || []).forEach(id => clientReadIDsRef.current.add(id));
+      }
     } catch (err) {
       console.error("Failed to mark notifications read:", err);
     }
@@ -753,13 +768,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleMarkSingleNotificationRead = async (id) => {
     try {
+      clientReadIDsRef.current.add(id);
       setNotifications(prev => prev.map(n => n.notificationID === id ? { ...n, isRead: 1 } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
-      await fetch("/api/notifications", {
-        method: "POST",
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mark_read", notificationID: id }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        (data.updatedIDs || []).forEach(nid => clientReadIDsRef.current.add(nid));
+      }
     } catch (err) {
       console.error("Failed to mark notification read:", err);
     }
@@ -930,7 +950,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         }
         if (notifResp.ok) {
           const nData = await notifResp.json();
-          const nextNotifs = nData.notifications || [];
+          const rawNotifs = nData.notifications || [];
+          const nextNotifs = rawNotifs.map(n => ({
+            ...n,
+            isRead: clientReadIDsRef.current.has(n.notificationID) ? 1 : (n.isRead ? 1 : 0)
+          }));
           setNotifications(nextNotifs);
           setUnreadCount(nextNotifs.filter(n => !n.isRead).length);
         }
@@ -1529,13 +1553,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const schedDateStr = booking.checkOutDateTime ? new Date(booking.checkOutDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const nights = booking.numberOfDays || booking.totalNights || '';
 
-    let confirmMsg = `Are you ready to request checkout for Room ${booking.roomNumber}? Receptionist will be notified to finalize your bill.`;
+    let confirmMsg = `Are you sure you want to request your final bill? Front desk staff will review your ledger and prepare your itemized balance.`;
     if (isEarlyCheckout) {
-      confirmMsg += `\n\n⚠️ Notice on Early Departure: Your reservation was booked until ${schedDateStr}. Per pension house policy, the full base room charge for all ${nights ? nights + ' ' : ''}booked nights remains payable.`;
+      confirmMsg += `\n\nNotice on Early Departure: Your reservation was booked until ${schedDateStr}. Per pension house policy, the full base room charge for all ${nights ? nights + ' ' : ''}booked nights remains payable.`;
     }
 
     showConfirm(
-      'Request Checkout',
+      'Request Final Bill',
       confirmMsg,
       async () => {
         try {
@@ -1547,9 +1571,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             })
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to request checkout');
+          if (!res.ok) throw new Error(data.error || 'Failed to request final bill');
 
-          showAlert('success', 'Checkout Requested', "Checkout request sent. Receptionist will finalize your bill.");
+          showAlert('success', 'Final Bill Requested', "Final bill request sent. Receptionist will review your ledger and prepare your itemized balance.");
           fetchRoomsAndStatus();
         } catch (err) {
           showAlert('error', 'Error', err.message);
@@ -1569,7 +1593,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     );
     const isDeclined = booking.status === 'Payment Declined' || booking.status === 'Declined';
     if (!isFinalized && !isDeclined) {
-      showAlert('warning', 'Bill Not Ready', "Check-out must be requested first and receptionist must finalize your bill before payment.");
+      showAlert('warning', 'Bill Not Ready', "Final bill must be requested first and receptionist must finalize your bill before payment.");
       return;
     }
     const rem = booking.remainingBalance ?? detailedBill?.balancing?.remainingBalance ?? detailedBill?.remainingBalance ?? 0;
@@ -1577,7 +1601,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       showAlert('info', 'Bill Settled', "Your bill is already fully settled (₱0.00 balance). Please return your keycard to the front desk to complete checkout.");
       return;
     }
-    window.location.href = `/paymongo/test?bookingID=${booking.bookingID}&amount=${rem}`;
+    setPaymentModalBooking(booking);
   };
 
   const handleViewReceiptForBooking = async (booking) => {
@@ -2750,9 +2774,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     type="button" 
                                     className="btn btn-secondary text-white"
                                     onClick={() => handleRequestCheckout(b)}
-                                    aria-label="Request Checkout"
+                                    aria-label="Request Final Bill"
                                   >
-                                    <i className="bi bi-box-arrow-right"></i> Request Checkout
+                                    <i className="bi bi-box-arrow-right"></i> Request Final Bill
                                   </button>
                                 )}
 
@@ -3622,9 +3646,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     type="button" 
                                     className="btn btn-secondary text-white"
                                     onClick={() => handleRequestCheckout(b)}
-                                    aria-label="Request Checkout"
+                                    aria-label="Request Final Bill"
                                   >
-                                    <i className="bi bi-box-arrow-right"></i> Request Checkout
+                                    <i className="bi bi-box-arrow-right"></i> Request Final Bill
                                   </button>
                                 )}
 
@@ -5259,6 +5283,33 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             </div>
           </div>
         </div>
+      )}
+
+      {/* GCASH ONLINE PAYMENT OPTIONS (SANDBOX MODAL) */}
+      {paymentModalBooking && (
+        <PaymentModal
+          isOpen={Boolean(paymentModalBooking)}
+          onClose={() => setPaymentModalBooking(null)}
+          booking={paymentModalBooking}
+          amount={paymentModalBooking.remainingBalance ?? detailedBill?.balancing?.remainingBalance ?? detailedBill?.remainingBalance ?? 0}
+          onPaymentSuccess={(data) => {
+            showAlert('success', 'Payment Successful', 'Your payment has been successfully recorded. Thank you!');
+            if (paymentModalBooking?.bookingID) {
+              fetchDetailedBill(paymentModalBooking.bookingID);
+            }
+            fetchRoomsAndStatus();
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('guest-order-updated', {
+                detail: { bookingID: paymentModalBooking?.bookingID }
+              }));
+            }
+            setPaymentModalBooking(null);
+          }}
+          onPaymentFailed={(err) => {
+            showAlert('warning', 'Payment Status', err?.error || 'Payment was not completed. Please try again.');
+            setPaymentModalBooking(null);
+          }}
+        />
       )}
     </>
   );

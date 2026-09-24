@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import ModalDialog from '@/app/components/ModalDialog';
 
 const ALLOWED_BREAKFAST_SLOTS = [
   '06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM',
@@ -16,6 +17,8 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [todayStr, setTodayStr] = useState('');
   const [currentMins, setCurrentMins] = useState(0);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelingOrderID, setCancelingOrderID] = useState(null);
 
   // Initialize Manila date/time constraints
   useEffect(() => {
@@ -477,26 +480,17 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
                   <button
                     type="button"
                     className="btn btn-sm btn-danger text-white fw-semibold px-3"
-                    onClick={async () => {
-                      if (!window.confirm(`Are you sure you want to cancel scheduled Order #${order.orderID}? Any free breakfast entitlement or charges will be restored.`)) return;
-                      setSaving(true);
-                      setFeedback({ type: '', message: '' });
-                      try {
-                        const res = await fetch(`/api/guest/orders?orderID=${order.orderID}`, { method: 'DELETE' });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || 'Failed to cancel order.');
-                        setFeedback({ type: 'success', message: 'Order has been successfully canceled.' });
-                        if (onOrderUpdated) await onOrderUpdated();
-                        setTimeout(() => { onClose(); }, 900);
-                      } catch (err) {
-                        setFeedback({ type: 'danger', message: err.message });
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                    disabled={saving}
+                    onClick={() => setShowCancelConfirm(true)}
+                    disabled={saving || cancelingOrderID === order.orderID}
                   >
-                    Cancel Order
+                    {cancelingOrderID === order.orderID ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        <span>Canceling...</span>
+                      </>
+                    ) : (
+                      'Cancel Order'
+                    )}
                   </button>
                 )}
                 <button
@@ -532,6 +526,43 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
           </form>
         </div>
       </div>
+
+      {/* INTERACTIVE CANCEL ORDER CONFIRMATION MODAL */}
+      <ModalDialog
+        isOpen={showCancelConfirm}
+        type="error"
+        title="Cancel Scheduled Order"
+        message={`Are you sure you want to cancel scheduled Order #${order.orderID}? Any free breakfast entitlement or charges will be restored.`}
+        confirmText="Yes, Cancel Order"
+        cancelText="Keep Order"
+        confirmVariant="danger"
+        cancelVariant="secondary"
+        onConfirm={async () => {
+          setShowCancelConfirm(false);
+          setSaving(true);
+          setCancelingOrderID(order.orderID);
+          setFeedback({ type: '', message: '' });
+          try {
+            const res = await fetch(`/api/guest/orders?orderID=${order.orderID}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to cancel order.');
+            setFeedback({ type: 'success', message: 'Order has been successfully canceled.' });
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('guest-order-updated', {
+                detail: { bookingID: order.bookingID }
+              }));
+            }
+            if (onOrderUpdated) await onOrderUpdated();
+            setTimeout(() => { onClose(); }, 900);
+          } catch (err) {
+            setFeedback({ type: 'danger', message: err.message });
+          } finally {
+            setSaving(false);
+            setCancelingOrderID(null);
+          }
+        }}
+        onCancel={() => setShowCancelConfirm(false)}
+      />
     </div>
   );
 }
