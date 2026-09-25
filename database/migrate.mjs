@@ -349,7 +349,12 @@ async function run() {
     await ensureColumn(connection, 'booking', 'updatedAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
     await ensureColumn(connection, 'booking', 'billFinalizedAt', 'DATETIME NULL DEFAULT NULL');
     await ensureColumn(connection, 'orders', 'createdAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP');
-    await ensureColumn(connection, 'inquiry', 'updatedAt', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    await ensureColumn(connection, 'booking', 'subtotal', 'DECIMAL(10,2) NULL');
+    await ensureColumn(connection, 'booking', 'discountTotal', 'DECIMAL(10,2) NULL DEFAULT 0.00');
+    await ensureColumn(connection, 'booking', 'netTotal', 'DECIMAL(10,2) NULL');
+    await ensureColumn(connection, 'billing', 'subtotal', 'DECIMAL(10,2) NULL');
+    await ensureColumn(connection, 'billing', 'discountTotal', 'DECIMAL(10,2) NULL DEFAULT 0.00');
+    await ensureColumn(connection, 'billing', 'netTotal', 'DECIMAL(10,2) NULL');
 
     console.log("Ensuring 3NF normalized integrity columns...");
     await ensureColumn(connection, 'booking', 'breakfastID', 'INT(11) DEFAULT 1');
@@ -426,6 +431,21 @@ async function run() {
         PRIMARY KEY (\`incidentalID\`),
         KEY \`idx_bkinc_booking\` (\`bookingID\`),
         CONSTRAINT \`fk_bkinc_booking\` FOREIGN KEY (\`bookingID\`) REFERENCES \`booking\` (\`bookingID\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+
+    await ensureTable(connection, 'booking_discount', `
+      CREATE TABLE IF NOT EXISTS \`booking_discount\` (
+        \`bookingDiscountID\` INT(11) NOT NULL AUTO_INCREMENT,
+        \`bookingID\` INT(11) NOT NULL,
+        \`guestName\` VARCHAR(150) NOT NULL,
+        \`discountID\` INT(11) DEFAULT NULL,
+        \`discountIdNumber\` VARCHAR(100) DEFAULT NULL,
+        \`discountAmount\` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        \`createdAt\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`bookingDiscountID\`),
+        KEY \`idx_bd_bookingID\` (\`bookingID\`),
+        CONSTRAINT \`fk_bd_booking\` FOREIGN KEY (\`bookingID\`) REFERENCES \`booking\` (\`bookingID\`) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
 

@@ -139,13 +139,19 @@ export async function GET(request) {
       incidentalCharges: details.incidentalCharges,
       borrowItems,
       borrowedItems: borrowItems,
+      discountList: details.discountList || [],
       chargesSummary: {
         room: details.finalRoomCharge,
         originalRoomCharge: details.roomCharge,
+        baseRoomCharge: details.baseRoomCharge || details.roomCharge,
         roomRate: details.rate,
         nights: details.nights,
         breakfastOption: details.chargesSummary?.breakfastOption || 'without',
-        totalDiscount: details.totalDiscount,
+        grossSubtotal: details.grossSubtotal || (details.roomCharge + (details.chargesSummary?.extraGuestFee || 0) + (details.earlyCheckInFee || 0) + (details.lateCheckOutFee || 0) + (details.productTotal || 0) + (details.amenityTotal || 0) + (details.incidentalTotal || 0)),
+        discountTotal: details.discountTotal || details.totalDiscount || 0,
+        netTotal: details.netTotal || details.subtotal || 0,
+        discountList: details.discountList || [],
+        totalDiscount: details.discountTotal || details.totalDiscount || 0,
         sharePerGuest: details.sharePerGuest,
         totalGuests: details.totalGuestsCount,
         downPaymentPaid: details.chargesSummary?.downPaymentPaid || 0,
@@ -160,7 +166,8 @@ export async function GET(request) {
         amenities: details.amenityTotal,
         cookedMeals: details.chargesSummary?.cookedMeals || 0,
         incidentals: details.incidentalTotal,
-        total: details.subtotal,
+        subtotal: details.grossSubtotal || details.subtotal,
+        total: details.netTotal || details.subtotal,
         paid: details.paidTotal,
         balance: details.balance,
         remainingBalance: details.chargesSummary?.remainingBalance !== undefined ? details.chargesSummary.remainingBalance : details.balance,
@@ -770,13 +777,34 @@ export async function POST(request) {
 
       const balanceBefore = await getBookingBalance(bookingID);
 
-      // Replace existing discount records for this booking in booking_guest_details
+      // Replace existing discount records for this booking in booking_guest_details and booking_discount
       await dbQuery("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+      await dbQuery("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
+
+      const detailsBefore = await getBookingBalanceDetails(bookingID);
+      const baseRoomCharge = detailsBefore?.baseRoomCharge || 0;
+      const guestCount = Math.max(1, detailsBefore?.totalGuestsCount || parsedDiscounts.length);
+      const sharePerGuest = baseRoomCharge / guestCount;
 
       for (const pd of parsedDiscounts) {
         await dbQuery(
           "INSERT INTO booking_guest_details (bookingID, fullName, discountID, promotionID, discountIdNumber, age) VALUES (?, ?, ?, ?, ?, 60)",
           [bookingID, pd.fullName, pd.discountID, pd.promotionID, pd.discountIdNumber]
+        );
+
+        let pct = 0;
+        if (pd.discountID) {
+          const dRow = await dbQuery("SELECT percentage FROM discounts WHERE discountID = ?", [pd.discountID]);
+          pct = parseFloat(dRow[0]?.percentage || 0);
+        } else if (pd.promotionID) {
+          const pRow = await dbQuery("SELECT percentage FROM promotions WHERE promotionID = ?", [pd.promotionID]);
+          pct = parseFloat(pRow[0]?.percentage || 0);
+        }
+        const discAmt = Math.round(sharePerGuest * (pct / 100) * 100) / 100;
+
+        await dbQuery(
+          "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
+          [bookingID, pd.fullName, pd.discountID || null, pd.discountIdNumber || 'N/A', discAmt]
         );
       }
 
@@ -813,6 +841,7 @@ export async function POST(request) {
       const bookingID = parseInt(body.bookingID);
       if (!bookingID) return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
       await dbQuery("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+      await dbQuery("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
 
       const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
       const billingID = billingRes[0]?.billingID || null;
@@ -865,6 +894,32 @@ export async function POST(request) {
            WHERE bookingGuestID = ? AND bookingID = ?`,
           [dbDiscountID, dbPromotionID, discountIdNumber, g.bookingGuestID, bookingID]
         );
+      }
+
+      // Re-sync booking_discount
+      await conn.execute("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
+      const [allGuests] = await conn.execute("SELECT * FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+      const detailsBefore = await getBookingBalanceDetails(bookingID);
+      const baseRoomCharge = detailsBefore?.baseRoomCharge || 0;
+      const guestCount = Math.max(1, detailsBefore?.totalGuestsCount || allGuests.length);
+      const sharePerGuest = baseRoomCharge / guestCount;
+
+      for (const ag of allGuests) {
+        if (ag.discountID || ag.promotionID) {
+          let pct = 0;
+          if (ag.discountID) {
+            const [dData] = await conn.execute("SELECT percentage FROM discounts WHERE discountID = ?", [ag.discountID]);
+            pct = parseFloat(dData[0]?.percentage || 0);
+          } else if (ag.promotionID) {
+            const [pData] = await conn.execute("SELECT percentage FROM promotions WHERE promotionID = ?", [ag.promotionID]);
+            pct = parseFloat(pData[0]?.percentage || 0);
+          }
+          const discAmt = Math.round(sharePerGuest * (pct / 100) * 100) / 100;
+          await conn.execute(
+            "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
+            [bookingID, ag.fullName, ag.discountID || null, ag.discountIdNumber || 'N/A', discAmt]
+          );
+        }
       }
 
       const [billingRows] = await conn.execute("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);

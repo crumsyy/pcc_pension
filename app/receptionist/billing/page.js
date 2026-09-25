@@ -1318,86 +1318,162 @@ export default function ReceptionistBilling() {
                       <div className="card shadow-sm border-0 bg-white" style={{ borderRadius: '8px' }}>
                         <div className="card-header bg-white border-0 py-2 border-bottom">
                           <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>Payment Summary</h5>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary py-1 px-2.5 fw-semibold d-flex align-items-center gap-1 shadow-xs"
+                            style={{ fontSize: '0.75rem' }}
+                            onClick={openEditDiscountsModal}
+                            title="Apply or adjust Senior Citizen / PWD guest discounts"
+                          >
+                            <i className="fa-solid fa-tags"></i>
+                            <span>Discounts</span>
+                          </button>
                         </div>
                         <div className="card-body p-4" style={{ fontSize: '0.78rem' }}>
-                          <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Room Base Rent ({billDetails.chargesSummary.breakfastOption === 'with' ? 'With Breakfast' : 'Room Only'}):</span>
-                            <span className="fw-semibold text-dark">₱{parseFloat(billDetails.chargesSummary.baseRoomCharge || billDetails.chargesSummary.room).toFixed(2)}</span>
-                          </div>
-                          {billDetails.chargesSummary.totalDiscount > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-success">
-                              <span>Room Discounts Applied:</span>
-                              <span className="fw-semibold">-₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}</span>
-                            </div>
-                          )}
-                          {billDetails.chargesSummary.downPaymentPaid > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-success">
-                              <span>Down Payment Paid ({billDetails.chargesSummary.downPaymentPercentage}%):</span>
-                              <span className="fw-semibold">-₱{parseFloat(billDetails.chargesSummary.downPaymentPaid).toFixed(2)}</span>
-                            </div>
-                          )}
-                          <div className="d-flex justify-content-between mb-2 pb-2 border-bottom">
-                            <span className="fw-semibold text-dark">Remaining Room Balance:</span>
-                            <span className="fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.roomBalance || 0).toFixed(2)}</span>
-                          </div>
+                          {(() => {
+                            const cs = billDetails.chargesSummary || {};
+                            const baseRoomCharge = parseFloat(cs.baseRoomCharge || cs.originalRoomCharge || billDetails.booking.originalRoomCharge || billDetails.booking.roomCharge || 0);
+                            const extraGuestFee = parseFloat(cs.extraGuestFee || 0);
+                            const earlyCheckIn = parseFloat(cs.earlyCheckIn || 0);
+                            const lateCheckOut = parseFloat(cs.lateCheckOut || 0);
+                            const ordersTotal = parseFloat(billDetails.ordersSummary?.totalAmount ?? cs.orders ?? 0);
+                            const incidentalsTotal = parseFloat(cs.incidentals || 0);
 
-                          {billDetails.chargesSummary.extraGuestFee > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-secondary align-items-center">
-                              <span>
-                                Extra Guests Fee ({billDetails.chargesSummary.extraGuests} Pax @ ₱100/night):
-                                <span className="badge bg-secondary-subtle text-secondary ms-1.5" style={{ fontSize: '0.68rem' }}>Final Billing Only</span>
-                              </span>
-                              <span className="fw-semibold text-dark">+₱{parseFloat(billDetails.chargesSummary.extraGuestFee).toFixed(2)}</span>
-                            </div>
-                          )}
-                          {billDetails.chargesSummary.earlyCheckIn > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-primary">
-                              <span>Early Check-in Fee (₱50/hr):</span>
-                              <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.earlyCheckIn).toFixed(2)}</span>
-                            </div>
-                          )}
-                          {billDetails.chargesSummary.lateCheckOut > 0 && (
-                            <div className="d-flex justify-content-between mb-2 text-primary">
-                              <span>Late Check-out Fee:</span>
-                              <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</span>
-                            </div>
-                          )}
-                          <div className="d-flex justify-content-between mb-2">
-                            <span className="text-muted">Orders &amp; Room Service:</span>
-                            <span className="fw-semibold text-dark">
-                              ₱{parseFloat(billDetails.ordersSummary?.totalAmount ?? billDetails.chargesSummary?.orders ?? 0).toFixed(2)}
-                            </span>
-                          </div>
-                          {parseFloat(billDetails.chargesSummary.incidentals || 0) > 0 && (
-                            <div className="d-flex justify-content-between mb-3 text-danger">
-                              <span>Incidental Charges (Damages/Penalties):</span>
-                              <span className="fw-semibold">₱{parseFloat(billDetails.chargesSummary.incidentals).toFixed(2)}</span>
-                            </div>
-                          )}
+                            const grossSubtotal = parseFloat(cs.grossSubtotal || (baseRoomCharge + extraGuestFee + earlyCheckIn + lateCheckOut + ordersTotal + incidentalsTotal));
+                            const discountTotal = parseFloat(cs.discountTotal ?? cs.totalDiscount ?? 0);
+                            const netTotal = parseFloat(cs.netTotal ?? Math.max(0, grossSubtotal - discountTotal));
+                            const paidTotal = parseFloat(cs.paid || 0);
+                            const downPaymentPaid = parseFloat(cs.downPaymentPaid || 0);
+                            const otherPayments = Math.max(0, paidTotal - downPaymentPaid);
+                            const balance = parseFloat(cs.balance || 0);
 
-                          <hr className="mt-0" />
+                            const appliedDiscountsList = (billDetails.discountList && billDetails.discountList.length > 0)
+                              ? billDetails.discountList
+                              : (billDetails.guestsList || []).filter(g => (parseFloat(g.discount || 0) > 0 || g.discountID || g.promotionID));
 
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="fw-bold text-dark" style={{ fontSize: '0.95rem' }}>Subtotal:</span>
-                            <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.2rem' }}>
-                              ₱{parseFloat(billDetails.chargesSummary.total).toFixed(2)}
-                            </span>
-                          </div>
+                            return (
+                              <>
+                                <div className="d-flex justify-content-between mb-2">
+                                  <span className="text-muted">Room Base Rent ({cs.breakfastOption === 'with' ? 'With Breakfast' : 'Room Only'}):</span>
+                                  <span className="fw-semibold text-dark">₱{baseRoomCharge.toFixed(2)}</span>
+                                </div>
 
-                          <div className="d-flex justify-content-between mb-3 text-success">
-                            <span className="fw-semibold">Paid Total:</span>
-                            <span className="fw-bold">₱{parseFloat(billDetails.chargesSummary.paid).toFixed(2)}</span>
-                          </div>
+                                {extraGuestFee > 0 && (
+                                  <div className="d-flex justify-content-between mb-2 text-secondary align-items-center">
+                                    <span>
+                                      Extra Guests Fee ({cs.extraGuests} Pax @ ₱100/night):
+                                      <span className="badge bg-secondary-subtle text-secondary ms-1.5" style={{ fontSize: '0.68rem' }}>Final Billing Only</span>
+                                    </span>
+                                    <span className="fw-semibold text-dark">+₱{extraGuestFee.toFixed(2)}</span>
+                                  </div>
+                                )}
 
-                          <div className="d-flex justify-content-between align-items-center p-3 bg-danger-subtle rounded border border-danger-subtle mb-4">
-                            <div>
-                              <span className="fw-bold text-danger d-block">Total Balance Due:</span>
-                              <span className="text-muted" style={{ fontSize: '0.70rem' }}>Room Bal + Extra Guests + Orders + Fees</span>
-                            </div>
-                            <span className="fw-bold text-danger" style={{ fontSize: '1.3rem' }}>
-                              ₱{parseFloat(billDetails.chargesSummary.balance).toFixed(2)}
-                            </span>
-                          </div>
+                                {earlyCheckIn > 0 && (
+                                  <div className="d-flex justify-content-between mb-2 text-primary">
+                                    <span>Early Check-in Fee (₱50/hr):</span>
+                                    <span className="fw-semibold">₱{earlyCheckIn.toFixed(2)}</span>
+                                  </div>
+                                )}
+
+                                {lateCheckOut > 0 && (
+                                  <div className="d-flex justify-content-between mb-2 text-primary">
+                                    <span>Late Check-out Fee:</span>
+                                    <span className="fw-semibold">₱{lateCheckOut.toFixed(2)}</span>
+                                  </div>
+                                )}
+
+                                <div className="d-flex justify-content-between mb-2">
+                                  <span className="text-muted">Orders &amp; Room Service:</span>
+                                  <span className="fw-semibold text-dark">
+                                    ₱{ordersTotal.toFixed(2)}
+                                  </span>
+                                </div>
+
+                                {incidentalsTotal > 0 && (
+                                  <div className="d-flex justify-content-between mb-2 text-danger">
+                                    <span>Incidental Charges (Damages/Penalties):</span>
+                                    <span className="fw-semibold">₱{incidentalsTotal.toFixed(2)}</span>
+                                  </div>
+                                )}
+
+                                <div className="d-flex justify-content-between align-items-center mb-2 pt-2 border-top">
+                                  <span className="fw-bold text-secondary" style={{ fontSize: '0.88rem' }}>Gross Subtotal:</span>
+                                  <span className="fw-bold text-dark" style={{ fontSize: '1.05rem' }}>
+                                    ₱{grossSubtotal.toFixed(2)}
+                                  </span>
+                                </div>
+
+                                {/* Applied Discounts Pill Badges Card */}
+                                <div className="mb-3 p-2.5 rounded bg-danger-subtle border border-danger-subtle">
+                                  <div className="d-flex justify-content-between align-items-center mb-1 text-danger fw-bold" style={{ fontSize: '0.84rem' }}>
+                                    <span className="d-flex align-items-center gap-1">
+                                      <i className="fa-solid fa-tags"></i>
+                                      <span>Applied Special Discounts:</span>
+                                    </span>
+                                    <span className="fs-6">{discountTotal > 0 ? `-₱${discountTotal.toFixed(2)}` : '₱0.00'}</span>
+                                  </div>
+                                  {appliedDiscountsList.length > 0 ? (
+                                    <div className="d-flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
+                                      {appliedDiscountsList.map((disc, idx) => (
+                                        <span key={idx} className="badge bg-danger text-white fw-normal px-2.5 py-1 text-start" style={{ fontSize: '0.74rem', lineHeight: '1.3' }}>
+                                          <i className="fa-solid fa-user-check me-1"></i>
+                                          <strong>{disc.guestName || disc.fullName}</strong> ({disc.discountName || 'Special Discount'} {disc.discountPercentage || disc.percentage || 20}% - ID: {disc.discountIdNumber || 'N/A'}): -₱{parseFloat(disc.discountAmount || disc.discount || 0).toFixed(2)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="small text-muted fst-italic mb-1">No special discounts applied.</div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-danger w-100 py-1 fw-semibold d-flex align-items-center justify-content-center gap-1"
+                                    onClick={openEditDiscountsModal}
+                                    style={{ fontSize: '0.75rem' }}
+                                  >
+                                    <i className="fa-solid fa-pen-to-square"></i>
+                                    <span>{appliedDiscountsList.length > 0 ? 'Edit / Adjust Guest Discounts' : 'Apply Senior Citizen / PWD Discount'}</span>
+                                  </button>
+                                </div>
+
+                                {/* Net Total Amount Due */}
+                                <div className="d-flex justify-content-between align-items-center p-2.5 mb-3 rounded" style={{ background: '#e0f2fe', border: '1px solid #bae6fd' }}>
+                                  <span className="fw-bold text-primary" style={{ fontSize: '0.90rem' }}>
+                                    <i className="fa-solid fa-calculator me-1"></i>Net Total Amount Due:
+                                  </span>
+                                  <span className="fw-bold text-primary fs-6">₱{netTotal.toFixed(2)}</span>
+                                </div>
+
+                                <div className="d-flex justify-content-between mb-1.5 text-success">
+                                  <span className="fw-semibold">Total Payments Settled:</span>
+                                  <span className="fw-bold">-₱{paidTotal.toFixed(2)}</span>
+                                </div>
+
+                                {downPaymentPaid > 0 && (
+                                  <div className="d-flex justify-content-between mb-1 text-muted ps-2" style={{ fontSize: '0.73rem' }}>
+                                    <span>• Down Payment Paid ({cs.downPaymentPercentage}%):</span>
+                                    <span className="fw-semibold">₱{downPaymentPaid.toFixed(2)}</span>
+                                  </div>
+                                )}
+
+                                {otherPayments > 0 && (
+                                  <div className="d-flex justify-content-between mb-1 text-muted ps-2" style={{ fontSize: '0.73rem' }}>
+                                    <span>• Counter / Subsequent Payments:</span>
+                                    <span className="fw-semibold">₱{otherPayments.toFixed(2)}</span>
+                                  </div>
+                                )}
+
+                                <div className="d-flex justify-content-between align-items-center p-3 bg-danger-subtle rounded border border-danger-subtle mb-4 mt-2">
+                                  <div>
+                                    <span className="fw-bold text-danger d-block">Total Balance Due:</span>
+                                    <span className="text-muted" style={{ fontSize: '0.70rem' }}>Net Total Due - Total Payments Settled</span>
+                                  </div>
+                                  <span className="fw-bold text-danger" style={{ fontSize: '1.3rem' }}>
+                                    ₱{balance.toFixed(2)}
+                                  </span>
+                                </div>
+                              </>
+                            );
+                          })()}
 
                           {(() => {
                             const balance = parseFloat(billDetails.chargesSummary?.balance || 0);
@@ -1846,6 +1922,36 @@ export default function ReceptionistBilling() {
                     <span className="text-danger small fw-semibold text-uppercase">Total Outstanding Balance</span>
                     <span className="fs-3 fw-bold text-danger">₱{parseFloat(billDetails.chargesSummary?.balance || 0).toFixed(2)}</span>
                   </div>
+
+                  {(() => {
+                    const appliedDiscounts = (billDetails.discountList && billDetails.discountList.length > 0)
+                      ? billDetails.discountList
+                      : (billDetails.guestsList || []).filter(g => (parseFloat(g.discount || 0) > 0 || g.discountID || g.promotionID));
+                    const discTotal = parseFloat(billDetails.chargesSummary?.discountTotal ?? billDetails.chargesSummary?.totalDiscount ?? 0);
+
+                    return (
+                      <div className="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border">
+                        <div className="small">
+                          <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Senior Citizen / PWD Discounts:</span>
+                          <span className="fw-semibold text-dark">
+                            {appliedDiscounts.length > 0 ? `${appliedDiscounts.length} Applied (-₱${discTotal.toFixed(2)})` : 'None applied'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary py-1 px-2 fw-semibold d-flex align-items-center gap-1 shadow-xs"
+                          style={{ fontSize: '0.75rem' }}
+                          onClick={() => {
+                            setIsSettlingBill(false);
+                            openEditDiscountsModal();
+                          }}
+                        >
+                          <i className="fa-solid fa-tags"></i>
+                          <span>{appliedDiscounts.length > 0 ? 'Adjust Discounts' : 'Add Discount'}</span>
+                        </button>
+                      </div>
+                    );
+                  })()}
 
                   <div className="mb-3">
                     <label className="form-label fw-bold text-dark small">Payment Method</label>

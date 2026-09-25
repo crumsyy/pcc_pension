@@ -621,26 +621,30 @@ function BookingsClient() {
     const rawSubtotal = (rate * nights) + extraGuestFee;
 
     let totalApportionedDiscount = 0;
-    if (discountedGuests.length > 0) {
-      const sharePerGuest = (rate * nights) / (parseInt(numGuestsCount) || 1);
-      discountedGuests.forEach(g => {
+    const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
+      ? discountedGuests
+      : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
+    const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
+    if (effectiveDiscGuests.length > 0) {
+      const sharePerGuest = (rate * nights) / totalGuests;
+      effectiveDiscGuests.forEach(g => {
         if (g.discountID) {
           const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
           if (disc) {
-            totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
+            totalApportionedDiscount += Math.round(sharePerGuest * (parseFloat(disc.percentage) / 100) * 100) / 100;
           }
         }
       });
     }
 
-    const netTotalAmount = Math.max(0, rawSubtotal - totalApportionedDiscount);
+    const netRoomStayCharge = Math.max(0, (rate * nights) - totalApportionedDiscount);
     const dpPctNum = parseInt(downPaymentOption) || 50;
-    const reqDp = Math.round(netTotalAmount * (dpPctNum / 100) * 100) / 100;
+    const reqDp = Math.round(netRoomStayCharge * (dpPctNum / 100) * 100) / 100;
 
     if (reqDp >= 0) {
       setDownPayment(reqDp.toFixed(2));
     }
-  }, [formData.roomID, checkInDate, checkOutDate, numGuestsCount, downPaymentOption, discountedGuests, rooms, availableDiscounts]);
+  }, [formData.roomID, checkInDate, checkOutDate, numGuestsCount, downPaymentOption, discountedGuests, roomGuests, rooms, availableDiscounts]);
 
   const handlePrintDownPaymentReceipt = () => {
     if (!downPaymentReceipt) return;
@@ -965,13 +969,17 @@ function BookingsClient() {
       const rawRoomStayCharge = rate * (nights || 1);
 
       let totalApportionedDiscount = 0;
-      if (roomGuests.length > 0 && selectedRoom) {
-        const sharePerGuest = rawRoomStayCharge / roomGuests.length;
-        roomGuests.forEach(g => {
+      const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
+        ? discountedGuests
+        : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
+      const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
+      if (effectiveDiscGuests.length > 0 && selectedRoom) {
+        const sharePerGuest = rawRoomStayCharge / totalGuests;
+        effectiveDiscGuests.forEach(g => {
           if (g.discountID) {
             const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
             if (disc) {
-              totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
+              totalApportionedDiscount += Math.round(sharePerGuest * (parseFloat(disc.percentage) / 100) * 100) / 100;
             }
           }
         });
@@ -979,7 +987,7 @@ function BookingsClient() {
 
       const netRoomStayCharge = Math.max(0, rawRoomStayCharge - totalApportionedDiscount);
       const dpPctNum = parseInt(downPaymentOption) || 30;
-      const requiredDp = netRoomStayCharge * (dpPctNum / 100);
+      const requiredDp = Math.round(netRoomStayCharge * (dpPctNum / 100) * 100) / 100;
       setDownPayment(requiredDp.toFixed(2));
     }
   }, [
@@ -990,7 +998,9 @@ function BookingsClient() {
     checkOutDate,
     checkInTime,
     checkOutTime,
+    numGuestsCount,
     downPaymentOption,
+    discountedGuests,
     roomGuests,
     rooms,
     availableDiscounts
@@ -1126,13 +1136,17 @@ function BookingsClient() {
     const rawRoomStayCharge = rate * nights;
 
     let totalApportionedDiscount = 0;
-    if (numGuestsCount > 0 && selectedRoom && discountedGuests.length > 0) {
-      const sharePerGuest = (rate * nights) / numGuestsCount;
-      discountedGuests.forEach(g => {
+    const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
+      ? discountedGuests
+      : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
+    const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
+    if (totalGuests > 0 && selectedRoom && effectiveDiscGuests.length > 0) {
+      const sharePerGuest = (rate * nights) / totalGuests;
+      effectiveDiscGuests.forEach(g => {
         if (g.discountID) {
           const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
           if (disc) {
-            totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
+            totalApportionedDiscount += Math.round(sharePerGuest * (parseFloat(disc.percentage) / 100) * 100) / 100;
           }
         }
       });
@@ -2502,97 +2516,142 @@ function BookingsClient() {
 
                     const baseRoomStayCharges = rate * (nights || 1);
 
+                    const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
+                      ? discountedGuests
+                      : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
+                    const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
+                    const sharePerGuest = baseRoomStayCharges / totalGuests;
+
                     let totalApportionedDiscount = 0;
-                    if (roomGuests.length > 0 && selectedRoomObj) {
-                      const sharePerGuest = baseRoomStayCharges / roomGuests.length;
-                      roomGuests.forEach(g => {
-                        if (g.discountID) {
-                          const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
-                          if (disc) {
-                            totalApportionedDiscount += sharePerGuest * (parseFloat(disc.percentage) / 100);
-                          }
+                    const appliedDiscountsList = [];
+
+                    effectiveDiscGuests.forEach((g, idx) => {
+                      if (g.discountID) {
+                        const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+                        if (disc) {
+                          const discPct = parseFloat(disc.percentage) || 0;
+                          const discAmt = Math.round(sharePerGuest * (discPct / 100) * 100) / 100;
+                          totalApportionedDiscount += discAmt;
+                          appliedDiscountsList.push({
+                            guestName: g.guestName || g.fullName || (idx === 0 ? (`${guestForm.firstName || ''} ${guestForm.lastName || ''}`.trim() || 'Primary Guest') : `Guest #${idx + 1}`),
+                            discountName: disc.name || 'Special Discount',
+                            percentage: discPct,
+                            idNumber: g.discountIdNumber || g.discountIDNumber || 'N/A',
+                            amount: discAmt
+                          });
                         }
-                      });
-                    }
+                      }
+                    });
 
-                    const netRoomStayCharge = Math.max(0, baseRoomStayCharges - totalApportionedDiscount);
-                    const dpPctNum = parseInt(downPaymentOption) || 30;
-                    const requiredDownpayment = netRoomStayCharge * (dpPctNum / 100);
-                    const remainingRoomBalance = Math.max(0, netRoomStayCharge - requiredDownpayment);
-
-                    const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
+                    const excessGuestsCount = Math.max(0, totalGuests - maxOccupancy);
                     const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
+                    const grossSubtotal = baseRoomStayCharges + extraGuestFee + earlyFee + lateFee;
+                    const netRoomStayCharge = Math.max(0, baseRoomStayCharges - totalApportionedDiscount);
+                    const netTotalDue = Math.max(0, grossSubtotal - totalApportionedDiscount);
+
+                    const dpPctNum = parseInt(downPaymentOption) || 50;
+                    const requiredDownpayment = Math.round(netRoomStayCharge * (dpPctNum / 100) * 100) / 100;
+                    const remainingBalance = Math.max(0, netTotalDue - requiredDownpayment);
 
                     return (
                       <>
                         {rate > 0 && (
-                          <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
-                            <div className="d-flex justify-content-between mb-1">
-                              <span className="text-muted">Room Base Rate ({breakfastOption === 'with' ? 'With Breakfast' : 'Room Only'}):</span>
-                              <span className="fw-bold text-dark">
-                                ₱{rate.toFixed(2)}/night
-                              </span>
-                            </div>
-                            <div className="d-flex justify-content-between mb-1">
-                              <span className="text-muted">Stay Duration:</span>
-                              <span className="fw-semibold">{nights} Night(s)</span>
-                            </div>
-                            <div className="d-flex justify-content-between mb-1">
-                              <span className="text-muted">Room Stay Charges:</span>
-                              <span className="fw-semibold">₱{baseRoomStayCharges.toFixed(2)}</span>
-                            </div>
-
-                            {totalApportionedDiscount > 0 && (
-                              <div className="d-flex justify-content-between mb-1 text-danger">
-                                <span>Applied Room Discounts:</span>
-                                <span>-₱{totalApportionedDiscount.toFixed(2)}</span>
-                              </div>
-                            )}
-
-                            <div className="d-flex justify-content-between border-top pt-1.5 mb-1 fw-bold text-pcc-blue" style={{ fontSize: '0.95rem' }}>
-                              <span>Net Room Stay Charge:</span>
-                              <span>₱{netRoomStayCharge.toFixed(2)}</span>
-                            </div>
-
-                            <div className="d-flex justify-content-between text-success fw-bold">
-                              <span>Required Down Payment ({dpPctNum}% of Room Charges):</span>
-                              <span className="fs-6">₱{requiredDownpayment.toFixed(2)}</span>
-                            </div>
-
-                            <div className="d-flex justify-content-between text-muted small mb-2">
-                              <span>Remaining Room Balance:</span>
-                              <span className="fw-semibold">₱{remainingRoomBalance.toFixed(2)}</span>
-                            </div>
-
-                            {excessGuestsCount > 0 && (
-                              <div className="d-flex justify-content-between pt-1 border-top align-items-center">
-                                <span className="text-muted small">
-                                  Additional Guest Fee ({excessGuestsCount} Extra Pax × {nights} Night{nights > 1 ? 's' : ''}):
-                                  <span className="badge bg-secondary-subtle text-secondary ms-2">Final Billing Only</span>
+                          <div className="card shadow-sm border-0 mb-3" style={{ background: '#f8fafc', borderRadius: '10px' }}>
+                            <div className="card-body p-3">
+                              <div className="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                <span className="fw-bold text-dark d-flex align-items-center gap-1" style={{ fontSize: '0.90rem' }}>
+                                  <i className="fa-solid fa-receipt text-primary"></i>
+                                  <span>Payment &amp; Special Discount Breakdown</span>
                                 </span>
-                                <span className="fw-bold text-secondary small">+₱{extraGuestFee.toFixed(2)}</span>
-                              </div>
-                            )}
-
-                            {earlyFee > 0 && (
-                              <div className="d-flex justify-content-between pt-1 border-top align-items-center text-warning-emphasis">
-                                <span className="small fw-semibold">
-                                  Early Check-In Fee ({earlyHours} hr{earlyHours > 1 ? 's' : ''} @ ₱50/hr):
-                                  <span className="badge bg-warning-subtle text-warning-emphasis ms-2">Incidental Charge</span>
+                                <span className="badge bg-primary-subtle text-primary fw-semibold px-2.5 py-1" style={{ fontSize: '0.75rem' }}>
+                                  {nights} Night{nights > 1 ? 's' : ''} Stay • {totalGuests} Pax
                                 </span>
-                                <span className="fw-bold small">+₱{earlyFee.toFixed(2)}</span>
                               </div>
-                            )}
 
-                            {lateFee > 0 && (
-                              <div className="d-flex justify-content-between pt-1 border-top align-items-center text-danger">
-                                <span className="small fw-semibold">
-                                  Late Check-Out Fee ({lateHours} hr{lateHours > 1 ? 's' : ''} @ ₱100/hr):
-                                  <span className="badge bg-danger-subtle text-danger ms-2">Final Billing</span>
-                                </span>
-                                <span className="fw-bold small">+₱{lateFee.toFixed(2)}</span>
+                              <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.84rem' }}>
+                                <span className="text-muted">Room Base Rate ({breakfastOption === 'with' ? 'With Breakfast' : 'Room Only'}):</span>
+                                <span className="fw-semibold text-dark">₱{rate.toFixed(2)}/night</span>
                               </div>
-                            )}
+                              <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.84rem' }}>
+                                <span className="text-muted">Room Stay Charges ({nights} Night{nights > 1 ? 's' : ''}):</span>
+                                <span className="fw-semibold text-dark">₱{baseRoomStayCharges.toFixed(2)}</span>
+                              </div>
+
+                              {excessGuestsCount > 0 && (
+                                <div className="d-flex justify-content-between mb-1 text-muted" style={{ fontSize: '0.84rem' }}>
+                                  <span>
+                                    Extra Guest Fee ({excessGuestsCount} Pax × {nights}N):
+                                    <span className="badge bg-secondary-subtle text-secondary ms-1.5" style={{ fontSize: '0.68rem' }}>Final Billing Only</span>
+                                  </span>
+                                  <span className="fw-semibold text-dark">+₱{extraGuestFee.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {earlyFee > 0 && (
+                                <div className="d-flex justify-content-between mb-1 text-warning-emphasis" style={{ fontSize: '0.84rem' }}>
+                                  <span>Early Check-In Fee ({earlyHours} hr{earlyHours > 1 ? 's' : ''} @ ₱50/hr):</span>
+                                  <span className="fw-semibold">+₱{earlyFee.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              {lateFee > 0 && (
+                                <div className="d-flex justify-content-between mb-1 text-danger" style={{ fontSize: '0.84rem' }}>
+                                  <span>Late Check-Out Fee ({lateHours} hr{lateHours > 1 ? 's' : ''} @ ₱100/hr):</span>
+                                  <span className="fw-semibold">+₱{lateFee.toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              <div className="d-flex justify-content-between pt-1.5 mb-2 border-top text-secondary fw-semibold" style={{ fontSize: '0.88rem' }}>
+                                <span>Gross Subtotal:</span>
+                                <span className="fw-bold text-dark">₱{grossSubtotal.toFixed(2)}</span>
+                              </div>
+
+                              {/* Applied Special Discounts pill badges */}
+                              {totalApportionedDiscount > 0 ? (
+                                <div className="mb-2.5 p-2 rounded bg-danger-subtle border border-danger-subtle">
+                                  <div className="d-flex justify-content-between align-items-center mb-1 text-danger fw-bold" style={{ fontSize: '0.84rem' }}>
+                                    <span className="d-flex align-items-center gap-1">
+                                      <i className="fa-solid fa-tags"></i>
+                                      <span>Applied Special Discounts ({appliedDiscountsList.length}):</span>
+                                    </span>
+                                    <span className="fs-6">-₱{totalApportionedDiscount.toFixed(2)}</span>
+                                  </div>
+                                  <div className="d-flex flex-wrap gap-1.5 mt-1">
+                                    {appliedDiscountsList.map((disc, dIdx) => (
+                                      <span key={dIdx} className="badge bg-danger text-white fw-normal px-2.5 py-1 text-start" style={{ fontSize: '0.74rem', lineHeight: '1.3' }}>
+                                        <i className="fa-solid fa-user-check me-1"></i>
+                                        <strong>{disc.guestName}</strong> ({disc.discountName} {disc.percentage}% - ID: {disc.idNumber}): -₱{disc.amount.toFixed(2)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="d-flex justify-content-between mb-2 text-muted" style={{ fontSize: '0.82rem' }}>
+                                  <span className="fst-italic">Special Discounts:</span>
+                                  <span className="text-secondary">₱0.00</span>
+                                </div>
+                              )}
+
+                              {/* Net Total Amount Due */}
+                              <div className="d-flex justify-content-between align-items-center p-2 mb-2 rounded" style={{ background: '#e0f2fe', border: '1px solid #bae6fd' }}>
+                                <span className="fw-bold text-primary" style={{ fontSize: '0.90rem' }}>
+                                  <i className="fa-solid fa-calculator me-1"></i>Net Total Amount Due:
+                                </span>
+                                <span className="fw-bold text-primary fs-6">₱{netTotalDue.toFixed(2)}</span>
+                              </div>
+
+                              {/* Required Down Payment */}
+                              <div className="d-flex justify-content-between align-items-center mb-1 text-success fw-bold" style={{ fontSize: '0.88rem' }}>
+                                <span>Required Down Payment ({dpPctNum}% of Net Room Charges):</span>
+                                <span className="fs-6">₱{requiredDownpayment.toFixed(2)}</span>
+                              </div>
+
+                              {/* Remaining Balance */}
+                              <div className="d-flex justify-content-between align-items-center text-muted small">
+                                <span>Remaining Balance (upon check-in/out):</span>
+                                <span className="fw-bold text-dark">₱{remainingBalance.toFixed(2)}</span>
+                              </div>
+                            </div>
                           </div>
                         )}
 
