@@ -15,6 +15,7 @@ import ReservationForm from '../../components/ReservationForm';
 import GuestReservationForm from '../../components/GuestReservationForm';
 import BookingForm from '../../components/BookingForm';
 import GuestBookingForm from '../../components/GuestBookingForm';
+import BookingBreakfastSelector from '../rooms/BookingBreakfastSelector';
 import GuestOrdersContent from './GuestOrdersContent';
 import ActiveStayPanel from './ActiveStayPanel';
 import PaymentModal from './PaymentModal';
@@ -393,6 +394,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   };
   const [numGuests, setNumGuests] = useState(1);
   const [breakfastOption, setBreakfastOption] = useState('with'); // 'with' | 'without'
+  const [selectedBreakfastDates, setSelectedBreakfastDates] = useState([]);
   const [specialRequests, setSpecialRequests] = useState('');
 
   const [paymentOption, setPaymentOption] = useState('50'); // '25' | '50' | '100'
@@ -1188,6 +1190,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
           checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
           breakfastOption: breakfastOption || 'with',
+          includeBreakfast: breakfastOption === 'with',
+          selectedBreakfastDates: breakfastOption === 'with' ? selectedBreakfastDates : [],
           numGuests,
           specialRequests,
           isCourtesyHold: true,
@@ -1369,6 +1373,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           checkInDateTime: `${checkInDate} ${checkInTime || '14:00'}:00`,
           checkOutDateTime: `${checkOutDate} ${checkOutTime || '12:00'}:00`,
           breakfastOption: breakfastOption || 'without',
+          includeBreakfast: breakfastOption === 'with',
+          selectedBreakfastDates: breakfastOption === 'with' ? selectedBreakfastDates : [],
           roomRate,
           numGuests: inputPax,
           extraGuestsCount,
@@ -4259,6 +4265,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     onChangeCheckOutTime={(newTime) => setCheckOutTime(newTime)}
                     breakfastOption={breakfastOption}
                     onChangeBreakfastOption={(newOption) => setBreakfastOption(newOption)}
+                    selectedBreakfastDates={selectedBreakfastDates}
+                    onChangeBreakfastDates={(dates) => setSelectedBreakfastDates(dates)}
                     minDate={minReserveDateStr}
                     maxDate={maxReserveDateStr}
                     roomSchedules={roomSchedules}
@@ -4469,6 +4477,22 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           )}
                         </div>
                       </div>
+
+                      {/* Night-by-Night Breakfast Selection for Multi-Night Stays in Direct Booking */}
+                      {nightsCount > 1 && breakfastOption === 'with' && (
+                        <div className="col-12 mt-2">
+                          <BookingBreakfastSelector
+                            checkIn={checkInDate}
+                            checkOut={checkOutDate}
+                            guestCount={inputPax}
+                            breakfastRate={parseFloat(selectedRoom?.breakfastRate) || 250}
+                            initialSelectedDates={selectedBreakfastDates}
+                            onChange={(data) => {
+                              setSelectedBreakfastDates(data.selectedDates);
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 

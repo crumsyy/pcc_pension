@@ -146,11 +146,11 @@ export async function POST(request) {
       const baseRoomCharge = roomPrice * nights;
       const totalCharge = baseRoomCharge + extraGuestFee;
 
-      // B. Create pending booking record with accurate pricing and guestCount
+      // B. Create pending booking record with accurate pricing, guestCount, and breakfast selection
       const [insertBookingRes] = await conn.execute(
-        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption, breakfastID, guestCount)
-         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, baseRoomCharge, totalCharge, totalCharge, breakfastOption, breakfastID, totalPax]
+        `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption, breakfastID, guestCount, breakfastDates, breakfastFee)
+         VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, baseRoomCharge, totalCharge, totalCharge, breakfastOption, breakfastID, totalPax, reservation.breakfastDates || null, reservation.breakfastFee || 0]
       );
       const bookingID = insertBookingRes.insertId;
 

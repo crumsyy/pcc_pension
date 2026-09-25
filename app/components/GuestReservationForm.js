@@ -2,6 +2,7 @@
 
 import React from 'react';
 import ReservationForm from './ReservationForm';
+import BookingBreakfastSelector from '@/app/guest/rooms/BookingBreakfastSelector';
 
 /**
  * GuestReservationForm Component
@@ -21,6 +22,8 @@ export default function GuestReservationForm({
   onChangeCheckOutTime,
   breakfastOption = 'with',
   onChangeBreakfastOption,
+  selectedBreakfastDates = [],
+  onChangeBreakfastDates,
   numGuests = 1,
   onChangeNumGuests,
   roomBasePax = 2,
@@ -172,6 +175,22 @@ export default function GuestReservationForm({
           <div className="alert alert-warning py-1.5 px-2.5 small mb-0 mt-2" style={{ fontSize: '0.78rem' }}>
             <i className="bi bi-info-circle-fill me-1"></i>
             Extra Guest Fee: <strong>₱100/night per extra guest</strong> applied for {extraGuests} guest(s) exceeding standard capacity ({basePax}). Total fee: ₱{extraGuestFee.toFixed(2)}.
+          </div>
+        )}
+
+        {/* Night-by-Night Breakfast Selection for Multi-Night Stays */}
+        {nightsCount > 1 && breakfastOption === 'with' && (
+          <div className="mt-3">
+            <BookingBreakfastSelector
+              checkIn={checkInDate}
+              checkOut={checkOutDate}
+              guestCount={guestCount}
+              breakfastRate={parseFloat(selectedRoom?.breakfastRate) || 250}
+              initialSelectedDates={selectedBreakfastDates}
+              onChange={(data) => {
+                onChangeBreakfastDates?.(data.selectedDates);
+              }}
+            />
           </div>
         )}
       </div>

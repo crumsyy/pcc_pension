@@ -353,6 +353,10 @@ async function run() {
 
     console.log("Ensuring 3NF normalized integrity columns...");
     await ensureColumn(connection, 'booking', 'breakfastID', 'INT(11) DEFAULT 1');
+    await ensureColumn(connection, 'booking', 'breakfastDates', 'JSON DEFAULT NULL');
+    await ensureColumn(connection, 'booking', 'breakfastFee', 'DECIMAL(10,2) DEFAULT 0.00');
+    await ensureColumn(connection, 'reservation', 'breakfastDates', 'JSON DEFAULT NULL');
+    await ensureColumn(connection, 'reservation', 'breakfastFee', 'DECIMAL(10,2) DEFAULT 0.00');
     await ensureColumn(connection, 'order_amenities', 'unitPrice', 'DECIMAL(10,2) DEFAULT NULL');
     await ensureColumn(connection, 'payment', 'changeAmount', 'DECIMAL(10,2) DEFAULT 0.00');
 

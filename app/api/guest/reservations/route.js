@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems, ensureBookingBreakfastSchema } from '@/lib/db';
 import { validateReservationDate } from '@/lib/validation';
+import { getStayNights } from '@/lib/dateUtils';
 
 export async function GET(request) {
   const session = await getSession();
@@ -20,7 +21,7 @@ export async function GET(request) {
       SELECT r.reservationID, r.reservationDateTime, r.checkOutDateTime,
              r.isCourtesyHold, r.holdDurationHours, r.holdExpiryDateTime,
              r.warning12SentAt, r.warning6SentAt, r.releasedAt,
-             r.guestCount, r.specialRequests, r.breakfastOption,
+             r.guestCount, r.specialRequests, r.breakfastOption, r.breakfastDates, r.breakfastFee,
              CASE 
                WHEN r.status IN ('On Hold', 'Courtesy Hold') AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'On Hold'
                WHEN r.status IN ('On Hold', 'Courtesy Hold') AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Cancelled'
@@ -275,12 +276,38 @@ export async function POST(request) {
     );
     const roomInfo = roomRes[0] || { roomNumber: 'N/A', roomType: 'Room' };
 
+    const stayNights = getStayNights(reservationDateTime.split(' ')[0], checkOutDateTimeFormatted.split(' ')[0]);
+    const BREAKFAST_RATE = 250;
+    let selectedBreakfastDates = body.selectedBreakfastDates;
+    const includeBreakfast = Boolean(body.includeBreakfast);
+
+    // Backward compatibility fallback
+    if (!Array.isArray(selectedBreakfastDates)) {
+      if (includeBreakfast || breakfastOption === 'with') {
+        selectedBreakfastDates = stayNights.map(n => n.dateStr);
+        breakfastOption = 'with';
+      } else {
+        selectedBreakfastDates = [];
+      }
+    }
+
+    const validBreakfastDates = selectedBreakfastDates.filter(d =>
+      stayNights.some(n => n.dateStr === d)
+    );
+
+    if (validBreakfastDates.length > 0) {
+      breakfastOption = 'with';
+    } else if (!breakfastOption) {
+      breakfastOption = 'without';
+    }
+    const breakfastTotal = validBreakfastDates.length * BREAKFAST_RATE * (parseInt(numGuests || 1) || 1);
+
     // Zero billing record generated for courtesy holds / confirmed booking records
     const insertRes = await dbQuery(
       `INSERT INTO reservation (
         reservationDateTime, checkOutDateTime, guestCount, specialRequests, status,
-        guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail, breakfastOption
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail, breakfastOption, breakfastDates, breakfastFee
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         reservationDateTime,
         checkOutDateTimeFormatted,
@@ -293,7 +320,9 @@ export async function POST(request) {
         isCourtesyHold ? holdDurationHours : null,
         holdExpiryDateTime,
         guest.email || null,
-        breakfastOption || 'with'
+        breakfastOption,
+        JSON.stringify(validBreakfastDates),
+        breakfastTotal
       ]
     );
 

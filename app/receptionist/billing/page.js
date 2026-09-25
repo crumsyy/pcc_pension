@@ -935,6 +935,39 @@ export default function ReceptionistBilling() {
                                   </div>
                                 );
                               })()}
+
+                              {/* Scheduled Breakfast Add-ons (Night-by-Night Selection) */}
+                              {(() => {
+                                let dates = [];
+                                try {
+                                  const raw = billDetails?.booking?.breakfastDates || billDetails?.chargesSummary?.breakfastDates || billDetails?.chargesBreakdown?.breakfastSummary?.breakfastDates;
+                                  dates = typeof raw === 'string'
+                                    ? JSON.parse(raw || '[]')
+                                    : (Array.isArray(raw) ? raw : []);
+                                } catch (e) {
+                                  dates = [];
+                                }
+
+                                if (!dates.length) return null;
+
+                                return (
+                                  <div className="col-12 mt-2">
+                                    <div className="p-2.5 bg-light rounded-3 border">
+                                      <div className="fw-bold small mb-2 d-flex align-items-center gap-1 text-dark" style={{ fontSize: '0.76rem' }}>
+                                        <span>🍳</span> Scheduled Breakfast Mornings ({dates.length} Day{dates.length > 1 ? 's' : ''})
+                                      </div>
+                                      <div className="d-flex flex-wrap gap-1.5">
+                                        {dates.map((d) => (
+                                          <span key={d} className="badge bg-white text-dark border px-2 py-1 fw-medium small d-flex align-items-center gap-1 shadow-2xs" style={{ fontSize: '0.73rem' }}>
+                                            <i className="bi bi-calendar-check text-success"></i>
+                                            Morning of {new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                             {/* Applied Discounts breakdown if any */}

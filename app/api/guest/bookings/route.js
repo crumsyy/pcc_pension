@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, ensurePaymentSchema, normalizeBookingStatus, syncNormalizedBillingLineItems } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, ensureBookingBreakfastSchema, ensurePaymentSchema, normalizeBookingStatus, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
+import { getStayNights } from '@/lib/dateUtils';
 
 export async function GET() {
   const session = await getSession();
@@ -240,6 +241,7 @@ export async function POST(request) {
         await connection.beginTransaction();
         await ensurePaymentSchema();
         await ensureBookingBillingSchema();
+        await ensureBookingBreakfastSchema(connection);
 
         // 0. Concurrency row-level lock on room to serialize concurrent bookings and prevent race conditions
         await connection.execute("SELECT roomID, status FROM room WHERE roomID = ? FOR UPDATE", [roomID]);
@@ -334,12 +336,17 @@ export async function POST(request) {
           `, [compRes.reservationID]);
         }
 
-        // Resolve breakfast option and guest counts from body or reservation
+        // Resolve breakfast option, night-by-night breakfast dates, and guest counts
         let breakfastOption = body.breakfastOption || null;
+        let selectedBreakfastDates = body.selectedBreakfastDates;
+        const includeBreakfast = Boolean(body.includeBreakfast);
         let resGuestCount = null;
+        let resBreakfastDates = null;
+        let resBreakfastFee = null;
+
         if (convResID) {
           const [rRows] = await connection.execute(
-            "SELECT breakfastOption, guestCount FROM reservation WHERE reservationID = ?",
+            "SELECT breakfastOption, guestCount, breakfastDates, breakfastFee FROM reservation WHERE reservationID = ?",
             [convResID]
           );
           if (rRows.length > 0) {
@@ -347,9 +354,44 @@ export async function POST(request) {
               breakfastOption = rRows[0].breakfastOption;
             }
             resGuestCount = rRows[0].guestCount;
+            resBreakfastDates = rRows[0].breakfastDates;
+            resBreakfastFee = rRows[0].breakfastFee;
+            if (!selectedBreakfastDates && resBreakfastDates) {
+              try {
+                selectedBreakfastDates = typeof resBreakfastDates === 'string'
+                  ? JSON.parse(resBreakfastDates)
+                  : resBreakfastDates;
+              } catch (e) {
+                selectedBreakfastDates = [];
+              }
+            }
           }
         }
-        if (!breakfastOption) breakfastOption = 'without';
+
+        const stayNights = getStayNights(checkInDate, checkOutDate);
+        const BREAKFAST_RATE = 250;
+
+        // Backward compatibility fallback:
+        // If legacy payload sent includeBreakfast: true or breakfastOption === 'with' without explicit array, auto-select all nights
+        if (!Array.isArray(selectedBreakfastDates)) {
+          if (includeBreakfast || breakfastOption === 'with') {
+            selectedBreakfastDates = stayNights.map(n => n.dateStr);
+            breakfastOption = 'with';
+          } else {
+            selectedBreakfastDates = [];
+          }
+        }
+
+        // Sanitize dates to match stay duration
+        const validBreakfastDates = selectedBreakfastDates.filter(d =>
+          stayNights.some(n => n.dateStr === d)
+        );
+
+        if (validBreakfastDates.length > 0) {
+          breakfastOption = 'with';
+        } else if (!breakfastOption) {
+          breakfastOption = 'without';
+        }
         const breakfastID = breakfastOption === 'with' ? 2 : 1;
 
         // Calculate down payment amounts and breakdown
@@ -390,6 +432,7 @@ export async function POST(request) {
         const totalPax = parseInt(body.numGuests || body.guestCount || resGuestCount || (registeredGuests?.length || 1));
         const extraGuests = Math.max(0, totalPax - basePax);
         const extraGuestFee = extraGuests * 100 * nights;
+        const breakfastTotal = validBreakfastDates.length * BREAKFAST_RATE * totalPax;
 
         const baseRoomCharge = Math.round(roomPrice * nights * 100) / 100;
         const downPaymentAmount = Math.round(baseRoomCharge * downPaymentRate * 100) / 100;
@@ -413,11 +456,11 @@ export async function POST(request) {
         const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
         const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
 
-        // 3. Insert booking record with appropriate status, breakfastOption, breakfastID, and guestCount
+        // 3. Insert booking record with appropriate status, breakfastOption, breakfastID, guestCount, breakfastDates, and breakfastFee
         const [bookingRes] = await connection.execute(
-          `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance, breakfastOption, breakfastID, guestCount)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance, breakfastOption, breakfastID, totalPax]
+          `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, downPaymentAmount, downPaymentPercentage, remainingBalance, finalBalance, breakfastOption, breakfastID, guestCount, breakfastDates, breakfastFee)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convResID, guest.guestID, roomID, roomPrice, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, remainingBalance, breakfastOption, breakfastID, totalPax, JSON.stringify(validBreakfastDates), breakfastTotal]
         );
         const bookingID = bookingRes.insertId;
 
