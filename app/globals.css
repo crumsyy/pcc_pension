@@ -48,54 +48,92 @@ button.btn-secondary:hover {
   color: #ffffff !important;
 }
 
-/* Order Category Navigation Tabs (Avoids red .btn-secondary override) */
+/* =====================================================================
+   Modern Segmented Pill Active Tabs (Inventory / Orders Header Style)
+   ===================================================================== */
+.pcc-segmented-tab-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #f1f5f9;
+  padding: 4px;
+  border-radius: 9px;
+  border: 1px solid #e2e8f0;
+}
+
+.pcc-segmented-tab-btn,
 .pcc-order-tab-btn {
-  background-color: #ffffff !important;
-  color: #1f2937 !important;
-  border: 1px solid #d1d5db !important;
+  background: transparent !important;
+  color: #64748b !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 0.875rem;
   font-weight: 600;
-  transition: all 0.15s ease-in-out;
+  padding: 6px 14px;
+  border-radius: 7px;
+  transition: all 0.16s ease-in-out;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
 }
 
+.pcc-segmented-tab-btn:hover,
 .pcc-order-tab-btn:hover {
-  background-color: #f3f4f6 !important;
-  color: #111827 !important;
-  border-color: #9ca3af !important;
+  color: #1e293b !important;
+  background-color: rgba(255, 255, 255, 0.5) !important;
 }
 
+.pcc-segmented-tab-btn.active,
 .pcc-order-tab-btn.active,
+.pcc-segmented-tab-btn.btn-primary,
 .pcc-order-tab-btn.btn-primary {
-  background-color: var(--pcc-blue, #2155B5) !important;
-  border-color: var(--pcc-blue, #2155B5) !important;
-  color: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Dark mode support */
+[data-bs-theme="dark"] .pcc-segmented-tab-track,
+body.dark-theme .pcc-segmented-tab-track,
+.dark .pcc-segmented-tab-track {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .pcc-segmented-tab-btn,
 [data-bs-theme="dark"] .pcc-order-tab-btn,
+body.dark-theme .pcc-segmented-tab-btn,
 body.dark-theme .pcc-order-tab-btn,
+.dark .pcc-segmented-tab-btn,
 .dark .pcc-order-tab-btn {
-  background-color: #000000 !important;
-  color: #f9fafb !important;
-  border: 1px solid #374151 !important;
+  color: #94a3b8 !important;
 }
 
+[data-bs-theme="dark"] .pcc-segmented-tab-btn:hover,
 [data-bs-theme="dark"] .pcc-order-tab-btn:hover,
+body.dark-theme .pcc-segmented-tab-btn:hover,
 body.dark-theme .pcc-order-tab-btn:hover,
+.dark .pcc-segmented-tab-btn:hover,
 .dark .pcc-order-tab-btn:hover {
-  background-color: #111827 !important;
-  color: #ffffff !important;
-  border-color: #4b5563 !important;
+  color: #f8fafc !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
+[data-bs-theme="dark"] .pcc-segmented-tab-btn.active,
 [data-bs-theme="dark"] .pcc-order-tab-btn.active,
-[data-bs-theme="dark"] .pcc-order-tab-btn.btn-primary,
+body.dark-theme .pcc-segmented-tab-btn.active,
 body.dark-theme .pcc-order-tab-btn.active,
-body.dark-theme .pcc-order-tab-btn.btn-primary,
-.dark .pcc-order-tab-btn.active,
-.dark .pcc-order-tab-btn.btn-primary {
-  background-color: var(--pcc-blue, #2155B5) !important;
-  border-color: var(--pcc-blue, #2155B5) !important;
+.dark .pcc-segmented-tab-btn.active,
+.dark .pcc-order-tab-btn.active {
+  background-color: #0f172a !important;
   color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* =====================================================================

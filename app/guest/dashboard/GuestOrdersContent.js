@@ -463,24 +463,24 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           </h5>
           <span className="text-muted small">Real-time status tracking for immediate dispatches and scheduled meals.</span>
         </div>
-        <div className="btn-group btn-group-sm flex-wrap" role="group">
+        <div className="pcc-segmented-tab-track flex-wrap" role="tablist">
           <button
             type="button"
-            className={`btn btn-sm pcc-order-tab-btn ${historyFilter === 'all' ? 'active' : ''}`}
+            className={`pcc-segmented-tab-btn ${historyFilter === 'all' ? 'active' : ''}`}
             onClick={() => setHistoryFilter('all')}
           >
             All Orders ({orders.length})
           </button>
           <button
             type="button"
-            className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'pcc-order-tab-btn'}`}
+            className={`pcc-segmented-tab-btn ${historyFilter === 'immediate' ? 'active' : ''}`}
             onClick={() => setHistoryFilter('immediate')}
           >
             Immediate Deliveries ({immediateOrders.length})
           </button>
           <button
             type="button"
-            className={`btn btn-sm pcc-order-tab-btn ${historyFilter === 'scheduled' ? 'active' : ''}`}
+            className={`pcc-segmented-tab-btn ${historyFilter === 'scheduled' ? 'active' : ''}`}
             onClick={() => setHistoryFilter('scheduled')}
           >
             Scheduled Breakfast Deliveries ({scheduledOrders.length})
@@ -488,7 +488,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
           {pendingDeliveryOrders.length > 0 && (
             <button
               type="button"
-              className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'pcc-order-tab-btn'}`}
+              className={`pcc-segmented-tab-btn ${historyFilter === 'pending' ? 'active' : ''}`}
               onClick={() => setHistoryFilter('pending')}
             >
               Pending Deliveries ({pendingDeliveryOrders.length})
@@ -1252,31 +1252,31 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
       {/* NAVIGATION TABS & SEARCH BAR */}
       <div className="row g-3 align-items-center mb-4">
         <div className="col-md-8">
-          <div className="btn-group flex-wrap shadow-xs" role="group">
+          <div className="pcc-segmented-tab-track flex-wrap" role="tablist">
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'meals' ? 'active' : ''}`}
+              className={`pcc-segmented-tab-btn ${activeCategory === 'meals' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('meals')}
             >
               Cooked Meals (Scheduled: 6:00–10:30 AM) ({cookedMeals.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
+              className={`pcc-segmented-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('products_amenities')}
             >
               Products & Amenities (Immediate) ({products.length + amenities.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'all' ? 'active' : ''}`}
+              className={`pcc-segmented-tab-btn ${activeCategory === 'all' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('all')}
             >
               All Items
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'history' ? 'active' : ''}`}
+              className={`pcc-segmented-tab-btn ${activeCategory === 'history' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('history')}
             >
               My Orders ({orderHistory.length})

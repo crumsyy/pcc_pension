@@ -960,31 +960,31 @@ function ReceptionistOrdersContent() {
       {/* NAVIGATION TABS & SEARCH BAR */}
       <div className="row g-3 align-items-center mb-4">
         <div className="col-md-8">
-          <div className="btn-group flex-wrap shadow-xs" role="group">
+          <div className="pcc-segmented-tab-track flex-wrap" role="tablist">
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'meals' ? 'btn-primary text-white' : 'btn-outline-secondary'}`}
+              className={`pcc-segmented-tab-btn ${activeCategory === 'meals' ? 'active' : ''}`}
               onClick={() => setActiveCategory('meals')}
             >
               Cooked Meals ({cookedMeals.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'products_amenities' ? 'btn-primary text-white' : 'btn-outline-secondary'}`}
+              className={`pcc-segmented-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
               onClick={() => setActiveCategory('products_amenities')}
             >
               Products &amp; Amenities ({products.length + amenities.length})
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'all' ? 'btn-primary text-white' : 'btn-outline-secondary'}`}
+              className={`pcc-segmented-tab-btn ${activeCategory === 'all' ? 'active' : ''}`}
               onClick={() => setActiveCategory('all')}
             >
               All Catalog Items
             </button>
             <button
               type="button"
-              className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'history' ? 'btn-dark text-white' : 'btn-outline-secondary'}`}
+              className={`pcc-segmented-tab-btn ${activeCategory === 'history' ? 'active' : ''}`}
               onClick={() => setActiveCategory('history')}
             >
               Order Records &amp; Status ({orders.length})
@@ -1019,31 +1019,31 @@ function ReceptionistOrdersContent() {
                   </h5>
                   <span className="text-muted small">Real-time status tracking for immediate dispatches and scheduled meals.</span>
                 </div>
-                <div className="btn-group btn-group-sm flex-wrap" role="group">
+                <div className="pcc-segmented-tab-track flex-wrap" role="tablist">
                   <button
                     type="button"
-                    className={`btn btn-sm ${historyFilter === 'all' ? 'btn-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                    className={`pcc-segmented-tab-btn ${historyFilter === 'all' ? 'active' : ''}`}
                     onClick={() => setHistoryFilter('all')}
                   >
                     All Orders ({orders.length})
                   </button>
                   <button
                     type="button"
-                    className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
+                    className={`pcc-segmented-tab-btn ${historyFilter === 'immediate' ? 'active' : ''}`}
                     onClick={() => setHistoryFilter('immediate')}
                   >
                     Immediate ({immediateOrders.length})
                   </button>
                   <button
                     type="button"
-                    className={`btn btn-sm ${historyFilter === 'scheduled' ? 'btn-info text-white fw-bold' : 'btn-outline-secondary'}`}
+                    className={`pcc-segmented-tab-btn ${historyFilter === 'scheduled' ? 'active' : ''}`}
                     onClick={() => setHistoryFilter('scheduled')}
                   >
                     Scheduled Breakfast ({scheduledOrders.length})
                   </button>
                   <button
                     type="button"
-                    className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary'}`}
+                    className={`pcc-segmented-tab-btn ${historyFilter === 'pending' ? 'active' : ''}`}
                     onClick={() => setHistoryFilter('pending')}
                   >
                     Pending Delivery ({pendingDeliveryOrders.length})
