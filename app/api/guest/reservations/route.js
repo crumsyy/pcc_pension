@@ -162,7 +162,8 @@ export async function POST(request) {
     }
 
     // Default action: Create reservation
-    const { roomID, checkInDate, checkOutDate, specialRequests, numGuests, breakfastOption } = body; // checkInDate is YYYY-MM-DD
+    const { roomID, checkInDate, checkOutDate, specialRequests, numGuests } = body; // checkInDate is YYYY-MM-DD
+    let breakfastOption = body.breakfastOption || null;
 
     if (!roomID || !checkInDate) {
       return NextResponse.json({ error: 'Room selection and Check-in date are required.' }, { status: 400 });
