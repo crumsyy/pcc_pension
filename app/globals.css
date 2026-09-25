@@ -59,6 +59,12 @@ button.btn-secondary:hover {
   padding: 4px;
   border-radius: 9px;
   border: 1px solid #e2e8f0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.pcc-segmented-tab-track::-webkit-scrollbar {
+  display: none;
 }
 
 .pcc-segmented-tab-btn,

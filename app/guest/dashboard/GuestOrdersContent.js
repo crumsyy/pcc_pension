@@ -1250,40 +1250,47 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
       )}
 
       {/* NAVIGATION TABS & SEARCH BAR */}
-      <div className="row g-3 align-items-center mb-4">
-        <div className="col-md-8">
-          <div className="pcc-segmented-tab-track flex-wrap" role="tablist">
-            <button
-              type="button"
-              className={`pcc-segmented-tab-btn ${activeCategory === 'meals' ? 'active' : ''}`}
-              onClick={() => handleSelectCategory('meals')}
-            >
-              Cooked Meals (Scheduled: 6:00–10:30 AM) ({cookedMeals.length})
-            </button>
-            <button
-              type="button"
-              className={`pcc-segmented-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
-              onClick={() => handleSelectCategory('products_amenities')}
-            >
-              Products & Amenities (Immediate) ({products.length + amenities.length})
-            </button>
-            <button
-              type="button"
-              className={`pcc-segmented-tab-btn ${activeCategory === 'all' ? 'active' : ''}`}
-              onClick={() => handleSelectCategory('all')}
-            >
-              All Items
-            </button>
-            <button
-              type="button"
-              className={`pcc-segmented-tab-btn ${activeCategory === 'history' ? 'active' : ''}`}
-              onClick={() => handleSelectCategory('history')}
-            >
-              My Orders ({orderHistory.length})
-            </button>
-          </div>
+      <div className="d-flex flex-wrap flex-xl-nowrap align-items-center justify-content-between gap-3 mb-4">
+        <div
+          className="pcc-segmented-tab-track flex-nowrap"
+          role="tablist"
+          style={{
+            whiteSpace: 'nowrap',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            maxWidth: '100%'
+          }}
+        >
+          <button
+            type="button"
+            className={`pcc-segmented-tab-btn ${activeCategory === 'all' ? 'active' : ''}`}
+            onClick={() => handleSelectCategory('all')}
+          >
+            All Items
+          </button>
+          <button
+            type="button"
+            className={`pcc-segmented-tab-btn ${activeCategory === 'meals' ? 'active' : ''}`}
+            onClick={() => handleSelectCategory('meals')}
+          >
+            Cooked Meals ({cookedMeals.length})
+          </button>
+          <button
+            type="button"
+            className={`pcc-segmented-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
+            onClick={() => handleSelectCategory('products_amenities')}
+          >
+            Product & Activities ({products.length + amenities.length})
+          </button>
+          <button
+            type="button"
+            className={`pcc-segmented-tab-btn ${activeCategory === 'history' ? 'active' : ''}`}
+            onClick={() => handleSelectCategory('history')}
+          >
+            My Orders ({orderHistory.length})
+          </button>
         </div>
-        <div className="col-md-4">
+        <div className="ms-auto" style={{ minWidth: '220px', maxWidth: '320px', width: '100%' }}>
           <div className="input-group input-group-sm">
             <span className="input-group-text bg-white border-end-0"><i className="bi bi-search"></i></span>
             <input
@@ -1414,7 +1421,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
 
         {/* ORDER TRAY / CART COLUMN (DESKTOP) */}
         <div className="col-12 col-md-5 col-lg-5 col-xl-4 d-none d-md-block">
-          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 sticky-top pcc-order-tray d-flex flex-column" style={{ top: '20px', maxHeight: 'calc(100vh - 40px)' }}>
+          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 sticky-top pcc-order-tray d-flex flex-column mt-1" style={{ top: '28px', maxHeight: 'calc(100vh - 56px)' }}>
             <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                 <i className="bi bi-cart3 text-primary"></i>
