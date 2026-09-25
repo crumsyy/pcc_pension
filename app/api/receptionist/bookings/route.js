@@ -120,6 +120,9 @@ export async function GET(request) {
         paidTotal,
         downPaymentPaid,
         isDownPaymentPaid,
+        chargesSummary: balanceDetails?.chargesSummary || null,
+        paymentsList: balanceDetails?.paymentsList || [],
+        subtotal: balanceDetails?.subtotal ?? (parseFloat(b.totalAmount || b.roomCharge || 0)),
         incidentals: incidentals || [],
         registeredGuests: guestsDetails.filter(gd => gd.bookingID === b.bookingID)
       };

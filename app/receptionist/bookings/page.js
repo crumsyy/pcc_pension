@@ -71,6 +71,8 @@ function BookingsClient() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
+  const [expandedBookingId, setExpandedBookingId] = useState(null);
 
   // Modals
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'cancel_reason' | 'manage_guests' | null
@@ -1401,12 +1403,25 @@ function BookingsClient() {
     }
   };
 
+  const isHistoricalBooking = (status) => ['Completed', 'Checked Out', 'Cancelled', 'No Show'].includes(status);
+
+  const activeBookingsCount = bookings.filter(b => !isHistoricalBooking(b.status)).length;
+  const historyBookingsCount = bookings.filter(b => isHistoricalBooking(b.status)).length;
+
   const filteredBookings = bookings.filter(b => {
     const fullName = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
     const contact = (b.contact || '').toLowerCase();
     const roomNum = (b.roomNumber || '').toString().toLowerCase();
-    const matchesSearch = fullName.includes(search.toLowerCase()) || contact.includes(search.toLowerCase()) || roomNum.includes(search.toLowerCase());
+    const bookingIdStr = (b.bookingID || '').toString();
+    const matchesSearch = fullName.includes(search.toLowerCase()) || 
+                          contact.includes(search.toLowerCase()) || 
+                          roomNum.includes(search.toLowerCase()) ||
+                          bookingIdStr.includes(search.toLowerCase());
     
+    // Tab separation: Active Stays vs Historical Log
+    if (activeTab === 'active' && isHistoricalBooking(b.status)) return false;
+    if (activeTab === 'history' && !isHistoricalBooking(b.status)) return false;
+
     let matchesStatus = true;
     if (statusFilter) {
       matchesStatus = normalizeBookingStatus(b.status) === normalizeBookingStatus(statusFilter);
@@ -1496,26 +1511,71 @@ function BookingsClient() {
       </div>
 
 
+      {/* TABS: ACTIVE VS HISTORICAL LOG */}
+      <div className="d-flex align-items-center gap-2 mb-3">
+        <button
+          type="button"
+          className={`btn ${activeTab === 'active' ? 'text-white shadow-sm' : 'btn-outline-secondary'} rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-2`}
+          style={{
+            backgroundColor: activeTab === 'active' ? '#2563eb' : undefined,
+            borderColor: activeTab === 'active' ? '#2563eb' : undefined
+          }}
+          onClick={() => { setActiveTab('active'); setExpandedBookingId(null); setStatusFilter(''); }}
+        >
+          <i className="bi bi-clock-history"></i>
+          <span>Active Stays &amp; Bookings</span>
+          <span className={`badge ${activeTab === 'active' ? 'bg-white text-primary' : 'bg-secondary text-white'} rounded-pill ms-1`}>
+            {activeBookingsCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`btn ${activeTab === 'history' ? 'text-white shadow-sm' : 'btn-outline-secondary'} rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-2`}
+          style={{
+            backgroundColor: activeTab === 'history' ? '#0f172a' : undefined,
+            borderColor: activeTab === 'history' ? '#0f172a' : undefined
+          }}
+          onClick={() => { setActiveTab('history'); setExpandedBookingId(null); setStatusFilter(''); }}
+        >
+          <i className="bi bi-archive-fill"></i>
+          <span>Historical Log</span>
+          <span className={`badge ${activeTab === 'history' ? 'bg-white text-dark' : 'bg-secondary text-white'} rounded-pill ms-1`}>
+            {historyBookingsCount}
+          </span>
+        </button>
+      </div>
+
       <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
         <div className="row g-2">
           <div className="col-md-6">
             <input
               type="text"
               className="form-control"
-              placeholder="Search guest name, room number, contact..."
+              placeholder={activeTab === 'active' ? "Search active bookings by guest name, room number, contact, ID..." : "Search historical log by guest name, room, contact, ID..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="col-md-6">
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All Booking Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="Active Stay">Active Stay</option>
-              <option value="Bill Finalized">Bill Finalized</option>
-              <option value="Paid">Paid</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
+              {activeTab === 'active' ? (
+                <>
+                  <option value="">All Active Statuses</option>
+                  <option value="Pending">Pending Check-in</option>
+                  <option value="Active Stay">Active Stay / Checked In</option>
+                  <option value="Bill Finalized">Bill Finalized</option>
+                  <option value="Paid">Paid / Ready for Checkout</option>
+                </>
+              ) : (
+                <>
+                  <option value="">All Historical Statuses</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Checked Out">Checked Out</option>
+                  <option value="Cancelled">Cancelled</option>
+                  <option value="No Show">No Show</option>
+                </>
+              )}
             </select>
           </div>
         </div>
@@ -1529,12 +1589,18 @@ function BookingsClient() {
             <p className="small text-muted mt-2">Loading bookings data...</p>
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div className="text-center py-4 text-muted">
-            <p className="mb-0">No booking records found.</p>
+          <div className="p-4 text-center text-muted border rounded bg-light">
+            <i className={`bi ${activeTab === 'active' ? 'bi-calendar-check text-primary' : 'bi-archive text-secondary'} fs-4 d-block mb-1`}></i>
+            <p className="mb-0 fw-semibold">
+              {activeTab === 'active'
+                ? "No active bookings right now. Completed and checked-out stays are preserved in the Historical Log tab."
+                : "No historical booking records found matching your filters."}
+            </p>
           </div>
-        ) : (
+        ) : activeTab === 'active' ? (
+          /* ACTIVE BOOKINGS TABLE VIEW */
           <div className="table-responsive">
-            <table className="table table-hover align-middle" style={{ fontSize: '0.88rem' }}>
+            <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
               <thead>
                 <tr className="table-light">
                   <th>Booking ID</th>
@@ -1599,25 +1665,19 @@ function BookingsClient() {
                           className="btn btn-sm btn-success text-white fw-bold me-1 d-inline-flex align-items-center justify-content-center"
                           data-bs-toggle="tooltip"
                           data-bs-placement="top"
-                          title={b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled' ? 'Cannot modify checked-out or cancelled stays' : 'Update Booking'}
+                          title="Update Booking"
                           aria-label="Update Booking"
-                          disabled={b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled'}
                           style={{
                             width: '32px',
                             height: '32px',
-                            borderRadius: '6px',
-                            opacity: (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') ? 0.4 : 1,
-                            cursor: (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') ? 'not-allowed' : 'pointer'
+                            borderRadius: '6px'
                           }}
-                          onClick={() => {
-                            if (b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled') return;
-                            openUpdateBookingModal(b);
-                          }}
+                          onClick={() => openUpdateBookingModal(b)}
                         >
                           <i className="fa-solid fa-sync-alt"></i>
                         </button>
 
-                        {(b.status === 'Pending Check-in' || b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'Booked' || b.status === 'Checked In' || b.status === 'Active Stay') && (
+                        {['Pending Check-in', 'Confirmed', 'Pending', 'Booked', 'Checked In', 'Active Stay'].includes(b.status) && (
                           <button
                             type="button"
                             className="action-btn action-btn-delete"
@@ -1634,6 +1694,289 @@ function BookingsClient() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* HISTORICAL LOG TABLE VIEW WITH EXPANDABLE ROW ACCORDIONS */
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
+              <thead>
+                <tr className="table-light">
+                  <th>Booking ID</th>
+                  <th>Guest Name</th>
+                  <th>Room</th>
+                  <th>Stay Schedule</th>
+                  <th>Total Stay Amount</th>
+                  <th>Status</th>
+                  <th className="text-end">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredBookings.map(b => {
+                  const isExpanded = expandedBookingId === b.bookingID;
+                  const stayNights = b.chargesSummary?.nights || calculateBookingNights(toUiDate(b.checkInDateTime.substring(0,10)), toUiDate(b.checkOutDateTime.substring(0,10)));
+                  const totalStayCharge = b.subtotal || b.chargesSummary?.subtotal || b.totalAmount || b.roomCharge || 0;
+                  const paidTotal = b.paidTotal || b.chargesSummary?.paid || 0;
+                  const baseCharge = b.chargesSummary?.baseRoomCharge || b.roomCharge || (parseFloat(b.roomRate || 1200) * stayNights);
+                  const roomRateVal = b.chargesSummary?.roomRate || b.roomRate || 1200;
+
+                  return (
+                    <>
+                      <tr key={b.bookingID} className={isExpanded ? 'table-light' : ''}>
+                        <td className="fw-bold">
+                          <span className="text-dark">#{b.bookingID}</span>
+                          {b.reservationID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Res #{b.reservationID}</small>}
+                        </td>
+                        <td>
+                          <div className="fw-bold text-dark">{b.firstName} {b.lastName}</div>
+                          <small className="text-muted">{b.contact || 'No Contact'}</small>
+                        </td>
+                        <td>
+                          <div>
+                            <span className="fw-bold text-pcc-blue">Room {b.roomNumber}</span>
+                            <span className="text-muted ms-1" style={{ fontSize: '0.78rem' }}>({b.roomType})</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="text-dark" style={{ fontSize: '0.82rem' }}>
+                            {new Date(b.checkInDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} – {new Date(b.checkOutDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                          <small className="text-muted">
+                            ({stayNights} night{stayNights !== 1 ? 's' : ''})
+                          </small>
+                        </td>
+                        <td>
+                          <div className="fw-bold text-dark">
+                            ₱{Number(totalStayCharge).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                          </div>
+                          <small className="text-success fw-semibold">
+                            Paid: ₱{Number(paidTotal).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                          </small>
+                        </td>
+                        <td>
+                          <StatusBadge status={b.status} />
+                        </td>
+                        <td className="text-end">
+                          <button
+                            type="button"
+                            className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-3 fw-semibold text-white shadow-xs"
+                            style={{
+                              backgroundColor: isExpanded ? '#0f172a' : '#2563eb',
+                              borderColor: isExpanded ? '#0f172a' : '#2563eb',
+                              fontSize: '0.80rem'
+                            }}
+                            onClick={() => setExpandedBookingId(isExpanded ? null : b.bookingID)}
+                            aria-expanded={isExpanded}
+                            title={isExpanded ? "Collapse Details" : "Expand Details"}
+                          >
+                            <span>{isExpanded ? 'Hide' : 'Details'}</span>
+                            <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* INLINE EXPANDABLE DETAILS ACCORDION DRAWER */}
+                      {isExpanded && (
+                        <tr key={`${b.bookingID}-expanded`} className="bg-light">
+                          <td colSpan="7" className="p-3 border-top-0 border-bottom">
+                            <div className="card shadow-sm border p-3 rounded-3 bg-white">
+                              <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                                <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                  <i className="bi bi-file-text-fill text-primary"></i>
+                                  <span>Historical Stay Details &amp; Folio Summary: #{b.bookingID}</span>
+                                  <span className="badge bg-light text-dark border ms-1">Room {b.roomNumber} ({b.roomType})</span>
+                                </h6>
+                                <div className="d-flex align-items-center gap-2">
+                                  <StatusBadge status={b.status} />
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-sm btn-outline-secondary rounded-3"
+                                    onClick={() => setExpandedBookingId(null)}
+                                    title="Collapse Details"
+                                  >
+                                    <i className="bi bi-chevron-up"></i>
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="row g-3">
+                                {/* Col 1: Guest Information */}
+                                <div className="col-md-4">
+                                  <div className="p-3 border rounded-3 bg-light h-100">
+                                    <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.82rem' }}>
+                                      <i className="bi bi-person-circle text-primary me-1"></i> GUEST PROFILE &amp; DETAILS
+                                    </h6>
+                                    <div className="mb-1 fw-bold text-dark">{b.firstName} {b.middleName ? `${b.middleName} ` : ''}{b.lastName}</div>
+                                    <div className="small text-muted mb-1"><i className="bi bi-telephone me-1"></i>{b.contact || 'No Contact'}</div>
+                                    <div className="small text-muted mb-1"><i className="bi bi-envelope me-1"></i>{b.email || 'No Email'}</div>
+                                    <div className="small text-muted mb-2">
+                                      <i className="bi bi-person-badge me-1"></i>Account: <strong>{b.userID ? `UID#${b.userID}` : 'Walk-in Guest'}</strong>
+                                    </div>
+                                    
+                                    {b.registeredGuests && b.registeredGuests.length > 0 && (
+                                      <div className="mt-2 pt-2 border-top">
+                                        <span className="small fw-bold text-dark d-block mb-1">Registered Room Guests ({b.registeredGuests.length}):</span>
+                                        <ul className="list-unstyled mb-0" style={{ fontSize: '0.78rem' }}>
+                                          {b.registeredGuests.map((g, gIdx) => (
+                                            <li key={gIdx} className="text-muted d-flex justify-content-between align-items-center mb-1">
+                                              <span>• {g.fullName} ({g.age} y/o)</span>
+                                              {g.discountName && (
+                                                <span className="badge bg-info-subtle text-info-emphasis border ms-1" style={{ fontSize: '0.68rem' }}>
+                                                  {g.discountName} ({g.discountPercentage}%)
+                                                </span>
+                                              )}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Col 2: Room & Schedule Breakdown */}
+                                <div className="col-md-4">
+                                  <div className="p-3 border rounded-3 bg-light h-100">
+                                    <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.82rem' }}>
+                                      <i className="bi bi-calendar-event text-primary me-1"></i> ROOM &amp; STAY SCHEDULE
+                                    </h6>
+                                    <div className="small mb-1">Room: <strong>Room {b.roomNumber}</strong> ({b.roomType})</div>
+                                    <div className="small mb-1">Max Occupancy Limit: <strong>{b.occupancyLimit || 4} Guests</strong></div>
+                                    <div className="small mb-1">Stay Duration: <strong>{stayNights} night{stayNights !== 1 ? 's' : ''}</strong></div>
+                                    <div className="small mb-2">
+                                      Breakfast Inclusions: <span className="badge bg-light text-dark border">{b.breakfastOption === 'with' ? 'Included with Package' : 'Without Breakfast / A La Carte'}</span>
+                                    </div>
+
+                                    {/* Breakfast Badges if any */}
+                                    {b.chargesSummary?.breakfastDates && b.chargesSummary.breakfastDates.length > 0 && (
+                                      <div className="mt-2 pt-2 border-top">
+                                        <span className="small fw-bold text-dark d-block mb-1">Breakfast Schedule Mornings:</span>
+                                        <div className="d-flex flex-wrap gap-1">
+                                          {b.chargesSummary.breakfastDates.map((d, dIdx) => (
+                                            <span key={dIdx} className="badge bg-white text-dark border" style={{ fontSize: '0.72rem' }}>
+                                              <i className="bi bi-egg-fried text-warning me-1"></i>{d}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Timestamps */}
+                                    <div className="mt-2 pt-2 border-top" style={{ fontSize: '0.75rem' }}>
+                                      <div className="text-muted">Checked In: <strong className="text-dark">{b.checkInDateTime ? new Date(b.checkInDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</strong></div>
+                                      <div className="text-muted">Checked Out: <strong className="text-dark">{b.checkOutDateTime ? new Date(b.checkOutDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</strong></div>
+                                      {b.roomVerifiedAt && <div className="text-muted">Room Verified: <strong className="text-dark">{new Date(b.roomVerifiedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</strong></div>}
+                                      {b.checkoutRequestedAt && <div className="text-muted">Requested Checkout: <strong className="text-dark">{new Date(b.checkoutRequestedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</strong></div>}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Col 3: Complete Financial Breakdown */}
+                                <div className="col-md-4">
+                                  <div className="p-3 border rounded-3 bg-light h-100">
+                                    <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.82rem' }}>
+                                      <i className="bi bi-cash-stack text-success me-1"></i> COMPLETE FINANCIAL BALANCE SUMMARY
+                                    </h6>
+                                    
+                                    <div className="small d-flex justify-content-between mb-1">
+                                      <span className="text-muted">Base Room Rate (₱{parseFloat(roomRateVal).toLocaleString('en-PH', { minimumFractionDigits: 2 })} × {stayNights}n):</span>
+                                      <span className="fw-semibold">₱{parseFloat(baseCharge).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+
+                                    {(b.chargesSummary?.totalDiscount > 0) && (
+                                      <div className="small d-flex justify-content-between mb-1 text-danger">
+                                        <span>Discounts Applied:</span>
+                                        <span>-₱{parseFloat(b.chargesSummary.totalDiscount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                    )}
+
+                                    {(b.chargesSummary?.extraGuestFee > 0) && (
+                                      <div className="small d-flex justify-content-between mb-1">
+                                        <span className="text-muted">Extra Pax / Capacity Fee:</span>
+                                        <span className="fw-semibold">+₱{parseFloat(b.chargesSummary.extraGuestFee).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                    )}
+
+                                    {(b.chargesSummary?.orders > 0 || b.chargesSummary?.products > 0) && (
+                                      <div className="small d-flex justify-content-between mb-1">
+                                        <span className="text-muted">Orders &amp; Store Products:</span>
+                                        <span className="fw-semibold">+₱{parseFloat(b.chargesSummary.orders || b.chargesSummary.products || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                    )}
+
+                                    {(b.chargesSummary?.incidentals > 0 || (b.incidentals && b.incidentals.length > 0)) && (
+                                      <div className="small d-flex justify-content-between mb-1">
+                                        <span className="text-muted">Incidentals:</span>
+                                        <span className="fw-semibold">+₱{parseFloat(b.chargesSummary?.incidentals || b.incidentals?.reduce((sum, ic) => sum + parseFloat(ic.amount || 0), 0) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                    )}
+
+                                    <div className="small d-flex justify-content-between py-1 border-top border-bottom my-1 fw-bold">
+                                      <span>Total Stay Charges:</span>
+                                      <span className="text-dark">₱{Number(totalStayCharge).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+
+                                    <div className="small d-flex justify-content-between mb-1 text-success">
+                                      <span>Total Payments Settled:</span>
+                                      <span className="fw-bold">₱{Number(paidTotal).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+
+                                    <div className="p-2 rounded bg-success-subtle border border-success-subtle text-success-emphasis text-center mt-2">
+                                      <div className="small fw-bold text-uppercase" style={{ fontSize: '0.72rem' }}>Final Outstanding Balance</div>
+                                      <div className="fs-5 fw-extrabold text-success">₱0.00</div>
+                                      <small style={{ fontSize: '0.70rem' }}><i className="bi bi-check-circle-fill me-1"></i>Stay Fully Settled &amp; Archived</small>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Payment Transactions List if payments exist */}
+                              {b.paymentsList && b.paymentsList.length > 0 && (
+                                <div className="mt-3 pt-3 border-top">
+                                  <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.80rem' }}>
+                                    <i className="bi bi-receipt me-1"></i> Recorded Payment Receipts &amp; Transactions ({b.paymentsList.length}):
+                                  </h6>
+                                  <div className="table-responsive">
+                                    <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.78rem' }}>
+                                      <thead className="table-light">
+                                        <tr>
+                                          <th>Payment #</th>
+                                          <th>Method</th>
+                                          <th>Amount</th>
+                                          <th>Reference #</th>
+                                          <th>Payment Date</th>
+                                          <th>Status</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {b.paymentsList.map((p, pIdx) => (
+                                          <tr key={pIdx}>
+                                            <td><strong>PAY#{p.paymentID}</strong></td>
+                                            <td>{p.paymentMethod || 'Cash'}</td>
+                                            <td className="text-success fw-bold">₱{parseFloat(p.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                                            <td><small className="text-muted">{p.referenceNumber || 'N/A'}</small></td>
+                                            <td>{p.paymentDate || 'N/A'}</td>
+                                            <td><span className="badge bg-success">Settled</span></td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+
+                              {b.cancelRemarks && (
+                                <div className="alert alert-danger mb-0 mt-3 p-2 small">
+                                  <strong>Cancellation Reason:</strong> {b.cancelRemarks}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           </div>

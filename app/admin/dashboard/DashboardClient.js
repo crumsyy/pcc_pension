@@ -301,103 +301,144 @@ export default function DashboardClient({ userName }) {
             className="card-module p-3 rounded"
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
           >
-            <h5 className="mb-4 text-blue">Reservations and Booking List status</h5>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="mb-0 text-blue">Active Reservations & Lodging</h5>
+              <div className="d-flex gap-2">
+                <Link href="/admin/reservations" className="btn btn-sm btn-outline-secondary" style={{ fontSize: '0.78rem' }}>
+                  Reservations
+                </Link>
+                <Link href="/admin/bookings" className="btn btn-sm btn-outline-primary" style={{ fontSize: '0.78rem' }}>
+                  Bookings
+                </Link>
+              </div>
+            </div>
             
-            {/* Recent Reservations Section */}
-            <div className="mb-4">
-              <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.85rem' }}>Recent Reservations</h6>
-              {recentRes.length === 0 ? (
-                <p className="text-muted small">No recent reservations.</p>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
-                    <thead>
-                      <tr>
-                        <th>Guest</th>
-                        <th>Room</th>
-                        <th>Reserved Date</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentRes.map((r) => (
-                        <tr key={r.reservationID}>
-                          <td>{`${r.firstName || ''} ${r.lastName || ''}`}</td>
-                          <td>{`${r.roomNumber} - ${r.type}`}</td>
-                          <td>
-                            {new Date(r.reservationDateTime).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </td>
-                          <td>
-                            <span
-                              className={`badge ${
-                                r.status === 'Confirmed'
-                                  ? 'text-bg-success'
-                                  : r.status === 'Canceled'
-                                  ? 'text-bg-danger'
-                                  : 'text-bg-warning'
-                              }`}
-                            >
-                              {r.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* Active Reservations Section */}
+            {(() => {
+              const activeResList = (recentRes || []).filter(r => !['Cancelled', 'Canceled', 'Released', 'Expired', 'No Show', 'Booked', 'Completed'].includes(r.status));
+              return (
+                <div className="mb-4">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h6 className="fw-bold text-secondary mb-0" style={{ fontSize: '0.85rem' }}>
+                      <i className="bi bi-bookmark-fill text-warning me-1.5"></i> Active Reservations ({activeResList.length})
+                    </h6>
+                  </div>
+                  {activeResList.length === 0 ? (
+                    <div className="p-3 text-center text-muted border rounded bg-light small">
+                      <i className="bi bi-bookmark-check me-2 text-warning"></i>No active reservations right now.
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
+                        <thead>
+                          <tr>
+                            <th>Guest</th>
+                            <th>Room</th>
+                            <th>Reserved Date</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activeResList.map((r) => (
+                            <tr key={r.reservationID}>
+                              <td>{`${r.firstName || ''} ${r.lastName || ''}`}</td>
+                              <td><strong>{r.roomNumber}</strong> - {r.type}</td>
+                              <td>
+                                {new Date(r.reservationDateTime).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </td>
+                              <td>
+                                <span
+                                  className={`badge ${
+                                    r.status === 'Confirmed'
+                                      ? 'text-bg-success'
+                                      : r.status === 'Courtesy Hold'
+                                      ? 'text-bg-warning text-dark'
+                                      : 'text-bg-primary'
+                                  }`}
+                                >
+                                  {r.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
-            {/* Recent Bookings Section */}
-            <div className="mb-3">
-              <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.85rem' }}>Recent Bookings</h6>
-              {recentBookings.length === 0 ? (
-                <p className="text-muted small">No recent bookings.</p>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
-                    <thead>
-                      <tr>
-                        <th>Guest</th>
-                        <th>Room</th>
-                        <th>Check-In</th>
-                        <th>Check-Out</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentBookings.map((b) => (
-                        <tr key={b.bookingID}>
-                          <td>{`${b.firstName || ''} ${b.lastName || ''}`}</td>
-                          <td>{`${b.roomNumber} - ${b.type}`}</td>
-                          <td>
-                            {new Date(b.checkInDateTime).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </td>
-                          <td>
-                            {new Date(b.checkOutDateTime).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </td>
-                          <td>
-                            <span className="badge text-bg-secondary">{b.status}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* Active Stays & Bookings Section */}
+            {(() => {
+              const activeBookingsList = (recentBookings || []).filter(b => !['Completed', 'Checked Out', 'Cancelled', 'No Show'].includes(b.status));
+              return (
+                <div className="mb-2">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <h6 className="fw-bold text-secondary mb-0" style={{ fontSize: '0.85rem' }}>
+                      <i className="bi bi-house-door-fill text-primary me-1.5"></i> Active Stays & Bookings ({activeBookingsList.length})
+                    </h6>
+                  </div>
+                  {activeBookingsList.length === 0 ? (
+                    <div className="p-3 text-center text-muted border rounded bg-light small">
+                      <i className="bi bi-calendar-check me-2 text-primary"></i>No active bookings right now.
+                    </div>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
+                        <thead>
+                          <tr>
+                            <th>Guest</th>
+                            <th>Room</th>
+                            <th>Check-In</th>
+                            <th>Check-Out</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activeBookingsList.map((b) => (
+                            <tr key={b.bookingID}>
+                              <td>{`${b.firstName || ''} ${b.lastName || ''}`}</td>
+                              <td><strong>{b.roomNumber}</strong> - {b.type}</td>
+                              <td>
+                                {new Date(b.checkInDateTime).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </td>
+                              <td>
+                                {new Date(b.checkOutDateTime).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </td>
+                              <td>
+                                <span className={`badge ${
+                                  ['Checked In', 'Active Stay'].includes(b.status)
+                                    ? 'text-bg-primary'
+                                    : ['Confirmed', 'Pending Check-in'].includes(b.status)
+                                    ? 'text-bg-warning text-dark'
+                                    : ['Bill Finalized', 'Room Verified', 'Payment Completed', 'Paid'].includes(b.status)
+                                    ? 'text-bg-success'
+                                    : 'text-bg-secondary'
+                                }`}>
+                                  {b.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-
+              );
+            })()}
 
           </div>
           </div>

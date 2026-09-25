@@ -74,7 +74,10 @@ export async function GET() {
         JOIN guest g ON g.guestID = r.guestID
         JOIN room rm ON rm.roomID = r.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        ORDER BY r.reservationDateTime DESC 
+        WHERE r.status IN ('Pending', 'Confirmed', 'Courtesy Hold', 'Reserved', 'Overdue Check-In')
+          AND r.status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show', 'Booked', 'Completed')
+          AND NOT EXISTS (SELECT 1 FROM booking b WHERE b.reservationID = r.reservationID)
+        ORDER BY r.reservationDateTime ASC 
         LIMIT 6
       `),
       dbQuery(`
@@ -84,7 +87,9 @@ export async function GET() {
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        ORDER BY b.checkInDateTime DESC 
+        WHERE b.status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Confirmed', 'Pending Check-in', 'Pending', 'Booked', 'Active')
+          AND b.status NOT IN ('Completed', 'Checked Out', 'Cancelled', 'No Show')
+        ORDER BY b.checkInDateTime ASC 
         LIMIT 6
       `)
     ]);

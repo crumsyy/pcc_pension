@@ -30,7 +30,8 @@ export default async function ReceptionistDashboard() {
     dbQuery(`
       SELECT COUNT(*) as count FROM reservation 
       WHERE status IN ('Pending', 'Confirmed', 'Courtesy Hold', 'Overdue Check-In')
-        AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show')
+        AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show', 'Booked', 'Completed')
+        AND NOT EXISTS (SELECT 1 FROM booking b WHERE b.reservationID = reservation.reservationID)
         AND (
           status != 'Courtesy Hold' 
           OR (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE))
@@ -46,6 +47,7 @@ export default async function ReceptionistDashboard() {
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
       WHERE b.status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed')
+        AND b.status NOT IN ('Completed', 'Checked Out', 'Cancelled', 'No Show')
       ORDER BY rm.roomNumber ASC
     `),
     dbQuery(`
@@ -57,7 +59,8 @@ export default async function ReceptionistDashboard() {
       JOIN room rm ON rm.roomID = r.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
       WHERE r.status IN ('Pending', 'Confirmed', 'Courtesy Hold', 'Overdue Check-In')
-        AND r.status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show')
+        AND r.status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show', 'Booked', 'Completed')
+        AND NOT EXISTS (SELECT 1 FROM booking b WHERE b.reservationID = r.reservationID)
         AND (
           r.status != 'Courtesy Hold' 
           OR (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE))
@@ -81,7 +84,8 @@ export default async function ReceptionistDashboard() {
       LEFT JOIN guest g ON g.guestID = b.guestID
       JOIN room rm ON rm.roomID = b.roomID
       JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-      WHERE b.status IN ('Confirmed', 'Pending Check-in')
+      WHERE b.status IN ('Confirmed', 'Pending Check-in', 'Pending', 'Booked')
+        AND b.status NOT IN ('Completed', 'Checked Out', 'Cancelled', 'No Show')
       ORDER BY b.checkInDateTime ASC
       LIMIT 10
     `),
@@ -325,7 +329,9 @@ export default async function ReceptionistDashboard() {
               <Link href="/receptionist/bookings" className="btn btn-pcc-outline btn-sm">View All</Link>
             </div>
             {confirmedBookingsList.length === 0 ? (
-              <p className="text-muted small">No confirmed bookings pending check-in.</p>
+              <div className="p-3 text-center text-muted border rounded bg-light small">
+                <i className="bi bi-calendar-check me-2 text-primary"></i>No active bookings pending check-in right now.
+              </div>
             ) : (
               <div className="table-responsive">
                 <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
@@ -367,7 +373,9 @@ export default async function ReceptionistDashboard() {
               </Link>
             </div>
             {checkInsList.length === 0 ? (
-              <p className="text-muted small">No guests currently staying in rooms.</p>
+              <div className="p-3 text-center text-muted border rounded bg-light small">
+                <i className="bi bi-people me-2 text-primary"></i>No guests currently staying in rooms.
+              </div>
             ) : (
               <div className="table-responsive">
                 <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>
@@ -413,7 +421,9 @@ export default async function ReceptionistDashboard() {
               </Link>
             </div>
             {pendingResList.length === 0 ? (
-              <p className="text-muted small">No active reservations or courtesy holds.</p>
+              <div className="p-3 text-center text-muted border rounded bg-light small">
+                <i className="bi bi-bookmark-check me-2 text-warning"></i>No active reservations or courtesy holds right now.
+              </div>
             ) : (
               <div className="table-responsive">
                 <table className="table table-sm align-middle mb-0" style={{ fontSize: "0.85rem" }}>

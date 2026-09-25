@@ -110,6 +110,8 @@ function ReservationsClient() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
+  const [expandedResId, setExpandedResId] = useState(null);
   const [maxDobStr, setMaxDobStr] = useState('');
   const [todayUiDate, setTodayUiDate] = useState('');
   const [todayDbDate, setTodayDbDate] = useState('');
@@ -848,10 +850,28 @@ function ReservationsClient() {
     }
   };
 
-  const filteredReservations = reservations.filter(r => {
-    const matchesSearch = `${r.firstName} ${r.lastName} ${r.roomNumber} ${r.contact}`.toLowerCase().includes(search.toLowerCase());
+  const isHistoricalReservation = (r) => {
     const rNorm = normalizeReservationStatus(r.status);
-    const matchesStatus = statusFilter ? (rNorm === statusFilter || (statusFilter === 'Booked' && r.bookingID)) : true;
+    return Boolean(r.bookingID) || rNorm === 'Booked' || rNorm === 'Cancelled';
+  };
+
+  const activeReservationsCount = reservations.filter(r => !isHistoricalReservation(r)).length;
+  const historyReservationsCount = reservations.filter(r => isHistoricalReservation(r)).length;
+
+  const filteredReservations = reservations.filter(r => {
+    const resIdStr = (r.reservationID || '').toString();
+    const guestSearch = `${r.firstName || ''} ${r.lastName || ''} ${r.roomNumber || ''} ${r.contact || ''} ${resIdStr}`.toLowerCase();
+    const matchesSearch = guestSearch.includes(search.toLowerCase());
+    const rNorm = normalizeReservationStatus(r.status);
+
+    // Tab separation: Active vs Historical Log
+    if (activeTab === 'active' && isHistoricalReservation(r)) return false;
+    if (activeTab === 'history' && !isHistoricalReservation(r)) return false;
+
+    let matchesStatus = true;
+    if (statusFilter) {
+      matchesStatus = (rNorm === statusFilter || (statusFilter === 'Booked' && r.bookingID));
+    }
     return matchesSearch && matchesStatus;
   });
 
@@ -871,24 +891,67 @@ function ReservationsClient() {
           </button>
         </div>
 
+        {/* TABS: ACTIVE VS HISTORICAL / CONVERTED LOG */}
+        <div className="d-flex align-items-center gap-2 mb-3">
+          <button
+            type="button"
+            className={`btn ${activeTab === 'active' ? 'text-white shadow-sm' : 'btn-outline-secondary'} rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-2`}
+            style={{
+              backgroundColor: activeTab === 'active' ? '#2563eb' : undefined,
+              borderColor: activeTab === 'active' ? '#2563eb' : undefined
+            }}
+            onClick={() => { setActiveTab('active'); setExpandedResId(null); setStatusFilter(''); }}
+          >
+            <i className="bi bi-bookmark-check"></i>
+            <span>Active Reservations &amp; Holds</span>
+            <span className={`badge ${activeTab === 'active' ? 'bg-white text-primary' : 'bg-secondary text-white'} rounded-pill ms-1`}>
+              {activeReservationsCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn ${activeTab === 'history' ? 'text-white shadow-sm' : 'btn-outline-secondary'} rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-2`}
+            style={{
+              backgroundColor: activeTab === 'history' ? '#0f172a' : undefined,
+              borderColor: activeTab === 'history' ? '#0f172a' : undefined
+            }}
+            onClick={() => { setActiveTab('history'); setExpandedResId(null); setStatusFilter(''); }}
+          >
+            <i className="bi bi-archive-fill"></i>
+            <span>Historical &amp; Converted Log</span>
+            <span className={`badge ${activeTab === 'history' ? 'bg-white text-dark' : 'bg-secondary text-white'} rounded-pill ms-1`}>
+              {historyReservationsCount}
+            </span>
+          </button>
+        </div>
+
         {/* Filters */}
         <div className="row g-3 mb-4">
           <div className="col-md-6">
             <input
               type="text"
               className="form-control"
-              placeholder="Search by guest name, room number, or contact..."
+              placeholder={activeTab === 'active' ? "Search active reservations by guest, room, contact, ID..." : "Search historical log by guest, room, contact, ID..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="col-md-4">
             <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="Reserved">Reserved</option>
-              <option value="On Hold">On Hold</option>
-              <option value="Booked">Booked</option>
-              <option value="Cancelled">Cancelled</option>
+              {activeTab === 'active' ? (
+                <>
+                  <option value="">All Active Statuses</option>
+                  <option value="Reserved">Reserved</option>
+                  <option value="On Hold">On Hold (Courtesy Hold)</option>
+                </>
+              ) : (
+                <>
+                  <option value="">All Historical Statuses</option>
+                  <option value="Booked">Booked (Converted to Booking)</option>
+                  <option value="Cancelled">Cancelled</option>
+                </>
+              )}
             </select>
           </div>
           <div className="col-md-2">
@@ -905,15 +968,23 @@ function ReservationsClient() {
             <p className="text-muted mt-2">Loading reservations...</p>
           </div>
         ) : filteredReservations.length === 0 ? (
-          <div className="text-center py-5 text-muted">No reservations found matching the filters.</div>
-        ) : (
+          <div className="p-4 text-center text-muted border rounded bg-light">
+            <i className={`bi ${activeTab === 'active' ? 'bi-bookmark-check text-primary' : 'bi-archive text-secondary'} fs-4 d-block mb-1`}></i>
+            <p className="mb-0 fw-semibold">
+              {activeTab === 'active'
+                ? "No active reservations or courtesy holds right now. Converted and cancelled records are archived in the Historical Log tab."
+                : "No historical reservation records found matching your filters."}
+            </p>
+          </div>
+        ) : activeTab === 'active' ? (
+          /* ACTIVE RESERVATIONS TABLE */
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.9rem" }}>
               <thead>
                 <tr className="table-light">
                   <th>Guest Name</th>
-                  <th>Room & Inclusions</th>
-                  <th>Reservation Date & Time</th>
+                  <th>Room &amp; Inclusions</th>
+                  <th>Reservation Date &amp; Time</th>
                   <th>Status</th>
                   <th className="text-end">Actions</th>
                 </tr>
@@ -937,9 +1008,7 @@ function ReservationsClient() {
                     </td>
                     <td>{r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
                     <td>
-                      {r.bookingID ? (
-                        <span className="badge bg-success text-white">Booked</span>
-                      ) : r.status === 'Courtesy Hold' ? (
+                      {r.status === 'Courtesy Hold' ? (
                         <div>
                           <span className="badge" style={{ backgroundColor: '#fd7e14', color: '#fff' }} aria-label="Courtesy Hold Status">
                             Courtesy Hold
@@ -975,7 +1044,7 @@ function ReservationsClient() {
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
-                        {!r.bookingID && r.status === 'Courtesy Hold' && (() => {
+                        {r.status === 'Courtesy Hold' && (() => {
                           const holdInfo = getCourtesyHoldTimeInfo(r.holdExpiryDateTime);
                           const isExpired = holdInfo.expired;
                           return (
@@ -1016,7 +1085,7 @@ function ReservationsClient() {
                             </>
                           );
                         })()}
-                        {!r.bookingID && ['Pending', 'Confirmed', 'Hold', 'Overdue Check-In'].includes(r.status) && (
+                        {['Pending', 'Confirmed', 'Hold', 'Overdue Check-In', 'Reserved'].includes(r.status) && (
                           <>
                             <button
                               type="button"
@@ -1040,18 +1109,7 @@ function ReservationsClient() {
                             </button>
                           </>
                         )}
-                        {!r.bookingID && r.status === 'No Show' && (
-                          <button
-                            type="button"
-                            className="btn btn-outline-primary btn-sm py-0 px-2 fw-semibold"
-                            style={{ fontSize: '0.75rem' }}
-                            title="Reinstate to Confirmed"
-                            onClick={() => handleReinstate(r.reservationID)}
-                          >
-                            <i className="fa-solid fa-rotate-left me-1"></i> Reinstate
-                          </button>
-                        )}
-                        {!r.bookingID && r.status !== 'Cancelled' && r.status !== 'Expired' && r.status !== 'No Show' && (
+                        {r.status !== 'Cancelled' && r.status !== 'Expired' && (
                           <button
                             type="button"
                             className="action-btn action-btn-delete"
@@ -1066,13 +1124,186 @@ function ReservationsClient() {
                             <i className="fa-solid fa-xmark"></i>
                           </button>
                         )}
-                        {r.bookingID && (
-                          <span className="text-muted small font-italic">✓ Converted to Booking</span>
-                        )}
                       </div>
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          /* HISTORICAL / CONVERTED LOG VIEW WITH ACCORDION */
+          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+            <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.9rem" }}>
+              <thead>
+                <tr className="table-light">
+                  <th>Reservation ID</th>
+                  <th>Guest Name</th>
+                  <th>Room &amp; Inclusions</th>
+                  <th>Reserved Schedule</th>
+                  <th>Status / Outcome</th>
+                  <th className="text-end">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredReservations.map((r) => {
+                  const isExpanded = expandedResId === r.reservationID;
+                  return (
+                    <>
+                      <tr key={r.reservationID} className={isExpanded ? 'table-light' : ''}>
+                        <td className="fw-bold">
+                          <span className="text-dark">#{r.reservationID}</span>
+                          {r.isCourtesyHold ? <small className="badge bg-warning-subtle text-dark border ms-1" style={{ fontSize: '0.68rem' }}>Hold</small> : null}
+                        </td>
+                        <td>
+                          <div className="fw-semibold text-dark">
+                            {r.middleName ? `${r.firstName || ''} ${r.middleName.charAt(0).toUpperCase()}. ${r.lastName || ''}`.trim() : `${r.firstName || ''} ${r.lastName || ''}`.trim()}
+                          </div>
+                          <small className="text-muted">{r.contact || 'No contact'}</small>
+                        </td>
+                        <td>
+                          <div className="fw-semibold text-dark">Room {r.roomNumber || 'N/A'} ({r.roomType || 'Standard'})</div>
+                          <small className="badge bg-light text-dark border">
+                            {r.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast'}
+                          </small>
+                        </td>
+                        <td>
+                          <div className="text-dark" style={{ fontSize: '0.82rem' }}>
+                            {r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                            {r.checkOutDateTime ? ` – ${new Date(r.checkOutDateTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                          </div>
+                        </td>
+                        <td>
+                          {r.bookingID ? (
+                            <span className="badge bg-success text-white">
+                              <i className="fa-solid fa-check me-1"></i> Booked (#{r.bookingID})
+                            </span>
+                          ) : (
+                            <span className={`badge ${getStatusBadge(r.status)}`}>{r.status}</span>
+                          )}
+                        </td>
+                        <td className="text-end">
+                          <button
+                            type="button"
+                            className="btn btn-sm d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-3 fw-semibold text-white shadow-xs"
+                            style={{
+                              backgroundColor: isExpanded ? '#0f172a' : '#2563eb',
+                              borderColor: isExpanded ? '#0f172a' : '#2563eb',
+                              fontSize: '0.80rem'
+                            }}
+                            onClick={() => setExpandedResId(isExpanded ? null : r.reservationID)}
+                            aria-expanded={isExpanded}
+                            title={isExpanded ? "Collapse Details" : "Expand Details"}
+                          >
+                            <span>{isExpanded ? 'Hide' : 'Details'}</span>
+                            <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* EXPANDABLE ACCORDION DRAWER */}
+                      {isExpanded && (
+                        <tr key={`${r.reservationID}-expanded`} className="bg-light">
+                          <td colSpan="6" className="p-3 border-top-0 border-bottom">
+                            <div className="card shadow-sm border p-3 rounded-3 bg-white">
+                              <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                                <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                  <i className="bi bi-bookmark-fill text-primary"></i>
+                                  <span>Historical Reservation Record: #{r.reservationID}</span>
+                                  <span className="badge bg-light text-dark border ms-1">Room {r.roomNumber} ({r.roomType})</span>
+                                </h6>
+                                <div className="d-flex align-items-center gap-2">
+                                  {r.bookingID ? (
+                                    <span className="badge bg-success text-white">Converted to Booking</span>
+                                  ) : (
+                                    <span className={`badge ${getStatusBadge(r.status)}`}>{r.status}</span>
+                                  )}
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-sm btn-outline-secondary rounded-3"
+                                    onClick={() => setExpandedResId(null)}
+                                    title="Collapse Details"
+                                  >
+                                    <i className="bi bi-chevron-up"></i>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {r.bookingID && (
+                                <div className="alert alert-success d-flex align-items-center justify-content-between p-2 mb-3 small">
+                                  <div className="d-flex align-items-center gap-2">
+                                    <i className="fa-solid fa-circle-check fs-5 text-success"></i>
+                                    <span>This reservation was successfully converted to Booking <strong>#BK{String(r.bookingID).padStart(5, '0')}</strong>.</span>
+                                  </div>
+                                  <Link href={`/receptionist/bookings?search=${r.bookingID}`} className="btn btn-sm btn-outline-success">
+                                    View in Booking Management
+                                  </Link>
+                                </div>
+                              )}
+
+                              <div className="row g-3">
+                                {/* Col 1: Guest Information */}
+                                <div className="col-md-4">
+                                  <div className="p-3 border rounded-3 bg-light h-100">
+                                    <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.82rem' }}>
+                                      <i className="bi bi-person-circle text-primary me-1"></i> GUEST PROFILE
+                                    </h6>
+                                    <div className="mb-1 fw-bold text-dark">{r.firstName} {r.middleName ? `${r.middleName} ` : ''}{r.lastName}</div>
+                                    <div className="small text-muted mb-1"><i className="bi bi-telephone me-1"></i>{r.contact || 'No Contact'}</div>
+                                    <div className="small text-muted mb-1"><i className="bi bi-envelope me-1"></i>{r.email || 'No Email'}</div>
+                                    <div className="small text-muted mb-1">
+                                      <i className="bi bi-gender-ambiguous me-1"></i>Gender: {r.gender || 'Not specified'}
+                                    </div>
+                                    <div className="small text-muted">
+                                      <i className="bi bi-calendar3 me-1"></i>Birthdate: {r.dateOfBirth || 'N/A'}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Col 2: Room & Rate Inclusions */}
+                                <div className="col-md-4">
+                                  <div className="p-3 border rounded-3 bg-light h-100">
+                                    <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.82rem' }}>
+                                      <i className="bi bi-door-open text-primary me-1"></i> ROOM &amp; PRICING INCLUSIONS
+                                    </h6>
+                                    <div className="small mb-1">Room: <strong>Room {r.roomNumber}</strong> ({r.roomType})</div>
+                                    <div className="small mb-1">
+                                      Breakfast Option: <span className="badge bg-light text-dark border">{r.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast'}</span>
+                                    </div>
+                                    <div className="small mb-1">Rate with Breakfast: <strong>₱{parseFloat(r.rateWithBreakfast || 1400).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong></div>
+                                    <div className="small mb-1">Rate without Breakfast: <strong>₱{parseFloat(r.rateWithoutBreakfast || 1200).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong></div>
+                                    <div className="small">Guest Count: <strong>{r.guestCount || 1} guest(s)</strong></div>
+                                  </div>
+                                </div>
+
+                                {/* Col 3: Schedule & Lifecycle */}
+                                <div className="col-md-4">
+                                  <div className="p-3 border rounded-3 bg-light h-100">
+                                    <h6 className="fw-bold text-secondary mb-2" style={{ fontSize: '0.82rem' }}>
+                                      <i className="bi bi-clock-history text-primary me-1"></i> SCHEDULE &amp; TIMESTAMPS
+                                    </h6>
+                                    <div className="small mb-1">Reserved Check-In: <strong className="text-dark">{r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</strong></div>
+                                    <div className="small mb-1">Expected Check-Out: <strong className="text-dark">{r.checkOutDateTime ? new Date(r.checkOutDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</strong></div>
+                                    {r.isCourtesyHold && r.holdExpiryDateTime && (
+                                      <div className="small mb-1 text-warning-emphasis">
+                                        Hold Expiry: <strong>{new Date(r.holdExpiryDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+                                      </div>
+                                    )}
+                                    {r.specialRequests && (
+                                      <div className="mt-2 pt-2 border-top small text-muted">
+                                        <strong>Special Requests:</strong> {r.specialRequests}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           </div>
