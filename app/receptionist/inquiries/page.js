@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import SearchableSelect from '../../components/SearchableSelect';
 
 export default function ReceptionistInquiries() {
   const [inquiries, setInquiries] = useState([]);
@@ -97,8 +98,19 @@ export default function ReceptionistInquiries() {
     }
   };
 
+  const fetchRegisteredGuests = async () => {
+    try {
+      const res = await fetch('/api/receptionist/inquiries?action=guests');
+      const data = await res.json();
+      if (data.guests) setRegisteredGuests(data.guests);
+    } catch (e) {
+      console.error("Failed to load guests for reach out:", e);
+    }
+  };
+
   useEffect(() => {
     fetchInquiries();
+    fetchRegisteredGuests();
   }, []);
 
   // Adaptive polling (1.5s active conversation, 4s idle) with visibility guard to prevent tab CPU/network leaks
@@ -246,16 +258,12 @@ export default function ReceptionistInquiries() {
     setReplyText(prev => prev + emoji);
   };
 
-  const openReachOutModal = async () => {
-    try {
-      const res = await fetch('/api/receptionist/bookings');
-      const data = await res.json();
-      if (data.guests) setRegisteredGuests(data.guests);
-    } catch (e) {
-      console.error(e);
-    }
+  const openReachOutModal = () => {
     setReachOutForm({ guestID: '', guestName: '', email: '', contactNumber: '', message: '' });
     setIsReachOutModalOpen(true);
+    if (!registeredGuests || registeredGuests.length === 0) {
+      fetchRegisteredGuests();
+    }
   };
 
   const handleReachOutSubmit = async (e) => {
@@ -617,28 +625,28 @@ export default function ReceptionistInquiries() {
                 <div className="modal-body p-4">
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Select Registered Guest Account (Optional)</label>
-                    <select
-                      className="form-select form-select-sm"
+                    <SearchableSelect
+                      options={registeredGuests.map(g => ({
+                        value: String(g.guestID),
+                        label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || g.email || 'No contact'})`
+                      }))}
                       value={reachOutForm.guestID}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        const g = registeredGuests.find(item => String(item.guestID) === String(id));
+                      onChange={(val) => {
+                        const g = registeredGuests.find(item => String(item.guestID) === String(val));
                         setReachOutForm(prev => ({
                           ...prev,
-                          guestID: id,
-                          guestName: g ? `${g.firstName} ${g.lastName}` : prev.guestName,
+                          guestID: val,
+                          guestName: g ? `${g.firstName} ${g.lastName}`.trim() : prev.guestName,
                           email: g?.email || prev.email,
                           contactNumber: g?.contact || prev.contactNumber
                         }));
                       }}
-                    >
-                      <option value="">-- Choose Registered Guest or Enter Below --</option>
-                      {registeredGuests.map(g => (
-                        <option key={g.guestID} value={g.guestID}>
-                          {g.firstName} {g.lastName} ({g.contact || g.email || 'No contact'})
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Type UID, guest name or contact to search..."
+                    />
+                    <div className="form-text text-muted small mt-1">
+                      <i className="bi bi-info-circle me-1"></i>
+                      Search existing guest to auto-fill details, or enter info manually below.
+                    </div>
                   </div>
 
                   <div className="mb-3">

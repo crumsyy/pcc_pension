@@ -168,7 +168,7 @@ function PaymentsClient() {
     const effectiveCash = payableAmount > 0 ? (paymentForm.paymentMethodID === '1' ? cash : payableAmount) : 0;
     const effectiveChange = payableAmount > 0 ? (paymentForm.paymentMethodID === '1' ? change : 0) : 0;
 
-    showConfirm('Confirm Payment Process', 'Process payment and finalize checkout details?', async () => {
+    showConfirm('Confirm Payment Process', 'Process payment and record transaction?', async () => {
       try {
         const res = await fetch('/api/receptionist/payments', {
           method: 'POST',
@@ -181,7 +181,7 @@ function PaymentsClient() {
             change: effectiveChange,
             paymentMethodID: paymentForm.paymentMethodID,
             discountID: null,
-            shouldCheckout: true
+            shouldCheckout: false
           })
         });
 
@@ -204,22 +204,24 @@ function PaymentsClient() {
           cashReceived: paymentForm.paymentMethodID === '1' ? cash : payableAmount,
           change: paymentForm.paymentMethodID === '1' ? change : 0,
           paymentMethodName: paymentMethods.find(m => m.paymentMethodID === parseInt(paymentForm.paymentMethodID))?.paymentMethod || 'Cash',
-          checkoutChecked: data.checkoutChecked,
+          checkoutChecked: false,
           date: new Date().toLocaleString()
         });
 
-        // Reset forms
-        setSelectedBookingID('');
-        setBillData(null);
-        setPaymentForm({
-          paymentMethodID: '1',
+        // Clear payment inputs while keeping selected booking to enable zero-balance checkout
+        setPaymentForm(prev => ({
+          ...prev,
           discountID: '',
           cashReceived: '',
-          shouldCheckout: true
-        });
+          shouldCheckout: false
+        }));
 
-        // Refresh lists
+        // Refresh lists and refresh current billing calculations
         fetchInitialData();
+        if (selectedBookingID) {
+          fetchBillingDetails(selectedBookingID);
+        }
+        showAlert('success', 'Payment Recorded', 'Payment recorded successfully. Room remains Occupied until you click "Complete Booking (Zero Balance)".');
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
@@ -243,22 +245,22 @@ function PaymentsClient() {
       cashReceived: payableAmount,
       change: 0,
       paymentMethodName: 'GCash / PayMongo QR',
-      checkoutChecked: autoData?.checkedOut || false,
+      checkoutChecked: false,
       date: new Date().toLocaleString()
     });
 
-    // Reset forms
-    setSelectedBookingID('');
-    setBillData(null);
-    setPaymentForm({
-      paymentMethodID: '1',
+    setPaymentForm(prev => ({
+      ...prev,
       discountID: '',
       cashReceived: '',
-      shouldCheckout: true
-    });
+      shouldCheckout: false
+    }));
 
     fetchInitialData();
-    showAlert('success', 'Payment Settled', 'GCash payment verified and recorded successfully. Room checkout updated.');
+    if (selectedBookingID) {
+      fetchBillingDetails(selectedBookingID);
+    }
+    showAlert('success', 'Payment Settled', 'GCash payment verified and recorded successfully. Click "Complete Booking (Zero Balance)" to finish checkout and release room.');
   };
 
   const handleDirectCheckOut = async () => {
@@ -442,8 +444,19 @@ function PaymentsClient() {
           {/* Left Payment form */}
           <div className="col-lg-6 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
             <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '8px', minHeight: 0 }}>
-              <div className="card-header bg-white border-0 py-3 border-bottom">
+              <div className="card-header bg-white border-0 py-3 border-bottom d-flex align-items-center justify-content-between">
                 <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>Payment Terminal</h5>
+                {selectedBookingID && (
+                  <a
+                    href={`/receptionist/qr-payment?bookingId=${selectedBookingID}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-primary text-white fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm"
+                    title="Open Guest-Facing QR Payment Screen (2nd Monitor)"
+                  >
+                    <i className="fa-solid fa-qrcode"></i> Show QR (2nd Monitor)
+                  </a>
+                )}
               </div>
               <form onSubmit={handleProcessPayment} className="d-flex flex-column overflow-hidden flex-grow-1">
                 <div className="card-body p-3 overflow-y-auto flex-grow-1">
@@ -513,26 +526,43 @@ function PaymentsClient() {
                   )}
 
                   {paymentForm.paymentMethodID === '2' && (
-                    <DynamicQrPhCode 
-                      amount={payableAmount}
-                      refNumber={`PAY-${selectedBookingID || 'POS'}`}
-                      paymentStatus="Pending"
-                      showProceedBtn={false}
-                      showCheckStatusBtn={false}
-                      showTestPayBtn={true}
-                      onSimulateTestPay={(simRef) => {
-                        setPaymentForm(prev => ({ ...prev, cashReceived: payableAmount.toFixed(2) }));
-                        showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Payable amount auto-settled.`);
-                      }}
-                      onCheckStatus={fetchInitialData}
-                      onPaymentSuccess={handlePaymentAutoSuccess}
-                      bookingID={selectedBookingID}
-                      guestID={billData?.booking?.guestID}
-                    />
+                    <div className="mb-2">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <span className="small text-muted fw-semibold">PayMongo GCash QR Code</span>
+                        {selectedBookingID && (
+                          <a
+                            href={`/receptionist/qr-payment?bookingId=${selectedBookingID}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-outline-primary fw-bold d-inline-flex align-items-center gap-1 shadow-xs py-0.5 px-2"
+                            style={{ fontSize: '0.75rem' }}
+                            title="Open on 2nd monitor for guest to scan"
+                          >
+                            <i className="fa-solid fa-up-right-from-square"></i> Open on 2nd Monitor
+                          </a>
+                        )}
+                      </div>
+                      <DynamicQrPhCode 
+                        amount={payableAmount}
+                        refNumber={`PAY-${selectedBookingID || 'POS'}`}
+                        paymentStatus="Pending"
+                        showProceedBtn={false}
+                        showCheckStatusBtn={false}
+                        showTestPayBtn={true}
+                        onSimulateTestPay={(simRef) => {
+                          setPaymentForm(prev => ({ ...prev, cashReceived: payableAmount.toFixed(2) }));
+                          showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Payable amount auto-settled.`);
+                        }}
+                        onCheckStatus={fetchInitialData}
+                        onPaymentSuccess={handlePaymentAutoSuccess}
+                        bookingID={selectedBookingID}
+                        guestID={billData?.booking?.guestID}
+                      />
+                    </div>
                   )}
 
                   <div className="alert alert-info py-2 px-3 mb-2 mt-2" style={{ fontSize: '0.78rem' }}>
-                    ℹ Guest checkout and room release will occur automatically upon payment settlement.
+                    ℹ Payment records transaction settlement. Room remains Occupied until front desk clicks <strong>Complete Booking (Zero Balance)</strong>.
                   </div>
 
                   {payableAmount <= 0 && selectedBookingID ? (

@@ -11,6 +11,15 @@ export async function GET(request) {
   try {
     await ensureInquirySchema();
     const { searchParams } = new URL(request.url);
+    const action = searchParams.get('action');
+
+    if (action === 'guests') {
+      const guests = await dbQuery(
+        "SELECT guestID, userID, firstName, lastName, contact, email FROM guest ORDER BY lastName, firstName"
+      );
+      return NextResponse.json({ success: true, guests });
+    }
+
     const selectedID = searchParams.get('inquiryID') ? parseInt(searchParams.get('inquiryID')) : null;
 
     // Fetch all inquiries and selected thread messages in parallel

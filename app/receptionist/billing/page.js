@@ -1405,12 +1405,23 @@ export default function ReceptionistBilling() {
                                         </>
                                       )}
                                     </button>
-                                    <a
-                                      href={`/receptionist/payments?bookingID=${selectedBookingID}`}
-                                      className="btn btn-outline-secondary w-100 py-2 fw-semibold text-center d-flex align-items-center justify-content-center gap-1 text-decoration-none small"
-                                    >
-                                      <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
-                                    </a>
+                                    <div className="d-flex gap-2">
+                                      <a
+                                        href={`/receptionist/payments?bookingID=${selectedBookingID}`}
+                                        className="btn btn-outline-secondary flex-fill py-2 fw-semibold text-center d-flex align-items-center justify-content-center gap-1 text-decoration-none small"
+                                      >
+                                        <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
+                                      </a>
+                                      <a
+                                        href={`/receptionist/qr-payment?bookingId=${selectedBookingID}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn btn-primary text-white fw-bold px-3 py-2 d-flex align-items-center justify-content-center gap-1.5 shadow-sm text-decoration-none small"
+                                        title="Open QR Payment on 2nd monitor for guest to scan"
+                                      >
+                                        <i className="fa-solid fa-qrcode"></i> Show QR
+                                      </a>
+                                    </div>
                                   </div>
                                 );
                               } else {
@@ -1433,6 +1444,15 @@ export default function ReceptionistBilling() {
                                     >
                                       <i className="fa-solid fa-cash-register me-1"></i> Record Walk-in Payment
                                     </button>
+                                    <a
+                                      href={`/receptionist/qr-payment?bookingId=${selectedBookingID}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="btn btn-primary text-white fw-bold w-100 py-2 d-flex align-items-center justify-content-center gap-1.5 shadow-sm text-decoration-none"
+                                      title="Open QR Payment on 2nd monitor for guest to scan"
+                                    >
+                                      <i className="fa-solid fa-qrcode"></i> Show QR (2nd Monitor)
+                                    </a>
                                     <button
                                       type="button"
                                       className="btn btn-secondary text-white w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"

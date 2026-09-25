@@ -27,12 +27,12 @@ export async function POST(request) {
     let staffID = null;
 
     if (session.role === 'Receptionist' || session.role === 'Administrator') {
-      const [staffRows] = await dbQuery("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
+      const staffRows = await dbQuery("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
       if (staffRows && staffRows.length > 0) {
         staffID = staffRows[0].staffID;
       }
     } else if (session.role === 'Guest' && !guestID) {
-      const [guestRows] = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
+      const guestRows = await dbQuery("SELECT guestID FROM guest WHERE userID = ?", [session.userID]);
       if (guestRows && guestRows.length > 0) {
         guestID = guestRows[0].guestID;
       }
@@ -40,13 +40,13 @@ export async function POST(request) {
 
     let balanceBefore = 0;
     if (bookingID) {
-      const [bookingRows] = await dbQuery("SELECT bookingID, guestID, status FROM booking WHERE bookingID = ?", [bookingID]);
+      const bookingRows = await dbQuery("SELECT bookingID, guestID, status FROM booking WHERE bookingID = ?", [bookingID]);
       if (bookingRows && bookingRows.length > 0) {
         if (!guestID) guestID = bookingRows[0].guestID;
         balanceBefore = await getBookingBalance(bookingID);
 
         if (!billingID) {
-          const [billingRows] = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
+          const billingRows = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
           if (billingRows && billingRows.length > 0) {
             billingID = billingRows[0].billingID;
           }

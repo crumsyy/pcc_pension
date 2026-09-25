@@ -2029,7 +2029,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (norm === 'Paid') currentIdx = 3;
     if (norm === 'Completed') currentIdx = 4;
 
-    const trackColor = currentIdx >= 4 ? '#343a40' : (currentIdx >= 3 ? '#198754' : (currentIdx >= 2 ? '#6f42c1' : 'var(--pcc-blue, #0d6efd)'));
+    const trackColor = currentIdx >= 4 ? '#198754' : 'var(--pcc-blue, #0d6efd)';
 
     return (
       <div className="w-100 my-2.5 p-2 rounded-3 bg-light-subtle border">
@@ -2068,25 +2068,22 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             const isCurrent = idx === currentIdx;
             let nodeBg = 'bg-white text-muted border';
             if (isDone) {
-              if (currentIdx >= 4) nodeBg = 'bg-dark text-white shadow-sm';
-              else if (currentIdx >= 3 && idx >= 3) nodeBg = 'bg-success text-white shadow-sm';
-              else if (currentIdx >= 2 && idx === 2) nodeBg = 'text-white shadow-sm';
-              else nodeBg = 'bg-primary text-white shadow-sm';
+              if (currentIdx >= 4) {
+                nodeBg = 'bg-success text-white shadow-sm';
+              } else {
+                nodeBg = 'bg-primary text-white shadow-sm';
+              }
             }
-
-            const customStyle = (isDone && currentIdx >= 2 && idx === 2 && currentIdx < 3)
-              ? { backgroundColor: '#6f42c1' }
-              : {};
 
             return (
               <div key={step.id} className="d-flex flex-column align-items-center" style={{ flex: 1, zIndex: 1 }}>
                 <div
                   className={`rounded-circle d-flex align-items-center justify-content-center fw-bold ${nodeBg}`}
-                  style={{ width: '28px', height: '28px', fontSize: '0.75rem', position: 'relative', zIndex: 2, ...customStyle }}
+                  style={{ width: '28px', height: '28px', fontSize: '0.75rem', position: 'relative', zIndex: 2 }}
                 >
                   <i className={`bi ${step.icon}`}></i>
                 </div>
-                <span className={`mt-1 text-center ${isCurrent ? 'fw-bold text-primary' : (isDone ? 'text-dark fw-semibold' : 'text-muted')}`} style={{ fontSize: '0.64rem', whiteSpace: 'nowrap' }}>
+                <span className={`mt-1 text-center ${isCurrent ? (currentIdx >= 4 ? 'fw-bold text-success' : 'fw-bold text-primary') : (isDone ? 'text-dark fw-semibold' : 'text-muted')}`} style={{ fontSize: '0.64rem', whiteSpace: 'nowrap' }}>
                   {step.label}
                 </span>
               </div>

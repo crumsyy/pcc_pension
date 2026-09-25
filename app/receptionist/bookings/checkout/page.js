@@ -131,14 +131,12 @@ function ReceptionistCheckoutContent() {
 
                     <div className="mt-auto pt-2 border-top d-flex gap-2">
                       <a
-                        href={`/receptionist/qr-payment?bookingId=${b.bookingID}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-primary btn-sm flex-fill fw-bold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-sm text-white"
-                        title="Open Guest-Facing QR Payment Tab"
-                        aria-label="Show QR Code"
+                        href={`/receptionist/payments?bookingID=${b.bookingID}`}
+                        className="btn btn-success btn-sm flex-fill fw-bold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-sm text-white"
+                        title="Proceed to Payment Terminal"
+                        aria-label="Payment Terminal"
                       >
-                        <i className="fa-solid fa-qrcode"></i> Show QR Code
+                        <i className="fa-solid fa-cash-register"></i> Payment Terminal
                       </a>
                       <a
                         href={`/receptionist/billing?bookingID=${b.bookingID}`}

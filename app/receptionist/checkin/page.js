@@ -486,25 +486,13 @@ function CheckInClient() {
                         )}
 
                         {(b.status === 'Final Billing Updated' || b.status === 'Bill Finalized') && (
-                          <>
-                            <a
-                              href={`/receptionist/qr-payment?bookingId=${b.bookingID}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn btn-sm btn-primary text-white fw-bold d-inline-flex align-items-center gap-1"
-                              title="Open Guest-Facing QR Payment Tab"
-                              aria-label="Show QR Code"
-                            >
-                              <i className="fa-solid fa-qrcode"></i> Show QR Code
-                            </a>
-                            <a
-                              href={`/receptionist/payments?bookingID=${b.bookingID}`}
-                              className="btn btn-sm btn-success text-white fw-bold d-inline-flex align-items-center gap-1"
-                              title="Settle Outstanding Balance"
-                            >
-                              <i className="fa-solid fa-cash-register"></i> Settle Bill
-                            </a>
-                          </>
+                          <a
+                            href={`/receptionist/payments?bookingID=${b.bookingID}`}
+                            className="btn btn-sm btn-success text-white fw-bold d-inline-flex align-items-center gap-1"
+                            title="Settle Outstanding Balance"
+                          >
+                            <i className="fa-solid fa-cash-register"></i> Settle Bill
+                          </a>
                         )}
 
                         {(b.status === 'Payment Completed' || b.status === 'Paid') && (

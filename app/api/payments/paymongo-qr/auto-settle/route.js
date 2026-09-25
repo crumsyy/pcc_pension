@@ -140,41 +140,9 @@ export async function POST(request) {
           if (currentStatus === 'Checked In' || currentStatus === 'Late Checkout') {
             const currentBal = await getBookingBalance(targetBookingID);
             if (currentBal <= 0.05) {
-              await conn.execute("UPDATE booking SET status = 'Paid', checkOutDateTime = ? WHERE bookingID = ?", [nowStr, targetBookingID]);
-              await conn.execute("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
-              checkedOut = true;
-
-              // Auto-return borrowed amenities in good condition
-              const [borrows] = await conn.execute(
-                "SELECT * FROM borrow_transaction WHERE bookingID = ? AND status = 'Borrowed'",
-                [targetBookingID]
-              );
-              for (const borrow of borrows) {
-                await conn.execute(
-                  `UPDATE borrow_transaction 
-                   SET status = 'Returned', conditionUponReturn = 'Good', actualReturnDate = ?, remarks = 'Auto-returned upon GCash check-out' 
-                   WHERE borrowID = ?`,
-                  [nowStr, borrow.borrowID]
-                );
-
-                const [batches] = await conn.execute(
-                  "SELECT batchID FROM inventory_batch WHERE itemType = ? AND itemID = ? ORDER BY dateReceived DESC LIMIT 1",
-                  [borrow.itemType, borrow.itemID]
-                );
-                const batchID = batches[0]?.batchID || null;
-                if (batchID) {
-                  await conn.execute(
-                    "UPDATE inventory_batch SET remainingQuantity = remainingQuantity + ? WHERE batchID = ?",
-                    [borrow.quantity, batchID]
-                  );
-                }
-
-                if (borrow.itemType === 'Amenity') {
-                  await conn.execute("UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?", [borrow.quantity, borrow.itemID]);
-                } else {
-                  await conn.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [borrow.quantity, borrow.itemID]);
-                }
-              }
+              await conn.execute("UPDATE booking SET status = 'Paid' WHERE bookingID = ?", [targetBookingID]);
+              // Room remains Occupied until front desk receptionist explicitly clicks "Complete Booking (Zero Balance)"
+              checkedOut = false;
             }
           }
         }
