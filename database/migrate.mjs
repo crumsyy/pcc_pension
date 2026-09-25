@@ -352,9 +352,15 @@ async function run() {
     await ensureColumn(connection, 'booking', 'subtotal', 'DECIMAL(10,2) NULL');
     await ensureColumn(connection, 'booking', 'discountTotal', 'DECIMAL(10,2) NULL DEFAULT 0.00');
     await ensureColumn(connection, 'booking', 'netTotal', 'DECIMAL(10,2) NULL');
+    await ensureColumn(connection, 'booking', 'vatRate', 'DECIMAL(5,2) NULL DEFAULT 12.00');
+    await ensureColumn(connection, 'booking', 'vatAmount', 'DECIMAL(10,2) NULL DEFAULT 0.00');
+    await ensureColumn(connection, 'booking', 'grandTotal', 'DECIMAL(10,2) NULL');
     await ensureColumn(connection, 'billing', 'subtotal', 'DECIMAL(10,2) NULL');
     await ensureColumn(connection, 'billing', 'discountTotal', 'DECIMAL(10,2) NULL DEFAULT 0.00');
     await ensureColumn(connection, 'billing', 'netTotal', 'DECIMAL(10,2) NULL');
+    await ensureColumn(connection, 'billing', 'vatRate', 'DECIMAL(5,2) NULL DEFAULT 12.00');
+    await ensureColumn(connection, 'billing', 'vatAmount', 'DECIMAL(10,2) NULL DEFAULT 0.00');
+    await ensureColumn(connection, 'billing', 'grandTotal', 'DECIMAL(10,2) NULL');
 
     console.log("Ensuring 3NF normalized integrity columns...");
     await ensureColumn(connection, 'booking', 'breakfastID', 'INT(11) DEFAULT 1');
@@ -448,6 +454,19 @@ async function run() {
         CONSTRAINT \`fk_bd_booking\` FOREIGN KEY (\`bookingID\`) REFERENCES \`booking\` (\`bookingID\`) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
+
+    console.log("Ensuring system_settings table and default VAT percentage...");
+    await ensureTable(connection, 'system_settings', `
+      CREATE TABLE IF NOT EXISTS \`system_settings\` (
+        \`settingKey\` VARCHAR(50) NOT NULL PRIMARY KEY,
+        \`settingValue\` VARCHAR(255) NOT NULL,
+        \`updatedAt\` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `);
+    await connection.execute(`
+      INSERT IGNORE INTO \`system_settings\` (\`settingKey\`, \`settingValue\`)
+      VALUES ('vat_percentage', '12.00')
+    `).catch(() => {});
 
     console.log("Backfilling normalized fields...");
     await connection.execute(`

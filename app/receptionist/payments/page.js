@@ -144,10 +144,16 @@ function PaymentsClient() {
   };
 
   // Calculations
-  const subtotal = billData ? parseFloat(billData.chargesSummary.total) : 0;
-  const balance = billData ? parseFloat(billData.chargesSummary.balance) : 0;
-  const discountAmount = billData ? parseFloat(billData.chargesSummary.totalDiscount) : 0;
+  const grossSubtotal = billData ? parseFloat(billData.chargesSummary?.grossTotal || billData.chargesSummary?.total || 0) : 0;
+  const discountAmount = billData ? parseFloat(billData.chargesSummary?.totalDiscount || 0) : 0;
+  const netSubtotal = billData ? parseFloat(billData.chargesSummary?.netSubtotal || Math.max(0, grossSubtotal - discountAmount)) : 0;
+  const vatRate = billData?.chargesSummary?.vatRate !== undefined ? parseFloat(billData.chargesSummary.vatRate) : 12;
+  const vatAmount = billData ? parseFloat(billData.chargesSummary?.vatAmount || Math.round(netSubtotal * (vatRate / 100))) : 0;
+  const grandTotal = billData ? parseFloat(billData.chargesSummary?.grandTotal || (netSubtotal + vatAmount)) : 0;
+  const totalPaid = billData ? parseFloat(billData.chargesSummary?.paid || 0) : 0;
+  const balance = billData ? parseFloat(billData.chargesSummary?.balance || 0) : 0;
   const payableAmount = balance > 0 ? balance : 0;
+  const subtotal = grossSubtotal;
 
   const cash = parseFloat(paymentForm.cashReceived) || 0;
   const change = cash - payableAmount > 0 ? cash - payableAmount : 0;
@@ -195,11 +201,17 @@ function PaymentsClient() {
           roomType: billData.booking.roomType,
           nights: billData.booking.nights,
           rate: billData.booking.rate,
-          subtotal,
-          earlyCheckIn: billData.chargesSummary.earlyCheckIn,
-          lateCheckOut: billData.chargesSummary.lateCheckOut,
-          discountName: discountAmount > 0 ? (billData.guestsList.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
+          subtotal: grossSubtotal,
+          grossSubtotal,
+          earlyCheckIn: billData.chargesSummary?.earlyCheckIn || 0,
+          lateCheckOut: billData.chargesSummary?.lateCheckOut || 0,
+          discountName: discountAmount > 0 ? (billData.guestsList?.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
           discountAmount,
+          netSubtotal,
+          vatRate,
+          vatAmount,
+          grandTotal,
+          totalPaid,
           payableAmount,
           cashReceived: paymentForm.paymentMethodID === '1' ? cash : payableAmount,
           change: paymentForm.paymentMethodID === '1' ? change : 0,
@@ -236,11 +248,17 @@ function PaymentsClient() {
       roomType: billData.booking.roomType,
       nights: billData.booking.nights,
       rate: billData.booking.rate,
-      subtotal,
-      earlyCheckIn: billData.chargesSummary.earlyCheckIn,
-      lateCheckOut: billData.chargesSummary.lateCheckOut,
-      discountName: discountAmount > 0 ? (billData.guestsList.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
+      subtotal: grossSubtotal,
+      grossSubtotal,
+      earlyCheckIn: billData.chargesSummary?.earlyCheckIn || 0,
+      lateCheckOut: billData.chargesSummary?.lateCheckOut || 0,
+      discountName: discountAmount > 0 ? (billData.guestsList?.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
       discountAmount,
+      netSubtotal,
+      vatRate,
+      vatAmount,
+      grandTotal,
+      totalPaid,
       payableAmount,
       cashReceived: payableAmount,
       change: 0,
@@ -365,16 +383,17 @@ function PaymentsClient() {
             </table>
           ` : ''}
 
-          <div class="section-header">PAYMENT SUMMARY</div>
+          <div class="section-header">ACCOUNTING & TAX BREAKDOWN</div>
           <table class="info-table">
-            <tr><td>Room Charge:</td><td class="text-right">₱${parseFloat(receipt.subtotal).toFixed(2)}</td></tr>
-            ${receipt.earlyCheckIn > 0 ? `<tr><td>Early Check-in Fee:</td><td class="text-right">+₱${parseFloat(receipt.earlyCheckIn).toFixed(2)}</td></tr>` : ''}
-            ${receipt.lateCheckOut > 0 ? `<tr><td>Late Check-out Fee:</td><td class="text-right">+₱${parseFloat(receipt.lateCheckOut).toFixed(2)}</td></tr>` : ''}
-            ${receipt.discountAmount > 0 ? `<tr><td>Discount (${receipt.discountName || 'Applied'}):</td><td class="text-right">-₱${parseFloat(receipt.discountAmount).toFixed(2)}</td></tr>` : ''}
+            <tr><td>Gross Subtotal:</td><td class="text-right">₱${parseFloat(receipt.grossSubtotal || receipt.subtotal).toFixed(2)}</td></tr>
+            ${receipt.discountAmount > 0 ? `<tr><td>Special Discounts (${receipt.discountName || 'Applied'}):</td><td class="text-right">-₱${parseFloat(receipt.discountAmount).toFixed(2)}</td></tr>` : ''}
+            <tr class="divider"><td colspan="2"></td></tr>
+            <tr><td>Net Subtotal (Before Tax):</td><td class="text-right bold">₱${parseFloat(receipt.netSubtotal || (receipt.subtotal - receipt.discountAmount)).toFixed(2)}</td></tr>
+            <tr><td>Value-Added Tax (VAT ${receipt.vatRate || 12}%):</td><td class="text-right bold">+₱${parseFloat(receipt.vatAmount || 0).toFixed(2)}</td></tr>
             <tr class="double-divider"><td colspan="2"></td></tr>
-            <tr class="total-row"><td>GRAND TOTAL:</td><td class="text-right">₱${parseFloat(receipt.payableAmount).toFixed(2)}</td></tr>
-            <tr><td>Payment Received:</td><td class="text-right">₱${parseFloat(receipt.cashReceived).toFixed(2)}</td></tr>
-            ${receipt.change > 0 ? `<tr><td>Change:</td><td class="text-right">₱${parseFloat(receipt.change).toFixed(2)}</td></tr>` : ''}
+            <tr class="total-row"><td>GRAND TOTAL AMOUNT DUE:</td><td class="text-right">₱${parseFloat(receipt.grandTotal || receipt.payableAmount).toFixed(2)}</td></tr>
+            <tr><td>Payment Received (${receipt.paymentMethodName}):</td><td class="text-right">₱${parseFloat(receipt.cashReceived).toFixed(2)}</td></tr>
+            ${receipt.change > 0 ? `<tr><td>Change Returned:</td><td class="text-right">₱${parseFloat(receipt.change).toFixed(2)}</td></tr>` : ''}
             <tr><td>Balance After Payment:</td><td class="text-right bold">₱0.00</td></tr>
           </table>
 
@@ -656,12 +675,30 @@ function PaymentsClient() {
                     </div>
                     <hr className="my-2" />
                     <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Total Accrued Charges:</span>
-                      <span className="fw-semibold text-dark">₱{subtotal.toFixed(2)}</span>
+                      <span className="text-muted">Gross Charges Subtotal:</span>
+                      <span className="fw-semibold text-dark">₱{grossSubtotal.toFixed(2)}</span>
+                    </div>
+                    {discountAmount > 0 && (
+                      <div className="d-flex justify-content-between mb-2 text-danger">
+                        <span>Special Discounts:</span>
+                        <span className="fw-semibold">-₱{discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Net Subtotal (Before Tax):</span>
+                      <span className="fw-semibold text-dark">₱{netSubtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2 text-primary">
+                      <span>Value-Added Tax (VAT {vatRate}%):</span>
+                      <span className="fw-semibold">+₱{vatAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2 fw-bold text-dark pt-1 border-top">
+                      <span>Grand Total Amount Due:</span>
+                      <span className="text-pcc-blue">₱{grandTotal.toFixed(2)}</span>
                     </div>
                     <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Paid to date:</span>
-                      <span className="fw-semibold text-success">₱{parseFloat(billData.chargesSummary.paid).toFixed(2)}</span>
+                      <span className="text-muted">Total Payments Settled:</span>
+                      <span className="fw-semibold text-success">₱{totalPaid.toFixed(2)}</span>
                     </div>
                     
                     <hr />
@@ -670,7 +707,7 @@ function PaymentsClient() {
                       <div className="d-flex justify-content-between align-items-center mb-1">
                         <div>
                           <span className="fw-bold text-dark d-block" style={{ fontSize: '1rem' }}>Total Amount Payable:</span>
-                          <span className="text-muted" style={{ fontSize: '0.70rem' }}>Room Bal + Extra Guests + Orders + Fees</span>
+                          <span className="text-muted" style={{ fontSize: '0.70rem' }}>Grand Total Due - Total Payments Settled</span>
                         </div>
                         <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.25rem' }}>
                           ₱{payableAmount.toFixed(2)}
@@ -885,30 +922,42 @@ function PaymentsClient() {
 
                 <div className="mb-3" style={{ fontSize: '0.88rem' }}>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Total Charges:</span>
-                    <span>₱{receipt.subtotal.toFixed(2)}</span>
+                    <span className="text-muted">Gross Subtotal:</span>
+                    <span>₱{parseFloat(receipt.grossSubtotal || receipt.subtotal).toFixed(2)}</span>
                   </div>
                   {receipt.earlyCheckIn > 0 && (
                     <div className="d-flex justify-content-between mb-1 text-danger">
                       <span>Early Check-In Fee:</span>
-                      <span>+₱{receipt.earlyCheckIn.toFixed(2)}</span>
+                      <span>+₱{parseFloat(receipt.earlyCheckIn).toFixed(2)}</span>
                     </div>
                   )}
                   {receipt.lateCheckOut > 0 && (
                     <div className="d-flex justify-content-between mb-1 text-danger">
                       <span>Late Check-Out Fee:</span>
-                      <span>+₱{receipt.lateCheckOut.toFixed(2)}</span>
+                      <span>+₱{parseFloat(receipt.lateCheckOut).toFixed(2)}</span>
                     </div>
                   )}
-                  {receipt.discountName && (
-                    <div className="d-flex justify-content-between mb-1 text-danger">
-                      <span>Discount ({receipt.discountName}):</span>
-                      <span>-₱{receipt.discountAmount.toFixed(2)}</span>
+                  {receipt.discountAmount > 0 && (
+                    <div className="d-flex justify-content-between mb-1 text-success">
+                      <span>Special Discounts ({receipt.discountName || 'Applied'}):</span>
+                      <span>-₱{parseFloat(receipt.discountAmount).toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="d-flex justify-content-between mb-1 fw-bold text-dark pt-1 border-top">
-                    <span>Paid Amount:</span>
-                    <span>₱{receipt.payableAmount.toFixed(2)}</span>
+                  <div className="d-flex justify-content-between mb-1 text-dark">
+                    <span>Net Subtotal (Before Tax):</span>
+                    <span className="fw-semibold">₱{parseFloat(receipt.netSubtotal || (receipt.subtotal - receipt.discountAmount)).toFixed(2)}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1 text-primary">
+                    <span>Value-Added Tax (VAT {receipt.vatRate || 12}%):</span>
+                    <span className="fw-semibold">+₱{parseFloat(receipt.vatAmount || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1 fw-bold text-dark pt-1 border-top" style={{ fontSize: '0.95rem' }}>
+                    <span>Grand Total:</span>
+                    <span className="text-pcc-blue">₱{parseFloat(receipt.grandTotal || receipt.payableAmount).toFixed(2)}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1 fw-semibold text-success">
+                    <span>Amount Paid This Transaction:</span>
+                    <span>₱{parseFloat(receipt.payableAmount).toFixed(2)}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1 text-muted" style={{ fontSize: '0.82rem' }}>
                     <span>Payment Method:</span>

@@ -1342,6 +1342,9 @@ export default function ReceptionistBilling() {
                             const grossSubtotal = parseFloat(cs.grossSubtotal || (baseRoomCharge + extraGuestFee + earlyCheckIn + lateCheckOut + ordersTotal + incidentalsTotal));
                             const discountTotal = parseFloat(cs.discountTotal ?? cs.totalDiscount ?? 0);
                             const netTotal = parseFloat(cs.netTotal ?? Math.max(0, grossSubtotal - discountTotal));
+                            const vatRate = parseFloat(cs.vatRate || billDetails.vatRate || 12.00);
+                            const vatAmount = parseFloat(cs.vatAmount !== undefined ? cs.vatAmount : (Math.round((netTotal * (vatRate / 100)) * 100) / 100));
+                            const grandTotal = parseFloat(cs.grandTotal || cs.totalAmount || (netTotal + vatAmount));
                             const paidTotal = parseFloat(cs.paid || 0);
                             const downPaymentPaid = parseFloat(cs.downPaymentPaid || 0);
                             const otherPayments = Math.max(0, paidTotal - downPaymentPaid);
@@ -1435,12 +1438,29 @@ export default function ReceptionistBilling() {
                                   </button>
                                 </div>
 
-                                {/* Net Total Amount Due */}
+                                {/* Net Subtotal (Before Tax) */}
+                                <div className="d-flex justify-content-between align-items-center p-2 mb-1.5 rounded bg-light" style={{ border: '1px solid #e2e8f0' }}>
+                                  <span className="fw-semibold text-secondary" style={{ fontSize: '0.84rem' }}>
+                                    Net Subtotal (Before Tax):
+                                  </span>
+                                  <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>₱{netTotal.toFixed(2)}</span>
+                                </div>
+
+                                {/* VAT */}
+                                <div className="d-flex justify-content-between align-items-center px-2 py-1 mb-2 text-muted" style={{ fontSize: '0.82rem' }}>
+                                  <span className="d-flex align-items-center gap-1">
+                                    <span>Value-Added Tax (VAT {vatRate.toFixed(2)}%):</span>
+                                    <span className="badge bg-secondary-subtle text-secondary border" style={{ fontSize: '0.65rem' }}>Statutory</span>
+                                  </span>
+                                  <span className="fw-semibold text-dark">+₱{vatAmount.toFixed(2)}</span>
+                                </div>
+
+                                {/* Grand Total Amount Due */}
                                 <div className="d-flex justify-content-between align-items-center p-2.5 mb-3 rounded" style={{ background: '#e0f2fe', border: '1px solid #bae6fd' }}>
                                   <span className="fw-bold text-primary" style={{ fontSize: '0.90rem' }}>
-                                    <i className="fa-solid fa-calculator me-1"></i>Net Total Amount Due:
+                                    <i className="fa-solid fa-calculator me-1"></i>Grand Total Amount Due:
                                   </span>
-                                  <span className="fw-bold text-primary fs-6">₱{netTotal.toFixed(2)}</span>
+                                  <span className="fw-bold text-primary fs-6">₱{grandTotal.toFixed(2)}</span>
                                 </div>
 
                                 <div className="d-flex justify-content-between mb-1.5 text-success">
@@ -1465,7 +1485,7 @@ export default function ReceptionistBilling() {
                                 <div className="d-flex justify-content-between align-items-center p-3 bg-danger-subtle rounded border border-danger-subtle mb-4 mt-2">
                                   <div>
                                     <span className="fw-bold text-danger d-block">Total Balance Due:</span>
-                                    <span className="text-muted" style={{ fontSize: '0.70rem' }}>Net Total Due - Total Payments Settled</span>
+                                    <span className="text-muted" style={{ fontSize: '0.70rem' }}>Grand Total Due - Total Payments Settled</span>
                                   </div>
                                   <span className="fw-bold text-danger" style={{ fontSize: '1.3rem' }}>
                                     ₱{balance.toFixed(2)}

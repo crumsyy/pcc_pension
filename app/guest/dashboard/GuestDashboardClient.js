@@ -5198,6 +5198,22 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <strong className="fw-semibold">-₱{parseFloat(detailedBill.totalDiscount || detailedBill.chargesBreakdown?.discounts?.total || 0).toFixed(2)}</strong>
                     </div>
                   )}
+                  {parseFloat(detailedBill.vatAmount ?? detailedBill.chargesSummary?.vatAmount ?? 0) > 0 && (
+                    <>
+                      <div className="d-flex justify-content-between align-items-center mb-1.5 small">
+                        <span className="text-muted">Net Subtotal (Before Tax):</span>
+                        <strong className="text-dark">₱{parseFloat(detailedBill.netSubtotal ?? detailedBill.chargesSummary?.netSubtotal ?? 0).toFixed(2)}</strong>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-1.5 small text-primary">
+                        <span>Value-Added Tax (VAT {detailedBill.vatRate ?? detailedBill.chargesSummary?.vatRate ?? 12}%):</span>
+                        <strong className="fw-semibold">+₱{parseFloat(detailedBill.vatAmount ?? detailedBill.chargesSummary?.vatAmount ?? 0).toFixed(2)}</strong>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-1.5 small fw-bold text-dark pt-1 border-top">
+                        <span>Grand Total Due:</span>
+                        <strong className="text-primary">₱{parseFloat(detailedBill.grandTotal ?? detailedBill.chargesSummary?.grandTotal ?? 0).toFixed(2)}</strong>
+                      </div>
+                    </>
+                  )}
                   <div className="d-flex justify-content-between align-items-center mb-2 small text-success">
                     <span>Total Paid Recorded:</span>
                     <strong className="fs-6">₱{parseFloat(detailedBill.paidTotal || detailedBill.balancing?.paidTotal || detailedBill.chargesSummary?.paid || 0).toFixed(2)}</strong>

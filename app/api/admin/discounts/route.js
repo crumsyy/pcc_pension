@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery } from '@/lib/db';
+import { dbQuery, getSystemVatRate, ensureBookingBillingSchema } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -52,13 +52,16 @@ export async function GET(request) {
       );
     }
 
+    const vatPercentage = await getSystemVatRate();
+
     return NextResponse.json({
       discounts: filteredDiscounts,
       promotions: filteredPromotions,
       discountTypes,
       eligibilityTypes,
       rooms,
-      roomTypes
+      roomTypes,
+      vatPercentage
     });
   } catch (error) {
     console.error("Failed to fetch discounts/promos:", error);
@@ -75,6 +78,22 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { action } = body;
+
+    // VAT Configuration
+    if (action === 'update_vat') {
+      const vat = parseFloat(body.vatPercentage);
+      if (isNaN(vat) || vat < 0 || vat > 100) {
+        return NextResponse.json({ error: 'VAT percentage must be a valid number between 0 and 100.' }, { status: 400 });
+      }
+      await ensureBookingBillingSchema();
+      await dbQuery(
+        `INSERT INTO system_settings (settingKey, settingValue)
+         VALUES ('vat_percentage', ?)
+         ON DUPLICATE KEY UPDATE settingValue = VALUES(settingValue), updatedAt = CURRENT_TIMESTAMP`,
+        [vat.toFixed(2)]
+      );
+      return NextResponse.json({ success: true, message: 'Tax / VAT percentage updated successfully.', vatPercentage: vat });
+    }
 
     // Discounts
     if (action === 'create_discount') {

@@ -150,6 +150,10 @@ export async function GET(request) {
         grossSubtotal: details.grossSubtotal || (details.roomCharge + (details.chargesSummary?.extraGuestFee || 0) + (details.earlyCheckInFee || 0) + (details.lateCheckOutFee || 0) + (details.productTotal || 0) + (details.amenityTotal || 0) + (details.incidentalTotal || 0)),
         discountTotal: details.discountTotal || details.totalDiscount || 0,
         netTotal: details.netTotal || details.subtotal || 0,
+        vatRate: details.vatRate || details.chargesSummary?.vatRate || 12.00,
+        vatAmount: details.vatAmount || details.chargesSummary?.vatAmount || 0,
+        grandTotal: details.grandTotal || details.chargesSummary?.grandTotal || details.netTotal || 0,
+        totalAmount: details.grandTotal || details.chargesSummary?.grandTotal || details.netTotal || 0,
         discountList: details.discountList || [],
         totalDiscount: details.discountTotal || details.totalDiscount || 0,
         sharePerGuest: details.sharePerGuest,
@@ -167,7 +171,7 @@ export async function GET(request) {
         cookedMeals: details.chargesSummary?.cookedMeals || 0,
         incidentals: details.incidentalTotal,
         subtotal: details.grossSubtotal || details.subtotal,
-        total: details.netTotal || details.subtotal,
+        total: details.grandTotal || details.chargesSummary?.grandTotal || details.netTotal,
         paid: details.paidTotal,
         balance: details.balance,
         remainingBalance: details.chargesSummary?.remainingBalance !== undefined ? details.chargesSummary.remainingBalance : details.balance,
@@ -177,6 +181,13 @@ export async function GET(request) {
         isBillFinalized: details.chargesSummary?.isBillFinalized ?? details.isBillFinalized ?? 0,
         billingStatus: details.chargesSummary?.billingStatus || details.billingStatus || 'Pending'
       },
+      vatRate: details.vatRate || details.chargesSummary?.vatRate || 12.00,
+      vatAmount: details.vatAmount || details.chargesSummary?.vatAmount || 0,
+      grandTotal: details.grandTotal || details.chargesSummary?.grandTotal || details.netTotal || 0,
+      netTotal: details.netTotal || 0,
+      grossSubtotal: details.grossSubtotal || 0,
+      subtotal: details.grossSubtotal || details.subtotal || 0,
+      discountTotal: details.discountTotal || 0,
       chargesBreakdown: details.chargesBreakdown || {},
       breakfastSummary: details.chargesBreakdown?.breakfastSummary || {
         complimentaryBreakfastUsed: details.complimentaryBreakfastUsed ?? 0,
@@ -191,12 +202,12 @@ export async function GET(request) {
 
     if (details.billingID) {
       await dbQuery(
-        "UPDATE billing SET totalAmount = ?, downPaymentAmount = ?, remainingBalance = ?, balance = ? WHERE billingID = ?",
-        [details.subtotal, details.chargesSummary?.downPaymentPaid || 0, details.balance, details.balance, details.billingID]
+        "UPDATE billing SET subtotal = ?, discountTotal = ?, netTotal = ?, vatRate = ?, vatAmount = ?, grandTotal = ?, totalAmount = ?, downPaymentAmount = ?, remainingBalance = ?, balance = ? WHERE billingID = ?",
+        [details.grossSubtotal, details.discountTotal, details.netTotal, details.vatRate, details.vatAmount, details.grandTotal, details.grandTotal, details.chargesSummary?.downPaymentPaid || 0, details.balance, details.balance, details.billingID]
       ).catch(() => {});
       await dbQuery(
-        "UPDATE booking SET remainingBalance = ?, finalBalance = ? WHERE bookingID = ?",
-        [details.balance, details.balance, bookingID]
+        "UPDATE booking SET subtotal = ?, discountTotal = ?, netTotal = ?, vatRate = ?, vatAmount = ?, grandTotal = ?, totalAmount = ?, remainingBalance = ?, finalBalance = ? WHERE bookingID = ?",
+        [details.grossSubtotal, details.discountTotal, details.netTotal, details.vatRate, details.vatAmount, details.grandTotal, details.grandTotal, details.balance, details.balance, bookingID]
       ).catch(() => {});
     }
 

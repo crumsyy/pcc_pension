@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems, getSystemVatRate } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 
 export async function GET(request) {
@@ -33,7 +33,7 @@ export async function GET(request) {
                END as status,
                b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
-               b.roomRate, b.roomCharge, b.downPaymentAmount, b.downPaymentPercentage, b.remainingBalance, b.breakfastOption, b.guestCount,
+               b.roomRate, b.roomCharge, b.subtotal, b.discountTotal, b.netTotal, b.vatRate, b.vatAmount, b.grandTotal, b.totalAmount, b.downPaymentAmount, b.downPaymentPercentage, b.remainingBalance, b.breakfastOption, b.guestCount,
                g.userID, g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
                 rm.roomNumber, rm.occupancyLimit, COALESCE(rt.type, 'Standard Room') as roomType, rm.image
         FROM booking b
@@ -122,13 +122,22 @@ export async function GET(request) {
         isDownPaymentPaid,
         chargesSummary: balanceDetails?.chargesSummary || null,
         paymentsList: balanceDetails?.paymentsList || [],
-        subtotal: balanceDetails?.subtotal ?? (parseFloat(b.totalAmount || b.roomCharge || 0)),
+        grossSubtotal: balanceDetails?.grossSubtotal ?? balanceDetails?.subtotal ?? (parseFloat(b.subtotal || b.roomCharge || 0)),
+        subtotal: balanceDetails?.grossSubtotal ?? balanceDetails?.subtotal ?? (parseFloat(b.subtotal || b.roomCharge || 0)),
+        discountTotal: balanceDetails?.discountTotal ?? (parseFloat(b.discountTotal || 0)),
+        netTotal: balanceDetails?.netTotal ?? (parseFloat(b.netTotal || 0)),
+        vatRate: balanceDetails?.vatRate ?? (parseFloat(b.vatRate || 12.00)),
+        vatAmount: balanceDetails?.vatAmount ?? (parseFloat(b.vatAmount || 0)),
+        grandTotal: balanceDetails?.grandTotal ?? balanceDetails?.totalAmount ?? (parseFloat(b.grandTotal || b.totalAmount || 0)),
+        totalAmount: balanceDetails?.grandTotal ?? balanceDetails?.totalAmount ?? (parseFloat(b.grandTotal || b.totalAmount || 0)),
+        requiredDownpayment: balanceDetails?.requiredDownpayment ?? 0,
         incidentals: incidentals || [],
         registeredGuests: guestsDetails.filter(gd => gd.bookingID === b.bookingID)
       };
     }));
 
-    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods, roomSchedules });
+    const vatPercentage = await getSystemVatRate();
+    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods, roomSchedules, vatPercentage });
   } catch (error) {
     console.error("Failed to fetch bookings data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -327,18 +336,23 @@ export async function POST(request) {
         const discountTotal = roomDiscountAmount;
         const netTotal = Math.max(0, Math.round((grossSubtotal - discountTotal) * 100) / 100);
 
-        // Down payment applies to Net Total (after discount)
+        // Value-Added Tax (V)
+        const vatRate = await getSystemVatRate();
+        const vatAmount = Math.round((netTotal * (vatRate / 100)) * 100) / 100;
+        const grandTotal = Math.round((netTotal + vatAmount) * 100) / 100;
+
+        // Down payment applies to Grand Total (after discounts and VAT)
         const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 50) / 100;
         const dpPercentageInt = parseInt(body.downPaymentPercentage) || 50;
-        const requiredDp = Math.round((netTotal * dpPercentageNum) * 100) / 100;
+        const requiredDp = Math.round((grandTotal * dpPercentageNum) * 100) / 100;
 
         if (downPaymentAmount < requiredDp - 0.05) {
           return NextResponse.json({ 
-            error: `Payment received (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected ${dpPercentageInt}% requirement of ₱${requiredDp.toFixed(2)} on net charges.` 
+            error: `Payment received (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected ${dpPercentageInt}% requirement of ₱${requiredDp.toFixed(2)} on total charges.` 
           }, { status: 400 });
         }
 
-        const initialBalance = Math.max(0, Math.round((netTotal - downPaymentAmount) * 100) / 100);
+        const initialBalance = Math.max(0, Math.round((grandTotal - downPaymentAmount) * 100) / 100);
 
         // Validation for GCash down payment: If paymentMethod = GCash and payment status != Settled, block booking save
         if (parseInt(paymentMethodID) === 2 && body.paymentStatus !== 'Settled' && !body.isGcashSettled) {
@@ -393,11 +407,11 @@ export async function POST(request) {
           finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         }
 
-        // Insert booking with roomRate, roomCharge, subtotal, discountTotal, netTotal, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount
+        // Insert booking with roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount
         const [insertBookingRes] = await conn.execute(
-          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, subtotal, discountTotal, netTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount)
-           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, roomRate, finalRoomCharge, grossSubtotal, discountTotal, netTotal, netTotal, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption, breakfastID, totalGuestsCount]
+          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, roomRate, finalRoomCharge, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, grandTotal, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption, breakfastID, totalGuestsCount]
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -470,8 +484,8 @@ export async function POST(request) {
         const pad = (num) => String(num).padStart(2, '0');
         const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         const [billingInsert] = await conn.execute(
-          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID, subtotal, discountTotal, netTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [nowStr, guestID, bookingID, grossSubtotal, discountTotal, netTotal, netTotal, downPaymentAmount, dpPercentageInt, initialBalance, initialBalance]
+          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [nowStr, guestID, bookingID, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, grandTotal, downPaymentAmount, dpPercentageInt, initialBalance, initialBalance]
         );
         const billingID = billingInsert.insertId;
 
