@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -160,6 +160,9 @@ function PayMongoTestContent() {
   const [statusMessage, setStatusMessage] = useState('');
   const [receiptData, setReceiptData] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [loadingQrph, setLoadingQrph] = useState(false);
+  const [qrphData, setQrphData] = useState(null);
+  const [qrphError, setQrphError] = useState('');
 
   useEffect(() => {
     if (bookingID) {
@@ -179,6 +182,38 @@ function PayMongoTestContent() {
   const displayAmount = paramAmount 
     ? parseFloat(paramAmount) 
     : parseFloat(bookingDetails?.balancing?.remainingBalance ?? bookingDetails?.remainingBalance ?? bookingDetails?.balance ?? 500);
+
+  const fetchQrphCode = useCallback(async () => {
+    if (!bookingID) return;
+    setLoadingQrph(true);
+    setQrphError('');
+    try {
+      const res = await fetch('/api/guest/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_qrph',
+          bookingID: parseInt(bookingID, 10),
+          amount: displayAmount
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to generate official PayMongo QRPh code.');
+      }
+      setQrphData(data);
+    } catch (err) {
+      setQrphError(err.message || 'Error generating dynamic QRPh code.');
+    } finally {
+      setLoadingQrph(false);
+    }
+  }, [bookingID, displayAmount]);
+
+  useEffect(() => {
+    if (bookingID && displayAmount > 0 && !qrphData && !loadingQrph) {
+      fetchQrphCode();
+    }
+  }, [bookingID, displayAmount, fetchQrphCode]);
 
   const handleAuthorize = async () => {
     if (!bookingID) {
@@ -346,11 +381,87 @@ function PayMongoTestContent() {
               </div>
             )}
 
+            {/* OFFICIAL PAYMONGO DYNAMIC QRPH CODE */}
+            {!actionStatus && (
+              <div className="text-center p-3 bg-white rounded-3 border mb-4 shadow-xs">
+                <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                  <span className="fw-bold text-dark small d-flex align-items-center gap-1.5">
+                    <i className="bi bi-qr-code text-primary"></i> Official PayMongo QRPh Code
+                  </span>
+                  <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5" style={{ fontSize: '0.70rem' }}>
+                    Pre-set Amount
+                  </span>
+                </div>
+
+                {loadingQrph ? (
+                  <div className="py-4 text-center text-muted">
+                    <span className="spinner-border spinner-border-sm text-primary me-2"></span>
+                    <span className="small">Generating PayMongo dynamic QRPh code with pre-set amount...</span>
+                  </div>
+                ) : qrphError ? (
+                  <div className="py-3">
+                    <div className="alert alert-warning py-2 px-3 small mb-2">{qrphError}</div>
+                    <button type="button" className="btn btn-outline-primary btn-sm fw-bold" onClick={fetchQrphCode}>
+                      <i className="bi bi-arrow-clockwise me-1.5"></i>Retry Generating QRPh
+                    </button>
+                  </div>
+                ) : qrphData?.qrphCodeUrl ? (
+                  <div>
+                    <div
+                      className="p-3 bg-white border rounded-3 shadow-xs d-inline-block mb-2 position-relative"
+                      style={{ maxWidth: '270px' }}
+                    >
+                      <div className="position-relative d-inline-block">
+                        <img
+                          src={qrphData.qrphCodeUrl}
+                          alt="Official PayMongo Dynamic QRPh Code"
+                          className="img-fluid rounded"
+                          style={{ width: '220px', height: '220px', objectFit: 'contain' }}
+                        />
+                        {!qrphData.qrphCodeUrl?.startsWith('data:image') && (
+                          <div
+                            className="position-absolute top-50 start-50 translate-middle bg-white p-1 rounded shadow-sm border border-danger d-flex align-items-center justify-content-center"
+                            style={{ width: '38px', height: '38px', pointerEvents: 'none' }}
+                          >
+                            <span className="badge bg-danger text-white fw-bold" style={{ fontSize: '0.62rem', padding: '3px 4px', letterSpacing: '0.3px' }}>QR Ph</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="alert alert-info py-2 px-3 small mt-1 mb-2 text-center fw-medium" style={{ fontSize: '0.80rem' }}>
+                      <i className="bi bi-info-circle-fill me-1.5 text-primary"></i>
+                      <span>Scan with GCash, Maya, or any QRPh-compliant app. Amount is pre-set.</span>
+                    </div>
+
+                    <div className="text-muted small mt-2 d-flex flex-column gap-1 text-start px-2" style={{ fontSize: '0.74rem' }}>
+                      <div><strong>Step 1:</strong> Open your GCash, Maya, or mobile banking app.</div>
+                      <div><strong>Step 2:</strong> Tap <em>Scan QR</em> to scan this dynamic code.</div>
+                      <div><strong>Step 3:</strong> Confirm the pre-set payment of ₱{displayAmount.toFixed(2)}.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-3">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm text-white fw-bold px-3 py-2 shadow-xs"
+                      onClick={fetchQrphCode}
+                    >
+                      <i className="bi bi-qr-code-scan me-1.5"></i>Generate QRPh Code
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* SIMULATION BUTTONS */}
             {!actionStatus && (
               <div className="d-flex flex-column gap-3">
-                <div className="text-center text-muted small mb-1">
-                  Select a simulation action below to test payment authorization:
+                <div className="text-center text-muted small mb-1 d-flex align-items-center justify-content-center gap-1.5">
+                  <span className="badge bg-warning text-dark px-2 py-0.5" style={{ fontSize: '0.68rem', letterSpacing: '0.4px' }}>
+                    FOR TESTING ONLY
+                  </span>
+                  <span>Select a simulation action below:</span>
                 </div>
 
                 {/* Authorize Payment Button */}

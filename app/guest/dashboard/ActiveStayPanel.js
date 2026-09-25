@@ -466,7 +466,7 @@ export default function ActiveStayPanel({
                               alert("Front desk must inspect room and finalize your bill before payment.");
                               return;
                             }
-                            setShowPaymentModal(true);
+                            window.location.href = `/paymongo/test?bookingID=${activeBookingStay.bookingID}&amount=${parseFloat(remainingBal).toFixed(2)}`;
                           }}
                           style={{
                             backgroundColor: (canProceedToPayment && remainingBal > 0.05) ? '#005ce6' : '#6c757d',

@@ -1601,7 +1601,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       showAlert('info', 'Bill Settled', "Your bill is already fully settled (₱0.00 balance). Please return your keycard to the front desk to complete checkout.");
       return;
     }
-    setPaymentModalBooking(booking);
+    window.location.href = `/paymongo/test?bookingID=${booking.bookingID}&amount=${parseFloat(rem).toFixed(2)}`;
   };
 
   const handleViewReceiptForBooking = async (booking) => {
