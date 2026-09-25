@@ -1277,10 +1277,17 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           </button>
           <button
             type="button"
-            className={`pcc-segmented-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
-            onClick={() => handleSelectCategory('products_amenities')}
+            className={`pcc-segmented-tab-btn ${activeCategory === 'products' ? 'active' : ''}`}
+            onClick={() => handleSelectCategory('products')}
           >
-            Product & Activities ({products.length + amenities.length})
+            Products ({products.length})
+          </button>
+          <button
+            type="button"
+            className={`pcc-segmented-tab-btn ${activeCategory === 'amenities' ? 'active' : ''}`}
+            onClick={() => handleSelectCategory('amenities')}
+          >
+            Amenities ({amenities.length})
           </button>
           <button
             type="button"

@@ -985,10 +985,17 @@ function ReceptionistOrdersContent() {
           </button>
           <button
             type="button"
-            className={`pcc-segmented-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('products_amenities')}
+            className={`pcc-segmented-tab-btn ${activeCategory === 'products' ? 'active' : ''}`}
+            onClick={() => setActiveCategory('products')}
           >
-            Product & Activities ({products.length + amenities.length})
+            Products ({products.length})
+          </button>
+          <button
+            type="button"
+            className={`pcc-segmented-tab-btn ${activeCategory === 'amenities' ? 'active' : ''}`}
+            onClick={() => setActiveCategory('amenities')}
+          >
+            Amenities ({amenities.length})
           </button>
           <button
             type="button"
@@ -1303,7 +1310,7 @@ function ReceptionistOrdersContent() {
                 )}
 
                 {/* PRODUCTS SECTION */}
-                {(activeCategory === 'all' || activeCategory === 'products_amenities') && filteredProducts.length > 0 && (
+                {(activeCategory === 'all' || activeCategory === 'products' || activeCategory === 'products_amenities') && filteredProducts.length > 0 && (
                   <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
                     <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
@@ -1330,7 +1337,7 @@ function ReceptionistOrdersContent() {
                 )}
 
                 {/* AMENITIES SECTION */}
-                {(activeCategory === 'all' || activeCategory === 'products_amenities') && filteredAmenities.length > 0 && (
+                {(activeCategory === 'all' || activeCategory === 'amenities' || activeCategory === 'products_amenities') && filteredAmenities.length > 0 && (
                   <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
                     <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
