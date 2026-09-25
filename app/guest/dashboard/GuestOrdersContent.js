@@ -476,14 +476,14 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
             className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'pcc-order-tab-btn'}`}
             onClick={() => setHistoryFilter('immediate')}
           >
-            ⚡ Immediate Deliveries ({immediateOrders.length})
+            Immediate Deliveries ({immediateOrders.length})
           </button>
           <button
             type="button"
             className={`btn btn-sm pcc-order-tab-btn ${historyFilter === 'scheduled' ? 'active' : ''}`}
             onClick={() => setHistoryFilter('scheduled')}
           >
-            ⏰ Scheduled Breakfast Deliveries ({scheduledOrders.length})
+            Scheduled Breakfast Deliveries ({scheduledOrders.length})
           </button>
           {pendingDeliveryOrders.length > 0 && (
             <button
@@ -491,7 +491,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
               className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'pcc-order-tab-btn'}`}
               onClick={() => setHistoryFilter('pending')}
             >
-              ⏳ Pending Deliveries ({pendingDeliveryOrders.length})
+              Pending Deliveries ({pendingDeliveryOrders.length})
             </button>
           )}
         </div>
@@ -1258,14 +1258,14 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
               className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'meals' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('meals')}
             >
-              🍳 Cooked Meals (Scheduled: 6:00–10:30 AM) ({cookedMeals.length})
+              Cooked Meals (Scheduled: 6:00–10:30 AM) ({cookedMeals.length})
             </button>
             <button
               type="button"
               className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'products_amenities' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('products_amenities')}
             >
-              🛍️ Products & Amenities (Immediate) ({products.length + amenities.length})
+              Products & Amenities (Immediate) ({products.length + amenities.length})
             </button>
             <button
               type="button"
@@ -1279,7 +1279,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
               className={`btn btn-sm px-3 fw-semibold pcc-order-tab-btn ${activeCategory === 'history' ? 'active' : ''}`}
               onClick={() => handleSelectCategory('history')}
             >
-              📋 My Orders ({orderHistory.length})
+              My Orders ({orderHistory.length})
             </button>
           </div>
         </div>

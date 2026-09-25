@@ -966,14 +966,14 @@ function ReceptionistOrdersContent() {
               className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'meals' ? 'btn-primary text-white' : 'btn-outline-secondary'}`}
               onClick={() => setActiveCategory('meals')}
             >
-              🍳 Cooked Meals ({cookedMeals.length})
+              Cooked Meals ({cookedMeals.length})
             </button>
             <button
               type="button"
               className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'products_amenities' ? 'btn-primary text-white' : 'btn-outline-secondary'}`}
               onClick={() => setActiveCategory('products_amenities')}
             >
-              🛍️ Products &amp; Amenities ({products.length + amenities.length})
+              Products &amp; Amenities ({products.length + amenities.length})
             </button>
             <button
               type="button"
@@ -987,7 +987,7 @@ function ReceptionistOrdersContent() {
               className={`btn btn-sm px-3 fw-semibold ${activeCategory === 'history' ? 'btn-dark text-white' : 'btn-outline-secondary'}`}
               onClick={() => setActiveCategory('history')}
             >
-              📋 Order Records &amp; Status ({orders.length})
+              Order Records &amp; Status ({orders.length})
             </button>
           </div>
         </div>
@@ -1032,21 +1032,21 @@ function ReceptionistOrdersContent() {
                     className={`btn btn-sm ${historyFilter === 'immediate' ? 'btn-success text-white fw-bold' : 'btn-outline-secondary'}`}
                     onClick={() => setHistoryFilter('immediate')}
                   >
-                    ⚡ Immediate ({immediateOrders.length})
+                    Immediate ({immediateOrders.length})
                   </button>
                   <button
                     type="button"
                     className={`btn btn-sm ${historyFilter === 'scheduled' ? 'btn-info text-white fw-bold' : 'btn-outline-secondary'}`}
                     onClick={() => setHistoryFilter('scheduled')}
                   >
-                    ⏰ Scheduled Breakfast ({scheduledOrders.length})
+                    Scheduled Breakfast ({scheduledOrders.length})
                   </button>
                   <button
                     type="button"
                     className={`btn btn-sm ${historyFilter === 'pending' ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary'}`}
                     onClick={() => setHistoryFilter('pending')}
                   >
-                    ⏳ Pending Delivery ({pendingDeliveryOrders.length})
+                    Pending Delivery ({pendingDeliveryOrders.length})
                   </button>
                 </div>
               </div>
