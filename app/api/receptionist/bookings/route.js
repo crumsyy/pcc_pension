@@ -33,6 +33,7 @@ export async function GET(request) {
                END as status,
                b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
+               b.roomRate, b.roomCharge, b.downPaymentAmount, b.downPaymentPercentage, b.remainingBalance, b.breakfastOption, b.guestCount,
                g.userID, g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
                 rm.roomNumber, rm.occupancyLimit, COALESCE(rt.type, 'Standard Room') as roomType, rm.image
         FROM booking b
@@ -42,7 +43,7 @@ export async function GET(request) {
         WHERE rm.isArchived = 0
         ORDER BY b.checkInDateTime DESC
       `),
-      dbQuery("SELECT guestID, userID, firstName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
+      dbQuery("SELECT guestID, userID, firstName, middleName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, COALESCE(rt.type, 'Standard Room') as roomType,
                r.breakfastRate,
@@ -104,7 +105,11 @@ export async function GET(request) {
     const roomSchedules = [...(activeBookings || []), ...(activeReservations || [])];
 
     const bookingsWithGuests = await Promise.all(bookings.map(async b => {
-      const remainingBalance = await getBookingBalance(b.bookingID);
+      const balanceDetails = await getBookingBalanceDetails(b.bookingID).catch(() => null);
+      const remainingBalance = balanceDetails ? balanceDetails.balance : await getBookingBalance(b.bookingID);
+      const paidTotal = balanceDetails?.paidTotal ?? 0;
+      const downPaymentPaid = balanceDetails?.downPaymentPaid ?? balanceDetails?.chargesSummary?.downPaymentPaid ?? (b.downPaymentAmount ? parseFloat(b.downPaymentAmount) : 0);
+      const isDownPaymentPaid = (downPaymentPaid > 0) || (paidTotal > 0) || (parseFloat(b.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Confirmed', 'Checked In'].includes(b.status));
       const incidentals = await dbQuery(
         "SELECT chargeID, description, amount, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt FROM incidental_charge WHERE bookingID = ? ORDER BY chargeID ASC",
         [b.bookingID]
@@ -112,6 +117,9 @@ export async function GET(request) {
       return {
         ...b,
         remainingBalance,
+        paidTotal,
+        downPaymentPaid,
+        isDownPaymentPaid,
         incidentals: incidentals || [],
         registeredGuests: guestsDetails.filter(gd => gd.bookingID === b.bookingID)
       };
@@ -169,7 +177,7 @@ export async function POST(request) {
         let guestID;
         let guestEmail = null;
         if (!body.guestID || body.isWalkIn) {
-          const { firstName, lastName, contact, email, gender, dateOfBirth } = body;
+          const { firstName, middleName, lastName, contact, email, gender, dateOfBirth } = body;
           if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
             return NextResponse.json({ error: 'First name and Last name are required.' }, { status: 400 });
           }
@@ -189,6 +197,7 @@ export async function POST(request) {
             }
           }
           const cleanContact = (contact || '').trim();
+          const cleanMiddle = (middleName || '').trim() || null;
 
           // Check if guest already exists by email or contact
           const [existingGuests] = await conn.execute(
@@ -201,14 +210,14 @@ export async function POST(request) {
             guestEmail = cleanEmail;
             if (!existingGuests[0].userID) {
               await conn.execute(
-                "UPDATE guest SET firstName = COALESCE(NULLIF(?, ''), firstName), lastName = COALESCE(NULLIF(?, ''), lastName), contact = COALESCE(NULLIF(?, ''), contact), dateOfBirth = COALESCE(NULLIF(?, ''), dateOfBirth), email = ? WHERE guestID = ?",
-                [firstName.trim(), lastName.trim(), cleanContact, dateOfBirth || null, cleanEmail, guestID]
+                "UPDATE guest SET firstName = COALESCE(NULLIF(?, ''), firstName), middleName = COALESCE(?, middleName), lastName = COALESCE(NULLIF(?, ''), lastName), contact = COALESCE(NULLIF(?, ''), contact), dateOfBirth = COALESCE(NULLIF(?, ''), dateOfBirth), email = ? WHERE guestID = ?",
+                [firstName.trim(), cleanMiddle, lastName.trim(), cleanContact, dateOfBirth || null, cleanEmail, guestID]
               );
             }
           } else {
             const [insertGuestRes] = await conn.execute(
-              "INSERT INTO guest (firstName, lastName, contact, email, gender, dateOfBirth, userID) VALUES (?, ?, ?, ?, ?, ?, NULL)",
-              [firstName.trim(), lastName.trim(), cleanContact, cleanEmail, gender || null, dateOfBirth || null]
+              "INSERT INTO guest (firstName, middleName, lastName, contact, email, gender, dateOfBirth, userID) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)",
+              [firstName.trim(), cleanMiddle, lastName.trim(), cleanContact, cleanEmail, gender || null, dateOfBirth || null]
             );
             guestID = insertGuestRes.insertId;
             guestEmail = cleanEmail;
@@ -596,12 +605,81 @@ export async function POST(request) {
 
         // Update guest information if provided
         if (body.guestForm && newGuestID) {
-          const { firstName, lastName, contact, email, gender, dateOfBirth } = body.guestForm;
+          const { firstName, middleName, lastName, contact, email, gender, dateOfBirth } = body.guestForm;
           const dobVal = dateOfBirth ? (dateOfBirth.includes('/') ? dateOfBirth.split('/').reverse().join('-') : dateOfBirth) : null;
           await conn.execute(
-            "UPDATE guest SET firstName = COALESCE(?, firstName), lastName = COALESCE(?, lastName), contact = COALESCE(?, contact), email = COALESCE(?, email), gender = COALESCE(?, gender), dateOfBirth = COALESCE(?, dateOfBirth) WHERE guestID = ?",
-            [firstName || null, lastName || null, contact || null, email || null, gender || null, dobVal || null, newGuestID]
+            "UPDATE guest SET firstName = COALESCE(?, firstName), middleName = COALESCE(?, middleName), lastName = COALESCE(?, lastName), contact = COALESCE(?, contact), email = COALESCE(?, email), gender = COALESCE(?, gender), dateOfBirth = COALESCE(?, dateOfBirth) WHERE guestID = ?",
+            [firstName || null, (middleName || '').trim() || null, lastName || null, contact || null, email || null, gender || null, dobVal || null, newGuestID]
           );
+        }
+
+        // Record Down Payment if provided and not yet paid
+        let downPaymentRecorded = false;
+        let recordedPaymentAmount = 0;
+        if (body.recordDownPayment && parseFloat(body.downPaymentAmount) > 0) {
+          const [existingPayments] = await conn.execute(
+            "SELECT p.paymentID FROM payment p JOIN billing b ON b.billingID = p.billingID WHERE b.bookingID = ?",
+            [bookingID]
+          );
+
+          if (!existingPayments || existingPayments.length === 0) {
+            let [billRows] = await conn.execute("SELECT billingID FROM billing WHERE bookingID = ? LIMIT 1", [bookingID]);
+            let billingID = billRows[0]?.billingID;
+            const localNow = new Date();
+            const pad = (num) => String(num).padStart(2, '0');
+            const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+
+            if (!billingID) {
+              const [bIns] = await conn.execute(
+                "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (?, ?, ?, NULL)",
+                [nowStr, newGuestID, bookingID]
+              );
+              billingID = bIns.insertId;
+            }
+
+            const dpAmount = parseFloat(body.downPaymentAmount);
+            const dpPercentage = parseInt(body.downPaymentPercentage) || 50;
+            const payMethodID = parseInt(body.paymentMethodID) || 1;
+            const refNum = body.referenceNumber || (payMethodID === 2 ? `GCASH-BK-${bookingID}` : `CASH-${Date.now().toString().slice(-6)}`);
+            const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
+            const staffID = staffRes[0]?.staffID || null;
+
+            await ensurePaymentSchema();
+            const [paymentInsert] = await conn.execute(
+              `INSERT INTO payment (amount, cashReceived, \`change\`, changeAmount, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
+               VALUES (?, ?, 0, 0.00, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
+              [dpAmount, dpAmount, billingID, newGuestID, staffID, payMethodID, refNum]
+            );
+            const paymentID = paymentInsert.insertId;
+
+            await conn.execute(
+              "INSERT INTO transactions (transactionDateTime, billingID, paymentID, testMode) VALUES (?, ?, ?, 1)",
+              [nowStr, billingID, paymentID]
+            );
+
+            await conn.execute(
+              "UPDATE booking SET downPaymentAmount = ?, downPaymentPercentage = ? WHERE bookingID = ?",
+              [dpAmount, dpPercentage, bookingID]
+            );
+
+            await logBillingAudit(conn, {
+              billingID,
+              bookingID,
+              transactionType: 'Down Payment',
+              status: 'Settled',
+              amount: dpAmount,
+              balanceBefore: 0,
+              balanceAfter: 0,
+              userID: session?.userID || null,
+              userName: session?.fullName || 'Receptionist',
+              userRole: session?.role || 'Receptionist',
+              description: `Down payment recorded during booking update - ${dpPercentage}% on Room Charges`,
+              referenceNumber: refNum
+            });
+
+            downPaymentRecorded = true;
+            recordedPaymentAmount = dpAmount;
+          }
         }
 
         // Update registered guests & discounts if provided
@@ -650,11 +728,16 @@ export async function POST(request) {
         );
 
         await conn.commit();
+        await syncNormalizedBillingLineItems(bookingID);
         return NextResponse.json({
           success: true,
-          message: extraGuestFee > 0
-            ? `Booking updated successfully. ₱${extraGuestFee.toFixed(2)} Extra Guest Fee added to incidental charges.`
-            : 'Booking updated successfully.'
+          downPaymentRecorded,
+          recordedPaymentAmount,
+          message: downPaymentRecorded
+            ? `Booking updated and down payment of ₱${recordedPaymentAmount.toFixed(2)} recorded successfully.`
+            : (extraGuestFee > 0
+                ? `Booking updated successfully. ₱${extraGuestFee.toFixed(2)} Extra Guest Fee added to incidental charges.`
+                : 'Booking updated successfully.')
         });
       } catch (e) {
         await conn.rollback();

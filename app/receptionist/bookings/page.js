@@ -204,6 +204,7 @@ function BookingsClient() {
   const [isAutoFilled, setIsAutoFilled] = useState(false);
   const [guestForm, setGuestForm] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     contact: '',
     email: '',
@@ -221,6 +222,7 @@ function BookingsClient() {
     if (selected) {
       setGuestForm({
         firstName: selected.firstName || '',
+        middleName: selected.middleName || '',
         lastName: selected.lastName || '',
         contact: selected.contact || '',
         email: selected.email || '',
@@ -273,6 +275,7 @@ function BookingsClient() {
     const matchedGuest = guests.find(g => String(g.guestID) === String(b.guestID));
     setGuestForm({
       firstName: b.firstName || matchedGuest?.firstName || '',
+      middleName: b.middleName || matchedGuest?.middleName || '',
       lastName: b.lastName || matchedGuest?.lastName || '',
       contact: b.contact || matchedGuest?.contact || '',
       email: b.email || matchedGuest?.email || '',
@@ -300,13 +303,20 @@ function BookingsClient() {
         discountID: g.discountID ? String(g.discountID) : '',
         discountIdNumber: g.discountIdNumber || ''
       })));
-      setDiscountedGuests(b.registeredGuests.map(g => ({
-        guestName: g.fullName || '',
-        discountID: g.discountID ? String(g.discountID) : '',
-        discountIdNumber: g.discountIdNumber || ''
-      })));
+      const discOnly = b.registeredGuests
+        .filter(g => g.discountID)
+        .map(g => ({
+          guestName: g.fullName || '',
+          discountID: String(g.discountID),
+          discountIdNumber: g.discountIdNumber || ''
+        }));
+      setDiscountedGuests(discOnly.length > 0 ? discOnly : [{
+        guestName: `${b.firstName || ''} ${b.middleName ? b.middleName + ' ' : ''}${b.lastName || ''}`.trim(),
+        discountID: '',
+        discountIdNumber: ''
+      }]);
     } else {
-      const primaryFullName = `${b.firstName || ''} ${b.lastName || ''}`.trim();
+      const primaryFullName = `${b.firstName || ''} ${b.middleName ? b.middleName + ' ' : ''}${b.lastName || ''}`.trim();
       setRoomGuests([{
         fullName: primaryFullName,
         age: 30,
@@ -360,10 +370,31 @@ function BookingsClient() {
     const newInStr = (toDbDate(checkInDate) + 'T' + checkInTime).substring(0, 16);
     const newOutStr = (toDbDate(checkOutDate) + 'T' + checkOutTime).substring(0, 16);
 
-    const datesChanged = (origInStr !== newInStr) || (origOutStr !== newOutStr);
+    const isAlreadyPaid = Boolean(
+      updatingBooking?.isDownPaymentPaid ||
+      (parseFloat(updatingBooking?.downPaymentPaid) > 0) ||
+      (parseFloat(updatingBooking?.paidTotal) > 0) ||
+      (parseFloat(updatingBooking?.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Confirmed', 'Checked In'].includes(updatingBooking?.status))
+    );
+
+    let dpAmount = 0;
+    let dpPctNum = parseInt(downPaymentOption) || 50;
+
+    if (!isAlreadyPaid) {
+      dpAmount = parseFloat(downPayment);
+      if (isNaN(dpAmount) || dpAmount <= 0) {
+        showAlert('error', 'Validation Error', 'Please enter a valid payment received amount.');
+        return;
+      }
+      if (String(paymentMethodID) === '2' && !isGcashSettled) {
+        setGcashInlineError('Cannot proceed: GCash payment not settled. Please scan and verify the QR payment before saving.');
+        showAlert('error', 'Payment Unsettled', 'Cannot proceed: GCash payment not settled. Please scan and verify the QR payment before saving.');
+        return;
+      }
+    }
 
     const preparedGuests = [];
-    const primaryName = `${guestForm.firstName} ${guestForm.lastName}`.trim() || 'Primary Guest';
+    const primaryName = `${guestForm.firstName} ${guestForm.middleName ? guestForm.middleName + ' ' : ''}${guestForm.lastName}`.trim() || 'Primary Guest';
     for (let i = 0; i < (parseInt(numGuestsCount) || 1); i++) {
       const disc = discountedGuests[i] || roomGuests[i];
       const gName = disc?.guestName?.trim() || disc?.fullName?.trim();
@@ -378,26 +409,56 @@ function BookingsClient() {
     const executeUpdate = async () => {
       setIsUpdatingBooking(true);
       try {
+        const payload = {
+          action: 'update_booking',
+          bookingID: updatingBooking.bookingID,
+          guestID: formData.guestID || null,
+          roomID: formData.roomID || updatingBooking.roomID,
+          checkInDateTime: toDbDate(checkInDate) + ' ' + checkInTime + ':00',
+          checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
+          numGuestsCount: newNumGuests,
+          guestForm,
+          guests: preparedGuests,
+          recordDownPayment: !isAlreadyPaid,
+          downPaymentAmount: !isAlreadyPaid ? dpAmount : undefined,
+          downPaymentPercentage: !isAlreadyPaid ? dpPctNum : undefined,
+          paymentMethodID: !isAlreadyPaid ? parseInt(paymentMethodID) : undefined,
+          referenceNumber: !isAlreadyPaid ? (settledPaymentRef || null) : undefined
+        };
         const res = await fetch('/api/receptionist/bookings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'update_booking',
-            bookingID: updatingBooking.bookingID,
-            guestID: formData.guestID || null,
-            roomID: formData.roomID || updatingBooking.roomID,
-            checkInDateTime: toDbDate(checkInDate) + ' ' + checkInTime + ':00',
-            checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
-            numGuestsCount: newNumGuests,
-            guestForm,
-            guests: preparedGuests
-          })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update booking');
 
-        showAlert('success', 'Success', data.message || 'Booking updated successfully');
-        setActiveModal(null);
+        if (!isAlreadyPaid && data.downPaymentRecorded) {
+          const roomObj = rooms.find(r => String(r.roomID) === String(formData.roomID || updatingBooking.roomID));
+          const guestName = `${guestForm.firstName || ''} ${guestForm.middleName ? guestForm.middleName + ' ' : ''}${guestForm.lastName || ''}`.trim() || 'Guest';
+          const pmObj = paymentMethods.find(m => String(m.paymentMethodID) === String(paymentMethodID));
+
+          setDownPaymentReceipt({
+            receiptNo: `DP-${Math.floor(Math.random() * 900000 + 100000)}`,
+            bookingID: updatingBooking.bookingID,
+            date: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+            guestName,
+            roomNumber: roomObj?.roomNumber || 'N/A',
+            roomType: roomObj?.roomType || 'Standard',
+            totalRoomCharge: parseFloat(updatingBooking.roomCharge || dpAmount * 2),
+            downPaymentPercentage: dpPctNum,
+            requiredDownpayment: dpAmount,
+            cashReceived: parseFloat(downPayment || dpAmount),
+            change: Math.max(0, parseFloat(downPayment || 0) - dpAmount),
+            amountPaid: dpAmount,
+            remainingBalance: Math.max(0, parseFloat(updatingBooking.roomCharge || dpAmount * 2) - dpAmount),
+            paymentMethodName: pmObj?.paymentMethod || 'Cash'
+          });
+          setActiveModal('downpayment_receipt');
+        } else {
+          showAlert('success', 'Success', data.message || 'Booking updated successfully');
+          setActiveModal(null);
+        }
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -777,11 +838,13 @@ function BookingsClient() {
     setCheckOutDate(tomorrowUiDate);
     setCheckOutTime('12:00');
     
+    setNumGuestsCount(1);
     setIsAutoFilled(false);
-    setGuestForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
+    setGuestForm({ firstName: '', middleName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
     setSelectedRoomType('');
     setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
     setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+    setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
     setDownPayment('');
     setPaymentMethodID('1');
     setIsGcashSettled(false);
@@ -810,6 +873,7 @@ function BookingsClient() {
     const rebookGuest = guests.find(g => String(g.guestID) === String(b.guestID));
     setGuestForm({
       firstName: b.firstName || rebookGuest?.firstName || '',
+      middleName: b.middleName || rebookGuest?.middleName || '',
       lastName: b.lastName || rebookGuest?.lastName || '',
       contact: b.contact || rebookGuest?.contact || '',
       email: b.email || rebookGuest?.email || '',
@@ -820,6 +884,8 @@ function BookingsClient() {
     setSelectedRoomType(b.roomType || '');
     setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
     setRoomGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(g => ({ ...g, discountID: g.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
+    setNumGuestsCount(1);
+    setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
     setDownPayment('');
     setPaymentMethodID('1');
     setIsGcashSettled(false);
@@ -831,10 +897,11 @@ function BookingsClient() {
   useEffect(() => {
     if (activeModal !== 'create' && activeModal !== 'update_booking') {
       setIsAutoFilled(false);
-      setGuestForm({ firstName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
+      setGuestForm({ firstName: '', middleName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
       setSelectedRoomType('');
       setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
+      setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
       setPaymentMethodID('1');
       setIsGcashSettled(false);
       setGcashInlineError('');
@@ -852,7 +919,7 @@ function BookingsClient() {
   // Synchronize first guest name
   useEffect(() => {
     if (activeModal === 'create' || activeModal === 'update_booking') {
-      let name = `${guestForm.firstName} ${guestForm.lastName}`.trim();
+      let name = `${guestForm.firstName} ${guestForm.middleName ? guestForm.middleName + ' ' : ''}${guestForm.lastName}`.trim();
       let calculatedAge = '';
       if (guestForm.dateOfBirth) {
         calculatedAge = calculateAgeFromUiDate(guestForm.dateOfBirth);
@@ -867,7 +934,7 @@ function BookingsClient() {
         return copy;
       });
     }
-  }, [guestForm.firstName, guestForm.lastName, guestForm.dateOfBirth, activeModal]);
+  }, [guestForm.firstName, guestForm.middleName, guestForm.lastName, guestForm.dateOfBirth, activeModal]);
 
   // Auto-calculate downPayment based on selected room, breakfast option, and downpayment percentage tier
   useEffect(() => {
@@ -1110,6 +1177,7 @@ function BookingsClient() {
             isWalkIn,
             guestID: formData.guestID || null,
             firstName: guestForm.firstName,
+            middleName: guestForm.middleName || null,
             lastName: guestForm.lastName,
             contact: guestForm.contact,
             email: guestForm.email,
@@ -1144,7 +1212,7 @@ function BookingsClient() {
 
         const roomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
         const guestObj = isWalkIn ? null : guests.find(g => String(g.guestID) === String(formData.guestID));
-        const guestName = `${guestForm.firstName || ''} ${guestForm.lastName || ''}`.trim() || (guestObj ? `${guestObj.firstName} ${guestObj.lastName}` : 'Guest');
+        const guestName = `${guestForm.firstName || ''} ${guestForm.middleName ? guestForm.middleName + ' ' : ''}${guestForm.lastName || ''}`.trim() || (guestObj ? `${guestObj.firstName} ${guestObj.lastName}` : 'Guest');
 
         const pmObj = paymentMethods.find(m => String(m.paymentMethodID) === String(paymentMethodID));
         const receiptTotalAmount = parseFloat(data.totalBookingAmount || dpAmount / (dpPctNum / 100) || netRoomStayCharge || 0);
@@ -1505,6 +1573,27 @@ function BookingsClient() {
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
+                        {['Pending Check-in', 'Confirmed', 'Pending', 'Booked', 'Overdue Check-In'].includes(b.status) && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary text-white fw-bold me-1 d-inline-flex align-items-center justify-content-center"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Check-In Guest"
+                            aria-label="Check-In Guest"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '6px',
+                              backgroundColor: '#2155B5',
+                              borderColor: '#2155B5'
+                            }}
+                            onClick={() => handleCheckIn(b.bookingID)}
+                          >
+                            <i className="fa-solid fa-user-check"></i>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           className="btn btn-sm btn-success text-white fw-bold me-1 d-inline-flex align-items-center justify-content-center"
@@ -1607,7 +1696,7 @@ function BookingsClient() {
                     </div>
 
                     <div className="row g-2 mb-2">
-                      <div className="col-md-6">
+                      <div className="col-md-4">
                         <label className="form-label small fw-semibold mb-1">First Name *</label>
                         <input
                           type="text"
@@ -1617,7 +1706,17 @@ function BookingsClient() {
                           onChange={(e) => setGuestForm(prev => ({ ...prev, firstName: e.target.value }))}
                         />
                       </div>
-                      <div className="col-md-6">
+                      <div className="col-md-4">
+                        <label className="form-label small fw-semibold mb-1">Middle Name <span className="text-muted fw-normal">(Optional)</span></label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="Optional"
+                          value={guestForm.middleName || ''}
+                          onChange={(e) => setGuestForm(prev => ({ ...prev, middleName: e.target.value }))}
+                        />
+                      </div>
+                      <div className="col-md-4">
                         <label className="form-label small fw-semibold mb-1">Last Name *</label>
                         <input
                           type="text"
@@ -1769,7 +1868,11 @@ function BookingsClient() {
                           value={numGuestsCount}
                           onChange={(e) => {
                             const val = e.target.value;
-                            setNumGuestsCount(val === '' ? '' : Math.max(1, parseInt(val) || 1));
+                            const parsed = val === '' ? '' : Math.max(1, parseInt(val) || 1);
+                            setNumGuestsCount(parsed);
+                            if (typeof parsed === 'number') {
+                              setDiscountedGuests(prev => prev.slice(0, parsed));
+                            }
                           }}
                           onBlur={() => {
                             if (numGuestsCount === '' || isNaN(numGuestsCount)) setNumGuestsCount(1);
@@ -1792,9 +1895,9 @@ function BookingsClient() {
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <div>
                           <h6 className="fw-bold text-pcc-primary mb-0 small">Special Discounts (Senior Citizen / PWD)</h6>
-                          <span className="small text-muted">Optional: Add details for any guest qualifying for a discount.</span>
+                          <span className="small text-muted">Optional: Add details for any guest qualifying for a discount (Limit: {parseInt(numGuestsCount) || 1} guest{(parseInt(numGuestsCount) || 1) > 1 ? 's' : ''}).</span>
                         </div>
-                        {discountedGuests.length < (numGuestsCount || 1) && (
+                        {discountedGuests.length < (parseInt(numGuestsCount) || 1) && (
                           <button
                             type="button"
                             className="btn btn-sm btn-pcc-primary text-white fw-bold"
@@ -1805,69 +1908,80 @@ function BookingsClient() {
                         )}
                       </div>
 
-                      {discountedGuests.map((g, idx) => (
-                        <div key={idx} className="row g-2 align-items-center mb-2 p-2 border rounded bg-light">
-                          <div className="col-md-4">
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              placeholder="Qualifying Guest Full Name *"
-                              value={g.guestName || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, guestName: val } : item));
-                              }}
-                              required
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <select
-                              className="form-select form-select-sm"
-                              value={g.discountID}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountID: val } : item));
-                              }}
-                              required
-                            >
-                              <option value="">Select Discount Type *</option>
-                              {availableDiscounts.map(d => (
-                                <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="col-md-3">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              className="form-control form-control-sm"
-                              placeholder="Numeric ID No * (0-9)"
-                              value={g.discountIdNumber}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '');
-                                setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountIdNumber: val } : item));
-                              }}
-                              onKeyDown={(e) => {
-                                if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
-                                  e.preventDefault();
-                                }
-                              }}
-                              required
-                            />
-                          </div>
-                          <div className="col-md-1 text-end">
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-danger text-white fw-bold py-1 px-2 w-100"
-                              onClick={() => setDiscountedGuests(prev => prev.filter((_, i) => i !== idx))}
-                              title="Remove discount"
-                            >
-                              ✕
-                            </button>
-                          </div>
+                      {discountedGuests.length === 0 ? (
+                        <div className="text-muted small fst-italic py-1 mb-2">
+                          No discounted guests added. Click "+ Add Discounted Guest" if any guest qualifies for a discount.
                         </div>
-                      ))}
+                      ) : (
+                        discountedGuests.map((g, idx) => (
+                          <div key={idx} className="row g-2 align-items-center mb-2 p-2 border rounded bg-light">
+                            <div className="col-md-4">
+                              <input
+                                type="text"
+                                className="form-control form-control-sm"
+                                placeholder={g.discountID ? "Qualifying Guest Full Name *" : "Qualifying Guest Full Name"}
+                                value={g.guestName || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, guestName: val } : item));
+                                }}
+                                required={Boolean(g.discountID)}
+                              />
+                            </div>
+                            <div className="col-md-4">
+                              <select
+                                className="form-select form-select-sm"
+                                value={g.discountID}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountID: val } : item));
+                                }}
+                              >
+                                <option value="">Select Discount Type (Optional)</option>
+                                {availableDiscounts.map(d => (
+                                  <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="col-md-3">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                className="form-control form-control-sm"
+                                placeholder={g.discountID ? "Numeric ID No * (0-9)" : "Numeric ID No (0-9)"}
+                                value={g.discountIdNumber}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountIdNumber: val } : item));
+                                }}
+                                onKeyDown={(e) => {
+                                  if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                required={Boolean(g.discountID)}
+                              />
+                            </div>
+                            <div className="col-md-1 text-end">
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-danger text-white fw-bold py-1 px-2 w-100"
+                                onClick={() => {
+                                  if (discountedGuests.length <= 1) {
+                                    setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
+                                  } else {
+                                    setDiscountedGuests(prev => prev.filter((_, i) => i !== idx));
+                                  }
+                                }}
+                                title="Remove / Clear discount"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -2139,117 +2253,130 @@ function BookingsClient() {
                           </div>
                         )}
 
-                        <div className="row g-2 mb-3">
-                          <div className="col-md-4">
-                            <label className="form-label small fw-semibold">Payment Method *</label>
-                            <select
-                              className="form-select form-select-sm"
-                              required
-                              value={paymentMethodID}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setPaymentMethodID(val);
-                                setIsGcashSettled(false);
-                                setGcashInlineError('');
-                                setSettledPaymentRef('');
-                                if (String(val) === '2') {
-                                  setDownPayment(requiredDownpayment.toFixed(2));
-                                }
-                              }}
-                            >
-                              {paymentMethods.map(pm => (
-                                <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
-                                  {pm.paymentMethod}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                        {(() => {
+                          const isAlreadyPaid = activeModal === 'update_booking' && Boolean(
+                            updatingBooking?.isDownPaymentPaid ||
+                            (parseFloat(updatingBooking?.downPaymentPaid) > 0) ||
+                            (parseFloat(updatingBooking?.paidTotal) > 0) ||
+                            (parseFloat(updatingBooking?.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Confirmed', 'Checked In'].includes(updatingBooking?.status))
+                          );
 
-                          {activeModal === 'update_booking' ? (
-                            <div className="col-md-12">
-                              <div className="alert alert-info py-2.5 px-3 mb-0 small d-flex align-items-center gap-2">
-                                <i className="bi bi-info-circle-fill fs-5 text-primary"></i>
-                                <div>
-                                  <strong>Update Booking Mode:</strong> Initial down payment was already recorded for this booking. Room charges and schedule adjustments will be automatically updated in the Billing Ledger upon check-out.
+                          return isAlreadyPaid ? (
+                            <div className="row g-2 mb-3">
+                              <div className="col-12">
+                                <div className="alert alert-success py-2.5 px-3 mb-0 small d-flex align-items-center gap-2">
+                                  <i className="fa-solid fa-circle-check fs-5 text-success"></i>
+                                  <div>
+                                    <strong>Down Payment Settled:</strong> Initial down payment of ₱{parseFloat(updatingBooking.downPaymentPaid || updatingBooking.downPaymentAmount || 0).toFixed(2)} has already been verified and paid. Room charges and schedule adjustments will be automatically updated in the Billing Ledger.
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          ) : String(paymentMethodID) === '1' ? (
-                            <>
+                          ) : (
+                            <div className="row g-2 mb-3">
                               <div className="col-md-4">
-                                <label className="form-label small fw-semibold">Payment Received (₱) *</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  className="form-control form-control-sm fw-bold text-success"
+                                <label className="form-label small fw-semibold">Payment Method *</label>
+                                <select
+                                  className="form-select form-select-sm"
                                   required
-                                  placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
-                                  value={downPayment}
-                                  onChange={(e) => setDownPayment(e.target.value)}
-                                />
-                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                                  Required Due: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
-                                </small>
+                                  value={paymentMethodID}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setPaymentMethodID(val);
+                                    setIsGcashSettled(false);
+                                    setGcashInlineError('');
+                                    setSettledPaymentRef('');
+                                    if (String(val) === '2') {
+                                      setDownPayment(requiredDownpayment.toFixed(2));
+                                    }
+                                  }}
+                                >
+                                  {paymentMethods.map(pm => (
+                                    <option key={pm.paymentMethodID} value={pm.paymentMethodID}>
+                                      {pm.paymentMethod}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
 
-                              <div className="col-md-4">
-                                <label className="form-label small fw-semibold">Change to Give (₱)</label>
-                                <input
-                                  type="text"
-                                  readOnly
-                                  className={`form-control form-control-sm fw-bold ${
-                                    (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
-                                  }`}
-                                  value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
-                                />
-                                <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                                  Auto-calculated change
-                                </small>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="col-md-12 d-flex flex-column align-items-center justify-content-center">
-                              {gcashInlineError ? (
-                                <div className="alert alert-danger py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
-                                  <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
-                                  <span>{gcashInlineError}</span>
-                                </div>
-                              ) : isGcashSettled ? (
-                                <div className="alert alert-success py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
-                                  <i className="bi bi-check-circle-fill text-success fs-6"></i>
-                                  <span><strong>GCash Payment Settled:</strong> Reference #{settledPaymentRef}. You may proceed to save booking.</span>
-                                </div>
+                              {String(paymentMethodID) === '1' ? (
+                                <>
+                                  <div className="col-md-4">
+                                    <label className="form-label small fw-semibold">Payment Received (₱) *</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      className="form-control form-control-sm fw-bold text-success"
+                                      required
+                                      placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
+                                      value={downPayment}
+                                      onChange={(e) => setDownPayment(e.target.value)}
+                                    />
+                                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                                      Required Due: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
+                                    </small>
+                                  </div>
+
+                                  <div className="col-md-4">
+                                    <label className="form-label small fw-semibold">Change to Give (₱)</label>
+                                    <input
+                                      type="text"
+                                      readOnly
+                                      className={`form-control form-control-sm fw-bold ${
+                                        (parseFloat(downPayment || 0) - requiredDownpayment) >= 0 ? 'text-primary' : 'text-danger'
+                                      }`}
+                                      value={`₱${Math.max(0, (parseFloat(downPayment || 0) - requiredDownpayment)).toFixed(2)}`}
+                                    />
+                                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
+                                      Auto-calculated change
+                                    </small>
+                                  </div>
+                                </>
                               ) : (
-                                <div className="alert alert-warning py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
-                                  <i className="bi bi-info-circle-fill text-warning fs-6"></i>
-                                  <span><strong>Awaiting GCash Payment:</strong> Down payment must be verified/settled before saving this booking.</span>
+                                <div className="col-md-12 d-flex flex-column align-items-center justify-content-center">
+                                  {gcashInlineError ? (
+                                    <div className="alert alert-danger py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
+                                      <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
+                                      <span>{gcashInlineError}</span>
+                                    </div>
+                                  ) : isGcashSettled ? (
+                                    <div className="alert alert-success py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
+                                      <i className="bi bi-check-circle-fill text-success fs-6"></i>
+                                      <span><strong>GCash Payment Settled:</strong> Reference #{settledPaymentRef}. You may proceed to save booking.</span>
+                                    </div>
+                                  ) : (
+                                    <div className="alert alert-warning py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
+                                      <i className="bi bi-info-circle-fill text-warning fs-6"></i>
+                                      <span><strong>Awaiting GCash Payment:</strong> Down payment must be verified/settled before saving this booking.</span>
+                                    </div>
+                                  )}
+                                  <DynamicQrPhCode 
+                                    amount={requiredDownpayment}
+                                    refNumber={`BOOK-${selectedRoomObj?.roomNumber || formData.roomID || 'WALK'}`}
+                                    paymentStatus={isGcashSettled ? 'Settled' : 'Pending'}
+                                    showProceedBtn={false}
+                                    showCheckStatusBtn={false}
+                                    showTestPayBtn={true}
+                                    onSimulateTestPay={(simRef) => {
+                                      setIsGcashSettled(true);
+                                      setSettledPaymentRef(simRef || `SIM-${Date.now()}`);
+                                      setGcashInlineError('');
+                                      setDownPayment(requiredDownpayment.toFixed(2));
+                                      showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment amount auto-filled.`);
+                                    }}
+                                    onCheckStatus={() => {}}
+                                    onPaymentSuccess={(pData) => {
+                                      setIsGcashSettled(true);
+                                      setSettledPaymentRef(pData?.referenceNumber || pData?.paymentIntentId || `PAY-${Date.now()}`);
+                                      setGcashInlineError('');
+                                      setDownPayment(requiredDownpayment.toFixed(2));
+                                    }}
+                                  />
                                 </div>
                               )}
-                              <DynamicQrPhCode 
-                                amount={requiredDownpayment}
-                                refNumber={`BOOK-${selectedRoomObj?.roomNumber || formData.roomID || 'WALK'}`}
-                                paymentStatus={isGcashSettled ? 'Settled' : 'Pending'}
-                                showProceedBtn={false}
-                                showCheckStatusBtn={false}
-                                showTestPayBtn={true}
-                                onSimulateTestPay={(simRef) => {
-                                  setIsGcashSettled(true);
-                                  setSettledPaymentRef(simRef || `SIM-${Date.now()}`);
-                                  setGcashInlineError('');
-                                  setDownPayment(requiredDownpayment.toFixed(2));
-                                  showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment amount auto-filled.`);
-                                }}
-                                onCheckStatus={() => {}}
-                                onPaymentSuccess={(pData) => {
-                                  setIsGcashSettled(true);
-                                  setSettledPaymentRef(pData?.referenceNumber || pData?.paymentIntentId || `PAY-${Date.now()}`);
-                                  setGcashInlineError('');
-                                  setDownPayment(requiredDownpayment.toFixed(2));
-                                }}
-                              />
                             </div>
-                          )}
-                        </div>
+                          );
+                        })()}
                       </>
                     );
                   })()}
