@@ -14,63 +14,75 @@ export default function InactivityTimeout() {
       pathname.startsWith('/receptionist') || 
       pathname.startsWith('/guest');
 
-    // Receptionists operate 24/7 for processing bookings & room service orders; exempt /receptionist from inactivity auto-logout
-    if (!isDashboard || pathname.startsWith('/receptionist')) return;
+    if (!isDashboard) return;
 
-    // Timeout duration: 15 minutes (900,000 milliseconds)
-    const timeoutDuration = 15 * 60 * 1000;
+    // 1. Concurrent Session Monitor (Applies to all roles: Guest, Receptionist, Administrator)
+    const checkSession = async () => {
+      try {
+        const res = await fetch('/api/auth/session-check');
+        const data = await res.json().catch(() => ({}));
+        if (data && data.valid === false && data.reason === 'concurrent_login') {
+          console.log("Session invalidated (concurrent login detected). Logging out...");
+          window.location.href = '/auth/login?reason=concurrent';
+        }
+      } catch (err) {
+        // Network hiccup, will re-check on next interval
+      }
+    };
+
+    // Run session check every 4 seconds when tab is active
+    const sessionCheckInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      checkSession();
+    }, 4000);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        checkSession();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 2. Inactivity Auto-Logout (15 mins idle; Receptionists exempt due to 24/7 front desk operations)
+    let inactivityTimer = null;
+    const isReceptionist = pathname.startsWith('/receptionist');
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
 
     const performAutoLogout = async () => {
       try {
         console.log("Inactivity limit reached. Logging out...");
-        // Call explicit logout route to clear DB sessionToken and cookies
         await fetch('/api/auth/logout', { method: 'POST' });
-        // Redirect to login page
         window.location.href = '/auth/login?reason=inactive';
       } catch (err) {
         console.error("Auto-logout request failed:", err);
       }
     };
 
-    const resetTimer = () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(performAutoLogout, timeoutDuration);
+    const resetInactivityTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      if (!isReceptionist) {
+        inactivityTimer = setTimeout(performAutoLogout, 15 * 60 * 1000); // 15 minutes
+      }
     };
 
-    // Poll session-check endpoint every 10 seconds to detect concurrent logins in real-time
-    const sessionCheckInterval = setInterval(async () => {
-      try {
-        const res = await fetch('/api/auth/session-check');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.valid === false) {
-            console.log("Session invalidated (concurrent login detected). Logging out...");
-            window.location.href = '/auth/login?reason=concurrent';
-          }
-        }
-      } catch (err) {
-        console.error("Session check failed:", err);
-      }
-    }, 10000); // 10 seconds
-
-    // User interaction events to monitor activity
-    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
-
-    // Bind event listeners
-    activityEvents.forEach(event => {
-      window.addEventListener(event, resetTimer);
-    });
-
-    // Start timer on component mount/route change
-    resetTimer();
-
-    // Cleanup listeners and timers on unmount
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      clearInterval(sessionCheckInterval);
+    if (!isReceptionist) {
       activityEvents.forEach(event => {
-        window.removeEventListener(event, resetTimer);
+        window.addEventListener(event, resetInactivityTimer);
       });
+      resetInactivityTimer();
+    }
+
+    // Cleanup listeners and timers on unmount or route change
+    return () => {
+      clearInterval(sessionCheckInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      if (!isReceptionist) {
+        activityEvents.forEach(event => {
+          window.removeEventListener(event, resetInactivityTimer);
+        });
+      }
     };
   }, [pathname]);
 

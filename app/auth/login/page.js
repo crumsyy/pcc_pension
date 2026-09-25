@@ -18,6 +18,7 @@ function LoginContent() {
   
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [noticeMsg, setNoticeMsg] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const autofillLogin = (testEmail, testPassword) => {
@@ -32,6 +33,21 @@ function LoginContent() {
 
   // Check URL parameters for notices
   useEffect(() => {
+    const reasonParam = searchParams.get("reason") || searchParams.get("notice");
+    if (reasonParam === "concurrent") {
+      setNoticeMsg({
+        type: "warning",
+        title: "Logged Out on This Device",
+        body: "Your account was logged in on another device or browser. For your security, this session was ended."
+      });
+    } else if (reasonParam === "inactive") {
+      setNoticeMsg({
+        type: "info",
+        title: "Session Expired",
+        body: "You were logged out due to inactivity. Please log in again."
+      });
+    }
+
     if (searchParams.get("verified") === "1") {
       setSuccessMsg("Your account has been verified! You can now log in.");
     }
@@ -127,6 +143,21 @@ function LoginContent() {
                 <h2 className="section-title mb-1">Log In</h2>
                 <p className="text-muted small">Access your guest account or staff dashboard.</p>
               </div>
+
+              {noticeMsg && (
+                <div
+                  className={`alert alert-${noticeMsg.type} d-flex align-items-start gap-2.5 p-3 mb-3.5 rounded-3 border-0 bg-${noticeMsg.type}-subtle text-${noticeMsg.type}-emphasis shadow-xs`}
+                  role="alert"
+                >
+                  <i className={`bi ${noticeMsg.type === 'warning' ? 'bi-exclamation-triangle-fill text-warning fs-5' : 'bi-clock-history text-info fs-5'} flex-shrink-0 mt-0.5`}></i>
+                  <div>
+                    <div className="fw-bold" style={{ fontSize: '0.92rem' }}>{noticeMsg.title}</div>
+                    <div className="small text-secondary mt-0.5" style={{ fontSize: '0.82rem', lineHeight: '1.4' }}>
+                      {noticeMsg.body}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {errorMsg && (
                 <div className="alert alert-danger d-flex align-items-center gap-2 py-2.5 px-3 mb-3 shadow-sm" role="alert">

@@ -10,8 +10,12 @@ export async function POST() {
     if (token) {
       const secret = process.env.JWT_SECRET || 'super_secret_pcc_pension_key_change_me_in_production';
       const decoded = jwt.verify(token, secret);
-      // Clear the session token in the database
-      await dbQuery("UPDATE user SET sessionToken = NULL WHERE userID = ?", [decoded.userID]);
+      // Clear the session token in the database ONLY IF it matches this token (prevent invalidating a new concurrent session)
+      if (decoded.sessionToken) {
+        await dbQuery("UPDATE user SET sessionToken = NULL WHERE userID = ? AND sessionToken = ?", [decoded.userID, decoded.sessionToken]);
+      } else {
+        await dbQuery("UPDATE user SET sessionToken = NULL WHERE userID = ?", [decoded.userID]);
+      }
     }
   } catch (err) {
     // Session token might be already expired or malformed, continue with clearing cookie
@@ -41,8 +45,12 @@ export async function GET(request) {
     if (token) {
       const secret = process.env.JWT_SECRET || 'super_secret_pcc_pension_key_change_me_in_production';
       const decoded = jwt.verify(token, secret);
-      // Clear the session token in the database
-      await dbQuery("UPDATE user SET sessionToken = NULL WHERE userID = ?", [decoded.userID]);
+      // Clear the session token in the database ONLY IF it matches this token
+      if (decoded.sessionToken) {
+        await dbQuery("UPDATE user SET sessionToken = NULL WHERE userID = ? AND sessionToken = ?", [decoded.userID, decoded.sessionToken]);
+      } else {
+        await dbQuery("UPDATE user SET sessionToken = NULL WHERE userID = ?", [decoded.userID]);
+      }
     }
   } catch (err) {
     // Session already expired, continue

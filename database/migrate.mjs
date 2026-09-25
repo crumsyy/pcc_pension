@@ -109,6 +109,7 @@ async function run() {
     await ensureColumn(connection, 'user', 'suspendedUntil', 'DATETIME DEFAULT NULL');
     await ensureColumn(connection, 'user', 'suspensionRemarks', 'VARCHAR(255) DEFAULT NULL');
     await ensureColumn(connection, 'user', 'isDeleted', 'TINYINT(1) NOT NULL DEFAULT 0');
+    await ensureColumn(connection, 'user', 'sessionToken', 'VARCHAR(255) DEFAULT NULL');
 
     console.log("Altering room table for description, occupancyLimit, and image...");
     await ensureColumn(connection, 'room', 'description', 'TEXT DEFAULT NULL');
