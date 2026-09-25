@@ -2955,9 +2955,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 </div>
 
                 {/* SEARCH & FILTER BAR */}
-                <div className="card shadow-sm border border-secondary-subtle p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                <div className="card shadow-sm border border-secondary-subtle p-2.5 p-md-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
                   <div className="row g-2 align-items-center">
-                    <div className="col-12 col-md-4">
+                    <div className="col-12 col-md">
                       <div className="input-group input-group-sm">
                         <span className="input-group-text bg-light text-muted border-end-0"><i className="bi bi-search"></i></span>
                         <input
@@ -2969,7 +2969,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         />
                       </div>
                     </div>
-                    <div className="col-6 col-md-2.5">
+                    <div className="col-6 col-md-auto" style={{ minWidth: '130px' }}>
                       <select
                         className="form-select form-select-sm"
                         value={selectedFloorFilter}
@@ -2981,7 +2981,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         ))}
                       </select>
                     </div>
-                    <div className="col-6 col-md-2.5">
+                    <div className="col-6 col-md-auto" style={{ minWidth: '165px' }}>
                       <select
                         className="form-select form-select-sm"
                         value={selectedRoomTypeFilter}
@@ -2993,7 +2993,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         ))}
                       </select>
                     </div>
-                    <div className="col-6 col-md-2">
+                    <div className="col-6 col-md-auto" style={{ minWidth: '135px' }}>
                       <select
                         className="form-select form-select-sm"
                         value={selectedStatusFilter}
@@ -3007,18 +3007,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       </select>
                     </div>
                     {(roomSearchQuery || selectedFloorFilter !== 'All' || selectedRoomTypeFilter !== 'All' || selectedStatusFilter !== 'All') && (
-                      <div className="col-12 text-end mt-2">
+                      <div className="col-6 col-md-auto text-end">
                         <button
                           type="button"
-                          className="btn btn-xs btn-danger text-white py-1 px-3 fw-bold"
+                          className="btn btn-sm btn-outline-danger py-1 px-2.5 fw-semibold d-inline-flex align-items-center gap-1 w-100"
                           onClick={() => {
                             setRoomSearchQuery('');
                             setSelectedFloorFilter('All');
                             setSelectedRoomTypeFilter('All');
                             setSelectedStatusFilter('All');
                           }}
+                          title="Reset all filters"
+                          style={{ fontSize: '0.80rem', whiteSpace: 'nowrap' }}
                         >
-                          Reset Filters
+                          <i className="bi bi-x-circle"></i>
+                          <span>Reset</span>
                         </button>
                       </div>
                     )}
