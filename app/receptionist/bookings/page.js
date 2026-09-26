@@ -1156,7 +1156,6 @@ function BookingsClient() {
       });
     }
 
-    const rawRoomStayCharge = rate * nights;
     const netRoomStayCharge = Math.max(0, rawRoomStayCharge - totalApportionedDiscount);
     const grossSubtotal = rawRoomStayCharge + extraGuestFee + earlyFee + lateFee;
     const netSubtotal = Math.max(0, grossSubtotal - totalApportionedDiscount);
