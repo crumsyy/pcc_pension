@@ -30,7 +30,7 @@ export default function ConfirmReservationModal({
   const [checkOutTime, setCheckOutTime] = useState('12:00');
   const [useCurrentTimeIn, setUseCurrentTimeIn] = useState(false);
 
-  const [downPaymentOption, setDownPaymentOption] = useState('30');
+  const [downPaymentOption, setDownPaymentOption] = useState('50');
   const [paymentMethodID, setPaymentMethodID] = useState('1');
   const [downPayment, setDownPayment] = useState('');
   const [isGcashSettled, setIsGcashSettled] = useState(false);
@@ -79,7 +79,7 @@ export default function ConfirmReservationModal({
     }
 
     setUseCurrentTimeIn(false);
-    setDownPaymentOption('30');
+    setDownPaymentOption('50');
     setPaymentMethodID('1');
     setDownPayment('');
     setIsGcashSettled(false);
@@ -113,7 +113,7 @@ export default function ConfirmReservationModal({
   const extraGuestFee = extraGuests * 100 * nights;
 
   const totalRoomCharge = rate * nights;
-  const dpPctNum = parseInt(downPaymentOption, 10) || 30;
+  const dpPctNum = parseInt(downPaymentOption, 10) || 50;
   const requiredDownpayment = Math.round(totalRoomCharge * (dpPctNum / 100) * 100) / 100;
   const remainingBal = Math.max(0, Math.round(((totalRoomCharge + extraGuestFee) - requiredDownpayment) * 100) / 100);
   const isCheckInToday = checkInDate && toDbDate(checkInDate) === todayDbDate;

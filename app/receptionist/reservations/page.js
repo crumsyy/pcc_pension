@@ -561,7 +561,7 @@ function ReservationsClient() {
       showAlert('error', 'Cannot Convert', `This reservation cannot be converted because its status is ${res.status}.`);
       return;
     }
-    if (res.isCourtesyHold && res.holdExpiryDateTime) {
+    if ((res.isCourtesyHold || ['Courtesy Hold', 'On Hold', 'Hold'].includes(res.status)) && res.holdExpiryDateTime) {
       const expiry = new Date(new Date(res.holdExpiryDateTime).getTime() + 30 * 60 * 1000);
       if (new Date() > expiry) {
         showAlert('error', 'Expired Courtesy Hold', 'This courtesy hold has expired (past the 48-hour hold and 30-minute grace period) and cannot be converted to a booking.');
@@ -1008,10 +1008,10 @@ function ReservationsClient() {
                     </td>
                     <td>{r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
                     <td>
-                      {r.status === 'Courtesy Hold' ? (
+                      {['Courtesy Hold', 'On Hold', 'Hold'].includes(r.status) || normalizeReservationStatus(r.status) === 'On Hold' ? (
                         <div>
                           <span className="badge" style={{ backgroundColor: '#fd7e14', color: '#fff' }} aria-label="Courtesy Hold Status">
-                            Courtesy Hold
+                            {r.status || 'On Hold'}
                           </span>
                           {(() => {
                             const holdInfo = getCourtesyHoldTimeInfo(r.holdExpiryDateTime);
@@ -1043,8 +1043,8 @@ function ReservationsClient() {
                       )}
                     </td>
                     <td className="text-end">
-                      <div className="actions-wrapper d-flex justify-content-end gap-1">
-                        {r.status === 'Courtesy Hold' && (() => {
+                      <div className="actions-wrapper d-flex justify-content-end align-items-center gap-1">
+                        {(['Courtesy Hold', 'On Hold', 'Hold'].includes(r.status) || normalizeReservationStatus(r.status) === 'On Hold') ? (() => {
                           const holdInfo = getCourtesyHoldTimeInfo(r.holdExpiryDateTime);
                           const isExpired = holdInfo.expired;
                           return (
@@ -1052,13 +1052,24 @@ function ReservationsClient() {
                               {!isExpired && (
                                 <button
                                   type="button"
-                                  className="action-btn action-btn-activate"
-                                  data-bs-toggle="tooltip"
+                                  className="btn btn-sm btn-primary fw-semibold d-inline-flex align-items-center gap-1 shadow-xs px-2.5 py-1 text-nowrap"
+                                  style={{ fontSize: '0.80rem' }}
                                   title="Confirm & Convert Hold to Booking"
                                   aria-label="Confirm & Convert Hold to Booking"
                                   onClick={() => openConvertModal(r)}
+                                  disabled={isSubmitting && selectedRes?.reservationID === r.reservationID}
                                 >
-                                  <i className="fa-solid fa-book-bookmark"></i>
+                                  {isSubmitting && selectedRes?.reservationID === r.reservationID ? (
+                                    <>
+                                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                      Converting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="bi bi-arrow-right-circle me-1"></i>
+                                      Convert to Booking
+                                    </>
+                                  )}
                                 </button>
                               )}
                               <button
@@ -1084,30 +1095,42 @@ function ReservationsClient() {
                               </button>
                             </>
                           );
-                        })()}
-                        {['Pending', 'Confirmed', 'Hold', 'Overdue Check-In', 'Reserved'].includes(r.status) && (
-                          <>
-                            <button
-                              type="button"
-                              className="action-btn action-btn-activate"
-                              data-bs-toggle="tooltip"
-                              title="Confirm & Book Reservation"
-                              aria-label="Confirm & Book Reservation"
-                              onClick={() => openConvertModal(r)}
-                            >
-                              <i className="fa-solid fa-book-bookmark"></i>
-                            </button>
-                            <button
-                              type="button"
-                              className="action-btn action-btn-edit"
-                              data-bs-toggle="tooltip"
-                              title="Edit Reservation"
-                              aria-label="Edit Reservation"
-                              onClick={() => openEditModal(r)}
-                            >
-                              <i className="fa-solid fa-pen-to-square"></i>
-                            </button>
-                          </>
+                        })() : (
+                          (['Pending', 'Confirmed', 'Overdue Check-In', 'Reserved'].includes(r.status) || normalizeReservationStatus(r.status) === 'Reserved') ? (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-primary fw-semibold d-inline-flex align-items-center gap-1 shadow-xs px-2.5 py-1 text-nowrap"
+                                style={{ fontSize: '0.80rem' }}
+                                title="Confirm & Book Reservation"
+                                aria-label="Confirm & Book Reservation"
+                                onClick={() => openConvertModal(r)}
+                                disabled={isSubmitting && selectedRes?.reservationID === r.reservationID}
+                              >
+                                {isSubmitting && selectedRes?.reservationID === r.reservationID ? (
+                                  <>
+                                    <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Converting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="bi bi-arrow-right-circle me-1"></i>
+                                    Convert to Booking
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                className="action-btn action-btn-edit"
+                                data-bs-toggle="tooltip"
+                                title="Edit Reservation"
+                                aria-label="Edit Reservation"
+                                onClick={() => openEditModal(r)}
+                              >
+                                <i className="fa-solid fa-pen-to-square"></i>
+                              </button>
+                            </>
+                          ) : null
                         )}
                         {r.status !== 'Cancelled' && r.status !== 'Expired' && (
                           <button

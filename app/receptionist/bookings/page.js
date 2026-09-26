@@ -459,8 +459,8 @@ function BookingsClient() {
           });
           setActiveModal('downpayment_receipt');
         } else {
-          showAlert('success', 'Success', data.message || 'Booking updated successfully');
           setActiveModal(null);
+          showAlert('success', 'Booking Updated', data.message || 'Booking updated successfully!');
         }
         fetchData();
       } catch (err) {
@@ -1156,7 +1156,10 @@ function BookingsClient() {
       });
     }
 
-    const netSubtotal = Math.max(0, (rate * nights + extraGuestFee + earlyFee + lateFee) - totalApportionedDiscount);
+    const rawRoomStayCharge = rate * nights;
+    const netRoomStayCharge = Math.max(0, rawRoomStayCharge - totalApportionedDiscount);
+    const grossSubtotal = rawRoomStayCharge + extraGuestFee + earlyFee + lateFee;
+    const netSubtotal = Math.max(0, grossSubtotal - totalApportionedDiscount);
     const grandTotal = netSubtotal;
 
     const dpPctNum = parseInt(downPaymentOption) || 50;
@@ -2796,14 +2799,20 @@ function BookingsClient() {
                   })()}
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)} disabled={isSubmitting || isUpdatingBooking}>Cancel</button>
                   <LoadingButton
                     type="submit"
                     isLoading={activeModal === 'create' ? isSubmitting : isUpdatingBooking}
-                    loadingText={activeModal === 'create' ? 'Saving Booking...' : 'Updating Booking...'}
+                    loadingText={activeModal === 'create' ? 'Saving Booking...' : 'Saving...'}
                     className="btn btn-pcc-primary text-white fw-bold"
                   >
-                    {activeModal === 'create' ? 'Save Booking & Record Down Payment' : 'Save & Update Booking'}
+                    {activeModal === 'create' ? (
+                      <>Save Booking &amp; Record Down Payment</>
+                    ) : (
+                      <>
+                        <i className="bi bi-check-circle me-1"></i> Save and Update Booking
+                      </>
+                    )}
                   </LoadingButton>
                 </div>
               </form>

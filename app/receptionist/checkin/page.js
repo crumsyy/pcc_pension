@@ -15,6 +15,7 @@ function CheckInClient() {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [processingCheckInId, setProcessingCheckInId] = useState(null);
 
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
@@ -223,6 +224,7 @@ function CheckInClient() {
 
   const handleCheckIn = (id, guestName) => {
     const performCheckIn = async (isEarlyConfirmed = false) => {
+      setProcessingCheckInId(id);
       try {
         const res = await fetch('/api/receptionist/bookings', {
           method: 'POST',
@@ -268,6 +270,8 @@ function CheckInClient() {
         fetchBookings();
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setProcessingCheckInId(null);
       }
     };
 
@@ -422,8 +426,18 @@ function CheckInClient() {
                         title="Process Check In"
                         aria-label="Process Check In"
                         onClick={() => handleCheckIn(b.bookingID, b.firstName + ' ' + b.lastName)}
+                        disabled={processingCheckInId === b.bookingID}
                       >
-                        <i className="fa-solid fa-right-to-bracket"></i> Check In
+                        {processingCheckInId === b.bookingID ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fa-solid fa-right-to-bracket"></i> Check In
+                          </>
+                        )}
                       </button>
                     </div>
                   ))}
