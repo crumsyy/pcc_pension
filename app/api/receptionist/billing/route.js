@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock, logBillingAudit, ensureBookingBillingSchema, syncNormalizedBillingLineItems } from '@/lib/db';
+import { calculateBillingTotals } from '@/lib/billingCalculator';
 
 export async function GET(request) {
   const session = await getSession();
@@ -794,24 +795,53 @@ export async function POST(request) {
 
       const detailsBefore = await getBookingBalanceDetails(bookingID);
       const baseRoomCharge = detailsBefore?.baseRoomCharge || 0;
+      const roomRate = detailsBefore?.rate || detailsBefore?.booking?.storedRoomRate || 0;
+      const nights = detailsBefore?.nights || 1;
       const guestCount = Math.max(1, detailsBefore?.totalGuestsCount || parsedDiscounts.length);
-      const sharePerGuest = baseRoomCharge / guestCount;
 
-      for (const pd of parsedDiscounts) {
+      // Fetch active discount percentages
+      const [discountsDb] = await dbQuery("SELECT discountID, percentage, name FROM discounts WHERE status = 'Active'");
+      const [promotionsDb] = await dbQuery("SELECT promotionID, percentage, name FROM promotions WHERE status = 'Active'").catch(() => [[]]);
+
+      const formattedGuestDiscounts = parsedDiscounts.map(pd => {
+        let rate = 0;
+        let dType = 'Special Discount';
+        if (pd.discountID) {
+          const dRow = discountsDb.find(d => String(d.discountID) === String(pd.discountID));
+          rate = dRow ? (parseFloat(dRow.percentage) / 100) : 0;
+          dType = dRow?.name || 'Special Discount';
+        } else if (pd.promotionID) {
+          const pRow = (promotionsDb || []).find(p => String(p.promotionID) === String(pd.promotionID));
+          rate = pRow ? (parseFloat(pRow.percentage) / 100) : 0;
+          dType = pRow?.name || 'Promotion';
+        }
+        return {
+          guestName: pd.fullName,
+          discountID: pd.discountID || null,
+          promotionID: pd.promotionID || null,
+          discountIdNumber: pd.discountIdNumber || null,
+          rate,
+          discountType: dType
+        };
+      });
+
+      const calcResults = calculateBillingTotals({
+        roomRate: (baseRoomCharge / nights) || roomRate,
+        nights,
+        guestCount,
+        guestDiscounts: formattedGuestDiscounts,
+        extraGuestFee: detailsBefore?.extraGuestFee || 0
+      });
+
+      for (let i = 0; i < parsedDiscounts.length; i++) {
+        const pd = parsedDiscounts[i];
+        const itemized = calcResults.itemizedDiscounts[i];
+        const discAmt = itemized ? itemized.discountAmount : 0;
+
         await dbQuery(
           "INSERT INTO booking_guest_details (bookingID, fullName, discountID, promotionID, discountIdNumber, age) VALUES (?, ?, ?, ?, ?, 60)",
           [bookingID, pd.fullName, pd.discountID, pd.promotionID, pd.discountIdNumber]
         );
-
-        let pct = 0;
-        if (pd.discountID) {
-          const dRow = await dbQuery("SELECT percentage FROM discounts WHERE discountID = ?", [pd.discountID]);
-          pct = parseFloat(dRow[0]?.percentage || 0);
-        } else if (pd.promotionID) {
-          const pRow = await dbQuery("SELECT percentage FROM promotions WHERE promotionID = ?", [pd.promotionID]);
-          pct = parseFloat(pRow[0]?.percentage || 0);
-        }
-        const discAmt = Math.round(sharePerGuest * (pct / 100) * 100) / 100;
 
         await dbQuery(
           "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",

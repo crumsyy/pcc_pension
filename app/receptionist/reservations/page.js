@@ -1842,6 +1842,7 @@ function ReservationsClient() {
         selectedRes={selectedRes}
         rooms={rooms}
         paymentMethods={paymentMethods}
+        availableDiscounts={availableDiscounts}
         onSubmit={async (payload) => {
           setIsSubmitting(true);
           try {

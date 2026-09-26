@@ -1753,13 +1753,78 @@ export default function ReceptionistBilling() {
                   {discountBeneficiaries.length < (billDetails.chargesSummary?.totalGuests || 1) && (
                     <button
                       type="button"
-                      className="btn btn-outline-primary btn-sm w-100 mb-2"
+                      className="btn btn-outline-primary btn-sm w-100 mb-3"
                       style={{ borderStyle: 'dashed' }}
                       onClick={handleAddBeneficiaryRow}
                     >
                       <i className="bi bi-plus-circle me-1"></i>Add Another Senior / PWD Discount (Up to {billDetails.chargesSummary?.totalGuests || 1} Pax)
                     </button>
                   )}
+
+                  {(() => {
+                    const grossRoomCharge = parseFloat(billDetails.chargesSummary?.baseRoomCharge ?? billDetails.chargesSummary?.roomCharge ?? 0);
+                    const totalPax = Math.max(1, parseInt(billDetails.chargesSummary?.totalGuests ?? 1, 10));
+                    const perCapitaShare = grossRoomCharge / totalPax;
+
+                    let totalEstDiscount = 0;
+                    const itemizedPreview = [];
+
+                    discountBeneficiaries.forEach((b, idx) => {
+                      if (b.discountID) {
+                        const cleanId = String(b.discountID).replace('disc-', '');
+                        const disc = (billDetails.discounts || []).find(d => String(d.discountID) === cleanId);
+                        if (disc) {
+                          const pct = parseFloat(disc.percentage) || 0;
+                          const amt = Math.round(perCapitaShare * (pct / 100) * 100) / 100;
+                          totalEstDiscount += amt;
+                          itemizedPreview.push({
+                            name: b.beneficiaryName || `Beneficiary #${idx + 1}`,
+                            discountName: disc.name,
+                            percentage: pct,
+                            amount: amt
+                          });
+                        }
+                      }
+                    });
+
+                    totalEstDiscount = Math.min(totalEstDiscount, grossRoomCharge);
+                    const estNetRoomStay = Math.max(0, grossRoomCharge - totalEstDiscount);
+
+                    return (
+                      <div className="p-3 bg-light rounded border mb-2" style={{ fontSize: '0.85rem' }}>
+                        <div className="fw-bold text-dark mb-1 d-flex justify-content-between">
+                          <span>Live Accounting Preview:</span>
+                          <span className="badge bg-secondary-subtle text-secondary border">Per-Capita Formula</span>
+                        </div>
+                        <div className="d-flex justify-content-between text-muted mb-1">
+                          <span>Base Room Stay Charge:</span>
+                          <span className="fw-semibold text-dark">₱{grossRoomCharge.toFixed(2)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between text-muted mb-1">
+                          <span>Per-Capita Share ({totalPax} Guest{totalPax > 1 ? 's' : ''}):</span>
+                          <span className="fw-semibold text-dark">₱{perCapitaShare.toFixed(2)}/pax</span>
+                        </div>
+                        {itemizedPreview.length > 0 && (
+                          <div className="border-top border-bottom py-1 my-1">
+                            {itemizedPreview.map((item, i) => (
+                              <div key={i} className="d-flex justify-content-between text-success small py-0.5">
+                                <span>{item.name}: {item.discountName} ({item.percentage}%)</span>
+                                <span className="fw-semibold">-₱{item.amount.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="d-flex justify-content-between text-success fw-bold mb-1">
+                          <span>Total Discount Savings:</span>
+                          <span>-₱{totalEstDiscount.toFixed(2)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between text-dark fw-bold border-top pt-1">
+                          <span>Estimated Net Room Charge:</span>
+                          <span className="text-pcc-blue">₱{estNetRoomStay.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="modal-footer border-top-0 d-flex justify-content-between">
                   {billDetails.guestsList?.some(g => g.discountID || g.promotionID) ? (

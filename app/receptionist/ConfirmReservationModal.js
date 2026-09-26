@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../components/DateInput';
 import LoadingButton from '../components/LoadingButton';
 import DynamicQrPhCode from '../components/DynamicQrPhCode';
+import { calculateBillingTotals } from '../lib/billingCalculator';
 
 export default function ConfirmReservationModal({
   isOpen,
@@ -11,6 +12,7 @@ export default function ConfirmReservationModal({
   selectedRes,
   rooms = [],
   paymentMethods = [],
+  availableDiscounts = [],
   onSubmit,
   isSubmitting = false,
   showAlert,
@@ -36,6 +38,7 @@ export default function ConfirmReservationModal({
   const [isGcashSettled, setIsGcashSettled] = useState(false);
   const [gcashInlineError, setGcashInlineError] = useState('');
   const [settledPaymentRef, setSettledPaymentRef] = useState('');
+  const [discountedGuests, setDiscountedGuests] = useState([]);
 
   const today = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -46,13 +49,24 @@ export default function ConfirmReservationModal({
     if (!selectedRes || !isOpen) return;
 
     // Populate guest form
+    const fName = selectedRes.firstName || '';
+    const lName = selectedRes.lastName || '';
     setGuestForm({
-      firstName: selectedRes.firstName || '',
-      lastName: selectedRes.lastName || '',
+      firstName: fName,
+      lastName: lName,
       contact: selectedRes.contact || '',
       email: selectedRes.guestEmail || selectedRes.email || '',
       dateOfBirth: selectedRes.dateOfBirth ? toUiDate(selectedRes.dateOfBirth) : ''
     });
+
+    // Populate discounted guests with primary guest default
+    setDiscountedGuests([
+      {
+        guestName: `${fName} ${lName}`.trim() || 'Primary Guest',
+        discountID: '',
+        discountIdNumber: ''
+      }
+    ]);
 
     // Populate dates
     const inDateOnly = selectedRes.reservationDateTime ? String(selectedRes.reservationDateTime).substring(0, 10) : todayDbDate;
@@ -167,14 +181,42 @@ export default function ConfirmReservationModal({
 
   const selectedRoomObj = (rooms || []).find(r => String(r.roomID) === String(selectedRes.roomID));
   const roomBasePax = Math.max(1, parseInt(selectedRes.occupancyLimit || selectedRoomObj?.occupancyLimit || 4, 10));
-  const totalPax = parseInt(selectedRes.guestCount || 1, 10);
+  const totalPax = Math.max(1, parseInt(selectedRes.guestCount || 1, 10));
   const extraGuests = Math.max(0, totalPax - roomBasePax);
   const extraGuestFee = extraGuests * 100 * nights;
 
-  const totalRoomCharge = rate * nights;
+  const formattedDiscounts = (discountedGuests || [])
+    .filter(g => g.discountID)
+    .map(g => {
+      const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+      return {
+        guestName: g.guestName,
+        discountID: g.discountID,
+        discountIdNumber: g.discountIdNumber,
+        rate: disc ? (parseFloat(disc.percentage) / 100) : 0,
+        discountType: disc?.name || 'Special Discount'
+      };
+    });
+
   const dpPctNum = parseInt(downPaymentOption, 10) || 50;
-  const requiredDownpayment = Math.round(totalRoomCharge * (dpPctNum / 100) * 100) / 100;
-  const remainingBal = Math.max(0, Math.round(((totalRoomCharge + extraGuestFee) - requiredDownpayment) * 100) / 100);
+
+  const billing = calculateBillingTotals({
+    roomRate: rate,
+    nights,
+    guestCount: totalPax,
+    guestDiscounts: formattedDiscounts,
+    extraGuestFee,
+    downPaymentPercentage: dpPctNum
+  });
+
+  const totalRoomCharge = billing.grossRoomSubtotal;
+  const perCapitaShare = billing.perCapitaShare;
+  const totalDiscount = billing.totalPerCapitaDiscount;
+  const netRoomStayCharge = billing.netRoomStayCharge;
+  const grossSubtotal = billing.grossSubtotal;
+  const netSubtotal = billing.netTotal;
+  const requiredDownpayment = billing.requiredDownpayment;
+  const remainingBal = Math.max(0, Math.round((billing.netTotal - requiredDownpayment) * 100) / 100);
   const isCheckInToday = checkInDate && toDbDate(checkInDate) === todayDbDate;
 
   const handleToggleCurrentIn = (checked) => {
@@ -227,6 +269,20 @@ export default function ConfirmReservationModal({
       return;
     }
 
+    for (let i = 0; i < discountedGuests.length; i++) {
+      const g = discountedGuests[i];
+      if (g.discountID) {
+        if (!g.guestName || !g.guestName.trim()) {
+          showAlert('error', 'Validation Error', `Please enter the qualifying guest full name for discount #${i + 1}.`);
+          return;
+        }
+        if (!g.discountIdNumber || !g.discountIdNumber.trim()) {
+          showAlert('error', 'Validation Error', `Numeric ID Number is required for qualifying guest "${g.guestName}".`);
+          return;
+        }
+      }
+    }
+
     const cashReceived = String(paymentMethodID) === '2' ? requiredDownpayment : parseFloat(downPayment || 0);
 
     if (String(paymentMethodID) === '1' && (isNaN(cashReceived) || cashReceived < requiredDownpayment)) {
@@ -264,7 +320,9 @@ export default function ConfirmReservationModal({
         firstName: guestForm.firstName.trim(),
         lastName: guestForm.lastName.trim(),
         contact: guestForm.contact.trim(),
-        remainingBalance: remainingBal
+        remainingBalance: remainingBal,
+        discountedGuests: discountedGuests.filter(g => g.discountID),
+        guestCount: totalPax
       });
     });
   };
@@ -377,6 +435,106 @@ export default function ConfirmReservationModal({
                     Max Pax: {selectedRoom?.occupancyLimit || 4} Guests
                   </span>
                 </div>
+              </div>
+
+              {/* SPECIAL DISCOUNTS (SENIOR / PWD / STUDENT) */}
+              <div className="p-3 mb-3 border rounded bg-white shadow-xs">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <h6 className="fw-bold text-pcc-primary mb-0 small d-flex align-items-center gap-1.5">
+                      <i className="bi bi-tag-fill"></i>
+                      Special Discounts (Senior Citizen / PWD / Student)
+                    </h6>
+                    <span className="small text-muted" style={{ fontSize: '0.78rem' }}>
+                      Optional: Add details for any guest qualifying for an individual discount (Limit: {totalPax} guest{totalPax > 1 ? 's' : ''}).
+                    </span>
+                  </div>
+                  {discountedGuests.length < totalPax && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-pcc-primary text-white fw-bold py-1 px-2.5"
+                      style={{ fontSize: '0.78rem' }}
+                      onClick={() => setDiscountedGuests(prev => [...prev, { guestName: '', discountID: '', discountIdNumber: '' }])}
+                    >
+                      + Add Discounted Guest
+                    </button>
+                  )}
+                </div>
+
+                {discountedGuests.length === 0 ? (
+                  <div className="text-muted small fst-italic py-1">
+                    No discounted guests added. Click "+ Add Discounted Guest" if any guest qualifies for a discount.
+                  </div>
+                ) : (
+                  discountedGuests.map((g, idx) => (
+                    <div key={idx} className="row g-2 align-items-center mb-2 p-2 border rounded bg-light">
+                      <div className="col-md-4">
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder={g.discountID ? "Qualifying Guest Full Name *" : "Qualifying Guest Full Name"}
+                          value={g.guestName || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, guestName: val } : item));
+                          }}
+                          required={Boolean(g.discountID)}
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <select
+                          className="form-select form-select-sm"
+                          value={g.discountID}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountID: val } : item));
+                          }}
+                        >
+                          <option value="">Select Discount Type (Optional)</option>
+                          {availableDiscounts.map(d => (
+                            <option key={d.discountID} value={String(d.discountID)}>{d.name} ({d.percentage}%)</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-3">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          className="form-control form-control-sm"
+                          placeholder={g.discountID ? "Numeric ID No * (0-9)" : "Numeric ID No (0-9)"}
+                          value={g.discountIdNumber}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setDiscountedGuests(prev => prev.map((item, i) => i === idx ? { ...item, discountIdNumber: val } : item));
+                          }}
+                          onKeyDown={(e) => {
+                            if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
+                          required={Boolean(g.discountID)}
+                        />
+                      </div>
+                      <div className="col-md-1 text-end">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-danger text-white fw-bold py-1 px-2 w-100"
+                          onClick={() => {
+                            if (discountedGuests.length <= 1) {
+                              setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
+                            } else {
+                              setDiscountedGuests(prev => prev.filter((_, i) => i !== idx));
+                            }
+                          }}
+                          title="Remove / Clear discount"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* STAY SCHEDULE & CALENDAR DATES (MATCHING BOOKING FORM EXACTLY) */}
@@ -495,8 +653,45 @@ export default function ConfirmReservationModal({
                   <span>Base Room Charge:</span>
                   <span>₱{totalRoomCharge.toFixed(2)}</span>
                 </div>
+                <div className="d-flex justify-content-between mb-1 text-muted" style={{ fontSize: '0.84rem' }}>
+                  <span>Per-Capita Share ({totalPax} Guest{totalPax > 1 ? 's' : ''}):</span>
+                  <span className="fw-semibold text-dark">₱{perCapitaShare.toFixed(2)}/pax</span>
+                </div>
+
+                {/* ITEMIZED APPLIED DISCOUNTS */}
+                {billing.itemizedDiscounts && billing.itemizedDiscounts.length > 0 && (
+                  <div className="my-2 p-2 bg-white rounded border border-success-subtle">
+                    <div className="fw-bold text-success small mb-1 d-flex align-items-center justify-content-between">
+                      <span><i className="bi bi-tag-fill me-1"></i>Applied Special Discounts:</span>
+                      <span className="badge bg-success-subtle text-success border border-success-subtle">
+                        {billing.itemizedDiscounts.length} Beneficiar{billing.itemizedDiscounts.length > 1 ? 'ies' : 'y'}
+                      </span>
+                    </div>
+                    {billing.itemizedDiscounts.map((disc, idx) => (
+                      <div key={idx} className="d-flex justify-content-between align-items-center small py-0.5 text-success">
+                        <span>
+                          <strong>{disc.guestName || `Guest #${idx + 1}`}</strong>: {disc.discountType} ({disc.percentage}%)
+                          {disc.discountIdNumber && <span className="text-muted ms-1" style={{ fontSize: '0.75rem' }}>(ID: {disc.discountIdNumber})</span>}
+                        </span>
+                        <span className="fw-bold">-₱{disc.discountAmount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="d-flex justify-content-between align-items-center fw-bold text-success border-top pt-1 mt-1 small">
+                      <span>Total Special Discount:</span>
+                      <span>-₱{totalDiscount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {totalDiscount > 0 && (
+                  <div className="d-flex justify-content-between text-dark fw-bold mb-1" style={{ fontSize: '0.92rem' }}>
+                    <span>Net Room Stay Charge:</span>
+                    <span>₱{netRoomStayCharge.toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="d-flex justify-content-between text-success fw-bold">
-                  <span>Required Down Payment ({dpPctNum}% of Room Charge):</span>
+                  <span>Required Down Payment ({dpPctNum}% of Net Room Charge):</span>
                   <span className="fs-6">₱{requiredDownpayment.toFixed(2)}</span>
                 </div>
                 {extraGuests > 0 && (

@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendCourtesyHoldCreatedEmail, sendBookingConfirmationEmail } from '@/lib/mailer';
 import { validateReservationDate } from '@/lib/validation';
+import { calculateBillingTotals } from '@/lib/billingCalculator';
 
 function checkReservationLeadTime(checkInDateStr) {
   if (!checkInDateStr) return { valid: true };
@@ -481,25 +482,141 @@ export async function POST(request) {
         // 1. Update reservation status to Booked
         await conn.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [reservationID]);
 
-        // 2. Insert booking with appropriate status ('Active Stay' if Book and Check-In Now, else 'Pending')
+        // Calculate nights
+        const inDateStr = (finalCheckInDateTime || '').split(' ')[0] || (finalCheckInDateTime || '').split('T')[0];
+        const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
+        const inDateObj = new Date(inDateStr + 'T00:00:00');
+        const outDateObj = new Date(outDateStr + 'T00:00:00');
+        let nights = 1;
+        if (!isNaN(inDateObj.getTime()) && !isNaN(outDateObj.getTime()) && outDateObj > inDateObj) {
+          nights = Math.max(1, Math.round((outDateObj.getTime() - inDateObj.getTime()) / (1000 * 60 * 60 * 24)));
+        }
+
+        // Room Rate & Capacity Resolution
+        const isWithBk = (res[0].breakfastOption || 'with') === 'with';
+        const breakfastID = isWithBk ? 2 : 1;
+        const [rateRows] = await conn.execute(`
+          SELECT rr.rate, rm.roomNumber, rm.occupancyLimit, rm.roomTypeID, rm.floorID
+          FROM room rm
+          LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = ?
+          WHERE rm.roomID = ?
+          LIMIT 1
+        `, [breakfastID, roomID]);
+
+        let roomRate = 0;
+        let roomCapacity = 4;
+        if (rateRows && rateRows.length > 0) {
+          roomRate = parseFloat(rateRows[0].rate) || 0;
+          roomCapacity = Math.max(1, parseInt(rateRows[0].occupancyLimit || 4, 10));
+        }
+        if (!roomRate) {
+          const [fallbackRate] = await conn.execute("SELECT rate FROM room_rate WHERE breakfastID = ? LIMIT 1", [breakfastID]);
+          roomRate = parseFloat(fallbackRate[0]?.rate) || 0;
+        }
+
+        const totalGuestsCount = Math.max(1, parseInt(body.guestCount || res[0].guestCount || 1, 10));
+        const extraPax = Math.max(0, totalGuestsCount - roomCapacity);
+        const extraGuestFee = extraPax * 100 * nights;
+
+        // Process guest individual discounts
+        const reqDiscountedGuests = Array.isArray(body.discountedGuests) ? body.discountedGuests : [];
+        let formattedDiscounts = [];
+
+        if (reqDiscountedGuests.length > 0) {
+          const [dbDiscounts] = await conn.execute("SELECT discountID, name, percentage FROM discounts WHERE status = 'Active'");
+          formattedDiscounts = reqDiscountedGuests
+            .filter(g => g.discountID)
+            .map(g => {
+              const disc = dbDiscounts.find(d => String(d.discountID) === String(g.discountID));
+              return {
+                guestName: g.guestName || `${currentGuest.firstName || ''} ${currentGuest.lastName || ''}`.trim() || 'Primary Guest',
+                discountID: g.discountID,
+                discountIdNumber: g.discountIdNumber || null,
+                rate: disc ? (parseFloat(disc.percentage) / 100) : 0,
+                discountType: disc?.name || 'Special Discount'
+              };
+            });
+        }
+
+        const dpPercentageInt = Math.max(1, Math.min(100, parseInt(body.downPaymentPercentage || (downPaymentAmount ? Math.round((downPaymentAmount / ((roomRate * nights) || 1)) * 100) : 50), 10) || 50));
+
+        const billingCalc = calculateBillingTotals({
+          roomRate,
+          nights,
+          guestCount: totalGuestsCount,
+          guestDiscounts: formattedDiscounts,
+          extraGuestFee,
+          downPaymentPercentage: dpPercentageInt
+        });
+
+        const grossSubtotal = billingCalc.grossSubtotal;
+        const discountTotal = billingCalc.totalPerCapitaDiscount;
+        const netTotal = billingCalc.netTotal;
+        const vatRate = 0;
+        const vatAmount = 0;
+        const grandTotal = billingCalc.netTotal;
+        const finalDownPaymentAmount = downPaymentAmount > 0 ? downPaymentAmount : billingCalc.requiredDownpayment;
+        const initialBalance = Math.max(0, Math.round((netTotal - finalDownPaymentAmount) * 100) / 100);
+
+        // 2. Insert booking with calculated financial invariants
         const [insertBookingRes] = await conn.execute(
-          "INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, breakfastOption, guestCount) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
-          [finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID, res[0].breakfastOption || 'with', res[0].guestCount || 1]
+          `INSERT INTO booking(
+            checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID,
+            roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount,
+            grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance,
+            breakfastOption, guestCount
+          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID,
+            roomRate, billingCalc.grossRoomSubtotal, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount,
+            grandTotal, grandTotal, finalDownPaymentAmount, dpPercentageInt, initialBalance,
+            res[0].breakfastOption || 'with', totalGuestsCount
+          ]
         );
         const bookingID = insertBookingRes.insertId;
 
-        // 3. Seed default guest details
+        // 3. Seed guest details & itemized discounts
         const [guestInfo] = await conn.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
         const defaultName = guestInfo.length > 0 ? `${guestInfo[0].firstName} ${guestInfo[0].lastName}` : 'Primary Guest';
-        await conn.execute(
-          "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, NULL, NULL)",
-          [bookingID, defaultName]
-        );
 
-        // 4. Create Billing Record
+        if (reqDiscountedGuests.length > 0) {
+          for (const g of reqDiscountedGuests) {
+            const gName = (g.guestName || '').trim() || defaultName;
+            await conn.execute(
+              "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, ?, ?)",
+              [bookingID, gName, g.discountID || null, g.discountIdNumber?.trim() || null]
+            );
+          }
+        } else {
+          await conn.execute(
+            "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, NULL, NULL)",
+            [bookingID, defaultName]
+          );
+        }
+
+        if (billingCalc.itemizedDiscounts && billingCalc.itemizedDiscounts.length > 0) {
+          for (const d of billingCalc.itemizedDiscounts) {
+            await conn.execute(
+              "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
+              [bookingID, d.guestName, d.discountID, d.discountIdNumber, d.discountAmount]
+            );
+          }
+        }
+
+        // 4. Create Billing Record with synchronized invariant totals
         const [billingInsert] = await conn.execute(
-          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID) VALUES (?, ?, ?, NULL)",
-          [nowStr, guestID, bookingID]
+          `INSERT INTO billing (
+            billingDateTime, guestID, bookingID, orderID,
+            subtotal, discountTotal, netTotal, vatRate, vatAmount,
+            grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage,
+            remainingBalance, balance
+          ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            nowStr, guestID, bookingID,
+            grossSubtotal, discountTotal, netTotal, vatRate, vatAmount,
+            grandTotal, grandTotal, finalDownPaymentAmount, dpPercentageInt,
+            initialBalance, initialBalance
+          ]
         );
         const billingID = billingInsert.insertId;
 

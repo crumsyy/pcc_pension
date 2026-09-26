@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems, getSystemVatRate } from '@/lib/db';
+import { calculateBillingTotals } from '@/lib/billingCalculator';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 
 export async function GET(request) {
@@ -302,48 +303,50 @@ export async function POST(request) {
 
         const rawRoomCharge = roomRate * diffDays;
         const totalGuestsCount = guests.length > 0 ? guests.length : 1;
-        const sharePerGuest = rawRoomCharge / totalGuestsCount;
-        let roomDiscountAmount = 0;
-        const itemizedDiscounts = [];
+        const roomBasePax = Math.max(1, parseInt(roomData[0]?.occupancyLimit || 4, 10));
+        const extraPax = Math.max(0, totalGuestsCount - roomBasePax);
+        const extraGuestFee = Math.round(extraPax * 100 * diffDays * 100) / 100;
 
+        const guestDiscounts = [];
         if (guests.length > 0) {
           for (const g of guests) {
             if (g.discountID) {
               const [discRes] = await conn.execute("SELECT percentage, name FROM discounts WHERE discountID = ?", [g.discountID]);
               if (discRes.length > 0) {
-                const pct = parseFloat(discRes[0].percentage || 0);
-                const discAmt = Math.round(sharePerGuest * (pct / 100) * 100) / 100;
-                roomDiscountAmount += discAmt;
-                itemizedDiscounts.push({
+                guestDiscounts.push({
                   guestName: g.fullName.trim(),
                   discountID: g.discountID,
                   discountIdNumber: g.discountIdNumber?.trim() || 'N/A',
-                  discountAmount: discAmt
+                  rate: parseFloat(discRes[0].percentage || 0) / 100,
+                  type: discRes[0].name
                 });
               }
             }
           }
         }
-        roomDiscountAmount = Math.round(roomDiscountAmount * 100) / 100;
-        const finalRoomCharge = Math.max(0, Math.round((rawRoomCharge - roomDiscountAmount) * 100) / 100);
-        const roomBasePax = Math.max(1, parseInt(roomData[0]?.occupancyLimit || 4, 10));
-        const extraPax = Math.max(0, totalGuestsCount - roomBasePax);
-        const extraGuestFee = Math.round(extraPax * 100 * diffDays * 100) / 100;
 
-        // Gross Subtotal (S) and Net Total (N)
-        const grossSubtotal = Math.round((rawRoomCharge + extraGuestFee) * 100) / 100;
-        const discountTotal = roomDiscountAmount;
-        const netTotal = Math.max(0, Math.round((grossSubtotal - discountTotal) * 100) / 100);
+        const dpPercentageInt = parseInt(body.downPaymentPercentage) || 50;
+        const billingCalc = calculateBillingTotals({
+          roomRate: rawRoomCharge,
+          nights: 1,
+          guestCount: totalGuestsCount,
+          guestDiscounts,
+          extraGuestFee,
+          earlyFee: parseFloat(body.earlyFee) || 0,
+          lateFee: parseFloat(body.lateFee) || 0,
+          downPaymentPercentage: dpPercentageInt
+        });
 
-        // Value-Added Tax (V)
+        const roomDiscountAmount = billingCalc.totalPerCapitaDiscount;
+        const itemizedDiscounts = billingCalc.itemizedDiscounts;
+        const finalRoomCharge = billingCalc.netRoomStayCharge;
+        const grossSubtotal = billingCalc.grossSubtotal;
+        const discountTotal = billingCalc.totalDiscount;
+        const netTotal = billingCalc.netTotal;
+        const grandTotal = billingCalc.netTotal;
         const vatRate = 0.00;
         const vatAmount = 0.00;
-        const grandTotal = netTotal;
-
-        // Down payment applies to Net Total Due
-        const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 50) / 100;
-        const dpPercentageInt = parseInt(body.downPaymentPercentage) || 50;
-        const requiredDp = Math.round((netTotal * dpPercentageNum) * 100) / 100;
+        const requiredDp = billingCalc.requiredDownpayment;
 
         if (downPaymentAmount < requiredDp - 0.05) {
           return NextResponse.json({ 

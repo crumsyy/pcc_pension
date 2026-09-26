@@ -11,6 +11,7 @@ import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import StatusBadge, { normalizeBookingStatus } from '../../components/StatusBadge';
+import { calculateBillingTotals } from '../../lib/billingCalculator';
 
 function calculateAgeFromUiDate(uiDateStr) {
   if (!isValidDate(uiDateStr)) return '';
@@ -623,29 +624,35 @@ function BookingsClient() {
     const extraGuestFee = excessGuestsCount * 100 * nights;
     const rawSubtotal = (rate * nights) + extraGuestFee;
 
-    let totalApportionedDiscount = 0;
     const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
       ? discountedGuests
       : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
     const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
-    if (effectiveDiscGuests.length > 0) {
-      const sharePerGuest = (rate * nights) / totalGuests;
-      effectiveDiscGuests.forEach(g => {
-        if (g.discountID) {
-          const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
-          if (disc) {
-            totalApportionedDiscount += Math.round(sharePerGuest * (parseFloat(disc.percentage) / 100) * 100) / 100;
-          }
-        }
+
+    const formattedDiscounts = effectiveDiscGuests
+      .filter(g => g.discountID)
+      .map(g => {
+        const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+        return {
+          name: g.guestName || g.fullName,
+          discountID: g.discountID,
+          discountIdNumber: g.discountIdNumber,
+          rate: disc ? (parseFloat(disc.percentage) / 100) : 0,
+          type: disc?.name || 'Special Discount'
+        };
       });
-    }
 
-    const netSubtotal = Math.max(0, rawSubtotal - totalApportionedDiscount);
-    const dpPctNum = parseInt(downPaymentOption) || 50;
-    const reqDp = Math.round(netSubtotal * (dpPctNum / 100) * 100) / 100;
+    const billing = calculateBillingTotals({
+      roomRate: rate,
+      nights,
+      guestCount: totalGuests,
+      guestDiscounts: formattedDiscounts,
+      extraGuestFee,
+      downPaymentPercentage: parseInt(downPaymentOption) || 50
+    });
 
-    if (reqDp >= 0) {
-      setDownPayment(reqDp.toFixed(2));
+    if (billing.requiredDownpayment >= 0) {
+      setDownPayment(billing.requiredDownpayment.toFixed(2));
     }
   }, [formData.roomID, checkInDate, checkOutDate, numGuestsCount, downPaymentOption, discountedGuests, roomGuests, rooms, availableDiscounts]);
 
@@ -1031,27 +1038,34 @@ function BookingsClient() {
       // Down payment applies strictly to room stay charges; extra guest fees are excluded
       const rawRoomStayCharge = rate * (nights || 1);
 
-      let totalApportionedDiscount = 0;
       const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
         ? discountedGuests
         : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
       const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
-      if (effectiveDiscGuests.length > 0 && selectedRoom) {
-        const sharePerGuest = rawRoomStayCharge / totalGuests;
-        effectiveDiscGuests.forEach(g => {
-          if (g.discountID) {
-            const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
-            if (disc) {
-              totalApportionedDiscount += Math.round(sharePerGuest * (parseFloat(disc.percentage) / 100) * 100) / 100;
-            }
-          }
-        });
-      }
 
-      const netRoomStayCharge = Math.max(0, rawRoomStayCharge - totalApportionedDiscount);
-      const dpPctNum = parseInt(downPaymentOption) || 30;
-      const requiredDp = Math.round(netRoomStayCharge * (dpPctNum / 100) * 100) / 100;
-      setDownPayment(requiredDp.toFixed(2));
+      const formattedDiscounts = effectiveDiscGuests
+        .filter(g => g.discountID)
+        .map(g => {
+          const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+          return {
+            name: g.guestName || g.fullName,
+            discountID: g.discountID,
+            discountIdNumber: g.discountIdNumber,
+            rate: disc ? (parseFloat(disc.percentage) / 100) : 0,
+            type: disc?.name || 'Special Discount'
+          };
+        });
+
+      const billing = calculateBillingTotals({
+        roomRate: rate,
+        nights: nights || 1,
+        guestCount: totalGuests,
+        guestDiscounts: formattedDiscounts,
+        extraGuestFee,
+        downPaymentPercentage: parseInt(downPaymentOption) || 30
+      });
+
+      setDownPayment(billing.requiredDownpayment.toFixed(2));
     }
   }, [
     activeModal,
@@ -1198,30 +1212,41 @@ function BookingsClient() {
     // Down payment applies strictly to room stay charges; extra guest fees are excluded!
     const rawRoomStayCharge = rate * nights;
 
-    let totalApportionedDiscount = 0;
     const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
       ? discountedGuests
       : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
     const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
-    if (totalGuests > 0 && selectedRoom && effectiveDiscGuests.length > 0) {
-      const sharePerGuest = (rate * nights) / totalGuests;
-      effectiveDiscGuests.forEach(g => {
-        if (g.discountID) {
-          const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
-          if (disc) {
-            totalApportionedDiscount += Math.round(sharePerGuest * (parseFloat(disc.percentage) / 100) * 100) / 100;
-          }
-        }
-      });
-    }
 
-    const netRoomStayCharge = Math.max(0, rawRoomStayCharge - totalApportionedDiscount);
-    const grossSubtotal = rawRoomStayCharge + extraGuestFee + earlyFee + lateFee;
-    const netSubtotal = Math.max(0, grossSubtotal - totalApportionedDiscount);
-    const grandTotal = netSubtotal;
+    const formattedDiscounts = effectiveDiscGuests
+      .filter(g => g.discountID)
+      .map(g => {
+        const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
+        return {
+          name: g.guestName || g.fullName,
+          discountID: g.discountID,
+          discountIdNumber: g.discountIdNumber,
+          rate: disc ? (parseFloat(disc.percentage) / 100) : 0,
+          type: disc?.name || 'Special Discount'
+        };
+      });
 
     const dpPctNum = parseInt(downPaymentOption) || 50;
-    const requiredDownpayment = Math.round(netSubtotal * (dpPctNum / 100) * 100) / 100;
+    const billing = calculateBillingTotals({
+      roomRate: rate,
+      nights,
+      guestCount: totalGuests,
+      guestDiscounts: formattedDiscounts,
+      extraGuestFee,
+      earlyFee,
+      lateFee,
+      downPaymentPercentage: dpPctNum
+    });
+
+    const netRoomStayCharge = billing.netRoomStayCharge;
+    const grossSubtotal = billing.grossSubtotal;
+    const netSubtotal = billing.netTotal;
+    const grandTotal = billing.netTotal;
+    const requiredDownpayment = billing.requiredDownpayment;
 
     const dpAmount = parseFloat(downPayment);
     if (isNaN(dpAmount) || dpAmount <= 0) {
@@ -2600,37 +2625,49 @@ function BookingsClient() {
                       ? discountedGuests
                       : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
                     const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
-                    const sharePerGuest = baseRoomStayCharges / totalGuests;
 
-                    let totalApportionedDiscount = 0;
-                    const appliedDiscountsList = [];
-
-                    effectiveDiscGuests.forEach((g, idx) => {
-                      if (g.discountID) {
+                    const formattedDiscounts = effectiveDiscGuests
+                      .filter(g => g.discountID)
+                      .map(g => {
                         const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
-                        if (disc) {
-                          const discPct = parseFloat(disc.percentage) || 0;
-                          const discAmt = Math.round(sharePerGuest * (discPct / 100) * 100) / 100;
-                          totalApportionedDiscount += discAmt;
-                          appliedDiscountsList.push({
-                            guestName: g.guestName || g.fullName || (idx === 0 ? (`${guestForm.firstName || ''} ${guestForm.lastName || ''}`.trim() || 'Primary Guest') : `Guest #${idx + 1}`),
-                            discountName: disc.name || 'Special Discount',
-                            percentage: discPct,
-                            idNumber: g.discountIdNumber || g.discountIDNumber || 'N/A',
-                            amount: discAmt
-                          });
-                        }
-                      }
-                    });
+                        return {
+                          guestName: g.guestName || g.fullName,
+                          discountID: g.discountID,
+                          discountIdNumber: g.discountIdNumber,
+                          rate: disc ? (parseFloat(disc.percentage) / 100) : 0,
+                          discountType: disc?.name || 'Special Discount'
+                        };
+                      });
 
                     const excessGuestsCount = Math.max(0, totalGuests - maxOccupancy);
                     const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
-                    const grossSubtotal = baseRoomStayCharges + extraGuestFee + earlyFee + lateFee;
-                    const netSubtotal = Math.max(0, grossSubtotal - totalApportionedDiscount);
-                    const grandTotal = netSubtotal;
-
                     const dpPctNum = parseInt(downPaymentOption) || 50;
-                    const requiredDownpayment = Math.round(netSubtotal * (dpPctNum / 100) * 100) / 100;
+
+                    const billing = calculateBillingTotals({
+                      roomRate: rate,
+                      nights: nights || 1,
+                      guestCount: totalGuests,
+                      guestDiscounts: formattedDiscounts,
+                      extraGuestFee,
+                      earlyFee,
+                      lateFee,
+                      downPaymentPercentage: dpPctNum
+                    });
+
+                    const perCapitaShare = billing.perCapitaShare;
+                    const totalApportionedDiscount = billing.totalPerCapitaDiscount;
+                    const appliedDiscountsList = billing.itemizedDiscounts.map(d => ({
+                      guestName: d.guestName,
+                      discountName: d.discountType,
+                      percentage: d.percentage,
+                      idNumber: d.discountIdNumber || 'N/A',
+                      amount: d.discountAmount
+                    }));
+
+                    const grossSubtotal = billing.grossSubtotal;
+                    const netSubtotal = billing.netTotal;
+                    const grandTotal = billing.netTotal;
+                    const requiredDownpayment = billing.requiredDownpayment;
                     const remainingBalance = Math.max(0, netSubtotal - requiredDownpayment);
 
                     return (
@@ -2655,6 +2692,10 @@ function BookingsClient() {
                               <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.84rem' }}>
                                 <span className="text-muted">Room Stay Charges ({nights} Night{nights > 1 ? 's' : ''}):</span>
                                 <span className="fw-semibold text-dark">₱{baseRoomStayCharges.toFixed(2)}</span>
+                              </div>
+                              <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.84rem' }}>
+                                <span className="text-muted">Per-Capita Share ({totalGuests} Guest{totalGuests > 1 ? 's' : ''}):</span>
+                                <span className="fw-semibold text-dark">₱{perCapitaShare.toFixed(2)}/pax</span>
                               </div>
 
                               {excessGuestsCount > 0 && (
