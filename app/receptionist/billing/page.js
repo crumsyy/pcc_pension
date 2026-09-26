@@ -531,12 +531,21 @@ export default function ReceptionistBilling() {
     fetchBillingDetails(bID);
   };
 
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'completed'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'upcoming' | 'active' | 'completed'
+
+  const UPCOMING_STATUS_LIST = [
+    'Pending',
+    'Pending Check-in',
+    'Confirmed',
+    'Booked'
+  ];
 
   const ACTIVE_STATUS_LIST = [
+    ...UPCOMING_STATUS_LIST,
     'Active Stay',
     'Checked In',
     'Checked-In',
+    'Late Checkout',
     'Pending Room Verification',
     'Pending Checkout',
     'Checkout Requested',
@@ -556,6 +565,8 @@ export default function ReceptionistBilling() {
 
     if (statusFilter === 'active') {
       return ACTIVE_STATUS_LIST.includes(b.status);
+    } else if (statusFilter === 'upcoming') {
+      return UPCOMING_STATUS_LIST.includes(b.status);
     } else if (statusFilter === 'completed') {
       return b.status === 'Completed' || b.status === 'Checked Out';
     }
@@ -563,6 +574,7 @@ export default function ReceptionistBilling() {
   });
 
   const allCount = activeBookings.length;
+  const upcomingCount = activeBookings.filter(b => UPCOMING_STATUS_LIST.includes(b.status)).length;
   const activeCount = activeBookings.filter(b => ACTIVE_STATUS_LIST.includes(b.status)).length;
   const completedCount = activeBookings.filter(b => b.status === 'Completed' || b.status === 'Checked Out').length;
 
@@ -598,6 +610,13 @@ export default function ReceptionistBilling() {
                     onClick={() => setStatusFilter('all')}
                   >
                     All Stays ({allCount})
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn fw-semibold ${statusFilter === 'upcoming' ? 'btn-warning text-dark' : 'btn-outline-secondary'}`}
+                    onClick={() => setStatusFilter('upcoming')}
+                  >
+                    Upcoming / Booked ({upcomingCount})
                   </button>
                   <button
                     type="button"
@@ -674,7 +693,9 @@ export default function ReceptionistBilling() {
                         <td>
                           <span className={`badge ${
                             b.status === 'Completed' ? 'bg-success text-white' :
-                            b.status === 'Checked In' ? 'bg-primary text-white' :
+                            (b.status === 'Checked In' || b.status === 'Active Stay') ? 'bg-primary text-white' :
+                            (b.status === 'Confirmed' || b.status === 'Booked') ? 'bg-info text-white' :
+                            (b.status === 'Pending' || b.status === 'Pending Check-in') ? 'bg-warning text-dark' :
                             'bg-secondary text-white'
                           }`}>
                             {b.status}

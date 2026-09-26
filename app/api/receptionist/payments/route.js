@@ -22,8 +22,14 @@ export async function GET(request) {
         JOIN guest g ON g.guestID = b.guestID
         LEFT JOIN room rm ON rm.roomID = b.roomID
         LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        WHERE b.status IN ('Confirmed', 'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Pending Bill', 'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid', 'Checked Out', 'Completed')
-        ORDER BY rm.roomNumber
+        WHERE b.status IN (
+          'Confirmed', 'Pending', 'Pending Check-in', 'Booked',
+          'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification',
+          'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Pending Bill',
+          'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid',
+          'Checked Out', 'Completed'
+        )
+        ORDER BY (CASE WHEN b.status IN ('Confirmed', 'Pending', 'Pending Check-in', 'Booked', 'Checked In', 'Active Stay') THEN 0 ELSE 1 END), b.bookingID DESC
       `),
       dbQuery("SELECT discountID, name, percentage, eligibilityTypeID FROM discounts WHERE isArchived = 0"),
       dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method"),
@@ -50,9 +56,14 @@ export async function GET(request) {
       `)
     ]);
 
-    // Filter activeBookings: Confirmed, Active Stay, Checked In and Late Checkout guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
+    // Filter activeBookings: Confirmed, Pending, Pending Check-in, Booked, Active Stay, Checked In and Late Checkout guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
     const filteredActiveBookings = activeBookings.filter(b => {
-      if (['Confirmed', 'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Pending Bill', 'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'].includes(b.status)) {
+      if ([
+        'Confirmed', 'Pending', 'Pending Check-in', 'Booked',
+        'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification',
+        'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Pending Bill',
+        'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'
+      ].includes(b.status)) {
         return true;
       }
       if (b.status === 'Checked Out' && parseFloat(b.remainingBalance || 0) > 0.05) {

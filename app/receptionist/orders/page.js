@@ -1002,7 +1002,7 @@ function ReceptionistOrdersContent() {
             className={`pcc-segmented-tab-btn ${activeCategory === 'history' ? 'active' : ''}`}
             onClick={() => setActiveCategory('history')}
           >
-            My Orders ({orders.length})
+            Guest Orders ({orders.length})
           </button>
         </div>
         <div className="ms-auto" style={{ minWidth: '220px', maxWidth: '320px', width: '100%' }}>
