@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../components/DateInput';
 import LoadingButton from '../components/LoadingButton';
 import DynamicQrPhCode from '../components/DynamicQrPhCode';
-import { calculateBillingTotals } from '../lib/billingCalculator';
+import { calculateBillingTotals } from '@/lib/billingCalculator';
 
 export default function ConfirmReservationModal({
   isOpen,

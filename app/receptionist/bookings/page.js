@@ -11,7 +11,7 @@ import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import StatusBadge, { normalizeBookingStatus } from '../../components/StatusBadge';
-import { calculateBillingTotals } from '../../lib/billingCalculator';
+import { calculateBillingTotals } from '@/lib/billingCalculator';
 
 function calculateAgeFromUiDate(uiDateStr) {
   if (!isValidDate(uiDateStr)) return '';
