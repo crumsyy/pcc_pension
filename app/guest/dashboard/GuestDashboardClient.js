@@ -1112,7 +1112,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const lateCheckOutInfo = calculateLateCheckOutPreview();
 
   const totalAutoFees = (earlyCheckInInfo.isEarly ? earlyCheckInInfo.earlyFee : 0) + (lateCheckOutInfo.isLate ? lateCheckOutInfo.lateFee : 0);
-  const baseRoomCharge = Math.round(roomRate * nightsCount * 100) / 100;
   const originalTotal = baseRoomCharge + extraGuestFee;
   const totalDiscount = 0;
   const netTotalAmount = originalTotal + totalAutoFees;
