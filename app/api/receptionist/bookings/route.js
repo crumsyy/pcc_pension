@@ -126,18 +126,17 @@ export async function GET(request) {
         subtotal: balanceDetails?.grossSubtotal ?? balanceDetails?.subtotal ?? (parseFloat(b.subtotal || b.roomCharge || 0)),
         discountTotal: balanceDetails?.discountTotal ?? (parseFloat(b.discountTotal || 0)),
         netTotal: balanceDetails?.netTotal ?? (parseFloat(b.netTotal || 0)),
-        vatRate: balanceDetails?.vatRate ?? (parseFloat(b.vatRate || 12.00)),
-        vatAmount: balanceDetails?.vatAmount ?? (parseFloat(b.vatAmount || 0)),
-        grandTotal: balanceDetails?.grandTotal ?? balanceDetails?.totalAmount ?? (parseFloat(b.grandTotal || b.totalAmount || 0)),
-        totalAmount: balanceDetails?.grandTotal ?? balanceDetails?.totalAmount ?? (parseFloat(b.grandTotal || b.totalAmount || 0)),
+        vatRate: 0.00,
+        vatAmount: 0.00,
+        grandTotal: balanceDetails?.netTotal ?? (parseFloat(b.netTotal || b.grandTotal || b.totalAmount || 0)),
+        totalAmount: balanceDetails?.netTotal ?? (parseFloat(b.netTotal || b.grandTotal || b.totalAmount || 0)),
         requiredDownpayment: balanceDetails?.requiredDownpayment ?? 0,
         incidentals: incidentals || [],
         registeredGuests: guestsDetails.filter(gd => gd.bookingID === b.bookingID)
       };
     }));
 
-    const vatPercentage = await getSystemVatRate();
-    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods, roomSchedules, vatPercentage });
+    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods, roomSchedules, vatPercentage: 0.00 });
   } catch (error) {
     console.error("Failed to fetch bookings data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -337,14 +336,14 @@ export async function POST(request) {
         const netTotal = Math.max(0, Math.round((grossSubtotal - discountTotal) * 100) / 100);
 
         // Value-Added Tax (V)
-        const vatRate = await getSystemVatRate();
-        const vatAmount = Math.round((netTotal * (vatRate / 100)) * 100) / 100;
-        const grandTotal = Math.round((netTotal + vatAmount) * 100) / 100;
+        const vatRate = 0.00;
+        const vatAmount = 0.00;
+        const grandTotal = netTotal;
 
-        // Down payment applies to Grand Total (after discounts and VAT)
+        // Down payment applies to Net Total Due
         const dpPercentageNum = (parseFloat(body.downPaymentPercentage) || 50) / 100;
         const dpPercentageInt = parseInt(body.downPaymentPercentage) || 50;
-        const requiredDp = Math.round((grandTotal * dpPercentageNum) * 100) / 100;
+        const requiredDp = Math.round((netTotal * dpPercentageNum) * 100) / 100;
 
         if (downPaymentAmount < requiredDp - 0.05) {
           return NextResponse.json({ 
@@ -352,7 +351,7 @@ export async function POST(request) {
           }, { status: 400 });
         }
 
-        const initialBalance = Math.max(0, Math.round((grandTotal - downPaymentAmount) * 100) / 100);
+        const initialBalance = Math.max(0, Math.round((netTotal - downPaymentAmount) * 100) / 100);
 
         // Validation for GCash down payment: If paymentMethod = GCash and payment status != Settled, block booking save
         if (parseInt(paymentMethodID) === 2 && body.paymentStatus !== 'Settled' && !body.isGcashSettled) {

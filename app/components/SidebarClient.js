@@ -50,7 +50,7 @@ export default function SidebarClient({ session, role, children }) {
     ['/admin/products', icons.products, 'Products'],
     ['/admin/inventory', icons.inventory, 'Inventory'],
     ['/admin/purchase-orders', icons.purchaseOrders, 'Purchase Orders'],
-    ['/admin/discounts', icons.discounts, 'Tax & Discounts'],
+    ['/admin/discounts', icons.discounts, 'Discounts & Promos'],
     ['/admin/reports', icons.reports, 'Reports']
   ] : [
     ['/receptionist/dashboard', icons.dashboard, 'Dashboard'],

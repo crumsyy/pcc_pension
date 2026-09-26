@@ -18,14 +18,9 @@ export default function AdminDiscounts() {
   const [loading, setLoading] = useState(true);
 
   // Modals state
-  const [activeModal, setActiveModal] = useState(null); // 'create_disc' | 'edit_disc' | 'create_promo' | 'edit_promo' | 'edit_vat' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create_disc' | 'edit_disc' | 'create_promo' | 'edit_promo' | null
   const [selectedDisc, setSelectedDisc] = useState(null);
   const [selectedPromo, setSelectedPromo] = useState(null);
-
-  // VAT state
-  const [vatPercentage, setVatPercentage] = useState(12.00);
-  const [vatInput, setVatInput] = useState('12.00');
-  const [isVatUpdating, setIsVatUpdating] = useState(false);
 
   // Form states
   const [discFormData, setDiscFormData] = useState({
@@ -104,13 +99,6 @@ export default function AdminDiscounts() {
 
       setDiscounts(data.discounts || []);
       setPromotions(data.promotions || []);
-      if (data.vatPercentage !== undefined) {
-        const v = parseFloat(data.vatPercentage);
-        if (!isNaN(v)) {
-          setVatPercentage(v);
-          setVatInput(v.toFixed(2));
-        }
-      }
       if (isInitial) {
         setDiscountTypes(data.discountTypes || []);
         setEligibilityTypes(data.eligibilityTypes || []);
@@ -452,35 +440,6 @@ export default function AdminDiscounts() {
     return today >= start && today <= end;
   };
 
-  const handleUpdateVat = async (e) => {
-    e.preventDefault();
-    const val = parseFloat(vatInput);
-    if (isNaN(val) || val < 0 || val > 100) {
-      showAlert('error', 'Validation Error', 'VAT rate must be a valid percentage between 0% and 100%.');
-      return;
-    }
-
-    showConfirm('Update Value-Added Tax (VAT)', `Are you sure you want to update the system-wide VAT rate to ${val.toFixed(2)}%? This rate will immediately apply to all new bookings, incidentals, and billing calculations.`, async () => {
-      try {
-        setIsVatUpdating(true);
-        const res = await fetch('/api/admin/discounts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'update_vat', vatPercentage: val }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to update VAT rate');
-        setVatPercentage(val);
-        setVatInput(val.toFixed(2));
-        setActiveModal(null);
-        showAlert('success', 'Success', data.message || `System VAT rate successfully updated to ${val.toFixed(2)}%.`);
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
-      } finally {
-        setIsVatUpdating(false);
-      }
-    });
-  };
 
   return (
     <div className="pcc-page-container">
@@ -499,7 +458,8 @@ export default function AdminDiscounts() {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Admin</div>
-          <h2 className="section-title mb-0">Tax &amp; Discounts</h2>
+          <h2 className="section-title mb-0">Discounts &amp; Promos Management</h2>
+          <p className="text-muted small mb-0 mt-1">Manage guest discounts, PWD/Senior Citizen rules, and promotional codes</p>
         </div>
         <div className="d-flex gap-2 align-items-center">
           <button className="btn btn-pcc-primary ms-2" onClick={openCreateDiscModal}>
@@ -508,47 +468,6 @@ export default function AdminDiscounts() {
           <button className="btn btn-pcc-primary" onClick={openCreatePromoModal}>
             + Create Promotion
           </button>
-        </div>
-      </div>
-
-      {/* Value-Added Tax (VAT) Configuration Card */}
-      <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem 1.5rem", borderRadius: "10px", border: "1px solid var(--pcc-mist)", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-        <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div className="d-flex align-items-center gap-3">
-            <div style={{ width: '46px', height: '46px', borderRadius: '10px', background: 'rgba(27, 54, 93, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--pcc-blue)', fontSize: '1.35rem' }}>
-              🏛️
-            </div>
-            <div>
-              <div className="d-flex align-items-center gap-2">
-                <h5 className="mb-0 fw-bold text-blue">Value-Added Tax (VAT) Configuration</h5>
-                <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small fw-semibold">
-                  BIR Compliant
-                </span>
-              </div>
-              <p className="text-muted small mb-0 mt-1">
-                Statutory tax dynamically calculated on net room charges, extra guests, incidentals, and restaurant orders after eligible Senior/PWD/promotional discounts.
-              </p>
-            </div>
-          </div>
-
-          <div className="d-flex align-items-center gap-3">
-            <div className="text-end">
-              <div className="text-muted small text-uppercase fw-semibold" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>Current Tax Rate</div>
-              <div className="fw-bold text-dark fs-3" style={{ color: 'var(--pcc-blue)', lineHeight: 1.1 }}>
-                {vatPercentage.toFixed(2)}%
-              </div>
-            </div>
-            <button
-              className="btn btn-outline-primary fw-semibold px-3 py-2"
-              onClick={() => {
-                setVatInput(vatPercentage.toFixed(2));
-                setActiveModal('edit_vat');
-              }}
-              style={{ borderRadius: '8px' }}
-            >
-              ⚙️ Configure VAT
-            </button>
-          </div>
         </div>
       </div>
 
@@ -1196,60 +1115,6 @@ export default function AdminDiscounts() {
         </div>
       )}
 
-      {/* CONFIGURE VAT MODAL */}
-      {activeModal === 'edit_vat' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-              <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
-                <h5 className="modal-title fw-bold">Configure System VAT Rate</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
-              <form onSubmit={handleUpdateVat}>
-                <div className="modal-body p-4">
-                  <p className="text-muted small mb-3">
-                    Specify the system-wide statutory Value-Added Tax (VAT) rate. The statutory default standard in the Philippines is <strong>12.00%</strong>.
-                  </p>
-
-                  <div className="mb-3">
-                    <label className="form-label small fw-semibold">VAT Percentage (%) *</label>
-                    <div className="input-group">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        className="form-control"
-                        required
-                        value={vatInput}
-                        onChange={(e) => setVatInput(e.target.value)}
-                        disabled={isVatUpdating}
-                        placeholder="12.00"
-                      />
-                      <span className="input-group-text">%</span>
-                    </div>
-                    <div className="form-text text-muted small mt-1">
-                      Allowed range: 0.00% to 100.00%.
-                    </div>
-                  </div>
-
-                  <div className="alert alert-info py-2 px-3 small mb-0 border-0" style={{ backgroundColor: 'rgba(13, 110, 253, 0.08)' }}>
-                    ℹ️ Updating this rate updates the statutory tax percentage used for future billing breakdowns, checkout settlements, and sales receipts.
-                  </div>
-                </div>
-                <div className="modal-footer border-top-0 pt-0 pb-4 px-4">
-                  <button type="button" className="btn btn-secondary px-4 fw-bold" onClick={() => setActiveModal(null)} disabled={isVatUpdating}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-pcc-primary px-4 fw-bold text-white" disabled={isVatUpdating}>
-                    {isVatUpdating ? 'Updating...' : 'Save VAT Rate'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
