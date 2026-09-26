@@ -241,31 +241,38 @@ function PaymentsClient() {
   };
 
   const handlePaymentAutoSuccess = (autoData) => {
-    if (!billData) return;
-    setReceipt({
-      guestName: billData.booking.firstName + ' ' + billData.booking.lastName,
-      roomNumber: billData.booking.roomNumber,
-      roomType: billData.booking.roomType,
-      nights: billData.booking.nights,
-      rate: billData.booking.rate,
-      subtotal: grossSubtotal,
-      grossSubtotal,
-      earlyCheckIn: billData.chargesSummary?.earlyCheckIn || 0,
-      lateCheckOut: billData.chargesSummary?.lateCheckOut || 0,
-      discountName: discountAmount > 0 ? (billData.guestsList?.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
-      discountAmount,
-      netSubtotal,
-      vatRate: 0.00,
-      vatAmount: 0.00,
-      grandTotal,
-      totalPaid,
-      payableAmount,
-      cashReceived: payableAmount,
-      change: 0,
-      paymentMethodName: 'GCash / PayMongo QR',
-      checkoutChecked: false,
-      date: new Date().toLocaleString()
-    });
+    fetchInitialData();
+    if (selectedBookingID) {
+      fetchBillingDetails(selectedBookingID);
+    }
+
+    if (billData) {
+      const settledAmt = parseFloat(autoData?.amount || payableAmount || 0);
+      setReceipt({
+        guestName: billData.booking.firstName + ' ' + billData.booking.lastName,
+        roomNumber: billData.booking.roomNumber,
+        roomType: billData.booking.roomType,
+        nights: billData.booking.nights,
+        rate: billData.booking.rate,
+        subtotal: grossSubtotal,
+        grossSubtotal,
+        earlyCheckIn: billData.chargesSummary?.earlyCheckIn || 0,
+        lateCheckOut: billData.chargesSummary?.lateCheckOut || 0,
+        discountName: discountAmount > 0 ? (billData.guestsList?.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
+        discountAmount,
+        netSubtotal,
+        vatRate: 0.00,
+        vatAmount: 0.00,
+        grandTotal,
+        totalPaid: (totalPaid || 0) + settledAmt,
+        payableAmount: 0,
+        cashReceived: settledAmt,
+        change: 0,
+        paymentMethodName: 'GCash / PayMongo QR',
+        checkoutChecked: false,
+        date: new Date().toLocaleString()
+      });
+    }
 
     setPaymentForm(prev => ({
       ...prev,
@@ -274,12 +281,75 @@ function PaymentsClient() {
       shouldCheckout: false
     }));
 
-    fetchInitialData();
-    if (selectedBookingID) {
-      fetchBillingDetails(selectedBookingID);
-    }
-    showAlert('success', 'Payment Settled', 'GCash payment verified and recorded successfully. Click "Complete Booking (Zero Balance)" to finish checkout and release room.');
+    showAlert('success', 'Payment Completed', 'GCash payment verified and recorded successfully. Click "Complete Booking (Zero Balance)" to finish checkout and release room.');
   };
+
+  // Real-time synchronization with 2nd monitor and background authorization
+  useEffect(() => {
+    if (!selectedBookingID) return;
+
+    const onPaymentReceived = (data) => {
+      if (String(data?.bookingID) === String(selectedBookingID)) {
+        handlePaymentAutoSuccess(data);
+      }
+    };
+
+    let channel = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        channel = new BroadcastChannel('pcc_payment_sync');
+        channel.onmessage = (event) => {
+          if (event.data && event.data.type === 'PAYMENT_SETTLED') {
+            onPaymentReceived(event.data);
+          }
+        };
+      }
+    } catch (e) {}
+
+    const handleStorage = (e) => {
+      if (e.key === 'pcc_payment_sync_event' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && parsed.type === 'PAYMENT_SETTLED') {
+            onPaymentReceived(parsed);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // Active polling fallback when GCash is selected and payment is pending
+    let pollInterval = null;
+    if (paymentForm.paymentMethodID === '2' && payableAmount > 0) {
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/receptionist/billing?bookingID=${selectedBookingID}`);
+          if (res.ok) {
+            const data = await res.json();
+            const currentPayable = parseFloat(data.chargesSummary?.payableAmount || data.chargesSummary?.balance || 0);
+            if (currentPayable <= 0.05) {
+              clearInterval(pollInterval);
+              handlePaymentAutoSuccess({
+                bookingID: selectedBookingID,
+                amount: payableAmount,
+                referenceNumber: `GCASH-${selectedBookingID}`
+              });
+            }
+          }
+        } catch (pollErr) {
+          // silent error on poll
+        }
+      }, 2000);
+    }
+
+    return () => {
+      if (channel) {
+        try { channel.close(); } catch (e) {}
+      }
+      window.removeEventListener('storage', handleStorage);
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [selectedBookingID, paymentForm.paymentMethodID, payableAmount, billData]);
 
   const handleDirectCheckOut = async () => {
     if (!selectedBookingID) return;
@@ -460,19 +530,8 @@ function PaymentsClient() {
           {/* Left Payment form */}
           <div className="col-lg-6 h-100 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
             <div className="card shadow-sm border-0 bg-white flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ borderRadius: '8px', minHeight: 0 }}>
-              <div className="card-header bg-white border-0 py-3 border-bottom d-flex align-items-center justify-content-between">
+              <div className="card-header bg-white border-0 py-3 border-bottom">
                 <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>Payment Terminal</h5>
-                {selectedBookingID && (
-                  <a
-                    href={`/receptionist/qr-payment?bookingId=${selectedBookingID}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-sm btn-primary text-white fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm"
-                    title="Open Guest-Facing QR Payment Screen (2nd Monitor)"
-                  >
-                    <i className="fa-solid fa-qrcode"></i> Show QR (2nd Monitor)
-                  </a>
-                )}
               </div>
               <form onSubmit={handleProcessPayment} className="d-flex flex-column overflow-hidden flex-grow-1">
                 <div className="card-body p-3 overflow-y-auto flex-grow-1">
@@ -564,11 +623,6 @@ function PaymentsClient() {
                         paymentStatus="Pending"
                         showProceedBtn={false}
                         showCheckStatusBtn={false}
-                        showTestPayBtn={true}
-                        onSimulateTestPay={(simRef) => {
-                          setPaymentForm(prev => ({ ...prev, cashReceived: payableAmount.toFixed(2) }));
-                          showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Payable amount auto-settled.`);
-                        }}
                         onCheckStatus={fetchInitialData}
                         onPaymentSuccess={handlePaymentAutoSuccess}
                         bookingID={selectedBookingID}

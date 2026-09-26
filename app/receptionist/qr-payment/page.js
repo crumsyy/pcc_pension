@@ -78,6 +78,42 @@ function QrPaymentContent() {
     }
   }, [booking]);
 
+  const broadcastPaymentSettled = (bookingID, ref, amount) => {
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const channel = new BroadcastChannel('pcc_payment_sync');
+        channel.postMessage({
+          type: 'PAYMENT_SETTLED',
+          bookingID: String(bookingID),
+          referenceNumber: ref,
+          amount: parseFloat(amount) || 0,
+          status: 'Payment Completed',
+          timestamp: Date.now()
+        });
+        setTimeout(() => {
+          try { channel.close(); } catch (e) {}
+        }, 1000);
+      }
+    } catch (e) {
+      console.warn('BroadcastChannel error:', e);
+    }
+
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('pcc_payment_sync_event', JSON.stringify({
+          type: 'PAYMENT_SETTLED',
+          bookingID: String(bookingID),
+          referenceNumber: ref,
+          amount: parseFloat(amount) || 0,
+          status: 'Payment Completed',
+          timestamp: Date.now()
+        }));
+      }
+    } catch (e) {
+      console.warn('localStorage sync error:', e);
+    }
+  };
+
   const handleAuthenticate = async () => {
     if (!booking) return;
     setProcessing(true);
@@ -100,6 +136,7 @@ function QrPaymentContent() {
       }
       setPaymentStatus('Payment Completed');
       setStatusMessage('Payment verified and settled successfully! Status updated to Payment Completed.');
+      broadcastPaymentSettled(booking.bookingID, ref, booking.remainingBalance || booking.finalBalance || 0);
     } catch (err) {
       setStatusMessage(`Authentication Error: ${err.message}`);
     } finally {
@@ -136,13 +173,14 @@ function QrPaymentContent() {
     setProcessing(true);
     setStatusMessage('');
     try {
+      const ref = `GCASH-TEST-${Date.now().toString().slice(-8)}`;
       const res = await fetch('/api/payments/paymongo/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingID: booking.bookingID,
           amount: parseFloat(booking.remainingBalance || booking.finalBalance || 0),
-          referenceNumber: `GCASH-TEST-${Date.now().toString().slice(-8)}`
+          referenceNumber: ref
         })
       });
       const data = await res.json();
@@ -151,6 +189,7 @@ function QrPaymentContent() {
       }
       setPaymentStatus('Payment Completed');
       setStatusMessage('Simulated GCash authorization completed! Booking status updated to Payment Completed.');
+      broadcastPaymentSettled(booking.bookingID, ref, booking.remainingBalance || booking.finalBalance || 0);
     } catch (err) {
       setStatusMessage(`Sandbox Error: ${err.message}`);
     } finally {

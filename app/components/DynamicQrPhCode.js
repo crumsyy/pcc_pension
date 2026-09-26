@@ -228,61 +228,6 @@ export default function DynamicQrPhCode({
           <span className="font-monospace text-dark">{cleanRef}</span>
         </div>
       </div>
-
-      {/* Instant Test Mode Payment Confirmation Button */}
-      {currentStatus !== 'Settled' && currentStatus !== 'Paid' && (
-        <button
-          type="button"
-          className="btn btn-outline-success btn-sm w-100 fw-bold mt-2 d-flex align-items-center justify-content-center gap-1"
-          style={{ fontSize: '0.78rem' }}
-          disabled={isVerifying}
-          onClick={() => handleSettlePayment(paymentIntentID || cleanRef)}
-        >
-          {isVerifying ? (
-            <>
-              <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-              <span>Processing Payment Receipt...</span>
-            </>
-          ) : (
-            <>
-              <i className="bi bi-check-circle-fill text-success"></i>
-              <span>Confirm Scanned Payment (Auto-Settle)</span>
-            </>
-          )}
-        </button>
-      )}
-
-      {/* Test Pay Authorization Button (PayMongo Test Mode) */}
-      {showTestPayBtn && (
-        <button
-          type="button"
-          className="btn btn-warning btn-sm w-100 fw-bold mt-2 text-dark shadow-xs d-flex align-items-center justify-content-center gap-1"
-          style={{ fontSize: '0.82rem', borderRadius: '6px' }}
-          onClick={async () => {
-            const simRef = `TEST-${Date.now().toString().slice(-8)}`;
-            if (onSimulateTestPay) {
-              onSimulateTestPay(simRef);
-            } else {
-              try {
-                const res = await fetch('/api/payments/paymongo/test', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ amount: parsedAmount, referenceNumber: simRef, bookingID })
-                });
-                const d = await res.json();
-                if (d.success) {
-                  setCurrentStatus('Settled');
-                  if (onPaymentSuccess) onPaymentSuccess(d);
-                }
-              } catch (e) {
-                console.error(e);
-              }
-            }
-          }}
-        >
-          <i className="bi bi-lightning-charge-fill me-1"></i> Test Pay Authorization
-        </button>
-      )}
     </div>
   );
 }
