@@ -80,9 +80,9 @@ export default function ModalDialog({
   const confirmClass = isDangerConfirm 
     ? "btn btn-danger px-4 py-2 text-white d-inline-flex align-items-center justify-content-center"
     : "btn btn-pcc-primary px-4 py-2 text-white d-inline-flex align-items-center justify-content-center";
-  const cancelClass = cancelVariant === 'secondary' || isDangerConfirm
-    ? "btn btn-secondary px-4 py-2 ms-2 text-white"
-    : "btn btn-danger px-4 py-2 ms-2 text-white";
+  const cancelClass = cancelVariant === 'danger'
+    ? "btn btn-danger px-4 py-2 text-white"
+    : "btn btn-secondary px-4 py-2 text-white";
 
   return (
     <div className="modal show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2100 }}>
@@ -100,7 +100,18 @@ export default function ModalDialog({
               {message}
             </div>
           </div>
-          <div className="modal-footer border-0 justify-content-center pb-4 pt-0">
+          <div className="modal-footer border-0 justify-content-center pb-4 pt-0 d-flex gap-2">
+            {onCancel && (
+              <button
+                type="button"
+                className={cancelClass}
+                onClick={onCancel}
+                disabled={isSubmitting}
+                style={{ borderRadius: '6px', minWidth: '100px' }}
+              >
+                {cancelText}
+              </button>
+            )}
             {onConfirm && (
               <button
                 type="button"
@@ -117,17 +128,6 @@ export default function ModalDialog({
                 ) : (
                   confirmText
                 )}
-              </button>
-            )}
-            {onCancel && (
-              <button
-                type="button"
-                className={cancelClass}
-                onClick={onCancel}
-                disabled={isSubmitting}
-                style={{ borderRadius: '6px' }}
-              >
-                {cancelText}
               </button>
             )}
           </div>

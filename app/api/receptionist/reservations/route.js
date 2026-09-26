@@ -493,8 +493,18 @@ export async function POST(request) {
         }
 
         // Room Rate & Capacity Resolution
+        let parsedDates = [];
+        try {
+          parsedDates = typeof res[0].breakfastDates === 'string'
+            ? JSON.parse(res[0].breakfastDates || '[]')
+            : (Array.isArray(res[0].breakfastDates) ? res[0].breakfastDates : []);
+        } catch (e) {
+          parsedDates = [];
+        }
+
+        const hasCustomBreakfastDates = parsedDates.length > 0;
         const isWithBk = (res[0].breakfastOption || 'with') === 'with';
-        const breakfastID = isWithBk ? 2 : 1;
+        const breakfastID = hasCustomBreakfastDates ? 1 : (isWithBk ? 2 : 1);
         const [rateRows] = await conn.execute(`
           SELECT rr.rate, rm.roomNumber, rm.occupancyLimit, rm.roomTypeID, rm.floorID
           FROM room rm
@@ -518,6 +528,11 @@ export async function POST(request) {
         const extraPax = Math.max(0, totalGuestsCount - roomCapacity);
         const extraGuestFee = extraPax * 100 * nights;
 
+        let calculatedBreakfastFee = parseFloat(res[0].breakfastFee || 0);
+        if (hasCustomBreakfastDates && calculatedBreakfastFee <= 0) {
+          calculatedBreakfastFee = parsedDates.length * 250 * totalGuestsCount;
+        }
+
         // Process guest individual discounts
         const reqDiscountedGuests = Array.isArray(body.discountedGuests) ? body.discountedGuests : [];
         let formattedDiscounts = [];
@@ -538,7 +553,7 @@ export async function POST(request) {
             });
         }
 
-        const dpPercentageInt = Math.max(1, Math.min(100, parseInt(body.downPaymentPercentage || (downPaymentAmount ? Math.round((downPaymentAmount / ((roomRate * nights) || 1)) * 100) : 50), 10) || 50));
+        const dpPercentageInt = Math.max(1, Math.min(100, parseInt(body.downPaymentPercentage || (downPaymentAmount ? Math.round((downPaymentAmount / (((roomRate * nights) + calculatedBreakfastFee) || 1)) * 100) : 50), 10) || 50));
 
         const billingCalc = calculateBillingTotals({
           roomRate,
@@ -546,6 +561,7 @@ export async function POST(request) {
           guestCount: totalGuestsCount,
           guestDiscounts: formattedDiscounts,
           extraGuestFee,
+          breakfastFee: calculatedBreakfastFee,
           downPaymentPercentage: dpPercentageInt
         });
 
@@ -564,13 +580,13 @@ export async function POST(request) {
             checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID,
             roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount,
             grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance,
-            breakfastOption, guestCount
-          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            breakfastOption, guestCount, breakfastDates, breakfastFee
+          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID,
             roomRate, billingCalc.grossRoomSubtotal, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount,
             grandTotal, grandTotal, finalDownPaymentAmount, dpPercentageInt, initialBalance,
-            res[0].breakfastOption || 'with', totalGuestsCount
+            res[0].breakfastOption || 'with', totalGuestsCount, res[0].breakfastDates || null, calculatedBreakfastFee
           ]
         );
         const bookingID = insertBookingRes.insertId;

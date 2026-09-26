@@ -194,7 +194,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     onConfirm: null,
     onCancel: null,
     confirmText: 'OK',
-    cancelText: 'Cancel'
+    cancelText: 'Cancel',
+    confirmVariant: 'danger',
+    cancelVariant: 'secondary'
   });
 
   const showAlert = (type, title, message) => {
@@ -204,12 +206,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       title,
       message,
       confirmText: 'OK',
+      cancelText: 'Cancel',
+      confirmVariant: 'primary',
+      cancelVariant: 'secondary',
       onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
       onCancel: null
     });
   };
 
-  const showConfirm = (title, message, onConfirm) => {
+  const showConfirm = (title, message, onConfirm, confirmVariant = 'danger', cancelVariant = 'secondary') => {
     setModalConfig({
       isOpen: true,
       type: 'warning',
@@ -217,6 +222,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       message,
       confirmText: 'Confirm',
       cancelText: 'Cancel',
+      confirmVariant,
+      cancelVariant,
       onConfirm: () => {
         setModalConfig(prev => ({ ...prev, isOpen: false }));
         onConfirm();
@@ -1002,11 +1009,33 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   };
 
   const nightsCount = calculateNights();
-  const roomRate = selectedRoom
-    ? (breakfastOption === 'with'
-        ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate)) || 0)
-        : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
+  const pureBaseRoomRate = selectedRoom
+    ? (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0)
     : 0;
+  const isFreeBreakfast = Boolean(
+    selectedRoom &&
+    selectedRoom.breakfastRate !== null &&
+    selectedRoom.breakfastRate !== undefined &&
+    parseFloat(selectedRoom.breakfastRate) === 0
+  );
+  const perGuestBreakfastRate = isFreeBreakfast
+    ? 0
+    : (selectedRoom && selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined
+        ? parseFloat(selectedRoom.breakfastRate)
+        : (selectedRoom && selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast
+            ? Math.max(0, parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast))
+            : 250));
+
+  const isWithBreakfast = breakfastOption === 'with';
+  const breakfastMorningsCount = isWithBreakfast
+    ? (nightsCount > 1
+        ? (Array.isArray(selectedBreakfastDates) ? selectedBreakfastDates.length : nightsCount)
+        : 1)
+    : 0;
+  const calculatedBreakfastFee = isWithBreakfast ? (perGuestBreakfastRate * inputPax * breakfastMorningsCount) : 0;
+  const pureAccommodationCharge = Math.round(pureBaseRoomRate * nightsCount * 100) / 100;
+  const baseRoomCharge = pureAccommodationCharge + calculatedBreakfastFee;
+  const roomRate = pureBaseRoomRate;
   const roomBasePax = selectedRoom ? parseInt(selectedRoom.occupancyLimit || selectedRoom.roomBasePax || 4, 10) : 4;
   const inputPax = parseInt(numGuests) || 1;
   const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
@@ -1375,7 +1404,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           breakfastOption: breakfastOption || 'without',
           includeBreakfast: breakfastOption === 'with',
           selectedBreakfastDates: breakfastOption === 'with' ? selectedBreakfastDates : [],
-          roomRate,
+          breakfastFee: calculatedBreakfastFee,
+          roomRate: pureBaseRoomRate,
           numGuests: inputPax,
           extraGuestsCount,
           extraGuestFee,
@@ -1515,6 +1545,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const resGuests = parseInt(reservation.guestCount || 1);
     setNumGuests(resGuests);
     setBreakfastOption(reservation.breakfastOption || 'with');
+    let parsedDates = [];
+    if (reservation.breakfastDates) {
+      try {
+        parsedDates = typeof reservation.breakfastDates === 'string'
+          ? JSON.parse(reservation.breakfastDates)
+          : (Array.isArray(reservation.breakfastDates) ? reservation.breakfastDates : []);
+      } catch (e) {
+        parsedDates = [];
+      }
+    }
+    setSelectedBreakfastDates(parsedDates);
     setSpecialRequests(reservation.specialRequests || '');
     setConvertingReservationID(reservation.reservationID);
     setPaymentOption('50');
@@ -2125,6 +2166,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         onCancel={modalConfig.onCancel}
         confirmText={modalConfig.confirmText}
         cancelText={modalConfig.cancelText}
+        confirmVariant={modalConfig.confirmVariant}
+        cancelVariant={modalConfig.cancelVariant}
       />
 
       {/* MODERN CENTERED LOGOUT CONFIRMATION DIALOG */}
@@ -4515,9 +4558,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                     <div className="p-3 bg-light rounded border" style={{ fontSize: '0.88rem' }}>
                       <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted">Base Room Rate ({nightsCount} night{nightsCount > 1 ? 's' : ''}):</span>
-                        <span className="fw-semibold text-dark">₱{baseRoomCharge.toFixed(2)}</span>
+                        <span className="text-muted">Base Accommodation ({nightsCount} night{nightsCount > 1 ? 's' : ''} @ ₱{pureBaseRoomRate.toFixed(2)}/night):</span>
+                        <span className="fw-semibold text-dark">₱{pureAccommodationCharge.toFixed(2)}</span>
                       </div>
+                      {isWithBreakfast && (
+                        <div className="d-flex justify-content-between mb-1 text-primary">
+                          <span>
+                            Breakfast Fee ({breakfastMorningsCount} morning{breakfastMorningsCount > 1 ? 's' : ''} for {inputPax} guest{inputPax > 1 ? 's' : ''}{perGuestBreakfastRate > 0 ? ` @ ₱${perGuestBreakfastRate}/morning` : ' - Free'}):
+                          </span>
+                          <span className="fw-semibold">{calculatedBreakfastFee > 0 ? `+₱${calculatedBreakfastFee.toFixed(2)}` : '₱0.00'}</span>
+                        </div>
+                      )}
                       {extraGuestFee > 0 && (
                         <div className="d-flex justify-content-between mb-1 text-secondary">
                           <span>Additional Guest Fee ({extraGuestsCount} extra pax):</span>

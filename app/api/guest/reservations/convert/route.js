@@ -108,8 +108,21 @@ export async function POST(request) {
       // Resolve breakfast tier and room rate dynamically from database
       const rawBreakfastOption = reservation.breakfastOption || 'without';
       const hasBreakfast = (rawBreakfastOption && rawBreakfastOption.toLowerCase().includes('with') && !rawBreakfastOption.toLowerCase().includes('without'));
-      const breakfastID = hasBreakfast ? 2 : 1;
-      const breakfastOption = hasBreakfast ? 'with' : 'without';
+
+      let parsedDates = [];
+      try {
+        parsedDates = typeof reservation.breakfastDates === 'string'
+          ? JSON.parse(reservation.breakfastDates || '[]')
+          : (Array.isArray(reservation.breakfastDates) ? reservation.breakfastDates : []);
+      } catch (e) {
+        parsedDates = [];
+      }
+
+      const hasCustomBreakfast = parsedDates.length > 0;
+      // When custom breakfast dates are used, the base room rate is strictly accommodation-only (breakfastID = 1),
+      // and breakfast is added separately via breakfastFee for only the selected mornings.
+      const breakfastID = hasCustomBreakfast ? 1 : (hasBreakfast ? 2 : 1);
+      const breakfastOption = (hasCustomBreakfast || hasBreakfast) ? 'with' : 'without';
 
       const [rateRows] = await conn.execute(`
         SELECT rr.rate
@@ -144,13 +157,17 @@ export async function POST(request) {
       const extraGuests = Math.max(0, totalPax - basePax);
       const extraGuestFee = extraGuests * 100 * nights;
       const baseRoomCharge = roomPrice * nights;
-      const totalCharge = baseRoomCharge + extraGuestFee;
+      let calculatedBreakfastFee = parseFloat(reservation.breakfastFee || 0);
+      if (hasCustomBreakfast && calculatedBreakfastFee <= 0) {
+        calculatedBreakfastFee = parsedDates.length * 250 * totalPax;
+      }
+      const totalCharge = baseRoomCharge + calculatedBreakfastFee + extraGuestFee;
 
       // B. Create pending booking record with accurate pricing, guestCount, and breakfast selection
       const [insertBookingRes] = await conn.execute(
         `INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, remainingBalance, finalBalance, breakfastOption, breakfastID, guestCount, breakfastDates, breakfastFee)
          VALUES (?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, baseRoomCharge, totalCharge, totalCharge, breakfastOption, breakfastID, totalPax, reservation.breakfastDates || null, reservation.breakfastFee || 0]
+        [checkInDateTime, checkOutDateTime, reservationID, guestID, reservation.roomID, roomPrice, baseRoomCharge, totalCharge, totalCharge, breakfastOption, breakfastID, totalPax, reservation.breakfastDates || null, calculatedBreakfastFee]
       );
       const bookingID = insertBookingRes.insertId;
 

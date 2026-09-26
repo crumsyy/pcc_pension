@@ -163,9 +163,18 @@ export default function ConfirmReservationModal({
   if (!isOpen || !selectedRes) return null;
 
   const selectedRoom = rooms.find(r => String(r.roomID) === String(selectedRes.roomID));
+  let parsedBreakfastDates = [];
+  try {
+    parsedBreakfastDates = typeof selectedRes.breakfastDates === 'string'
+      ? JSON.parse(selectedRes.breakfastDates || '[]')
+      : (Array.isArray(selectedRes.breakfastDates) ? selectedRes.breakfastDates : []);
+  } catch (e) {
+    parsedBreakfastDates = [];
+  }
+  const hasCustomBreakfast = parsedBreakfastDates.length > 0;
   const isWithBk = (selectedRes.breakfastOption || 'with') === 'with';
   const rate = selectedRoom
-    ? (isWithBk
+    ? ((isWithBk && !hasCustomBreakfast)
       ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
       : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
     : parseFloat(selectedRes.rate || 0);
@@ -184,6 +193,11 @@ export default function ConfirmReservationModal({
   const totalPax = Math.max(1, parseInt(selectedRes.guestCount || 1, 10));
   const extraGuests = Math.max(0, totalPax - roomBasePax);
   const extraGuestFee = extraGuests * 100 * nights;
+
+  let calculatedBreakfastFee = parseFloat(selectedRes.breakfastFee || 0);
+  if (hasCustomBreakfast && calculatedBreakfastFee <= 0) {
+    calculatedBreakfastFee = parsedBreakfastDates.length * 250 * totalPax;
+  }
 
   const formattedDiscounts = (discountedGuests || [])
     .filter(g => g.discountID)
@@ -206,6 +220,7 @@ export default function ConfirmReservationModal({
     guestCount: totalPax,
     guestDiscounts: formattedDiscounts,
     extraGuestFee,
+    breakfastFee: calculatedBreakfastFee,
     downPaymentPercentage: dpPctNum
   });
 
@@ -657,6 +672,12 @@ export default function ConfirmReservationModal({
                   <span>Per-Capita Share ({totalPax} Guest{totalPax > 1 ? 's' : ''}):</span>
                   <span className="fw-semibold text-dark">₱{perCapitaShare.toFixed(2)}/pax</span>
                 </div>
+                {hasCustomBreakfast && calculatedBreakfastFee > 0 && (
+                  <div className="d-flex justify-content-between mb-1 text-primary">
+                    <span>Breakfast Fee ({parsedBreakfastDates.length} morning{parsedBreakfastDates.length > 1 ? 's' : ''}):</span>
+                    <span className="fw-semibold">+₱{calculatedBreakfastFee.toFixed(2)}</span>
+                  </div>
+                )}
 
                 {/* ITEMIZED APPLIED DISCOUNTS */}
                 {billing.itemizedDiscounts && billing.itemizedDiscounts.length > 0 && (

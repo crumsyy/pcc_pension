@@ -18,13 +18,21 @@ export default function BookingBreakfastSelector({
   // Auto-select all by default on initial load (or use initialSelectedDates if provided)
   useEffect(() => {
     if (stayNights.length > 0) {
+      const stayDateStrs = stayNights.map(n => n.dateStr);
       if (!hasInitializedRef.current) {
         if (Array.isArray(initialSelectedDates) && initialSelectedDates.length > 0) {
-          setSelectedDates(initialSelectedDates);
+          const validInitial = initialSelectedDates.filter(d => stayDateStrs.includes(d));
+          setSelectedDates(validInitial.length > 0 ? validInitial : stayDateStrs);
         } else {
-          setSelectedDates(stayNights.map(n => n.dateStr));
+          setSelectedDates(stayDateStrs);
         }
         hasInitializedRef.current = true;
+      } else {
+        // Retain only dates that belong to the new stay duration, or if none left, reset to all
+        setSelectedDates(prev => {
+          const valid = prev.filter(d => stayDateStrs.includes(d));
+          return valid.length > 0 ? valid : stayDateStrs;
+        });
       }
     } else {
       setSelectedDates([]);
@@ -129,13 +137,13 @@ export default function BookingBreakfastSelector({
                     <span className={`fw-bold small ${isSelected ? 'text-primary' : 'text-muted'}`}>
                       +₱{perMorningTotal.toLocaleString()}
                     </span>
-                    <div className="form-check form-switch m-0">
+                    <div className="form-check form-switch m-0" onClick={(e) => e.stopPropagation()}>
                       <input
                         className="form-check-input cursor-pointer"
                         type="checkbox"
                         role="switch"
                         checked={isSelected}
-                        onChange={() => {}} // Handled by parent container click
+                        onChange={() => toggleDate(night.dateStr)}
                       />
                     </div>
                   </div>

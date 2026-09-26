@@ -392,7 +392,8 @@ export async function POST(request) {
         } else if (!breakfastOption) {
           breakfastOption = 'without';
         }
-        const breakfastID = breakfastOption === 'with' ? 2 : 1;
+        const hasCustomBreakfast = validBreakfastDates.length > 0;
+        const breakfastID = hasCustomBreakfast ? 1 : (breakfastOption === 'with' ? 2 : 1);
 
         // Calculate down payment amounts and breakdown
         const downPaymentPercentage = parseInt(body.downPaymentPercentage || body.paymentOption || 50, 10);
@@ -427,16 +428,20 @@ export async function POST(request) {
         const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
 
         // Extra guests fee calculation: ₱100/night per excess occupant
-        const [roomDataRows] = await connection.execute("SELECT occupancyLimit FROM room WHERE roomID = ?", [roomID]);
+        const [roomDataRows] = await connection.execute("SELECT occupancyLimit, breakfastRate FROM room WHERE roomID = ?", [roomID]);
         const basePax = parseInt(roomDataRows[0]?.occupancyLimit || 4);
+        const customBfastRate = roomDataRows[0]?.breakfastRate !== null && roomDataRows[0]?.breakfastRate !== undefined ? parseFloat(roomDataRows[0].breakfastRate) : BREAKFAST_RATE;
         const totalPax = parseInt(body.numGuests || body.guestCount || resGuestCount || (registeredGuests?.length || 1));
         const extraGuests = Math.max(0, totalPax - basePax);
         const extraGuestFee = extraGuests * 100 * nights;
-        const breakfastTotal = validBreakfastDates.length * BREAKFAST_RATE * totalPax;
+        const breakfastTotal = hasCustomBreakfast
+          ? (validBreakfastDates.length * customBfastRate * totalPax)
+          : (parseFloat(body.breakfastFee || resBreakfastFee || 0));
 
         const baseRoomCharge = Math.round(roomPrice * nights * 100) / 100;
-        const downPaymentAmount = Math.round(baseRoomCharge * downPaymentRate * 100) / 100;
-        const totalAmount = baseRoomCharge + extraGuestFee;
+        const totalRoomWithBreakfast = baseRoomCharge + breakfastTotal;
+        const downPaymentAmount = Math.round(totalRoomWithBreakfast * downPaymentRate * 100) / 100;
+        const totalAmount = totalRoomWithBreakfast + extraGuestFee;
         const remainingBalance = Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
 
         let finalCheckInDateTime = checkInDateTime;

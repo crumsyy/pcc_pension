@@ -69,9 +69,27 @@ export default function GuestReservationForm({
   const rateWithoutBfast = selectedRoom
     ? (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0)
     : 0;
-  const activeRate = breakfastOption === 'with' ? rateWithBfast : rateWithoutBfast;
-  const roomSubtotal = activeRate * nightsCount;
+
+  const perGuestBreakfastRate = isFreeBreakfast
+    ? 0
+    : (selectedRoom && selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined
+        ? parseFloat(selectedRoom.breakfastRate)
+        : (selectedRoom && selectedRoom.rateWithBreakfast && selectedRoom.rateWithoutBreakfast
+            ? Math.max(0, parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast))
+            : 250));
+
+  const isWithBreakfast = breakfastOption === 'with';
+  const breakfastMornings = isWithBreakfast
+    ? (nightsCount > 1
+        ? (Array.isArray(selectedBreakfastDates) ? selectedBreakfastDates.length : nightsCount)
+        : 1)
+    : 0;
+
+  const totalBreakfastFee = isWithBreakfast ? (perGuestBreakfastRate * guestCount * breakfastMornings) : 0;
+  const baseRoomAccommodation = rateWithoutBfast * nightsCount;
+  const roomSubtotal = baseRoomAccommodation + totalBreakfastFee;
   const estimatedTotal = roomSubtotal + extraGuestFee;
+  const requiredDownpayment = Math.round(roomSubtotal * 0.5 * 100) / 100;
 
   return (
     <div className={`guest-reservation-form ${className}`}>
@@ -215,13 +233,21 @@ export default function GuestReservationForm({
         </h6>
         <div className="d-flex justify-content-between mb-1">
           <span className="text-muted">
-            Base Room Rate ({nightsCount} night{nightsCount > 1 ? 's' : ''} @ ₱{activeRate.toFixed(2)}/night):
+            Base Room Accommodation ({nightsCount} night{nightsCount > 1 ? 's' : ''} @ ₱{rateWithoutBfast.toFixed(2)}/night):
           </span>
-          <span className="fw-semibold">₱{roomSubtotal.toFixed(2)}</span>
+          <span className="fw-semibold">₱{baseRoomAccommodation.toFixed(2)}</span>
         </div>
+        {isWithBreakfast && (
+          <div className="d-flex justify-content-between mb-1 text-primary">
+            <span>
+              Breakfast Fee ({breakfastMornings} morning{breakfastMornings > 1 ? 's' : ''} for {guestCount} guest{guestCount > 1 ? 's' : ''}{perGuestBreakfastRate > 0 ? ` @ ₱${perGuestBreakfastRate}/morning` : ' - Free'}):
+            </span>
+            <span className="fw-semibold">{totalBreakfastFee > 0 ? `+₱${totalBreakfastFee.toFixed(2)}` : '₱0.00'}</span>
+          </div>
+        )}
         <div className="d-flex justify-content-between mb-1 text-success fw-bold">
-          <span>Required Down Payment (50% of Room Charge):</span>
-          <span>₱{(roomSubtotal * 0.5).toFixed(2)}</span>
+          <span>Required Down Payment (50% of Room &amp; Breakfast):</span>
+          <span>₱{requiredDownpayment.toFixed(2)}</span>
         </div>
         {extraGuests > 0 && (
           <div className="d-flex justify-content-between mb-1 text-primary">
