@@ -133,6 +133,62 @@ function BookingsClient() {
   const [isGcashSettled, setIsGcashSettled] = useState(false);
   const [gcashInlineError, setGcashInlineError] = useState('');
   const [settledPaymentRef, setSettledPaymentRef] = useState('');
+  const [walkinGcashRef, setWalkinGcashRef] = useState('');
+
+  // Cross-window / 2nd monitor GCash payment settlement listener
+  useEffect(() => {
+    const onPaymentReceived = (data) => {
+      if (data?.type === 'PAYMENT_SETTLED') {
+        const isMatch = (updatingBooking && String(data.bookingID) === String(updatingBooking.bookingID)) ||
+                        (walkinGcashRef && (String(data.bookingID) === String(walkinGcashRef) || String(data.referenceNumber) === String(walkinGcashRef))) ||
+                        (data.bookingID && String(data.bookingID).startsWith('BOOK-'));
+        if (isMatch) {
+          setIsGcashSettled(true);
+          const refCode = data.referenceNumber || data.bookingID || `PM-AUTH-${Date.now().toString().slice(-6)}`;
+          setSettledPaymentRef(refCode);
+          setGcashInlineError('');
+          if (data.amount && parseFloat(data.amount) > 0) {
+            setDownPayment(parseFloat(data.amount).toFixed(2));
+          }
+          showAlert('success', 'Payment Settled', `GCash payment verified (${refCode}) from 2nd Monitor.`);
+        }
+      }
+    };
+
+    let channel = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        channel = new BroadcastChannel('pcc_payment_sync');
+        channel.onmessage = (event) => {
+          if (event.data) {
+            onPaymentReceived(event.data);
+          }
+        };
+      }
+    } catch (e) {
+      console.warn('BroadcastChannel error:', e);
+    }
+
+    const handleStorage = (e) => {
+      if (e.key === 'pcc_payment_sync_event' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed) {
+            onPaymentReceived(parsed);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (channel) {
+        try { channel.close(); } catch (e) {}
+      }
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [updatingBooking, walkinGcashRef, showAlert]);
+
   const [roomFilterStatus, setRoomFilterStatus] = useState('Available');
   const [downPaymentOption, setDownPaymentOption] = useState('30');
   const [checkInDate, setCheckInDate] = useState('');
@@ -916,6 +972,7 @@ function BookingsClient() {
       setIsGcashSettled(false);
       setGcashInlineError('');
       setSettledPaymentRef('');
+      setWalkinGcashRef('');
     }
   }, [activeModal]);
 
@@ -2704,6 +2761,9 @@ function BookingsClient() {
                                     setSettledPaymentRef('');
                                     if (String(val) === '2') {
                                       setDownPayment(requiredDownpayment.toFixed(2));
+                                      if (!walkinGcashRef) {
+                                        setWalkinGcashRef(`BOOK-${selectedRoomObj?.roomNumber || formData.roomID || 'WALK'}-${Date.now().toString().slice(-4)}`);
+                                      }
                                     }
                                   }}
                                 >
@@ -2748,48 +2808,82 @@ function BookingsClient() {
                                     </small>
                                   </div>
                                 </>
-                              ) : (
-                                <div className="col-md-12 d-flex flex-column align-items-center justify-content-center">
-                                  {gcashInlineError ? (
-                                    <div className="alert alert-danger py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
-                                      <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
-                                      <span>{gcashInlineError}</span>
+                              ) : (() => {
+                                const activeGcashRef = walkinGcashRef || `BOOK-${selectedRoomObj?.roomNumber || formData.roomID || 'WALK'}-${Date.now().toString().slice(-4)}`;
+                                return (
+                                  <>
+                                    <div className="col-md-8 d-flex align-items-end justify-content-start gap-2 pb-1">
+                                      <a
+                                        href={`/receptionist/qr-payment?amount=${requiredDownpayment.toFixed(2)}&ref=${activeGcashRef}&roomNumber=${encodeURIComponent(selectedRoomObj?.roomNumber || '')}&guestName=${encodeURIComponent(`${guestForm.firstName || ''} ${guestForm.lastName || ''}`.trim() || 'Guest')}&roomType=${encodeURIComponent(selectedRoomObj?.roomType || 'Standard')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn btn-sm btn-outline-primary fw-bold text-nowrap d-inline-flex align-items-center gap-1 shadow-sm"
+                                        title="Open guest payment terminal in a new window or second monitor"
+                                        onClick={() => {
+                                          if (!walkinGcashRef) {
+                                            setWalkinGcashRef(activeGcashRef);
+                                          }
+                                        }}
+                                      >
+                                        <i className="fa-solid fa-up-right-from-square"></i> Open on 2nd Monitor
+                                      </a>
+                                      {!isGcashSettled ? (
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm btn-success fw-bold text-white text-nowrap d-inline-flex align-items-center gap-1 shadow-sm"
+                                          onClick={() => {
+                                            const authRef = `AUTH-${Date.now().toString().slice(-6)}`;
+                                            setIsGcashSettled(true);
+                                            setSettledPaymentRef(authRef);
+                                            setDownPayment(requiredDownpayment.toFixed(2));
+                                            setGcashInlineError('');
+                                            showAlert('success', 'Payment Authorized', `GCash payment settled (${authRef}). You may now save the booking.`);
+                                          }}
+                                        >
+                                          <i className="fa-solid fa-circle-check"></i> Authorize Payment
+                                        </button>
+                                      ) : (
+                                        <span className="badge bg-success d-inline-flex align-items-center gap-1 py-2 px-2.5 shadow-sm">
+                                          <i className="fa-solid fa-circle-check"></i> Payment Authorized
+                                        </span>
+                                      )}
                                     </div>
-                                  ) : isGcashSettled ? (
-                                    <div className="alert alert-success py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
-                                      <i className="bi bi-check-circle-fill text-success fs-6"></i>
-                                      <span><strong>GCash Payment Settled:</strong> Reference #{settledPaymentRef}. You may proceed to save booking.</span>
+
+                                    <div className="col-md-12 d-flex flex-column align-items-center justify-content-center">
+                                      {gcashInlineError ? (
+                                        <div className="alert alert-danger py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
+                                          <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
+                                          <span>{gcashInlineError}</span>
+                                        </div>
+                                      ) : isGcashSettled ? (
+                                        <div className="alert alert-success py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
+                                          <i className="bi bi-check-circle-fill text-success fs-6"></i>
+                                          <span><strong>GCash Payment Settled:</strong> Reference #{settledPaymentRef}. You may proceed to save booking.</span>
+                                        </div>
+                                      ) : (
+                                        <div className="alert alert-warning py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
+                                          <i className="bi bi-info-circle-fill text-warning fs-6"></i>
+                                          <span><strong>Awaiting GCash Payment:</strong> Down payment must be verified/settled before saving this booking.</span>
+                                        </div>
+                                      )}
+                                      <DynamicQrPhCode 
+                                        amount={requiredDownpayment}
+                                        refNumber={activeGcashRef}
+                                        paymentStatus={isGcashSettled ? 'Settled' : 'Pending'}
+                                        showProceedBtn={false}
+                                        showCheckStatusBtn={false}
+                                        showTestPayBtn={false}
+                                        onPaymentSuccess={(pData) => {
+                                          setIsGcashSettled(true);
+                                          setSettledPaymentRef(pData?.referenceNumber || pData?.paymentIntentId || `PAY-${Date.now()}`);
+                                          setGcashInlineError('');
+                                          setDownPayment(requiredDownpayment.toFixed(2));
+                                        }}
+                                      />
                                     </div>
-                                  ) : (
-                                    <div className="alert alert-warning py-2 px-3 mb-2 small d-flex align-items-center gap-2 w-100" style={{ maxWidth: '380px' }}>
-                                      <i className="bi bi-info-circle-fill text-warning fs-6"></i>
-                                      <span><strong>Awaiting GCash Payment:</strong> Down payment must be verified/settled before saving this booking.</span>
-                                    </div>
-                                  )}
-                                  <DynamicQrPhCode 
-                                    amount={requiredDownpayment}
-                                    refNumber={`BOOK-${selectedRoomObj?.roomNumber || formData.roomID || 'WALK'}`}
-                                    paymentStatus={isGcashSettled ? 'Settled' : 'Pending'}
-                                    showProceedBtn={false}
-                                    showCheckStatusBtn={false}
-                                    showTestPayBtn={true}
-                                    onSimulateTestPay={(simRef) => {
-                                      setIsGcashSettled(true);
-                                      setSettledPaymentRef(simRef || `SIM-${Date.now()}`);
-                                      setGcashInlineError('');
-                                      setDownPayment(requiredDownpayment.toFixed(2));
-                                      showAlert('success', 'Test Pay Simulation', `Simulated GCash payment verified (${simRef}). Down payment amount auto-filled.`);
-                                    }}
-                                    onCheckStatus={() => {}}
-                                    onPaymentSuccess={(pData) => {
-                                      setIsGcashSettled(true);
-                                      setSettledPaymentRef(pData?.referenceNumber || pData?.paymentIntentId || `PAY-${Date.now()}`);
-                                      setGcashInlineError('');
-                                      setDownPayment(requiredDownpayment.toFixed(2));
-                                    }}
-                                  />
-                                </div>
-                              )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           );
                         })()}

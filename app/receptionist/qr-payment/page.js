@@ -6,6 +6,11 @@ import { useSearchParams } from 'next/navigation';
 function QrPaymentContent() {
   const searchParams = useSearchParams();
   const bookingIdParam = searchParams.get('bookingId') || searchParams.get('bookingID');
+  const amountParam = searchParams.get('amount');
+  const refParam = searchParams.get('ref') || searchParams.get('refNumber');
+  const roomNumberParam = searchParams.get('roomNumber');
+  const roomTypeParam = searchParams.get('roomType');
+  const guestNameParam = searchParams.get('guestName');
 
   const [booking, setBooking] = useState(null);
   const [loadingBooking, setLoadingBooking] = useState(true);
@@ -16,34 +21,52 @@ function QrPaymentContent() {
   const [paymentStatus, setPaymentStatus] = useState('Pending');
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Fetch booking details
+  // Fetch booking details or initialize virtual walk-in session
   useEffect(() => {
-    if (!bookingIdParam) {
-      setLoadingBooking(false);
-      return;
-    }
-
-    const fetchBookingDetails = async () => {
-      try {
-        setLoadingBooking(true);
-        const res = await fetch('/api/receptionist/bookings');
-        const data = await res.json();
-        if (res.ok && data.bookings) {
-          const found = data.bookings.find(b => String(b.bookingID) === String(bookingIdParam));
-          if (found) {
-            setBooking(found);
-            setPaymentStatus(found.status);
+    if (bookingIdParam) {
+      const fetchBookingDetails = async () => {
+        try {
+          setLoadingBooking(true);
+          const res = await fetch('/api/receptionist/bookings');
+          const data = await res.json();
+          if (res.ok && data.bookings) {
+            const found = data.bookings.find(b => String(b.bookingID) === String(bookingIdParam));
+            if (found) {
+              setBooking(found);
+              setPaymentStatus(found.status);
+            }
           }
+        } catch (err) {
+          console.error('Failed to load booking details:', err);
+        } finally {
+          setLoadingBooking(false);
         }
-      } catch (err) {
-        console.error('Failed to load booking details:', err);
-      } finally {
-        setLoadingBooking(false);
-      }
-    };
+      };
 
-    fetchBookingDetails();
-  }, [bookingIdParam]);
+      fetchBookingDetails();
+    } else if (amountParam && parseFloat(amountParam) > 0) {
+      // Virtual walk-in or new booking session before DB save
+      const names = (guestNameParam || 'Guest Walk-in').trim().split(' ');
+      const fName = names[0] || 'Guest';
+      const lName = names.slice(1).join(' ') || (names.length === 1 ? 'Walk-in' : '');
+      const parsedAmt = parseFloat(amountParam) || 0;
+      setBooking({
+        bookingID: refParam || `NEW-${Date.now().toString().slice(-6)}`,
+        firstName: fName,
+        lastName: lName,
+        roomNumber: roomNumberParam || 'TBD',
+        roomType: roomTypeParam || 'Standard Room',
+        remainingBalance: parsedAmt,
+        finalBalance: parsedAmt,
+        status: 'Pending Downpayment',
+        isWalkIn: true
+      });
+      setPaymentStatus('Pending Downpayment');
+      setLoadingBooking(false);
+    } else {
+      setLoadingBooking(false);
+    }
+  }, [bookingIdParam, amountParam, refParam, roomNumberParam, roomTypeParam, guestNameParam]);
 
   // Request PayMongo QR
   useEffect(() => {
@@ -120,6 +143,12 @@ function QrPaymentContent() {
     setStatusMessage('');
     try {
       const ref = `PM-AUTH-${Date.now().toString().slice(-8)}`;
+      if (booking.isWalkIn) {
+        setPaymentStatus('Payment Completed');
+        setStatusMessage('Payment verified and settled successfully! Return to New Lodging Booking to complete submission.');
+        broadcastPaymentSettled(booking.bookingID, ref, booking.remainingBalance || booking.finalBalance || 0);
+        return;
+      }
       const res = await fetch('/api/guest/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -149,6 +178,11 @@ function QrPaymentContent() {
     setProcessing(true);
     setStatusMessage('');
     try {
+      if (booking.isWalkIn) {
+        setPaymentStatus('Payment Declined');
+        setStatusMessage('Payment authorization was declined in test mode.');
+        return;
+      }
       const res = await fetch('/api/guest/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,6 +208,12 @@ function QrPaymentContent() {
     setStatusMessage('');
     try {
       const ref = `GCASH-TEST-${Date.now().toString().slice(-8)}`;
+      if (booking.isWalkIn) {
+        setPaymentStatus('Payment Completed');
+        setStatusMessage('Simulated GCash authorization completed! Return to New Lodging Booking to complete submission.');
+        broadcastPaymentSettled(booking.bookingID, ref, booking.remainingBalance || booking.finalBalance || 0);
+        return;
+      }
       const res = await fetch('/api/payments/paymongo/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
