@@ -135,60 +135,6 @@ function BookingsClient() {
   const [settledPaymentRef, setSettledPaymentRef] = useState('');
   const [walkinGcashRef, setWalkinGcashRef] = useState('');
 
-  // Cross-window / 2nd monitor GCash payment settlement listener
-  useEffect(() => {
-    const onPaymentReceived = (data) => {
-      if (data?.type === 'PAYMENT_SETTLED') {
-        const isMatch = (updatingBooking && String(data.bookingID) === String(updatingBooking.bookingID)) ||
-                        (walkinGcashRef && (String(data.bookingID) === String(walkinGcashRef) || String(data.referenceNumber) === String(walkinGcashRef))) ||
-                        (data.bookingID && String(data.bookingID).startsWith('BOOK-'));
-        if (isMatch) {
-          setIsGcashSettled(true);
-          const refCode = data.referenceNumber || data.bookingID || `PM-AUTH-${Date.now().toString().slice(-6)}`;
-          setSettledPaymentRef(refCode);
-          setGcashInlineError('');
-          if (data.amount && parseFloat(data.amount) > 0) {
-            setDownPayment(parseFloat(data.amount).toFixed(2));
-          }
-          showAlert('success', 'Payment Settled', `GCash payment verified (${refCode}) from 2nd Monitor.`);
-        }
-      }
-    };
-
-    let channel = null;
-    try {
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        channel = new BroadcastChannel('pcc_payment_sync');
-        channel.onmessage = (event) => {
-          if (event.data) {
-            onPaymentReceived(event.data);
-          }
-        };
-      }
-    } catch (e) {
-      console.warn('BroadcastChannel error:', e);
-    }
-
-    const handleStorage = (e) => {
-      if (e.key === 'pcc_payment_sync_event' && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (parsed) {
-            onPaymentReceived(parsed);
-          }
-        } catch (err) {}
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-
-    return () => {
-      if (channel) {
-        try { channel.close(); } catch (e) {}
-      }
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, [updatingBooking, walkinGcashRef, showAlert]);
-
   const [roomFilterStatus, setRoomFilterStatus] = useState('Available');
   const [downPaymentOption, setDownPaymentOption] = useState('30');
   const [checkInDate, setCheckInDate] = useState('');
@@ -861,6 +807,62 @@ function BookingsClient() {
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
   };
+
+  // Cross-window / 2nd monitor GCash payment settlement listener (placed safely below all state & handlers)
+  useEffect(() => {
+    const onPaymentReceived = (data) => {
+      if (data?.type === 'PAYMENT_SETTLED') {
+        const isMatch = (updatingBooking && String(data.bookingID) === String(updatingBooking.bookingID)) ||
+                        (walkinGcashRef && (String(data.bookingID) === String(walkinGcashRef) || String(data.referenceNumber) === String(walkinGcashRef))) ||
+                        (data.bookingID && String(data.bookingID).startsWith('BOOK-'));
+        if (isMatch) {
+          setIsGcashSettled(true);
+          const refCode = data.referenceNumber || data.bookingID || `PM-AUTH-${Date.now().toString().slice(-6)}`;
+          setSettledPaymentRef(refCode);
+          setGcashInlineError('');
+          if (data.amount && parseFloat(data.amount) > 0) {
+            setDownPayment(parseFloat(data.amount).toFixed(2));
+          }
+          if (typeof showAlert === 'function') {
+            showAlert('success', 'Payment Settled', `GCash payment verified (${refCode}) from 2nd Monitor.`);
+          }
+        }
+      }
+    };
+
+    let channel = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        channel = new BroadcastChannel('pcc_payment_sync');
+        channel.onmessage = (event) => {
+          if (event.data) {
+            onPaymentReceived(event.data);
+          }
+        };
+      }
+    } catch (e) {
+      console.warn('BroadcastChannel error:', e);
+    }
+
+    const handleStorage = (e) => {
+      if (e.key === 'pcc_payment_sync_event' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed) {
+            onPaymentReceived(parsed);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (channel) {
+        try { channel.close(); } catch (e) {}
+      }
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [updatingBooking, walkinGcashRef, showAlert]);
 
   const fetchData = async () => {
     setLoading(true);
