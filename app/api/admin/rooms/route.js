@@ -76,7 +76,9 @@ export async function POST(request) {
       const description = (body.description || '').trim();
       const occupancyLimit = parseInt(body.occupancyLimit) || 4;
       const image = (body.image || '').trim() || null;
-      const breakfastRate = body.breakfastRate !== undefined && body.breakfastRate !== '' && body.breakfastRate !== null ? parseFloat(body.breakfastRate) : null;
+      const breakfastRate = (!isNaN(rateWithBreakfast) && !isNaN(rateWithoutBreakfast))
+        ? Math.max(0, rateWithBreakfast - rateWithoutBreakfast)
+        : (body.breakfastRate !== undefined && body.breakfastRate !== '' && body.breakfastRate !== null ? parseFloat(body.breakfastRate) : null);
 
       if (status === 'Occupied') {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });
@@ -127,7 +129,9 @@ export async function POST(request) {
       const description = (body.description || '').trim();
       const occupancyLimit = parseInt(body.occupancyLimit) || 4;
       const image = (body.image || '').trim() || null;
-      const breakfastRate = body.breakfastRate !== undefined && body.breakfastRate !== '' && body.breakfastRate !== null ? parseFloat(body.breakfastRate) : null;
+      const breakfastRate = (!isNaN(rateWithBreakfast) && !isNaN(rateWithoutBreakfast))
+        ? Math.max(0, rateWithBreakfast - rateWithoutBreakfast)
+        : (body.breakfastRate !== undefined && body.breakfastRate !== '' && body.breakfastRate !== null ? parseFloat(body.breakfastRate) : null);
 
       if (status === 'Occupied') {
         return NextResponse.json({ error: 'Administrators cannot manually set a room to Occupied.' }, { status: 400 });

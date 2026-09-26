@@ -162,8 +162,6 @@ export default function RoomsClient() {
     status: 'Available',
     rateWithoutBreakfast: '',
     rateWithBreakfast: '',
-    breakfastRate: '',
-    isBreakfastIncluded: false,
     description: '',
     occupancyLimit: '4',
     image: '',
@@ -270,15 +268,6 @@ export default function RoomsClient() {
       }
       return next;
     });
-  };
-
-  const handleToggleBreakfastIncluded = (e) => {
-    const checked = e.target.checked;
-    setFormData(prev => ({
-      ...prev,
-      isBreakfastIncluded: checked,
-      breakfastRate: checked ? '0.00' : (prev.breakfastRate === '0.00' || prev.breakfastRate === '0' ? '' : prev.breakfastRate)
-    }));
   };
 
   const handleCreateSubmit = (e) => {
@@ -421,8 +410,6 @@ export default function RoomsClient() {
       status: 'Available',
       rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
       rateWithBreakfast: rates ? rates.withBreakfast : '',
-      breakfastRate: '0.00',
-      isBreakfastIncluded: true,
       description: '',
       occupancyLimit: '4',
       image: '',
@@ -437,8 +424,6 @@ export default function RoomsClient() {
     }
     setSelectedRoom(room);
     const rates = getSelectedRates(room.floorID, room.roomTypeID);
-    const hasRate = room.breakfastRate !== null && room.breakfastRate !== undefined && room.breakfastRate !== '';
-    const isFree = hasRate && parseFloat(room.breakfastRate) === 0;
     setFormData({
       roomNumber: room.roomNumber,
       floorID: room.floorID,
@@ -446,8 +431,6 @@ export default function RoomsClient() {
       status: room.status,
       rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
       rateWithBreakfast: rates ? rates.withBreakfast : '',
-      breakfastRate: hasRate ? room.breakfastRate.toString() : '',
-      isBreakfastIncluded: isFree,
       description: room.description || '',
       occupancyLimit: room.occupancyLimit ? room.occupancyLimit.toString() : '4',
       image: room.image || '',
@@ -571,7 +554,7 @@ export default function RoomsClient() {
                   <th>Occupancy Limit</th>
                   <th>Price (w/o Breakfast)</th>
                   <th>Price (w/ Breakfast)</th>
-                  <th>Breakfast Policy</th>
+                  <th>Breakfast Fee</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -597,19 +580,23 @@ export default function RoomsClient() {
                         <td>₱{Number(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>₱{Number(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td>
-                          {rm.breakfastRate !== null && rm.breakfastRate !== undefined ? (
-                            parseFloat(rm.breakfastRate) === 0 ? (
-                              <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                <i className="bi bi-cup-hot me-1"></i>Included
-                              </span>
-                            ) : (
+                          {(() => {
+                            const withoutBk = parseFloat(rm.rateWithoutBreakfast) || 0;
+                            const withBk = parseFloat(rm.rateWithBreakfast) || 0;
+                            const diff = Math.max(0, withBk - withoutBk);
+                            if (diff <= 0) {
+                              return (
+                                <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                  <i className="bi bi-cup-hot me-1"></i>Included
+                                </span>
+                              );
+                            }
+                            return (
                               <span className="fw-semibold text-dark">
-                                ₱{Number(rm.breakfastRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                +₱{diff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
-                            )
-                          ) : (
-                            <span className="text-muted small">Standard Rate</span>
-                          )}
+                            );
+                          })()}
                         </td>
                         <td>
                           <span
@@ -740,42 +727,6 @@ export default function RoomsClient() {
                         onChange={handleInputChange}
                       />
                     </div>
-                  </div>
-                  <div className="p-3 bg-light rounded border mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <label className="form-label fw-bold mb-0 text-dark">Breakfast Inclusion &amp; Rate</label>
-                      <div className="form-check form-switch mb-0">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id="createBreakfastIncluded"
-                          checked={formData.isBreakfastIncluded}
-                          onChange={handleToggleBreakfastIncluded}
-                        />
-                        <label className="form-check-label small fw-semibold text-success" htmlFor="createBreakfastIncluded">
-                          Breakfast Included (Free)
-                        </label>
-                      </div>
-                    </div>
-                    <div className="input-group">
-                      <span className="input-group-text">₱</span>
-                      <input
-                        type="number"
-                        name="breakfastRate"
-                        className="form-control"
-                        placeholder={formData.isBreakfastIncluded ? "0.00 (Complimentary / Included)" : "Enter breakfast rate, e.g. 300.00"}
-                        step="0.01"
-                        min="0"
-                        disabled={formData.isBreakfastIncluded}
-                        value={formData.isBreakfastIncluded ? '0.00' : formData.breakfastRate}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      {formData.isBreakfastIncluded
-                        ? '✓ This room will display "Breakfast Included" to guests on room cards and booking.'
-                        : 'Enter the individual breakfast rate to display "Breakfast Rate: ₱{rate}" alongside room price.'}
-                    </small>
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Status</label>
@@ -965,42 +916,6 @@ export default function RoomsClient() {
                         onChange={handleInputChange}
                       />
                     </div>
-                  </div>
-                  <div className="p-3 bg-light rounded border mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <label className="form-label fw-bold mb-0 text-dark">Breakfast Inclusion &amp; Rate</label>
-                      <div className="form-check form-switch mb-0">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          id="editBreakfastIncluded"
-                          checked={formData.isBreakfastIncluded}
-                          onChange={handleToggleBreakfastIncluded}
-                        />
-                        <label className="form-check-label small fw-semibold text-success" htmlFor="editBreakfastIncluded">
-                          Breakfast Included (Free)
-                        </label>
-                      </div>
-                    </div>
-                    <div className="input-group">
-                      <span className="input-group-text">₱</span>
-                      <input
-                        type="number"
-                        name="breakfastRate"
-                        className="form-control"
-                        placeholder={formData.isBreakfastIncluded ? "0.00 (Complimentary / Included)" : "Enter breakfast rate, e.g. 300.00"}
-                        step="0.01"
-                        min="0"
-                        disabled={formData.isBreakfastIncluded}
-                        value={formData.isBreakfastIncluded ? '0.00' : formData.breakfastRate}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      {formData.isBreakfastIncluded
-                        ? '✓ This room will display "Breakfast Included" to guests on room cards and booking.'
-                        : 'Enter the individual breakfast rate to display "Breakfast Rate: ₱{rate}" alongside room price.'}
-                    </small>
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Status</label>
