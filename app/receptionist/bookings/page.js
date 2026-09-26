@@ -1290,7 +1290,14 @@ function BookingsClient() {
             guests: preparedGuests
           })
         });
-        const data = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        let data = {};
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          throw new Error(text && text.length < 200 ? text : `Server error (${res.status} ${res.statusText || 'Response'})`);
+        }
         if (!res.ok) throw new Error(data.error || 'Failed to create booking');
 
         const roomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));

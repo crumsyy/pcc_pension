@@ -1850,7 +1850,14 @@ function ReservationsClient() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
             });
-            const data = await res.json();
+            const contentType = res.headers.get('content-type') || '';
+            let data = {};
+            if (contentType.includes('application/json')) {
+              data = await res.json();
+            } else {
+              const text = await res.text();
+              throw new Error(text && text.length < 200 ? text : `Server error (${res.status} ${res.statusText || 'Response'})`);
+            }
             if (!res.ok) throw new Error(data.error || 'Failed to convert reservation to booking');
 
             showAlert('success', 'Booking Confirmed', data.message || (payload.checkInNow ? 'Reservation confirmed and guest checked in successfully.' : 'Reservation confirmed and converted to booking successfully.'));

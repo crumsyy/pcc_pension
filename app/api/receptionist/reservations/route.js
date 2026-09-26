@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, ensurePaymentSchema, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendCourtesyHoldCreatedEmail, sendBookingConfirmationEmail } from '@/lib/mailer';
 import { validateReservationDate } from '@/lib/validation';
 
@@ -185,7 +185,6 @@ export async function POST(request) {
     const { action } = body;
 
     if (action === 'create') {
-      await ensurePaymentSchema();
       let guestID;
       let guestEmail = null;
       const isCourtesyHold = true;
@@ -440,7 +439,6 @@ export async function POST(request) {
 
       try {
         await conn.beginTransaction();
-        await ensurePaymentSchema();
 
         // Enforce Guest Email for Conversion
         const [existingGuestRows] = await conn.execute("SELECT email, firstName, lastName FROM guest WHERE guestID = ?", [guestID]);

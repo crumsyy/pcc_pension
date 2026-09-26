@@ -492,9 +492,6 @@ export async function POST(request) {
         const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
         const staffID = staffRes[0]?.staffID || null;
 
-        // Ensure payment schema
-        await ensurePaymentSchema();
-
         // Record Down Payment with 'Settled' status and referenceNumber
         const refNumber = body.referenceNumber || (parseInt(paymentMethodID) === 2 ? `GCASH-BK-${bookingID}` : `CASH-${Date.now().toString().slice(-6)}`);
         const [paymentInsert] = await conn.execute(
@@ -685,7 +682,6 @@ export async function POST(request) {
             const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
             const staffID = staffRes[0]?.staffID || null;
 
-            await ensurePaymentSchema();
             const [paymentInsert] = await conn.execute(
               `INSERT INTO payment (amount, cashReceived, \`change\`, changeAmount, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
                VALUES (?, ?, 0, 0.00, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
