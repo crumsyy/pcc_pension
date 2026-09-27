@@ -26,6 +26,8 @@ export default function RegisterPage() {
   const [terms, setTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   // Validation & Error states
   const [errorMsg, setErrorMsg] = useState("");
@@ -583,7 +585,31 @@ export default function RegisterPage() {
                       required
                     />
                     <label className="form-check-label small" htmlFor="terms" style={{ fontSize: "0.86rem" }}>
-                      I agree to the terms &amp; conditions and privacy policy of PCC Home Suite Home.
+                      I agree to the{" "}
+                      <button
+                        type="button"
+                        className="btn btn-link p-0 text-primary fw-semibold align-baseline text-decoration-underline"
+                        style={{ fontSize: "inherit" }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowTermsModal(true);
+                        }}
+                      >
+                        Terms &amp; Conditions
+                      </button>{" "}
+                      and{" "}
+                      <button
+                        type="button"
+                        className="btn btn-link p-0 text-primary fw-semibold align-baseline text-decoration-underline"
+                        style={{ fontSize: "inherit" }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowPrivacyModal(true);
+                        }}
+                      >
+                        Privacy Policy
+                      </button>{" "}
+                      of PCC Home Suite Home.
                     </label>
                     {fieldErrors.terms && (
                       <div className="text-danger small mt-1 fw-semibold d-block">You must agree to the terms &amp; conditions to continue.</div>
@@ -626,6 +652,223 @@ export default function RegisterPage() {
           </div>
         </div>
       </section>
+
+      {/* TERMS & CONDITIONS MODAL */}
+      {showTermsModal && (
+        <div
+          className="modal show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)', zIndex: 1060, backdropFilter: 'blur(3px)' }}
+          role="dialog"
+          aria-labelledby="termsModalTitle"
+          aria-modal="true"
+        >
+          <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header px-4 py-3 text-white" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)' }}>
+                <div className="d-flex align-items-center gap-2">
+                  <span className="p-1.5 bg-white bg-opacity-20 rounded-circle text-white d-inline-flex align-items-center justify-content-center" style={{ width: 28, height: 28 }}>
+                    <i className="bi bi-file-earmark-text-fill"></i>
+                  </span>
+                  <h5 className="modal-title fw-bold" id="termsModalTitle">Terms &amp; Conditions</h5>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  aria-label="Close"
+                  onClick={() => setShowTermsModal(false)}
+                ></button>
+              </div>
+
+              <div className="modal-body p-4" style={{ fontSize: '0.88rem', maxHeight: '65vh', overflowY: 'auto', lineHeight: '1.6' }}>
+                <div className="alert alert-info py-2 px-3 small mb-3">
+                  <strong>PCC Home Suite Home – Passi City College:</strong> Please review our operational terms, courtesy hold rules, and room policies before completing registration.
+                </div>
+
+                <h6 className="fw-bold text-dark mt-2 mb-1">1. Courtesy Holds &amp; Online Reservation Policy</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li><strong>48-Hour Courtesy Hold:</strong> Online room reservations placed by guests are temporarily held for 48 hours without upfront payment.</li>
+                  <li><strong>30-Minute Grace Period:</strong> Following the 48 hours, an automatic 30-minute grace window is provided for final transaction processing.</li>
+                  <li><strong>Automatic Expiration:</strong> If payment is unrecorded by the end of the grace period, the room is automatically released back to public availability.</li>
+                  <li><strong>Advance Booking:</strong> Reservations must be made at least <strong>two (2) days ahead</strong> of the requested check-in date.</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">2. Room Pricing &amp; Night-by-Night Breakfast</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li><strong>Pure Accommodation Charge:</strong> Base room rates without breakfast reflect accommodation only (Base Rate × Stay Nights).</li>
+                  <li><strong>Custom Breakfast Mornings:</strong> For multi-night stays, guests may customize which mornings to include breakfast (₱250 or ₱300 per guest per morning). Breakfast fees are charged exclusively for selected mornings.</li>
+                  <li><strong>Zero Surcharge on Unselected Mornings:</strong> Turning off a morning for breakfast incurs ₱0.00 and never alters the base room rate.</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">3. Occupancy &amp; Extra Guest Fees</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li><strong>Standard Capacity:</strong> Standard room capacity is governed by room inventory records (typically 4 persons per room).</li>
+                  <li><strong>Extra Guests:</strong> Any occupant exceeding standard capacity incurs an Extra Guest Fee of <strong>₱100/night per excess occupant</strong>.</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">4. Down Payment &amp; Payment Options</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li><strong>Required Down Payment:</strong> A minimum <strong>50% down payment</strong> of the Net Room Stay Charge is required to confirm bookings.</li>
+                  <li><strong>Payment Channels:</strong> Accepted via instant QR Ph (InstaPay/PESONet), PayMongo online gateway, or front-desk cash.</li>
+                  <li><strong>Remaining Balance:</strong> Due and payable upon check-in or prior to checkout.</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">5. Per-Capita Mixed Statutory Discounts</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li><strong>Per-Capita Share Model:</strong> Statutory discounts (RA 9994 Senior 20%, RA 10754 PWD 20%, Student) are calculated on the beneficiary's proportionate per-capita share ($P = S / G$).</li>
+                  <li><strong>Physical ID Required:</strong> Valid government OSCA, PWD, or Student ID must be presented upon check-in.</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">6. Check-In &amp; Check-Out Hours</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li><strong>Standard Hours:</strong> Check-in is at <strong>2:00 PM</strong>; Check-out is at <strong>12:00 PM noon</strong>.</li>
+                  <li><strong>Early Check-in:</strong> Subject to availability @ <strong>₱50/hour</strong> prior to 2:00 PM.</li>
+                  <li><strong>Late Check-out:</strong> Subject to approval @ <strong>₱100/hour</strong> past 12:00 PM noon.</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">7. Room Inspection &amp; House Rules</h6>
+                <ul className="text-secondary ps-3 mb-0">
+                  <li>Rooms are inspected upon checkout. Stained linens, missing items, or damaged amenities are billed as Incidentals.</li>
+                  <li>Strict non-smoking and quiet hours (10:00 PM) are observed across all suites and corridors.</li>
+                </ul>
+              </div>
+
+              <div className="modal-footer bg-light px-4 py-3 d-flex justify-content-between align-items-center">
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-link btn-sm text-decoration-none text-muted p-0 d-inline-flex align-items-center gap-1"
+                >
+                  <span>Open Full Document</span>
+                  <i className="bi bi-box-arrow-up-right" style={{ fontSize: '0.75rem' }}></i>
+                </a>
+                <div className="d-flex align-items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm px-3 rounded-pill"
+                    onClick={() => setShowTermsModal(false)}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm px-3 rounded-pill text-white fw-semibold"
+                    onClick={() => {
+                      setTerms(true);
+                      setFieldErrors(prev => ({ ...prev, terms: false }));
+                      setShowTermsModal(false);
+                    }}
+                  >
+                    <i className="bi bi-check-lg me-1"></i>
+                    I Understand &amp; Accept
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRIVACY POLICY MODAL */}
+      {showPrivacyModal && (
+        <div
+          className="modal show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)', zIndex: 1060, backdropFilter: 'blur(3px)' }}
+          role="dialog"
+          aria-labelledby="privacyModalTitle"
+          aria-modal="true"
+        >
+          <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header px-4 py-3 text-white" style={{ background: 'linear-gradient(135deg, #065f46 0%, #059669 100%)' }}>
+                <div className="d-flex align-items-center gap-2">
+                  <span className="p-1.5 bg-white bg-opacity-20 rounded-circle text-white d-inline-flex align-items-center justify-content-center" style={{ width: 28, height: 28 }}>
+                    <i className="bi bi-shield-lock-fill"></i>
+                  </span>
+                  <h5 className="modal-title fw-bold" id="privacyModalTitle">Privacy Policy (RA 10173)</h5>
+                </div>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  aria-label="Close"
+                  onClick={() => setShowPrivacyModal(false)}
+                ></button>
+              </div>
+
+              <div className="modal-body p-4" style={{ fontSize: '0.88rem', maxHeight: '65vh', overflowY: 'auto', lineHeight: '1.6' }}>
+                <div className="alert alert-success py-2 px-3 small mb-3">
+                  <strong>Philippine Data Privacy Act of 2012 (RA 10173):</strong> PCC Home Suite Home respects your privacy. We process personal data solely for guest accommodations, security authentication, and government auditing.
+                </div>
+
+                <h6 className="fw-bold text-dark mt-2 mb-1">1. Information We Collect</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li><strong>Personal Identification:</strong> Full name, 11-digit mobile contact number, email, date of birth, gender, city/municipality, and province.</li>
+                  <li><strong>Security Credentials:</strong> Encrypted password hashes (bcrypt), email OTP codes, and active session tokens for concurrent login protection.</li>
+                  <li><strong>Stay Records:</strong> Check-in/out dates, guest counts, special requests, breakfast preferences, and room folios.</li>
+                  <li><strong>Discount Records:</strong> Senior Citizen ID, PWD ID, or Student ID numbers when applying for statutory discounts.</li>
+                  <li><strong>Payment Transactions:</strong> Reference numbers, payment methods, and timestamps. (Banking card numbers are processed by PCI-DSS compliant gateways and never stored on our servers).</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">2. Purpose of Data Processing</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li>Provisioning guest accounts and authenticating logins via email OTP verification.</li>
+                  <li>Managing 48-hour courtesy holds, guaranteed bookings, and breakfast orders.</li>
+                  <li>Calculating billing totals, recording down payments, and issuing official folios.</li>
+                  <li>Compliance with local government health, safety, and BIR/COA auditing regulations.</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">3. Data Security &amp; Protection</h6>
+                <ul className="text-secondary ps-3 mb-3">
+                  <li><strong>Encryption:</strong> Encrypted HTTPS/TLS transmission and bcrypt cryptographic password hashing.</li>
+                  <li><strong>Role-Based Access:</strong> Segregated access between Administrators, Receptionists, and Guests.</li>
+                  <li><strong>Session Protection:</strong> Single active session token enforcement to prevent concurrent unauthorized access.</li>
+                </ul>
+
+                <h6 className="fw-bold text-dark mb-1">4. Your Statutory Rights</h6>
+                <ul className="text-secondary ps-3 mb-0">
+                  <li>Under RA 10173, you have the right to be informed, right to access your data, right to rectification of inaccurate records, and right to object or request erasure subject to mandatory accounting retention laws.</li>
+                  <li>Data inquiries may be directed to our front desk at <a href="mailto:privacy@pccsuite.com" className="text-decoration-none">privacy@pccsuite.com</a>.</li>
+                </ul>
+              </div>
+
+              <div className="modal-footer bg-light px-4 py-3 d-flex justify-content-between align-items-center">
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-link btn-sm text-decoration-none text-muted p-0 d-inline-flex align-items-center gap-1"
+                >
+                  <span>Open Full Document</span>
+                  <i className="bi bi-box-arrow-up-right" style={{ fontSize: '0.75rem' }}></i>
+                </a>
+                <div className="d-flex align-items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm px-3 rounded-pill"
+                    onClick={() => setShowPrivacyModal(false)}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-success btn-sm px-3 rounded-pill text-white fw-semibold"
+                    onClick={() => {
+                      setTerms(true);
+                      setFieldErrors(prev => ({ ...prev, terms: false }));
+                      setShowPrivacyModal(false);
+                    }}
+                  >
+                    <i className="bi bi-check-lg me-1"></i>
+                    I Understand &amp; Accept
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

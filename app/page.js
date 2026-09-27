@@ -690,6 +690,8 @@ export default function Home() {
                 <li className="mb-2"><a href="#amenities">Amenities</a></li>
                 <li className="mb-2"><Link href="/auth/register">Create an Account</Link></li>
                 <li className="mb-2"><Link href="/auth/login">Staff / Guest Login</Link></li>
+                <li className="mb-2"><Link href="/terms">Terms &amp; Conditions</Link></li>
+                <li className="mb-2"><Link href="/privacy">Privacy Policy</Link></li>
               </ul>
             </div>
             <div className="col-lg-4">
@@ -699,8 +701,12 @@ export default function Home() {
             </div>
           </div>
           <hr />
-          <div className="footer-bottom text-center">
-            &copy; {year} PCC Home Suite Home. All rights reserved.
+          <div className="footer-bottom text-center d-flex flex-wrap justify-content-center align-items-center gap-2 small">
+            <span>&copy; {year} PCC Home Suite Home. All rights reserved.</span>
+            <span className="text-muted d-none d-sm-inline">|</span>
+            <Link href="/terms" className="text-muted text-decoration-none">Terms &amp; Conditions</Link>
+            <span className="text-muted">·</span>
+            <Link href="/privacy" className="text-muted text-decoration-none">Privacy Policy</Link>
           </div>
         </div>
       </footer>
