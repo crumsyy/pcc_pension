@@ -1009,6 +1009,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   };
 
   const nightsCount = calculateNights();
+  const inputPax = parseInt(numGuests) || 1;
+  const roomBasePax = selectedRoom ? parseInt(selectedRoom.occupancyLimit || selectedRoom.roomBasePax || 4, 10) : 4;
+  const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
+  const extraGuestFee = extraGuestsCount * 100 * nightsCount; // ₱100 per extra guest per night
+
   const pureBaseRoomRate = selectedRoom
     ? (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0)
     : 0;
@@ -1036,10 +1041,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const pureAccommodationCharge = Math.round(pureBaseRoomRate * nightsCount * 100) / 100;
   const baseRoomCharge = pureAccommodationCharge + calculatedBreakfastFee;
   const roomRate = pureBaseRoomRate;
-  const roomBasePax = selectedRoom ? parseInt(selectedRoom.occupancyLimit || selectedRoom.roomBasePax || 4, 10) : 4;
-  const inputPax = parseInt(numGuests) || 1;
-  const extraGuestsCount = selectedRoom ? Math.max(0, inputPax - roomBasePax) : 0;
-  const extraGuestFee = extraGuestsCount * 100 * nightsCount; // ₱100 per extra guest per night
   // Early Check-In Fee Preview Calculation (based on selected checkInTime < 14:00 or current arrival day)
   const calculateEarlyCheckInPreview = () => {
     if (!checkInDate) return { isEarly: false, earlyHours: 0, earlyFee: 0 };
