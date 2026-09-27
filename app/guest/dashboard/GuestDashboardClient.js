@@ -4531,7 +4531,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             checkIn={checkInDate}
                             checkOut={checkOutDate}
                             guestCount={inputPax}
-                            breakfastRate={parseFloat(selectedRoom?.breakfastRate) || 250}
+                            breakfastRate={perGuestBreakfastRate}
+                            perGuestBreakfastRate={perGuestBreakfastRate}
                             initialSelectedDates={selectedBreakfastDates}
                             onChange={(data) => {
                               setSelectedBreakfastDates(data.selectedDates);

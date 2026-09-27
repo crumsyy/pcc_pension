@@ -427,10 +427,26 @@ export async function POST(request) {
         const dOut = new Date(checkOutDate);
         const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
 
-        // Extra guests fee calculation: ₱100/night per excess occupant
         const [roomDataRows] = await connection.execute("SELECT occupancyLimit, breakfastRate FROM room WHERE roomID = ?", [roomID]);
         const basePax = parseInt(roomDataRows[0]?.occupancyLimit || 4);
-        const customBfastRate = roomDataRows[0]?.breakfastRate !== null && roomDataRows[0]?.breakfastRate !== undefined ? parseFloat(roomDataRows[0].breakfastRate) : BREAKFAST_RATE;
+        let customBfastRate = BREAKFAST_RATE;
+        if (body.breakfastRate !== undefined && body.breakfastRate !== null && !isNaN(parseFloat(body.breakfastRate))) {
+          customBfastRate = parseFloat(body.breakfastRate);
+        } else if (roomDataRows[0]?.breakfastRate !== null && roomDataRows[0]?.breakfastRate !== undefined) {
+          customBfastRate = parseFloat(roomDataRows[0].breakfastRate);
+        } else {
+          const [diffRows] = await connection.execute(`
+            SELECT (rr2.rate - rr1.rate) as diff
+            FROM room r
+            JOIN room_rate rr1 ON rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1
+            JOIN room_rate rr2 ON rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2
+            WHERE r.roomID = ?
+            LIMIT 1
+          `, [roomID]);
+          if (diffRows && diffRows[0]?.diff > 0) {
+            customBfastRate = parseFloat(diffRows[0].diff);
+          }
+        }
         const totalPax = parseInt(body.numGuests || body.guestCount || resGuestCount || (registeredGuests?.length || 1));
         const extraGuests = Math.max(0, totalPax - basePax);
         const extraGuestFee = extraGuests * 100 * nights;

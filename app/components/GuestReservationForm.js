@@ -203,7 +203,8 @@ export default function GuestReservationForm({
               checkIn={checkInDate}
               checkOut={checkOutDate}
               guestCount={guestCount}
-              breakfastRate={parseFloat(selectedRoom?.breakfastRate) || 250}
+              breakfastRate={perGuestBreakfastRate}
+              perGuestBreakfastRate={perGuestBreakfastRate}
               initialSelectedDates={selectedBreakfastDates}
               onChange={(data) => {
                 onChangeBreakfastDates?.(data.selectedDates);

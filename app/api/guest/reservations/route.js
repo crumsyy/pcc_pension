@@ -278,7 +278,27 @@ export async function POST(request) {
     const roomInfo = roomRes[0] || { roomNumber: 'N/A', roomType: 'Room' };
 
     const stayNights = getStayNights(reservationDateTime.split(' ')[0], checkOutDateTimeFormatted.split(' ')[0]);
-    const BREAKFAST_RATE = 250;
+    const DEFAULT_BREAKFAST_RATE = 250;
+    const [roomBreakfastRow] = await dbQuery(`
+      SELECT r.breakfastRate,
+        (SELECT (rr2.rate - rr1.rate)
+         FROM room_rate rr1
+         JOIN room_rate rr2 ON rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2
+         WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1
+         LIMIT 1) as rateDiff
+      FROM room r
+      WHERE r.roomID = ?
+    `, [roomID]);
+
+    let resolvedBfastRate = DEFAULT_BREAKFAST_RATE;
+    if (body.breakfastRate !== undefined && body.breakfastRate !== null && !isNaN(parseFloat(body.breakfastRate))) {
+      resolvedBfastRate = parseFloat(body.breakfastRate);
+    } else if (roomBreakfastRow?.breakfastRate !== null && roomBreakfastRow?.breakfastRate !== undefined) {
+      resolvedBfastRate = parseFloat(roomBreakfastRow.breakfastRate);
+    } else if (roomBreakfastRow?.rateDiff !== null && roomBreakfastRow?.rateDiff !== undefined && parseFloat(roomBreakfastRow.rateDiff) > 0) {
+      resolvedBfastRate = parseFloat(roomBreakfastRow.rateDiff);
+    }
+
     let selectedBreakfastDates = body.selectedBreakfastDates;
     const includeBreakfast = Boolean(body.includeBreakfast);
 
@@ -301,7 +321,7 @@ export async function POST(request) {
     } else if (!breakfastOption) {
       breakfastOption = 'without';
     }
-    const breakfastTotal = validBreakfastDates.length * BREAKFAST_RATE * (parseInt(numGuests || 1) || 1);
+    const breakfastTotal = validBreakfastDates.length * resolvedBfastRate * (parseInt(numGuests || 1) || 1);
 
     // Zero billing record generated for courtesy holds / confirmed booking records
     const insertRes = await dbQuery(

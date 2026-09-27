@@ -8,12 +8,16 @@ export default function BookingBreakfastSelector({
   checkOut,
   guestCount = 1,
   breakfastRate = 250,
+  perGuestBreakfastRate,
   onChange,
   initialSelectedDates
 }) {
   const stayNights = useMemo(() => getStayNights(checkIn, checkOut), [checkIn, checkOut]);
   const [selectedDates, setSelectedDates] = useState([]);
   const hasInitializedRef = useRef(false);
+
+  const effectiveRate = perGuestBreakfastRate !== undefined ? Number(perGuestBreakfastRate) : (breakfastRate !== undefined ? Number(breakfastRate) : 250);
+  const effectiveGuests = Math.max(1, parseInt(guestCount || 1, 10));
 
   // Auto-select all by default on initial load (or use initialSelectedDates if provided)
   useEffect(() => {
@@ -42,13 +46,14 @@ export default function BookingBreakfastSelector({
 
   // Notify parent form of changes without forcing strict state mutations
   useEffect(() => {
-    const totalBreakfastFee = selectedDates.length * breakfastRate * guestCount;
+    const totalBreakfastFee = selectedDates.length * effectiveRate * effectiveGuests;
     onChange?.({
       selectedDates,
       breakfastCount: selectedDates.length,
-      totalBreakfastFee
+      totalBreakfastFee,
+      perGuestBreakfastRate: effectiveRate
     });
-  }, [selectedDates, breakfastRate, guestCount, onChange]);
+  }, [selectedDates, effectiveRate, effectiveGuests, onChange]);
 
   const toggleDate = (dateStr) => {
     setSelectedDates(prev =>
@@ -71,7 +76,7 @@ export default function BookingBreakfastSelector({
     return null;
   }
 
-  const perMorningTotal = breakfastRate * guestCount;
+  const perMorningTotal = effectiveRate * effectiveGuests;
 
   return (
     <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style={{ background: '#f8fafc' }}>
@@ -84,7 +89,7 @@ export default function BookingBreakfastSelector({
             Customize Breakfast Mornings
           </h6>
           <p className="text-muted small mb-0">
-            Choose which mornings to include breakfast (₱{breakfastRate.toLocaleString()} / guest / morning)
+            Choose which mornings to include breakfast (₱{effectiveRate.toLocaleString()} / guest / morning)
           </p>
         </div>
 
@@ -134,9 +139,20 @@ export default function BookingBreakfastSelector({
                   </div>
 
                   <div className="d-flex align-items-center gap-2">
-                    <span className={`fw-bold small ${isSelected ? 'text-primary' : 'text-muted'}`}>
-                      +₱{perMorningTotal.toLocaleString()}
-                    </span>
+                    <div className="text-end">
+                      <span className={`fw-bold small ${isSelected ? 'text-primary' : 'text-muted'}`}>
+                        +₱{perMorningTotal.toLocaleString()}
+                      </span>
+                      {effectiveGuests > 1 ? (
+                        <span className="d-block text-muted" style={{ fontSize: '0.72rem' }}>
+                          ({effectiveGuests} pax @ ₱{effectiveRate.toLocaleString()})
+                        </span>
+                      ) : (
+                        <span className="d-block text-muted" style={{ fontSize: '0.72rem' }}>
+                          / morning
+                        </span>
+                      )}
+                    </div>
                     <div className="form-check form-switch m-0" onClick={(e) => e.stopPropagation()}>
                       <input
                         className="form-check-input cursor-pointer"
@@ -159,8 +175,8 @@ export default function BookingBreakfastSelector({
             <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1">
               {selectedDates.length} of {stayNights.length} mornings selected
             </span>
-            {guestCount > 1 && (
-              <span className="text-muted">({guestCount} guests)</span>
+            {effectiveGuests > 1 && (
+              <span className="text-muted">({effectiveGuests} guests @ ₱{effectiveRate.toLocaleString()}/morning)</span>
             )}
           </div>
 
