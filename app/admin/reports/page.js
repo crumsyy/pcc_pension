@@ -19,10 +19,13 @@ export default function AdminReports() {
   const [itemClassification, setItemClassification] = useState('All'); // 'All' | 'Cooked Meals' | 'Products' | 'Amenities'
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('All'); // 'All' | 'Cash' | 'GCash'
   const [statusFilter, setStatusFilter] = useState('All');
+  const [discountFilter, setDiscountFilter] = useState('ALL'); // 'ALL' | 'NONE' | discountName/ID
+  const [movementTypeFilter, setMovementTypeFilter] = useState('ALL'); // 'ALL' | 'STOCK_IN' | 'STOCK_OUT'
+  const [fulfillmentStatusFilter, setFulfillmentStatusFilter] = useState('ALL'); // 'ALL' | 'ORDERED' | 'DELIVERED'
 
   // Server & Data States
   const [reportData, setReportData] = useState(null);
-  const [filterOptions, setFilterOptions] = useState({ rooms: [], roomTypes: [] });
+  const [filterOptions, setFilterOptions] = useState({ rooms: [], roomTypes: [], discounts: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -120,7 +123,10 @@ export default function AdminReports() {
         roomTypeID: roomTypeFilter,
         itemClassification,
         paymentMethod: paymentMethodFilter,
-        status: statusFilter
+        status: statusFilter,
+        discountType: discountFilter,
+        movementType: movementTypeFilter,
+        fulfillmentStatus: fulfillmentStatusFilter
       }).toString();
 
       const res = await fetch(`/api/admin/reports?${query}`);
@@ -142,7 +148,7 @@ export default function AdminReports() {
 
   useEffect(() => {
     fetchReport();
-  }, [report, dateFrom, dateTo, grouping, roomFilter, roomTypeFilter, itemClassification, paymentMethodFilter, statusFilter]);
+  }, [report, dateFrom, dateTo, grouping, roomFilter, roomTypeFilter, itemClassification, paymentMethodFilter, statusFilter, discountFilter, movementTypeFilter, fulfillmentStatusFilter]);
 
   // Reset Filters to defaults
   const handleResetFilters = () => {
@@ -153,6 +159,9 @@ export default function AdminReports() {
     setItemClassification('All');
     setPaymentMethodFilter('All');
     setStatusFilter('All');
+    setDiscountFilter('ALL');
+    setMovementTypeFilter('ALL');
+    setFulfillmentStatusFilter('ALL');
     setGrouping('Daily');
   };
 
@@ -254,8 +263,8 @@ export default function AdminReports() {
         headers = ['Period', 'Booking Count', 'Gross Revenue (PHP)', 'Discounts (PHP)', 'Net Revenue (PHP)', 'Payment Methods'];
         rows = sortedData.map(r => [r.period, r.bookingCount, r.grossRevenue.toFixed(2), r.discount.toFixed(2), r.netRevenue.toFixed(2), `"${r.paymentMethods}"`]);
       } else {
-        headers = ['Transaction ID', 'Date & Time', 'Booking #', 'Billing #', 'Guest Name', 'Room', 'Room Type', 'Payment Method', 'Gross (PHP)', 'Discount (PHP)', 'Net Amount (PHP)'];
-        rows = sortedData.map(r => [r.transactionID, `"${r.date}"`, r.bookingID, r.billingID, `"${r.guestName}"`, `"${r.roomNumber}"`, `"${r.roomTypeName}"`, `"${r.paymentMethod}"`, r.grossAmount.toFixed(2), r.discountAmount.toFixed(2), r.netAmount.toFixed(2)]);
+        headers = ['Transaction ID', 'Date & Time', 'Booking #', 'Billing #', 'Guest Name', 'Room', 'Room Type', 'Payment Method', 'Discount Type', 'Gross (PHP)', 'Discount (PHP)', 'Net Amount (PHP)'];
+        rows = sortedData.map(r => [r.transactionID, `"${r.date}"`, r.bookingID, r.billingID, `"${r.guestName}"`, `"${r.roomNumber}"`, `"${r.roomTypeName}"`, `"${r.paymentMethod}"`, `"${r.discountType || 'None'}"`, r.grossAmount.toFixed(2), r.discountAmount.toFixed(2), r.netAmount.toFixed(2)]);
       }
     } else if (report === 'occupancy') {
       if (subTab === 'trends') {
@@ -270,8 +279,20 @@ export default function AdminReports() {
         headers = ['Item Name', 'Category', 'Classification', 'Unit', 'Received Qty', 'Used Qty', 'Remaining Stock', 'Expired Qty', 'Disposed Qty', 'Stock Status'];
         rows = sortedData.map(s => [`"${s.itemName}"`, `"${s.category}"`, `"${s.itemClassification}"`, s.unit, s.quantityReceived, s.quantityUsed, s.remainingStock, s.expiredQty, s.disposedQty, s.lowStock ? 'Low Stock' : 'In Stock']);
       } else {
-        headers = ['Date & Time', 'Reference #', 'Item Name', 'Classification', 'Movement Type', 'Quantity', 'Staff User', 'Remarks'];
-        rows = sortedData.map(m => [`"${m.movementDateTime}"`, `"${m.referenceNumber || '—'}"`, `"${m.itemName}"`, `"${m.itemClassification}"`, `"${m.movementType}"`, m.quantity, `"${m.userEmail || 'System'}"`, `"${m.remarks || '—'}"`]);
+        headers = ['Item Name', 'Category', 'Transaction Type', 'Status', 'Quantity', 'Unit Cost (PHP)', 'Total Value (PHP)', 'Date Recorded', 'Recorded By', 'Reference #', 'Remarks'];
+        rows = sortedData.map(m => [
+          `"${m.itemName}"`,
+          `"${m.category}"`,
+          `"${m.transactionType}"`,
+          `"${m.status}"`,
+          m.quantity,
+          (m.unitCost || 0).toFixed(2),
+          (m.totalValue || 0).toFixed(2),
+          `"${m.dateRecorded ? new Date(m.dateRecorded).toLocaleString() : '—'}"`,
+          `"${m.recordedBy || 'System'}"`,
+          `"${m.referenceNumber || '—'}"`,
+          `"${m.remarks || '—'}"`
+        ]);
       }
     } else if (report === 'guests') {
       if (subTab === 'stays') {
@@ -367,13 +388,14 @@ export default function AdminReports() {
       } else {
         tableHeadersHtml = `
           <tr>
-            <th style="width: 14%;">Folio / Trx</th>
-            <th style="width: 18%;">Date & Time</th>
-            <th style="width: 20%;">Guest Full Name</th>
-            <th style="width: 10%;">Room</th>
-            <th style="width: 10%;">Method</th>
-            <th class="text-right" style="width: 14%;">Gross</th>
-            <th class="text-right" style="width: 14%;">Net Paid</th>
+            <th style="width: 13%;">Folio / Trx</th>
+            <th style="width: 17%;">Date & Time</th>
+            <th style="width: 18%;">Guest Full Name</th>
+            <th style="width: 9%;">Room</th>
+            <th style="width: 9%;">Method</th>
+            <th style="width: 12%;">Discount</th>
+            <th class="text-right" style="width: 11%;">Gross</th>
+            <th class="text-right" style="width: 11%;">Net Paid</th>
           </tr>
         `;
         tableRowsHtml = (reportData.transactionLogs || []).map(r => `
@@ -383,6 +405,7 @@ export default function AdminReports() {
             <td><strong>${r.guestName}</strong></td>
             <td>${r.roomNumber}</td>
             <td><span class="badge bg-secondary">${r.paymentMethod}</span></td>
+            <td><small>${r.discountType || 'None'}</small></td>
             <td class="text-right">₱${r.grossAmount.toFixed(2)}</td>
             <td class="text-right text-green bold">₱${r.netAmount.toFixed(2)}</td>
           </tr>
@@ -391,30 +414,57 @@ export default function AdminReports() {
 
     } else if (report === 'occupancy') {
       reportTitle = 'Room Occupancy & Utilization Performance Report';
-      kpiHtml = `
-        <div class="kpi-grid">
-          <div class="kpi-card border-green">
-            <div class="kpi-label">AVERAGE OCCUPANCY</div>
-            <div class="kpi-value text-green">${reportData?.averageOccupancy ?? 0}%</div>
-            <div class="kpi-sub">Across reporting window</div>
+      if (roomFilter && roomFilter !== 'ALL' && reportData?.selectedRoomMetrics) {
+        kpiHtml = `
+          <div class="kpi-grid">
+            <div class="kpi-card border-green">
+              <div class="kpi-label">ROOM OCCUPANCY RATE</div>
+              <div class="kpi-value text-green">${reportData.selectedRoomMetrics.occupancyRate}%</div>
+              <div class="kpi-sub">Room ${reportData.selectedRoomMetrics.roomNumber} (${reportData.selectedRoomMetrics.roomTypeName})</div>
+            </div>
+            <div class="kpi-card border-blue">
+              <div class="kpi-label">OCCUPIED DAYS</div>
+              <div class="kpi-value text-blue">${reportData.selectedRoomMetrics.totalOccupiedDays} Days</div>
+              <div class="kpi-sub">Out of ${reportData.selectedRoomMetrics.totalAvailableDays} total days in period</div>
+            </div>
+            <div class="kpi-card border-purple">
+              <div class="kpi-label">AVAILABLE DAYS</div>
+              <div class="kpi-value text-purple">${reportData.selectedRoomMetrics.totalAvailableDays - reportData.selectedRoomMetrics.totalOccupiedDays} Days</div>
+              <div class="kpi-sub">Status: ${reportData.selectedRoomMetrics.status}</div>
+            </div>
+            <div class="kpi-card border-orange">
+              <div class="kpi-label">OCCUPANCY CALCULATION</div>
+              <div class="kpi-value text-orange" style="font-size: 13px; margin-top: 5px;">(${reportData.selectedRoomMetrics.totalOccupiedDays} / ${reportData.selectedRoomMetrics.totalAvailableDays}) × 100</div>
+              <div class="kpi-sub">${reportData.selectedRoomMetrics.occupancyRate}% Room Utilization</div>
+            </div>
           </div>
-          <div class="kpi-card border-blue">
-            <div class="kpi-label">TOTAL ROOMS MANAGED</div>
-            <div class="kpi-value text-blue">${reportData?.totalRooms ?? 0} Total</div>
-            <div class="kpi-sub">${reportData?.occupiedNow ?? 0} Occupied | ${reportData?.availableNow ?? 0} Available</div>
+        `;
+      } else {
+        kpiHtml = `
+          <div class="kpi-grid">
+            <div class="kpi-card border-green">
+              <div class="kpi-label">AVERAGE OCCUPANCY</div>
+              <div class="kpi-value text-green">${reportData?.averageOccupancy ?? 0}%</div>
+              <div class="kpi-sub">Across reporting window</div>
+            </div>
+            <div class="kpi-card border-blue">
+              <div class="kpi-label">TOTAL ROOMS MANAGED</div>
+              <div class="kpi-value text-blue">${reportData?.totalRooms ?? 0} Total</div>
+              <div class="kpi-sub">${reportData?.occupiedNow ?? 0} Occupied | ${reportData?.availableNow ?? 0} Available</div>
+            </div>
+            <div class="kpi-card border-purple">
+              <div class="kpi-label">CHECK-INS & TURNOVER</div>
+              <div class="kpi-value text-purple">${reportData?.checkInsCount ?? 0}</div>
+              <div class="kpi-sub">${reportData?.checkOutsCount ?? 0} check-outs executed</div>
+            </div>
+            <div class="kpi-card border-orange">
+              <div class="kpi-label">PEAK OCCUPANCY DATE</div>
+              <div class="kpi-value text-orange">${reportData?.peakOccupancyRate ?? 0}%</div>
+              <div class="kpi-sub">Observed on ${reportData?.peakOccupancyDate || '—'}</div>
+            </div>
           </div>
-          <div class="kpi-card border-purple">
-            <div class="kpi-label">CHECK-INS & TURNOVER</div>
-            <div class="kpi-value text-purple">${reportData?.checkInsCount ?? 0}</div>
-            <div class="kpi-sub">${reportData?.checkOutsCount ?? 0} check-outs executed</div>
-          </div>
-          <div class="kpi-card border-orange">
-            <div class="kpi-label">PEAK OCCUPANCY DATE</div>
-            <div class="kpi-value text-orange">${reportData?.peakOccupancyRate ?? 0}%</div>
-            <div class="kpi-sub">Observed on ${reportData?.peakOccupancyDate || '—'}</div>
-          </div>
-        </div>
-      `;
+        `;
+      }
 
       if (subTab === 'trends') {
         tableHeadersHtml = `
@@ -456,32 +506,31 @@ export default function AdminReports() {
 
     } else if (report === 'inventory') {
       reportTitle = 'Inventory Management & Stock Audit Report';
-      kpiHtml = `
-        <div class="kpi-grid">
-          <div class="kpi-card border-blue">
-            <div class="kpi-label">TOTAL STOCK CATALOG</div>
-            <div class="kpi-value text-blue">${reportData.summaries?.length || 0} Items</div>
-            <div class="kpi-sub">Amenities, F&B & products</div>
-          </div>
-          <div class="kpi-card border-red">
-            <div class="kpi-label">CRITICAL LOW STOCK</div>
-            <div class="kpi-value text-red">${reportData.lowStockCount || 0} Items</div>
-            <div class="kpi-sub">At or below reorder threshold</div>
-          </div>
-          <div class="kpi-card border-green">
-            <div class="kpi-label">MOST CONSUMED ITEM</div>
-            <div class="kpi-value text-green" style="font-size: 14px;">${reportData.mostUsedItem || '—'}</div>
-            <div class="kpi-sub">${reportData.maxUsed || 0} units utilized</div>
-          </div>
-          <div class="kpi-card border-orange">
-            <div class="kpi-label">TOTAL DISPOSED / LOSS</div>
-            <div class="kpi-value text-orange">${reportData.expiredTotalCount || 0} Qty</div>
-            <div class="kpi-sub">Expired or discarded units</div>
-          </div>
-        </div>
-      `;
-
       if (subTab === 'balances') {
+        kpiHtml = `
+          <div class="kpi-grid">
+            <div class="kpi-card border-blue">
+              <div class="kpi-label">TOTAL STOCK CATALOG</div>
+              <div class="kpi-value text-blue">${reportData.summaries?.length || 0} Items</div>
+              <div class="kpi-sub">Amenities, F&B & products</div>
+            </div>
+            <div class="kpi-card border-red">
+              <div class="kpi-label">CRITICAL LOW STOCK</div>
+              <div class="kpi-value text-red">${reportData.lowStockCount || 0} Items</div>
+              <div class="kpi-sub">At or below reorder threshold</div>
+            </div>
+            <div class="kpi-card border-green">
+              <div class="kpi-label">MOST CONSUMED ITEM</div>
+              <div class="kpi-value text-green" style="font-size: 14px;">${reportData.mostUsedItem || '—'}</div>
+              <div class="kpi-sub">${reportData.maxUsed || 0} units utilized</div>
+            </div>
+            <div class="kpi-card border-orange">
+              <div class="kpi-label">TOTAL DISPOSED / LOSS</div>
+              <div class="kpi-value text-orange">${reportData.expiredTotalCount || 0} Qty</div>
+              <div class="kpi-sub">Expired or discarded units</div>
+            </div>
+          </div>
+        `;
         tableHeadersHtml = `
           <tr>
             <th style="width: 25%;">Item Description</th>
@@ -505,24 +554,52 @@ export default function AdminReports() {
           </tr>
         `).join('');
       } else {
+        kpiHtml = `
+          <div class="kpi-grid">
+            <div class="kpi-card border-orange">
+              <div class="kpi-label">ORDERED (PENDING POs)</div>
+              <div class="kpi-value text-orange">${reportData.totalOrderedQty ?? 0} Qty</div>
+              <div class="kpi-sub">Est. Value: ₱${(reportData.totalOrderedValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            </div>
+            <div class="kpi-card border-green">
+              <div class="kpi-label">DELIVERED STOCK-IN</div>
+              <div class="kpi-value text-green">${reportData.totalDeliveredQty ?? 0} Qty</div>
+              <div class="kpi-sub">Value: ₱${(reportData.totalDeliveredValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            </div>
+            <div class="kpi-card border-red">
+              <div class="kpi-label">STOCK-OUT USAGE</div>
+              <div class="kpi-value text-red">${reportData.totalStockOutQty ?? 0} Qty</div>
+              <div class="kpi-sub">Outflow: ₱${(reportData.totalStockOutValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            </div>
+            <div class="kpi-card border-blue">
+              <div class="kpi-label">NET MOVEMENT</div>
+              <div class="kpi-value text-blue">${(reportData.netMovementQty ?? 0) > 0 ? '+' : ''}${reportData.netMovementQty ?? 0} Qty</div>
+              <div class="kpi-sub">Net Value: ₱${(reportData.netMovementValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            </div>
+          </div>
+        `;
         tableHeadersHtml = `
           <tr>
-            <th style="width: 18%;">Date & Time</th>
-            <th style="width: 14%;">Reference #</th>
-            <th style="width: 22%;">Item Description</th>
-            <th style="width: 14%;">Movement Type</th>
-            <th class="text-center" style="width: 10%;">Quantity</th>
-            <th style="width: 22%;">Operator / Remarks</th>
+            <th style="width: 20%;">Item Name</th>
+            <th style="width: 12%;">Category</th>
+            <th style="width: 14%;">Transaction Type</th>
+            <th style="width: 10%;">Status</th>
+            <th class="text-center" style="width: 8%;">Qty</th>
+            <th class="text-right" style="width: 10%;">Unit Cost</th>
+            <th class="text-right" style="width: 10%;">Total Value</th>
+            <th style="width: 16%;">Date & Staff</th>
           </tr>
         `;
         tableRowsHtml = (reportData.movements || []).map(m => `
           <tr>
-            <td>${new Date(m.movementDateTime).toLocaleString()}</td>
-            <td><code class="ref-code">${m.referenceNumber || '—'}</code></td>
-            <td><strong>${m.itemName}</strong></td>
-            <td>${m.movementType}</td>
-            <td class="text-center bold ${m.quantity > 0 ? 'text-green' : 'text-red'}">${m.quantity > 0 ? `+${m.quantity}` : m.quantity}</td>
-            <td>${m.userEmail || 'System'} ${m.remarks ? `<br /><small class="text-muted">${m.remarks}</small>` : ''}</td>
+            <td><strong>${m.itemName}</strong><br /><small class="text-muted">${m.referenceNumber || '—'}</small></td>
+            <td>${m.category}</td>
+            <td><span class="badge ${m.transactionType?.includes('Stock-In') ? 'bg-success' : 'bg-secondary'}">${m.transactionType}</span></td>
+            <td><span class="badge ${m.status === 'Ordered' ? 'bg-warning' : 'bg-primary'}">${m.status}</span></td>
+            <td class="text-center bold">${m.quantity}</td>
+            <td class="text-right">₱${(m.unitCost || 0).toFixed(2)}</td>
+            <td class="text-right bold">₱${(m.totalValue || 0).toFixed(2)}</td>
+            <td>${m.dateRecorded ? new Date(m.dateRecorded).toLocaleDateString() : '—'}<br /><small class="text-muted">${m.recordedBy || 'System'}</small></td>
           </tr>
         `).join('');
       }
@@ -1244,7 +1321,9 @@ export default function AdminReports() {
           {/* Room Filter (Sales, Occupancy, Guests) */}
           {report !== 'inventory' && (
             <div className="col-6 col-md-2">
-              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Room</label>
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>
+                {report === 'occupancy' ? 'Specific Room' : 'Room'}
+              </label>
               <select
                 className="form-select form-select-sm"
                 style={{ height: '36px' }}
@@ -1281,9 +1360,30 @@ export default function AdminReports() {
             </div>
           )}
 
+          {/* Discount Filter (Sales) */}
+          {report === 'sales' && (
+            <div className="col-6 col-md-2">
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Discount Type</label>
+              <select
+                className="form-select form-select-sm"
+                style={{ height: '36px' }}
+                value={discountFilter}
+                onChange={(e) => setDiscountFilter(e.target.value)}
+              >
+                <option value="ALL">All Discounts</option>
+                <option value="NONE">No Discount / Full Fare</option>
+                {filterOptions.discounts?.map(d => (
+                  <option key={d.discountID} value={d.name}>
+                    {d.name} ({d.percentage}%)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Item Classification Filter (Inventory) */}
           {report === 'inventory' && (
-            <div className="col-6 col-md-3">
+            <div className="col-6 col-md-2">
               <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Classification</label>
               <select
                 className="form-select form-select-sm"
@@ -1295,6 +1395,40 @@ export default function AdminReports() {
                 <option value="Cooked Meals">🍳 Cooked Meals</option>
                 <option value="Products">🥤 Products & Minibar</option>
                 <option value="Amenities">🧴 Amenities & Toiletries</option>
+              </select>
+            </div>
+          )}
+
+          {/* Movement Type Filter (Inventory) */}
+          {report === 'inventory' && (
+            <div className="col-6 col-md-2">
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Movement Type</label>
+              <select
+                className="form-select form-select-sm"
+                style={{ height: '36px' }}
+                value={movementTypeFilter}
+                onChange={(e) => setMovementTypeFilter(e.target.value)}
+              >
+                <option value="ALL">All Movements</option>
+                <option value="STOCK_IN">Stock-In</option>
+                <option value="STOCK_OUT">Stock-Out</option>
+              </select>
+            </div>
+          )}
+
+          {/* Fulfillment Status Filter (Inventory) */}
+          {report === 'inventory' && (
+            <div className="col-6 col-md-2">
+              <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Fulfillment Status</label>
+              <select
+                className="form-select form-select-sm"
+                style={{ height: '36px' }}
+                value={fulfillmentStatusFilter}
+                onChange={(e) => setFulfillmentStatusFilter(e.target.value)}
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ORDERED">Ordered (Pending POs)</option>
+                <option value="DELIVERED">Delivered (Received)</option>
               </select>
             </div>
           )}
@@ -1354,7 +1488,7 @@ export default function AdminReports() {
           )}
 
           {/* Refresh Action */}
-          <div className={`col-12 ${report === 'occupancy' ? 'col-md-2' : report === 'inventory' ? 'col-md-3' : report === 'guests' ? 'col-md-2' : 'col-md-1'}`}>
+          <div className={`col-12 ${report === 'occupancy' ? 'col-md-2' : report === 'inventory' ? 'col-md-2' : report === 'guests' ? 'col-md-2' : 'col-md-2'}`}>
             <label className="form-label small fw-semibold text-muted mb-1 d-none d-md-block invisible" style={{ minHeight: '18px' }}>Action</label>
             <button
               className="btn btn-sm btn-pcc-primary text-white w-100 fw-semibold d-flex align-items-center justify-content-center shadow-xs"
@@ -1596,6 +1730,7 @@ export default function AdminReports() {
                             <th onClick={() => handleSort('guestName')} style={{ cursor: 'pointer' }}>Guest Name</th>
                             <th onClick={() => handleSort('roomNumber')} style={{ cursor: 'pointer' }}>Room</th>
                             <th onClick={() => handleSort('paymentMethod')} style={{ cursor: 'pointer' }}>Method</th>
+                            <th onClick={() => handleSort('discountType')} style={{ cursor: 'pointer' }}>Discount Applied</th>
                             <th className="text-end" onClick={() => handleSort('grossAmount')} style={{ cursor: 'pointer' }}>Gross</th>
                             <th className="text-end" onClick={() => handleSort('discountAmount')} style={{ cursor: 'pointer' }}>Discount</th>
                             <th className="text-end" onClick={() => handleSort('netAmount')} style={{ cursor: 'pointer' }}>Net Paid</th>
@@ -1606,7 +1741,7 @@ export default function AdminReports() {
                     <tbody>
                       {paginatedData.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="text-center py-4 text-muted">No records found matching filters.</td>
+                          <td colSpan="9" className="text-center py-4 text-muted">No records found matching filters.</td>
                         </tr>
                       ) : (
                         paginatedData.map((row, idx) => (
@@ -1629,6 +1764,11 @@ export default function AdminReports() {
                                 <td>
                                   <span className={`badge ${row.paymentMethod?.toLowerCase().includes('gcash') ? 'text-bg-info' : 'text-bg-secondary'}`}>
                                     {row.paymentMethod}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={`badge ${row.discountType && row.discountType !== 'None' ? 'text-bg-light border text-danger' : 'text-muted'}`}>
+                                    {row.discountType || 'None'}
                                   </span>
                                 </td>
                                 <td className="text-end">₱{row.grossAmount.toFixed(2)}</td>
@@ -1663,40 +1803,75 @@ export default function AdminReports() {
           {report === 'occupancy' && (
             <div>
               {/* Occupancy Stats Cards */}
-              <div className="row g-3 mb-4">
-                <div className="col-6 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-success border-4">
-                    <span className="text-muted small fw-bold">AVERAGE OCCUPANCY</span>
-                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData?.averageOccupancy ?? 0}%</h3>
-                    <div className="progress mt-2" style={{ height: '6px' }}>
-                      <div className="progress-bar bg-success" role="progressbar" style={{ width: `${Math.min(100, reportData?.averageOccupancy ?? 0)}%` }}></div>
+              {roomFilter && roomFilter !== 'ALL' && reportData?.selectedRoomMetrics ? (
+                <div className="row g-3 mb-4">
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-success border-4">
+                      <span className="text-muted small fw-bold">ROOM OCCUPANCY RATE</span>
+                      <h3 className="fw-bold text-success mb-0 mt-1">{reportData.selectedRoomMetrics.occupancyRate}%</h3>
+                      <div className="progress mt-2" style={{ height: '6px' }}>
+                        <div className="progress-bar bg-success" role="progressbar" style={{ width: `${Math.min(100, reportData.selectedRoomMetrics.occupancyRate)}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-primary border-4">
+                      <span className="text-muted small fw-bold">DAYS OCCUPIED</span>
+                      <h3 className="fw-bold text-primary mb-0 mt-1">{reportData.selectedRoomMetrics.totalOccupiedDays} Days</h3>
+                      <small className="text-muted">Out of {reportData.selectedRoomMetrics.totalAvailableDays} total days in period</small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                      <span className="text-muted small fw-bold">AVAILABLE DAYS</span>
+                      <h3 className="fw-bold text-dark mb-0 mt-1">{reportData.selectedRoomMetrics.totalAvailableDays - reportData.selectedRoomMetrics.totalOccupiedDays} Days</h3>
+                      <small className="text-muted">Status: <span className="badge text-bg-light border text-muted">{reportData.selectedRoomMetrics.status}</span></small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                      <span className="text-muted small fw-bold">SELECTED ROOM</span>
+                      <h5 className="fw-bold text-dark mb-0 mt-1 text-truncate">Room {reportData.selectedRoomMetrics.roomNumber}</h5>
+                      <small className="text-muted">{reportData.selectedRoomMetrics.roomTypeName}</small>
                     </div>
                   </div>
                 </div>
-                <div className="col-6 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">ROOMS INVENTORY</span>
-                    <h4 className="fw-bold text-dark mb-0 mt-1">{reportData?.totalRooms ?? 0} Total</h4>
-                    <div className="text-muted small mt-1">
-                      {reportData?.occupiedNow ?? 0} Occupied | {reportData?.availableNow ?? 0} Available
+              ) : (
+                <div className="row g-3 mb-4">
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-success border-4">
+                      <span className="text-muted small fw-bold">AVERAGE OCCUPANCY</span>
+                      <h3 className="fw-bold text-success mb-0 mt-1">{reportData?.averageOccupancy ?? 0}%</h3>
+                      <div className="progress mt-2" style={{ height: '6px' }}>
+                        <div className="progress-bar bg-success" role="progressbar" style={{ width: `${Math.min(100, reportData?.averageOccupancy ?? 0)}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                      <span className="text-muted small fw-bold">ROOMS INVENTORY</span>
+                      <h4 className="fw-bold text-dark mb-0 mt-1">{reportData?.totalRooms ?? 0} Total</h4>
+                      <div className="text-muted small mt-1">
+                        {reportData?.occupiedNow ?? 0} Occupied | {reportData?.availableNow ?? 0} Available
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                      <span className="text-muted small fw-bold">CHECK-INS & ACTIVITY</span>
+                      <h3 className="fw-bold text-primary mb-0 mt-1">{reportData?.checkInsCount ?? 0}</h3>
+                      <small className="text-muted">{reportData?.checkOutsCount ?? 0} completed check-outs</small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                      <span className="text-muted small fw-bold">PEAK OCCUPANCY</span>
+                      <h4 className="fw-bold text-warning mb-0 mt-1">{reportData?.peakOccupancyRate ?? 0}%</h4>
+                      <small className="text-muted">Recorded on {reportData?.peakOccupancyDate || '—'}</small>
                     </div>
                   </div>
                 </div>
-                <div className="col-6 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">CHECK-INS & ACTIVITY</span>
-                    <h3 className="fw-bold text-primary mb-0 mt-1">{reportData?.checkInsCount ?? 0}</h3>
-                    <small className="text-muted">{reportData?.checkOutsCount ?? 0} completed check-outs</small>
-                  </div>
-                </div>
-                <div className="col-6 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">PEAK OCCUPANCY</span>
-                    <h4 className="fw-bold text-warning mb-0 mt-1">{reportData?.peakOccupancyRate ?? 0}%</h4>
-                    <small className="text-muted">Recorded on {reportData?.peakOccupancyDate || '—'}</small>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Occupancy Charts Row (shown on Trends subTab) */}
               {subTab === 'trends' && (
@@ -1811,43 +1986,76 @@ export default function AdminReports() {
           {report === 'inventory' && (
             <div>
               {/* Inventory Stats Cards */}
-              <div className="row g-3 mb-4">
-                <div className="col-12 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-info border-4">
-                    <span className="text-muted small fw-bold">MOST USED CONSUMABLE</span>
-                    <h4 className="fw-bold text-info mb-0 mt-1 text-truncate">{reportData?.mostUsedItem || '—'}</h4>
-                    <small className="text-muted">{reportData?.maxUsed ?? 0} units consumed</small>
+              {subTab === 'movements' ? (
+                <div className="row g-3 mb-4">
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-warning border-4">
+                      <span className="text-muted small fw-bold">ORDERED (PENDING POs)</span>
+                      <h3 className="fw-bold text-warning mb-0 mt-1">{reportData?.totalOrderedQty ?? 0} units</h3>
+                      <small className="text-muted">Est. Value: ₱{(reportData?.totalOrderedValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-success border-4">
+                      <span className="text-muted small fw-bold">DELIVERED STOCK-IN</span>
+                      <h3 className="fw-bold text-success mb-0 mt-1">{reportData?.totalDeliveredQty ?? 0} units</h3>
+                      <small className="text-muted">Received: ₱{(reportData?.totalDeliveredValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-danger border-4">
+                      <span className="text-muted small fw-bold">STOCK-OUT USAGE</span>
+                      <h3 className="fw-bold text-danger mb-0 mt-1">{reportData?.totalStockOutQty ?? 0} units</h3>
+                      <small className="text-muted">Outflow: ₱{(reportData?.totalStockOutValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-primary border-4">
+                      <span className="text-muted small fw-bold">NET MOVEMENT BALANCE</span>
+                      <h3 className="fw-bold text-primary mb-0 mt-1">{(reportData?.netMovementQty ?? 0) > 0 ? `+${reportData?.netMovementQty}` : reportData?.netMovementQty ?? 0} units</h3>
+                      <small className="text-muted">Net Value: ₱{(reportData?.netMovementValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                    </div>
                   </div>
                 </div>
-                <div className="col-6 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-danger border-4">
-                    <span className="text-muted small fw-bold">LOW STOCK ALERTS</span>
-                    <h3 className="fw-bold text-danger mb-0 mt-1">{reportData?.lowStockCount ?? 0}</h3>
-                    <small className="text-muted">Items requiring replenishment</small>
+              ) : (
+                <div className="row g-3 mb-4">
+                  <div className="col-12 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-info border-4">
+                      <span className="text-muted small fw-bold">MOST USED CONSUMABLE</span>
+                      <h4 className="fw-bold text-info mb-0 mt-1 text-truncate">{reportData?.mostUsedItem || '—'}</h4>
+                      <small className="text-muted">{reportData?.maxUsed ?? 0} units consumed</small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-danger border-4">
+                      <span className="text-muted small fw-bold">LOW STOCK ALERTS</span>
+                      <h3 className="fw-bold text-danger mb-0 mt-1">{reportData?.lowStockCount ?? 0}</h3>
+                      <small className="text-muted">Items requiring replenishment</small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                      <span className="text-muted small fw-bold">MOST BORROWED ASSET</span>
+                      <h4 className="fw-bold text-success mb-0 mt-1 text-truncate">{reportData?.mostBorrowed || '—'}</h4>
+                      <small className="text-muted">{reportData?.maxBorrowed ?? 0} times borrowed</small>
+                    </div>
+                  </div>
+                  <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                      <span className="text-muted small fw-bold">DISPOSED / EXPIRED</span>
+                      <h4 className="fw-bold text-warning mb-0 mt-1">{reportData?.expiredTotalCount ?? 0} Expired</h4>
+                      <small className="text-muted">{reportData?.maxDisposed ?? 0} units disposed</small>
+                    </div>
                   </div>
                 </div>
-                <div className="col-6 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">MOST BORROWED ASSET</span>
-                    <h4 className="fw-bold text-success mb-0 mt-1 text-truncate">{reportData?.mostBorrowed || '—'}</h4>
-                    <small className="text-muted">{reportData?.maxBorrowed ?? 0} times borrowed</small>
-                  </div>
-                </div>
-                <div className="col-6 col-md-3">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">DISPOSED / EXPIRED</span>
-                    <h4 className="fw-bold text-warning mb-0 mt-1">{reportData?.expiredTotalCount ?? 0} Expired</h4>
-                    <small className="text-muted">{reportData?.maxDisposed ?? 0} units disposed</small>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Data Table */}
               <div className="card shadow-sm border-0 bg-white rounded">
                 <div className="card-header bg-white py-3 border-0">
                   <div className="d-flex justify-content-between align-items-center">
                     <h6 className="fw-bold text-dark mb-0">
-                      {subTab === 'balances' ? 'Inventory Balances & Consumption Status' : 'Stock Movements Audit Trail'}
+                      {subTab === 'balances' ? 'Inventory Balances & Consumption Status' : 'Stock Movements & Purchase Orders Audit Trail'}
                     </h6>
                     <input
                       type="text"
@@ -1875,14 +2083,15 @@ export default function AdminReports() {
                           </>
                         ) : (
                           <>
-                            <th onClick={() => handleSort('movementDateTime')} style={{ cursor: 'pointer' }}>Date</th>
-                            <th onClick={() => handleSort('referenceNumber')} style={{ cursor: 'pointer' }}>Ref #</th>
-                            <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer' }}>Item</th>
-                            <th onClick={() => handleSort('itemClassification')} style={{ cursor: 'pointer' }}>Classification</th>
-                            <th onClick={() => handleSort('movementType')} style={{ cursor: 'pointer' }}>Type</th>
-                            <th className="text-center" onClick={() => handleSort('quantity')} style={{ cursor: 'pointer' }}>Qty</th>
-                            <th onClick={() => handleSort('userEmail')} style={{ cursor: 'pointer' }}>Staff User</th>
-                            <th>Remarks</th>
+                            <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer' }}>Item Name</th>
+                            <th onClick={() => handleSort('category')} style={{ cursor: 'pointer' }}>Category</th>
+                            <th onClick={() => handleSort('transactionType')} style={{ cursor: 'pointer' }}>Transaction Type</th>
+                            <th onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>Status</th>
+                            <th className="text-center" onClick={() => handleSort('quantity')} style={{ cursor: 'pointer' }}>Quantity</th>
+                            <th className="text-end" onClick={() => handleSort('unitCost')} style={{ cursor: 'pointer' }}>Unit Cost</th>
+                            <th className="text-end" onClick={() => handleSort('totalValue')} style={{ cursor: 'pointer' }}>Total Value</th>
+                            <th onClick={() => handleSort('dateRecorded')} style={{ cursor: 'pointer' }}>Date Recorded</th>
+                            <th onClick={() => handleSort('recordedBy')} style={{ cursor: 'pointer' }}>Recorded By</th>
                           </>
                         )}
                       </tr>
@@ -1890,7 +2099,7 @@ export default function AdminReports() {
                     <tbody>
                       {paginatedData.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="text-center py-4 text-muted">No inventory records found matching filters.</td>
+                          <td colSpan={subTab === 'balances' ? 8 : 9} className="text-center py-4 text-muted">No inventory records found matching filters.</td>
                         </tr>
                       ) : (
                         paginatedData.map((row, idx) => (
@@ -1923,25 +2132,36 @@ export default function AdminReports() {
                               </>
                             ) : (
                               <>
-                                <td className="small text-muted">{new Date(row.movementDateTime).toLocaleString()}</td>
-                                <td><code>{row.referenceNumber || '—'}</code></td>
-                                <td><strong>{row.itemName}</strong></td>
-                                <td><span className="badge text-bg-light border text-muted">{row.itemClassification}</span></td>
+                                <td>
+                                  <strong>{row.itemName}</strong>
+                                  {row.referenceNumber && row.referenceNumber !== '—' && (
+                                    <div className="text-muted small font-monospace" style={{ fontSize: '11px' }}>
+                                      {row.referenceNumber}
+                                    </div>
+                                  )}
+                                </td>
+                                <td><span className="badge text-bg-light border text-dark">{row.category}</span></td>
                                 <td>
                                   <span className={`badge ${
-                                    row.movementType === 'Stock In' ? 'text-bg-success' :
-                                    row.movementType === 'Stock Out' ? 'text-bg-dark' :
-                                    row.movementType === 'Borrow' ? 'text-bg-warning' :
-                                    row.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
+                                    row.transactionType?.includes('Stock-In') ? 'text-bg-success' : 'text-bg-dark'
                                   }`}>
-                                    {row.movementType}
+                                    {row.transactionType}
                                   </span>
                                 </td>
-                                <td className={`text-center fw-bold ${row.quantity > 0 ? 'text-success' : 'text-danger'}`}>
-                                  {row.quantity > 0 ? `+${row.quantity}` : row.quantity}
+                                <td>
+                                  <span className={`badge ${
+                                    row.status === 'Ordered' ? 'text-bg-warning text-dark' : 'text-bg-success'
+                                  }`}>
+                                    {row.status === 'Ordered' ? '🕒 Ordered' : '✓ Delivered'}
+                                  </span>
                                 </td>
-                                <td>{row.userEmail || 'System'}</td>
-                                <td>{row.remarks || '—'}</td>
+                                <td className={`text-center fw-bold ${row.transactionType?.includes('Stock-In') ? 'text-success' : 'text-danger'}`}>
+                                  {row.transactionType?.includes('Stock-In') ? `+${row.quantity}` : `-${row.quantity}`}
+                                </td>
+                                <td className="text-end font-monospace">₱{(row.unitCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="text-end font-monospace fw-bold">₱{(row.totalValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="small text-muted">{row.dateRecorded ? new Date(row.dateRecorded).toLocaleString() : '—'}</td>
+                                <td className="small text-truncate" style={{ maxWidth: '160px' }} title={row.recordedBy}>{row.recordedBy || 'System'}</td>
                               </>
                             )}
                           </tr>
