@@ -82,8 +82,12 @@ export async function POST(request) {
     if (password !== confirmPassword) {
       errors.push("Passwords do not match.");
     }
-    if (!terms) {
-      errors.push("You must agree to the terms & conditions.");
+    const termsOk = Boolean(terms || body.termsAccepted);
+    if (!termsOk) {
+      errors.push("You must agree to the Terms & Conditions.");
+    }
+    if (body.privacyAccepted !== undefined && !body.privacyAccepted) {
+      errors.push("You must agree to the Privacy Policy.");
     }
 
     if (errors.length > 0) {

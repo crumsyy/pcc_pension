@@ -23,11 +23,28 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [terms, setTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsReadToBottom, setTermsReadToBottom] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [privacyReadToBottom, setPrivacyReadToBottom] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
+  const handleTermsScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollTop + clientHeight >= scrollHeight - 30) {
+      setTermsReadToBottom(true);
+    }
+  };
+
+  const handlePrivacyScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollTop + clientHeight >= scrollHeight - 30) {
+      setPrivacyReadToBottom(true);
+    }
+  };
 
   // Validation & Error states
   const [errorMsg, setErrorMsg] = useState("");
@@ -137,8 +154,11 @@ export default function RegisterPage() {
     if (!confirmPassword || password !== confirmPassword) {
       errors.confirmPassword = true;
     }
-    if (!terms) {
+    if (!termsAccepted) {
       errors.terms = true;
+    }
+    if (!privacyAccepted) {
+      errors.privacy = true;
     }
 
     // If any validation errors exist, highlight and smoothly scroll to the first one
@@ -148,7 +168,7 @@ export default function RegisterPage() {
       setLoading(false);
 
       // Auto-scroll to the first invalid field
-      const fieldOrder = ['firstName', 'middleName', 'lastName', 'gender', 'dob', 'city', 'province', 'contact', 'email', 'password', 'confirmPassword', 'terms'];
+      const fieldOrder = ['firstName', 'middleName', 'lastName', 'gender', 'dob', 'city', 'province', 'contact', 'email', 'password', 'confirmPassword', 'terms', 'privacy'];
       const firstKey = fieldOrder.find(k => errors[k]);
       if (firstKey) {
         setTimeout(() => {
@@ -178,7 +198,9 @@ export default function RegisterPage() {
           email,
           password,
           confirmPassword,
-          terms,
+          terms: termsAccepted && privacyAccepted,
+          termsAccepted,
+          privacyAccepted,
         }),
       });
 
@@ -571,48 +593,129 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* Terms & Conditions */}
-                  <div className="col-12 form-check mt-3 mb-2 ps-4">
-                    <input
-                      className={`form-check-input ${fieldErrors.terms ? "is-invalid border-danger" : ""}`}
-                      type="checkbox"
-                      id="terms"
-                      checked={terms}
-                      onChange={(e) => {
-                        setTerms(e.target.checked);
-                        setFieldErrors((prev) => ({ ...prev, terms: false }));
-                      }}
-                      required
-                    />
-                    <label className="form-check-label small" htmlFor="terms" style={{ fontSize: "0.86rem" }}>
-                      I agree to the{" "}
-                      <button
-                        type="button"
-                        className="btn btn-link p-0 text-primary fw-semibold align-baseline text-decoration-underline"
-                        style={{ fontSize: "inherit" }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setShowTermsModal(true);
+                  {/* Agreement 1: Terms & Conditions */}
+                  <div className={`col-12 p-3 rounded-3 border mt-3 mb-2 ${fieldErrors.terms ? "border-danger bg-danger-subtle" : "bg-light-subtle"}`}>
+                    <div className="form-check ps-4 m-0 d-flex align-items-start gap-2">
+                      <input
+                        className={`form-check-input mt-1 flex-shrink-0 ${fieldErrors.terms ? "is-invalid border-danger" : ""}`}
+                        type="checkbox"
+                        id="terms"
+                        checked={termsAccepted}
+                        onChange={(e) => {
+                          if (!termsReadToBottom) {
+                            e.preventDefault();
+                            setShowTermsModal(true);
+                            return;
+                          }
+                          setTermsAccepted(e.target.checked);
+                          setFieldErrors((prev) => ({ ...prev, terms: false }));
                         }}
-                      >
-                        Terms &amp; Conditions
-                      </button>{" "}
-                      and{" "}
-                      <button
-                        type="button"
-                        className="btn btn-link p-0 text-primary fw-semibold align-baseline text-decoration-underline"
-                        style={{ fontSize: "inherit" }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setShowPrivacyModal(true);
-                        }}
-                      >
-                        Privacy Policy
-                      </button>{" "}
-                      of PCC Home Suite Home.
-                    </label>
+                      />
+                      <div className="flex-grow-1">
+                        <label className="form-check-label d-block text-dark fw-medium small mb-1" htmlFor="terms" style={{ fontSize: "0.88rem" }}>
+                          I have read, understood, and agree to the{" "}
+                          <button
+                            type="button"
+                            className="btn btn-link p-0 text-primary fw-bold text-decoration-underline"
+                            style={{ fontSize: "inherit" }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setShowTermsModal(true);
+                            }}
+                          >
+                            Terms &amp; Conditions
+                          </button>{" "}
+                          of PCC Home Suite Home.
+                        </label>
+                        <div className="d-flex align-items-center gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-outline-primary py-0.5 px-2 rounded-pill shadow-none"
+                            style={{ fontSize: "0.74rem" }}
+                            onClick={() => setShowTermsModal(true)}
+                          >
+                            <i className="bi bi-book me-1"></i>
+                            {termsAccepted ? "Re-read Terms" : "Read & Review Terms"}
+                          </button>
+                          {termsAccepted ? (
+                            <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill py-1 px-2" style={{ fontSize: "0.72rem" }}>
+                              <i className="bi bi-check-circle-fill me-1"></i>Read &amp; Accepted
+                            </span>
+                          ) : (
+                            <span className="badge bg-secondary-subtle text-secondary rounded-pill py-1 px-2" style={{ fontSize: "0.72rem" }}>
+                              Must scroll to bottom to accept
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                     {fieldErrors.terms && (
-                      <div className="text-danger small mt-1 fw-semibold d-block">You must agree to the terms &amp; conditions to continue.</div>
+                      <div className="text-danger small mt-1 ps-4 fw-semibold d-block">
+                        You must read and scroll to the bottom of the Terms &amp; Conditions to agree.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Agreement 2: Privacy Policy */}
+                  <div className={`col-12 p-3 rounded-3 border mb-2 ${fieldErrors.privacy ? "border-danger bg-danger-subtle" : "bg-light-subtle"}`}>
+                    <div className="form-check ps-4 m-0 d-flex align-items-start gap-2">
+                      <input
+                        className={`form-check-input mt-1 flex-shrink-0 ${fieldErrors.privacy ? "is-invalid border-danger" : ""}`}
+                        type="checkbox"
+                        id="privacy"
+                        checked={privacyAccepted}
+                        onChange={(e) => {
+                          if (!privacyReadToBottom) {
+                            e.preventDefault();
+                            setShowPrivacyModal(true);
+                            return;
+                          }
+                          setPrivacyAccepted(e.target.checked);
+                          setFieldErrors((prev) => ({ ...prev, privacy: false }));
+                        }}
+                      />
+                      <div className="flex-grow-1">
+                        <label className="form-check-label d-block text-dark fw-medium small mb-1" htmlFor="privacy" style={{ fontSize: "0.88rem" }}>
+                          I have read, understood, and agree to the{" "}
+                          <button
+                            type="button"
+                            className="btn btn-link p-0 text-success fw-bold text-decoration-underline"
+                            style={{ fontSize: "inherit" }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setShowPrivacyModal(true);
+                            }}
+                          >
+                            Privacy Policy
+                          </button>{" "}
+                          <span className="text-muted fw-normal">(compliant with RA 10173).</span>
+                        </label>
+                        <div className="d-flex align-items-center gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-outline-success py-0.5 px-2 rounded-pill shadow-none"
+                            style={{ fontSize: "0.74rem" }}
+                            onClick={() => setShowPrivacyModal(true)}
+                          >
+                            <i className="bi bi-shield-check me-1"></i>
+                            {privacyAccepted ? "Re-read Policy" : "Read & Review Policy"}
+                          </button>
+                          {privacyAccepted ? (
+                            <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill py-1 px-2" style={{ fontSize: "0.72rem" }}>
+                              <i className="bi bi-check-circle-fill me-1"></i>Read &amp; Accepted
+                            </span>
+                          ) : (
+                            <span className="badge bg-secondary-subtle text-secondary rounded-pill py-1 px-2" style={{ fontSize: "0.72rem" }}>
+                              Must scroll to bottom to accept
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {fieldErrors.privacy && (
+                      <div className="text-danger small mt-1 ps-4 fw-semibold d-block">
+                        You must read and scroll to the bottom of the Privacy Policy to agree.
+                      </div>
                     )}
                   </div>
 
@@ -680,7 +783,11 @@ export default function RegisterPage() {
                 ></button>
               </div>
 
-              <div className="modal-body p-4" style={{ fontSize: '0.88rem', maxHeight: '65vh', overflowY: 'auto', lineHeight: '1.6' }}>
+              <div
+                className="modal-body p-4"
+                style={{ fontSize: '0.88rem', maxHeight: '65vh', overflowY: 'auto', lineHeight: '1.6' }}
+                onScroll={handleTermsScroll}
+              >
                 <div className="alert alert-info py-2 px-3 small mb-3">
                   <strong>PCC Home Suite Home – Passi City College:</strong> Please review our operational terms, courtesy hold rules, and room policies before completing registration.
                 </div>
@@ -727,10 +834,20 @@ export default function RegisterPage() {
                 </ul>
 
                 <h6 className="fw-bold text-dark mb-1">7. Room Inspection &amp; House Rules</h6>
-                <ul className="text-secondary ps-3 mb-0">
+                <ul className="text-secondary ps-3 mb-3">
                   <li>Rooms are inspected upon checkout. Stained linens, missing items, or damaged amenities are billed as Incidentals.</li>
                   <li>Strict non-smoking and quiet hours (10:00 PM) are observed across all suites and corridors.</li>
                 </ul>
+
+                {/* Scroll-to-bottom progress banner */}
+                <div className={`p-2.5 rounded-3 d-flex align-items-center gap-2 small ${termsReadToBottom ? "bg-success-subtle text-success border border-success-subtle" : "bg-warning-subtle text-warning-emphasis border border-warning-subtle"}`}>
+                  <i className={`bi ${termsReadToBottom ? "bi-check-circle-fill text-success" : "bi-arrow-down-circle-fill text-warning"} flex-shrink-0 fs-6`}></i>
+                  <span>
+                    {termsReadToBottom 
+                      ? "You have reviewed to the bottom of the terms. You may now accept." 
+                      : "Please scroll all the way to the bottom of this document to enable acceptance."}
+                  </span>
+                </div>
               </div>
 
               <div className="modal-footer bg-light px-4 py-3 d-flex justify-content-between align-items-center">
@@ -753,15 +870,16 @@ export default function RegisterPage() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm px-3 rounded-pill text-white fw-semibold"
+                    className={`btn btn-sm px-3 rounded-pill fw-semibold ${termsReadToBottom ? "btn-primary text-white" : "btn-secondary text-white-50"}`}
+                    disabled={!termsReadToBottom}
                     onClick={() => {
-                      setTerms(true);
+                      setTermsAccepted(true);
                       setFieldErrors(prev => ({ ...prev, terms: false }));
                       setShowTermsModal(false);
                     }}
                   >
-                    <i className="bi bi-check-lg me-1"></i>
-                    I Understand &amp; Accept
+                    <i className={`bi ${termsReadToBottom ? "bi-check-lg" : "bi-lock-fill"} me-1`}></i>
+                    {termsReadToBottom ? "I Have Read & Accept" : "Scroll to Bottom to Accept"}
                   </button>
                 </div>
               </div>
@@ -797,7 +915,11 @@ export default function RegisterPage() {
                 ></button>
               </div>
 
-              <div className="modal-body p-4" style={{ fontSize: '0.88rem', maxHeight: '65vh', overflowY: 'auto', lineHeight: '1.6' }}>
+              <div
+                className="modal-body p-4"
+                style={{ fontSize: '0.88rem', maxHeight: '65vh', overflowY: 'auto', lineHeight: '1.6' }}
+                onScroll={handlePrivacyScroll}
+              >
                 <div className="alert alert-success py-2 px-3 small mb-3">
                   <strong>Philippine Data Privacy Act of 2012 (RA 10173):</strong> PCC Home Suite Home respects your privacy. We process personal data solely for guest accommodations, security authentication, and government auditing.
                 </div>
@@ -827,10 +949,20 @@ export default function RegisterPage() {
                 </ul>
 
                 <h6 className="fw-bold text-dark mb-1">4. Your Statutory Rights</h6>
-                <ul className="text-secondary ps-3 mb-0">
+                <ul className="text-secondary ps-3 mb-3">
                   <li>Under RA 10173, you have the right to be informed, right to access your data, right to rectification of inaccurate records, and right to object or request erasure subject to mandatory accounting retention laws.</li>
                   <li>Data inquiries may be directed to our front desk at <a href="mailto:privacy@pccsuite.com" className="text-decoration-none">privacy@pccsuite.com</a>.</li>
                 </ul>
+
+                {/* Scroll-to-bottom progress banner */}
+                <div className={`p-2.5 rounded-3 d-flex align-items-center gap-2 small ${privacyReadToBottom ? "bg-success-subtle text-success border border-success-subtle" : "bg-warning-subtle text-warning-emphasis border border-warning-subtle"}`}>
+                  <i className={`bi ${privacyReadToBottom ? "bi-check-circle-fill text-success" : "bi-arrow-down-circle-fill text-warning"} flex-shrink-0 fs-6`}></i>
+                  <span>
+                    {privacyReadToBottom 
+                      ? "You have reviewed to the bottom of the privacy policy. You may now accept." 
+                      : "Please scroll all the way to the bottom of this document to enable acceptance."}
+                  </span>
+                </div>
               </div>
 
               <div className="modal-footer bg-light px-4 py-3 d-flex justify-content-between align-items-center">
@@ -853,15 +985,16 @@ export default function RegisterPage() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-success btn-sm px-3 rounded-pill text-white fw-semibold"
+                    className={`btn btn-sm px-3 rounded-pill fw-semibold ${privacyReadToBottom ? "btn-success text-white" : "btn-secondary text-white-50"}`}
+                    disabled={!privacyReadToBottom}
                     onClick={() => {
-                      setTerms(true);
-                      setFieldErrors(prev => ({ ...prev, terms: false }));
+                      setPrivacyAccepted(true);
+                      setFieldErrors(prev => ({ ...prev, privacy: false }));
                       setShowPrivacyModal(false);
                     }}
                   >
-                    <i className="bi bi-check-lg me-1"></i>
-                    I Understand &amp; Accept
+                    <i className={`bi ${privacyReadToBottom ? "bi-check-lg" : "bi-lock-fill"} me-1`}></i>
+                    {privacyReadToBottom ? "I Have Read & Accept" : "Scroll to Bottom to Accept"}
                   </button>
                 </div>
               </div>
