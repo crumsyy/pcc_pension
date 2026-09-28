@@ -5,27 +5,35 @@ import { getStayNights } from '@/lib/dateUtils';
 
 export default function BookingBreakfastSelector({
   checkIn,
+  checkInDate,
   checkOut,
+  checkOutDate,
   guestCount = 1,
   breakfastRate = 250,
   perGuestBreakfastRate,
+  perNightBreakfastRate,
   onChange,
+  onChangeDates,
+  selectedDates: propSelectedDates,
   initialSelectedDates
 }) {
-  const stayNights = useMemo(() => getStayNights(checkIn, checkOut), [checkIn, checkOut]);
+  const effectiveCheckIn = checkIn || checkInDate;
+  const effectiveCheckOut = checkOut || checkOutDate;
+  const stayNights = useMemo(() => getStayNights(effectiveCheckIn, effectiveCheckOut), [effectiveCheckIn, effectiveCheckOut]);
   const [selectedDates, setSelectedDates] = useState([]);
   const hasInitializedRef = useRef(false);
 
   const effectiveRate = perGuestBreakfastRate !== undefined ? Number(perGuestBreakfastRate) : (breakfastRate !== undefined ? Number(breakfastRate) : 250);
   const effectiveGuests = Math.max(1, parseInt(guestCount || 1, 10));
+  const effectiveInitialDates = Array.isArray(propSelectedDates) ? propSelectedDates : initialSelectedDates;
 
   // Auto-select all by default on initial load (or use initialSelectedDates if provided)
   useEffect(() => {
     if (stayNights.length > 0) {
       const stayDateStrs = stayNights.map(n => n.dateStr);
       if (!hasInitializedRef.current) {
-        if (Array.isArray(initialSelectedDates) && initialSelectedDates.length > 0) {
-          const validInitial = initialSelectedDates.filter(d => stayDateStrs.includes(d));
+        if (Array.isArray(effectiveInitialDates) && effectiveInitialDates.length > 0) {
+          const validInitial = effectiveInitialDates.filter(d => stayDateStrs.includes(d));
           setSelectedDates(validInitial.length > 0 ? validInitial : stayDateStrs);
         } else {
           setSelectedDates(stayDateStrs);
@@ -42,7 +50,7 @@ export default function BookingBreakfastSelector({
       setSelectedDates([]);
       hasInitializedRef.current = false;
     }
-  }, [stayNights, initialSelectedDates]);
+  }, [stayNights, effectiveInitialDates]);
 
   // Notify parent form of changes without forcing strict state mutations
   useEffect(() => {
@@ -53,7 +61,8 @@ export default function BookingBreakfastSelector({
       totalBreakfastFee,
       perGuestBreakfastRate: effectiveRate
     });
-  }, [selectedDates, effectiveRate, effectiveGuests, onChange]);
+    onChangeDates?.(selectedDates);
+  }, [selectedDates, effectiveRate, effectiveGuests, onChange, onChangeDates]);
 
   const toggleDate = (dateStr) => {
     setSelectedDates(prev =>
@@ -76,7 +85,7 @@ export default function BookingBreakfastSelector({
     return null;
   }
 
-  const perMorningTotal = effectiveRate * effectiveGuests;
+  const perMorningTotal = perNightBreakfastRate !== undefined ? Number(perNightBreakfastRate) : (effectiveRate * effectiveGuests);
 
   return (
     <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style={{ background: '#f8fafc' }}>

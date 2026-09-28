@@ -4,6 +4,8 @@ import React from 'react';
 import SearchableSelect from './SearchableSelect';
 import CalendarDatePicker from './CalendarDatePicker';
 import ReservationCalendar from './ReservationCalendar';
+import BookingBreakfastSelector from '@/app/guest/rooms/BookingBreakfastSelector';
+import { getStayNights } from '@/lib/dateUtils';
 
 /**
  * ReceptionistReservationForm Component
@@ -33,6 +35,8 @@ export default function ReceptionistReservationForm({
   setCheckOutTime,
   breakfastOption = 'with',
   setBreakfastOption,
+  selectedBreakfastDates = [],
+  setSelectedBreakfastDates,
   guestCount = 1,
   setGuestCount,
   specialRequests = '',
@@ -73,15 +77,29 @@ export default function ReceptionistReservationForm({
   const extraGuests = Math.max(0, numGuests - basePax);
   const extraGuestFee = extraGuests * 100 * nightsCount; // ₱100/night per extra guest
 
+  const perGuestBreakfastRate = selectedRoom?.breakfastRate !== null && selectedRoom?.breakfastRate !== undefined
+    ? parseFloat(selectedRoom.breakfastRate)
+    : (selectedRoom?.rateWithBreakfast && selectedRoom?.rateWithoutBreakfast
+        ? Math.max(0, parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast))
+        : 250);
+
   const rateWithBfast = selectedRoom
     ? (parseFloat(selectedRoom.rateWithBreakfast) || (selectedRoom.breakfastRate !== null && selectedRoom.breakfastRate !== undefined ? parseFloat(selectedRoom.rate) + parseFloat(selectedRoom.breakfastRate) : parseFloat(selectedRoom.rate) || 0))
     : 0;
   const rateWithoutBfast = selectedRoom
     ? (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0)
     : 0;
-  const activeRate = breakfastOption === 'with' ? rateWithBfast : rateWithoutBfast;
-  const roomSubtotal = activeRate * nightsCount;
-  const estimatedTotal = roomSubtotal + extraGuestFee;
+
+  let calculatedBreakfastFee = 0;
+  if (breakfastOption === 'with') {
+    calculatedBreakfastFee = perGuestBreakfastRate * numGuests * nightsCount;
+  } else if (breakfastOption === 'custom') {
+    calculatedBreakfastFee = perGuestBreakfastRate * numGuests * (selectedBreakfastDates?.length || 0);
+  }
+
+  const roomSubtotal = rateWithoutBfast * nightsCount;
+  const totalRoomCharge = roomSubtotal + calculatedBreakfastFee;
+  const estimatedTotal = totalRoomCharge + extraGuestFee;
 
   const isEarlyCheckIn = resTime && resTime < '14:00';
   const isLateCheckOut = checkOutTime && checkOutTime > '12:00';
@@ -384,15 +402,27 @@ export default function ReceptionistReservationForm({
             <select
               className="form-select form-select-sm fw-semibold"
               value={breakfastOption}
-              onChange={(e) => setBreakfastOption && setBreakfastOption(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setBreakfastOption && setBreakfastOption(val);
+                if (val === 'without') {
+                  setSelectedBreakfastDates && setSelectedBreakfastDates([]);
+                } else if (val === 'with') {
+                  const stayNights = getStayNights(resDate, checkOutDate);
+                  setSelectedBreakfastDates && setSelectedBreakfastDates(stayNights.map(n => n.dateStr));
+                }
+              }}
               disabled={isFreeBreakfast}
             >
               <option value="with">
-                With Breakfast (₱{rateWithBfast.toFixed(2)}/night{isFreeBreakfast ? ' - Free' : ''})
+                With Breakfast (All Mornings)
+              </option>
+              <option value="custom">
+                Customize Breakfast Mornings
               </option>
               {!isFreeBreakfast && (
                 <option value="without">
-                  Without Breakfast (₱{rateWithoutBfast.toFixed(2)}/night)
+                  Without Breakfast
                 </option>
               )}
             </select>
@@ -426,6 +456,23 @@ export default function ReceptionistReservationForm({
             Extra Guest Fee: <strong>₱100 flat per extra guest</strong> applied for {extraGuests} guest(s) exceeding capacity ({basePax}). Total fee: ₱{extraGuestFee.toFixed(2)}.
           </div>
         )}
+
+        {/* Night-by-Night Breakfast Selection */}
+        {breakfastOption === 'custom' && resDate && checkOutDate && (
+          <div className="mt-3">
+            <BookingBreakfastSelector
+              checkIn={resDate}
+              checkOut={checkOutDate}
+              guestCount={numGuests}
+              breakfastRate={perGuestBreakfastRate}
+              perGuestBreakfastRate={perGuestBreakfastRate}
+              initialSelectedDates={selectedBreakfastDates}
+              onChange={(data) => {
+                setSelectedBreakfastDates && setSelectedBreakfastDates(data.selectedDates);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* SPECIAL REQUESTS */}
@@ -448,13 +495,21 @@ export default function ReceptionistReservationForm({
           </h6>
           <div className="d-flex justify-content-between mb-1">
             <span className="text-muted">
-              Base Room Rate ({nightsCount} night{nightsCount > 1 ? 's' : ''} @ ₱{activeRate.toFixed(2)}/night):
+              Base Room Accommodation ({nightsCount} night{nightsCount > 1 ? 's' : ''} @ ₱{rateWithoutBfast.toFixed(2)}/night):
             </span>
             <span className="fw-semibold">₱{roomSubtotal.toFixed(2)}</span>
           </div>
+          {calculatedBreakfastFee > 0 && (
+            <div className="d-flex justify-content-between mb-1 text-success">
+              <span>
+                Breakfast Fee ({breakfastOption === 'custom' ? `${selectedBreakfastDates?.length || 0} morning(s)` : `${nightsCount} morning(s)`} for {numGuests} pax @ ₱{perGuestBreakfastRate.toFixed(2)}):
+              </span>
+              <span className="fw-semibold">+₱{calculatedBreakfastFee.toFixed(2)}</span>
+            </div>
+          )}
           <div className="d-flex justify-content-between mb-1 text-success fw-bold">
             <span>Required Down Payment (50% of Room Charge):</span>
-            <span>₱{(roomSubtotal * 0.5).toFixed(2)}</span>
+            <span>₱{(totalRoomCharge * 0.5).toFixed(2)}</span>
           </div>
           {extraGuests > 0 && (
             <div className="d-flex justify-content-between mb-1 text-primary">

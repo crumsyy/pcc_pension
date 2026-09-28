@@ -12,6 +12,8 @@ import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import StatusBadge, { normalizeBookingStatus } from '../../components/StatusBadge';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
+import BookingBreakfastSelector from '@/app/guest/rooms/BookingBreakfastSelector';
+import { getStayNights } from '@/lib/dateUtils';
 
 function calculateAgeFromUiDate(uiDateStr) {
   if (!isValidDate(uiDateStr)) return '';
@@ -239,7 +241,8 @@ function BookingsClient() {
   };
 
   const [selectedRoomType, setSelectedRoomType] = useState('');
-  const [breakfastOption, setBreakfastOption] = useState('with'); // 'with' | 'without'
+  const [breakfastOption, setBreakfastOption] = useState('with'); // 'with' | 'custom' | 'without'
+  const [selectedBreakfastDates, setSelectedBreakfastDates] = useState([]);
   const [availableDiscounts, setAvailableDiscounts] = useState([]);
   const [vatPercentage, setVatPercentage] = useState(0);
   const [numGuestsCount, setNumGuestsCount] = useState(1);
@@ -293,6 +296,13 @@ function BookingsClient() {
     // Pre-populate Room Selection
     setSelectedRoomType(b.roomType || '');
     setBreakfastOption(b.breakfastOption || 'with');
+    let bDates = [];
+    try {
+      bDates = typeof b.breakfastDates === 'string' ? JSON.parse(b.breakfastDates || '[]') : (Array.isArray(b.breakfastDates) ? b.breakfastDates : []);
+    } catch (e) {
+      bDates = [];
+    }
+    setSelectedBreakfastDates(bDates);
     setFormData({
       guestID: b.guestID ? String(b.guestID) : '',
       roomID: String(b.roomID),
@@ -423,6 +433,8 @@ function BookingsClient() {
           checkInDateTime: toDbDate(checkInDate) + ' ' + checkInTime + ':00',
           checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
           numGuestsCount: newNumGuests,
+          breakfastOption,
+          breakfastDates: selectedBreakfastDates,
           guestForm,
           guests: preparedGuests,
           recordDownPayment: !isAlreadyPaid,
@@ -917,6 +929,8 @@ function BookingsClient() {
     setIsAutoFilled(false);
     setGuestForm({ firstName: '', middleName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
     setSelectedRoomType('');
+    setBreakfastOption('with');
+    setSelectedBreakfastDates([toDbDate(todayUiDate)]);
     setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
     setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
     setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
@@ -957,6 +971,14 @@ function BookingsClient() {
     });
     setIsAutoFilled(Boolean(b.guestID));
     setSelectedRoomType(b.roomType || '');
+    setBreakfastOption(b.breakfastOption || 'with');
+    let bDates = [];
+    try {
+      bDates = typeof b.breakfastDates === 'string' ? JSON.parse(b.breakfastDates || '[]') : (Array.isArray(b.breakfastDates) ? b.breakfastDates : []);
+    } catch (e) {
+      bDates = [];
+    }
+    setSelectedBreakfastDates(bDates);
     setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
     setRoomGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(g => ({ ...g, discountID: g.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
     setNumGuestsCount(1);
@@ -974,6 +996,8 @@ function BookingsClient() {
       setIsAutoFilled(false);
       setGuestForm({ firstName: '', middleName: '', lastName: '', contact: '', email: '', gender: 'Male', dateOfBirth: '' });
       setSelectedRoomType('');
+      setBreakfastOption('with');
+      setSelectedBreakfastDates([]);
       setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
       setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
@@ -1012,15 +1036,44 @@ function BookingsClient() {
     }
   }, [guestForm.firstName, guestForm.middleName, guestForm.lastName, guestForm.dateOfBirth, activeModal]);
 
+  // Synchronize breakfast dates when check-in or check-out dates change
+  useEffect(() => {
+    if (checkInDate && checkOutDate) {
+      const inD = new Date(toDbDate(checkInDate) + 'T00:00:00');
+      const outD = new Date(toDbDate(checkOutDate) + 'T00:00:00');
+      if (outD > inD) {
+        const validRange = [];
+        let cur = new Date(inD);
+        while (cur < outD) {
+          validRange.push(cur.toISOString().split('T')[0]);
+          cur.setDate(cur.getDate() + 1);
+        }
+        if (breakfastOption === 'with') {
+          setSelectedBreakfastDates(validRange);
+        } else if (breakfastOption === 'custom') {
+          setSelectedBreakfastDates(prev => {
+            const filtered = (prev || []).filter(d => validRange.includes(d));
+            return filtered.length > 0 ? filtered : validRange;
+          });
+        }
+      }
+    }
+  }, [checkInDate, checkOutDate, breakfastOption]);
+
   // Auto-calculate downPayment based on selected room, breakfast option, and downpayment percentage tier
   useEffect(() => {
     if ((activeModal === 'create' || activeModal === 'update_booking') && formData.roomID) {
       const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
-      const rate = selectedRoom
-        ? (breakfastOption === 'with'
-            ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-            : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
+      const perGuestBreakfastRate = selectedRoom?.breakfastRate !== null && selectedRoom?.breakfastRate !== undefined
+        ? parseFloat(selectedRoom.breakfastRate)
+        : (selectedRoom?.rateWithBreakfast && selectedRoom?.rateWithoutBreakfast
+            ? Math.max(0, parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast))
+            : 250);
+
+      const baseRoomRate = selectedRoom
+        ? (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0)
         : 0;
+
       const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit || selectedRoom.roomBasePax) || 4) : 4;
 
       let nights = 0;
@@ -1033,15 +1086,20 @@ function BookingsClient() {
       }
       nights = Math.max(1, nights);
 
-      const excessGuestsCount = Math.max(0, roomGuests.length - maxOccupancy);
-      const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
-      // Down payment applies strictly to room stay charges; extra guest fees are excluded
-      const rawRoomStayCharge = rate * (nights || 1);
-
       const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
         ? discountedGuests
         : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
       const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
+
+      const excessGuestsCount = Math.max(0, totalGuests - maxOccupancy);
+      const extraGuestFee = excessGuestsCount * 100 * (nights || 1);
+
+      let calculatedBreakfastFee = 0;
+      if (breakfastOption === 'with') {
+        calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * nights;
+      } else if (breakfastOption === 'custom') {
+        calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * (selectedBreakfastDates?.length || 0);
+      }
 
       const formattedDiscounts = effectiveDiscGuests
         .filter(g => g.discountID)
@@ -1057,11 +1115,12 @@ function BookingsClient() {
         });
 
       const billing = calculateBillingTotals({
-        roomRate: rate,
+        roomRate: baseRoomRate,
         nights: nights || 1,
         guestCount: totalGuests,
         guestDiscounts: formattedDiscounts,
         extraGuestFee,
+        breakfastFee: calculatedBreakfastFee,
         downPaymentPercentage: parseInt(downPaymentOption) || 30
       });
 
@@ -1071,6 +1130,7 @@ function BookingsClient() {
     activeModal,
     formData.roomID,
     breakfastOption,
+    selectedBreakfastDates,
     checkInDate,
     checkOutDate,
     checkInTime,
@@ -1191,10 +1251,14 @@ function BookingsClient() {
       });
     }
 
-    const rate = selectedRoom
-      ? (breakfastOption === 'with'
-          ? (parseFloat(selectedRoom.rateWithBreakfast) || parseFloat(selectedRoom.rate) || 0)
-          : (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0))
+    const perGuestBreakfastRate = selectedRoom?.breakfastRate !== null && selectedRoom?.breakfastRate !== undefined
+      ? parseFloat(selectedRoom.breakfastRate)
+      : (selectedRoom?.rateWithBreakfast && selectedRoom?.rateWithoutBreakfast
+          ? Math.max(0, parseFloat(selectedRoom.rateWithBreakfast) - parseFloat(selectedRoom.rateWithoutBreakfast))
+          : 250);
+
+    const baseRoomRate = selectedRoom
+      ? (parseFloat(selectedRoom.rateWithoutBreakfast) || parseFloat(selectedRoom.rate) || 0)
       : 0;
 
     let nights = 0;
@@ -1209,13 +1273,18 @@ function BookingsClient() {
 
     const excessGuestsCount = Math.max(0, (parseInt(numGuestsCount) || 1) - maxOccupancy);
     const extraGuestFee = excessGuestsCount * 100 * nights;
-    // Down payment applies strictly to room stay charges; extra guest fees are excluded!
-    const rawRoomStayCharge = rate * nights;
 
     const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
       ? discountedGuests
       : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
     const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
+
+    let calculatedBreakfastFee = 0;
+    if (breakfastOption === 'with') {
+      calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * nights;
+    } else if (breakfastOption === 'custom') {
+      calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * (selectedBreakfastDates?.length || 0);
+    }
 
     const formattedDiscounts = effectiveDiscGuests
       .filter(g => g.discountID)
@@ -1232,11 +1301,12 @@ function BookingsClient() {
 
     const dpPctNum = parseInt(downPaymentOption) || 50;
     const billing = calculateBillingTotals({
-      roomRate: rate,
+      roomRate: baseRoomRate,
       nights,
       guestCount: totalGuests,
       guestDiscounts: formattedDiscounts,
       extraGuestFee,
+      breakfastFee: calculatedBreakfastFee,
       earlyFee,
       lateFee,
       downPaymentPercentage: dpPctNum
@@ -1302,10 +1372,12 @@ function BookingsClient() {
             earlyHours,
             lateFee,
             lateHours,
-            roomRate: rate,
+            roomRate: baseRoomRate,
             roomCharge: netRoomStayCharge,
             breakfastOption,
-            netTotalAmount: netRoomStayCharge,
+            breakfastDates: selectedBreakfastDates,
+            breakfastFee: calculatedBreakfastFee,
+            netTotalAmount: billing.netTotal,
             downPaymentAmount: dpAmount,
             downPaymentPercentage: dpPctNum,
             paymentMethodID: parseInt(paymentMethodID),
@@ -2282,7 +2354,8 @@ function BookingsClient() {
                         value={breakfastOption}
                         onChange={(e) => setBreakfastOption(e.target.value)}
                       >
-                        <option value="with">With Breakfast</option>
+                        <option value="with">With Breakfast (All Mornings)</option>
+                        <option value="custom">Customize Breakfast Mornings</option>
                         <option value="without">Without Breakfast</option>
                       </select>
                     </div>
@@ -2307,13 +2380,33 @@ function BookingsClient() {
                             ).toFixed(2)}</span> / night
                           </div>
                           <small className="text-muted">
-                            ({breakfastOption === 'with' ? 'Daily Breakfast Included' : 'Standard Stay Without Breakfast'})
+                            ({breakfastOption === 'with' ? 'Daily Breakfast Included' : (breakfastOption === 'custom' ? 'Customized Breakfast Mornings' : 'Standard Stay Without Breakfast')})
                           </small>
                         </div>
                       </div>
                       <span className="badge bg-primary px-3 py-1.5 rounded-pill fs-6">
                         Maximum Occupancy: {selectedRoomObj.occupancyLimit || 4} Guests
                       </span>
+                    </div>
+                  )}
+
+                  {/* CUSTOM BREAKFAST MORNINGS SELECTOR */}
+                  {breakfastOption === 'custom' && (
+                    <div className="mb-3">
+                      <BookingBreakfastSelector
+                        checkInDate={toDbDate(checkInDate)}
+                        checkOutDate={toDbDate(checkOutDate)}
+                        guestCount={numGuestsCount}
+                        perGuestBreakfastRate={
+                          selectedRoomObj?.breakfastRate !== null && selectedRoomObj?.breakfastRate !== undefined
+                            ? parseFloat(selectedRoomObj.breakfastRate)
+                            : (selectedRoomObj?.rateWithBreakfast && selectedRoomObj?.rateWithoutBreakfast
+                                ? Math.max(0, parseFloat(selectedRoomObj.rateWithBreakfast) - parseFloat(selectedRoomObj.rateWithoutBreakfast))
+                                : 250)
+                        }
+                        initialSelectedDates={selectedBreakfastDates}
+                        onChangeDates={(dates) => setSelectedBreakfastDates(dates)}
+                      />
                     </div>
                   )}
 
@@ -2602,10 +2695,14 @@ function BookingsClient() {
 
                   {/* DYNAMIC BREAKDOWN MATH */}
                   {(() => {
-                    const rate = selectedRoomObj
-                      ? (breakfastOption === 'with'
-                          ? (parseFloat(selectedRoomObj.rateWithBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
-                          : (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0))
+                    const perGuestBreakfastRate = selectedRoomObj?.breakfastRate !== null && selectedRoomObj?.breakfastRate !== undefined
+                      ? parseFloat(selectedRoomObj.breakfastRate)
+                      : (selectedRoomObj?.rateWithBreakfast && selectedRoomObj?.rateWithoutBreakfast
+                          ? Math.max(0, parseFloat(selectedRoomObj.rateWithBreakfast) - parseFloat(selectedRoomObj.rateWithoutBreakfast))
+                          : 250);
+
+                    const baseRoomRate = selectedRoomObj
+                      ? (parseFloat(selectedRoomObj.rateWithoutBreakfast) || parseFloat(selectedRoomObj.rate) || 0)
                       : 0;
                     const maxOccupancy = selectedRoomObj ? (parseInt(selectedRoomObj.occupancyLimit) || 4) : 4;
 
@@ -2619,12 +2716,19 @@ function BookingsClient() {
                     }
                     nights = Math.max(1, nights);
 
-                    const baseRoomStayCharges = rate * (nights || 1);
-
                     const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
                       ? discountedGuests
                       : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
                     const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
+
+                    let calculatedBreakfastFee = 0;
+                    if (breakfastOption === 'with') {
+                      calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * nights;
+                    } else if (breakfastOption === 'custom') {
+                      calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * (selectedBreakfastDates?.length || 0);
+                    }
+
+                    const baseRoomStayCharges = baseRoomRate * (nights || 1);
 
                     const formattedDiscounts = effectiveDiscGuests
                       .filter(g => g.discountID)
@@ -2644,11 +2748,12 @@ function BookingsClient() {
                     const dpPctNum = parseInt(downPaymentOption) || 50;
 
                     const billing = calculateBillingTotals({
-                      roomRate: rate,
+                      roomRate: baseRoomRate,
                       nights: nights || 1,
                       guestCount: totalGuests,
                       guestDiscounts: formattedDiscounts,
                       extraGuestFee,
+                      breakfastFee: calculatedBreakfastFee,
                       earlyFee,
                       lateFee,
                       downPaymentPercentage: dpPctNum
@@ -2672,7 +2777,7 @@ function BookingsClient() {
 
                     return (
                       <>
-                        {rate > 0 && (
+                        {baseRoomRate > 0 && (
                           <div className="card shadow-sm border-0 mb-3" style={{ background: '#f8fafc', borderRadius: '10px' }}>
                             <div className="card-body p-3">
                               <div className="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
@@ -2686,13 +2791,21 @@ function BookingsClient() {
                               </div>
 
                               <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.84rem' }}>
-                                <span className="text-muted">Room Base Rate ({breakfastOption === 'with' ? 'With Breakfast' : 'Room Only'}):</span>
-                                <span className="fw-semibold text-dark">₱{rate.toFixed(2)}/night</span>
+                                <span className="text-muted">Room Base Rate (Room Only):</span>
+                                <span className="fw-semibold text-dark">₱{baseRoomRate.toFixed(2)}/night</span>
                               </div>
                               <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.84rem' }}>
                                 <span className="text-muted">Room Stay Charges ({nights} Night{nights > 1 ? 's' : ''}):</span>
                                 <span className="fw-semibold text-dark">₱{baseRoomStayCharges.toFixed(2)}</span>
                               </div>
+                              {calculatedBreakfastFee > 0 && (
+                                <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.84rem' }}>
+                                  <span className="text-muted">
+                                    Breakfast Fee ({breakfastOption === 'custom' ? `${selectedBreakfastDates?.length || 0} morning(s)` : `${nights} morning(s)`} for {totalGuests} pax @ ₱{perGuestBreakfastRate.toFixed(2)}):
+                                  </span>
+                                  <span className="fw-semibold text-dark">+₱{calculatedBreakfastFee.toFixed(2)}</span>
+                                </div>
+                              )}
                               <div className="d-flex justify-content-between mb-1" style={{ fontSize: '0.84rem' }}>
                                 <span className="text-muted">Per-Capita Share ({totalGuests} Guest{totalGuests > 1 ? 's' : ''}):</span>
                                 <span className="fw-semibold text-dark">₱{perCapitaShare.toFixed(2)}/pax</span>

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems, ensureBookingBreakfastSchema } from '@/lib/db';
 import { sendCourtesyHoldCreatedEmail, sendBookingConfirmationEmail } from '@/lib/mailer';
+import { getStayNights } from '@/lib/dateUtils';
 import { validateReservationDate } from '@/lib/validation';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
 
@@ -318,14 +319,38 @@ export async function POST(request) {
         }, { status: 409 });
       }
 
+      await ensureBookingBreakfastSchema();
+      const inDateStr = (reservationDateTime || '').split(' ')[0] || (reservationDateTime || '').split('T')[0];
+      const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
+      const stayNights = inDateStr && outDateStr ? getStayNights(inDateStr, outDateStr) : [];
+
+      let selectedBreakfastDates = body.breakfastDates || body.selectedBreakfastDates;
+      if (!Array.isArray(selectedBreakfastDates)) {
+        if (breakfastOption === 'with') {
+          selectedBreakfastDates = stayNights.map(n => n.dateStr);
+        } else {
+          selectedBreakfastDates = [];
+        }
+      }
+      const validBreakfastDates = selectedBreakfastDates.filter(d =>
+        stayNights.some(n => n.dateStr === d)
+      );
+
+      let breakfastFee = parseFloat(body.breakfastFee || 0);
+      if (breakfastOption === 'custom' && validBreakfastDates.length > 0 && breakfastFee <= 0) {
+        breakfastFee = validBreakfastDates.length * 250 * guestCount;
+      }
+
       const insertRes = await dbQuery(
         `INSERT INTO reservation(
           reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
-          status, guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail
-        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          status, guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail,
+          breakfastDates, breakfastFee
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
-          initialStatus, guestID, roomID, 1, 48, holdExpiryDateTime, guestEmail
+          initialStatus, guestID, roomID, 1, 48, holdExpiryDateTime, guestEmail,
+          JSON.stringify(validBreakfastDates), breakfastFee
         ]
       );
 

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems, getSystemVatRate } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, ensureBookingBreakfastSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems, getSystemVatRate } from '@/lib/db';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
+import { getStayNights } from '@/lib/dateUtils';
 
 export async function GET(request) {
   const session = await getSession();
@@ -34,7 +35,7 @@ export async function GET(request) {
                END as status,
                b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
                b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
-               b.roomRate, b.roomCharge, b.subtotal, b.discountTotal, b.netTotal, b.vatRate, b.vatAmount, b.grandTotal, b.totalAmount, b.downPaymentAmount, b.downPaymentPercentage, b.remainingBalance, b.breakfastOption, b.guestCount,
+               b.roomRate, b.roomCharge, b.subtotal, b.discountTotal, b.netTotal, b.vatRate, b.vatAmount, b.grandTotal, b.totalAmount, b.downPaymentAmount, b.downPaymentPercentage, b.remainingBalance, b.breakfastOption, b.guestCount, b.breakfastDates, b.breakfastFee,
                g.userID, g.firstName, g.middleName, g.lastName, g.contact, g.email, g.gender, g.dateOfBirth,
                 rm.roomNumber, rm.occupancyLimit, COALESCE(rt.type, 'Standard Room') as roomType, rm.image
         FROM booking b
@@ -276,6 +277,7 @@ export async function POST(request) {
 
         // Calculate required down payment based on room stay charges strictly (excluding extra guest fees)
         await ensureBookingBillingSchema();
+        await ensureBookingBreakfastSchema(conn);
 
         const inDateStr = (checkInDateTime || '').split(' ')[0] || (checkInDateTime || '').split('T')[0];
         const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
@@ -283,29 +285,80 @@ export async function POST(request) {
         const outDateD = new Date(outDateStr + 'T00:00:00');
         const diffDays = Math.max(1, Math.round(Math.abs(outDateD - inDateD) / (1000 * 60 * 60 * 24)));
 
-        const breakfastOption = body.breakfastOption === 'with' ? 'with' : 'without';
-        const breakfastID = breakfastOption === 'with' ? 2 : 1;
+        const stayNights = getStayNights(inDateStr, outDateStr);
+
+        let breakfastOption = body.breakfastOption === 'with' ? 'with' : (body.breakfastOption === 'custom' ? 'custom' : 'without');
+        let selectedBreakfastDates = body.breakfastDates || body.selectedBreakfastDates;
+
+        if (!Array.isArray(selectedBreakfastDates)) {
+          if (breakfastOption === 'with') {
+            selectedBreakfastDates = stayNights.map(n => n.dateStr);
+          } else {
+            selectedBreakfastDates = [];
+          }
+        }
+
+        const validBreakfastDates = selectedBreakfastDates.filter(d =>
+          stayNights.some(n => n.dateStr === d)
+        );
+
+        if (breakfastOption === 'custom') {
+          // retain custom option
+        } else if (validBreakfastDates.length > 0) {
+          breakfastOption = 'with';
+        } else if (!breakfastOption) {
+          breakfastOption = 'without';
+        }
+
+        const hasCustomBreakfast = breakfastOption === 'custom';
+        const breakfastID = (breakfastOption === 'with' && !hasCustomBreakfast) ? 2 : 1;
 
         const [roomData] = await conn.execute(
-          "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ? WHERE r.roomID = ?",
-          [breakfastID, roomID]
+          "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, r.breakfastRate, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
+          [roomID]
         );
-        let roomRate = 0;
+        let baseRoomRate = 0;
         if (roomData.length > 0 && roomData[0].rate != null) {
-          roomRate = parseFloat(roomData[0].rate);
+          baseRoomRate = parseFloat(roomData[0].rate);
         } else {
           const [defData] = await conn.execute(
             "SELECT rr.rate FROM room r JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID WHERE r.roomID = ? ORDER BY rr.rate ASC LIMIT 1",
             [roomID]
           );
-          roomRate = defData.length > 0 && defData[0].rate != null ? parseFloat(defData[0].rate) : 0;
+          baseRoomRate = defData.length > 0 && defData[0].rate != null ? parseFloat(defData[0].rate) : 0;
         }
 
-        const rawRoomCharge = roomRate * diffDays;
+        // Determine perGuestBreakfastRate
+        let perGuestBreakfastRate = 250;
+        if (body.breakfastRate !== undefined && body.breakfastRate !== null && !isNaN(parseFloat(body.breakfastRate))) {
+          perGuestBreakfastRate = parseFloat(body.breakfastRate);
+        } else if (roomData[0]?.breakfastRate !== null && roomData[0]?.breakfastRate !== undefined) {
+          perGuestBreakfastRate = parseFloat(roomData[0].breakfastRate);
+        } else {
+          const [diffRows] = await conn.execute(
+            "SELECT (rr2.rate - rr1.rate) as diff FROM room r JOIN room_rate rr1 ON rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1 JOIN room_rate rr2 ON rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2 WHERE r.roomID = ? LIMIT 1",
+            [roomID]
+          );
+          if (diffRows && diffRows[0]?.diff > 0) {
+            perGuestBreakfastRate = parseFloat(diffRows[0].diff);
+          }
+        }
+
         const totalGuestsCount = guests.length > 0 ? guests.length : 1;
         const roomBasePax = Math.max(1, parseInt(roomData[0]?.occupancyLimit || 4, 10));
         const extraPax = Math.max(0, totalGuestsCount - roomBasePax);
         const extraGuestFee = Math.round(extraPax * 100 * diffDays * 100) / 100;
+
+        let breakfastTotal = 0;
+        if (breakfastOption === 'with') {
+          breakfastTotal = Math.round(perGuestBreakfastRate * totalGuestsCount * diffDays * 100) / 100;
+        } else if (breakfastOption === 'custom') {
+          breakfastTotal = Math.round(perGuestBreakfastRate * totalGuestsCount * validBreakfastDates.length * 100) / 100;
+        } else {
+          breakfastTotal = 0;
+        }
+
+        const rawRoomCharge = baseRoomRate * diffDays;
 
         const guestDiscounts = [];
         if (guests.length > 0) {
@@ -327,11 +380,12 @@ export async function POST(request) {
 
         const dpPercentageInt = parseInt(body.downPaymentPercentage) || 50;
         const billingCalc = calculateBillingTotals({
-          roomRate: rawRoomCharge,
-          nights: 1,
+          roomRate: baseRoomRate,
+          nights: diffDays,
           guestCount: totalGuestsCount,
           guestDiscounts,
           extraGuestFee,
+          breakfastFee: breakfastTotal,
           earlyFee: parseFloat(body.earlyFee) || 0,
           lateFee: parseFloat(body.lateFee) || 0,
           downPaymentPercentage: dpPercentageInt
@@ -409,11 +463,11 @@ export async function POST(request) {
           finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         }
 
-        // Insert booking with roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount
+        // Insert booking with roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount, breakfastDates, breakfastFee
         const [insertBookingRes] = await conn.execute(
-          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount)
-           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, roomRate, finalRoomCharge, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, grandTotal, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption, breakfastID, totalGuestsCount]
+          `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount, breakfastDates, breakfastFee)
+           VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, baseRoomRate, finalRoomCharge, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, grandTotal, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption, breakfastID, totalGuestsCount, JSON.stringify(validBreakfastDates), breakfastTotal]
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -639,10 +693,19 @@ export async function POST(request) {
         // Update booking checkIn/Out timestamps and room/guest if specified
         const newRoomID = body.roomID ? parseInt(body.roomID) : oldBooking.roomID;
         const newGuestID = body.guestID ? parseInt(body.guestID) : oldBooking.guestID;
-        await conn.execute(
-          "UPDATE booking SET checkInDateTime = ?, checkOutDateTime = ?, roomID = ?, guestID = ? WHERE bookingID = ?",
-          [checkInDateTime, checkOutDateTime, newRoomID, newGuestID, bookingID]
-        );
+        let updateBookingSql = "UPDATE booking SET checkInDateTime = ?, checkOutDateTime = ?, roomID = ?, guestID = ?";
+        let updateBookingParams = [checkInDateTime, checkOutDateTime, newRoomID, newGuestID];
+        if (body.breakfastOption !== undefined) {
+          updateBookingSql += ", breakfastOption = ?";
+          updateBookingParams.push(body.breakfastOption);
+        }
+        if (body.breakfastDates !== undefined) {
+          updateBookingSql += ", breakfastDates = ?";
+          updateBookingParams.push(Array.isArray(body.breakfastDates) ? JSON.stringify(body.breakfastDates) : (body.breakfastDates || null));
+        }
+        updateBookingSql += " WHERE bookingID = ?";
+        updateBookingParams.push(bookingID);
+        await conn.execute(updateBookingSql, updateBookingParams);
 
         // Update guest information if provided
         if (body.guestForm && newGuestID) {
