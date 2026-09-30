@@ -659,7 +659,7 @@ export async function POST(request) {
         // Ensure no phantom discounts in booking_guest_details or booking_discount for this converted booking
         await conn.execute("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
         await conn.execute(
-          "UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ? AND (discountID = '' OR discountID = 'none' OR discountID = 'N/A' OR discountID = 'null' OR discountID = 0)",
+          "UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ? AND (discountID IS NULL OR discountID <= 0)",
           [bookingID]
         );
 
