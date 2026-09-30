@@ -600,6 +600,32 @@ export async function POST(request) {
         const initialBalance = Math.max(0, Math.round((netTotal - finalDownPaymentAmount) * 100) / 100);
 
         // 2. Insert booking with calculated financial invariants
+        const sanitizedBookingParams = [
+          finalCheckInDateTime, 
+          checkOutDateTime, 
+          bookingStatus, 
+          reservationID, 
+          guestID, 
+          roomID,
+          parseFloat(roomRate || 0) || 0,
+          parseFloat(billingCalc.grossRoomCharge || 0) || 0,
+          parseFloat(grossSubtotal || 0) || 0,
+          parseFloat(discountTotal || 0) || 0,
+          parseFloat(netTotal || 0) || 0,
+          parseFloat(vatRate || 0) || 0,
+          parseFloat(vatAmount || 0) || 0,
+          parseFloat(grandTotal || 0) || 0,
+          parseFloat(grandTotal || 0) || 0,
+          parseFloat(finalDownPaymentAmount || 0) || 0,
+          parseInt(dpPercentageInt || 0) || 0,
+          parseFloat(initialBalance || 0) || 0,
+          res[0].breakfastOption || 'with',
+          totalGuestsCount || 0,
+          res[0].breakfastDates || null,
+          parseFloat(calculatedBreakfastFee || 0) || 0
+        ];
+        console.log("DEBUG: Booking Insert Params:", sanitizedBookingParams);
+
         const [insertBookingRes] = await conn.execute(
           `INSERT INTO booking(
             checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID,
@@ -607,12 +633,7 @@ export async function POST(request) {
             grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance,
             breakfastOption, guestCount, breakfastDates, breakfastFee
           ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID,
-            roomRate, billingCalc.grossRoomCharge, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount,
-            grandTotal, grandTotal, finalDownPaymentAmount, dpPercentageInt, initialBalance,
-            res[0].breakfastOption || 'with', totalGuestsCount, res[0].breakfastDates || null, calculatedBreakfastFee
-          ]
+          sanitizedBookingParams
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -665,11 +686,32 @@ export async function POST(request) {
 
         // 6. Record Down Payment with 'Settled' status & referenceNumber
         const refNumber = body.referenceNumber || (paymentMethodID === 2 ? `GCASH-RES-${reservationID}` : `CASH-${Date.now().toString().slice(-6)}`);
-        const [paymentInsert] = await conn.execute(
-          `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
-          [finalDownPaymentAmount, cashReceived, change, billingID, guestID, staffID, paymentMethodID, refNumber]
-        );
+        
+        console.log("DEBUG: Payment Insert Params:", {
+          amount: finalDownPaymentAmount,
+          cashReceived,
+          change,
+          billingID,
+          guestID,
+          staffID,
+          paymentMethodID,
+          refNumber
+        });
+
+        let paymentInsert;
+        try {
+          [paymentInsert] = await conn.execute(
+            `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
+            [finalDownPaymentAmount, cashReceived, change, billingID, guestID, staffID, paymentMethodID, refNumber]
+          );
+        } catch (paymentErr) {
+          console.error("Payment insert failed details:", {
+             params: [finalDownPaymentAmount, cashReceived, change, billingID, guestID, staffID, paymentMethodID, refNumber],
+             error: paymentErr.message
+          });
+          throw new Error(`Payment Insert Failed: ${paymentErr.message}`);
+        }
         const paymentID = paymentInsert.insertId;
 
         // 7. Insert Transaction log
