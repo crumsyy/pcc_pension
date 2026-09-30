@@ -363,7 +363,7 @@ export async function POST(request) {
 
         const rawRoomCharge = baseRoomRate * diffDays;
 
-        const dpPercentageInt = dpPercentageInt;
+        const dpPercentageInt = parseInt(body.downPaymentPercentage || 50) || 50;
         const billingCalc = calculateBillingTotals({
           roomRate: baseRoomRate,
           nights: diffDays,
