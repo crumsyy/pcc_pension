@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
@@ -16,6 +16,7 @@ function PaymentsClient() {
   const [selectedBookingID, setSelectedBookingID] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingBill, setLoadingBill] = useState(false);
+  const paymentSuccessHandledRef = useRef(false);
 
   // Bill summary states
   const [billData, setBillData] = useState(null);
@@ -122,6 +123,7 @@ function PaymentsClient() {
   }, []);
 
   const handleBookingChange = (bID) => {
+    paymentSuccessHandledRef.current = false;
     setSelectedBookingID(bID || '');
     setPaymentForm(prev => ({
       ...prev,
@@ -241,6 +243,9 @@ function PaymentsClient() {
   };
 
   const handlePaymentAutoSuccess = (autoData) => {
+    if (paymentSuccessHandledRef.current) return;
+    paymentSuccessHandledRef.current = true;
+
     fetchInitialData();
     if (selectedBookingID) {
       fetchBillingDetails(selectedBookingID);
@@ -281,7 +286,7 @@ function PaymentsClient() {
       shouldCheckout: false
     }));
 
-    showAlert('success', 'Payment Completed', 'GCash payment verified and recorded successfully. Click "Complete Booking (Zero Balance)" to finish checkout and release room.');
+    showAlert('success', 'Payment Completed', 'Payment verified and recorded successfully. Click "Complete Booking (Zero Balance)" to finish checkout and release room.');
   };
 
   // Real-time synchronization with 2nd monitor and background authorization
@@ -289,6 +294,7 @@ function PaymentsClient() {
     if (!selectedBookingID) return;
 
     const onPaymentReceived = (data) => {
+      if (paymentSuccessHandledRef.current) return;
       if (String(data?.bookingID) === String(selectedBookingID)) {
         handlePaymentAutoSuccess(data);
       }
@@ -307,6 +313,7 @@ function PaymentsClient() {
     } catch (e) {}
 
     const handleStorage = (e) => {
+      if (paymentSuccessHandledRef.current) return;
       if (e.key === 'pcc_payment_sync_event' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
@@ -320,20 +327,26 @@ function PaymentsClient() {
 
     // Active polling fallback when GCash is selected and payment is pending
     let pollInterval = null;
-    if (paymentForm.paymentMethodID === '2' && payableAmount > 0) {
+    if (paymentForm.paymentMethodID === '2' && payableAmount > 0 && !paymentSuccessHandledRef.current) {
       pollInterval = setInterval(async () => {
+        if (paymentSuccessHandledRef.current) {
+          if (pollInterval) clearInterval(pollInterval);
+          return;
+        }
         try {
           const res = await fetch(`/api/receptionist/billing?bookingID=${selectedBookingID}`);
           if (res.ok) {
             const data = await res.json();
             const currentPayable = parseFloat(data.chargesSummary?.payableAmount || data.chargesSummary?.balance || 0);
             if (currentPayable <= 0.05) {
-              clearInterval(pollInterval);
-              handlePaymentAutoSuccess({
-                bookingID: selectedBookingID,
-                amount: payableAmount,
-                referenceNumber: `GCASH-${selectedBookingID}`
-              });
+              if (pollInterval) clearInterval(pollInterval);
+              if (!paymentSuccessHandledRef.current) {
+                handlePaymentAutoSuccess({
+                  bookingID: selectedBookingID,
+                  amount: payableAmount,
+                  referenceNumber: `GCASH-${selectedBookingID}`
+                });
+              }
             }
           }
         } catch (pollErr) {
