@@ -563,7 +563,7 @@ export async function POST(request) {
         let formattedDiscounts = [];
 
         if (reqDiscountedGuests.length > 0) {
-          const [dbDiscounts] = await conn.execute("SELECT discountID, name, percentage FROM discounts WHERE status = 'Active'");
+          const [dbDiscounts] = await conn.execute("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name ASC");
           formattedDiscounts = reqDiscountedGuests
             .filter(g => g.discountID)
             .map(g => {

@@ -789,8 +789,7 @@ export async function POST(request) {
 
       const balanceBefore = await getBookingBalance(bookingID);
 
-      // Replace existing discount records for this booking in booking_guest_details and booking_discount
-      await dbQuery("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+      // Clear previous discounts on booking_discount
       await dbQuery("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
 
       const detailsBefore = await getBookingBalanceDetails(bookingID);
@@ -799,15 +798,15 @@ export async function POST(request) {
       const nights = detailsBefore?.nights || 1;
       const guestCount = Math.max(1, detailsBefore?.totalGuestsCount || parsedDiscounts.length);
 
-      // Fetch active discount percentages
-      const [discountsDb] = await dbQuery("SELECT discountID, percentage, name FROM discounts WHERE status = 'Active'");
-      const [promotionsDb] = await dbQuery("SELECT promotionID, percentage, name FROM promotions WHERE status = 'Active'").catch(() => [[]]);
+      // Fetch active discount percentages (isArchived = 0)
+      const discountsDb = await dbQuery("SELECT discountID, percentage, name FROM discounts WHERE isArchived = 0 ORDER BY name ASC").catch(() => []);
+      const promotionsDb = await dbQuery("SELECT promotionID, percentage, name FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name ASC").catch(() => []);
 
       const formattedGuestDiscounts = parsedDiscounts.map(pd => {
         let rate = 0;
         let dType = 'Special Discount';
         if (pd.discountID) {
-          const dRow = discountsDb.find(d => String(d.discountID) === String(pd.discountID));
+          const dRow = (discountsDb || []).find(d => String(d.discountID) === String(pd.discountID));
           rate = dRow ? (parseFloat(dRow.percentage) / 100) : 0;
           dType = dRow?.name || 'Special Discount';
         } else if (pd.promotionID) {
@@ -833,20 +832,59 @@ export async function POST(request) {
         extraGuestFee: detailsBefore?.extraGuestFee || 0
       });
 
-      for (let i = 0; i < parsedDiscounts.length; i++) {
-        const pd = parsedDiscounts[i];
-        const itemized = calcResults.itemizedDiscounts[i];
-        const discAmt = itemized ? itemized.discountAmount : 0;
+      // Update or insert into booking_guest_details preserving registered room guests
+      const existingGuests = await dbQuery("SELECT bookingGuestID, fullName FROM booking_guest_details WHERE bookingID = ?", [bookingID]).catch(() => []);
 
-        await dbQuery(
-          "INSERT INTO booking_guest_details (bookingID, fullName, discountID, promotionID, discountIdNumber, age) VALUES (?, ?, ?, ?, ?, 60)",
-          [bookingID, pd.fullName, pd.discountID, pd.promotionID, pd.discountIdNumber]
-        );
+      if (existingGuests && existingGuests.length > 0) {
+        // Reset all discount fields on existing guests first
+        await dbQuery("UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ?", [bookingID]);
 
-        await dbQuery(
-          "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
-          [bookingID, pd.fullName, pd.discountID || null, pd.discountIdNumber || 'N/A', discAmt]
-        );
+        const usedGuestIds = new Set();
+        for (let i = 0; i < parsedDiscounts.length; i++) {
+          const pd = parsedDiscounts[i];
+          const itemized = calcResults.itemizedDiscounts[i];
+          const discAmt = itemized ? itemized.discountAmount : 0;
+
+          // Find best matching existing guest row
+          let targetGuest = existingGuests.find(g => !usedGuestIds.has(g.bookingGuestID) && g.fullName && g.fullName.trim().toLowerCase() === pd.fullName.toLowerCase());
+          if (!targetGuest) {
+            targetGuest = existingGuests.find(g => !usedGuestIds.has(g.bookingGuestID));
+          }
+
+          if (targetGuest) {
+            usedGuestIds.add(targetGuest.bookingGuestID);
+            await dbQuery(
+              "UPDATE booking_guest_details SET fullName = ?, discountID = ?, promotionID = ?, discountIdNumber = ? WHERE bookingGuestID = ?",
+              [pd.fullName, pd.discountID || null, pd.promotionID || null, pd.discountIdNumber || null, targetGuest.bookingGuestID]
+            );
+          } else {
+            await dbQuery(
+              "INSERT INTO booking_guest_details (bookingID, fullName, discountID, promotionID, discountIdNumber, age) VALUES (?, ?, ?, ?, ?, 60)",
+              [bookingID, pd.fullName, pd.discountID || null, pd.promotionID || null, pd.discountIdNumber || null]
+            );
+          }
+
+          await dbQuery(
+            "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
+            [bookingID, pd.fullName, pd.discountID || null, pd.discountIdNumber || 'N/A', discAmt]
+          );
+        }
+      } else {
+        for (let i = 0; i < parsedDiscounts.length; i++) {
+          const pd = parsedDiscounts[i];
+          const itemized = calcResults.itemizedDiscounts[i];
+          const discAmt = itemized ? itemized.discountAmount : 0;
+
+          await dbQuery(
+            "INSERT INTO booking_guest_details (bookingID, fullName, discountID, promotionID, discountIdNumber, age) VALUES (?, ?, ?, ?, ?, 60)",
+            [bookingID, pd.fullName, pd.discountID || null, pd.promotionID || null, pd.discountIdNumber || null]
+          );
+
+          await dbQuery(
+            "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
+            [bookingID, pd.fullName, pd.discountID || null, pd.discountIdNumber || 'N/A', discAmt]
+          );
+        }
       }
 
       const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
@@ -881,7 +919,7 @@ export async function POST(request) {
     if (action === 'remove_discount' || action === 'remove_discounts') {
       const bookingID = parseInt(body.bookingID);
       if (!bookingID) return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
-      await dbQuery("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
+      await dbQuery("UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ?", [bookingID]);
       await dbQuery("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
 
       const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);

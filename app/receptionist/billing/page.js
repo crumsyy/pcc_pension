@@ -1792,8 +1792,11 @@ export default function ReceptionistBilling() {
 
                     discountBeneficiaries.forEach((b, idx) => {
                       if (b.discountID) {
-                        const cleanId = String(b.discountID).replace('disc-', '');
-                        const disc = (billDetails.discounts || []).find(d => String(d.discountID) === cleanId);
+                        const cleanBId = String(b.discountID).replace('disc-', '').replace('promo-', '');
+                        const disc = (billDetails.discounts || []).find(d => 
+                          String(d.discountID) === String(b.discountID) ||
+                          String(d.discountID).replace('disc-', '').replace('promo-', '') === cleanBId
+                        );
                         if (disc) {
                           const pct = parseFloat(disc.percentage) || 0;
                           const amt = Math.round(perCapitaShare * (pct / 100) * 100) / 100;

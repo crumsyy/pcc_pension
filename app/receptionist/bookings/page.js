@@ -636,9 +636,7 @@ function BookingsClient() {
     const extraGuestFee = excessGuestsCount * 100 * nights;
     const rawSubtotal = (rate * nights) + extraGuestFee;
 
-    const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
-      ? discountedGuests
-      : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
+    const effectiveDiscGuests = (discountedGuests || []).filter(g => g && g.discountID);
     const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
 
     const formattedDiscounts = effectiveDiscGuests
@@ -933,7 +931,7 @@ function BookingsClient() {
     setSelectedBreakfastDates([toDbDate(todayUiDate)]);
     setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
     setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
-    setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
+    setDiscountedGuests([]);
     setDownPayment('');
     setPaymentMethodID('1');
     setIsGcashSettled(false);
@@ -1000,7 +998,7 @@ function BookingsClient() {
       setSelectedBreakfastDates([]);
       setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
-      setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
+      setDiscountedGuests([]);
       setPaymentMethodID('1');
       setIsGcashSettled(false);
       setGcashInlineError('');
@@ -1086,9 +1084,7 @@ function BookingsClient() {
       }
       nights = Math.max(1, nights);
 
-      const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
-        ? discountedGuests
-        : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
+      const effectiveDiscGuests = (discountedGuests || []).filter(g => g && g.discountID);
       const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
 
       const excessGuestsCount = Math.max(0, totalGuests - maxOccupancy);
@@ -1239,15 +1235,16 @@ function BookingsClient() {
 
     const preparedGuests = [];
     const primaryName = `${guestForm.firstName} ${guestForm.lastName}`.trim() || 'Primary Guest';
+    const validDiscounts = (discountedGuests || []).filter(g => g && g.discountID);
 
     for (let i = 0; i < (parseInt(numGuestsCount) || 1); i++) {
-      const disc = discountedGuests[i];
+      const disc = validDiscounts[i];
       const gName = disc?.guestName?.trim();
       preparedGuests.push({
         fullName: gName || (i === 0 ? (primaryName || 'Primary Guest') : `Guest #${i + 1}`),
         age: 30,
         discountID: disc?.discountID ? parseInt(disc.discountID) : null,
-        discountIdNumber: disc?.discountIdNumber || 'N/A'
+        discountIdNumber: disc?.discountID ? (disc.discountIdNumber?.trim() || 'N/A') : null
       });
     }
 
@@ -1274,9 +1271,7 @@ function BookingsClient() {
     const excessGuestsCount = Math.max(0, (parseInt(numGuestsCount) || 1) - maxOccupancy);
     const extraGuestFee = excessGuestsCount * 100 * nights;
 
-    const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
-      ? discountedGuests
-      : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
+    const effectiveDiscGuests = (discountedGuests || []).filter(g => g && g.discountID);
     const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
 
     let calculatedBreakfastFee = 0;
@@ -1411,8 +1406,8 @@ function BookingsClient() {
           guestName,
           roomNumber: roomObj?.roomNumber || 'N/A',
           roomType: roomObj?.roomType || 'Standard',
-          grossSubtotal: rawRoomStayCharge + extraGuestFee + earlyFee + lateFee,
-          totalDiscount: totalApportionedDiscount,
+          grossSubtotal: billing.grossSubtotal,
+          totalDiscount: billing.totalPerCapitaDiscount || 0,
           netTotal: netSubtotal,
           vatRate: 0.00,
           vatAmount: 0.00,
@@ -2716,9 +2711,7 @@ function BookingsClient() {
                     }
                     nights = Math.max(1, nights);
 
-                    const effectiveDiscGuests = (discountedGuests && discountedGuests.length > 0 && discountedGuests.some(g => g.discountID))
-                      ? discountedGuests
-                      : (roomGuests && roomGuests.length > 0 ? roomGuests : []);
+                    const effectiveDiscGuests = (discountedGuests || []).filter(g => g && g.discountID);
                     const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
 
                     let calculatedBreakfastFee = 0;
