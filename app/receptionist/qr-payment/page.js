@@ -13,6 +13,7 @@ function QrPaymentContent() {
   const guestNameParam = searchParams.get('guestName');
 
   const [booking, setBooking] = useState(null);
+  const [paymentIntentID, setPaymentIntentID] = useState(null);
   const [loadingBooking, setLoadingBooking] = useState(true);
   const [paymongoQrUrl, setPaymongoQrUrl] = useState(null);
   const [loadingQr, setLoadingQr] = useState(false);
@@ -88,6 +89,9 @@ function QrPaymentContent() {
         .then(data => {
           if (data.success && data.paymongoQrUrl) {
             setPaymongoQrUrl(data.paymongoQrUrl);
+            if (data.paymentIntentID) {
+              setPaymentIntentID(data.paymentIntentID);
+            }
           } else {
             setQrError(data.error || 'Live PayMongo QR code unavailable.');
           }
@@ -136,6 +140,31 @@ function QrPaymentContent() {
       console.warn('localStorage sync error:', e);
     }
   };
+
+  // Automated polling for PayMongo status on secondary QR payment terminal
+  useEffect(() => {
+    if (!paymentIntentID || paymentStatus === 'Payment Completed' || paymentStatus === 'Completed' || paymentStatus === 'Paid') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/payments/paymongo-qr?paymentIntentID=${paymentIntentID}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isPaid || data.status === 'succeeded' || data.status === 'authorized' || data.status === 'paid' || data.status === 'settled') {
+            clearInterval(interval);
+            const ref = `PM-${paymentIntentID.slice(-8)}`;
+            setPaymentStatus('Payment Completed');
+            setStatusMessage('Payment verified and authorized successfully via QRPh! Booking status updated.');
+            broadcastPaymentSettled(booking?.bookingID, ref, booking?.remainingBalance || booking?.finalBalance || 0);
+          }
+        }
+      } catch (e) {
+        // silent polling catch
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [paymentIntentID, paymentStatus, booking]);
 
   const handleAuthenticate = async () => {
     if (!booking) return;

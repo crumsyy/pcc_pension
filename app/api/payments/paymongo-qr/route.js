@@ -223,12 +223,23 @@ export async function GET(request) {
     }
 
     const status = data.data.attributes?.status;
-    const isPaid = status === 'succeeded';
+    const payments = data.data.attributes?.payments || [];
+    const hasPaidOrAuthorizedPayment = payments.some(p => {
+      const pStatus = p.attributes?.status;
+      return pStatus === 'paid' || pStatus === 'succeeded' || pStatus === 'authorized' || pStatus === 'settled';
+    });
+
+    const isPaid = status === 'succeeded' || 
+                   status === 'authorized' || 
+                   status === 'paid' || 
+                   status === 'settled' || 
+                   hasPaidOrAuthorizedPayment;
 
     return NextResponse.json({
       success: true,
       status,
       isPaid,
+      paymentsCount: payments.length,
       paymentIntentID
     });
   } catch (error) {

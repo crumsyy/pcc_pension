@@ -716,6 +716,12 @@ function PaymentsClient() {
                         <span className="fw-semibold">₱{parseFloat(billData.chargesSummary.lateCheckOut).toFixed(2)}</span>
                       </div>
                     )}
+                    {parseFloat(billData.chargesSummary.breakfastFee || 0) > 0 && (
+                      <div className="d-flex justify-content-between mb-2">
+                        <span className="text-muted">Breakfast Package / Add-on Fee:</span>
+                        <span className="fw-semibold text-dark">+₱{parseFloat(billData.chargesSummary.breakfastFee).toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="d-flex justify-content-between mb-2">
                       <span className="text-muted">Product Orders Total:</span>
                       <span className="fw-semibold text-dark">₱{parseFloat(billData.chargesSummary.products).toFixed(2)}</span>

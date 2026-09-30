@@ -884,6 +884,23 @@ export default function ReceptionistBilling() {
                                     <td className="text-end fw-semibold text-danger">₱{parseFloat(billDetails.chargesSummary.earlyCheckIn).toFixed(2)}</td>
                                   </tr>
                                 )}
+                                {parseFloat(billDetails.chargesSummary?.breakfastFee || billDetails.booking?.breakfastFee || 0) > 0 && (
+                                  <tr>
+                                    <td colSpan="3">
+                                      <div className="d-flex align-items-center gap-2">
+                                        <span>Breakfast Package / Add-on Fee</span>
+                                        {billDetails.chargesSummary?.breakfastDates && billDetails.chargesSummary.breakfastDates.length > 0 && (
+                                          <span className="badge bg-light text-secondary border font-monospace" style={{ fontSize: '0.68rem' }}>
+                                            {billDetails.chargesSummary.breakfastDates.length} Morning{billDetails.chargesSummary.breakfastDates.length > 1 ? 's' : ''}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="text-end fw-semibold text-dark">
+                                      +₱{parseFloat(billDetails.chargesSummary?.breakfastFee || billDetails.booking?.breakfastFee || 0).toFixed(2)}
+                                    </td>
+                                  </tr>
+                                )}
                                 {billDetails.chargesSummary.lateCheckOut > 0 && (
                                   <tr>
                                     <td colSpan="3">
@@ -1352,16 +1369,6 @@ export default function ReceptionistBilling() {
                       <div className="card shadow-sm border-0 bg-white" style={{ borderRadius: '8px' }}>
                         <div className="card-header bg-white border-0 py-2 border-bottom">
                           <h5 className="fw-bold mb-0 text-dark" style={{ fontSize: '0.95rem' }}>Payment Summary</h5>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-primary py-1 px-2.5 fw-semibold d-flex align-items-center gap-1 shadow-xs"
-                            style={{ fontSize: '0.75rem' }}
-                            onClick={openEditDiscountsModal}
-                            title="Apply or adjust Senior Citizen / PWD guest discounts"
-                          >
-                            <i className="fa-solid fa-tags"></i>
-                            <span>Discounts</span>
-                          </button>
                         </div>
                         <div className="card-body p-4" style={{ fontSize: '0.78rem' }}>
                           {(() => {
@@ -1370,10 +1377,11 @@ export default function ReceptionistBilling() {
                             const extraGuestFee = parseFloat(cs.extraGuestFee || 0);
                             const earlyCheckIn = parseFloat(cs.earlyCheckIn || 0);
                             const lateCheckOut = parseFloat(cs.lateCheckOut || 0);
+                            const breakfastFee = parseFloat(cs.breakfastFee || billDetails.booking?.breakfastFee || 0);
                             const ordersTotal = parseFloat(billDetails.ordersSummary?.totalAmount ?? cs.orders ?? 0);
                             const incidentalsTotal = parseFloat(cs.incidentals || 0);
 
-                            const grossSubtotal = parseFloat(cs.grossSubtotal || (baseRoomCharge + extraGuestFee + earlyCheckIn + lateCheckOut + ordersTotal + incidentalsTotal));
+                            const grossSubtotal = parseFloat(cs.grossSubtotal || (baseRoomCharge + extraGuestFee + earlyCheckIn + lateCheckOut + breakfastFee + ordersTotal + incidentalsTotal));
                             const appliedDiscountsSummaryList = (billDetails.discountList && billDetails.discountList.length > 0)
                               ? billDetails.discountList.filter(d => d.discountID && d.discountID !== 'none' && d.discountID !== 'N/A' && d.discountID !== 'null' && String(d.discountID).trim() !== '' && d.discountID !== 0 && d.discountID !== '0')
                               : [];
@@ -1415,6 +1423,13 @@ export default function ReceptionistBilling() {
                                   <div className="d-flex justify-content-between mb-2 text-primary">
                                     <span>Late Check-out Fee:</span>
                                     <span className="fw-semibold">₱{lateCheckOut.toFixed(2)}</span>
+                                  </div>
+                                )}
+
+                                {breakfastFee > 0 && (
+                                  <div className="d-flex justify-content-between mb-2">
+                                    <span className="text-muted">Breakfast Package / Add-on Fee:</span>
+                                    <span className="fw-semibold text-dark">+₱{breakfastFee.toFixed(2)}</span>
                                   </div>
                                 )}
 
@@ -1546,27 +1561,22 @@ export default function ReceptionistBilling() {
                                         </>
                                       ) : (
                                         <>
-                                          <i className="fa-solid fa-file-invoice-dollar me-1"></i> Finalize Bill &amp; Allow Payment
+                                          <i className="fa-solid fa-file-invoice-dollar me-1"></i> Finalize Bill
                                         </>
                                       )}
                                     </button>
-                                    <div className="d-flex gap-2">
-                                      <a
-                                        href={`/receptionist/payments?bookingID=${selectedBookingID}`}
-                                        className="btn btn-outline-secondary flex-fill py-2 fw-semibold text-center d-flex align-items-center justify-content-center gap-1 text-decoration-none small"
-                                      >
-                                        <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
-                                      </a>
-                                      <a
-                                        href={`/receptionist/qr-payment?bookingId=${selectedBookingID}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="btn btn-primary text-white fw-bold px-3 py-2 d-flex align-items-center justify-content-center gap-1.5 shadow-sm text-decoration-none small"
-                                        title="Open QR Payment on 2nd monitor for guest to scan"
-                                      >
-                                        <i className="fa-solid fa-qrcode"></i> Show QR
-                                      </a>
-                                    </div>
+                                    <button
+                                      type="button"
+                                      className="btn btn-primary text-white fw-bold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                                      style={{ opacity: 0.65, cursor: 'not-allowed' }}
+                                      disabled={true}
+                                      title="Please finalize the bill first by clicking Finalize Bill"
+                                      onClick={() => {
+                                        showAlert('warning', 'Bill Not Finalized', 'Please finalize the bill first by clicking "Finalize Bill" before opening the payment terminal.');
+                                      }}
+                                    >
+                                      <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
+                                    </button>
                                   </div>
                                 );
                               } else {
@@ -1576,28 +1586,25 @@ export default function ReceptionistBilling() {
                                     <div className="alert alert-warning py-2.5 px-3 small d-flex align-items-center gap-2 mb-0 border-0 bg-warning-subtle text-warning-emphasis rounded-3 fw-semibold">
                                       <i className="bi bi-clock-history fs-5 flex-shrink-0"></i>
                                       <div>
-                                        <div className="fw-bold">Bill Finalized — Awaiting Guest Settlement</div>
+                                        <div className="fw-bold">Bill Finalized — Ready for Settlement</div>
                                         <div className="small fw-normal text-muted" style={{ fontSize: '0.74rem' }}>
-                                          Guest can pay online via their portal, or front desk can record a manual counter payment below.
+                                          Bill has been finalized. Proceed to the payment terminal or record a counter payment.
                                         </div>
                                       </div>
                                     </div>
+                                    <a
+                                      href={`/receptionist/payments?bookingID=${selectedBookingID}`}
+                                      className="btn btn-primary text-white fw-bold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
+                                    >
+                                      <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
+                                    </a>
                                     <button
                                       type="button"
-                                      className="btn btn-outline-primary fw-semibold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                                      className="btn btn-outline-secondary fw-semibold w-100 py-2 d-flex align-items-center justify-content-center gap-2 shadow-sm"
                                       onClick={openRecordPaymentModal}
                                     >
                                       <i className="fa-solid fa-cash-register me-1"></i> Record Walk-in Payment
                                     </button>
-                                    <a
-                                      href={`/receptionist/qr-payment?bookingId=${selectedBookingID}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="btn btn-primary text-white fw-bold w-100 py-2 d-flex align-items-center justify-content-center gap-1.5 shadow-sm text-decoration-none"
-                                      title="Open QR Payment on 2nd monitor for guest to scan"
-                                    >
-                                      <i className="fa-solid fa-qrcode"></i> Show QR (2nd Monitor)
-                                    </a>
                                     <button
                                       type="button"
                                       className="btn btn-secondary text-white w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
