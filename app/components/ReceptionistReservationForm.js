@@ -509,7 +509,7 @@ export default function ReceptionistReservationForm({
           )}
           <div className="d-flex justify-content-between mb-1 text-success fw-bold">
             <span>Required Down Payment (50% of Room Charge):</span>
-            <span>₱{(totalRoomCharge * 0.5).toFixed(2)}</span>
+            <span>₱{(roomSubtotal * 0.5).toFixed(2)}</span>
           </div>
           {extraGuests > 0 && (
             <div className="d-flex justify-content-between mb-1 text-primary">

@@ -26,7 +26,7 @@ export default function GuestBookingForm({
   const effectiveBase = baseRoomCharge > 0 ? baseRoomCharge : totalAmount;
   const pct = parseInt(paymentOption || '50', 10);
   const dpAmount = Math.round(effectiveBase * (pct / 100) * 100) / 100;
-  const remainingAmount = Math.max(0, Math.round(((effectiveBase + extraGuestFee) - dpAmount) * 100) / 100);
+  const remainingAmount = Math.max(0, Math.round(((totalAmount > 0 ? totalAmount : (effectiveBase + extraGuestFee)) - dpAmount) * 100) / 100);
 
   return (
     <div className={`guest-booking-form-payment mb-3 ${className}`}>

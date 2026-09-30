@@ -402,10 +402,10 @@ export async function POST(request) {
         const [rateRows] = await connection.execute(`
           SELECT rr.rate
           FROM room r
-          JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ?
+          JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
           WHERE r.roomID = ?
           LIMIT 1
-        `, [breakfastID, roomID]);
+        `, [roomID]);
 
         let dbRate = 0;
         if (rateRows && rateRows.length > 0 && rateRows[0]?.rate != null) {
@@ -456,7 +456,10 @@ export async function POST(request) {
 
         const baseRoomCharge = Math.round(roomPrice * nights * 100) / 100;
         const totalRoomWithBreakfast = baseRoomCharge + breakfastTotal;
-        const downPaymentAmount = Math.round(totalRoomWithBreakfast * downPaymentRate * 100) / 100;
+        // Down payment is calculated EXCLUSIVELY on the base room charge (without breakfast fee)
+        const downPaymentAmount = body.downPaymentAmount !== undefined && !isNaN(parseFloat(body.downPaymentAmount))
+          ? parseFloat(body.downPaymentAmount)
+          : Math.round(baseRoomCharge * downPaymentRate * 100) / 100;
         const totalAmount = totalRoomWithBreakfast + extraGuestFee;
         const remainingBalance = Math.max(0, Math.round((totalAmount - downPaymentAmount) * 100) / 100);
 

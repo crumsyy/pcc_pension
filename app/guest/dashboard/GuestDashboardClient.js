@@ -1117,10 +1117,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const totalDiscount = 0;
   const netTotalAmount = originalTotal + totalAutoFees;
   const paymentPctNumber = parseInt(paymentOption) || 50;
-  // Down payment is calculated EXCLUSIVELY from the base room charge (standard 50% or 100%)
-  const amountToPayNow = Math.round(baseRoomCharge * (paymentPctNumber / 100) * 100) / 100;
-  // Remaining balance = (baseRoomCharge + extraGuestFee + totalAutoFees) - amountToPayNow
-  const remainingBalanceAfterPay = Math.max(0, Math.round(((baseRoomCharge + extraGuestFee + totalAutoFees) - amountToPayNow) * 100) / 100);
+  // Down payment is calculated EXCLUSIVELY from the base room accommodation charge (excluding breakfast fee)
+  const amountToPayNow = Math.round(pureAccommodationCharge * (paymentPctNumber / 100) * 100) / 100;
+  // Remaining balance = netTotalAmount - amountToPayNow
+  const remainingBalanceAfterPay = Math.max(0, Math.round((netTotalAmount - amountToPayNow) * 100) / 100);
 
   // Dashboard Metrics
   const totalStaysCount = bookings.length;
@@ -1140,6 +1140,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   };
 
   const handleStartBookFlow = () => {
+    setConvertingReservationID(null);
+    setFlowAction('book');
     setActiveTab('rooms');
     setViewMode('default');
     fetchRoomsAndStatus();
@@ -1157,6 +1159,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     if (flowAction === 'reserve') {
       setActiveModal('reserve_form');
     } else {
+      setConvertingReservationID(null);
+      handleCheckInDateChange(minBookDateStr);
       setActiveModal('book_form');
     }
   };
@@ -2967,7 +2971,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           </p>
                           <div className="d-flex gap-2">
                             <button className="btn btn-sm btn-secondary text-white fw-bold w-50" onClick={() => handleOpenRoomDetails(rm)}>Details</button>
-                            <button className="btn btn-sm btn-primary text-white w-50" onClick={handleStartBookFlow}>Book Now</button>
+                            <button className="btn btn-sm btn-primary text-white w-50" onClick={() => {
+                              setConvertingReservationID(null);
+                              setSelectedRoom(rm);
+                              setFlowAction('book');
+                              handleCheckInDateChange(minBookDateStr);
+                              setActiveModal('book_form');
+                            }}>Book Now</button>
                           </div>
                         </div>
                       </div>
@@ -3120,8 +3130,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 }}
                                 onClick={() => {
                                   if (isBookable) {
+                                    setConvertingReservationID(null);
                                     setSelectedRoom(rm);
                                     setFlowAction('book');
+                                    handleCheckInDateChange(minBookDateStr);
                                     setActiveModal('book_form');
                                   }
                                 }}
@@ -3232,6 +3244,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                           className="btn btn-xs btn-primary text-white fw-bold py-2 px-2.5 flex-grow-1 shadow-xs"
                                           onClick={(e) => {
                                             e.stopPropagation();
+                                            setConvertingReservationID(null);
                                             setSelectedRoom(rm);
                                             setFlowAction('book');
                                             handleCheckInDateChange(minBookDateStr);
@@ -4258,7 +4271,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setActiveModal('none')}>Close</button>
                 {selectedRoom.status === 'Available' && (
-                  <button type="button" className="btn btn-primary text-white fw-bold" onClick={() => { setActiveModal('none'); handleStartBookFlow(); }}>
+                  <button type="button" className="btn btn-primary text-white fw-bold" onClick={() => { 
+                    setConvertingReservationID(null); 
+                    setFlowAction('book');
+                    handleCheckInDateChange(minBookDateStr);
+                    setActiveModal('book_form'); 
+                  }}>
                     Book Room Now
                   </button>
                 )}
@@ -4398,7 +4416,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ backgroundColor: '#0d6efd' }}>
                 <h5 className="modal-title fw-bold">Online Booking Summary & Guest Details</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal('none')}></button>
+                <button type="button" className="btn-close btn-close-white" onClick={() => { setConvertingReservationID(null); setActiveModal('none'); }}></button>
               </div>
               <form onSubmit={handleProceedToPayment}>
                 <div className="modal-body p-3 p-md-4">
@@ -4600,12 +4618,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       </div>
                       <div className="d-flex justify-content-between pt-1 text-success fw-bold">
                         <span>Required Down Payment (50% of Room Charge):</span>
-                        <span>₱{Math.round(baseRoomCharge * 0.5 * 100 / 100).toFixed(2)}</span>
+                        <span>₱{Math.round(pureAccommodationCharge * 0.5 * 100 / 100).toFixed(2)}</span>
                       </div>
                     </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => setActiveModal('none')}>Cancel</button>
+                  <button type="button" className="btn btn-danger text-white fw-bold" onClick={() => { setConvertingReservationID(null); setActiveModal('none'); }}>Cancel</button>
                   <LoadingButton
                     type="submit"
                     className="btn btn-primary text-white fw-bold"
@@ -4653,7 +4671,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <GuestBookingForm
                     paymentOption={paymentOption}
                     setPaymentOption={setPaymentOption}
-                    baseRoomCharge={baseRoomCharge}
+                    baseRoomCharge={pureAccommodationCharge}
                     extraGuestFee={extraGuestFee}
                     totalAmount={netTotalAmount}
                   />
@@ -4661,8 +4679,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="p-3 bg-light rounded border mb-3" style={{ fontSize: '0.88rem' }}>
                     <div className="d-flex justify-content-between mb-1">
                       <span className="text-muted">Base Room Rate ({nightsCount} night{nightsCount > 1 ? 's' : ''}):</span>
-                      <span className="fw-semibold text-dark">₱{baseRoomCharge.toFixed(2)}</span>
+                      <span className="fw-semibold text-dark">₱{pureAccommodationCharge.toFixed(2)}</span>
                     </div>
+                    {calculatedBreakfastFee > 0 && (
+                      <div className="d-flex justify-content-between mb-1 text-primary">
+                        <span>Breakfast Fee ({breakfastMorningsCount} morning{breakfastMorningsCount > 1 ? 's' : ''}):</span>
+                        <span className="fw-semibold">+₱{calculatedBreakfastFee.toFixed(2)}</span>
+                      </div>
+                    )}
                     {extraGuestFee > 0 && (
                       <div className="d-flex justify-content-between mb-1 text-secondary">
                         <span>Additional Guest Fee (₱{extraGuestFee.toFixed(2)}):</span>
