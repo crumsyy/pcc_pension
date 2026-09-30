@@ -360,30 +360,12 @@ export async function POST(request) {
 
         const rawRoomCharge = baseRoomRate * diffDays;
 
-        const guestDiscounts = [];
-        if (guests.length > 0) {
-          for (const g of guests) {
-            if (g.discountID) {
-              const [discRes] = await conn.execute("SELECT percentage, name FROM discounts WHERE discountID = ?", [g.discountID]);
-              if (discRes.length > 0) {
-                guestDiscounts.push({
-                  guestName: g.fullName.trim(),
-                  discountID: g.discountID,
-                  discountIdNumber: g.discountIdNumber?.trim() || 'N/A',
-                  rate: parseFloat(discRes[0].percentage || 0) / 100,
-                  type: discRes[0].name
-                });
-              }
-            }
-          }
-        }
-
         const dpPercentageInt = parseInt(body.downPaymentPercentage) || 50;
         const billingCalc = calculateBillingTotals({
           roomRate: baseRoomRate,
           nights: diffDays,
           guestCount: totalGuestsCount,
-          guestDiscounts,
+          guestDiscounts: [], // Initial booking creation starts with 0 discount; discounts are applied in Receptionist Billing
           extraGuestFee,
           breakfastFee: breakfastTotal,
           earlyFee: parseFloat(body.earlyFee) || 0,
@@ -391,11 +373,11 @@ export async function POST(request) {
           downPaymentPercentage: dpPercentageInt
         });
 
-        const roomDiscountAmount = billingCalc.totalPerCapitaDiscount;
-        const itemizedDiscounts = billingCalc.itemizedDiscounts;
+        const roomDiscountAmount = 0;
+        const itemizedDiscounts = [];
         const finalRoomCharge = billingCalc.netRoomStayCharge;
         const grossSubtotal = billingCalc.grossSubtotal;
-        const discountTotal = billingCalc.totalDiscount;
+        const discountTotal = 0;
         const netTotal = billingCalc.netTotal;
         const grandTotal = billingCalc.netTotal;
         const vatRate = 0.00;
@@ -522,12 +504,12 @@ export async function POST(request) {
           );
         }
 
-        // Insert registered guests details
+        // Insert registered guests details (with discountID NULL until verified in Billing)
         if (guests.length > 0) {
           for (const g of guests) {
             await conn.execute(
-              "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, ?, ?)",
-              [bookingID, g.fullName.trim(), parseInt(g.age) || 30, g.discountID || null, g.discountIdNumber?.trim() || null]
+              "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, NULL, ?)",
+              [bookingID, g.fullName.trim(), parseInt(g.age) || 30, g.discountIdNumber?.trim() || null]
             );
           }
         } else {
@@ -540,23 +522,13 @@ export async function POST(request) {
           );
         }
 
-        // Insert itemized discounts into booking_discount
-        if (itemizedDiscounts.length > 0) {
-          for (const d of itemizedDiscounts) {
-            await conn.execute(
-              "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
-              [bookingID, d.guestName, d.discountID, d.discountIdNumber, d.discountAmount]
-            );
-          }
-        }
-
-        // Create Billing Record
+        // Create Billing Record (Initial booking starts with 0 discount until verified and applied via Receptionist Billing)
         const localNow = new Date();
         const pad = (num) => String(num).padStart(2, '0');
         const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         const [billingInsert] = await conn.execute(
-          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [nowStr, guestID, bookingID, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, grandTotal, downPaymentAmount, dpPercentageInt, initialBalance, initialBalance]
+          "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) VALUES (?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [nowStr, guestID, bookingID, grossSubtotal, grossSubtotal, vatRate, vatAmount, grossSubtotal, grossSubtotal, downPaymentAmount, dpPercentageInt, initialBalance, initialBalance]
         );
         const billingID = billingInsert.insertId;
 
@@ -800,51 +772,18 @@ export async function POST(request) {
           }
         }
 
-        // Update registered guests & discounts if provided
+        // Update registered guests if provided
         if (Array.isArray(body.guests) && body.guests.length > 0) {
           await conn.execute("DELETE FROM booking_guest_details WHERE bookingID = ?", [bookingID]);
-          await conn.execute("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
-
-          // Fetch current rate to calculate sharePerGuest
-          const [bkRow] = await conn.execute(
-            `SELECT b.roomRate, rm.roomTypeID, rm.floorID, b.breakfastID, b.breakfastOption
-             FROM booking b
-             JOIN room rm ON rm.roomID = b.roomID
-             WHERE b.bookingID = ?`,
-            [bookingID]
-          );
-          let currentRate = parseFloat(bkRow[0]?.roomRate || 0);
-          if (!currentRate && bkRow[0]?.roomTypeID && bkRow[0]?.floorID) {
-            const resBfID = (bkRow[0].breakfastOption && bkRow[0].breakfastOption.toLowerCase().includes('with') && !bkRow[0].breakfastOption.toLowerCase().includes('without')) || parseInt(bkRow[0].breakfastID) === 2 ? 2 : 1;
-            const [rateLook] = await conn.execute(
-              "SELECT rate FROM room_rate WHERE roomTypeID = ? AND floorID = ? AND breakfastID = ? LIMIT 1",
-              [bkRow[0].roomTypeID, bkRow[0].floorID, resBfID]
-            );
-            currentRate = parseFloat(rateLook[0]?.rate || 0);
-          }
-          const baseRoomCharge = currentRate * nights;
-          const sharePerGuest = baseRoomCharge / Math.max(1, body.guests.length);
 
           for (const g of body.guests) {
             if (g.fullName && g.fullName.trim()) {
               const gName = g.fullName.trim();
-              const discID = g.discountID ? parseInt(g.discountID) : null;
               const discIdNum = g.discountIdNumber?.trim() || null;
               await conn.execute(
-                "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, ?, ?)",
-                [bookingID, gName, parseInt(g.age) || 30, discID, discIdNum]
+                "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, NULL, ?)",
+                [bookingID, gName, parseInt(g.age) || 30, discIdNum]
               );
-              if (discID) {
-                const [discData] = await conn.execute("SELECT percentage, name FROM discounts WHERE discountID = ?", [discID]);
-                if (discData.length > 0) {
-                  const pct = parseFloat(discData[0].percentage || 0);
-                  const discAmt = Math.round(sharePerGuest * (pct / 100) * 100) / 100;
-                  await conn.execute(
-                    "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
-                    [bookingID, gName, discID, discIdNum || 'N/A', discAmt]
-                  );
-                }
-              }
             }
           }
         }

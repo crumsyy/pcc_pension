@@ -584,18 +584,18 @@ export async function POST(request) {
           roomRate,
           nights,
           guestCount: totalGuestsCount,
-          guestDiscounts: formattedDiscounts,
+          guestDiscounts: [], // Initial booking conversion starts with 0 discount; discounts applied in Receptionist Billing
           extraGuestFee,
           breakfastFee: calculatedBreakfastFee,
           downPaymentPercentage: dpPercentageInt
         });
 
         const grossSubtotal = billingCalc.grossSubtotal;
-        const discountTotal = billingCalc.totalPerCapitaDiscount;
-        const netTotal = billingCalc.netTotal;
+        const discountTotal = 0;
+        const netTotal = billingCalc.grossSubtotal;
         const vatRate = 0;
         const vatAmount = 0;
-        const grandTotal = billingCalc.netTotal;
+        const grandTotal = billingCalc.grossSubtotal;
         const finalDownPaymentAmount = downPaymentAmount > 0 ? downPaymentAmount : billingCalc.requiredDownpayment;
         const initialBalance = Math.max(0, Math.round((netTotal - finalDownPaymentAmount) * 100) / 100);
 
@@ -616,7 +616,7 @@ export async function POST(request) {
         );
         const bookingID = insertBookingRes.insertId;
 
-        // 3. Seed guest details & itemized discounts
+        // 3. Seed guest details without unverified active discounts
         const [guestInfo] = await conn.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
         const defaultName = guestInfo.length > 0 ? `${guestInfo[0].firstName} ${guestInfo[0].lastName}` : 'Primary Guest';
 
@@ -624,8 +624,8 @@ export async function POST(request) {
           for (const g of reqDiscountedGuests) {
             const gName = (g.guestName || '').trim() || defaultName;
             await conn.execute(
-              "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, ?, ?)",
-              [bookingID, gName, g.discountID || null, g.discountIdNumber?.trim() || null]
+              "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, NULL, ?)",
+              [bookingID, gName, g.discountIdNumber?.trim() || null]
             );
           }
         } else {
@@ -633,15 +633,6 @@ export async function POST(request) {
             "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, 30, NULL, NULL)",
             [bookingID, defaultName]
           );
-        }
-
-        if (billingCalc.itemizedDiscounts && billingCalc.itemizedDiscounts.length > 0) {
-          for (const d of billingCalc.itemizedDiscounts) {
-            await conn.execute(
-              "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
-              [bookingID, d.guestName, d.discountID, d.discountIdNumber, d.discountAmount]
-            );
-          }
         }
 
         // 4. Create Billing Record with synchronized invariant totals

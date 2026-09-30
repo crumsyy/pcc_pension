@@ -243,12 +243,17 @@ export default function ReceptionistBilling() {
 
   const openEditDiscountsModal = () => {
     if (!billDetails) return;
-    const existing = (billDetails.guestsList || []).filter(g => g.discountID || g.promotionID);
-    if (existing.length > 0) {
-      setDiscountBeneficiaries(existing.map(g => ({
+    if (billDetails.discountList && billDetails.discountList.length > 0) {
+      setDiscountBeneficiaries(billDetails.discountList.map(bd => ({
+        discountID: bd.discountID ? `disc-${bd.discountID}` : (bd.promotionID ? `promo-${bd.promotionID}` : ''),
+        beneficiaryName: bd.guestName || bd.fullName || '',
+        discountIdNumber: bd.discountIdNumber && bd.discountIdNumber !== 'N/A' ? bd.discountIdNumber : ''
+      })));
+    } else if (billDetails.guestsList && billDetails.guestsList.length > 0) {
+      setDiscountBeneficiaries(billDetails.guestsList.map(g => ({
         discountID: g.discountID ? `disc-${g.discountID}` : (g.promotionID ? `promo-${g.promotionID}` : ''),
         beneficiaryName: g.fullName || '',
-        discountIdNumber: g.discountIdNumber || ''
+        discountIdNumber: g.discountIdNumber && g.discountIdNumber !== 'N/A' ? g.discountIdNumber : ''
       })));
     } else {
       setDiscountBeneficiaries([{
@@ -1373,7 +1378,7 @@ export default function ReceptionistBilling() {
 
                             const appliedDiscountsList = (billDetails.discountList && billDetails.discountList.length > 0)
                               ? billDetails.discountList
-                              : (billDetails.guestsList || []).filter(g => (parseFloat(g.discount || 0) > 0 || g.discountID || g.promotionID));
+                              : [];
 
                             return (
                               <>
