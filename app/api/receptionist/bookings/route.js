@@ -156,12 +156,10 @@ export async function POST(request) {
     const { action } = body;
 
       if (action === 'create') {
-        const sanitizedDownPaymentAmount = parseFloat(body.downPaymentAmount || 0) || 0;
-        const sanitizedDownPaymentPercentage = parseInt(body.downPaymentPercentage || 50) || 50;
+        const downPaymentAmount = parseFloat(body.downPaymentAmount || 0) || 0;
+        const dpPercentageInt = parseInt(body.downPaymentPercentage || 50) || 50;
         
-        // Ensure variables used later in the block are defined
-        const downPaymentAmount = sanitizedDownPaymentAmount;
-      const guests = body.guests || [];
+        const guests = body.guests || [];
       // Validate guests list
       for (const g of guests) {
         if (!g.fullName || !g.fullName.trim()) {
@@ -365,7 +363,7 @@ export async function POST(request) {
 
         const rawRoomCharge = baseRoomRate * diffDays;
 
-        const dpPercentageInt = sanitizedDownPaymentPercentage;
+        const dpPercentageInt = dpPercentageInt;
         const billingCalc = calculateBillingTotals({
           roomRate: baseRoomRate,
           nights: diffDays,
@@ -375,7 +373,7 @@ export async function POST(request) {
           breakfastFee: breakfastTotal,
           earlyFee: parseFloat(body.earlyFee) || 0,
           lateFee: parseFloat(body.lateFee) || 0,
-          downPaymentPercentage: sanitizedDownPaymentPercentage
+          downPaymentPercentage: dpPercentageInt
         });
 
         const roomDiscountAmount = 0;
@@ -389,9 +387,9 @@ export async function POST(request) {
         const vatAmount = 0.00;
         const requiredDp = billingCalc.requiredDownpayment;
 
-        if (sanitizedDownPaymentAmount < requiredDp - 0.05) {
+        if (downPaymentAmount < requiredDp - 0.05) {
           return NextResponse.json({ 
-            error: `Payment received (₱${sanitizedDownPaymentAmount.toFixed(2)}) cannot be below the selected ${sanitizedDownPaymentPercentage}% requirement of ₱${requiredDp.toFixed(2)} on total charges.` 
+            error: `Payment received (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected ${dpPercentageInt}% requirement of ₱${requiredDp.toFixed(2)} on total charges.` 
           }, { status: 400 });
         }
 
@@ -459,8 +457,8 @@ export async function POST(request) {
            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
            [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, 
             baseRoomRate || 0, finalRoomCharge || 0, grossSubtotal || 0, discountTotal || 0, netTotal || 0,
-            vatRate || 0, vatAmount || 0, grandTotal || 0, grandTotal || 0, sanitizedDownPaymentAmount,
-            sanitizedDownPaymentPercentage, initialBalance || 0, breakfastOption, breakfastID || null, totalGuestsCount || 0, 
+            vatRate || 0, vatAmount || 0, grandTotal || 0, grandTotal || 0, downPaymentAmount,
+            dpPercentageInt, initialBalance || 0, breakfastOption, breakfastID || null, totalGuestsCount || 0, 
             JSON.stringify(validBreakfastDates), breakfastTotal || 0]
         );
         const bookingID = insertBookingRes.insertId;
@@ -544,26 +542,22 @@ export async function POST(request) {
         const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         const [billingInsert] = await conn.execute(
           "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) VALUES (?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [nowStr, guestID, bookingID, grossSubtotal, grossSubtotal, vatRate, vatAmount, grossSubtotal, grossSubtotal, sanitizedDownPaymentAmount, sanitizedDownPaymentPercentage, initialBalance, initialBalance]
+          [nowStr, guestID, bookingID, grossSubtotal, grossSubtotal, vatRate, vatAmount, grossSubtotal, grossSubtotal, downPaymentAmount, dpPercentageInt, initialBalance, initialBalance]
         );
         const billingID = billingInsert.insertId;
 
         // Get staffID using session userID
         const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
         const staffID = staffRes[0]?.staffID || null;
-
-        // Prepare and sanitize all financial values
-        const sanitizedDownPaymentAmount = parseFloat(body.downPaymentAmount || 0) || 0;
-        const sanitizedDownPaymentPercentage = parseInt(body.downPaymentPercentage || 50) || 50;
-        const sanitizedPaymentMethodID = parseInt(body.paymentMethodID || 1) || 1;
-
+        
         // Record Down Payment with 'Settled' status and referenceNumber
-        const refNumber = body.referenceNumber || (sanitizedPaymentMethodID === 2 ? `GCASH-BK-${bookingID}` : `CASH-${Date.now().toString().slice(-6)}`);
+        const refNumber = body.referenceNumber || (paymentMethodID === 2 ? `GCASH-BK-${bookingID}` : `CASH-${Date.now().toString().slice(-6)}`);
+
         
         const [paymentInsert] = await conn.execute(
           `INSERT INTO payment (amount, cashReceived, \`change\`, changeAmount, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
            VALUES (?, ?, 0, 0.00, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
-          [sanitizedDownPaymentAmount, sanitizedDownPaymentAmount, billingID, guestID, staffID, sanitizedPaymentMethodID, refNumber]
+          [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID, refNumber]
         );
         const paymentID = paymentInsert.insertId;
 
@@ -579,13 +573,13 @@ export async function POST(request) {
           bookingID,
           transactionType: 'Down Payment',
           status: 'Settled',
-          amount: sanitizedDownPaymentAmount,
+          amount: downPaymentAmount,
           balanceBefore: finalRoomCharge || 0,
           balanceAfter: initialBalance || 0,
           userID: session?.userID || null,
           userName: session?.fullName || 'Receptionist',
           userRole: session?.role || 'Receptionist',
-          description: `Down payment recorded upon booking creation - ${sanitizedDownPaymentPercentage}% on Room Charges`,
+          description: `Down payment recorded upon booking creation - ${dpPercentageInt}% on Room Charges`,
           referenceNumber: refNumber
         });
 
@@ -595,12 +589,13 @@ export async function POST(request) {
           for (const adm of admins) {
             await conn.execute(
               "INSERT INTO notification (userID, title, message) VALUES (?, 'Down Payment Received Alert', ?)",
-              [adm.userID, `Down payment of ₱${parseFloat(downPaymentAmount).toFixed(2)} received for Booking #${bookingID}.`]
-            );
-          }
-        } catch (adminNotifyErr) {
-          console.error("Failed to notify admin of down payment:", adminNotifyErr);
-        }
+          [adm.userID, `Down payment of ₱${parseFloat(downPaymentAmount).toFixed(2)} received for Booking #${bookingID}.`]
+        );
+      }
+    } catch (adminNotifyErr) {
+      console.error("Failed to notify admin of down payment:", adminNotifyErr);
+    }
+
 
         await syncNormalizedBillingLineItems(conn, billingID, bookingID);
         await conn.commit();
@@ -1327,3 +1322,4 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Operation failed: ' + error.message }, { status: 500 });
   }
 }
+
