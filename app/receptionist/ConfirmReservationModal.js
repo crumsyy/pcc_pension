@@ -59,14 +59,8 @@ export default function ConfirmReservationModal({
       dateOfBirth: selectedRes.dateOfBirth ? toUiDate(selectedRes.dateOfBirth) : ''
     });
 
-    // Populate discounted guests with primary guest default
-    setDiscountedGuests([
-      {
-        guestName: `${fName} ${lName}`.trim() || 'Primary Guest',
-        discountID: '',
-        discountIdNumber: ''
-      }
-    ]);
+    // Initialize discounted guests to empty array (no default pre-filled discount)
+    setDiscountedGuests([]);
 
     // Populate dates
     const inDateOnly = selectedRes.reservationDateTime ? String(selectedRes.reservationDateTime).substring(0, 10) : todayDbDate;
@@ -336,7 +330,14 @@ export default function ConfirmReservationModal({
         lastName: guestForm.lastName.trim(),
         contact: guestForm.contact.trim(),
         remainingBalance: remainingBal,
-        discountedGuests: discountedGuests.filter(g => g.discountID),
+        discountedGuests: (discountedGuests || [])
+          .filter(g => g && g.discountID && g.discountID !== 'none' && g.discountID !== '' && g.discountID !== 'null')
+          .map(g => ({
+            guestName: g.guestName?.trim() || `${guestForm.firstName} ${guestForm.lastName}`.trim() || 'Primary Guest',
+            discountID: (g.discountID && g.discountID !== 'none' && g.discountID !== '' && g.discountID !== 'null') ? g.discountID : null,
+            promotionID: (g.promotionID && g.promotionID !== 'none' && g.promotionID !== '' && g.promotionID !== 'null') ? g.promotionID : null,
+            discountIdNumber: (g.discountIdNumber && g.discountIdNumber !== 'N/A' && g.discountIdNumber.trim() !== '') ? g.discountIdNumber.trim() : null
+          })),
         guestCount: totalPax
       });
     });

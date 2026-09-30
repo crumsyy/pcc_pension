@@ -419,11 +419,16 @@ function BookingsClient() {
     for (let i = 0; i < (parseInt(numGuestsCount) || 1); i++) {
       const disc = discountedGuests[i] || roomGuests[i];
       const gName = disc?.guestName?.trim() || disc?.fullName?.trim();
+      const discIdVal = (disc?.discountID && disc.discountID !== 'none' && disc.discountID !== '' && disc.discountID !== 'null') ? disc.discountID : null;
+      const promoIdVal = (disc?.promotionID && disc.promotionID !== 'none' && disc.promotionID !== '' && disc.promotionID !== 'null') ? disc.promotionID : null;
+      const discNumVal = (disc?.discountIdNumber && disc.discountIdNumber !== 'N/A' && disc.discountIdNumber.trim() !== '') ? disc.discountIdNumber.trim() : null;
+
       preparedGuests.push({
         fullName: gName || (i === 0 ? primaryName : `Guest #${i + 1}`),
         age: disc?.age ? parseInt(disc.age) : 30,
-        discountID: null,
-        discountIdNumber: disc?.discountIdNumber?.trim() || null
+        discountID: discIdVal,
+        promotionID: promoIdVal,
+        discountIdNumber: discNumVal
       });
     }
 
@@ -930,9 +935,9 @@ function BookingsClient() {
     }
     setSelectedBreakfastDates(bDates);
     setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
-    setRoomGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(g => ({ ...g, discountID: g.discountID || '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
+    setRoomGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(g => ({ ...g, discountID: '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
     setNumGuestsCount(1);
-    setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
+    setDiscountedGuests([]);
     setDownPayment('');
     setPaymentMethodID('1');
     setIsGcashSettled(false);
@@ -1192,11 +1197,16 @@ function BookingsClient() {
     for (let i = 0; i < (parseInt(numGuestsCount) || 1); i++) {
       const disc = validGuests[i];
       const gName = disc?.guestName?.trim() || disc?.fullName?.trim();
+      const discIdVal = (disc?.discountID && disc.discountID !== 'none' && disc.discountID !== '' && disc.discountID !== 'null') ? disc.discountID : null;
+      const promoIdVal = (disc?.promotionID && disc.promotionID !== 'none' && disc.promotionID !== '' && disc.promotionID !== 'null') ? disc.promotionID : null;
+      const discNumVal = (disc?.discountIdNumber && disc.discountIdNumber !== 'N/A' && disc.discountIdNumber.trim() !== '') ? disc.discountIdNumber.trim() : null;
+
       preparedGuests.push({
         fullName: gName || (i === 0 ? (primaryName || 'Primary Guest') : `Guest #${i + 1}`),
         age: 30,
-        discountID: null,
-        discountIdNumber: disc?.discountIdNumber?.trim() || null
+        discountID: discIdVal,
+        promotionID: promoIdVal,
+        discountIdNumber: discNumVal
       });
     }
 

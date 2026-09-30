@@ -583,6 +583,14 @@ export default function ReceptionistBilling() {
   const activeCount = activeBookings.filter(b => ACTIVE_STATUS_LIST.includes(b.status)).length;
   const completedCount = activeBookings.filter(b => b.status === 'Completed' || b.status === 'Checked Out').length;
 
+  const appliedDiscountsList = (billDetails?.guestsList || []).filter(g => {
+    const dId = g.discountID;
+    const pId = g.promotionID;
+    const hasValidDiscount = dId && dId !== 'none' && dId !== 'N/A' && dId !== 'null' && String(dId).trim() !== '' && dId !== 0 && dId !== '0';
+    const hasValidPromo = pId && pId !== 'none' && pId !== 'N/A' && pId !== 'null' && String(pId).trim() !== '' && pId !== 0 && pId !== '0';
+    return hasValidDiscount || hasValidPromo;
+  });
+
   return (
     <>
       <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
@@ -814,7 +822,7 @@ export default function ReceptionistBilling() {
                                   <td>{billDetails.booking.nights}</td>
                                   <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.originalRoomCharge || billDetails.booking.originalRoomCharge || billDetails.booking.roomCharge).toFixed(2)}</td>
                                 </tr>
-                                {billDetails.chargesSummary.totalDiscount > 0 && (
+                                {appliedDiscountsList.length > 0 && billDetails.chargesSummary.totalDiscount > 0 && (
                                   <tr className="table-warning small">
                                     <td colSpan="3" className="ps-3 text-warning-dark">
                                       <div>
@@ -823,7 +831,7 @@ export default function ReceptionistBilling() {
                                           <li>Total Registered Guests: <strong>{billDetails.chargesSummary.totalGuests} Pax</strong></li>
                                           <li>Individual Guest Share: <strong>₱{parseFloat(billDetails.chargesSummary.sharePerGuest).toFixed(2)}</strong></li>
                                           <li>
-                                          Applied Discounts/Promotions: <strong>{billDetails.guestsList.filter(g => g.discountID).length} Guest(s)</strong> (configured discount percentage applied to their individual share)
+                                          Applied Discounts/Promotions: <strong>{appliedDiscountsList.length} Guest(s)</strong> (configured discount percentage applied to their individual share)
                                           </li>
                                         </ul>
                                       </div>
@@ -997,15 +1005,15 @@ export default function ReceptionistBilling() {
                             </div>
 
                             {/* Applied Discounts breakdown if any */}
-                            {((billDetails.guestsList || []).filter(g => g.discountID || g.promotionID)).length > 0 ? (
+                            {appliedDiscountsList.length > 0 && billDetails.chargesSummary.totalDiscount > 0 ? (
                               <div className="mt-2.5 pt-2 border-top">
                                 <div className="fw-semibold text-success mb-1" style={{ fontSize: '0.76rem' }}>
-                                  <i className="bi bi-tag-fill me-1"></i>Applied Discounts ({((billDetails.guestsList || []).filter(g => g.discountID || g.promotionID)).length} Beneficiar{((billDetails.guestsList || []).filter(g => g.discountID || g.promotionID)).length > 1 ? 'ies' : 'y'} — Total Savings: -₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}):
+                                  <i className="bi bi-tag-fill me-1"></i>Applied Discounts ({appliedDiscountsList.length} Beneficiar{appliedDiscountsList.length > 1 ? 'ies' : 'y'} — Total Savings: -₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}):
                                 </div>
                                 <div className="d-flex flex-wrap gap-2">
-                                  {(billDetails.guestsList || []).filter(g => g.discountID || g.promotionID).map((b, idx) => (
+                                  {appliedDiscountsList.map((b, idx) => (
                                     <div key={idx} className="badge bg-white text-dark border p-2 text-start font-monospace shadow-sm" style={{ fontSize: '0.74rem', fontWeight: 'normal' }}>
-                                      <strong className="text-primary">{b.fullName}</strong> — {b.discountName} ({b.discountIdNumber})
+                                      <strong className="text-primary">{b.fullName}</strong> — {b.discountName || 'Special Discount'} {b.discountIdNumber ? `(${b.discountIdNumber})` : ''}
                                       <span className="text-success fw-bold ms-1">-₱{parseFloat(b.discount || 0).toFixed(2)}</span>
                                     </div>
                                   ))}
@@ -1366,7 +1374,10 @@ export default function ReceptionistBilling() {
                             const incidentalsTotal = parseFloat(cs.incidentals || 0);
 
                             const grossSubtotal = parseFloat(cs.grossSubtotal || (baseRoomCharge + extraGuestFee + earlyCheckIn + lateCheckOut + ordersTotal + incidentalsTotal));
-                            const discountTotal = parseFloat(cs.discountTotal ?? cs.totalDiscount ?? 0);
+                            const appliedDiscountsSummaryList = (billDetails.discountList && billDetails.discountList.length > 0)
+                              ? billDetails.discountList.filter(d => d.discountID && d.discountID !== 'none' && d.discountID !== 'N/A' && d.discountID !== 'null' && String(d.discountID).trim() !== '' && d.discountID !== 0 && d.discountID !== '0')
+                              : [];
+                            const discountTotal = appliedDiscountsSummaryList.length > 0 ? parseFloat(cs.discountTotal ?? cs.totalDiscount ?? 0) : 0;
                             const netTotal = parseFloat(cs.netTotal ?? Math.max(0, grossSubtotal - discountTotal));
                             const vatRate = 0.00;
                             const vatAmount = 0.00;
@@ -1375,10 +1386,6 @@ export default function ReceptionistBilling() {
                             const downPaymentPaid = parseFloat(cs.downPaymentPaid || 0);
                             const otherPayments = Math.max(0, paidTotal - downPaymentPaid);
                             const balance = parseFloat(cs.balance || 0);
-
-                            const appliedDiscountsList = (billDetails.discountList && billDetails.discountList.length > 0)
-                              ? billDetails.discountList
-                              : [];
 
                             return (
                               <>
@@ -1441,9 +1448,9 @@ export default function ReceptionistBilling() {
                                     </span>
                                     <span className="fs-6">{discountTotal > 0 ? `-₱${discountTotal.toFixed(2)}` : '₱0.00'}</span>
                                   </div>
-                                  {appliedDiscountsList.length > 0 ? (
+                                  {appliedDiscountsSummaryList.length > 0 ? (
                                     <div className="d-flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
-                                      {appliedDiscountsList.map((disc, idx) => (
+                                      {appliedDiscountsSummaryList.map((disc, idx) => (
                                         <span key={idx} className="badge bg-danger text-white fw-normal px-2.5 py-1 text-start" style={{ fontSize: '0.74rem', lineHeight: '1.3' }}>
                                           <i className="fa-solid fa-user-check me-1"></i>
                                           <strong>{disc.guestName || disc.fullName}</strong> ({disc.discountName || 'Special Discount'} {disc.discountPercentage || disc.percentage || 20}% - ID: {disc.discountIdNumber || 'N/A'}): -₱{parseFloat(disc.discountAmount || disc.discount || 0).toFixed(2)}
@@ -1460,7 +1467,7 @@ export default function ReceptionistBilling() {
                                     style={{ fontSize: '0.75rem' }}
                                   >
                                     <i className="fa-solid fa-pen-to-square"></i>
-                                    <span>{appliedDiscountsList.length > 0 ? 'Edit / Adjust Guest Discounts' : 'Apply Senior Citizen / PWD Discount'}</span>
+                                    <span>{appliedDiscountsSummaryList.length > 0 ? 'Edit / Adjust Guest Discounts' : 'Apply Senior Citizen / PWD Discount'}</span>
                                   </button>
                                 </div>
 

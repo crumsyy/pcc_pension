@@ -522,6 +522,13 @@ export async function POST(request) {
           );
         }
 
+        // Ensure no phantom discounts in booking_guest_details or booking_discount for this newly created booking
+        await conn.execute("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
+        await conn.execute(
+          "UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ? AND (discountID = '' OR discountID = 'none' OR discountID = 'N/A' OR discountID = 'null' OR discountID = 0)",
+          [bookingID]
+        );
+
         // Create Billing Record (Initial booking starts with 0 discount until verified and applied via Receptionist Billing)
         const localNow = new Date();
         const pad = (num) => String(num).padStart(2, '0');
@@ -786,6 +793,10 @@ export async function POST(request) {
               );
             }
           }
+          await conn.execute(
+            "UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ? AND (discountID = '' OR discountID = 'none' OR discountID = 'N/A' OR discountID = 'null' OR discountID = 0)",
+            [bookingID]
+          );
         }
 
         // Record fee in incidental_charge if extra guest fee exists
@@ -888,11 +899,18 @@ export async function POST(request) {
 
         // Insert new guests
         for (const g of guests) {
+          const cleanDiscID = (g.discountID && g.discountID !== 'none' && g.discountID !== 'N/A' && g.discountID !== 'null' && String(g.discountID).trim() !== '' && g.discountID !== 0 && g.discountID !== '0') ? g.discountID : null;
+          const cleanDiscNum = cleanDiscID ? (g.discountIdNumber?.trim() || null) : null;
           await conn.execute(
             "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, ?, ?)",
-            [bookingID, g.fullName.trim(), parseInt(g.age), g.discountID || null, g.discountIdNumber?.trim() || null]
+            [bookingID, g.fullName.trim(), parseInt(g.age) || 30, cleanDiscID, cleanDiscNum]
           );
         }
+
+        await conn.execute(
+          "UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ? AND (discountID = '' OR discountID = 'none' OR discountID = 'N/A' OR discountID = 'null' OR discountID = 0)",
+          [bookingID]
+        );
 
         await conn.commit();
         return NextResponse.json({ success: true, message: 'Registered guests updated successfully.' });

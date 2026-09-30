@@ -635,6 +635,13 @@ export async function POST(request) {
           );
         }
 
+        // Ensure no phantom discounts in booking_guest_details or booking_discount for this converted booking
+        await conn.execute("DELETE FROM booking_discount WHERE bookingID = ?", [bookingID]);
+        await conn.execute(
+          "UPDATE booking_guest_details SET discountID = NULL, promotionID = NULL, discountIdNumber = NULL WHERE bookingID = ? AND (discountID = '' OR discountID = 'none' OR discountID = 'N/A' OR discountID = 'null' OR discountID = 0)",
+          [bookingID]
+        );
+
         // 4. Create Billing Record with synchronized invariant totals
         const [billingInsert] = await conn.execute(
           `INSERT INTO billing (

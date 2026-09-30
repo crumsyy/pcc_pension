@@ -984,20 +984,24 @@ export async function POST(request) {
       const sharePerGuest = baseRoomCharge / guestCount;
 
       for (const ag of allGuests) {
-        if (ag.discountID || ag.promotionID) {
+        const hasValidAgDiscount = ag.discountID && ag.discountID !== 'none' && ag.discountID !== 'N/A' && ag.discountID !== 'null' && ag.discountID !== 0 && ag.discountID !== '0';
+        const hasValidAgPromo = ag.promotionID && ag.promotionID !== 'none' && ag.promotionID !== 'N/A' && ag.promotionID !== 'null' && ag.promotionID !== 0 && ag.promotionID !== '0';
+        if (hasValidAgDiscount || hasValidAgPromo) {
           let pct = 0;
-          if (ag.discountID) {
+          if (hasValidAgDiscount) {
             const [dData] = await conn.execute("SELECT percentage FROM discounts WHERE discountID = ?", [ag.discountID]);
             pct = parseFloat(dData[0]?.percentage || 0);
-          } else if (ag.promotionID) {
+          } else if (hasValidAgPromo) {
             const [pData] = await conn.execute("SELECT percentage FROM promotions WHERE promotionID = ?", [ag.promotionID]);
             pct = parseFloat(pData[0]?.percentage || 0);
           }
-          const discAmt = Math.round(sharePerGuest * (pct / 100) * 100) / 100;
-          await conn.execute(
-            "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
-            [bookingID, ag.fullName, ag.discountID || null, ag.discountIdNumber || 'N/A', discAmt]
-          );
+          if (pct > 0) {
+            const discAmt = Math.round(sharePerGuest * (pct / 100) * 100) / 100;
+            await conn.execute(
+              "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount) VALUES (?, ?, ?, ?, ?)",
+              [bookingID, ag.fullName, ag.discountID || null, ag.discountIdNumber || 'N/A', discAmt]
+            );
+          }
         }
       }
 
