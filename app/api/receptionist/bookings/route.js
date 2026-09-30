@@ -158,6 +158,10 @@ export async function POST(request) {
       if (action === 'create') {
         const sanitizedDownPaymentAmount = parseFloat(body.downPaymentAmount || 0) || 0;
         const sanitizedDownPaymentPercentage = parseInt(body.downPaymentPercentage || 50) || 50;
+        
+        // Ensure variables used later in the block are defined
+        const downPaymentAmount = sanitizedDownPaymentAmount;
+        const dpPercentageInt = sanitizedDownPaymentPercentage;
       const guests = body.guests || [];
       // Validate guests list
       for (const g of guests) {
