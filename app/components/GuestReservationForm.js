@@ -85,7 +85,7 @@ export default function GuestReservationForm({
         : 1)
     : 0;
 
-  const totalBreakfastFee = isWithBreakfast ? (perGuestBreakfastRate * guestCount * breakfastMornings) : 0;
+  const totalBreakfastFee = isWithBreakfast ? (perGuestBreakfastRate * breakfastMornings) : 0;
   const baseRoomAccommodation = rateWithoutBfast * nightsCount;
   const roomSubtotal = baseRoomAccommodation + totalBreakfastFee;
   const estimatedTotal = roomSubtotal + extraGuestFee;
@@ -241,7 +241,7 @@ export default function GuestReservationForm({
         {isWithBreakfast && (
           <div className="d-flex justify-content-between mb-1 text-primary">
             <span>
-              Breakfast Fee ({breakfastMornings} morning{breakfastMornings > 1 ? 's' : ''} for {guestCount} guest{guestCount > 1 ? 's' : ''}{perGuestBreakfastRate > 0 ? ` @ ₱${perGuestBreakfastRate}/morning` : ' - Free'}):
+              Breakfast Fee ({breakfastMornings} morning{breakfastMornings > 1 ? 's' : ''}{perGuestBreakfastRate > 0 ? ` @ ₱${perGuestBreakfastRate}/morning` : ' - Free'}):
             </span>
             <span className="fw-semibold">{totalBreakfastFee > 0 ? `+₱${totalBreakfastFee.toFixed(2)}` : '₱0.00'}</span>
           </div>

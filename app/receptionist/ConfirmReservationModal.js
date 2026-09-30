@@ -196,7 +196,7 @@ export default function ConfirmReservationModal({
 
   let calculatedBreakfastFee = parseFloat(selectedRes.breakfastFee || 0);
   if (hasCustomBreakfast && calculatedBreakfastFee <= 0) {
-    calculatedBreakfastFee = parsedBreakfastDates.length * 250 * totalPax;
+    calculatedBreakfastFee = parsedBreakfastDates.length * 250;
   }
 
   const formattedDiscounts = (discountedGuests || [])

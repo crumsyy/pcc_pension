@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, ensureBookingBreakfastSchema, ensurePaymentSchema, normalizeBookingStatus, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
-import { getStayNights } from '@/lib/dateUtils';
+import { getStayNights, getManilaNow } from '@/lib/dateUtils';
 
 export async function GET() {
   const session = await getSession();
@@ -451,7 +451,7 @@ export async function POST(request) {
         const extraGuests = Math.max(0, totalPax - basePax);
         const extraGuestFee = extraGuests * 100 * nights;
         const breakfastTotal = hasCustomBreakfast
-          ? (validBreakfastDates.length * customBfastRate * totalPax)
+          ? (validBreakfastDates.length * customBfastRate)
           : (parseFloat(body.breakfastFee || resBreakfastFee || 0));
 
         const baseRoomCharge = Math.round(roomPrice * nights * 100) / 100;
@@ -462,15 +462,18 @@ export async function POST(request) {
 
         let finalCheckInDateTime = checkInDateTime;
         if (!convResID && (body.useCurrentTime === true || body.useCurrentTimeIn === true)) {
-          const localNow = new Date();
-          const pad = (num) => String(num).padStart(2, '0');
-          finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+          if (checkInDateTime && String(checkInDateTime).trim().length >= 16) {
+            const cleanTs = String(checkInDateTime).trim().replace('T', ' ');
+            finalCheckInDateTime = cleanTs.length === 16 ? `${cleanTs}:00` : cleanTs;
+          } else {
+            const manila = getManilaNow();
+            finalCheckInDateTime = manila.dateTimeStr;
+          }
         }
         let finalCheckOutDateTime = checkOutDateTime;
         if (!convResID && body.useCurrentTimeOut === true) {
-          const localNow = new Date();
-          const pad = (num) => String(num).padStart(2, '0');
-          finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+          const manila = getManilaNow();
+          finalCheckOutDateTime = manila.dateTimeStr;
         }
 
         const isCheckedInNow = !convResID && Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);

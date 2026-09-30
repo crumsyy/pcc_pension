@@ -1037,7 +1037,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         ? (Array.isArray(selectedBreakfastDates) ? selectedBreakfastDates.length : nightsCount)
         : 1)
     : 0;
-  const calculatedBreakfastFee = isWithBreakfast ? (perGuestBreakfastRate * inputPax * breakfastMorningsCount) : 0;
+  const calculatedBreakfastFee = isWithBreakfast ? (perGuestBreakfastRate * breakfastMorningsCount) : 0;
   const pureAccommodationCharge = Math.round(pureBaseRoomRate * nightsCount * 100) / 100;
   const baseRoomCharge = pureAccommodationCharge + calculatedBreakfastFee;
   const roomRate = pureBaseRoomRate;
@@ -4565,7 +4565,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       {isWithBreakfast && (
                         <div className="d-flex justify-content-between mb-1 text-primary">
                           <span>
-                            Breakfast Fee ({breakfastMorningsCount} morning{breakfastMorningsCount > 1 ? 's' : ''} for {inputPax} guest{inputPax > 1 ? 's' : ''}{perGuestBreakfastRate > 0 ? ` @ ₱${perGuestBreakfastRate}/morning` : ' - Free'}):
+                            Breakfast Fee ({breakfastMorningsCount} morning{breakfastMorningsCount > 1 ? 's' : ''}{perGuestBreakfastRate > 0 ? ` @ ₱${perGuestBreakfastRate}/morning` : ' - Free'}):
                           </span>
                           <span className="fw-semibold">{calculatedBreakfastFee > 0 ? `+₱${calculatedBreakfastFee.toFixed(2)}` : '₱0.00'}</span>
                         </div>

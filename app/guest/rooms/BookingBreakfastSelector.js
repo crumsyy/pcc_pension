@@ -54,7 +54,7 @@ export default function BookingBreakfastSelector({
 
   // Notify parent form of changes without forcing strict state mutations
   useEffect(() => {
-    const totalBreakfastFee = selectedDates.length * effectiveRate * effectiveGuests;
+    const totalBreakfastFee = selectedDates.length * effectiveRate;
     onChange?.({
       selectedDates,
       breakfastCount: selectedDates.length,
@@ -62,7 +62,7 @@ export default function BookingBreakfastSelector({
       perGuestBreakfastRate: effectiveRate
     });
     onChangeDates?.(selectedDates);
-  }, [selectedDates, effectiveRate, effectiveGuests, onChange, onChangeDates]);
+  }, [selectedDates, effectiveRate, onChange, onChangeDates]);
 
   const toggleDate = (dateStr) => {
     setSelectedDates(prev =>
@@ -85,7 +85,7 @@ export default function BookingBreakfastSelector({
     return null;
   }
 
-  const perMorningTotal = perNightBreakfastRate !== undefined ? Number(perNightBreakfastRate) : (effectiveRate * effectiveGuests);
+  const perMorningTotal = perNightBreakfastRate !== undefined ? Number(perNightBreakfastRate) : effectiveRate;
 
   return (
     <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style={{ background: '#f8fafc' }}>
@@ -98,7 +98,7 @@ export default function BookingBreakfastSelector({
             Customize Breakfast Mornings
           </h6>
           <p className="text-muted small mb-0">
-            Choose which mornings to include breakfast (₱{effectiveRate.toLocaleString()} / guest / morning)
+            Choose which mornings to include breakfast (₱{effectiveRate.toLocaleString()} / morning)
           </p>
         </div>
 
@@ -152,15 +152,9 @@ export default function BookingBreakfastSelector({
                       <span className={`fw-bold small ${isSelected ? 'text-primary' : 'text-muted'}`}>
                         +₱{perMorningTotal.toLocaleString()}
                       </span>
-                      {effectiveGuests > 1 ? (
-                        <span className="d-block text-muted" style={{ fontSize: '0.72rem' }}>
-                          ({effectiveGuests} pax @ ₱{effectiveRate.toLocaleString()})
-                        </span>
-                      ) : (
-                        <span className="d-block text-muted" style={{ fontSize: '0.72rem' }}>
-                          / morning
-                        </span>
-                      )}
+                      <span className="d-block text-muted" style={{ fontSize: '0.72rem' }}>
+                        / morning
+                      </span>
                     </div>
                     <div className="form-check form-switch m-0" onClick={(e) => e.stopPropagation()}>
                       <input
@@ -184,9 +178,7 @@ export default function BookingBreakfastSelector({
             <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1">
               {selectedDates.length} of {stayNights.length} mornings selected
             </span>
-            {effectiveGuests > 1 && (
-              <span className="text-muted">({effectiveGuests} guests @ ₱{effectiveRate.toLocaleString()}/morning)</span>
-            )}
+            <span className="text-muted">(₱{effectiveRate.toLocaleString()}/morning)</span>
           </div>
 
           <div className="text-end">

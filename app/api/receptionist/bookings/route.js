@@ -3,7 +3,7 @@ import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureTestModeSchema, ensurePaymentSchema, ensureBookingBillingSchema, ensureBookingBreakfastSchema, logBillingAudit, completeBookingAndFreeRoom, syncNormalizedBillingLineItems, getSystemVatRate } from '@/lib/db';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
-import { getStayNights } from '@/lib/dateUtils';
+import { getStayNights, getManilaNow } from '@/lib/dateUtils';
 
 export async function GET(request) {
   const session = await getSession();
@@ -351,9 +351,9 @@ export async function POST(request) {
 
         let breakfastTotal = 0;
         if (breakfastOption === 'with') {
-          breakfastTotal = Math.round(perGuestBreakfastRate * totalGuestsCount * diffDays * 100) / 100;
+          breakfastTotal = Math.round(perGuestBreakfastRate * diffDays * 100) / 100;
         } else if (breakfastOption === 'custom') {
-          breakfastTotal = Math.round(perGuestBreakfastRate * totalGuestsCount * validBreakfastDates.length * 100) / 100;
+          breakfastTotal = Math.round(perGuestBreakfastRate * validBreakfastDates.length * 100) / 100;
         } else {
           breakfastTotal = 0;
         }
@@ -451,16 +451,19 @@ export async function POST(request) {
         let finalCheckInDateTime = checkInDateTime;
         let bookingStatus = status;
         if (body.useCurrentTime === true || body.useCurrentTimeIn === true || status === 'Checked In') {
-          const localNow = new Date();
-          const pad = (num) => String(num).padStart(2, '0');
-          finalCheckInDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+          if (checkInDateTime && String(checkInDateTime).trim().length >= 16) {
+            const cleanTs = String(checkInDateTime).trim().replace('T', ' ');
+            finalCheckInDateTime = cleanTs.length === 16 ? `${cleanTs}:00` : cleanTs;
+          } else {
+            const manila = getManilaNow();
+            finalCheckInDateTime = manila.dateTimeStr;
+          }
           bookingStatus = 'Checked In';
         }
         let finalCheckOutDateTime = checkOutDateTime;
         if (body.useCurrentTimeOut === true) {
-          const localNow = new Date();
-          const pad = (num) => String(num).padStart(2, '0');
-          finalCheckOutDateTime = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
+          const manila = getManilaNow();
+          finalCheckOutDateTime = manila.dateTimeStr;
         }
 
         // Insert booking with roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount, breakfastDates, breakfastFee
@@ -488,11 +491,23 @@ export async function POST(request) {
         let earlyFeeToRecord = parseFloat(body.earlyFee) || 0;
         let earlyHoursToRecord = parseInt(body.earlyHours) || 0;
         if (!earlyFeeToRecord && (body.useCurrentTimeIn || bookingStatus === 'Checked In')) {
-          const now = new Date();
-          const pad = (n) => String(n).padStart(2, '0');
-          const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-          if (inDateStr === todayStr && now.getHours() < 14) {
-            const exactRemainingMinutes = (14 * 60) - (now.getHours() * 60 + now.getMinutes());
+          let checkInHour = null;
+          let checkInMinute = null;
+          let checkInDate = inDateStr;
+          if (finalCheckInDateTime && finalCheckInDateTime.includes(' ')) {
+            const [dPart, tPart] = finalCheckInDateTime.split(' ');
+            checkInDate = dPart;
+            const [h, m] = tPart.split(':');
+            checkInHour = parseInt(h, 10);
+            checkInMinute = parseInt(m, 10);
+          } else {
+            const manila = getManilaNow();
+            checkInDate = manila.dateStr;
+            checkInHour = manila.hour;
+            checkInMinute = manila.minute;
+          }
+          if (inDateStr === checkInDate && checkInHour !== null && checkInHour < 14) {
+            const exactRemainingMinutes = (14 * 60) - (checkInHour * 60 + (checkInMinute || 0));
             if (exactRemainingMinutes > 0) {
               earlyHoursToRecord = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
               earlyFeeToRecord = earlyHoursToRecord * 50;
@@ -670,7 +685,7 @@ export async function POST(request) {
       const inD = new Date(checkInDateTime.replace(' ', 'T'));
       const outD = new Date(checkOutDateTime.replace(' ', 'T'));
 
-      if (inD.getTime() < new Date().getTime() - 60000) {
+      if (['Pending Check-in', 'Pending', 'Confirmed', 'Booked'].includes(oldBooking.status) && inD.getTime() < new Date().getTime() - 60000) {
         return NextResponse.json({ error: 'Reservation or booking has already passed.' }, { status: 400 });
       }
 

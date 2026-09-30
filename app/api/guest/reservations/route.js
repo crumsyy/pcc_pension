@@ -321,7 +321,7 @@ export async function POST(request) {
     } else if (!breakfastOption) {
       breakfastOption = 'without';
     }
-    const breakfastTotal = validBreakfastDates.length * resolvedBfastRate * (parseInt(numGuests || 1) || 1);
+    const breakfastTotal = validBreakfastDates.length * resolvedBfastRate;
 
     // Zero billing record generated for courtesy holds / confirmed booking records
     const insertRes = await dbQuery(

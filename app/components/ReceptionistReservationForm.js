@@ -92,9 +92,9 @@ export default function ReceptionistReservationForm({
 
   let calculatedBreakfastFee = 0;
   if (breakfastOption === 'with') {
-    calculatedBreakfastFee = perGuestBreakfastRate * numGuests * nightsCount;
+    calculatedBreakfastFee = perGuestBreakfastRate * nightsCount;
   } else if (breakfastOption === 'custom') {
-    calculatedBreakfastFee = perGuestBreakfastRate * numGuests * (selectedBreakfastDates?.length || 0);
+    calculatedBreakfastFee = perGuestBreakfastRate * (selectedBreakfastDates?.length || 0);
   }
 
   const roomSubtotal = rateWithoutBfast * nightsCount;
@@ -502,7 +502,7 @@ export default function ReceptionistReservationForm({
           {calculatedBreakfastFee > 0 && (
             <div className="d-flex justify-content-between mb-1 text-success">
               <span>
-                Breakfast Fee ({breakfastOption === 'custom' ? `${selectedBreakfastDates?.length || 0} morning(s)` : `${nightsCount} morning(s)`} for {numGuests} pax @ ₱{perGuestBreakfastRate.toFixed(2)}):
+                Breakfast Fee ({breakfastOption === 'custom' ? `${selectedBreakfastDates?.length || 0} morning(s)` : `${nightsCount} morning(s)`} @ ₱{perGuestBreakfastRate.toFixed(2)}):
               </span>
               <span className="fw-semibold">+₱{calculatedBreakfastFee.toFixed(2)}</span>
             </div>

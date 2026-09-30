@@ -262,22 +262,35 @@ function BookingsClient() {
       : (parseInt(b.guestCount || b.totalGuests) || 1);
 
     setUpdatingBooking({ ...b, currentGuestCount });
-    const inStr = (b.checkInDateTime || '').replace(' ', 'T');
-    const outStr = (b.checkOutDateTime || '').replace(' ', 'T');
-    const inD = inStr ? new Date(inStr) : new Date();
-    const outD = outStr ? new Date(outStr) : new Date();
-    const pad = (n) => String(n).padStart(2, '0');
+    setUseCurrentTimeIn(false);
 
-    const inUiDate = toUiDate(`${inD.getFullYear()}-${pad(inD.getMonth() + 1)}-${pad(inD.getDate())}`);
-    const outUiDate = toUiDate(`${outD.getFullYear()}-${pad(outD.getMonth() + 1)}-${pad(outD.getDate())}`);
-    const inTimeStr = `${pad(inD.getHours())}:${pad(inD.getMinutes())}`;
-    const outTimeStr = `${pad(outD.getHours())}:${pad(outD.getMinutes())}`;
+    let inDatePart = '';
+    let inTimePart = '14:00';
+    if (b.checkInDateTime) {
+      const parts = String(b.checkInDateTime).replace('T', ' ').split(' ');
+      inDatePart = parts[0] || '';
+      if (parts[1]) {
+        inTimePart = parts[1].substring(0, 5);
+      }
+    }
+    let outDatePart = '';
+    let outTimePart = '12:00';
+    if (b.checkOutDateTime) {
+      const parts = String(b.checkOutDateTime).replace('T', ' ').split(' ');
+      outDatePart = parts[0] || '';
+      if (parts[1]) {
+        outTimePart = parts[1].substring(0, 5);
+      }
+    }
+
+    const inUiDate = inDatePart ? toUiDate(inDatePart) : '';
+    const outUiDate = outDatePart ? toUiDate(outDatePart) : '';
 
     // Pre-populate Workspace Date & Times
     setCheckInDate(inUiDate);
-    setCheckInTime(inTimeStr);
+    setCheckInTime(inTimePart);
     setCheckOutDate(outUiDate);
-    setCheckOutTime(outTimeStr);
+    setCheckOutTime(outTimePart);
     setNumGuestsCount(currentGuestCount);
 
     // Pre-populate Guest Info
@@ -306,8 +319,8 @@ function BookingsClient() {
     setFormData({
       guestID: b.guestID ? String(b.guestID) : '',
       roomID: String(b.roomID),
-      checkInDateTime: inStr,
-      checkOutDateTime: outStr,
+      checkInDateTime: inDatePart ? `${inDatePart} ${inTimePart}:00` : '',
+      checkOutDateTime: outDatePart ? `${outDatePart} ${outTimePart}:00` : '',
       status: b.status || 'Checked In'
     });
 
@@ -326,11 +339,7 @@ function BookingsClient() {
           discountID: String(g.discountID),
           discountIdNumber: g.discountIdNumber || ''
         }));
-      setDiscountedGuests(discOnly.length > 0 ? discOnly : [{
-        guestName: `${b.firstName || ''} ${b.middleName ? b.middleName + ' ' : ''}${b.lastName || ''}`.trim(),
-        discountID: '',
-        discountIdNumber: ''
-      }]);
+      setDiscountedGuests(discOnly);
     } else {
       const primaryFullName = `${b.firstName || ''} ${b.middleName ? b.middleName + ' ' : ''}${b.lastName || ''}`.trim();
       setRoomGuests([{
@@ -339,11 +348,7 @@ function BookingsClient() {
         discountID: '',
         discountIdNumber: ''
       }]);
-      setDiscountedGuests([{
-        guestName: primaryFullName,
-        discountID: '',
-        discountIdNumber: ''
-      }]);
+      setDiscountedGuests([]);
     }
 
     setActiveModal('update_booking');
@@ -1092,9 +1097,9 @@ function BookingsClient() {
 
       let calculatedBreakfastFee = 0;
       if (breakfastOption === 'with') {
-        calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * nights;
+        calculatedBreakfastFee = perGuestBreakfastRate * nights;
       } else if (breakfastOption === 'custom') {
-        calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * (selectedBreakfastDates?.length || 0);
+        calculatedBreakfastFee = perGuestBreakfastRate * (selectedBreakfastDates?.length || 0);
       }
 
       const formattedDiscounts = effectiveDiscGuests
@@ -1276,9 +1281,9 @@ function BookingsClient() {
 
     let calculatedBreakfastFee = 0;
     if (breakfastOption === 'with') {
-      calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * nights;
+      calculatedBreakfastFee = perGuestBreakfastRate * nights;
     } else if (breakfastOption === 'custom') {
-      calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * (selectedBreakfastDates?.length || 0);
+      calculatedBreakfastFee = perGuestBreakfastRate * (selectedBreakfastDates?.length || 0);
     }
 
     const formattedDiscounts = effectiveDiscGuests
@@ -2716,9 +2721,9 @@ function BookingsClient() {
 
                     let calculatedBreakfastFee = 0;
                     if (breakfastOption === 'with') {
-                      calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * nights;
+                      calculatedBreakfastFee = perGuestBreakfastRate * nights;
                     } else if (breakfastOption === 'custom') {
-                      calculatedBreakfastFee = perGuestBreakfastRate * totalGuests * (selectedBreakfastDates?.length || 0);
+                      calculatedBreakfastFee = perGuestBreakfastRate * (selectedBreakfastDates?.length || 0);
                     }
 
                     const baseRoomStayCharges = baseRoomRate * (nights || 1);

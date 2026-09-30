@@ -159,7 +159,7 @@ export async function POST(request) {
       const baseRoomCharge = roomPrice * nights;
       let calculatedBreakfastFee = parseFloat(reservation.breakfastFee || 0);
       if (hasCustomBreakfast && calculatedBreakfastFee <= 0) {
-        calculatedBreakfastFee = parsedDates.length * 250 * totalPax;
+        calculatedBreakfastFee = parsedDates.length * 250;
       }
       const totalCharge = baseRoomCharge + calculatedBreakfastFee + extraGuestFee;
 

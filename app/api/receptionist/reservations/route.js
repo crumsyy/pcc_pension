@@ -338,7 +338,7 @@ export async function POST(request) {
 
       let breakfastFee = parseFloat(body.breakfastFee || 0);
       if (breakfastOption === 'custom' && validBreakfastDates.length > 0 && breakfastFee <= 0) {
-        breakfastFee = validBreakfastDates.length * 250 * guestCount;
+        breakfastFee = validBreakfastDates.length * 250;
       }
 
       const insertRes = await dbQuery(
@@ -555,7 +555,7 @@ export async function POST(request) {
 
         let calculatedBreakfastFee = parseFloat(res[0].breakfastFee || 0);
         if (hasCustomBreakfastDates && calculatedBreakfastFee <= 0) {
-          calculatedBreakfastFee = parsedDates.length * 250 * totalGuestsCount;
+          calculatedBreakfastFee = parsedDates.length * 250;
         }
 
         // Process guest individual discounts
