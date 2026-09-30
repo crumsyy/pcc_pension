@@ -295,6 +295,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const submittingBookingRef = useRef(false);
 
   const setActiveTab = (newTab, pushHistory = true) => {
+    setConvertingReservationID(null);
     _setActiveTab(newTab);
     if (pushHistory && typeof window !== 'undefined' && ['home', 'rooms', 'orders', 'chat', 'notifications', 'account'].includes(newTab)) {
       const url = newTab === 'home' ? '/guest/dashboard' : `/guest/dashboard?tab=${newTab}`;
@@ -387,7 +388,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [useCurrentTimeOut, setUseCurrentTimeOut] = useState(false);
 
   const handleCheckInDateChange = (val) => {
-    if (convertingReservationID) return;
     setCheckInDate(val);
     if (val) {
       const inDate = new Date(val + 'T00:00:00');
@@ -1149,19 +1149,44 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleStartReservationFlow = handleStartReserveFlow;
 
+  const handleOpenBookingModal = (rm) => {
+    if (!rm) return;
+    if (rm.status === 'Under Maintenance' || rm.status === 'Maintenance') {
+      showAlert('warning', 'Room Under Maintenance', 'This room is currently under maintenance and cannot be booked.');
+      return;
+    }
+    setConvertingReservationID(null);
+    setSelectedRoom(rm);
+    setFlowAction('book');
+    const todayStr = minBookDateStr || new Date().toISOString().substring(0, 10);
+    setCheckInDate(todayStr);
+    const inDate = new Date(todayStr + 'T00:00:00');
+    if (!isNaN(inDate.getTime())) {
+      inDate.setDate(inDate.getDate() + 1);
+      const pad = (n) => String(n).padStart(2, '0');
+      setCheckOutDate(`${inDate.getFullYear()}-${pad(inDate.getMonth() + 1)}-${pad(inDate.getDate())}`);
+    }
+    setCheckInTime('14:00');
+    setCheckOutTime('12:00');
+    setPaymentOption('50');
+    setGcashRef('');
+    setIsGuestGcashSettled(false);
+    setGuestGcashInlineError('');
+    setActiveModal('book_form');
+  };
+
   const handleSelectRoomCard = (rm) => {
     if (rm.status === 'Under Maintenance' || rm.status === 'Maintenance') {
       showAlert('warning', 'Room Under Maintenance', 'This room is currently under maintenance and cannot be booked.');
       return;
     }
 
-    setSelectedRoom(rm);
     if (flowAction === 'reserve') {
+      setSelectedRoom(rm);
+      handleCheckInDateChange(minReserveDateStr);
       setActiveModal('reserve_form');
     } else {
-      setConvertingReservationID(null);
-      handleCheckInDateChange(minBookDateStr);
-      setActiveModal('book_form');
+      handleOpenBookingModal(rm);
     }
   };
 
@@ -2971,13 +2996,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           </p>
                           <div className="d-flex gap-2">
                             <button className="btn btn-sm btn-secondary text-white fw-bold w-50" onClick={() => handleOpenRoomDetails(rm)}>Details</button>
-                            <button className="btn btn-sm btn-primary text-white w-50" onClick={() => {
-                              setConvertingReservationID(null);
-                              setSelectedRoom(rm);
-                              setFlowAction('book');
-                              handleCheckInDateChange(minBookDateStr);
-                              setActiveModal('book_form');
-                            }}>Book Now</button>
+                            <button className="btn btn-sm btn-primary text-white w-50" onClick={() => handleOpenBookingModal(rm)}>Book Now</button>
                           </div>
                         </div>
                       </div>
@@ -3130,11 +3149,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 }}
                                 onClick={() => {
                                   if (isBookable) {
-                                    setConvertingReservationID(null);
-                                    setSelectedRoom(rm);
-                                    setFlowAction('book');
-                                    handleCheckInDateChange(minBookDateStr);
-                                    setActiveModal('book_form');
+                                    if (flowAction === 'reserve') {
+                                      setSelectedRoom(rm);
+                                      handleCheckInDateChange(minReserveDateStr);
+                                      setActiveModal('reserve_form');
+                                    } else {
+                                      handleOpenBookingModal(rm);
+                                    }
                                   }
                                 }}
                               >
@@ -3244,11 +3265,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                           className="btn btn-xs btn-primary text-white fw-bold py-2 px-2.5 flex-grow-1 shadow-xs"
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            setConvertingReservationID(null);
-                                            setSelectedRoom(rm);
-                                            setFlowAction('book');
-                                            handleCheckInDateChange(minBookDateStr);
-                                            setActiveModal('book_form');
+                                            handleOpenBookingModal(rm);
                                           }}
                                           style={{ fontSize: '0.78rem', borderRadius: '6px' }}
                                           aria-label={`Book Room ${rm.roomNumber}`}
@@ -4271,12 +4288,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary text-white fw-bold" onClick={() => setActiveModal('none')}>Close</button>
                 {selectedRoom.status === 'Available' && (
-                  <button type="button" className="btn btn-primary text-white fw-bold" onClick={() => { 
-                    setConvertingReservationID(null); 
-                    setFlowAction('book');
-                    handleCheckInDateChange(minBookDateStr);
-                    setActiveModal('book_form'); 
-                  }}>
+                  <button type="button" className="btn btn-primary text-white fw-bold" onClick={() => handleOpenBookingModal(selectedRoom)}>
                     Book Room Now
                   </button>
                 )}
