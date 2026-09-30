@@ -346,7 +346,7 @@ export default function ConfirmReservationModal({
   return (
     <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
       <div className="modal-dialog modal-dialog-centered modal-lg">
-        <div className="modal-content border-0 shadow-lg">
+        <div className="modal-content border-0 shadow-lg" style={{ maxHeight: '92vh' }}>
           <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
             <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
               <i className="bi bi-calendar-check-fill"></i>
@@ -355,8 +355,10 @@ export default function ConfirmReservationModal({
             <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
           </div>
 
-          <form onSubmit={handleFormSubmit}>
-            <div className="modal-body" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+          <form onSubmit={handleFormSubmit} className="d-flex flex-column h-100" style={{ overflow: 'hidden' }}>
+            <div className="modal-body p-0 flex-grow-1 overflow-hidden">
+                <div className="grid grid-cols-12 h-full">
+                    <div className="col-span-12 lg:col-span-8 overflow-y-auto p-4 bg-slate-50">
               
               {/* GUEST DETAILS CARD PANEL (MATCHING BOOKING FORM) */}
               <div className="p-3 mb-3 border rounded bg-white shadow-xs">
@@ -624,7 +626,9 @@ export default function ConfirmReservationModal({
                   </div>
                 </div>
               </div>
-
+            </div>
+            {/* RIGHT COLUMN: STICKY BILLING */}
+            <div className="col-span-12 lg:col-span-4 sticky top-0 h-full border-l bg-white p-4 overflow-y-auto">
               {/* REQUIRED DOWN PAYMENT TIER */}
               <div className="mb-3">
                 <label className="form-label fw-bold">Required Down Payment Tier *</label>
@@ -859,8 +863,9 @@ export default function ConfirmReservationModal({
                 )}
               </div>
             </div>
-
-            <div className="modal-footer">
+          </div>
+        </div>
+        <div className="modal-footer">
               <button type="button" className="btn btn-secondary text-white" onClick={onClose}>
                 Cancel
               </button>
