@@ -161,7 +161,6 @@ export async function POST(request) {
         
         // Ensure variables used later in the block are defined
         const downPaymentAmount = sanitizedDownPaymentAmount;
-        const dpPercentageInt = sanitizedDownPaymentPercentage;
       const guests = body.guests || [];
       // Validate guests list
       for (const g of guests) {
@@ -366,7 +365,7 @@ export async function POST(request) {
 
         const rawRoomCharge = baseRoomRate * diffDays;
 
-        const dpPercentageInt = parseInt(body.downPaymentPercentage) || 50;
+        const dpPercentageInt = sanitizedDownPaymentPercentage;
         const billingCalc = calculateBillingTotals({
           roomRate: baseRoomRate,
           nights: diffDays,
@@ -376,7 +375,7 @@ export async function POST(request) {
           breakfastFee: breakfastTotal,
           earlyFee: parseFloat(body.earlyFee) || 0,
           lateFee: parseFloat(body.lateFee) || 0,
-          downPaymentPercentage: dpPercentageInt
+          downPaymentPercentage: sanitizedDownPaymentPercentage
         });
 
         const roomDiscountAmount = 0;
@@ -586,7 +585,7 @@ export async function POST(request) {
           userID: session?.userID || null,
           userName: session?.fullName || 'Receptionist',
           userRole: session?.role || 'Receptionist',
-          description: `Down payment recorded upon booking creation (${bookingStatus}) - ${sanitizedDownPaymentPercentage}% on Room Charges`,
+          description: `Down payment recorded upon booking creation - ${sanitizedDownPaymentPercentage}% on Room Charges`,
           referenceNumber: refNumber
         });
 
