@@ -390,9 +390,9 @@ export async function POST(request) {
         const vatAmount = 0.00;
         const requiredDp = billingCalc.requiredDownpayment;
 
-        if (downPaymentAmount < requiredDp - 0.05) {
+        if (sanitizedDownPaymentAmount < requiredDp - 0.05) {
           return NextResponse.json({ 
-            error: `Payment received (₱${downPaymentAmount.toFixed(2)}) cannot be below the selected ${dpPercentageInt}% requirement of ₱${requiredDp.toFixed(2)} on total charges.` 
+            error: `Payment received (₱${sanitizedDownPaymentAmount.toFixed(2)}) cannot be below the selected ${sanitizedDownPaymentPercentage}% requirement of ₱${requiredDp.toFixed(2)} on total charges.` 
           }, { status: 400 });
         }
 
@@ -580,13 +580,13 @@ export async function POST(request) {
           bookingID,
           transactionType: 'Down Payment',
           status: 'Settled',
-          amount: downPaymentAmount,
-          balanceBefore: finalRoomCharge,
-          balanceAfter: initialBalance,
+          amount: sanitizedDownPaymentAmount,
+          balanceBefore: finalRoomCharge || 0,
+          balanceAfter: initialBalance || 0,
           userID: session?.userID || null,
           userName: session?.fullName || 'Receptionist',
           userRole: session?.role || 'Receptionist',
-          description: `Down payment recorded upon booking creation (${status}) - ${dpPercentageInt}% on Room Charges`,
+          description: `Down payment recorded upon booking creation (${bookingStatus}) - ${sanitizedDownPaymentPercentage}% on Room Charges`,
           referenceNumber: refNumber
         });
 
