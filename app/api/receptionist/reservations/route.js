@@ -99,7 +99,7 @@ export async function GET(request) {
                DATE_FORMAT(r.holdExpiryDateTime, '%Y-%m-%dT%H:%i:%s') as holdExpiryDateTime,
                r.warning12SentAt, r.warning6SentAt, r.releasedAt,
                COALESCE(r.guestCount, 1) as guestCount, r.specialRequests,
-               COALESCE(r.breakfastOption, 'with') as breakfastOption,
+               COALESCE(r.breakfastOption, 'with') as breakfastOption, r.breakfastDates, r.breakfastFee,
                 CASE 
                   WHEN r.status IN ('On Hold', 'Courtesy Hold') AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'On Hold'
                   WHEN r.status IN ('On Hold', 'Courtesy Hold') AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Cancelled'
@@ -578,7 +578,7 @@ export async function POST(request) {
             });
         }
 
-        const dpPercentageInt = Math.max(1, Math.min(100, parseInt(body.downPaymentPercentage || (downPaymentAmount ? Math.round((downPaymentAmount / (((roomRate * nights) + calculatedBreakfastFee) || 1)) * 100) : 50), 10) || 50));
+        const dpPercentageInt = Math.max(1, Math.min(100, parseInt(body.downPaymentPercentage || (downPaymentAmount ? Math.round((downPaymentAmount / ((roomRate * nights) || 1)) * 100) : 50), 10) || 50));
 
         const billingCalc = calculateBillingTotals({
           roomRate,
@@ -609,7 +609,7 @@ export async function POST(request) {
           ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             finalCheckInDateTime, checkOutDateTime, bookingStatus, reservationID, guestID, roomID,
-            roomRate, billingCalc.grossRoomSubtotal, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount,
+            roomRate, billingCalc.grossRoomCharge, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount,
             grandTotal, grandTotal, finalDownPaymentAmount, dpPercentageInt, initialBalance,
             res[0].breakfastOption || 'with', totalGuestsCount, res[0].breakfastDates || null, calculatedBreakfastFee
           ]
@@ -670,7 +670,7 @@ export async function POST(request) {
         const [paymentInsert] = await conn.execute(
           `INSERT INTO payment (amount, cashReceived, \`change\`, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
            VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
-          [downPaymentAmount, cashReceived, change, billingID, guestID, staffID, paymentMethodID, refNumber]
+          [finalDownPaymentAmount, cashReceived, change, billingID, guestID, staffID, paymentMethodID, refNumber]
         );
         const paymentID = paymentInsert.insertId;
 
@@ -692,7 +692,7 @@ export async function POST(request) {
           bookingID,
           transactionType: 'Down Payment',
           status: 'Settled',
-          amount: downPaymentAmount,
+          amount: finalDownPaymentAmount,
           balanceBefore: 0,
           balanceAfter: 0,
           userID: session?.userID || null,

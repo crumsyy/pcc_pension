@@ -618,59 +618,6 @@ function BookingsClient() {
     );
   };
 
-  // Auto-fill required down payment in Payment Received textfield
-  useEffect(() => {
-    if (!formData.roomID) return;
-    const selectedRoomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
-    if (!selectedRoomObj) return;
-
-    const rate = parseFloat(selectedRoomObj.rate) || 0;
-    const maxOccupancy = parseInt(selectedRoomObj.occupancyLimit || selectedRoomObj.roomBasePax) || 4;
-
-    let nights = 0;
-    if (checkInDate && checkOutDate) {
-      const inD = new Date(toDbDate(checkInDate) + 'T00:00:00');
-      const outD = new Date(toDbDate(checkOutDate) + 'T00:00:00');
-      if (outD > inD) {
-        nights = Math.round(Math.abs(outD - inD) / (1000 * 60 * 60 * 24));
-      }
-    }
-    nights = Math.max(1, nights);
-
-    const excessGuestsCount = Math.max(0, (parseInt(numGuestsCount) || 1) - maxOccupancy);
-    const extraGuestFee = excessGuestsCount * 100 * nights;
-    const rawSubtotal = (rate * nights) + extraGuestFee;
-
-    const effectiveDiscGuests = (discountedGuests || []).filter(g => g && g.discountID);
-    const totalGuests = Math.max(1, parseInt(numGuestsCount) || effectiveDiscGuests.length || 1);
-
-    const formattedDiscounts = effectiveDiscGuests
-      .filter(g => g.discountID)
-      .map(g => {
-        const disc = availableDiscounts.find(d => String(d.discountID) === String(g.discountID));
-        return {
-          name: g.guestName || g.fullName,
-          discountID: g.discountID,
-          discountIdNumber: g.discountIdNumber,
-          rate: disc ? (parseFloat(disc.percentage) / 100) : 0,
-          type: disc?.name || 'Special Discount'
-        };
-      });
-
-    const billing = calculateBillingTotals({
-      roomRate: rate,
-      nights,
-      guestCount: totalGuests,
-      guestDiscounts: formattedDiscounts,
-      extraGuestFee,
-      downPaymentPercentage: parseInt(downPaymentOption) || 50
-    });
-
-    if (billing.requiredDownpayment >= 0) {
-      setDownPayment(billing.requiredDownpayment.toFixed(2));
-    }
-  }, [formData.roomID, checkInDate, checkOutDate, numGuestsCount, downPaymentOption, discountedGuests, roomGuests, rooms, availableDiscounts]);
-
   const handlePrintDownPaymentReceipt = () => {
     if (!downPaymentReceipt) return;
     const printWindow = window.open('', '_blank', 'width=380,height=600');
@@ -1122,7 +1069,7 @@ function BookingsClient() {
         guestDiscounts: formattedDiscounts,
         extraGuestFee,
         breakfastFee: calculatedBreakfastFee,
-        downPaymentPercentage: parseInt(downPaymentOption) || 30
+        downPaymentPercentage: parseInt(downPaymentOption, 10) || 50
       });
 
       setDownPayment(billing.requiredDownpayment.toFixed(2));

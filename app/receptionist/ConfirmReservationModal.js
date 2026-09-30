@@ -224,14 +224,14 @@ export default function ConfirmReservationModal({
     downPaymentPercentage: dpPctNum
   });
 
-  const totalRoomCharge = billing.grossRoomSubtotal;
-  const perCapitaShare = billing.perCapitaShare;
-  const totalDiscount = billing.totalPerCapitaDiscount;
-  const netRoomStayCharge = billing.netRoomStayCharge;
-  const grossSubtotal = billing.grossSubtotal;
-  const netSubtotal = billing.netTotal;
-  const requiredDownpayment = billing.requiredDownpayment;
-  const remainingBal = Math.max(0, Math.round((billing.netTotal - requiredDownpayment) * 100) / 100);
+  const totalRoomCharge = billing.grossRoomCharge ?? billing.grossRoomSubtotal ?? 0;
+  const perCapitaShare = billing.perCapitaShare ?? 0;
+  const totalDiscount = billing.totalPerCapitaDiscount ?? 0;
+  const netRoomStayCharge = billing.netRoomStayCharge ?? 0;
+  const grossSubtotal = billing.grossSubtotal ?? 0;
+  const netSubtotal = billing.netTotal ?? 0;
+  const requiredDownpayment = billing.requiredDownpayment ?? 0;
+  const remainingBal = Math.max(0, Math.round(((billing.netTotal ?? 0) - requiredDownpayment) * 100) / 100);
   const isCheckInToday = checkInDate && toDbDate(checkInDate) === todayDbDate;
 
   const handleToggleCurrentIn = (checked) => {
@@ -301,7 +301,7 @@ export default function ConfirmReservationModal({
     const cashReceived = String(paymentMethodID) === '2' ? requiredDownpayment : parseFloat(downPayment || 0);
 
     if (String(paymentMethodID) === '1' && (isNaN(cashReceived) || cashReceived < requiredDownpayment)) {
-      showAlert('error', 'Validation Error', `Minimum required down payment is ₱${requiredDownpayment.toFixed(2)} (${dpPctNum}% Tier).`);
+      showAlert('error', 'Validation Error', `Minimum required down payment is ₱${(requiredDownpayment || 0).toFixed(2)} (${dpPctNum}% Tier).`);
       return;
     }
 
@@ -657,7 +657,7 @@ export default function ConfirmReservationModal({
                 <div className="d-flex justify-content-between mb-1">
                   <span className="text-muted">Room Base Rate:</span>
                   <span className="fw-bold text-dark">
-                    ₱{rate.toFixed(2)}/night ({isWithBk ? 'With Breakfast' : 'Without Breakfast'})
+                    ₱{(rate || 0).toFixed(2)}/night ({isWithBk ? 'With Breakfast' : 'Without Breakfast'})
                   </span>
                 </div>
                 <div className="d-flex justify-content-between mb-1">
@@ -666,16 +666,16 @@ export default function ConfirmReservationModal({
                 </div>
                 <div className="d-flex justify-content-between border-top pt-1.5 mb-1 fw-bold text-pcc-blue" style={{ fontSize: '1rem' }}>
                   <span>Base Room Charge:</span>
-                  <span>₱{totalRoomCharge.toFixed(2)}</span>
+                  <span>₱{(totalRoomCharge || 0).toFixed(2)}</span>
                 </div>
                 <div className="d-flex justify-content-between mb-1 text-muted" style={{ fontSize: '0.84rem' }}>
                   <span>Per-Capita Share ({totalPax} Guest{totalPax > 1 ? 's' : ''}):</span>
-                  <span className="fw-semibold text-dark">₱{perCapitaShare.toFixed(2)}/pax</span>
+                  <span className="fw-semibold text-dark">₱{(perCapitaShare || 0).toFixed(2)}/pax</span>
                 </div>
                 {hasCustomBreakfast && calculatedBreakfastFee > 0 && (
                   <div className="d-flex justify-content-between mb-1 text-primary">
                     <span>Breakfast Fee ({parsedBreakfastDates.length} morning{parsedBreakfastDates.length > 1 ? 's' : ''}):</span>
-                    <span className="fw-semibold">+₱{calculatedBreakfastFee.toFixed(2)}</span>
+                    <span className="fw-semibold">+₱{(calculatedBreakfastFee || 0).toFixed(2)}</span>
                   </div>
                 )}
 
@@ -694,12 +694,12 @@ export default function ConfirmReservationModal({
                           <strong>{disc.guestName || `Guest #${idx + 1}`}</strong>: {disc.discountType} ({disc.percentage}%)
                           {disc.discountIdNumber && <span className="text-muted ms-1" style={{ fontSize: '0.75rem' }}>(ID: {disc.discountIdNumber})</span>}
                         </span>
-                        <span className="fw-bold">-₱{disc.discountAmount.toFixed(2)}</span>
+                        <span className="fw-bold">-₱{(disc.discountAmount || 0).toFixed(2)}</span>
                       </div>
                     ))}
                     <div className="d-flex justify-content-between align-items-center fw-bold text-success border-top pt-1 mt-1 small">
                       <span>Total Special Discount:</span>
-                      <span>-₱{totalDiscount.toFixed(2)}</span>
+                      <span>-₱{(totalDiscount || 0).toFixed(2)}</span>
                     </div>
                   </div>
                 )}
@@ -707,23 +707,23 @@ export default function ConfirmReservationModal({
                 {totalDiscount > 0 && (
                   <div className="d-flex justify-content-between text-dark fw-bold mb-1" style={{ fontSize: '0.92rem' }}>
                     <span>Net Room Stay Charge:</span>
-                    <span>₱{netRoomStayCharge.toFixed(2)}</span>
+                    <span>₱{(netRoomStayCharge || 0).toFixed(2)}</span>
                   </div>
                 )}
 
                 <div className="d-flex justify-content-between text-success fw-bold">
                   <span>Required Down Payment ({dpPctNum}% of Net Room Charge):</span>
-                  <span className="fs-6">₱{requiredDownpayment.toFixed(2)}</span>
+                  <span className="fs-6">₱{(requiredDownpayment || 0).toFixed(2)}</span>
                 </div>
                 {extraGuests > 0 && (
                   <div className="d-flex justify-content-between text-primary small">
                     <span>Additional Guest Fee ({extraGuests} Extra Pax × {nights} Night{nights > 1 ? 's' : ''}):</span>
-                    <span className="fw-semibold">+₱{extraGuestFee.toFixed(2)} <span className="text-muted fw-normal">(Payable at Check-in)</span></span>
+                    <span className="fw-semibold">+₱{(extraGuestFee || 0).toFixed(2)} <span className="text-muted fw-normal">(Payable at Check-in)</span></span>
                   </div>
                 )}
                 <div className="d-flex justify-content-between text-muted small pt-1 border-top">
                   <span>Remaining Balance at Check-in:</span>
-                  <span className="fw-bold text-dark">₱{remainingBal.toFixed(2)}</span>
+                  <span className="fw-bold text-dark">₱{(remainingBal || 0).toFixed(2)}</span>
                 </div>
               </div>
 
@@ -742,7 +742,7 @@ export default function ConfirmReservationModal({
                       setGcashInlineError('');
                       setSettledPaymentRef('');
                       if (String(val) === '2') {
-                        setDownPayment(requiredDownpayment.toFixed(2));
+                        setDownPayment((requiredDownpayment || 0).toFixed(2));
                       }
                     }}
                   >
@@ -763,12 +763,12 @@ export default function ConfirmReservationModal({
                         step="0.01"
                         className="form-control form-control-sm fw-bold text-success"
                         required
-                        placeholder={`Min ₱${requiredDownpayment.toFixed(2)}`}
+                        placeholder={`Min ₱${(requiredDownpayment || 0).toFixed(2)}`}
                         value={downPayment}
                         onChange={(e) => setDownPayment(e.target.value)}
                       />
                       <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                        Required: ₱{requiredDownpayment.toFixed(2)} ({dpPctNum}% Tier)
+                        Required: ₱{(requiredDownpayment || 0).toFixed(2)} ({dpPctNum}% Tier)
                       </small>
                     </div>
 
@@ -791,7 +791,7 @@ export default function ConfirmReservationModal({
                   <>
                     <div className="col-md-8 d-flex align-items-end justify-content-start gap-2 pb-1">
                       <a
-                        href={`/receptionist/qr-payment?amount=${requiredDownpayment.toFixed(2)}&ref=RES-${selectedRes?.reservationID || 'CONFIRM'}&roomNumber=${encodeURIComponent(selectedRoom?.roomNumber || '')}&guestName=${encodeURIComponent(`${guestForm.firstName || ''} ${guestForm.lastName || ''}`.trim() || 'Guest')}&roomType=${encodeURIComponent(selectedRoom?.roomType || 'Standard')}`}
+                        href={`/receptionist/qr-payment?amount=${(requiredDownpayment || 0).toFixed(2)}&ref=RES-${selectedRes?.reservationID || 'CONFIRM'}&roomNumber=${encodeURIComponent(selectedRoom?.roomNumber || '')}&guestName=${encodeURIComponent(`${guestForm.firstName || ''} ${guestForm.lastName || ''}`.trim() || 'Guest')}&roomType=${encodeURIComponent(selectedRoom?.roomType || 'Standard')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-sm btn-outline-primary fw-bold text-nowrap d-inline-flex align-items-center gap-1 shadow-sm"
@@ -807,7 +807,7 @@ export default function ConfirmReservationModal({
                             const authRef = `AUTH-RES-${Date.now().toString().slice(-6)}`;
                             setIsGcashSettled(true);
                             setSettledPaymentRef(authRef);
-                            setDownPayment(requiredDownpayment.toFixed(2));
+                            setDownPayment((requiredDownpayment || 0).toFixed(2));
                             setGcashInlineError('');
                             showAlert?.('success', 'Payment Authorized', `GCash payment settled (${authRef}). You may now confirm the reservation.`);
                           }}
@@ -840,7 +840,7 @@ export default function ConfirmReservationModal({
                         </div>
                       )}
                       <DynamicQrPhCode 
-                        amount={requiredDownpayment}
+                        amount={requiredDownpayment || 0}
                         refNumber={`RES-${selectedRes?.reservationID || 'CONFIRM'}`}
                         paymentStatus={isGcashSettled ? "Settled" : "Pending"}
                         showProceedBtn={false}
@@ -850,7 +850,7 @@ export default function ConfirmReservationModal({
                           setIsGcashSettled(true);
                           setGcashInlineError('');
                           if (pData?.referenceNumber) setSettledPaymentRef(pData.referenceNumber);
-                          setDownPayment(requiredDownpayment.toFixed(2));
+                          setDownPayment((requiredDownpayment || 0).toFixed(2));
                         }}
                       />
                     </div>
