@@ -422,10 +422,10 @@ export async function POST(request) {
       const reservationID = parseInt(body.reservationID);
       const checkInDateTime = body.checkInDateTime;
       const checkOutDateTime = body.checkOutDateTime;
-      const downPaymentAmount = parseFloat(body.downPaymentAmount || 0);
-      const cashReceived = parseFloat(body.cashReceived || downPaymentAmount);
-      const change = parseFloat(body.change || 0);
-      const paymentMethodID = parseInt(body.paymentMethodID || 1);
+      const downPaymentAmount = parseFloat(body.downPaymentAmount || 0) || 0;
+      const cashReceived = parseFloat(body.cashReceived || downPaymentAmount) || downPaymentAmount;
+      const change = parseFloat(body.change || 0) || 0;
+      const paymentMethodID = parseInt(body.paymentMethodID || 1) || 1;
 
       if (!checkInDateTime || !checkOutDateTime || isNaN(downPaymentAmount) || downPaymentAmount <= 0) {
         return NextResponse.json({ error: 'Valid stay dates and down payment are required to convert reservation.' }, { status: 400 });

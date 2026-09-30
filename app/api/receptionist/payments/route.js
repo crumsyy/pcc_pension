@@ -96,12 +96,12 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const bookingID = parseInt(body.bookingID);
-    const guestID = parseInt(body.guestID);
-    const amount = parseFloat(body.amount);
-    const cashReceived = parseFloat(body.cashReceived || 0);
+    const bookingID = parseInt(body.bookingID) || 0;
+    const guestID = parseInt(body.guestID) || 0;
+    const amount = parseFloat(body.amount) || 0;
+    const cashReceived = parseFloat(body.cashReceived || 0) || amount;
     const change = parseFloat(body.change || 0);
-    const paymentMethodID = parseInt(body.paymentMethodID);
+    const paymentMethodID = parseInt(body.paymentMethodID) || 1;
     const discountID = body.discountID ? parseInt(body.discountID) : null;
     const bookingDetails = await dbQuery("SELECT status, roomID FROM booking WHERE bookingID = ?", [bookingID]);
     if (bookingDetails.length === 0) {
