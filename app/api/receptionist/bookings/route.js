@@ -155,7 +155,9 @@ export async function POST(request) {
     const body = await request.json();
     const { action } = body;
 
-    if (action === 'create') {
+      if (action === 'create') {
+        const sanitizedDownPaymentAmount = parseFloat(body.downPaymentAmount || 0) || 0;
+        const sanitizedDownPaymentPercentage = parseInt(body.downPaymentPercentage || 50) || 50;
       const guests = body.guests || [];
       // Validate guests list
       for (const g of guests) {
@@ -452,11 +454,11 @@ export async function POST(request) {
         const [insertBookingRes] = await conn.execute(
           `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount, breakfastDates, breakfastFee)
            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, 
-           baseRoomRate || 0, finalRoomCharge || 0, grossSubtotal || 0, discountTotal || 0, netTotal || 0,
-           vatRate || 0, vatAmount || 0, grandTotal || 0, grandTotal || 0, downPaymentAmount || 0,
-           dpPercentageInt || 0, initialBalance || 0, breakfastOption, breakfastID || null, totalGuestsCount || 0, 
-           JSON.stringify(validBreakfastDates), breakfastTotal || 0]
+           [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, 
+            baseRoomRate || 0, finalRoomCharge || 0, grossSubtotal || 0, discountTotal || 0, netTotal || 0,
+            vatRate || 0, vatAmount || 0, grandTotal || 0, grandTotal || 0, sanitizedDownPaymentAmount,
+            sanitizedDownPaymentPercentage, initialBalance || 0, breakfastOption, breakfastID || null, totalGuestsCount || 0, 
+            JSON.stringify(validBreakfastDates), breakfastTotal || 0]
         );
         const bookingID = insertBookingRes.insertId;
 
@@ -539,7 +541,7 @@ export async function POST(request) {
         const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
         const [billingInsert] = await conn.execute(
           "INSERT INTO billing (billingDateTime, guestID, bookingID, orderID, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, balance) VALUES (?, ?, ?, NULL, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [nowStr, guestID, bookingID, grossSubtotal, grossSubtotal, vatRate, vatAmount, grossSubtotal, grossSubtotal, downPaymentAmount, dpPercentageInt, initialBalance, initialBalance]
+          [nowStr, guestID, bookingID, grossSubtotal, grossSubtotal, vatRate, vatAmount, grossSubtotal, grossSubtotal, sanitizedDownPaymentAmount, sanitizedDownPaymentPercentage, initialBalance, initialBalance]
         );
         const billingID = billingInsert.insertId;
 
@@ -547,12 +549,18 @@ export async function POST(request) {
         const [staffRes] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [session.userID]);
         const staffID = staffRes[0]?.staffID || null;
 
+        // Prepare and sanitize all financial values
+        const sanitizedDownPaymentAmount = parseFloat(body.downPaymentAmount || 0) || 0;
+        const sanitizedDownPaymentPercentage = parseInt(body.downPaymentPercentage || 50) || 50;
+        const sanitizedPaymentMethodID = parseInt(body.paymentMethodID || 1) || 1;
+
         // Record Down Payment with 'Settled' status and referenceNumber
-        const refNumber = body.referenceNumber || (parseInt(paymentMethodID) === 2 ? `GCASH-BK-${bookingID}` : `CASH-${Date.now().toString().slice(-6)}`);
+        const refNumber = body.referenceNumber || (sanitizedPaymentMethodID === 2 ? `GCASH-BK-${bookingID}` : `CASH-${Date.now().toString().slice(-6)}`);
+        
         const [paymentInsert] = await conn.execute(
           `INSERT INTO payment (amount, cashReceived, \`change\`, changeAmount, billingID, guestID, staffID, paymentMethodID, discountID, promotionID, testMode, status, referenceNumber) 
            VALUES (?, ?, 0, 0.00, ?, ?, ?, ?, NULL, NULL, 1, 'Settled', ?)`,
-          [downPaymentAmount, downPaymentAmount, billingID, guestID, staffID, paymentMethodID, refNumber]
+          [sanitizedDownPaymentAmount, sanitizedDownPaymentAmount, billingID, guestID, staffID, sanitizedPaymentMethodID, refNumber]
         );
         const paymentID = paymentInsert.insertId;
 
