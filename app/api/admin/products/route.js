@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
+import { verifyAdmin } from '@/lib/auth';
 import { dbQuery, ensureCatalogImageSchema } from '@/lib/db';
 
 export async function GET(request) {
-  const session = await getSession();
-  if (!session || session.role !== 'Administrator') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await verifyAdmin();
+  if (!auth.authorized) return auth.response;
 
   await ensureCatalogImageSchema();
 
@@ -51,10 +49,8 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const session = await getSession();
-  if (!session || session.role !== 'Administrator') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await verifyAdmin();
+  if (!auth.authorized) return auth.response;
 
   await ensureCatalogImageSchema();
 

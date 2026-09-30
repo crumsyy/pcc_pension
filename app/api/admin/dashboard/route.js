@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
+import { verifyAdmin } from '@/lib/auth';
 import { dbQuery, syncRoomStatuses, syncInventoryStock } from '@/lib/db';
 
 export async function GET() {
-  const session = await getSession();
-  if (!session || session.role !== 'Administrator') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await verifyAdmin();
+  if (!auth.authorized) return auth.response;
 
   await syncRoomStatuses();
 
