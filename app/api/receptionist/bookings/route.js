@@ -452,7 +452,11 @@ export async function POST(request) {
         const [insertBookingRes] = await conn.execute(
           `INSERT INTO booking(checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID, roomRate, roomCharge, subtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, totalAmount, downPaymentAmount, downPaymentPercentage, remainingBalance, breakfastOption, breakfastID, guestCount, breakfastDates, breakfastFee)
            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, baseRoomRate, finalRoomCharge, grossSubtotal, discountTotal, netTotal, vatRate, vatAmount, grandTotal, grandTotal, downPaymentAmount, dpPercentageInt, initialBalance, breakfastOption, breakfastID, totalGuestsCount, JSON.stringify(validBreakfastDates), breakfastTotal]
+          [finalCheckInDateTime, finalCheckOutDateTime, bookingStatus, convReservationID, guestID, roomID, 
+           baseRoomRate || 0, finalRoomCharge || 0, grossSubtotal || 0, discountTotal || 0, netTotal || 0,
+           vatRate || 0, vatAmount || 0, grandTotal || 0, grandTotal || 0, downPaymentAmount || 0,
+           dpPercentageInt || 0, initialBalance || 0, breakfastOption, breakfastID || null, totalGuestsCount || 0, 
+           JSON.stringify(validBreakfastDates), breakfastTotal || 0]
         );
         const bookingID = insertBookingRes.insertId;
 

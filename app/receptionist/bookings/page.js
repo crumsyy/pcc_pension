@@ -2467,7 +2467,7 @@ function BookingsClient() {
                                 className="btn btn-sm btn-danger text-white fw-bold py-1 px-2 w-100"
                                 onClick={() => {
                                   if (discountedGuests.length <= 1) {
-                                    setDiscountedGuests([{ guestName: '', discountID: '', discountIdNumber: '' }]);
+                                    setDiscountedGuests([]);
                                   } else {
                                     setDiscountedGuests(prev => prev.filter((_, i) => i !== idx));
                                   }
