@@ -44,8 +44,6 @@ export default function SidebarClient({ session, role, children }) {
   // Nav Items based on role
   const navLinks = role === 'Administrator' ? [
     ['/admin/dashboard', icons.dashboard, 'Dashboard'],
-    ['/admin/reservations', icons.reservations, 'Reservations'],
-    ['/admin/bookings', icons.bookings, 'Bookings'],
     ['/admin/users', icons.users, 'User Management'],
     ['/admin/rooms', icons.rooms, 'Room Management'],
     ['/admin/amenities', icons.amenities, 'Amenities'],
