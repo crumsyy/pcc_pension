@@ -38,7 +38,7 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick })
   return (
     <ul className="nav flex-column gap-1" style={{ paddingLeft: '0', listStyle: 'none' }}>
       {receptionistNavLinks.map(([path, icon, label], index) => {
-        const isActive = pathname === path;
+        const isActive = pathname === path || (path !== '/receptionist/dashboard' && pathname?.startsWith(path));
         const isInquiries = path === '/receptionist/inquiries';
 
         return (
@@ -47,14 +47,23 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick })
               href={path}
               onClick={onLinkClick}
               className={`nav-link text-white d-flex align-items-center justify-content-between mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
-              style={{ borderRadius: '6px', fontSize: '0.9rem' }}
+              style={{
+                borderRadius: '7px',
+                fontSize: '0.88rem',
+                fontWeight: isActive ? '600' : '400',
+                backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+                borderLeft: isActive ? '3px solid #fff' : '3px solid transparent',
+                transition: 'all 0.15s ease-in-out',
+              }}
             >
-              <div className="d-flex align-items-center gap-2">
-                {icon}
+              <div className="d-flex align-items-center gap-2.5">
+                <span style={{ opacity: isActive ? 1 : 0.85 }}>{icon}</span>
                 <span>{label}</span>
               </div>
               {isInquiries && alertsCount > 0 && (
-                <span className="badge bg-danger ms-2">{alertsCount}</span>
+                <span className="badge rounded-pill bg-danger px-2 py-0.5 fw-bold" style={{ fontSize: '0.72rem', boxShadow: '0 2px 6px rgba(220,53,69,0.4)' }}>
+                  {alertsCount}
+                </span>
               )}
             </Link>
           </li>

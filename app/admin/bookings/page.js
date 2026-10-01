@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import StatusBadge, { getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
 
 export default function AdminBookings() {
@@ -41,10 +42,31 @@ export default function AdminBookings() {
 
   return (
     <div className="pcc-page-container">
-      <div className="mb-3">
-        <div className="section-eyebrow">Admin</div>
-        <h2 className="section-title mb-0">Booking Status Overview</h2>
-        <small className="text-muted">View all booking records and statuses</small>
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+          <div className="section-eyebrow">Admin</div>
+          <h2 className="section-title mb-1">Booking Status Overview</h2>
+          <small className="text-muted">View all booking records, room occupancy, and statuses</small>
+        </div>
+        <div className="d-flex gap-2 align-items-center">
+          <Link
+            href="/admin/reservations"
+            className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 px-3 py-2 fw-semibold"
+            style={{ borderRadius: '7px' }}
+          >
+            <i className="bi bi-bookmark"></i>
+            <span>View Reservations</span>
+          </Link>
+          <button
+            onClick={fetchBookings}
+            className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1 px-3 py-2 text-secondary"
+            style={{ borderRadius: '7px' }}
+            title="Refresh list"
+          >
+            <i className={`bi bi-arrow-clockwise ${loading ? 'spin' : ''}`}></i>
+            <span className="d-none d-sm-inline">Refresh</span>
+          </button>
+        </div>
       </div>
 
       {error && (

@@ -44,6 +44,8 @@ export default function SidebarClient({ session, role, children }) {
   // Nav Items based on role
   const navLinks = role === 'Administrator' ? [
     ['/admin/dashboard', icons.dashboard, 'Dashboard'],
+    ['/admin/reservations', icons.reservations, 'Reservations'],
+    ['/admin/bookings', icons.bookings, 'Bookings'],
     ['/admin/users', icons.users, 'User Management'],
     ['/admin/rooms', icons.rooms, 'Room Management'],
     ['/admin/amenities', icons.amenities, 'Amenities'],
@@ -74,15 +76,23 @@ export default function SidebarClient({ session, role, children }) {
     return (
       <ul className="nav flex-column gap-1" style={{ paddingLeft: '0', listStyle: 'none' }}>
         {navLinks.map(([path, icon, label], index) => {
-          const isActive = pathname === path;
+          const isActive = pathname === path || (path !== '/admin/dashboard' && pathname?.startsWith(path));
           return (
             <li key={index}>
               <Link
                 href={path}
-                className={`nav-link text-white d-flex align-items-center gap-2 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
-                style={{ borderRadius: '6px', fontSize: '0.9rem' }}
+                className={`nav-link text-white d-flex align-items-center gap-2.5 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
+                style={{
+                  borderRadius: '7px',
+                  fontSize: '0.88rem',
+                  fontWeight: isActive ? '600' : '400',
+                  backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+                  borderLeft: isActive ? '3px solid #fff' : '3px solid transparent',
+                  transition: 'all 0.15s ease-in-out',
+                }}
               >
-                {icon} {label}
+                <span style={{ opacity: isActive ? 1 : 0.85 }}>{icon}</span>
+                <span>{label}</span>
               </Link>
             </li>
           );
@@ -137,20 +147,30 @@ export default function SidebarClient({ session, role, children }) {
             Navigation Menu
           </div>
           {renderNavLinksList()}
-          <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-            <div className="text-white-50" style={{ fontSize: '0.75rem' }}>Logged in as</div>
-            <div className="text-white fw-semibold" style={{ fontSize: '0.88rem' }}>{session.fullName}</div>
-            <div className="text-white-50 mb-2" style={{ fontSize: '0.75rem' }}>{role}</div>
+          <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+            <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
+              <div className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold flex-shrink-0" style={{ width: '32px', height: '32px', fontSize: '0.85rem' }}>
+                {session?.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="overflow-hidden" style={{ minWidth: 0 }}>
+                <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.84rem' }}>{session?.fullName}</div>
+                <div className="text-white-50 text-truncate" style={{ fontSize: '0.72rem' }}>{role}</div>
+              </div>
+            </div>
             <button
               type="button"
-              className="btn btn-sm w-100"
+              className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
               onClick={() => setShowLogoutModal(true)}
               style={{
                 backgroundColor: 'rgba(255,255,255,0.12)',
                 color: '#fff',
-                border: '1px solid rgba(255,255,255,0.25)',
+                border: '1px solid rgba(255,255,255,0.22)',
+                borderRadius: '7px',
+                fontWeight: '500',
+                padding: '6px 12px',
               }}
             >
+              <i className="bi bi-box-arrow-right"></i>
               Log Out
             </button>
           </div>
@@ -190,20 +210,31 @@ export default function SidebarClient({ session, role, children }) {
         
         {renderNavLinksList()}
 
-        <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.2)' }}>
-          <div className="text-white-50" style={{ fontSize: '0.75rem' }}>Logged in as</div>
-          <div className="text-white fw-semibold" style={{ fontSize: '0.88rem' }}>{session.fullName}</div>
-          <div className="text-white-50" style={{ fontSize: '0.75rem' }}>{role}</div>
+        <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)' }}>
+          <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
+            <div className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold flex-shrink-0" style={{ width: '34px', height: '34px', fontSize: '0.88rem' }}>
+              {session?.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="overflow-hidden" style={{ minWidth: 0 }}>
+              <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.84rem' }}>{session?.fullName}</div>
+              <div className="text-white-50 text-truncate" style={{ fontSize: '0.72rem' }}>{role}</div>
+            </div>
+          </div>
           <button
             type="button"
-            className="btn btn-sm mt-2 w-100"
+            className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
             onClick={() => setShowLogoutModal(true)}
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
               color: '#fff',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
+              border: '1px solid rgba(255, 255, 255, 0.22)',
+              borderRadius: '7px',
+              fontWeight: '500',
+              padding: '6px 12px',
+              transition: 'all 0.15s ease',
             }}
           >
+            <i className="bi bi-box-arrow-right"></i>
             Log Out
           </button>
         </div>

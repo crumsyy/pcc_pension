@@ -162,22 +162,24 @@ export default async function ReceptionistDashboard() {
       {/* Quick stats */}
       <div className="row g-3 mb-4">
         {stats.map(([label, value, color], index) => (
-          <div key={index} className="col-6 col-xl-2">
+          <div key={index} className="col-6 col-md-4 col-xl-2">
             <div 
-              className="text-center p-3 text-white shadow-sm" 
+              className="p-3 bg-white shadow-sm" 
               style={{ 
-                backgroundColor: color, 
-                borderRadius: "8px",
+                borderRadius: "10px",
+                border: "1px solid #e2e8f0",
+                borderLeft: `4px solid ${color}`,
                 minHeight: '94px',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
               }}
             >
-              <div style={{ fontSize: "2rem", fontWeight: "800", lineHeight: "1.1" }}>
+              <div style={{ fontSize: "1.85rem", fontWeight: "800", lineHeight: "1.1", color: color }}>
                 {value}
               </div>
-              <div style={{ fontSize: "0.72rem", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.04em", opacity: 0.9, marginTop: '4px' }}>
+              <div style={{ fontSize: "0.72rem", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.04em", color: "#64748b", marginTop: '5px' }}>
                 {label}
               </div>
             </div>
@@ -191,26 +193,26 @@ export default async function ReceptionistDashboard() {
           <i className="bi bi-wallet2 me-2"></i> Payment Statuses Summary
         </h6>
         <div className="row g-3 text-center">
-          <div className="col-3">
-            <div className="p-2 border rounded bg-light">
+          <div className="col-6 col-md-3">
+            <div className="p-2.5 border rounded-3 bg-light">
               <div className="fw-bold text-success fs-5">{totalCheckOuts}</div>
               <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PAID (Checked Out)</small>
             </div>
           </div>
-          <div className="col-3">
-            <div className="p-2 border rounded bg-light">
+          <div className="col-6 col-md-3">
+            <div className="p-2.5 border rounded-3 bg-light">
               <div className="fw-bold text-primary fs-5">{occupiedRooms}</div>
               <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PARTIALLY PAID (In-Stay)</small>
             </div>
           </div>
-          <div className="col-3">
-            <div className="p-2 border rounded bg-light">
-              <div className="fw-bold text-warning text-dark fs-5">{confirmedBookingsList.length}</div>
+          <div className="col-6 col-md-3">
+            <div className="p-2.5 border rounded-3 bg-light">
+              <div className="fw-bold text-warning-emphasis fs-5">{confirmedBookingsList.length}</div>
               <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PENDING CHECK-IN</small>
             </div>
           </div>
-          <div className="col-3">
-            <div className="p-2 border rounded bg-light">
+          <div className="col-6 col-md-3">
+            <div className="p-2.5 border rounded-3 bg-light">
               <div className="fw-bold text-danger fs-5">{underMaintenanceRooms}</div>
               <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>OVERDUE / ISSUES</small>
             </div>

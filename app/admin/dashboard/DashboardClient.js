@@ -300,15 +300,25 @@ export default function DashboardClient({ userName }) {
           {/* Reservations and Booking List status Card */}
           <div
             className="card-module p-3 rounded"
-            style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
+            style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
           >
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0 text-blue">Active Reservations & Lodging</h5>
+            <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <h5 className="mb-0 text-blue fw-bold" style={{ fontSize: '1.05rem' }}>Active Reservations and Bookings</h5>
               <div className="d-flex gap-2">
-                <Link href="/admin/reservations" className="btn btn-sm btn-outline-secondary" style={{ fontSize: '0.78rem' }}>
+                <Link
+                  href="/admin/reservations"
+                  className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                  style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                >
+                  <i className="bi bi-bookmark"></i>
                   Reservations
                 </Link>
-                <Link href="/admin/bookings" className="btn btn-sm btn-outline-primary" style={{ fontSize: '0.78rem' }}>
+                <Link
+                  href="/admin/bookings"
+                  className="btn btn-sm btn-pcc-primary text-white d-inline-flex align-items-center gap-1 px-2.5 py-1"
+                  style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                >
+                  <i className="bi bi-calendar-check"></i>
                   Bookings
                 </Link>
               </div>
