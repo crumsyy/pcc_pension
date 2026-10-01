@@ -177,7 +177,11 @@ export default function AdminReports() {
     if (!reportData) return [];
 
     if (report === 'sales') {
-      return subTab === 'summary' ? (reportData.salesRows || []) : (reportData.transactionLogs || []);
+      if (subTab === 'summary') return reportData.salesRows || [];
+      if (subTab === 'transactions') return reportData.transactionLogs || [];
+      if (subTab === 'orders') return reportData.orderLogs || [];
+      if (subTab === 'purchase_orders') return reportData.poLogs || [];
+      return reportData.salesRows || [];
     }
     if (report === 'occupancy') {
       return subTab === 'trends' ? (reportData.occupancyTrend || []) : (reportData.roomPerformance || []);
@@ -260,11 +264,17 @@ export default function AdminReports() {
 
     if (report === 'sales') {
       if (subTab === 'summary') {
-        headers = ['Period', 'Booking Count', 'Gross Revenue (PHP)', 'Discounts (PHP)', 'Net Revenue (PHP)', 'Payment Methods'];
-        rows = sortedData.map(r => [r.period, r.bookingCount, r.grossRevenue.toFixed(2), r.discount.toFixed(2), r.netRevenue.toFixed(2), `"${r.paymentMethods}"`]);
-      } else {
+        headers = ['Period', 'Booking Count', 'Gross Revenue (PHP)', 'Discounts (PHP)', 'Net Revenue (PHP)', 'PO Expenses (PHP)', 'Net Profit (PHP)', 'Payment Methods'];
+        rows = sortedData.map(r => [r.period, r.bookingCount, (r.grossRevenue || 0).toFixed(2), (r.discount || 0).toFixed(2), (r.netRevenue || 0).toFixed(2), (r.poExpenses || 0).toFixed(2), (r.netProfit || 0).toFixed(2), `"${r.paymentMethods || 'Cash'}"`]);
+      } else if (subTab === 'transactions') {
         headers = ['Transaction ID', 'Date & Time', 'Booking #', 'Billing #', 'Guest Name', 'Room', 'Room Type', 'Payment Method', 'Discount Type', 'Gross (PHP)', 'Discount (PHP)', 'Net Amount (PHP)'];
-        rows = sortedData.map(r => [r.transactionID, `"${r.date}"`, r.bookingID, r.billingID, `"${r.guestName}"`, `"${r.roomNumber}"`, `"${r.roomTypeName}"`, `"${r.paymentMethod}"`, `"${r.discountType || 'None'}"`, r.grossAmount.toFixed(2), r.discountAmount.toFixed(2), r.netAmount.toFixed(2)]);
+        rows = sortedData.map(r => [r.transactionID, `"${r.date}"`, r.bookingID, r.billingID, `"${r.guestName}"`, `"${r.roomNumber}"`, `"${r.roomTypeName}"`, `"${r.paymentMethod}"`, `"${r.discountType || 'None'}"`, (r.grossAmount || 0).toFixed(2), (r.discountAmount || 0).toFixed(2), (r.netAmount || 0).toFixed(2)]);
+      } else if (subTab === 'orders') {
+        headers = ['Order ID', 'Date & Time', 'Booking #', 'Guest Name', 'Room', 'Category', 'Item Name', 'Quantity', 'Unit Price (PHP)', 'Total (PHP)', 'Status'];
+        rows = sortedData.map(r => [r.orderID, `"${r.date}"`, r.bookingID, `"${r.guestName}"`, `"${r.roomNumber}"`, `"${r.itemType}"`, `"${r.itemName}"`, r.quantity, (r.unitPrice || 0).toFixed(2), (r.totalAmount || 0).toFixed(2), `"${r.orderStatus}"`]);
+      } else if (subTab === 'purchase_orders') {
+        headers = ['PO #', 'Date', 'Status', 'Total Expense (PHP)', 'Remarks', 'Items'];
+        rows = sortedData.map(r => [r.purchaseOrderID, `"${r.date}"`, `"${r.poStatus}"`, (r.totalExpense || 0).toFixed(2), `"${r.remarks}"`, `"${(r.items || []).map(i => `${i.itemName} (x${i.quantity})`).join('; ')}"`]);
       }
     } else if (report === 'occupancy') {
       if (subTab === 'trends') {
@@ -340,26 +350,27 @@ export default function AdminReports() {
       kpiHtml = `
         <div class="kpi-grid">
           <div class="kpi-card border-blue">
-            <div class="kpi-label">NET REVENUE</div>
+            <div class="kpi-label">TOTAL NET REVENUE</div>
             <div class="kpi-value text-blue">₱${(reportData?.totalRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div class="kpi-sub">Gross: ₱${(reportData?.grossRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </div>
-          <div class="kpi-card border-green">
-            <div class="kpi-label">TOTAL BOOKINGS</div>
-            <div class="kpi-value text-green">${reportData?.numberBookings ?? 0}</div>
-            <div class="kpi-sub">${reportData?.completedBookings ?? 0} completed stays</div>
-          </div>
           <div class="kpi-card border-red">
-            <div class="kpi-label">DISCOUNTS APPLIED</div>
-            <div class="kpi-value text-red">₱${(reportData?.discountApplied ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div class="kpi-sub">Senior / PWD / Privilege Grants</div>
+            <div class="kpi-label">PURCHASE ORDER EXPENSES</div>
+            <div class="kpi-value text-red">₱${(reportData?.totalPoExpenses ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div class="kpi-sub">${reportData?.poLogs?.length || 0} purchase orders</div>
+          </div>
+          <div class="kpi-card border-green">
+            <div class="kpi-label">NET PROFIT / BALANCE</div>
+            <div class="kpi-value text-green">₱${(reportData?.netProfit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div class="kpi-sub">Net Revenue less PO Expenses</div>
           </div>
           <div class="kpi-card border-purple">
-            <div class="kpi-label">PAYMENT SETTLEMENTS</div>
+            <div class="kpi-label">GUEST ORDERS</div>
             <div class="kpi-value text-purple" style="font-size: 13px; margin-top: 4px; line-height: 1.4;">
-              Cash: ₱${(reportData?.cashTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}<br />
-              GCash: ₱${(reportData?.gcashTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              Meals: ₱${(reportData?.ordersBreakdown?.cookedMealsTotal ?? 0).toLocaleString()}<br />
+              Prods: ₱${(reportData?.ordersBreakdown?.productsTotal ?? 0).toLocaleString()} | Amen: ₱${(reportData?.ordersBreakdown?.amenitiesTotal ?? 0).toLocaleString()}
             </div>
+            <div class="kpi-sub">Total: ₱${(reportData?.ordersBreakdown?.totalOrdersTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
       `;
@@ -367,22 +378,68 @@ export default function AdminReports() {
       if (subTab === 'summary') {
         tableHeadersHtml = `
           <tr>
-            <th style="width: 22%;">Period</th>
-            <th class="text-center" style="width: 14%;">Bookings</th>
-            <th class="text-right" style="width: 18%;">Gross Revenue</th>
-            <th class="text-right" style="width: 16%;">Discounts</th>
-            <th class="text-right" style="width: 18%;">Net Revenue</th>
-            <th style="width: 12%;">Settlement</th>
+            <th style="width: 18%;">Period</th>
+            <th class="text-center" style="width: 10%;">Bookings</th>
+            <th class="text-right" style="width: 14%;">Gross Revenue</th>
+            <th class="text-right" style="width: 12%;">Discounts</th>
+            <th class="text-right" style="width: 14%;">Net Revenue</th>
+            <th class="text-right" style="width: 14%;">PO Expenses</th>
+            <th class="text-right" style="width: 14%;">Net Profit</th>
+            <th style="width: 10%;">Settlement</th>
           </tr>
         `;
         tableRowsHtml = (reportData.salesRows || []).map(r => `
           <tr>
             <td><strong>${r.period}</strong></td>
             <td class="text-center">${r.bookingCount}</td>
-            <td class="text-right">₱${r.grossRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td class="text-right text-red">-₱${r.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td class="text-right text-blue bold">₱${r.netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="text-right">₱${(r.grossRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="text-right text-red">-₱${(r.discount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="text-right text-blue bold">₱${(r.netRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="text-right text-red">₱${(r.poExpenses || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="text-right text-green bold">₱${(r.netProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td><span class="badge bg-secondary">${r.paymentMethods || 'Cash'}</span></td>
+          </tr>
+        `).join('');
+      } else if (subTab === 'orders') {
+        tableHeadersHtml = `
+          <tr>
+            <th style="width: 12%;">Order #</th>
+            <th style="width: 16%;">Date & Time</th>
+            <th style="width: 18%;">Guest / Room</th>
+            <th style="width: 14%;">Category</th>
+            <th style="width: 18%;">Item Name</th>
+            <th class="text-center" style="width: 8%;">Qty</th>
+            <th class="text-right" style="width: 14%;">Total (PHP)</th>
+          </tr>
+        `;
+        tableRowsHtml = (reportData.orderLogs || []).map(r => `
+          <tr>
+            <td><code>#ORD-${r.orderID}</code></td>
+            <td>${r.date}</td>
+            <td><strong>${r.guestName}</strong><br /><small class="text-muted">${r.roomNumber}</small></td>
+            <td><span class="badge ${r.itemType === 'Cooked Meal' ? 'bg-warning text-dark' : r.itemType === 'Amenity' ? 'bg-info' : 'bg-primary'}">${r.itemType}</span></td>
+            <td>${r.itemName}</td>
+            <td class="text-center">${r.quantity}</td>
+            <td class="text-right text-green bold">₱${(r.totalAmount || 0).toFixed(2)}</td>
+          </tr>
+        `).join('');
+      } else if (subTab === 'purchase_orders') {
+        tableHeadersHtml = `
+          <tr>
+            <th style="width: 12%;">PO #</th>
+            <th style="width: 16%;">Order Date</th>
+            <th style="width: 14%;">Status</th>
+            <th style="width: 38%;">Items Ordered</th>
+            <th class="text-right" style="width: 20%;">Total Expense (PHP)</th>
+          </tr>
+        `;
+        tableRowsHtml = (reportData.poLogs || []).map(r => `
+          <tr>
+            <td><code>#PO-${r.purchaseOrderID}</code></td>
+            <td>${r.date}</td>
+            <td><span class="badge ${r.poStatus === 'Received' ? 'bg-success' : 'bg-secondary'}">${r.poStatus}</span></td>
+            <td><small>${(r.items || []).map(i => `${i.itemName} (x${i.quantity})`).join(', ')}</small></td>
+            <td class="text-right text-red bold">₱${(r.totalExpense || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
         `).join('');
       } else {
@@ -1381,8 +1438,8 @@ export default function AdminReports() {
             </div>
           )}
 
-          {/* Item Classification Filter (Inventory) */}
-          {report === 'inventory' && (
+          {/* Item Classification Filter (Inventory & Sales Guest Orders) */}
+          {(report === 'inventory' || (report === 'sales' && subTab === 'orders')) && (
             <div className="col-6 col-md-2">
               <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>Classification</label>
               <select
@@ -1535,6 +1592,20 @@ export default function AdminReports() {
                     >
                       <i className="bi bi-receipt me-1"></i> Payment Logs & Folios ({reportData.transactionLogs?.length || 0})
                     </button>
+                    <button
+                      type="button"
+                      className={`btn fw-semibold ${subTab === 'orders' ? 'btn-pcc-primary text-white' : 'btn-outline-secondary'}`}
+                      onClick={() => setSubTab('orders')}
+                    >
+                      <i className="bi bi-cart-check me-1"></i> Guest Orders ({reportData.orderLogs?.length || 0})
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn fw-semibold ${subTab === 'purchase_orders' ? 'btn-pcc-primary text-white' : 'btn-outline-secondary'}`}
+                      onClick={() => setSubTab('purchase_orders')}
+                    >
+                      <i className="bi bi-truck me-1"></i> Purchase Orders ({reportData.poLogs?.length || 0})
+                    </button>
                   </>
                 )}
 
@@ -1632,38 +1703,76 @@ export default function AdminReports() {
                     </div>
                   </div>
                 </div>
-                <div className="col-6 col-md-2">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">BOOKINGS</span>
-                    <h3 className="fw-bold text-success mb-0 mt-1">{reportData?.numberBookings ?? 0}</h3>
-                    <small className="text-muted">{reportData?.completedBookings ?? 0} completed</small>
-                  </div>
-                </div>
-                <div className="col-6 col-md-2">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">DISCOUNTS VALUE</span>
+                <div className="col-6 col-md-4">
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-danger border-4">
+                    <span className="text-muted small fw-bold">PURCHASE ORDER EXPENSES</span>
                     <h3 className="fw-bold text-danger mb-0 mt-1">
-                      ₱{(reportData?.discountApplied ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      ₱{(reportData?.totalPoExpenses ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h3>
-                    <small className="text-muted">Privileges applied</small>
+                    <small className="text-muted mt-2 d-block">
+                      {reportData?.poLogs?.length || 0} purchase orders placed/received
+                    </small>
                   </div>
                 </div>
-                <div className="col-6 col-md-2">
-                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">CASH COLLECTED</span>
-                    <h4 className="fw-bold text-dark mb-0 mt-1">
-                      ₱{(reportData?.cashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </h4>
-                    <small className="text-muted">Front desk cash</small>
+                <div className="col-6 col-md-4">
+                  <div className={`card shadow-sm border-0 p-3 h-100 bg-white border-start ${(reportData?.netProfit ?? 0) >= 0 ? 'border-success' : 'border-danger'} border-4`}>
+                    <span className="text-muted small fw-bold">NET OPERATING PROFIT / BALANCE</span>
+                    <h3 className={`fw-bold ${(reportData?.netProfit ?? 0) >= 0 ? 'text-success' : 'text-danger'} mb-0 mt-1`}>
+                      ₱{(reportData?.netProfit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                    <small className="text-muted mt-2 d-block">
+                      Net Revenue minus PO Procurement Expenses
+                    </small>
                   </div>
                 </div>
-                <div className="col-6 col-md-2">
+
+                {/* Second row of KPI summaries */}
+                <div className="col-12 col-md-5">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
-                    <span className="text-muted small fw-bold">GCASH / ONLINE</span>
-                    <h4 className="fw-bold text-info mb-0 mt-1">
-                      ₱{(reportData?.gcashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </h4>
-                    <small className="text-muted">Online payment</small>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="text-muted small fw-bold">GUEST ORDERS BREAKDOWN</span>
+                      <span className="badge bg-primary-subtle text-primary fw-semibold">
+                        Total: ₱{(reportData?.ordersBreakdown?.totalOrdersTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="d-flex flex-wrap gap-2 mt-2">
+                      <span className="badge text-bg-warning text-dark py-2 px-2">
+                        🍳 Cooked Meals: ₱{(reportData?.ordersBreakdown?.cookedMealsTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.cookedMealsCount ?? 0} ordered)
+                      </span>
+                      <span className="badge text-bg-primary py-2 px-2">
+                        🥤 Products: ₱{(reportData?.ordersBreakdown?.productsTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.productsCount ?? 0} ordered)
+                      </span>
+                      <span className="badge text-bg-info text-white py-2 px-2">
+                        🧴 Amenities: ₱{(reportData?.ordersBreakdown?.amenitiesTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.amenitiesCount ?? 0} ordered)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-6 col-md-3">
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                    <span className="text-muted small fw-bold">BOOKINGS & DISCOUNTS</span>
+                    <h4 className="fw-bold text-dark mb-0 mt-1">{reportData?.numberBookings ?? 0} Bookings</h4>
+                    <small className="text-muted">{reportData?.completedBookings ?? 0} completed stays</small>
+                    <div className="small text-danger mt-1">
+                      Discounts: -₱{(reportData?.discountApplied ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-6 col-md-4">
+                  <div className="card shadow-sm border-0 p-3 h-100 bg-white">
+                    <span className="text-muted small fw-bold">PAYMENT SETTLEMENTS</span>
+                    <div className="row g-2 mt-1">
+                      <div className="col-6">
+                        <small className="text-muted d-block">Cash</small>
+                        <strong className="text-dark">₱{(reportData?.cashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                      </div>
+                      <div className="col-6">
+                        <small className="text-muted d-block">GCash / Online</small>
+                        <strong className="text-info">₱{(reportData?.gcashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1689,7 +1798,13 @@ export default function AdminReports() {
                 <div className="card-header bg-white py-3 border-0">
                   <div className="d-flex justify-content-between align-items-center">
                     <h6 className="fw-bold text-dark mb-0">
-                      {subTab === 'summary' ? `Earnings Breakdown (${grouping})` : 'Payment Transactions Log'}
+                      {subTab === 'summary'
+                        ? `Earnings & Expenses Breakdown (${grouping})`
+                        : subTab === 'orders'
+                        ? `Guest Orders Breakdown (${filteredData.length} records)`
+                        : subTab === 'purchase_orders'
+                        ? `Purchase Order Invoices & Expenses (${filteredData.length} records)`
+                        : `Payment Transactions Log (${filteredData.length} records)`}
                     </h6>
                     <input
                       type="text"
@@ -1721,7 +1836,34 @@ export default function AdminReports() {
                             <th className="text-end" onClick={() => handleSort('netRevenue')} style={{ cursor: 'pointer' }}>
                               Net Revenue <i className="bi bi-arrow-down-up small text-muted"></i>
                             </th>
+                            <th className="text-end" onClick={() => handleSort('poExpenses')} style={{ cursor: 'pointer' }}>
+                              PO Expenses <i className="bi bi-arrow-down-up small text-muted"></i>
+                            </th>
+                            <th className="text-end" onClick={() => handleSort('netProfit')} style={{ cursor: 'pointer' }}>
+                              Net Profit <i className="bi bi-arrow-down-up small text-muted"></i>
+                            </th>
                             <th>Payment Methods</th>
+                          </>
+                        ) : subTab === 'orders' ? (
+                          <>
+                            <th onClick={() => handleSort('orderID')} style={{ cursor: 'pointer' }}>Order #</th>
+                            <th onClick={() => handleSort('date')} style={{ cursor: 'pointer' }}>Date & Time</th>
+                            <th onClick={() => handleSort('guestName')} style={{ cursor: 'pointer' }}>Guest / Room</th>
+                            <th onClick={() => handleSort('itemType')} style={{ cursor: 'pointer' }}>Classification</th>
+                            <th onClick={() => handleSort('itemName')} style={{ cursor: 'pointer' }}>Item Name</th>
+                            <th className="text-center" onClick={() => handleSort('quantity')} style={{ cursor: 'pointer' }}>Qty</th>
+                            <th className="text-end" onClick={() => handleSort('unitPrice')} style={{ cursor: 'pointer' }}>Unit Price</th>
+                            <th className="text-end" onClick={() => handleSort('totalAmount')} style={{ cursor: 'pointer' }}>Total Amount</th>
+                            <th>Status</th>
+                          </>
+                        ) : subTab === 'purchase_orders' ? (
+                          <>
+                            <th onClick={() => handleSort('purchaseOrderID')} style={{ cursor: 'pointer' }}>PO #</th>
+                            <th onClick={() => handleSort('date')} style={{ cursor: 'pointer' }}>Order Date</th>
+                            <th onClick={() => handleSort('poStatus')} style={{ cursor: 'pointer' }}>Status</th>
+                            <th>Remarks / Note</th>
+                            <th>Items Breakdown</th>
+                            <th className="text-end" onClick={() => handleSort('totalExpense')} style={{ cursor: 'pointer' }}>Total PO Expense</th>
                           </>
                         ) : (
                           <>
@@ -1741,7 +1883,7 @@ export default function AdminReports() {
                     <tbody>
                       {paginatedData.length === 0 ? (
                         <tr>
-                          <td colSpan="9" className="text-center py-4 text-muted">No records found matching filters.</td>
+                          <td colSpan="10" className="text-center py-4 text-muted">No records found matching filters.</td>
                         </tr>
                       ) : (
                         paginatedData.map((row, idx) => (
@@ -1750,10 +1892,61 @@ export default function AdminReports() {
                               <>
                                 <td><strong>{row.period}</strong></td>
                                 <td className="text-center">{row.bookingCount}</td>
-                                <td className="text-end">₱{row.grossRevenue.toFixed(2)}</td>
-                                <td className="text-end text-danger">-₱{row.discount.toFixed(2)}</td>
-                                <td className="text-end text-success fw-bold">₱{row.netRevenue.toFixed(2)}</td>
+                                <td className="text-end">₱{(row.grossRevenue || 0).toFixed(2)}</td>
+                                <td className="text-end text-danger">-₱{(row.discount || 0).toFixed(2)}</td>
+                                <td className="text-end text-primary fw-semibold">₱{(row.netRevenue || 0).toFixed(2)}</td>
+                                <td className="text-end text-danger">₱{(row.poExpenses || 0).toFixed(2)}</td>
+                                <td className={`text-end fw-bold ${(row.netProfit || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+                                  ₱{(row.netProfit || 0).toFixed(2)}
+                                </td>
                                 <td><span className="badge text-bg-light border text-muted">{row.paymentMethods || 'Cash'}</span></td>
+                              </>
+                            ) : subTab === 'orders' ? (
+                              <>
+                                <td><code>#ORD-{row.orderID}</code></td>
+                                <td className="small text-muted">{row.date}</td>
+                                <td>
+                                  <strong>{row.guestName}</strong>
+                                  <div className="small text-muted">{row.roomNumber} ({row.bookingID === 'Walk-in' ? 'Walk-in' : `Booking #${row.bookingID}`})</div>
+                                </td>
+                                <td>
+                                  <span className={`badge ${row.itemType === 'Cooked Meal' ? 'text-bg-warning text-dark' : row.itemType === 'Amenity' ? 'text-bg-info text-white' : 'text-bg-primary'}`}>
+                                    {row.itemType === 'Cooked Meal' ? '🍳 Cooked Meal' : row.itemType === 'Amenity' ? '🧴 Amenity' : '🥤 Product'}
+                                  </span>
+                                </td>
+                                <td>
+                                  <strong>{row.itemName}</strong>
+                                  {row.isComplimentary && <span className="badge text-bg-success ms-1 small">Complimentary</span>}
+                                </td>
+                                <td className="text-center">{row.quantity}</td>
+                                <td className="text-end">₱{(row.unitPrice || 0).toFixed(2)}</td>
+                                <td className="text-end fw-bold text-success">₱{(row.totalAmount || 0).toFixed(2)}</td>
+                                <td>
+                                  <span className={`badge ${row.orderStatus === 'Completed' || row.orderStatus === 'Delivered' ? 'text-bg-success' : row.orderStatus === 'Placed' || row.orderStatus === 'Pending' ? 'text-bg-warning text-dark' : 'text-bg-secondary'}`}>
+                                    {row.orderStatus}
+                                  </span>
+                                </td>
+                              </>
+                            ) : subTab === 'purchase_orders' ? (
+                              <>
+                                <td><code>#PO-{row.purchaseOrderID}</code></td>
+                                <td className="small text-muted">{row.date}</td>
+                                <td>
+                                  <span className={`badge ${row.poStatus === 'Received' ? 'text-bg-success' : row.poStatus === 'Partially Received' ? 'text-bg-warning text-dark' : 'text-bg-primary'}`}>
+                                    {row.poStatus}
+                                  </span>
+                                </td>
+                                <td><span className="small text-muted">{row.remarks || '—'}</span></td>
+                                <td>
+                                  <div className="d-flex flex-wrap gap-1">
+                                    {(row.items || []).map((it, i) => (
+                                      <span key={i} className="badge text-bg-light border">
+                                        {it.itemName} ({it.quantityReceived ? `${it.quantityReceived}/${it.quantity}` : it.quantity} @ ₱{it.unitPrice})
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="text-end fw-bold text-danger">₱{(row.totalExpense || 0).toFixed(2)}</td>
                               </>
                             ) : (
                               <>

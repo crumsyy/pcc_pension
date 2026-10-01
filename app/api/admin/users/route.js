@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 export async function GET(request) {
   const auth = await verifyAdmin();
   if (!auth.authorized) return auth.response;
+  const session = auth.session;
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';

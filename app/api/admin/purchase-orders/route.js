@@ -76,6 +76,7 @@ export async function GET(request) {
 export async function POST(request) {
   const auth = await verifyAdmin();
   if (!auth.authorized) return auth.response;
+  const session = auth.session;
 
   try {
     const body = await request.json();

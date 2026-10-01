@@ -235,6 +235,7 @@ export async function GET(request) {
             grossRevenue: 0,
             discount: 0,
             netRevenue: 0,
+            poExpenses: 0,
             paymentMethods: new Set(),
             bookingIDs: new Set()
           };
@@ -264,14 +265,206 @@ export async function GET(request) {
         });
       }
 
-      const salesRows = Object.values(groupedData).map(row => ({
-        period: row.period,
-        bookingCount: row.bookingIDs.size,
-        grossRevenue: row.grossRevenue,
-        discount: row.discount,
-        netRevenue: row.netRevenue,
-        paymentMethods: Array.from(row.paymentMethods).join(', ') || 'Cash'
-      }));
+      // 2. Fetch Purchase Orders within date range (Expenses)
+      const poItemsRes = await dbQuery(`
+        SELECT po.purchaseOrderID, DATE_FORMAT(po.orderDate, '%Y-%m-%dT%H:%i:%s') as orderDate,
+               po.status as poStatus, po.remarks,
+               poi.orderItemID, poi.itemName, poi.itemType, poi.quantity,
+               COALESCE(poi.quantityReceived, 0) as quantityReceived,
+               COALESCE(poi.unitPrice, 0) as unitPrice
+        FROM purchase_order po
+        JOIN purchase_order_items poi ON poi.purchaseOrderID = po.purchaseOrderID
+        WHERE DATE(po.orderDate) BETWEEN ? AND ?
+          AND po.status != 'Canceled'
+        ORDER BY po.orderDate DESC
+      `, [from, to]).catch(() => []);
+
+      const poMap = {};
+      let totalPoExpenses = 0;
+
+      for (const item of poItemsRes) {
+        const qty = item.poStatus === 'Received' ? (item.quantityReceived || item.quantity) : item.quantity;
+        const lineExpense = parseFloat(item.unitPrice || 0) * parseInt(qty || 0);
+        totalPoExpenses += lineExpense;
+
+        if (!poMap[item.purchaseOrderID]) {
+          poMap[item.purchaseOrderID] = {
+            purchaseOrderID: item.purchaseOrderID,
+            orderDate: item.orderDate,
+            date: item.orderDate ? new Date(item.orderDate).toLocaleDateString() : '—',
+            poStatus: item.poStatus,
+            remarks: item.remarks || '—',
+            totalExpense: 0,
+            items: []
+          };
+        }
+        poMap[item.purchaseOrderID].totalExpense += lineExpense;
+        poMap[item.purchaseOrderID].items.push({
+          orderItemID: item.orderItemID,
+          itemName: item.itemName,
+          itemType: item.itemType,
+          quantity: item.quantity,
+          quantityReceived: item.quantityReceived,
+          unitPrice: parseFloat(item.unitPrice || 0),
+          lineTotal: lineExpense
+        });
+
+        // Add to period grouping
+        const pKey = getPeriodKey(item.orderDate);
+        if (!groupedData[pKey]) {
+          groupedData[pKey] = {
+            period: pKey,
+            bookingCount: 0,
+            grossRevenue: 0,
+            discount: 0,
+            netRevenue: 0,
+            poExpenses: 0,
+            paymentMethods: new Set(),
+            bookingIDs: new Set()
+          };
+        }
+        groupedData[pKey].poExpenses = (groupedData[pKey].poExpenses || 0) + lineExpense;
+      }
+      const poLogs = Object.values(poMap);
+
+      // 3. Fetch Guest Orders in date range (Cooked Meals, Products, Amenities)
+      const [orderProductsRes, orderAmenitiesRes] = await Promise.all([
+        dbQuery(`
+          SELECT o.orderID, DATE_FORMAT(o.orderDateTime, '%Y-%m-%dT%H:%i:%s') as orderDateTime,
+                 o.orderStatus, o.bookingID, o.guestID,
+                 g.firstName, g.lastName,
+                 COALESCE(r.roomNumber, 'N/A') as roomNumber,
+                 op.orderProductID, op.quantity, op.isComplimentary,
+                 COALESCE(op.unitPrice, p.price, 0) as unitPrice,
+                 p.productID, p.name as itemName, p.productCategoryID,
+                 pc.name as categoryName
+          FROM orders o
+          JOIN order_product op ON op.orderID = o.orderID
+          JOIN products p ON p.productID = op.productID
+          LEFT JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
+          LEFT JOIN guest g ON g.guestID = o.guestID
+          LEFT JOIN booking b ON b.bookingID = o.bookingID
+          LEFT JOIN room r ON r.roomID = b.roomID
+          WHERE DATE(o.orderDateTime) BETWEEN ? AND ?
+            AND o.orderStatus != 'Canceled'
+            ${roomID ? ` AND b.roomID = ${parseInt(roomID)}` : ''}
+          ORDER BY o.orderDateTime DESC
+        `, [from, to]).catch(() => []),
+
+        dbQuery(`
+          SELECT o.orderID, DATE_FORMAT(o.orderDateTime, '%Y-%m-%dT%H:%i:%s') as orderDateTime,
+                 o.orderStatus, o.bookingID, o.guestID,
+                 g.firstName, g.lastName,
+                 COALESCE(r.roomNumber, 'N/A') as roomNumber,
+                 oa.orderAmenityID, oa.quantity,
+                 COALESCE(oa.unitPrice, a.price, 0) as unitPrice,
+                 a.amenityID, a.name as itemName
+          FROM orders o
+          JOIN order_amenities oa ON oa.orderID = o.orderID
+          JOIN amenities a ON a.amenityID = oa.amenityID
+          LEFT JOIN guest g ON g.guestID = o.guestID
+          LEFT JOIN booking b ON b.bookingID = o.bookingID
+          LEFT JOIN room r ON r.roomID = b.roomID
+          WHERE DATE(o.orderDateTime) BETWEEN ? AND ?
+            AND o.orderStatus != 'Canceled'
+            ${roomID ? ` AND b.roomID = ${parseInt(roomID)}` : ''}
+          ORDER BY o.orderDateTime DESC
+        `, [from, to]).catch(() => [])
+      ]);
+
+      let cookedMealsTotal = 0;
+      let cookedMealsCount = 0;
+      let productsTotal = 0;
+      let productsCount = 0;
+      let amenitiesTotal = 0;
+      let amenitiesCount = 0;
+
+      let orderLogs = [];
+
+      for (const op of orderProductsRes) {
+        const isCookedMeal = op.productCategoryID === 3 || String(op.categoryName || '').toLowerCase().includes('cooked meals');
+        const qty = parseInt(op.quantity || 0);
+        const uPrice = parseFloat(op.unitPrice || 0);
+        const amount = op.isComplimentary === 1 ? 0 : (qty * uPrice);
+
+        if (isCookedMeal) {
+          cookedMealsTotal += amount;
+          cookedMealsCount += qty;
+        } else {
+          productsTotal += amount;
+          productsCount += qty;
+        }
+
+        orderLogs.push({
+          orderID: op.orderID,
+          date: op.orderDateTime ? new Date(op.orderDateTime).toLocaleString() : '—',
+          bookingID: op.bookingID || 'Walk-in',
+          guestName: op.firstName ? `${op.firstName} ${op.lastName || ''}`.trim() : 'Guest',
+          roomNumber: op.roomNumber !== 'N/A' ? `Room ${op.roomNumber}` : '—',
+          itemType: isCookedMeal ? 'Cooked Meal' : 'Product',
+          itemName: op.itemName,
+          quantity: qty,
+          unitPrice: uPrice,
+          totalAmount: amount,
+          isComplimentary: op.isComplimentary === 1,
+          orderStatus: op.orderStatus
+        });
+      }
+
+      for (const oa of orderAmenitiesRes) {
+        const qty = parseInt(oa.quantity || 0);
+        const uPrice = parseFloat(oa.unitPrice || 0);
+        const amount = qty * uPrice;
+
+        amenitiesTotal += amount;
+        amenitiesCount += qty;
+
+        orderLogs.push({
+          orderID: oa.orderID,
+          date: oa.orderDateTime ? new Date(oa.orderDateTime).toLocaleString() : '—',
+          bookingID: oa.bookingID || 'Walk-in',
+          guestName: oa.firstName ? `${oa.firstName} ${oa.lastName || ''}`.trim() : 'Guest',
+          roomNumber: oa.roomNumber !== 'N/A' ? `Room ${oa.roomNumber}` : '—',
+          itemType: 'Amenity',
+          itemName: oa.itemName,
+          quantity: qty,
+          unitPrice: uPrice,
+          totalAmount: amount,
+          isComplimentary: false,
+          orderStatus: oa.orderStatus
+        });
+      }
+
+      if (itemClassification && itemClassification !== 'All') {
+        if (itemClassification === 'Cooked Meals') {
+          orderLogs = orderLogs.filter(o => o.itemType === 'Cooked Meal');
+        } else if (itemClassification === 'Products') {
+          orderLogs = orderLogs.filter(o => o.itemType === 'Product');
+        } else if (itemClassification === 'Amenities') {
+          orderLogs = orderLogs.filter(o => o.itemType === 'Amenity');
+        }
+      }
+
+      const totalOrdersTotal = cookedMealsTotal + productsTotal + amenitiesTotal;
+      const totalOrdersCount = cookedMealsCount + productsCount + amenitiesCount;
+
+      const salesRows = Object.values(groupedData).map(row => {
+        const gross = row.grossRevenue || 0;
+        const disc = row.discount || 0;
+        const net = row.netRevenue || 0;
+        const poExp = row.poExpenses || 0;
+        const netProfit = net - poExp;
+        return {
+          period: row.period,
+          bookingCount: row.bookingIDs ? row.bookingIDs.size : 0,
+          grossRevenue: gross,
+          discount: disc,
+          netRevenue: net,
+          poExpenses: poExp,
+          netProfit: netProfit,
+          paymentMethods: row.paymentMethods ? (Array.from(row.paymentMethods).join(', ') || 'Cash') : 'Cash'
+        };
+      });
 
       // Overall stats for sales
       let bkCountSql = "SELECT COUNT(*) as count FROM booking b JOIN room r ON r.roomID = b.roomID WHERE DATE(b.checkInDateTime) BETWEEN ? AND ?";
@@ -340,6 +533,20 @@ export async function GET(request) {
       data.totalRevenue = totalRevenue;
       data.grossRevenue = totalRevenue + totalDiscountApplied;
       data.discountApplied = totalDiscountApplied;
+      data.totalPoExpenses = totalPoExpenses;
+      data.netProfit = totalRevenue - totalPoExpenses;
+      data.ordersBreakdown = {
+        cookedMealsTotal,
+        cookedMealsCount,
+        productsTotal,
+        productsCount,
+        amenitiesTotal,
+        amenitiesCount,
+        totalOrdersTotal,
+        totalOrdersCount
+      };
+      data.orderLogs = orderLogs;
+      data.poLogs = poLogs;
       data.totalSales = filteredTransactions.length;
       data.cashTotal = cashTotal;
       data.gcashTotal = gcashTotal;
