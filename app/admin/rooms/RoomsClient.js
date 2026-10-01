@@ -614,7 +614,7 @@ export default function RoomsClient() {
                         <td>
                           <ActionButtons
                             onEdit={!showArchived ? () => openEditModal(rm) : null}
-                            onDelete={!showArchived ? () => handleArchive(rm) : null}
+                            onArchive={!showArchived ? () => handleArchive(rm) : null}
                             onRestore={showArchived ? () => handleRestore(rm) : null}
                             disabledEdit={isOccupied}
                             editTooltip="Occupied rooms cannot be edited."

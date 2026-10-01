@@ -448,7 +448,7 @@ export default function AdminAmenities() {
                       <td>
                         <ActionButtons
                           onEdit={!showArchived ? () => openEditModal(item) : null}
-                          onDelete={!showArchived ? () => handleArchive(item.amenityID) : null}
+                          onArchive={!showArchived ? () => handleArchive(item.amenityID) : null}
                           onRestore={showArchived ? () => handleRestore(item.amenityID) : null}
                         />
                       </td>

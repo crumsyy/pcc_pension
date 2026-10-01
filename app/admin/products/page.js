@@ -529,7 +529,7 @@ export default function AdminProducts() {
                       <td>
                         <ActionButtons
                           onEdit={activeTab !== 'archived' ? () => openEditModal(p) : null}
-                          onDelete={activeTab !== 'archived' ? () => handleArchive(p.productID) : null}
+                          onArchive={activeTab !== 'archived' ? () => handleArchive(p.productID) : null}
                           onRestore={activeTab === 'archived' ? () => handleRestore(p.productID) : null}
                         />
                       </td>

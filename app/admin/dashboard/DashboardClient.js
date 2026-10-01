@@ -141,8 +141,9 @@ export default function DashboardClient({ userName }) {
             type="button" 
             className="btn btn-outline-danger btn-sm fw-bold d-flex align-items-center gap-1 shadow-xs"
             onClick={() => { setResetFeedback(null); setShowResetModal(true); }}
+            title="Testing utility: Reset transaction tables to #00001"
           >
-            <i className="bi bi-arrow-counterclockwise"></i> Reset Transaction Records
+            <i className="bi bi-arrow-counterclockwise"></i> Reset Transaction Records (Testing Only)
           </button>
         </div>
       </div>
@@ -616,8 +617,9 @@ export default function DashboardClient({ userName }) {
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '12px' }}>
               <div className="modal-header bg-danger text-white">
-                <h5 className="modal-title fw-bold">
-                  <i className="bi bi-exclamation-triangle-fill me-2"></i> Clean Reset — Transaction Records Only
+                <h5 className="modal-title fw-bold d-flex align-items-center flex-wrap gap-2">
+                  <i className="bi bi-exclamation-triangle-fill"></i> Clean Reset — Transaction Records Only
+                  <span className="badge bg-warning text-dark fw-bold" style={{ fontSize: '0.75rem' }}>FOR TESTING ONLY</span>
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowResetModal(false)} disabled={resetting}></button>
               </div>
@@ -642,12 +644,13 @@ export default function DashboardClient({ userName }) {
                   </div>
                 ) : (
                   <>
-                    <div className="alert alert-warning py-3 small mb-3 border-start border-warning border-4">
-                      <div className="fw-bold mb-1 text-dark">
-                        <i className="bi bi-exclamation-triangle-fill text-warning me-1"></i> System Reset Confirmation
+                    <div className="alert alert-warning py-3 small mb-3 border-start border-warning border-4 shadow-xs">
+                      <div className="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                        <i className="bi bi-info-circle-fill text-warning fs-5"></i>
+                        <span>NOTICE: FOR TESTING & DEMONSTRATION PURPOSES ONLY</span>
                       </div>
                       <div className="text-dark">
-                        This will clear all Admin and Guest transactions. User accounts, products, and amenities will remain intact.
+                        This database reset utility is provided strictly for testing, capstone evaluations, and demonstration purposes to purge demo transactions back to <code>#00001</code>. Master administrative logins, room inventory, product/meal catalogs, and pricing configurations will remain intact.
                       </div>
                     </div>
 
@@ -662,7 +665,7 @@ export default function DashboardClient({ userName }) {
                             <li>Orders (starts at <code>ORD00001</code>)</li>
                             <li>Billing Invoices & Line Items</li>
                             <li>Borrow Transactions & Inquiries</li>
-                            <li>Occupied/Reserved rooms $\rightarrow$ <code>Available</code></li>
+                            <li>Occupied/Reserved rooms → <code>Available</code></li>
                           </ul>
                         </div>
                       </div>
@@ -712,7 +715,7 @@ export default function DashboardClient({ userName }) {
                         </>
                       ) : (
                         <>
-                          <i className="bi bi-trash-fill"></i> Confirm Clean Reset
+                          <i className="bi bi-arrow-counterclockwise"></i> Confirm Clean Reset (Testing Only)
                         </>
                       )}
                     </button>

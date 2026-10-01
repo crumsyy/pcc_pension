@@ -1112,6 +1112,16 @@ table td {
   color: #fff;
 }
 
+.action-btn-archive {
+  background-color: #d97706;
+  color: #fff;
+}
+
+.action-btn-archive:hover {
+  background-color: #b45309;
+  color: #fff;
+}
+
 .action-btn-restore {
   background-color: #0dcaf0;
   color: #000;

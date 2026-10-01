@@ -6,6 +6,7 @@ export default function ActionButtons({
   onView,
   onEdit,
   onDelete,
+  onArchive,
   onActivate,
   onDeactivate,
   onRestore,
@@ -19,6 +20,9 @@ export default function ActionButtons({
   isSelf,
   disabledEdit,
   editTooltip,
+  archiveTooltip,
+  deleteTooltip,
+  deleteIcon,
   className = ''
 }) {
   const containerRef = useRef(null);
@@ -45,6 +49,7 @@ export default function ActionButtons({
     onView,
     onEdit,
     onDelete,
+    onArchive,
     onActivate,
     onDeactivate,
     onRestore,
@@ -209,17 +214,31 @@ export default function ActionButtons({
         </button>
       )}
 
+      {onArchive && (
+        <button
+          type="button"
+          className="action-btn action-btn-archive"
+          onClick={onArchive}
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          title={archiveTooltip || "Archive"}
+          aria-label={archiveTooltip || "Archive"}
+        >
+          <i className="fa-solid fa-box-archive"></i>
+        </button>
+      )}
+
       {onDelete && (
         <button
           type="button"
-          className="action-btn action-btn-delete"
+          className={`action-btn ${deleteIcon === 'archive' ? 'action-btn-archive' : 'action-btn-delete'}`}
           onClick={onDelete}
           data-bs-toggle="tooltip"
           data-bs-placement="top"
-          title="Delete"
-          aria-label="Delete"
+          title={deleteTooltip || (deleteIcon === 'archive' ? 'Archive' : 'Delete')}
+          aria-label={deleteTooltip || (deleteIcon === 'archive' ? 'Archive' : 'Delete')}
         >
-          <i className="fa-solid fa-trash"></i>
+          <i className={`fa-solid ${deleteIcon === 'archive' ? 'fa-box-archive' : 'fa-trash'}`}></i>
         </button>
       )}
 

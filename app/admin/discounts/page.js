@@ -567,7 +567,7 @@ export default function AdminDiscounts() {
                           <td>
                             <ActionButtons
                               onEdit={activeTab !== 'archived' ? () => openEditDiscModal(d) : null}
-                              onDelete={activeTab !== 'archived' ? () => handleArchiveDisc(d.discountID) : null}
+                              onArchive={activeTab !== 'archived' ? () => handleArchiveDisc(d.discountID) : null}
                               onRestore={activeTab === 'archived' ? () => handleRestoreDisc(d.discountID) : null}
                             />
                           </td>
@@ -642,7 +642,7 @@ export default function AdminDiscounts() {
                             <td>
                               <ActionButtons
                                 onEdit={activeTab !== 'archived' ? () => openEditPromoModal(p) : null}
-                                onDelete={activeTab !== 'archived' ? () => handleArchivePromo(p.promotionID) : null}
+                                onArchive={activeTab !== 'archived' ? () => handleArchivePromo(p.promotionID) : null}
                                 onRestore={activeTab === 'archived' ? () => handleRestorePromo(p.promotionID) : null}
                               />
                             </td>
