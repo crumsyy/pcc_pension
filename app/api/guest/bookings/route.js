@@ -29,6 +29,7 @@ export async function GET() {
                ELSE b.status
              END as status,
              b.reservationID, b.roomID, b.roomRate, b.breakfastOption, b.breakfastID, b.cancelRemarks,
+             COALESCE(b.breakfastFee, 0) as breakfastFee,
              b.finalBalance, b.checkoutRequestedAt, b.roomVerifiedAt, b.finalBillingUpdatedAt, b.paymentCompletedAt,
              rm.roomNumber, rm.floorID, rt.type as roomType, rt.roomTypeID, rr.rate as rate
       FROM booking b

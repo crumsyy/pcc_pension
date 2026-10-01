@@ -218,6 +218,7 @@ export default function ActiveStayPanel({
                   const roomCapacity = parseInt(roomBreakdown.capacity || detailedBill?.roomCapacity || activeBookingStay.occupancyLimit || 4, 10);
                   const extraPaxCount = parseInt(roomBreakdown.extraPax !== undefined ? roomBreakdown.extraPax : (detailedBill?.extraGuests || detailedBill?.chargesBreakdown?.additionalFees?.extraGuestsCount || 0), 10);
                   const extraGuestFee = parseFloat(roomBreakdown.extraGuestFee !== undefined ? roomBreakdown.extraGuestFee : (detailedBill?.extraGuestFee || detailedBill?.chargesBreakdown?.additionalFees?.extraGuestFee || 0));
+                  const breakfastFee = parseFloat(roomBreakdown.breakfastFee ?? detailedBill?.chargesSummary?.breakfastFee ?? detailedBill?.booking?.breakfastFee ?? detailedBill?.breakfastFee ?? 0);
                   const totalRoomCharge = parseFloat(roomBreakdown.totalRoomCharge || detailedBill?.finalRoomCharge || (baseRoomCharge + extraGuestFee));
 
                   return (
@@ -246,9 +247,16 @@ export default function ActiveStayPanel({
                             • Base Room Capacity: {roomCapacity} Pax (No extra guest surcharge)
                           </div>
                         )}
-                        <div>
-                          • Breakfast Option: <strong className="text-dark">{detailedBill?.booking?.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast Included (Up to 2/day)'}</strong>
-                        </div>
+                        {breakfastFee > 0 ? (
+                          <div className="d-flex justify-content-between">
+                            <span>• Breakfast Fee:</span>
+                            <span className="fw-semibold text-dark">₱{breakfastFee.toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <div>
+                            • Breakfast Option: <strong className="text-dark">{detailedBill?.booking?.breakfastOption === 'without' ? 'Without Breakfast' : 'With Breakfast Included (Up to 2/day)'}</strong>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

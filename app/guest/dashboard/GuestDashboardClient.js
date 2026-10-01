@@ -3828,6 +3828,16 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         const extraPaxCount = parseInt(roomBreakdown.extraPax !== undefined ? roomBreakdown.extraPax : (billData?.extraGuests || billData?.extraPax || 0), 10);
         const extraGuestFee = parseFloat(roomBreakdown.extraGuestFee !== undefined ? roomBreakdown.extraGuestFee : (billData?.extraGuestFee || 0));
         const breakfastOption = roomBreakdown.breakfastOption || billData?.breakfastOption || viewBillingBooking.breakfastOption || 'with';
+        const breakfastFee = parseFloat(
+          roomBreakdown.breakfastFee ??
+          billData?.chargesSummary?.breakfastFee ??
+          billData?.chargesBreakdown?.breakfastSummary?.breakfastFee ??
+          billData?.breakfastFee ??
+          billData?.booking?.breakfastFee ??
+          viewBillingBooking?.breakfastFee ??
+          0
+        );
+        const breakfastDates = billData?.chargesSummary?.breakfastDates || billData?.breakfastDates || viewBillingBooking?.breakfastDates || [];
         const productsList = billData?.chargesBreakdown?.orders?.products || billData?.productCharges || billData?.cookedMealCharges || [];
         const amenitiesList = billData?.chargesBreakdown?.orders?.amenities || billData?.amenityCharges || [];
         const ordersSummaryList = billData?.ordersSummary?.orders || billData?.chargesBreakdown?.ordersSummary?.orders || [];
@@ -3932,15 +3942,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                 <td className="text-end text-muted fw-semibold">&mdash;</td>
                               </tr>
                             )}
-                            {breakfastOption === 'with' && (
+                            {(breakfastOption === 'with' || breakfastFee > 0) && (
                               <tr>
                                 <td>
-                                  <div className="fw-semibold text-success">Complimentary Breakfast Included</div>
+                                  <div className="fw-semibold text-dark">Breakfast fee</div>
                                   <div className="text-muted" style={{ fontSize: '0.74rem' }}>
                                     Daily quota: up to 2 complimentary meals per calendar date (Stay allowance: {2 * stayNights} complimentary meals)
                                   </div>
                                 </td>
-                                <td className="text-end text-success fw-semibold">Included ({formatCurrency(0)})</td>
+                                <td className="text-end text-dark fw-semibold">
+                                  {breakfastFee > 0 ? `+${formatCurrency(breakfastFee)}` : formatCurrency(breakfastFee)}
+                                </td>
                               </tr>
                             )}
                             {totalDiscounts > 0 && (
