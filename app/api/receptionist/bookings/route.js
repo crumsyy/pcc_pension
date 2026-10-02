@@ -705,7 +705,11 @@ export async function POST(request) {
         }
         if (body.breakfastDates !== undefined) {
           updateBookingSql += ", breakfastDates = ?";
-          updateBookingParams.push(Array.isArray(body.breakfastDates) ? JSON.stringify(body.breakfastDates) : (body.breakfastDates || null));
+          updateBookingParams.push(
+            typeof body.breakfastDates === 'string'
+              ? body.breakfastDates
+              : (body.breakfastDates ? JSON.stringify(body.breakfastDates) : null)
+          );
         }
         updateBookingSql += " WHERE bookingID = ?";
         updateBookingParams.push(bookingID);

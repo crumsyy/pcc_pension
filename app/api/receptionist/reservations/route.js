@@ -621,7 +621,9 @@ export async function POST(request) {
           parseFloat(initialBalance || 0) || 0,
           res[0].breakfastOption || 'with',
           totalGuestsCount || 0,
-          res[0].breakfastDates || null,
+          typeof res[0].breakfastDates === 'string'
+            ? res[0].breakfastDates
+            : (res[0].breakfastDates ? JSON.stringify(res[0].breakfastDates) : null),
           parseFloat(calculatedBreakfastFee || 0) || 0
         ];
         console.log("DEBUG: Booking Insert Params:", sanitizedBookingParams);
