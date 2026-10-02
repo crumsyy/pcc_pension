@@ -181,26 +181,45 @@ export default function ReceptionistReservationForm({
           </span>
         </div>
         <div className="row g-2 mb-2">
-          <div className="col-md-6">
+          <div className="col-md-4">
             <label className="form-label small fw-semibold mb-1">First Name *</label>
             <input
               type="text"
               className={`form-control form-control-sm ${formErrors.firstName ? 'is-invalid' : ''}`}
               value={walkInForm.firstName || ''}
-              onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, firstName: e.target.value }))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[0-9]/g, '');
+                if (setWalkInForm) setWalkInForm(prev => ({ ...prev, firstName: val }));
+              }}
               required
             />
             {formErrors.firstName && (
               <div className="invalid-feedback">{formErrors.firstName}</div>
             )}
           </div>
-          <div className="col-md-6">
+          <div className="col-md-4">
+            <label className="form-label small fw-semibold mb-1">Middle Name <span className="text-muted fw-normal">(Optional)</span></label>
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              placeholder="Optional"
+              value={walkInForm.middleName || ''}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[0-9]/g, '');
+                if (setWalkInForm) setWalkInForm(prev => ({ ...prev, middleName: val }));
+              }}
+            />
+          </div>
+          <div className="col-md-4">
             <label className="form-label small fw-semibold mb-1">Last Name *</label>
             <input
               type="text"
               className={`form-control form-control-sm ${formErrors.lastName ? 'is-invalid' : ''}`}
               value={walkInForm.lastName || ''}
-              onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, lastName: e.target.value }))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[0-9]/g, '');
+                if (setWalkInForm) setWalkInForm(prev => ({ ...prev, lastName: val }));
+              }}
               required
             />
             {formErrors.lastName && (
@@ -243,21 +262,21 @@ export default function ReceptionistReservationForm({
         <div className="row g-2">
           <div className="col-12">
             <label className="form-label small fw-semibold mb-1">
-              Email Address <span className="text-danger fw-bold">* (Required for Courtesy Hold)</span>
+              Email Address <span className="text-muted fw-normal">(Optional)</span>
             </label>
             <input
               type="email"
-              className={`form-control form-control-sm ${formErrors.email ? 'is-invalid' : (!walkInForm.email ? 'border-warning' : '')}`}
+              className={`form-control form-control-sm ${formErrors.email ? 'is-invalid' : ''}`}
               placeholder="guest@example.com"
               value={walkInForm.email || ''}
-              required={true}
+              required={false}
               onChange={(e) => setWalkInForm && setWalkInForm(prev => ({ ...prev, email: e.target.value }))}
             />
             {formErrors.email ? (
               <div className="invalid-feedback d-block">{formErrors.email}</div>
             ) : (
               <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
-                Required for sending courtesy hold expiry alerts and auto-release notifications.
+                Optional for receiving courtesy hold alerts and notifications.
               </div>
             )}
           </div>
@@ -415,7 +434,7 @@ export default function ReceptionistReservationForm({
               disabled={isFreeBreakfast}
             >
               <option value="with">
-                With Breakfast (All Mornings)
+                With Breakfast
               </option>
               <option value="custom">
                 Customize Breakfast Mornings

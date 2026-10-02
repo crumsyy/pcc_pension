@@ -1131,11 +1131,11 @@ function BookingsClient() {
       showAlert('error', 'Validation Error', 'First Name and Last Name are required.');
       return;
     }
-    if (!guestForm.email || !guestForm.email.trim()) {
-      showAlert('error', 'Validation Error', 'Guest Email Address is required for all bookings.');
+    if (/\d/.test(guestForm.firstName) || /\d/.test(guestForm.lastName) || (guestForm.middleName && /\d/.test(guestForm.middleName))) {
+      showAlert('error', 'Validation Error', 'First name, middle name, and last name must not contain numbers.');
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestForm.email.trim())) {
+    if (guestForm.email && guestForm.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestForm.email.trim())) {
       showAlert('error', 'Validation Error', 'Please enter a valid guest email address.');
       return;
     }
@@ -2180,7 +2180,10 @@ function BookingsClient() {
                           className="form-control form-control-sm"
                           required
                           value={guestForm.firstName}
-                          onChange={(e) => setGuestForm(prev => ({ ...prev, firstName: e.target.value }))}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[0-9]/g, '');
+                            setGuestForm(prev => ({ ...prev, firstName: val }));
+                          }}
                         />
                       </div>
                       <div className="col-md-4">
@@ -2190,7 +2193,10 @@ function BookingsClient() {
                           className="form-control form-control-sm"
                           placeholder="Optional"
                           value={guestForm.middleName || ''}
-                          onChange={(e) => setGuestForm(prev => ({ ...prev, middleName: e.target.value }))}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[0-9]/g, '');
+                            setGuestForm(prev => ({ ...prev, middleName: val }));
+                          }}
                         />
                       </div>
                       <div className="col-md-4">
@@ -2200,7 +2206,10 @@ function BookingsClient() {
                           className="form-control form-control-sm"
                           required
                           value={guestForm.lastName}
-                          onChange={(e) => setGuestForm(prev => ({ ...prev, lastName: e.target.value }))}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[0-9]/g, '');
+                            setGuestForm(prev => ({ ...prev, lastName: val }));
+                          }}
                         />
                       </div>
                     </div>
@@ -2230,18 +2239,17 @@ function BookingsClient() {
                       </div>
                       <div className="col-md-4 mb-2">
                         <label className="form-label small fw-semibold mb-1">
-                          Email Address <span className="text-danger fw-bold">* (Required)</span>
+                          Email Address <span className="text-muted fw-normal">(Optional)</span>
                         </label>
                         <input
                           type="email"
-                          className={`form-control form-control-sm ${!guestForm.email ? 'border-warning' : ''}`}
+                          className="form-control form-control-sm"
                           placeholder="name@example.com"
-                          required
                           value={guestForm.email}
                           onChange={(e) => setGuestForm(prev => ({ ...prev, email: e.target.value }))}
                         />
                         <div className="form-text small text-muted" style={{ fontSize: '0.73rem' }}>
-                          <i className="bi bi-info-circle me-1"></i>Required for walk-in guests to receive booking confirmation and official receipt.
+                          <i className="bi bi-info-circle me-1"></i>Optional for walk-in guests to receive booking confirmation and official receipt.
                         </div>
                       </div>
                     </div>
@@ -2283,7 +2291,7 @@ function BookingsClient() {
                           .filter(rm => (rm.roomType || 'Standard Room') === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, useCurrentTimeIn))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
-                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 4} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
+                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 4} Pax)
                             </option>
                           ))
                         }
@@ -2297,7 +2305,7 @@ function BookingsClient() {
                         value={breakfastOption}
                         onChange={(e) => setBreakfastOption(e.target.value)}
                       >
-                        <option value="with">With Breakfast (All Mornings)</option>
+                        <option value="with">With Breakfast</option>
                         <option value="custom">Customize Breakfast Mornings</option>
                         <option value="without">Without Breakfast</option>
                       </select>

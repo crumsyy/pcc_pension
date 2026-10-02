@@ -139,6 +139,7 @@ function ReservationsClient() {
   const [isAutoFilled, setIsAutoFilled] = useState(false);
   const [guestForm, setGuestForm] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     contact: '',
     email: '',
@@ -153,7 +154,7 @@ function ReservationsClient() {
 
   const handleUidChange = (val) => {
     setFormData(prev => ({ ...prev, guestID: val }));
-    setFormErrors(prev => ({ ...prev, guestID: '', firstName: '', lastName: '', contact: '', email: '', dateOfBirth: '' }));
+    setFormErrors(prev => ({ ...prev, guestID: '', firstName: '', middleName: '', lastName: '', contact: '', email: '', dateOfBirth: '' }));
     if (!val) {
       setIsAutoFilled(false);
       return;
@@ -162,6 +163,7 @@ function ReservationsClient() {
     if (selected) {
       setGuestForm({
         firstName: selected.firstName || '',
+        middleName: selected.middleName || '',
         lastName: selected.lastName || '',
         contact: selected.contact || '',
         email: selected.email || '',
@@ -398,6 +400,7 @@ function ReservationsClient() {
       const qCheckIn = searchParams.get('checkIn');
       const qRoomID = searchParams.get('roomID');
       const qFirstName = searchParams.get('firstName');
+      const qMiddleName = searchParams.get('middleName');
       const qLastName = searchParams.get('lastName');
       const qEmail = searchParams.get('email');
       const qContact = searchParams.get('contact');
@@ -418,6 +421,7 @@ function ReservationsClient() {
         setIsAutoFilled(false);
         setGuestForm({
           firstName: qFirstName || '',
+          middleName: qMiddleName || '',
           lastName: qLastName || '',
           email: qEmail || '',
           contact: qContact || '',
@@ -525,6 +529,7 @@ function ReservationsClient() {
     });
     setGuestForm({
       firstName: res.firstName || '',
+      middleName: res.middleName || '',
       lastName: res.lastName || '',
       contact: res.contact || '',
       email: res.email || '',
@@ -579,9 +584,16 @@ function ReservationsClient() {
     const errors = {};
     if (!guestForm.firstName || !guestForm.firstName.trim()) {
       errors.firstName = 'First name is required.';
+    } else if (/\d/.test(guestForm.firstName)) {
+      errors.firstName = 'First name must not contain numbers.';
+    }
+    if (guestForm.middleName && /\d/.test(guestForm.middleName)) {
+      errors.middleName = 'Middle name must not contain numbers.';
     }
     if (!guestForm.lastName || !guestForm.lastName.trim()) {
       errors.lastName = 'Last name is required.';
+    } else if (/\d/.test(guestForm.lastName)) {
+      errors.lastName = 'Last name must not contain numbers.';
     }
     if (!guestForm.contact || guestForm.contact.length !== 11) {
       errors.contact = 'Contact number must be exactly 11 digits (e.g. 09XXXXXXXXX).';
@@ -594,10 +606,10 @@ function ReservationsClient() {
         errors.dateOfBirth = 'Guest must be at least 18 years old to make a reservation.';
       }
     }
-    if (!guestForm.email || !guestForm.email.trim()) {
-      errors.email = 'Email address is required for Courtesy Hold to receive expiry alerts and auto-release notices.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestForm.email.trim())) {
-      errors.email = 'Please enter a valid email address.';
+    if (guestForm.email && guestForm.email.trim()) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestForm.email.trim())) {
+        errors.email = 'Please enter a valid email address.';
+      }
     }
 
     if (!selectedRoomType) {
@@ -666,9 +678,10 @@ function ReservationsClient() {
             isWalkIn,
             guestID: formData.guestID || null,
             firstName: guestForm.firstName,
+            middleName: guestForm.middleName || null,
             lastName: guestForm.lastName,
             contact: guestForm.contact,
-            email: guestForm.email,
+            email: guestForm.email || null,
             gender: guestForm.gender || 'Male',
             dateOfBirth: guestForm.dateOfBirth ? toDbDate(guestForm.dateOfBirth) : null,
             roomID: formData.roomID,
@@ -1399,7 +1412,7 @@ function ReservationsClient() {
                     </div>
 
                     <div className="row g-2 mb-2">
-                      <div className="col-md-6">
+                      <div className="col-md-4">
                         <label className="form-label small fw-semibold mb-1">First Name *</label>
                         <input
                           type="text"
@@ -1407,7 +1420,8 @@ function ReservationsClient() {
                           required
                           value={guestForm.firstName}
                           onChange={(e) => {
-                            setGuestForm(prev => ({ ...prev, firstName: e.target.value }));
+                            const val = e.target.value.replace(/[0-9]/g, '');
+                            setGuestForm(prev => ({ ...prev, firstName: val }));
                             setFormErrors(prev => ({ ...prev, firstName: '' }));
                           }}
                         />
@@ -1415,7 +1429,24 @@ function ReservationsClient() {
                           <div className="text-danger small mt-1 fw-semibold">{formErrors.firstName}</div>
                         )}
                       </div>
-                      <div className="col-md-6">
+                      <div className="col-md-4">
+                        <label className="form-label small fw-semibold mb-1">Middle Name <span className="text-muted fw-normal">(Optional)</span></label>
+                        <input
+                          type="text"
+                          className={`form-control form-control-sm ${formErrors.middleName ? 'is-invalid border-danger' : ''}`}
+                          placeholder="Optional"
+                          value={guestForm.middleName || ''}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[0-9]/g, '');
+                            setGuestForm(prev => ({ ...prev, middleName: val }));
+                            setFormErrors(prev => ({ ...prev, middleName: '' }));
+                          }}
+                        />
+                        {formErrors.middleName && (
+                          <div className="text-danger small mt-1 fw-semibold">{formErrors.middleName}</div>
+                        )}
+                      </div>
+                      <div className="col-md-4">
                         <label className="form-label small fw-semibold mb-1">Last Name *</label>
                         <input
                           type="text"
@@ -1423,7 +1454,8 @@ function ReservationsClient() {
                           required
                           value={guestForm.lastName}
                           onChange={(e) => {
-                            setGuestForm(prev => ({ ...prev, lastName: e.target.value }));
+                            const val = e.target.value.replace(/[0-9]/g, '');
+                            setGuestForm(prev => ({ ...prev, lastName: val }));
                             setFormErrors(prev => ({ ...prev, lastName: '' }));
                           }}
                         />
@@ -1469,13 +1501,12 @@ function ReservationsClient() {
                       </div>
                       <div className="col-md-4 mb-2">
                         <label className="form-label small fw-semibold mb-1">
-                          Email Address <span className="text-danger fw-bold">* (Required)</span>
+                          Email Address <span className="text-muted fw-normal">(Optional)</span>
                         </label>
                         <input
                           type="email"
-                          className={`form-control form-control-sm ${formErrors.email ? 'is-invalid border-danger' : (!guestForm.email ? 'border-warning' : '')}`}
+                          className={`form-control form-control-sm ${formErrors.email ? 'is-invalid border-danger' : ''}`}
                           placeholder="name@example.com"
-                          required
                           value={guestForm.email}
                           onChange={(e) => {
                             setGuestForm(prev => ({ ...prev, email: e.target.value }));
@@ -1486,7 +1517,7 @@ function ReservationsClient() {
                           <div className="text-danger small mt-1 fw-semibold">{formErrors.email}</div>
                         ) : (
                           <div className="form-text text-muted" style={{ fontSize: '0.70rem' }}>
-                            Required for Courtesy Hold expiry alerts and auto-release notices.
+                            Optional for Courtesy Hold expiry alerts and auto-release notices.
                           </div>
                         )}
                       </div>
@@ -1539,7 +1570,7 @@ function ReservationsClient() {
                           ))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
-                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 4} Pax){rm.status !== 'Available' ? ' • Vacates before stay' : ''}
+                              Room {rm.roomNumber} (Max {rm.occupancyLimit || 4} Pax)
                             </option>
                           ))
                         }

@@ -197,12 +197,15 @@ export async function POST(request) {
           if (!firstName || !firstName.trim() || !lastName || !lastName.trim()) {
             return NextResponse.json({ error: 'First name and Last name are required.' }, { status: 400 });
           }
-          if (!email || !email.trim()) {
-            return NextResponse.json({ error: 'Guest email address is required for all bookings.' }, { status: 400 });
+          if (/\d/.test(firstName) || /\d/.test(lastName) || (middleName && /\d/.test(middleName))) {
+            return NextResponse.json({ error: 'First name, middle name, and last name must not contain numbers.' }, { status: 400 });
           }
-          const cleanEmail = email.trim().toLowerCase();
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-            return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+          let cleanEmail = null;
+          if (email && email.trim()) {
+            cleanEmail = email.trim().toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+              return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+            }
           }
           if (dateOfBirth) {
             const dobObj = new Date(dateOfBirth + 'T00:00:00');
@@ -216,17 +219,21 @@ export async function POST(request) {
           const cleanMiddle = (middleName || '').trim() || null;
 
           // Check if guest already exists by email or contact
-          const [existingGuests] = await conn.execute(
-            "SELECT guestID, userID, email FROM guest WHERE (email IS NOT NULL AND LOWER(email) = ?) OR (contact = ? AND contact != '') ORDER BY (userID IS NOT NULL) DESC, guestID DESC LIMIT 1",
-            [cleanEmail, cleanContact]
-          );
+          let existingGuests = [];
+          if (cleanEmail || cleanContact) {
+            const [rows] = await conn.execute(
+              "SELECT guestID, userID, email FROM guest WHERE (email IS NOT NULL AND LOWER(email) = ? AND ? IS NOT NULL) OR (contact = ? AND contact != '') ORDER BY (userID IS NOT NULL) DESC, guestID DESC LIMIT 1",
+              [cleanEmail, cleanEmail, cleanContact]
+            );
+            existingGuests = rows;
+          }
 
           if (existingGuests && existingGuests.length > 0) {
             guestID = existingGuests[0].guestID;
-            guestEmail = cleanEmail;
+            guestEmail = cleanEmail || existingGuests[0].email || null;
             if (!existingGuests[0].userID) {
               await conn.execute(
-                "UPDATE guest SET firstName = COALESCE(NULLIF(?, ''), firstName), middleName = COALESCE(?, middleName), lastName = COALESCE(NULLIF(?, ''), lastName), contact = COALESCE(NULLIF(?, ''), contact), dateOfBirth = COALESCE(NULLIF(?, ''), dateOfBirth), email = ? WHERE guestID = ?",
+                "UPDATE guest SET firstName = COALESCE(NULLIF(?, ''), firstName), middleName = COALESCE(?, middleName), lastName = COALESCE(NULLIF(?, ''), lastName), contact = COALESCE(NULLIF(?, ''), contact), dateOfBirth = COALESCE(NULLIF(?, ''), dateOfBirth), email = COALESCE(?, email) WHERE guestID = ?",
                 [firstName.trim(), cleanMiddle, lastName.trim(), cleanContact, dateOfBirth || null, cleanEmail, guestID]
               );
             }
@@ -241,10 +248,7 @@ export async function POST(request) {
         } else {
           guestID = parseInt(body.guestID);
           const [existingGuestRows] = await conn.execute("SELECT email, firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
-          guestEmail = (body.email || existingGuestRows[0]?.email || '').trim().toLowerCase();
-          if (!guestEmail) {
-            return NextResponse.json({ error: 'Guest email address is required for all bookings.' }, { status: 400 });
-          }
+          guestEmail = (body.email || existingGuestRows[0]?.email || '').trim().toLowerCase() || null;
           if (body.email && body.email.trim()) {
             await conn.execute("UPDATE guest SET email = ? WHERE guestID = ?", [guestEmail, guestID]);
           }
@@ -620,18 +624,20 @@ export async function POST(request) {
             ? parseFloat(syncBill[0].downPaymentAmount)
             : downPaymentAmount;
 
-          sendBookingConfirmationEmail(guestEmail, guestFullName, {
-            bookingID,
-            roomNumber: roomInfo[0]?.roomNumber || '',
-            roomType: roomInfo[0]?.roomType || 'Standard',
-            status,
-            checkInDateTime,
-            checkOutDateTime,
-            downPaymentAmount: finalDownPayment,
-            remainingBalance: finalRemBalance,
-            paymentMethod: parseInt(paymentMethodID) === 2 ? 'GCash' : 'Cash',
-            referenceNumber: refNumber
-          }).catch(() => {});
+          if (guestEmail) {
+            sendBookingConfirmationEmail(guestEmail, guestFullName, {
+              bookingID,
+              roomNumber: roomInfo[0]?.roomNumber || '',
+              roomType: roomInfo[0]?.roomType || 'Standard',
+              status,
+              checkInDateTime,
+              checkOutDateTime,
+              downPaymentAmount: finalDownPayment,
+              remainingBalance: finalRemBalance,
+              paymentMethod: parseInt(paymentMethodID) === 2 ? 'GCash' : 'Cash',
+              referenceNumber: refNumber
+            }).catch(() => {});
+          }
         } catch (mailErr) {
           console.error("Failed to send booking confirmation email:", mailErr);
         }
