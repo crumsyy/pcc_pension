@@ -36,7 +36,7 @@ export async function GET(request) {
     params.push(itemType);
   }
 
-  sql += " ORDER BY ac.name, a.name";
+  sql += " ORDER BY a.amenityID DESC";
 
   try {
     const items = await dbQuery(sql, params);

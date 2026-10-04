@@ -37,7 +37,7 @@ export async function GET(request) {
     params.push(parseInt(typeF));
   }
 
-  sql += " ORDER BY fl.name, rm.roomNumber";
+  sql += " ORDER BY rm.roomID DESC";
 
   try {
     const [rooms, floors, roomTypes, roomRates] = await Promise.all([

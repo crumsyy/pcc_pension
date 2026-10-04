@@ -19,7 +19,7 @@ export async function GET(request) {
         JOIN discount_type dt ON dt.discountTypeID = d.discountTypeID 
         JOIN eligibility_type et ON et.eligibilityTypeID = d.eligibilityTypeID 
         WHERE d.isArchived = ?
-        ORDER BY d.name
+        ORDER BY d.discountID DESC
       `, [archived ? 1 : 0]),
       dbQuery(`
         SELECT p.*, rm.roomNumber, rt.type as roomTypeName 
@@ -27,7 +27,7 @@ export async function GET(request) {
         LEFT JOIN room rm ON rm.roomID = p.roomID 
         LEFT JOIN room_type rt ON rt.roomTypeID = p.roomTypeID
         WHERE p.isArchived = ?
-        ORDER BY p.startDate DESC
+        ORDER BY p.promoID DESC, p.startDate DESC
       `, [archived ? 1 : 0]),
       fetchLookups ? dbQuery("SELECT * FROM discount_type") : Promise.resolve([]),
       fetchLookups ? dbQuery("SELECT * FROM eligibility_type") : Promise.resolve([]),

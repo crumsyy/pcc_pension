@@ -62,7 +62,7 @@ export async function GET(request) {
   if (where.length > 0) {
     wrapped += " WHERE " + where.join(" AND ");
   }
-  wrapped += " ORDER BY createdAt DESC";
+  wrapped += " ORDER BY createdAt DESC, userID DESC";
 
   try {
     const [users, roles] = await Promise.all([

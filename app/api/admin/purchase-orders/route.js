@@ -45,7 +45,7 @@ export async function GET(request) {
       )`;
       params.push(searchPattern, `%${searchVal}%`, `%${searchVal}%`, `%${searchVal}%`, `%${searchVal}%`);
     }
-    sql += " GROUP BY po.purchaseOrderID ORDER BY po.orderDate DESC";
+    sql += " GROUP BY po.purchaseOrderID ORDER BY po.purchaseOrderID DESC, po.orderDate DESC";
 
     const orders = await dbQuery(sql, params);
 
