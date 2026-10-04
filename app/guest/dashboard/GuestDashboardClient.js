@@ -985,18 +985,25 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       }
     };
 
-    const interval = setInterval(pollDashboard, 4000);
+    const interval = setInterval(pollDashboard, 3000);
 
     const handleVisibilityChange = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         pollDashboard();
       }
     };
+    const handleFocus = () => pollDashboard();
+    const handleCustomRefresh = () => pollDashboard();
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pcc-refresh-notifications', handleCustomRefresh);
 
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pcc-refresh-notifications', handleCustomRefresh);
     };
   }, []);
 

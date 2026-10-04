@@ -61,16 +61,30 @@ export default function DashboardClient({ userName }) {
     updateTime();
     const clockTimer = setInterval(updateTime, 1000);
 
-    // Real-time polling every 10 seconds when tab is active and not resetting
+    // Real-time polling every 3.5 seconds when tab is active and not resetting
     const pollTimer = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !resetting && !showResetModal) {
         fetchDashboardStats(true);
       }
-    }, 10000);
+    }, 3500);
+
+    const handleFocus = () => {
+      if (!resetting && !showResetModal) fetchDashboardStats(true);
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !resetting && !showResetModal) {
+        fetchDashboardStats(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       clearInterval(clockTimer);
       clearInterval(pollTimer);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [resetting, showResetModal]);
 

@@ -9,8 +9,47 @@ export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [isRinging, setIsRinging] = useState(false);
+  const [activeToast, setActiveToast] = useState(null);
   const dropdownRef = useRef(null);
   const clientReadIDsRef = useRef(new Set());
+  const knownNotifIDsRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
+
+  // Web Audio API Synthesizer Chime (zero external audio file dependency)
+  const playNotificationChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      gain.gain.setValueAtTime(0.14, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, now); // D5
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880.00, now + 0.12); // A5
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc1.stop(now + 0.25);
+      osc2.start(now + 0.12);
+      osc2.stop(now + 0.65);
+    } catch (e) {
+      // AudioContext blocked or muted
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -22,6 +61,26 @@ export default function NotificationBell() {
           ...n,
           isRead: clientReadIDsRef.current.has(n.notificationID) ? 1 : (n.isRead ? 1 : 0)
         }));
+
+        // Detect new unread incoming notifications
+        if (knownNotifIDsRef.current !== null) {
+          const brandNewUnread = list.filter(n => !n.isRead && !knownNotifIDsRef.current.has(n.notificationID));
+          if (brandNewUnread.length > 0) {
+            setIsRinging(true);
+            setTimeout(() => setIsRinging(false), 1600);
+            playNotificationChime();
+            
+            // Show latest toast
+            const latest = brandNewUnread[0];
+            setActiveToast(latest);
+            if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+            toastTimeoutRef.current = setTimeout(() => {
+              setActiveToast(null);
+            }, 6000);
+          }
+        }
+
+        knownNotifIDsRef.current = new Set(list.map(n => n.notificationID));
         setNotifications(list);
         setUnreadCount(list.filter(n => !n.isRead).length);
       }
@@ -32,8 +91,32 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
+
+    // High-frequency 3-second real-time polling
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    }, 3000);
+
+    // Instant sync on tab focus or visibility change
+    const handleFocus = () => fetchNotifications();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchNotifications();
+    };
+    const handleCustomRefresh = () => fetchNotifications();
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pcc-refresh-notifications", handleCustomRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pcc-refresh-notifications", handleCustomRefresh);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -170,9 +253,25 @@ export default function NotificationBell() {
 
   return (
     <div className="position-relative d-inline-block" ref={dropdownRef}>
+      <style jsx global>{`
+        @keyframes pccBellRing {
+          0% { transform: rotate(0); }
+          15% { transform: rotate(16deg); }
+          30% { transform: rotate(-16deg); }
+          45% { transform: rotate(12deg); }
+          60% { transform: rotate(-12deg); }
+          75% { transform: rotate(5deg); }
+          100% { transform: rotate(0); }
+        }
+        .bell-ring-active {
+          animation: pccBellRing 0.75s ease-in-out infinite !important;
+          background-color: rgba(255, 255, 255, 0.35) !important;
+          box-shadow: 0 0 12px rgba(255, 255, 255, 0.7) !important;
+        }
+      `}</style>
       <button
         onClick={toggleDropdown}
-        className="btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 transition-all position-relative"
+        className={`btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 transition-all position-relative ${isRinging ? 'bell-ring-active' : ''}`}
         style={{
           width: "36px",
           height: "36px",
@@ -293,6 +392,67 @@ export default function NotificationBell() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Real-time Floating Toast Alert Banner */}
+      {activeToast && (
+        <div
+          className="position-fixed shadow-lg p-3 bg-white rounded-3 border border-primary border-2 animate__animated animate__fadeInDown"
+          style={{
+            top: '20px',
+            right: '20px',
+            maxWidth: '380px',
+            zIndex: 99999,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+          }}
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="d-flex align-items-start gap-2.5">
+            <div
+              className="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0 text-white"
+              style={{ width: '36px', height: '36px', backgroundColor: 'var(--pcc-blue)' }}
+            >
+              <i className="bi bi-bell-fill fs-6"></i>
+            </div>
+            <div className="flex-grow-1 min-w-0">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <strong className="text-dark small d-block text-truncate" style={{ fontSize: '0.85rem' }}>
+                  {activeToast.title}
+                </strong>
+                <button
+                  type="button"
+                  className="btn-close ms-2"
+                  style={{ fontSize: '0.65rem' }}
+                  onClick={() => setActiveToast(null)}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <p className="mb-2 text-muted small" style={{ fontSize: '0.78rem', lineHeight: '1.3' }}>
+                {activeToast.message}
+              </p>
+              <div className="d-flex gap-2">
+                <button
+                  className="btn btn-sm btn-pcc-primary text-white py-1 px-2.5 rounded"
+                  style={{ fontSize: '0.72rem' }}
+                  onClick={() => {
+                    handleNotificationClick(activeToast);
+                    setActiveToast(null);
+                  }}
+                >
+                  View Details
+                </button>
+                <button
+                  className="btn btn-sm btn-outline-secondary py-1 px-2 rounded"
+                  style={{ fontSize: '0.72rem' }}
+                  onClick={() => setActiveToast(null)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

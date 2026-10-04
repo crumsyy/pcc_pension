@@ -40,10 +40,10 @@ export async function GET() {
       }
     }
 
-    // 2. Auto-generate Pre-Check-in (3h), Pre-Check-out (2h), and Exceeded Check-out Alerts
+    // 2. Auto-generate Pre-Check-in (3h), Pre-Check-out (2h), and Exceeded Check-out Alerts for Front Desk & Admins
     try {
-      const receptionistUsers = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
-      const receptionistUserIDs = receptionistUsers.map(a => a.userID);
+      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      const staffUserIDs = staffUsers.map(a => a.userID);
 
       // A. Pre-Check-In Notifications (within 3 hours of scheduled check-in)
       const upcomingCheckIns = await dbQuery(`
@@ -63,9 +63,9 @@ export async function GET() {
             await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-In Alert', ?)", [b.guestUserID, guestMsg]);
           }
         }
-        // Receptionist Notification
+        // Staff Notification (Receptionist & Admin)
         const staffMsg = `Upcoming Check-in: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) check-in time is approaching within 3 hours.`;
-        for (const sID of receptionistUserIDs) {
+        for (const sID of staffUserIDs) {
           const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
           if (alreadyNotified.length === 0) {
             await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-In Alert', ?)", [sID, staffMsg]);
@@ -91,9 +91,9 @@ export async function GET() {
             await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-Out Alert', ?)", [b.guestUserID, guestMsg]);
           }
         }
-        // Receptionist Notification
+        // Staff Notification (Receptionist & Admin)
         const staffMsg = `Upcoming Check-out: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) is approaching scheduled check-out within 2 hours.`;
-        for (const sID of receptionistUserIDs) {
+        for (const sID of staffUserIDs) {
           const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
           if (alreadyNotified.length === 0) {
             await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-Out Alert', ?)", [sID, staffMsg]);
@@ -119,9 +119,9 @@ export async function GET() {
             await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Exceeded Check-Out Alert', ?)", [b.guestUserID, guestMsg]);
           }
         }
-        // Receptionist Notification
+        // Staff Notification (Receptionist & Admin)
         const staffMsg = `Exceeded Check-out: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) has exceeded checkout time. ₱100/hr late fee applies.`;
-        for (const sID of receptionistUserIDs) {
+        for (const sID of staffUserIDs) {
           const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
           if (alreadyNotified.length === 0) {
             await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Exceeded Check-Out Alert', ?)", [sID, staffMsg]);
@@ -132,15 +132,13 @@ export async function GET() {
       console.error("Staff auto-reminder generation failed:", reminderErr);
     }
 
-    // Fetch latest 15 notifications for current User
+    // Fetch latest notifications for current User
     let sql = "SELECT * FROM notification WHERE userID = ?";
-    if (session.role === 'Administrator') {
-      sql += " AND title IN ('Low Inventory Alert', 'Payment Received', 'Down Payment Received')";
-    } else if (session.role === 'Guest') {
+    if (session.role === 'Guest') {
       // Payment receipts and staff online payment alerts are strictly for Admin and Receptionist
       sql += " AND title NOT LIKE '%Payment Received%' AND title NOT LIKE '%New GCash%'";
     }
-    sql += " ORDER BY createdAt DESC LIMIT 20";
+    sql += " ORDER BY createdAt DESC LIMIT 30";
 
     const notifications = await dbQuery(sql, [userID]);
 
