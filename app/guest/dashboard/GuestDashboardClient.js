@@ -2651,13 +2651,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                   <div className="col-4">
                     <div className="card shadow-sm border-0 p-2.5 p-md-3 text-center bg-white" style={{ borderRadius: '12px' }}>
-                      <div className="text-success fw-bold fs-4 fs-md-3 mb-0 text-nowrap">{totalNightsCount}</div>
+                      <div className="text-pcc-blue fw-bold fs-4 fs-md-3 mb-0 text-nowrap">{totalNightsCount}</div>
                       <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Nights Booked</div>
                     </div>
                   </div>
                   <div className="col-4">
                     <div className="card shadow-sm border-0 p-2.5 p-md-3 text-center bg-white" style={{ borderRadius: '12px' }}>
-                      <div className="text-danger fw-bold fs-5 fs-md-3 mb-0 text-nowrap text-truncate" style={{ whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                      <div className="text-pcc-blue fw-bold fs-5 fs-md-3 mb-0 text-nowrap text-truncate" style={{ whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
                         ₱{totalActiveBalanceDue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
                       <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Balance Due</div>
@@ -2667,12 +2667,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
                 {/* ACTIVE STAY / STATUS CARDS */}
                 {activeReservation && (
-                  <div id="active-reservation-card" className="card shadow-sm border-0 border-start border-4 border-success p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                  <div id="active-reservation-card" className="card shadow-sm border-0 border-start border-4 border-primary p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
                     <div>
                       {(activeReservation.status === 'On Hold' || activeReservation.status === 'Courtesy Hold' || Boolean(activeReservation.isCourtesyHold)) ? (
                         <span className="badge mb-1" style={{ backgroundColor: '#fd7e14', color: '#fff' }}>Courtesy Hold</span>
                       ) : (
-                        <span className="badge bg-success text-white mb-1">Active Reservation Request</span>
+                        <span className="badge bg-primary text-white mb-1">Active Reservation Request</span>
                       )}
                       <h6 className="fw-bold mb-0 text-dark">Room {activeReservation.roomNumber} ({activeReservation.roomType})</h6>
                       <div className="small text-muted mb-1">Check-in: {formatDate(activeReservation.reservationDateTime)}</div>

@@ -143,11 +143,11 @@ export default async function ReceptionistDashboard() {
 
   const stats = [
     ["Active Stays", totalCheckIns, "#2155B5"],
-    ["Today's Check-outs", totalCheckOuts, "#3FA34D"],
-    ["Rooms Occupied", occupiedRooms, "#e05c2a"],
-    ["Rooms Available", availableRooms, "#3FA34D"],
-    ["Active Reserv.", pendingRes, "#f0a500"],
-    ["Under Maintenance", underMaintenanceRooms, "#dc3545"]
+    ["Today's Check-outs", totalCheckOuts, "#2155B5"],
+    ["Rooms Occupied", occupiedRooms, "#2155B5"],
+    ["Rooms Available", availableRooms, "#2155B5"],
+    ["Active Reserv.", pendingRes, "#2155B5"],
+    ["Under Maintenance", underMaintenanceRooms, "#2155B5"]
   ];
 
   return (
@@ -195,25 +195,25 @@ export default async function ReceptionistDashboard() {
         <div className="row g-3 text-center">
           <div className="col-6 col-md-3">
             <div className="p-2.5 border rounded-3 bg-light">
-              <div className="fw-bold text-success fs-5">{totalCheckOuts}</div>
+              <div className="fw-bold text-pcc-blue fs-5">{totalCheckOuts}</div>
               <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PAID (Checked Out)</small>
             </div>
           </div>
           <div className="col-6 col-md-3">
             <div className="p-2.5 border rounded-3 bg-light">
-              <div className="fw-bold text-primary fs-5">{occupiedRooms}</div>
+              <div className="fw-bold text-pcc-blue fs-5">{occupiedRooms}</div>
               <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PARTIALLY PAID (In-Stay)</small>
             </div>
           </div>
           <div className="col-6 col-md-3">
             <div className="p-2.5 border rounded-3 bg-light">
-              <div className="fw-bold text-warning-emphasis fs-5">{confirmedBookingsList.length}</div>
+              <div className="fw-bold text-pcc-blue fs-5">{confirmedBookingsList.length}</div>
               <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>PENDING CHECK-IN</small>
             </div>
           </div>
           <div className="col-6 col-md-3">
             <div className="p-2.5 border rounded-3 bg-light">
-              <div className="fw-bold text-danger fs-5">{underMaintenanceRooms}</div>
+              <div className="fw-bold text-pcc-blue fs-5">{underMaintenanceRooms}</div>
               <small className="text-muted fw-semibold" style={{ fontSize: '0.75rem' }}>OVERDUE / ISSUES</small>
             </div>
           </div>

@@ -156,11 +156,11 @@ export default function DashboardClient({ userName }) {
       <div className="row g-3 mb-3">
         {[
           ['Total Rooms', totalRooms, '#2155B5'],
-          ['Available', roomStats['Available'] || 0, '#3FA34D'],
-          ['Occupied', roomStats['Occupied'] || 0, '#1a3c8f'],
-          ['Reserved', roomStats['Reserved'] || 0, '#f0a500'],
-          ['Maintenance', roomStats['Under Maintenance'] || 0, '#dc3545'],
-          ['Cleaning', roomStats['Cleaning'] || 0, '#17a2b8'],
+          ['Available', roomStats['Available'] || 0, '#2155B5'],
+          ['Occupied', roomStats['Occupied'] || 0, '#2155B5'],
+          ['Reserved', roomStats['Reserved'] || 0, '#2155B5'],
+          ['Maintenance', roomStats['Under Maintenance'] || 0, '#2155B5'],
+          ['Cleaning', roomStats['Cleaning'] || 0, '#2155B5'],
         ].map(([label, val, color], idx) => (
           <div className="col-6 col-md-4 col-xl-2" key={idx}>
             <div
@@ -208,7 +208,7 @@ export default function DashboardClient({ userName }) {
             className="card-module h-100 p-3 rounded"
             style={{
               backgroundColor: '#fff',
-              borderLeft: '4px solid #3FA34D',
+              borderLeft: '4px solid #2155B5',
               borderTop: '1px solid var(--pcc-mist)',
               borderRight: '1px solid var(--pcc-mist)',
               borderBottom: '1px solid var(--pcc-mist)',
@@ -225,7 +225,7 @@ export default function DashboardClient({ userName }) {
             >
               Month Revenue
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#3FA34D' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#2155B5' }}>
               ₱{monthRevenue.toFixed(2)}
             </div>
             <Link
@@ -242,7 +242,7 @@ export default function DashboardClient({ userName }) {
             className="card-module h-100 p-3 rounded"
             style={{
               backgroundColor: '#fff',
-              borderLeft: '4px solid #f0a500',
+              borderLeft: '4px solid #2155B5',
               borderTop: '1px solid var(--pcc-mist)',
               borderRight: '1px solid var(--pcc-mist)',
               borderBottom: '1px solid var(--pcc-mist)',
@@ -259,7 +259,7 @@ export default function DashboardClient({ userName }) {
             >
               Check-Ins Today
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#f0a500' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#2155B5' }}>
               {todayCheckIn}
             </div>
           </div>
@@ -269,7 +269,7 @@ export default function DashboardClient({ userName }) {
             className="card-module h-100 p-3 rounded"
             style={{
               backgroundColor: '#fff',
-              borderLeft: '4px solid #17a2b8',
+              borderLeft: '4px solid #2155B5',
               borderTop: '1px solid var(--pcc-mist)',
               borderRight: '1px solid var(--pcc-mist)',
               borderBottom: '1px solid var(--pcc-mist)',
@@ -286,7 +286,7 @@ export default function DashboardClient({ userName }) {
             >
               Check-Outs Today
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#17a2b8' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: '700', color: '#2155B5' }}>
               {todayCheckOut}
             </div>
           </div>
