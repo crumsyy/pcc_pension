@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
+import { Skeleton } from '@/app/components/skeletons/Skeleton';
 
 function PaymentsClient() {
   const searchParams = useSearchParams();
@@ -551,7 +552,7 @@ function PaymentsClient() {
                   <div className="mb-2">
                     <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Select Guest / Room *</label>
                     {loading ? (
-                      <div>Loading guest records...</div>
+                      <Skeleton height="38px" borderRadius="6px" />
                     ) : (
                       <SearchableSelect
                         options={activeBookings.map(b => {
@@ -679,9 +680,19 @@ function PaymentsClient() {
               </div>
               <div className="card-body p-4 d-flex flex-column justify-content-between flex-grow-1" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', minHeight: 0, fontSize: '0.78rem' }}>
                 {loadingBill ? (
-                  <div className="text-center py-5">
-                    <div className="spinner-border text-pcc-primary" role="status">
-                      <span className="visually-hidden">Calculating bill...</span>
+                  <div>
+                    <Skeleton width="60%" height="1.1rem" className="mb-3" />
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <div key={idx} className="d-flex justify-content-between mb-2">
+                        <Skeleton width="45%" height="13px" />
+                        <Skeleton width="25%" height="13px" />
+                      </div>
+                    ))}
+                    <div className="pt-3 border-top mt-3">
+                      <div className="d-flex justify-content-between">
+                        <Skeleton width="40%" height="1.3rem" />
+                        <Skeleton width="30%" height="1.3rem" />
+                      </div>
                     </div>
                   </div>
                 ) : billData ? (
@@ -1066,7 +1077,11 @@ function PaymentsClient() {
 
 export default function ReceptionistPayments() {
   return (
-    <Suspense fallback={<div>Loading POS terminal...</div>}>
+    <Suspense fallback={
+      <div className="pcc-page-container">
+        <Skeleton height="400px" borderRadius="10px" />
+      </div>
+    }>
       <PaymentsClient />
     </Suspense>
   );

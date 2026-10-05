@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import ReservationCalendar from '../../components/ReservationCalendar';
+import { ReceptionistCheckInSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 
 function CheckInClient() {
   const searchParams = useSearchParams();
@@ -387,10 +388,7 @@ function CheckInClient() {
         </div>
 
         {loading ? (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status"></div>
-            <p className="text-muted mt-2">Loading data...</p>
-          </div>
+          <ReceptionistCheckInSkeleton />
         ) : (
           <div className="row g-4">
             {/* Arriving Guests (Check-In) */}
@@ -715,9 +713,8 @@ function CheckInClient() {
 export default function ReceptionistCheckIn() {
   return (
     <Suspense fallback={
-      <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status"></div>
-        <p className="text-muted mt-2">Loading check-in desk...</p>
+      <div className="pcc-page-container">
+        <ReceptionistCheckInSkeleton />
       </div>
     }>
       <CheckInClient />

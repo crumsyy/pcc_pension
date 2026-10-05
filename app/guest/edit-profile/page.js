@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
 import LoadingButton from '../../components/LoadingButton';
+import { GuestEditProfileSkeleton } from '@/app/components/skeletons/GuestSkeletons';
 
 export default function EditProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -361,10 +362,7 @@ export default function EditProfilePage() {
 
       <div className="container py-4" style={{ maxWidth: '800px' }}>
         {loading ? (
-          <div className="card shadow-sm border-0 p-5 text-center bg-white" style={{ borderRadius: '16px' }}>
-            <div className="spinner-border text-pcc-blue mx-auto mb-3" role="status"></div>
-            <p className="text-muted mb-0">Loading profile details...</p>
-          </div>
+          <GuestEditProfileSkeleton />
         ) : (
           <div className="d-flex flex-column gap-4">
             {/* CARD 0: PROFILE PICTURE UPLOAD */}

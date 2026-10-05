@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
+import { ReceptionistInquiriesListSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 
 export default function ReceptionistInquiries() {
   const [inquiries, setInquiries] = useState([]);
@@ -371,11 +372,7 @@ export default function ReceptionistInquiries() {
               {/* Conversation List Body */}
               <div className="card-body p-0 overflow-y-auto flex-grow-1">
                 {loading ? (
-                  <div className="text-center py-5">
-                    <div className="spinner-border text-pcc-primary" role="status">
-                      <span className="visually-hidden">Loading conversations...</span>
-                    </div>
-                  </div>
+                  <ReceptionistInquiriesListSkeleton />
                 ) : filteredInquiries.length === 0 ? (
                   <div className="text-center py-5 text-muted small">
                     <p className="mb-0">No conversations match criteria.</p>

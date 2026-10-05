@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import StatusBadge, { normalizeBookingStatus, getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
+import { GuestBookingsHistorySkeleton } from '@/app/components/skeletons/GuestSkeletons';
 
 export default function AccountsBookingsPage() {
   const [bookings, setBookings] = useState([]);
@@ -171,13 +172,10 @@ export default function AccountsBookingsPage() {
       </div>
 
       {/* Bookings Table */}
-      <div className="card shadow-xs border-0 p-3 bg-white" style={{ borderRadius: '10px' }}>
-        {loading ? (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status"></div>
-            <p className="small text-muted mt-2">Loading bookings...</p>
-          </div>
-        ) : (
+      {loading ? (
+        <GuestBookingsHistorySkeleton />
+      ) : (
+        <div className="card shadow-xs border-0 p-3 bg-white" style={{ borderRadius: '10px' }}>
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
               <thead className="table-light">
@@ -275,8 +273,8 @@ export default function AccountsBookingsPage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Booking Details Modal */}
       {selectedBooking && (

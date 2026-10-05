@@ -12,6 +12,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import ConfirmReservationModal from '../ConfirmReservationModal';
 import { normalizeReservationStatus } from '../../components/StatusBadge';
+import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 const calculateAgeFromUiDate = (dateStr) => {
   if (!dateStr) return '';
@@ -976,10 +977,7 @@ function ReservationsClient() {
 
         {/* Table */}
         {loading ? (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status"></div>
-            <p className="text-muted mt-2">Loading reservations...</p>
-          </div>
+          <SkeletonTable columns={6} rows={7} colWidths={['22%', '18%', '22%', '14%', '12%', '12%']} />
         ) : filteredReservations.length === 0 ? (
           <div className="p-4 text-center text-muted border rounded bg-light">
             <i className={`bi ${activeTab === 'active' ? 'bi-bookmark-check text-primary' : 'bi-archive text-secondary'} fs-4 d-block mb-1`}></i>
@@ -1925,9 +1923,8 @@ function ReservationsClient() {
 export default function ReceptionistReservations() {
   return (
     <Suspense fallback={
-      <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status"></div>
-        <p className="text-muted mt-2">Loading reservations...</p>
+      <div className="card shadow-sm border-0 p-3 bg-white" style={{ borderRadius: '12px' }}>
+        <SkeletonTable columns={6} rows={7} colWidths={['22%', '18%', '22%', '14%', '12%', '12%']} />
       </div>
     }>
       <ReservationsClient />

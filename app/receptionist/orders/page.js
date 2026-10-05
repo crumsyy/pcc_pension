@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'reac
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import SearchableSelect from '../../components/SearchableSelect';
+import { ReceptionistOrdersSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 
 const getTodayManila = () => {
   try {
@@ -1066,11 +1067,7 @@ function ReceptionistOrdersContent() {
               </div>
 
               {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading orders...</span>
-                  </div>
-                </div>
+                <ReceptionistOrdersSkeleton />
               ) : filteredHistoryOrders.length === 0 ? (
                 <div className="text-center py-5 text-muted">
                   <i className="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
@@ -1589,9 +1586,8 @@ function ReceptionistOrdersContent() {
 export default function ReceptionistOrders() {
   return (
     <Suspense fallback={
-      <div className="p-4 text-center">
-        <div className="spinner-border text-primary" role="status"></div>
-        <div className="text-muted mt-2 small">Loading Orders Workspace...</div>
+      <div className="pcc-page-container">
+        <ReceptionistOrdersSkeleton />
       </div>
     }>
       <ReceptionistOrdersContent />
