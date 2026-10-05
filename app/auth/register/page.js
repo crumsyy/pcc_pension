@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import DateInput, { isValidDate, toDbDate } from "@/app/components/DateInput";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import LoadingButton from "@/app/components/LoadingButton";
+import ModalPortal from "@/app/components/ModalPortal";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -758,14 +759,15 @@ export default function RegisterPage() {
 
       {/* TERMS & CONDITIONS MODAL */}
       {showTermsModal && (
-        <div
-          className="modal show d-block"
-          tabIndex="-1"
-          style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)', zIndex: 1060, backdropFilter: 'blur(3px)' }}
-          role="dialog"
-          aria-labelledby="termsModalTitle"
-          aria-modal="true"
-        >
+        <ModalPortal>
+          <div
+            className="modal show d-block"
+            tabIndex="-1"
+            style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', zIndex: 99999, backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)' }}
+            role="dialog"
+            aria-labelledby="termsModalTitle"
+            aria-modal="true"
+          >
           <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
               <div className="modal-header px-4 py-3 text-white" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)' }}>
@@ -886,18 +888,20 @@ export default function RegisterPage() {
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
+    )}
 
       {/* PRIVACY POLICY MODAL */}
       {showPrivacyModal && (
-        <div
-          className="modal show d-block"
-          tabIndex="-1"
-          style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)', zIndex: 1060, backdropFilter: 'blur(3px)' }}
-          role="dialog"
-          aria-labelledby="privacyModalTitle"
-          aria-modal="true"
-        >
+        <ModalPortal>
+          <div
+            className="modal show d-block"
+            tabIndex="-1"
+            style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', zIndex: 99999, backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)' }}
+            role="dialog"
+            aria-labelledby="privacyModalTitle"
+            aria-modal="true"
+          >
           <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
               <div className="modal-header px-4 py-3 text-white" style={{ background: 'linear-gradient(135deg, #065f46 0%, #059669 100%)' }}>
@@ -1001,7 +1005,8 @@ export default function RegisterPage() {
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
+    )}
     </>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import { ReceptionistOrdersSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 
@@ -1387,7 +1388,8 @@ function ReceptionistOrdersContent() {
 
       {/* VIEW ORDER DETAILS MODAL */}
       {viewingOrder && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px' }}>
               <div className="modal-header text-white" style={{ background: 'var(--pcc-blue, #2155B5)' }}>
@@ -1554,6 +1556,7 @@ function ReceptionistOrdersContent() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Confirmation & Alert dialog */}

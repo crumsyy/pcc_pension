@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import { formatCurrency } from '@/lib/formatters';
 import { Skeleton, SkeletonTable } from '@/app/components/skeletons/Skeleton';
@@ -748,7 +749,8 @@ export default function ReceptionistBilling() {
 
       {/* VIEW BILLING MODAL */}
       {selectedBookingID && billDetails && (
-        <div className="modal show d-block animate__animated animate__fadeIn" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 1050 }}>
+        <ModalPortal>
+          <div className="modal show d-block animate__animated animate__fadeIn" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-xl modal-dialog-scrollable" style={{ maxWidth: '90%' }}>
             <div className="modal-content border-0 shadow-lg" style={{ height: '85vh', borderRadius: '12px', overflow: 'hidden' }}>
               <div className="modal-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
@@ -1719,11 +1721,13 @@ export default function ReceptionistBilling() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* EDIT DISCOUNTS MODAL */}
       {isEditingDiscounts && billDetails && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content border-0 shadow">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1915,11 +1919,13 @@ export default function ReceptionistBilling() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* ADD INCIDENTAL MODAL */}
       {isAddingIncidental && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered modal-md">
             <div className="modal-content border-0">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1964,11 +1970,13 @@ export default function ReceptionistBilling() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* REPORT DAMAGE MODAL */}
       {isReportingDamage && selectedBorrowItem && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1070 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered modal-md">
             <div className="modal-content border-0">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -2022,11 +2030,13 @@ export default function ReceptionistBilling() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* SETTLE BILL MODAL */}
       {isSettlingBill && billDetails && (
-        <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1080 }}>
+        <ModalPortal>
+          <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px' }}>
               <form onSubmit={handleSettleBillSubmit}>
@@ -2167,6 +2177,7 @@ export default function ReceptionistBilling() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       <ModalDialog

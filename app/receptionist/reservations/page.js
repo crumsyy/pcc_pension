@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import CalendarDatePicker from '../../components/CalendarDatePicker';
 import ReservationCalendar from '../../components/ReservationCalendar';
@@ -1346,7 +1347,8 @@ function ReservationsClient() {
 
       {/* CREATE / EDIT RESERVATION MODAL (Matching Booking Workspace Design & Guest Form Parity) */}
       {(activeModal === 'create' || activeModal === 'edit') && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content border-0 shadow-lg">
               <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
@@ -1862,6 +1864,7 @@ function ReservationsClient() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* 4. CONVERT RESERVATION TO BOOKING MODAL */}

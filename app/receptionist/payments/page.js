@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import { Skeleton } from '@/app/components/skeletons/Skeleton';
@@ -809,7 +810,8 @@ function PaymentsClient() {
 
       {/* PAYMENT HISTORY SCROLLABLE MODAL DIALOG */}
       {showHistoryModal && (
-        <div className="modal show d-block animate__animated animate__fadeIn" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 1050 }}>
+        <ModalPortal>
+          <div className="modal show d-block animate__animated animate__fadeIn" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-xl modal-dialog-scrollable" style={{ maxWidth: '92%' }}>
             <div className="modal-content border-0 shadow-lg" style={{ height: '85vh', borderRadius: '12px', overflow: 'hidden' }}>
               <div className="modal-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
@@ -947,11 +949,13 @@ function PaymentsClient() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* PRINT RECEIPT MODAL */}
       {receipt && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 1060 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0">
               <div className="modal-body p-4" id="print-area">
@@ -1058,6 +1062,7 @@ function PaymentsClient() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Confirmation & Alert dialog */}

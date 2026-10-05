@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import { ReceptionistInquiriesListSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 
@@ -609,7 +610,8 @@ export default function ReceptionistInquiries() {
         </div>
       {/* REACH OUT TO GUEST MODAL */}
       {isReachOutModalOpen && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ background: '#2155B5' }}>
@@ -706,6 +708,7 @@ export default function ReceptionistInquiries() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
       </div>
     </>

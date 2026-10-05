@@ -5,6 +5,7 @@ import Link from "next/link";
 import GuestChatBubble from "./components/GuestChatBubble";
 import DateInput, { isValidDate, toDbDate } from "./components/DateInput";
 import ThemeToggle from "./components/ThemeToggle";
+import ModalPortal from "./components/ModalPortal";
 
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
@@ -716,7 +717,8 @@ export default function Home() {
 
       {/* AVAILABILITY RESULTS MODAL */}
       {showResultsModal && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1050 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content border-0" style={{ borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
               <div className="modal-header px-4 py-3" style={{ background: 'var(--pcc-blue)', color: '#fff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
@@ -781,6 +783,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </>
   );

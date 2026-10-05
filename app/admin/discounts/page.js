@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { Skeleton, SkeletonTable } from '@/app/components/skeletons/Skeleton';
@@ -707,11 +708,12 @@ export default function AdminDiscounts() {
       )}
 
       {/* ==========================================
-          MODALS — DISCOUNTS
+          MODALS — DISCOUNTS & PROMOTIONS
           ========================================== */}
-
-      {/* CREATE DISCOUNT MODAL */}
-      {activeModal === 'create_disc' && (
+      {activeModal && (
+        <ModalPortal>
+          {/* CREATE DISCOUNT MODAL */}
+          {activeModal === 'create_disc' && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
@@ -1162,7 +1164,8 @@ export default function AdminDiscounts() {
           </div>
         </div>
       )}
-
+        </ModalPortal>
+      )}
     </div>
   );
 }

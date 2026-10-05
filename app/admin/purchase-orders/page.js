@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
@@ -1022,9 +1023,10 @@ export default function AdminPurchaseOrders() {
       {/* ==========================================
           MODALS
           ========================================== */}
-
-      {/* CREATE PO MODAL */}
-      {activeModal === 'create' && (
+      {activeModal && (
+        <ModalPortal>
+          {/* CREATE PO MODAL */}
+          {activeModal === 'create' && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', overflowY: 'auto' }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
@@ -1341,6 +1343,8 @@ export default function AdminPurchaseOrders() {
             </div>
           </div>
         </div>
+      )}
+        </ModalPortal>
       )}
     </div>
   );

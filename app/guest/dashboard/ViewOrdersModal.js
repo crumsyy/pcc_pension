@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ModalDialog from '@/app/components/ModalDialog';
+import ModalPortal from '@/app/components/ModalPortal';
 
 const ALLOWED_BREAKFAST_SLOTS = [
   '06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM',
@@ -197,13 +198,14 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
   const totalAmount = Math.max(0, subtotal - complimentaryDeduction);
 
   return (
-    <div
-      className="modal show d-block"
-      tabIndex="-1"
-      role="dialog"
-      aria-modal="true"
-      style={{ backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1060 }}
-    >
+    <ModalPortal>
+      <div
+        className="modal show d-block"
+        tabIndex="-1"
+        role="dialog"
+        aria-modal="true"
+        style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}
+      >
       <div className="modal-dialog modal-dialog-centered modal-lg">
         <div className="modal-content shadow-lg border-0 rounded-3 overflow-hidden">
           {/* MODAL HEADER */}
@@ -563,6 +565,7 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
         }}
         onCancel={() => setShowCancelConfirm(false)}
       />
-    </div>
+      </div>
+    </ModalPortal>
   );
 }

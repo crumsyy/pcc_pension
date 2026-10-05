@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import StatusBadge, { normalizeBookingStatus, getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
 import { GuestBookingsHistorySkeleton } from '@/app/components/skeletons/GuestSkeletons';
+import ModalPortal from '@/app/components/ModalPortal';
 
 export default function AccountsBookingsPage() {
   const [bookings, setBookings] = useState([]);
@@ -278,7 +279,8 @@ export default function AccountsBookingsPage() {
 
       {/* Booking Details Modal */}
       {selectedBooking && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
+        <ModalPortal>
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }} tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 shadow">
               <div className="modal-header border-bottom">
@@ -351,6 +353,7 @@ export default function AccountsBookingsPage() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { AdminInventorySkeleton } from '@/app/components/skeletons/AdminSkeletons';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
@@ -1269,8 +1270,13 @@ export default function AdminInventory() {
         </div>
       )}
 
-      {/* DISPOSE MODAL */}
-      {activeModal === 'dispose' && selectedItem && (
+      {/* ==========================================
+          MODALS
+          ========================================== */}
+      {activeModal && (
+        <ModalPortal>
+          {/* DISPOSE MODAL */}
+          {activeModal === 'dispose' && selectedItem && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
@@ -1605,6 +1611,8 @@ export default function AdminInventory() {
             </div>
           </div>
         </div>
+      )}
+        </ModalPortal>
       )}
     </div>
   );

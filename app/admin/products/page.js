@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
@@ -571,9 +572,10 @@ export default function AdminProducts() {
       {/* ==========================================
           MODALS
           ========================================== */}
-
-      {/* CREATE MODAL */}
-      {activeModal === 'create' && (
+      {activeModal && (
+        <ModalPortal>
+          {/* CREATE MODAL */}
+          {activeModal === 'create' && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
@@ -880,6 +882,8 @@ export default function AdminProducts() {
           </div>
         );
       })()}
+        </ModalPortal>
+      )}
     </div>
   );
 }

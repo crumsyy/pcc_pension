@@ -63,31 +63,35 @@ body.dark-theme {
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
 .pcc-content-reveal {
-  animation: pcc-content-reveal 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pcc-content-reveal 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* =====================================================================
-   Modern Frosted-Glass Modal & Dialog Backdrop System
+   Modern Frosted-Glass Modal & Dialog Backdrop System (Full-Screen & Centered)
    ===================================================================== */
 .modal.show,
 .modal.d-block,
 .modal-backdrop,
 .tab-modal-backdrop {
   position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   inset: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
   display: grid !important;
-  place-items: center !important; /* Guaranteed true vertical & horizontal centering */
-  background-color: rgba(15, 23, 42, 0.28) !important; /* Frosted glass translucent tint, NOT black */
-  backdrop-filter: blur(8px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(120%) !important;
-  z-index: 2050 !important;
+  place-items: center !important; /* Guaranteed true vertical & horizontal centering across monitor */
+  background-color: rgba(15, 23, 42, 0.32) !important; /* Elegant frosted glass translucent tint, NOT black */
+  backdrop-filter: blur(10px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(125%) !important;
+  z-index: 99999 !important; /* Strictly higher than top header (1050) and sidebar (1020) */
   overflow-x: hidden !important;
   overflow-y: auto !important;
   padding: 1.25rem !important;

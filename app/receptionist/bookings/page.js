@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
+import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import CalendarDatePicker from '../../components/CalendarDatePicker';
 import ReservationCalendar from '../../components/ReservationCalendar';
@@ -2117,7 +2118,8 @@ function BookingsClient() {
 
       {/* CREATE / UPDATE LODGING BOOKING WORKSPACE MODAL */}
       {(activeModal === 'create' || activeModal === 'update_booking') && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ background: '#2155B5' }}>
@@ -3008,11 +3010,13 @@ function BookingsClient() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* DOWN PAYMENT RECEIPT MODAL */}
       {activeModal === 'downpayment_receipt' && downPaymentReceipt && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ background: '#2155B5' }}>
@@ -3074,11 +3078,13 @@ function BookingsClient() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MANAGE ROOM GUESTS MODAL */}
       {activeModal === 'manage_guests' && managingBooking && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ background: '#2155B5' }}>
@@ -3170,10 +3176,12 @@ function BookingsClient() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
       {/* CANCEL BOOKING REASON MODAL */}
       {activeModal === 'cancel_reason' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px' }}>
               <div className="modal-header text-white" style={{ background: '#dc3545' }}>
@@ -3218,11 +3226,13 @@ function BookingsClient() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* FINALIZE BILL MODAL */}
       {finalizeBillModal.isOpen && finalizeBillModal.booking && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 shadow-lg">
               <div className="modal-header text-white" style={{ backgroundColor: '#6f42c1' }}>
@@ -3306,6 +3316,7 @@ function BookingsClient() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

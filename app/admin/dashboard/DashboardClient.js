@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import ModalPortal from '../../components/ModalPortal';
 
 import { AdminDashboardSkeleton } from '@/app/components/skeletons/AdminSkeletons';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
@@ -662,7 +663,8 @@ export default function DashboardClient({ userName }) {
 
       {/* RESET TRANSACTION RECORDS MODAL */}
       {showResetModal && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 2050 }}>
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '12px' }}>
               <div className="modal-header bg-danger text-white">
@@ -774,6 +776,7 @@ export default function DashboardClient({ userName }) {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );
