@@ -7,6 +7,7 @@ export async function GET() {
   if (!auth.authorized) return auth.response;
 
   await syncRoomStatuses();
+  await syncInventoryStock();
 
   try {
     const [

@@ -602,6 +602,86 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Minimum stock level updated successfully.' });
     }
 
+    if (action === 'add_stock') {
+      const { itemType, itemID, quantity, unitCost, supplier, expirationDate, remarks } = body;
+      const qty = parseInt(quantity);
+      if (!qty || qty <= 0) {
+        return NextResponse.json({ error: 'Quantity must be greater than zero.' }, { status: 400 });
+      }
+      if (!['Product', 'Amenity'].includes(itemType)) {
+        return NextResponse.json({ error: 'Invalid item type.' }, { status: 400 });
+      }
+
+      const cleanItemID = parseInt(itemID);
+      if (!cleanItemID) {
+        return NextResponse.json({ error: 'Item ID is required.' }, { status: 400 });
+      }
+
+      let itemName = '';
+      if (itemType === 'Product') {
+        const prod = await dbQuery("SELECT productID, name, basePrice, itemType FROM products WHERE productID = ?", [cleanItemID]);
+        if (prod.length === 0) return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
+        itemName = prod[0].name;
+      } else {
+        const amen = await dbQuery("SELECT amenityID, name, basePrice, itemType FROM amenities WHERE amenityID = ?", [cleanItemID]);
+        if (amen.length === 0) return NextResponse.json({ error: 'Amenity not found.' }, { status: 404 });
+        itemName = amen[0].name;
+      }
+
+      const cost = parseFloat(unitCost) >= 0 ? parseFloat(unitCost) : 0;
+      const cleanSupplier = supplier && supplier.trim() ? supplier.trim() : 'Direct Stock In';
+      const cleanExpiry = expirationDate ? expirationDate : null;
+
+      const batchNumber = `BAT-MAN-I${cleanItemID}-${Date.now().toString().slice(-4)}${Math.floor(100 + Math.random() * 900)}`;
+
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        const [batchResult] = await conn.execute(
+          `INSERT INTO inventory_batch (batchNumber, itemType, itemID, supplier, purchaseOrderID, quantity, remainingQuantity, dateReceived, manufacturingDate, expirationDate, unitCost, status)
+           VALUES (?, ?, ?, ?, NULL, ?, ?, CURDATE(), NULL, ?, ?, 'Active')`,
+          [batchNumber, itemType, cleanItemID, cleanSupplier, qty, qty, cleanExpiry, cost]
+        );
+        const batchID = batchResult.insertId;
+
+        await conn.execute(
+          `INSERT INTO inventory_movement (itemType, itemID, quantity, userID, movementType, referenceNumber, remarks, batchID)
+           VALUES (?, ?, ?, ?, 'Stock In', ?, ?, ?)`,
+          [
+            itemType,
+            cleanItemID,
+            qty,
+            session.userID,
+            batchNumber,
+            remarks?.trim() || `Manual Stock In (${qty} units)`,
+            batchID
+          ]
+        );
+
+        if (itemType === 'Amenity') {
+          await conn.execute("UPDATE amenities SET quantity = quantity + ? WHERE amenityID = ?", [qty, cleanItemID]);
+        } else {
+          await conn.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [qty, cleanItemID]);
+        }
+
+        await conn.commit();
+        await syncInventoryStock();
+
+        return NextResponse.json({
+          success: true,
+          message: `Successfully added ${qty} units to ${itemName} (Batch: ${batchNumber}).`,
+          batchID,
+          batchNumber
+        });
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error("Failed to process inventory action:", error);

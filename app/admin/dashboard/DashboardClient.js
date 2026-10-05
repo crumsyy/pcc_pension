@@ -77,14 +77,31 @@ export default function DashboardClient({ userName }) {
       }
     };
 
+    const handleSync = () => {
+      if (!resetting && !showResetModal) fetchDashboardStats(true);
+    };
+
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pcc-inventory-sync', handleSync);
+
+    let bc;
+    try {
+      bc = new BroadcastChannel('pcc_inventory_sync');
+      bc.onmessage = () => {
+        handleSync();
+      };
+    } catch (e) {}
 
     return () => {
       clearInterval(clockTimer);
       clearInterval(pollTimer);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pcc-inventory-sync', handleSync);
+      if (bc) {
+        try { bc.close(); } catch (e) {}
+      }
     };
   }, [resetting, showResetModal]);
 

@@ -654,6 +654,15 @@ export default function AdminPurchaseOrders() {
         showAlert('success', 'Success', data.message || 'Stock In processed successfully.');
         setActiveModal(null);
         fetchOrders();
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('pcc-inventory-sync'));
+          try {
+            const bc = new BroadcastChannel('pcc_inventory_sync');
+            bc.postMessage({ type: 'STOCK_UPDATED', time: Date.now() });
+            bc.close();
+          } catch (e) {}
+        }
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
