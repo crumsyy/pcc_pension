@@ -46,20 +46,8 @@ export default function AdminInventory() {
   const [selectedBorrow, setSelectedBorrow] = useState(null);
   const [editExpiryDate, setEditExpiryDate] = useState('');
   const [editMinStock, setEditMinStock] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isSubmittingStock, setIsSubmittingStock] = useState(false);
 
   // Form states
-  const [addStockForm, setAddStockForm] = useState({
-    itemType: 'Product',
-    itemID: '',
-    quantity: 10,
-    unitCost: '',
-    supplier: '',
-    expirationDate: '',
-    remarks: ''
-  });
-
   const [disposeForm, setDisposeForm] = useState({
     quantity: 1,
     reason: 'Expired',
@@ -210,7 +198,6 @@ export default function AdminInventory() {
 
   const fetchInventory = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
-    setIsSyncing(true);
     setError('');
     try {
       const res = await fetch('/api/admin/inventory', { cache: 'no-store' });
@@ -238,7 +225,6 @@ export default function AdminInventory() {
       setError(err.message);
     } finally {
       if (!isSilent) setLoading(false);
-      setIsSyncing(false);
     }
   };
 
@@ -280,85 +266,6 @@ export default function AdminInventory() {
       }
     };
   }, []);
-
-  const openAddStockModal = (prefillItem = null) => {
-    if (prefillItem) {
-      setAddStockForm({
-        itemType: prefillItem.sourceTable,
-        itemID: prefillItem.itemID,
-        quantity: 10,
-        unitCost: prefillItem.basePrice || prefillItem.price || 0,
-        supplier: '',
-        expirationDate: '',
-        remarks: ''
-      });
-    } else {
-      const firstItem = items[0];
-      setAddStockForm({
-        itemType: firstItem ? firstItem.sourceTable : 'Product',
-        itemID: firstItem ? firstItem.itemID : '',
-        quantity: 10,
-        unitCost: firstItem ? (firstItem.basePrice || firstItem.price || 0) : '',
-        supplier: '',
-        expirationDate: '',
-        remarks: ''
-      });
-    }
-    setActiveModal('add_stock');
-  };
-
-  const handleAddStockSubmit = async (e) => {
-    e.preventDefault();
-    if (isSubmittingStock) return;
-    if (!addStockForm.itemID) {
-      showAlert('error', 'Validation Error', 'Please select an item to stock.');
-      return;
-    }
-    if (parseInt(addStockForm.quantity) <= 0) {
-      showAlert('error', 'Validation Error', 'Quantity must be at least 1.');
-      return;
-    }
-
-    const matchItem = items.find(i => i.sourceTable === addStockForm.itemType && String(i.itemID) === String(addStockForm.itemID));
-    const isConsumable = matchItem?.itemType === 'Consumable';
-
-    if (isConsumable && addStockForm.expirationDate && !isValidDate(addStockForm.expirationDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid Expiration Date (MM/DD/YYYY) or leave it empty.');
-      return;
-    }
-
-    showConfirm('Confirm Stock In', `Are you sure you want to add ${addStockForm.quantity} units to ${matchItem ? matchItem.name : 'this item'}?`, async () => {
-      try {
-        setIsSubmittingStock(true);
-        const res = await fetch('/api/admin/inventory', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'add_stock',
-            itemType: addStockForm.itemType,
-            itemID: addStockForm.itemID,
-            quantity: parseInt(addStockForm.quantity),
-            unitCost: parseFloat(addStockForm.unitCost || 0),
-            supplier: addStockForm.supplier,
-            expirationDate: (isConsumable && addStockForm.expirationDate) ? toDbDate(addStockForm.expirationDate) : null,
-            remarks: addStockForm.remarks
-          })
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to add stock');
-
-        showAlert('success', 'Stock Added Successfully', data.message || 'Inventory stock updated.');
-        setActiveModal(null);
-        await fetchInventory(true);
-        notifyCrossModuleSync();
-      } catch (err) {
-        showAlert('error', 'Error', err.message);
-      } finally {
-        setIsSubmittingStock(false);
-      }
-    });
-  };
 
   const openEditExpiryModal = (batch) => {
     setSelectedBatch(batch);
@@ -640,58 +547,14 @@ export default function AdminInventory() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Admin</div>
           <h2 className="section-title mb-0">Inventory Management</h2>
         </div>
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          <div
-            className="badge rounded-pill px-3 py-2 d-flex align-items-center gap-2"
-            style={{
-              backgroundColor: 'rgba(33, 85, 181, 0.08)',
-              color: 'var(--pcc-blue)',
-              border: '1px solid rgba(33, 85, 181, 0.2)',
-              fontSize: '0.78rem'
-            }}
-          >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--pcc-blue)',
-                display: 'inline-block',
-                boxShadow: isSyncing ? '0 0 8px var(--pcc-blue)' : 'none'
-              }}
-            ></span>
-            <span>{isSyncing ? 'Syncing...' : 'Real-Time Sync Active'}</span>
-          </div>
-
-          <button
-            type="button"
-            className="btn btn-sm btn-pcc-outline d-flex align-items-center gap-1"
-            onClick={() => fetchInventory(false)}
-            disabled={isSyncing}
-            title="Refresh inventory now"
-          >
-            <i className={`fa-solid fa-arrows-rotate ${isSyncing ? 'fa-spin' : ''}`}></i>
-            <span>Sync</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-pcc-primary d-flex align-items-center gap-1"
-            onClick={() => openAddStockModal()}
-          >
-            <i className="fa-solid fa-plus"></i>
-            <span>Add Stock</span>
-          </button>
-
-          <Link href="/admin/purchase-orders" className="btn btn-pcc-outline">
-            Purchase Orders
-          </Link>
-        </div>
+        <Link href="/admin/purchase-orders" className="btn btn-pcc-primary">
+          + Create Purchase Order
+        </Link>
       </div>
 
       {error && (
@@ -1136,16 +999,6 @@ export default function AdminInventory() {
                       <td>₱{parseFloat(item.price).toFixed(2)}</td>
                       <td>
                         <div className="d-flex gap-1">
-                          <button
-                            type="button"
-                            className="action-btn action-btn-edit"
-                            onClick={() => openAddStockModal(item)}
-                            data-bs-toggle="tooltip"
-                            data-bs-placement="top"
-                            title="Add Stock to this Item"
-                          >
-                            <i className="fa-solid fa-plus" style={{ color: 'var(--pcc-blue)' }}></i>
-                          </button>
                           <button
                             type="button"
                             className="action-btn action-btn-delete"
@@ -1672,162 +1525,6 @@ export default function AdminInventory() {
                 <div className="modal-footer">
                   <button type="submit" className="btn btn-pcc-primary">Save Changes</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ADD STOCK MODAL */}
-      {activeModal === 'add_stock' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title fw-bold">Add Inventory Stock</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
-              <form onSubmit={handleAddStockSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label fw-bold small">Item Category / Source *</label>
-                    <select
-                      className="form-select"
-                      value={addStockForm.itemType}
-                      onChange={(e) => {
-                        const newType = e.target.value;
-                        const firstMatching = items.find(i => i.sourceTable === newType);
-                        setAddStockForm(prev => ({
-                          ...prev,
-                          itemType: newType,
-                          itemID: firstMatching ? firstMatching.itemID : '',
-                          unitCost: firstMatching ? (firstMatching.basePrice || firstMatching.price || 0) : ''
-                        }));
-                      }}
-                    >
-                      <option value="Product">Product</option>
-                      <option value="Amenity">Amenity</option>
-                    </select>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-bold small">Select Item *</label>
-                    <select
-                      className="form-select"
-                      value={addStockForm.itemID}
-                      required
-                      onChange={(e) => {
-                        const selectedID = e.target.value;
-                        const matchItem = items.find(i => i.sourceTable === addStockForm.itemType && String(i.itemID) === String(selectedID));
-                        setAddStockForm(prev => ({
-                          ...prev,
-                          itemID: selectedID,
-                          unitCost: matchItem ? (matchItem.basePrice || matchItem.price || 0) : prev.unitCost
-                        }));
-                      }}
-                    >
-                      <option value="">-- Choose Item --</option>
-                      {items
-                        .filter(i => i.sourceTable === addStockForm.itemType)
-                        .map(i => (
-                          <option key={`${i.sourceTable}-${i.itemID}`} value={i.itemID}>
-                            {i.name} ({i.category}) — Current Stock: {i.availableQty} {i.unit}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-
-                  <div className="row g-2 mb-3">
-                    <div className="col-6">
-                      <label className="form-label fw-bold small">Quantity to Add *</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        min="1"
-                        required
-                        value={addStockForm.quantity}
-                        onChange={(e) => setAddStockForm(prev => ({ ...prev, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || 0) }))}
-                      />
-                    </div>
-                    <div className="col-6">
-                      <label className="form-label fw-bold small">Unit Cost (₱)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="form-control"
-                        value={addStockForm.unitCost}
-                        onChange={(e) => setAddStockForm(prev => ({ ...prev, unitCost: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  {(() => {
-                    const matchItem = items.find(i => i.sourceTable === addStockForm.itemType && String(i.itemID) === String(addStockForm.itemID));
-                    if (matchItem?.itemType === 'Consumable') {
-                      return (
-                        <div className="mb-3">
-                          <label className="form-label fw-bold small">Expiration Date (Consumable)</label>
-                          <DateInput
-                            className="form-control"
-                            value={addStockForm.expirationDate}
-                            onChange={(e) => setAddStockForm(prev => ({ ...prev, expirationDate: e.target.value }))}
-                          />
-                          <div className="form-text small text-muted">Format: MM/DD/YYYY. Leave blank if non-expiring.</div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-
-                  <div className="mb-3">
-                    <label className="form-label fw-bold small">Supplier / Source</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. PCC Main Store, Direct Purchase..."
-                      value={addStockForm.supplier}
-                      onChange={(e) => setAddStockForm(prev => ({ ...prev, supplier: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-bold small">Remarks / Delivery Notes</label>
-                    <textarea
-                      className="form-control"
-                      rows="2"
-                      placeholder="Optional notes regarding this batch..."
-                      value={addStockForm.remarks}
-                      onChange={(e) => setAddStockForm(prev => ({ ...prev, remarks: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="submit"
-                    className="btn btn-pcc-primary d-inline-flex align-items-center justify-content-center gap-2"
-                    disabled={isSubmittingStock}
-                  >
-                    {isSubmittingStock ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        <span>Adding Stock...</span>
-                      </>
-                    ) : (
-                      <>
-                        <i className="fa-solid fa-plus me-1"></i> Add Stock Now
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={isSubmittingStock}
-                    onClick={() => setActiveModal(null)}
-                  >
-                    Cancel
-                  </button>
                 </div>
               </form>
             </div>
