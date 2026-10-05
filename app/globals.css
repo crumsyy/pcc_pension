@@ -71,6 +71,52 @@ body.dark-theme {
   animation: pcc-content-reveal 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* =====================================================================
+   Modern Frosted-Glass Modal & Dialog Backdrop System
+   ===================================================================== */
+.modal.show,
+.modal.d-block,
+.modal-backdrop,
+.tab-modal-backdrop {
+  background-color: rgba(15, 23, 42, 0.25) !important; /* Gentle translucent tint, NOT pitch black */
+  backdrop-filter: blur(8px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(120%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.modal-backdrop.show {
+  opacity: 1 !important;
+}
+
+@keyframes pcc-modal-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal.show .modal-dialog,
+.modal.d-block .modal-dialog {
+  margin: auto !important;
+  max-width: 92vw;
+  animation: pcc-modal-pop-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal.show .modal-content,
+.modal.d-block .modal-content {
+  border: none !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+}
+
 /* Base Brand Utility Classes */
 .text-pcc-blue {
   color: var(--pcc-blue, #2155B5) !important;

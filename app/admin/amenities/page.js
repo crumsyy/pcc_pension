@@ -221,7 +221,7 @@ export default function AdminAmenities() {
   };
 
   const handleArchive = async (amenityID) => {
-    showConfirm('Delete Amenity', 'Are you sure you want to delete this amenity? It will be hidden from active inventory.', async () => {
+    showConfirm('Archive Amenity', 'Are you sure you want to archive this amenity? It will be hidden from active inventory.', async () => {
       try {
         const res = await fetch('/api/admin/amenities', {
           method: 'POST',
@@ -233,9 +233,9 @@ export default function AdminAmenities() {
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to delete');
+        if (!res.ok) throw new Error(data.error || 'Failed to archive');
 
-        showAlert('success', 'Success', data.message || 'Amenity deleted successfully');
+        showAlert('success', 'Success', data.message || 'Amenity archived successfully');
         clientCache.invalidate('admin-amenities');
         fetchAmenities();
       } catch (err) {

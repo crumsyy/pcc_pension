@@ -85,9 +85,9 @@ export default function ModalDialog({
     : "btn btn-secondary px-4 py-2 text-white";
 
   return (
-    <div className="modal show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2100 }}>
-      <div className="modal-dialog modal-dialog-centered" role="document" style={{ maxWidth: '420px' }}>
-        <div className="modal-content shadow border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+    <div className="modal show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(15, 23, 42, 0.25)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 2100 }}>
+      <div className="modal-dialog modal-dialog-centered" role="document" style={{ maxWidth: '420px', margin: 'auto' }}>
+        <div className="modal-content shadow border-0" style={{ borderRadius: '14px', overflow: 'hidden' }}>
           <div className="modal-header border-0 py-3" style={getHeaderStyle()}>
             <h5 className="modal-title fw-bold">{title || 'System Notification'}</h5>
             {onCancel && !isSubmitting && (

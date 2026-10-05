@@ -222,7 +222,7 @@ export default function AdminProducts() {
   };
 
   const handleArchive = async (productID) => {
-    showConfirm('Delete Product', 'Are you sure you want to delete this product? It will be hidden from active inventory.', async () => {
+    showConfirm('Archive Product', 'Are you sure you want to archive this product? It will be hidden from active inventory.', async () => {
       try {
         const res = await fetch('/api/admin/products', {
           method: 'POST',
@@ -234,9 +234,9 @@ export default function AdminProducts() {
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to delete');
+        if (!res.ok) throw new Error(data.error || 'Failed to archive');
 
-        showAlert('success', 'Success', data.message || 'Product deleted successfully');
+        showAlert('success', 'Success', data.message || 'Product archived successfully');
         clientCache.invalidate('admin-products');
         fetchProducts();
       } catch (err) {

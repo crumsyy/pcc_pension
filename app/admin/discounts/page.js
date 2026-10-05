@@ -255,7 +255,7 @@ export default function AdminDiscounts() {
   };
 
   const handleArchiveDisc = async (discountID) => {
-    showConfirm('Delete Discount', 'Are you sure you want to delete this discount? It will be hidden from active inventory.', async () => {
+    showConfirm('Archive Discount', 'Are you sure you want to archive this discount? It will be hidden from active inventory.', async () => {
       try {
         const res = await fetch('/api/admin/discounts', {
           method: 'POST',
@@ -263,8 +263,8 @@ export default function AdminDiscounts() {
           body: JSON.stringify({ action: 'archive_discount', discountID }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to delete');
-        showAlert('success', 'Success', data.message || 'Discount deleted successfully');
+        if (!res.ok) throw new Error(data.error || 'Failed to archive');
+        showAlert('success', 'Success', data.message || 'Discount archived successfully');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -389,7 +389,7 @@ export default function AdminDiscounts() {
   };
 
   const handleArchivePromo = async (promotionID) => {
-    showConfirm('Delete Promotion', 'Are you sure you want to delete this promotion? It will be hidden from active inventory.', async () => {
+    showConfirm('Archive Promotion', 'Are you sure you want to archive this promotion? It will be hidden from active inventory.', async () => {
       try {
         const res = await fetch('/api/admin/discounts', {
           method: 'POST',
@@ -397,8 +397,8 @@ export default function AdminDiscounts() {
           body: JSON.stringify({ action: 'archive_promo', promotionID }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to delete');
-        showAlert('success', 'Success', data.message || 'Promotion deleted successfully');
+        if (!res.ok) throw new Error(data.error || 'Failed to archive');
+        showAlert('success', 'Success', data.message || 'Promotion archived successfully');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
