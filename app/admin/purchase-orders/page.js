@@ -1025,7 +1025,7 @@ export default function AdminPurchaseOrders() {
 
       {/* CREATE PO MODAL */}
       {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', overflowY: 'auto' }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1132,7 +1132,7 @@ export default function AdminPurchaseOrders() {
 
       {/* VIEW PO DETAILS MODAL */}
       {activeModal === 'view' && selectedOrder && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1214,7 +1214,7 @@ export default function AdminPurchaseOrders() {
 
       {/* RECORD STOCK-IN MODAL */}
       {activeModal === 'stock_in' && selectedOrder && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>

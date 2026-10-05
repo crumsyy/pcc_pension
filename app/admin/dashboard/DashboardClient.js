@@ -662,7 +662,7 @@ export default function DashboardClient({ userName }) {
 
       {/* RESET TRANSACTION RECORDS MODAL */}
       {showResetModal && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 2050 }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '12px' }}>
               <div className="modal-header bg-danger text-white">

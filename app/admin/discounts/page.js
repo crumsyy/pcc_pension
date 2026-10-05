@@ -712,7 +712,7 @@ export default function AdminDiscounts() {
 
       {/* CREATE DISCOUNT MODAL */}
       {activeModal === 'create_disc' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -813,7 +813,7 @@ export default function AdminDiscounts() {
 
       {/* EDIT DISCOUNT MODAL */}
       {activeModal === 'edit_disc' && selectedDisc && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -916,7 +916,7 @@ export default function AdminDiscounts() {
 
       {/* CREATE PROMO MODAL */}
       {activeModal === 'create_promo' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content shadow-lg border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
               <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
@@ -1042,7 +1042,7 @@ export default function AdminDiscounts() {
 
       {/* EDIT PROMO MODAL */}
       {activeModal === 'edit_promo' && selectedPromo && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content shadow-lg border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
               <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>

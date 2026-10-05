@@ -549,7 +549,7 @@ export default function UsersClient() {
 
       {/* CREATE MODAL */}
       {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -664,7 +664,7 @@ export default function UsersClient() {
 
       {/* VIEW MODAL */}
       {activeModal === 'view' && selectedUser && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -727,7 +727,7 @@ export default function UsersClient() {
 
       {/* EDIT MODAL */}
       {activeModal === 'edit' && selectedUser && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -847,7 +847,7 @@ export default function UsersClient() {
 
       {/* SUSPEND MODAL */}
       {activeModal === 'suspend' && suspendUser && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '450px' }}>
             <div className="modal-content border-0 shadow-lg">
               <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue)' }}>

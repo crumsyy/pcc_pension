@@ -268,7 +268,7 @@ export default function SidebarClient({ session, role, children }) {
 
       {/* PCC THEME LOGOUT CONFIRMATION MODAL */}
       {showLogoutModal && (
-        <div className="modal show d-block animate-fade-in" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.65)', zIndex: 11000 }}>
+        <div className="modal show d-block animate-fade-in" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 11000 }}>
           <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '400px' }}>
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '8px' }}>
               <div className="modal-body p-4 text-center">

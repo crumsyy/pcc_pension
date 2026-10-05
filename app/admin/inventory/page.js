@@ -1271,7 +1271,7 @@ export default function AdminInventory() {
 
       {/* DISPOSE MODAL */}
       {activeModal === 'dispose' && selectedItem && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1336,7 +1336,7 @@ export default function AdminInventory() {
 
       {/* STOCK OUT MODAL */}
       {activeModal === 'stock_out' && selectedItem && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1400,7 +1400,7 @@ export default function AdminInventory() {
 
       {/* BORROW MODAL */}
       {activeModal === 'borrow' && selectedItem && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1463,7 +1463,7 @@ export default function AdminInventory() {
 
       {/* RETURN MODAL */}
       {activeModal === 'return' && selectedBorrow && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1524,7 +1524,7 @@ export default function AdminInventory() {
 
       {/* EDIT EXPIRY MODAL */}
       {activeModal === 'edit_expiry' && selectedBatch && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
@@ -1565,7 +1565,7 @@ export default function AdminInventory() {
 
       {/* EDIT MIN STOCK MODAL */}
       {activeModal === 'min_stock' && selectedItem && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
