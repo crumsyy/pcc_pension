@@ -86,15 +86,17 @@ body.dark-theme {
   inset: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  display: grid !important;
-  place-items: center !important; /* Guaranteed true vertical & horizontal centering across monitor */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   background-color: rgba(15, 23, 42, 0.32) !important; /* Elegant frosted glass translucent tint, NOT black */
   backdrop-filter: blur(10px) saturate(125%) !important;
   -webkit-backdrop-filter: blur(10px) saturate(125%) !important;
   z-index: 99999 !important; /* Strictly higher than top header (1050) and sidebar (1020) */
   overflow-x: hidden !important;
   overflow-y: auto !important;
-  padding: 1.25rem !important;
+  padding: 1.25rem 1rem !important;
+  box-sizing: border-box !important;
 }
 
 .modal-backdrop.show {
@@ -104,7 +106,7 @@ body.dark-theme {
 @keyframes pcc-modal-pop-in {
   0% {
     opacity: 0;
-    transform: scale(0.92) translateY(-10px);
+    transform: scale(0.95) translateY(-8px);
   }
   100% {
     opacity: 1;
@@ -123,16 +125,19 @@ body.dark-theme {
 
 .modal.show .modal-dialog,
 .modal.d-block .modal-dialog {
-  margin: 0 !important;
+  margin: auto !important;
   width: 100% !important;
-  max-width: 540px;
+  max-width: 560px;
+  max-height: calc(100vh - 2.5rem) !important;
+  display: flex !important;
+  flex-direction: column !important;
   pointer-events: auto !important;
   transform: none !important;
 }
 
 .modal.show .modal-dialog.modal-lg,
 .modal.d-block .modal-dialog.modal-lg {
-  max-width: 800px !important;
+  max-width: 720px !important;
 }
 
 .modal.show .modal-dialog.modal-xl,
@@ -145,13 +150,54 @@ body.dark-theme {
   max-width: 380px !important;
 }
 
-/* Apply Pop-In animation directly to the dialog card */
+/* Apply Pop-In animation directly to the dialog card & guarantee it stays bounded */
 .modal.show .modal-content,
 .modal.d-block .modal-content {
   border: none !important;
   border-radius: 14px !important;
   box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.06) !important;
   animation: pcc-modal-pop-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  max-height: calc(100vh - 2.5rem) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.modal.show form,
+.modal.d-block form {
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+}
+
+.modal.show .modal-header,
+.modal.d-block .modal-header {
+  flex-shrink: 0 !important;
+  border-top-left-radius: 14px !important;
+  border-top-right-radius: 14px !important;
+  padding: 0.85rem 1.25rem !important;
+}
+
+.modal.show .modal-footer,
+.modal.d-block .modal-footer {
+  flex-shrink: 0 !important;
+  border-bottom-left-radius: 14px !important;
+  border-bottom-right-radius: 14px !important;
+  padding: 0.75rem 1.25rem !important;
+  background-color: #fafbfc !important;
+  border-top: 1px solid #e9ecef !important;
+}
+
+.modal.show .modal-body,
+.modal.d-block .modal-body {
+  overflow-y: auto !important;
+  flex: 1 1 auto !important;
+  max-height: calc(100vh - 160px) !important;
+  padding: 1.25rem !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Base Brand Utility Classes */

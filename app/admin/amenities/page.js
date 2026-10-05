@@ -494,106 +494,75 @@ export default function AdminAmenities() {
         <ModalPortal>
           {/* CREATE MODAL */}
           {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+        <div className="modal show d-block" tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '640px' }}>
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
                 <h5 className="modal-title">Create Amenity</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-control"
-                      required
-                      value={formData.name}
-                      onChange={handleInputChange}
-                    />
+                <div className="modal-body p-3">
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-control"
+                        required
+                        value={formData.name}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Category *</label>
+                      <select
+                        name="amenityCategoryID"
+                        className="form-select"
+                        required
+                        value={formData.amenityCategoryID}
+                        onChange={handleInputChange}
+                      >
+                        <option value="" disabled>Select category</option>
+                        {categories.map(c => (
+                          <option key={c.amenityCategoryID} value={c.amenityCategoryID}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Category *</label>
-                    <select
-                      name="amenityCategoryID"
-                      className="form-select"
-                      required
-                      value={formData.amenityCategoryID}
-                      onChange={handleInputChange}
-                    >
-                      <option value="" disabled>Select category</option>
-                      {categories.map(c => (
-                        <option key={c.amenityCategoryID} value={c.amenityCategoryID}>{c.name}</option>
-                      ))}
-                    </select>
+
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Item Type *</label>
+                      <select
+                        name="itemType"
+                        className="form-select"
+                        required
+                        value={formData.itemType}
+                        onChange={handleInputChange}
+                      >
+                        <option value="Consumable">Consumable</option>
+                        <option value="Non-Consumable">Non-Consumable</option>
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Unit *</label>
+                      <input
+                        type="text"
+                        name="unit"
+                        className="form-control"
+                        placeholder="e.g. pcs, pairs, bottles"
+                        required
+                        value={formData.unit}
+                        onChange={handleInputChange}
+                      />
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Item Type *</label>
-                    <select
-                      name="itemType"
-                      className="form-select"
-                      required
-                      value={formData.itemType}
-                      onChange={handleInputChange}
-                    >
-                      <option value="Consumable">Consumable</option>
-                      <option value="Non-Consumable">Non-Consumable</option>
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Unit *</label>
-                    <input
-                      type="text"
-                      name="unit"
-                      className="form-control"
-                      placeholder="e.g. pcs, pairs, bottles"
-                      required
-                      value={formData.unit}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-control"
-                      rows="2"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Amenity Photo</label>
-                    <input
-                      type="file"
-                      className="form-control"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                    />
-                    {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
-                    {formData.image && (
-                      <div className="mt-2 d-flex align-items-center gap-2">
-                        <img
-                          src={formData.image}
-                          alt="Amenity preview"
-                          style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px' }}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="row g-2">
+
+                  <div className="row g-2 mb-2">
                     <div className="col-md-4">
-                      <label className="form-label">Base Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Base Price (₱) *</label>
                       <input
                         type="number"
                         name="basePrice"
@@ -605,7 +574,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label">Selling Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) *</label>
                       <input
                         type="number"
                         name="sellingPrice"
@@ -617,7 +586,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label">Min Stock Level *</label>
+                      <label className="form-label small fw-semibold mb-1">Min Stock Level *</label>
                       <input
                         type="number"
                         name="minStock"
@@ -626,6 +595,48 @@ export default function AdminAmenities() {
                         min="1"
                         value={formData.minStock}
                         onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row g-2 mb-1">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Amenity Photo</label>
+                      <input
+                        type="file"
+                        className="form-control"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                      />
+                      {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
+                      {formData.image && (
+                        <div className="mt-2 d-flex align-items-center gap-2">
+                          <img
+                            src={formData.image}
+                            alt="Amenity preview"
+                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px' }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Description (Optional)</label>
+                      <textarea
+                        name="description"
+                        className="form-control"
+                        rows="2"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        placeholder="Enter description..."
                       />
                     </div>
                   </div>
@@ -642,105 +653,74 @@ export default function AdminAmenities() {
 
       {/* EDIT MODAL */}
       {activeModal === 'edit' && selectedItem && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+        <div className="modal show d-block" tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '640px' }}>
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
                 <h5 className="modal-title">Update Amenity</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-control"
-                      required
-                      value={formData.name}
-                      onChange={handleInputChange}
-                    />
+                <div className="modal-body p-3">
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-control"
+                        required
+                        value={formData.name}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Category *</label>
+                      <select
+                        name="amenityCategoryID"
+                        className="form-select"
+                        required
+                        value={formData.amenityCategoryID}
+                        onChange={handleInputChange}
+                      >
+                        {categories.map(c => (
+                          <option key={c.amenityCategoryID} value={c.amenityCategoryID}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Category *</label>
-                    <select
-                      name="amenityCategoryID"
-                      className="form-select"
-                      required
-                      value={formData.amenityCategoryID}
-                      onChange={handleInputChange}
-                    >
-                      {categories.map(c => (
-                        <option key={c.amenityCategoryID} value={c.amenityCategoryID}>{c.name}</option>
-                      ))}
-                    </select>
+
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Item Type *</label>
+                      <select
+                        name="itemType"
+                        className="form-select"
+                        required
+                        value={formData.itemType}
+                        onChange={handleInputChange}
+                      >
+                        <option value="Consumable">Consumable</option>
+                        <option value="Non-Consumable">Non-Consumable</option>
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Unit *</label>
+                      <input
+                        type="text"
+                        name="unit"
+                        className="form-control"
+                        placeholder="e.g. pcs, pairs, bottles"
+                        required
+                        value={formData.unit}
+                        onChange={handleInputChange}
+                      />
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Item Type *</label>
-                    <select
-                      name="itemType"
-                      className="form-select"
-                      required
-                      value={formData.itemType}
-                      onChange={handleInputChange}
-                    >
-                      <option value="Consumable">Consumable</option>
-                      <option value="Non-Consumable">Non-Consumable</option>
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Unit *</label>
-                    <input
-                      type="text"
-                      name="unit"
-                      className="form-control"
-                      placeholder="e.g. pcs, pairs, bottles"
-                      required
-                      value={formData.unit}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-control"
-                      rows="2"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Amenity Photo</label>
-                    <input
-                      type="file"
-                      className="form-control"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                    />
-                    {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
-                    {formData.image && (
-                      <div className="mt-2 d-flex align-items-center gap-2">
-                        <img
-                          src={formData.image}
-                          alt="Amenity preview"
-                          style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px' }}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="row g-2">
+
+                  <div className="row g-2 mb-2">
                     <div className="col-md-4">
-                      <label className="form-label">Base Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Base Price (₱) *</label>
                       <input
                         type="number"
                         name="basePrice"
@@ -752,7 +732,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label">Selling Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) *</label>
                       <input
                         type="number"
                         name="sellingPrice"
@@ -764,7 +744,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label">Min Stock Level *</label>
+                      <label className="form-label small fw-semibold mb-1">Min Stock Level *</label>
                       <input
                         type="number"
                         name="minStock"
@@ -773,6 +753,48 @@ export default function AdminAmenities() {
                         min="1"
                         value={formData.minStock}
                         onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row g-2 mb-1">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Amenity Photo</label>
+                      <input
+                        type="file"
+                        className="form-control"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                      />
+                      {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
+                      {formData.image && (
+                        <div className="mt-2 d-flex align-items-center gap-2">
+                          <img
+                            src={formData.image}
+                            alt="Amenity preview"
+                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px' }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Description (Optional)</label>
+                      <textarea
+                        name="description"
+                        className="form-control"
+                        rows="2"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        placeholder="Enter description..."
                       />
                     </div>
                   </div>

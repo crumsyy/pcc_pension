@@ -576,110 +576,105 @@ export default function AdminProducts() {
         <ModalPortal>
           {/* CREATE MODAL */}
           {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+        <div className="modal show d-block" tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '640px' }}>
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
                 <h5 className="modal-title">{activeTab === 'meals' ? 'Create Cooked Meal' : 'Create Product'}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-control"
-                      required
-                      value={formData.name}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  {activeTab !== 'meals' && (
+                <div className="modal-body p-3">
+                  {activeTab !== 'meals' ? (
                     <>
-                      <div className="mb-3">
-                        <label className="form-label">Category *</label>
-                        <select
-                          name="productCategoryID"
-                          className="form-select"
-                          required
-                          value={formData.productCategoryID}
-                          onChange={handleInputChange}
-                        >
-                          <option value="" disabled>Select category</option>
-                          {categories.filter(c => c.productCategoryID !== 3).map(c => (
-                            <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>
-                          ))}
-                        </select>
+                      <div className="row g-2 mb-2">
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold mb-1">Name *</label>
+                          <input
+                            type="text"
+                            name="name"
+                            className="form-control"
+                            required
+                            value={formData.name}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold mb-1">Category *</label>
+                          <select
+                            name="productCategoryID"
+                            className="form-select"
+                            required
+                            value={formData.productCategoryID}
+                            onChange={handleInputChange}
+                          >
+                            <option value="" disabled>Select category</option>
+                            {categories.filter(c => c.productCategoryID !== 3).map(c => (
+                              <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                      <div className="mb-3">
-                        <label className="form-label">Item Type *</label>
-                        <select
-                          name="itemType"
-                          className="form-select"
-                          required
-                          value={formData.itemType}
-                          onChange={handleInputChange}
-                        >
-                          <option value="Consumable">Consumable</option>
-                          <option value="Non-Consumable">Non-Consumable</option>
-                        </select>
+
+                      <div className="row g-2 mb-2">
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold mb-1">Item Type *</label>
+                          <select
+                            name="itemType"
+                            className="form-select"
+                            required
+                            value={formData.itemType}
+                            onChange={handleInputChange}
+                          >
+                            <option value="Consumable">Consumable</option>
+                            <option value="Non-Consumable">Non-Consumable</option>
+                          </select>
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold mb-1">Unit *</label>
+                          <input
+                            type="text"
+                            name="unit"
+                            className="form-control"
+                            placeholder="e.g. pcs, pairs, bottles"
+                            required
+                            value={formData.unit}
+                            onChange={handleInputChange}
+                          />
+                        </div>
                       </div>
                     </>
-                  )}
-                  <div className="mb-3">
-                    <label className="form-label">Unit *</label>
-                    <input
-                      type="text"
-                      name="unit"
-                      className="form-control"
-                      placeholder="e.g. pcs, pairs, bottles"
-                      required
-                      value={formData.unit}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-control"
-                      rows="2"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Item Photo</label>
-                    <input
-                      type="file"
-                      className="form-control"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                    />
-                    {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
-                    {formData.image && (
-                      <div className="mt-2 d-flex align-items-center gap-2">
-                        <img
-                          src={formData.image}
-                          alt="Item preview"
-                          style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px' }}
+                  ) : (
+                    <div className="row g-2 mb-2">
+                      <div className="col-md-8">
+                        <label className="form-label small fw-semibold mb-1">Meal Name *</label>
+                        <input
+                          type="text"
+                          name="name"
+                          className="form-control"
+                          required
+                          value={formData.name}
+                          onChange={handleInputChange}
                         />
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                        >
-                          Remove
-                        </button>
                       </div>
-                    )}
-                  </div>
-                  <div className="row g-2">
+                      <div className="col-md-4">
+                        <label className="form-label small fw-semibold mb-1">Unit *</label>
+                        <input
+                          type="text"
+                          name="unit"
+                          className="form-control"
+                          placeholder="e.g. serving, plate"
+                          required
+                          value={formData.unit}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="row g-2 mb-2">
                     <div className={activeTab === 'meals' ? 'col-md-6' : 'col-md-4'}>
-                      <label className="form-label">Base Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Base Price (₱) *</label>
                       <input
                         type="number"
                         name="basePrice"
@@ -691,7 +686,7 @@ export default function AdminProducts() {
                       />
                     </div>
                     <div className={activeTab === 'meals' ? 'col-md-6' : 'col-md-4'}>
-                      <label className="form-label">Selling Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) *</label>
                       <input
                         type="number"
                         name="sellingPrice"
@@ -704,7 +699,7 @@ export default function AdminProducts() {
                     </div>
                     {activeTab !== 'meals' && (
                       <div className="col-md-4">
-                        <label className="form-label">Min Stock Level *</label>
+                        <label className="form-label small fw-semibold mb-1">Min Stock *</label>
                         <input
                           type="number"
                           name="minStock"
@@ -716,6 +711,48 @@ export default function AdminProducts() {
                         />
                       </div>
                     )}
+                  </div>
+
+                  <div className="row g-2 mb-1">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Item Photo</label>
+                      <input
+                        type="file"
+                        className="form-control"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                      />
+                      {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
+                      {formData.image && (
+                        <div className="mt-2 d-flex align-items-center gap-2">
+                          <img
+                            src={formData.image}
+                            alt="Item preview"
+                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px' }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Description (Optional)</label>
+                      <textarea
+                        name="description"
+                        className="form-control"
+                        rows="2"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        placeholder="Enter description..."
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="modal-footer">
@@ -731,109 +768,104 @@ export default function AdminProducts() {
       {activeModal === 'edit' && selectedProduct && (() => {
         const isMeal = selectedProduct.productCategoryID === 3;
         return (
-          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-            <div className="modal-dialog modal-dialog-centered">
+          <div className="modal show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '640px' }}>
               <div className="modal-content">
                 <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
                   <h5 className="modal-title">{isMeal ? 'Update Cooked Meal' : 'Update Product'}</h5>
                   <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
                 </div>
                 <form onSubmit={handleEditSubmit}>
-                  <div className="modal-body">
-                    <div className="mb-3">
-                      <label className="form-label">Name *</label>
-                      <input
-                        type="text"
-                        name="name"
-                        className="form-control"
-                        required
-                        value={formData.name}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    {!isMeal && (
+                  <div className="modal-body p-3">
+                    {!isMeal ? (
                       <>
-                        <div className="mb-3">
-                          <label className="form-label">Category *</label>
-                          <select
-                            name="productCategoryID"
-                            className="form-select"
-                            required
-                            value={formData.productCategoryID}
-                            onChange={handleInputChange}
-                          >
-                            {categories.filter(c => c.productCategoryID !== 3).map(c => (
-                              <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>
-                            ))}
-                          </select>
+                        <div className="row g-2 mb-2">
+                          <div className="col-md-6">
+                            <label className="form-label small fw-semibold mb-1">Name *</label>
+                            <input
+                              type="text"
+                              name="name"
+                              className="form-control"
+                              required
+                              value={formData.name}
+                              onChange={handleInputChange}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label small fw-semibold mb-1">Category *</label>
+                            <select
+                              name="productCategoryID"
+                              className="form-select"
+                              required
+                              value={formData.productCategoryID}
+                              onChange={handleInputChange}
+                            >
+                              {categories.filter(c => c.productCategoryID !== 3).map(c => (
+                                <option key={c.productCategoryID} value={c.productCategoryID}>{c.name}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
-                        <div className="mb-3">
-                          <label className="form-label">Item Type *</label>
-                          <select
-                            name="itemType"
-                            className="form-select"
-                            required
-                            value={formData.itemType}
-                            onChange={handleInputChange}
-                          >
-                            <option value="Consumable">Consumable</option>
-                            <option value="Non-Consumable">Non-Consumable</option>
-                          </select>
+
+                        <div className="row g-2 mb-2">
+                          <div className="col-md-6">
+                            <label className="form-label small fw-semibold mb-1">Item Type *</label>
+                            <select
+                              name="itemType"
+                              className="form-select"
+                              required
+                              value={formData.itemType}
+                              onChange={handleInputChange}
+                            >
+                              <option value="Consumable">Consumable</option>
+                              <option value="Non-Consumable">Non-Consumable</option>
+                            </select>
+                          </div>
+                          <div className="col-md-6">
+                            <label className="form-label small fw-semibold mb-1">Unit *</label>
+                            <input
+                              type="text"
+                              name="unit"
+                              className="form-control"
+                              placeholder="e.g. pcs, pairs, bottles"
+                              required
+                              value={formData.unit}
+                              onChange={handleInputChange}
+                            />
+                          </div>
                         </div>
                       </>
-                    )}
-                    <div className="mb-3">
-                      <label className="form-label">Unit *</label>
-                      <input
-                        type="text"
-                        name="unit"
-                        className="form-control"
-                        placeholder="e.g. pcs, pairs, bottles"
-                        required
-                        value={formData.unit}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Description</label>
-                      <textarea
-                        name="description"
-                        className="form-control"
-                        rows="2"
-                        value={formData.description}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Item Photo</label>
-                      <input
-                        type="file"
-                        className="form-control"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        disabled={uploadingImage}
-                      />
-                      {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
-                      {formData.image && (
-                        <div className="mt-2 d-flex align-items-center gap-2">
-                          <img
-                            src={formData.image}
-                            alt="Item preview"
-                            style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px' }}
+                    ) : (
+                      <div className="row g-2 mb-2">
+                        <div className="col-md-8">
+                          <label className="form-label small fw-semibold mb-1">Meal Name *</label>
+                          <input
+                            type="text"
+                            name="name"
+                            className="form-control"
+                            required
+                            value={formData.name}
+                            onChange={handleInputChange}
                           />
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                          >
-                            Remove
-                          </button>
                         </div>
-                      )}
-                    </div>
-                    <div className="row g-2">
+                        <div className="col-md-4">
+                          <label className="form-label small fw-semibold mb-1">Unit *</label>
+                          <input
+                            type="text"
+                            name="unit"
+                            className="form-control"
+                            placeholder="e.g. serving, plate"
+                            required
+                            value={formData.unit}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="row g-2 mb-2">
                       <div className={isMeal ? 'col-md-6' : 'col-md-4'}>
-                        <label className="form-label">Base Price (₱) *</label>
+                        <label className="form-label small fw-semibold mb-1">Base Price (₱) *</label>
                         <input
                           type="number"
                           name="basePrice"
@@ -845,7 +877,7 @@ export default function AdminProducts() {
                         />
                       </div>
                       <div className={isMeal ? 'col-md-6' : 'col-md-4'}>
-                        <label className="form-label">Selling Price (₱) *</label>
+                        <label className="form-label small fw-semibold mb-1">Selling Price (₱) *</label>
                         <input
                           type="number"
                           name="sellingPrice"
@@ -858,7 +890,7 @@ export default function AdminProducts() {
                       </div>
                       {!isMeal && (
                         <div className="col-md-4">
-                          <label className="form-label">Min Stock Level *</label>
+                          <label className="form-label small fw-semibold mb-1">Min Stock *</label>
                           <input
                             type="number"
                             name="minStock"
@@ -870,6 +902,48 @@ export default function AdminProducts() {
                           />
                         </div>
                       )}
+                    </div>
+
+                    <div className="row g-2 mb-1">
+                      <div className="col-md-6">
+                        <label className="form-label small fw-semibold mb-1">Item Photo</label>
+                        <input
+                          type="file"
+                          className="form-control"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                        />
+                        {uploadingImage && <small className="text-primary d-block mt-1">Uploading image...</small>}
+                        {formData.image && (
+                          <div className="mt-2 d-flex align-items-center gap-2">
+                            <img
+                              src={formData.image}
+                              alt="Item preview"
+                              style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px' }}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger"
+                              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                              onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-md-6">
+                        <label className="form-label small fw-semibold mb-1">Description (Optional)</label>
+                        <textarea
+                          name="description"
+                          className="form-control"
+                          rows="2"
+                          value={formData.description}
+                          onChange={handleInputChange}
+                          placeholder="Enter description..."
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="modal-footer">

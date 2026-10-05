@@ -669,73 +669,79 @@ export default function RoomsClient() {
         <ModalPortal>
           {/* CREATE MODAL */}
           {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+        <div className="modal show d-block" tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered modal-lg" style={{ maxWidth: '680px' }}>
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
                 <h5 className="modal-title">Create Room</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Room Number *</label>
-                    <input
-                      type="text"
-                      name="roomNumber"
-                      className="form-control"
-                      required
-                      placeholder="e.g. 101"
-                      value={formData.roomNumber}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Floor *</label>
-                    <select
-                      name="floorID"
-                      className="form-select"
-                      required
-                      value={formData.floorID}
-                      onChange={handleInputChange}
-                    >
-                      <option value="" disabled>Select floor</option>
-                      {floors.map(f => (
-                        <option key={f.floorID} value={f.floorID}>{f.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Room Type *</label>
-                    <select
-                      name="roomTypeID"
-                      className="form-select"
-                      required
-                      value={formData.roomTypeID}
-                      onChange={handleInputChange}
-                    >
-                      <option value="" disabled>Select type</option>
-                      {roomTypes.map(rt => (
-                        <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Occupancy Limit (Pax) *</label>
-                    <input
-                      type="number"
-                      name="occupancyLimit"
-                      className="form-control"
-                      required
-                      min="1"
-                      placeholder="e.g. 4"
-                      value={formData.occupancyLimit}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="row mb-3">
+                <div className="modal-body p-3">
+                  <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label">Rate W/O Breakfast (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Room Number *</label>
+                      <input
+                        type="text"
+                        name="roomNumber"
+                        className="form-control"
+                        required
+                        placeholder="e.g. 101"
+                        value={formData.roomNumber}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Floor *</label>
+                      <select
+                        name="floorID"
+                        className="form-select"
+                        required
+                        value={formData.floorID}
+                        onChange={handleInputChange}
+                      >
+                        <option value="" disabled>Select floor</option>
+                        {floors.map(f => (
+                          <option key={f.floorID} value={f.floorID}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Room Type *</label>
+                      <select
+                        name="roomTypeID"
+                        className="form-select"
+                        required
+                        value={formData.roomTypeID}
+                        onChange={handleInputChange}
+                      >
+                        <option value="" disabled>Select type</option>
+                        {roomTypes.map(rt => (
+                          <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Occupancy Limit (Pax) *</label>
+                      <input
+                        type="number"
+                        name="occupancyLimit"
+                        className="form-control"
+                        required
+                        min="1"
+                        placeholder="e.g. 4"
+                        value={formData.occupancyLimit}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Rate W/O Breakfast (₱) *</label>
                       <input
                         type="number"
                         name="rateWithoutBreakfast"
@@ -748,7 +754,7 @@ export default function RoomsClient() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Rate W/ Breakfast (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Rate W/ Breakfast (₱) *</label>
                       <input
                         type="number"
                         name="rateWithBreakfast"
@@ -761,88 +767,89 @@ export default function RoomsClient() {
                       />
                     </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Status</label>
-                    <select
-                      name="status"
-                      className="form-select"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                    >
-                      {getStatusOptions().map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Room Photos</label>
-                    <input
-                      type="file"
-                      className="form-control"
-                      accept="image/*"
-                      multiple
-                      onChange={handleFileChange}
-                      disabled={uploadingImage}
-                    />
-                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      Supports JPG, PNG, WEBP up to 25MB (max 5 photos per room).
-                    </small>
-                    {uploadingImage && (
-                      <small className="text-primary d-block mt-1">
-                        <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                        Uploading photo(s)...
-                      </small>
-                    )}
 
-                    {parseRoomImages(formData.image).length > 0 && (
-                      <div className="mt-2 p-2.5 bg-light rounded border">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <small className="fw-semibold text-muted">
-                            Attached Room Photos ({parseRoomImages(formData.image).length}/5 max):
-                          </small>
-                          <button
-                            type="button"
-                            className="btn btn-link text-danger p-0 text-decoration-none"
-                            style={{ fontSize: '0.75rem' }}
-                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                          >
-                            Remove All
-                          </button>
-                        </div>
-                        <div className="d-flex flex-wrap gap-2">
-                          {parseRoomImages(formData.image).map((imgUrl, idx) => (
-                            <div key={idx} className="position-relative d-inline-block border rounded p-1 bg-white shadow-sm">
-                              <img
-                                src={imgUrl}
-                                alt={`Room photo ${idx + 1}`}
-                                className="rounded"
-                                style={{ width: '85px', height: '60px', objectFit: 'cover' }}
-                                onError={(e) => { e.currentTarget.src = '/assets/images/logo.jpg'; }}
-                              />
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-xs position-absolute top-0 end-0 translate-middle badge rounded-circle p-1"
-                                style={{ width: '20px', height: '20px', fontSize: '0.65rem', lineHeight: '10px' }}
-                                onClick={() => removePhotoFromForm(imgUrl)}
-                                title="Remove photo"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      You can select up to 5 photos per room. Selected photos will display on the Landing Page and Guest Portal.
-                    </small>
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Status</label>
+                      <select
+                        name="status"
+                        className="form-select"
+                        value={formData.status}
+                        onChange={handleInputChange}
+                      >
+                        {getStatusOptions().map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Room Photos</label>
+                      <input
+                        type="file"
+                        className="form-control"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileChange}
+                        disabled={uploadingImage}
+                      />
+                      <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>
+                        JPG/PNG/WEBP (up to 5 photos, max 25MB).
+                      </small>
+                      {uploadingImage && (
+                        <small className="text-primary d-block mt-1">
+                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                          Uploading photo(s)...
+                        </small>
+                      )}
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description / Remarks (Optional)</label>
+
+                  {parseRoomImages(formData.image).length > 0 && (
+                    <div className="mb-2 p-2 bg-light rounded border">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <small className="fw-semibold text-muted" style={{ fontSize: '0.75rem' }}>
+                          Attached Room Photos ({parseRoomImages(formData.image).length}/5 max):
+                        </small>
+                        <button
+                          type="button"
+                          className="btn btn-link text-danger p-0 text-decoration-none"
+                          style={{ fontSize: '0.75rem' }}
+                          onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                        >
+                          Remove All
+                        </button>
+                      </div>
+                      <div className="d-flex flex-wrap gap-2">
+                        {parseRoomImages(formData.image).map((imgUrl, idx) => (
+                          <div key={idx} className="position-relative d-inline-block border rounded p-1 bg-white shadow-sm">
+                            <img
+                              src={imgUrl}
+                              alt={`Room photo ${idx + 1}`}
+                              className="rounded"
+                              style={{ width: '70px', height: '50px', objectFit: 'cover' }}
+                              onError={(e) => { e.currentTarget.src = '/assets/images/logo.jpg'; }}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-xs position-absolute top-0 end-0 translate-middle badge rounded-circle p-1"
+                              style={{ width: '18px', height: '18px', fontSize: '0.6rem', lineHeight: '8px' }}
+                              onClick={() => removePhotoFromForm(imgUrl)}
+                              title="Remove photo"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-1">
+                    <label className="form-label small fw-semibold mb-1">Description / Remarks (Optional)</label>
                     <textarea
                       name="description"
                       className="form-control"
-                      rows="3"
+                      rows="2"
                       value={formData.description}
                       onChange={handleInputChange}
                       placeholder="Enter room details, features, or description..."
@@ -861,70 +868,76 @@ export default function RoomsClient() {
 
       {/* EDIT MODAL */}
       {activeModal === 'edit' && selectedRoom && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+        <div className="modal show d-block" tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered modal-lg" style={{ maxWidth: '680px' }}>
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
                 <h5 className="modal-title">Update Room {selectedRoom.roomNumber}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleEditSubmit}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Room Number *</label>
-                    <input
-                      type="text"
-                      name="roomNumber"
-                      className="form-control"
-                      required
-                      value={formData.roomNumber}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Floor *</label>
-                    <select
-                      name="floorID"
-                      className="form-select"
-                      required
-                      value={formData.floorID}
-                      onChange={handleInputChange}
-                    >
-                      {floors.map(f => (
-                        <option key={f.floorID} value={f.floorID}>{f.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Room Type *</label>
-                    <select
-                      name="roomTypeID"
-                      className="form-select"
-                      required
-                      value={formData.roomTypeID}
-                      onChange={handleInputChange}
-                    >
-                      {roomTypes.map(rt => (
-                        <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Occupancy Limit (Pax) *</label>
-                    <input
-                      type="number"
-                      name="occupancyLimit"
-                      className="form-control"
-                      required
-                      min="1"
-                      placeholder="e.g. 4"
-                      value={formData.occupancyLimit}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="row mb-3">
+                <div className="modal-body p-3">
+                  <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label">Rate W/O Breakfast (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Room Number *</label>
+                      <input
+                        type="text"
+                        name="roomNumber"
+                        className="form-control"
+                        required
+                        value={formData.roomNumber}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Floor *</label>
+                      <select
+                        name="floorID"
+                        className="form-select"
+                        required
+                        value={formData.floorID}
+                        onChange={handleInputChange}
+                      >
+                        {floors.map(f => (
+                          <option key={f.floorID} value={f.floorID}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Room Type *</label>
+                      <select
+                        name="roomTypeID"
+                        className="form-select"
+                        required
+                        value={formData.roomTypeID}
+                        onChange={handleInputChange}
+                      >
+                        {roomTypes.map(rt => (
+                          <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Occupancy Limit (Pax) *</label>
+                      <input
+                        type="number"
+                        name="occupancyLimit"
+                        className="form-control"
+                        required
+                        min="1"
+                        placeholder="e.g. 4"
+                        value={formData.occupancyLimit}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Rate W/O Breakfast (₱) *</label>
                       <input
                         type="number"
                         name="rateWithoutBreakfast"
@@ -937,7 +950,7 @@ export default function RoomsClient() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Rate W/ Breakfast (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Rate W/ Breakfast (₱) *</label>
                       <input
                         type="number"
                         name="rateWithBreakfast"
@@ -950,88 +963,89 @@ export default function RoomsClient() {
                       />
                     </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Status</label>
-                    <select
-                      name="status"
-                      className="form-select"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                    >
-                      {getStatusOptions(selectedRoom.status).map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Room Photos</label>
-                    <input
-                      type="file"
-                      className="form-control"
-                      accept="image/*"
-                      multiple
-                      onChange={handleFileChange}
-                      disabled={uploadingImage}
-                    />
-                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      Supports JPG, PNG, WEBP up to 25MB (max 5 photos per room).
-                    </small>
-                    {uploadingImage && (
-                      <small className="text-primary d-block mt-1">
-                        <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                        Uploading photo(s)...
-                      </small>
-                    )}
 
-                    {parseRoomImages(formData.image).length > 0 && (
-                      <div className="mt-2 p-2.5 bg-light rounded border">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <small className="fw-semibold text-muted">
-                            Attached Room Photos ({parseRoomImages(formData.image).length}/5 max):
-                          </small>
-                          <button
-                            type="button"
-                            className="btn btn-link text-danger p-0 text-decoration-none"
-                            style={{ fontSize: '0.75rem' }}
-                            onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                          >
-                            Remove All
-                          </button>
-                        </div>
-                        <div className="d-flex flex-wrap gap-2">
-                          {parseRoomImages(formData.image).map((imgUrl, idx) => (
-                            <div key={idx} className="position-relative d-inline-block border rounded p-1 bg-white shadow-sm">
-                              <img
-                                src={imgUrl}
-                                alt={`Room photo ${idx + 1}`}
-                                className="rounded"
-                                style={{ width: '85px', height: '60px', objectFit: 'cover' }}
-                                onError={(e) => { e.currentTarget.src = '/assets/images/logo.jpg'; }}
-                              />
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-xs position-absolute top-0 end-0 translate-middle badge rounded-circle p-1"
-                                style={{ width: '20px', height: '20px', fontSize: '0.65rem', lineHeight: '10px' }}
-                                onClick={() => removePhotoFromForm(imgUrl)}
-                                title="Remove photo"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <small className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                      You can select up to 5 photos per room. Selected photos will display on the Landing Page and Guest Portal.
-                    </small>
+                  <div className="row g-2 mb-2">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Status</label>
+                      <select
+                        name="status"
+                        className="form-select"
+                        value={formData.status}
+                        onChange={handleInputChange}
+                      >
+                        {getStatusOptions(selectedRoom.status).map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold mb-1">Room Photos</label>
+                      <input
+                        type="file"
+                        className="form-control"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileChange}
+                        disabled={uploadingImage}
+                      />
+                      <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>
+                        JPG/PNG/WEBP (up to 5 photos, max 25MB).
+                      </small>
+                      {uploadingImage && (
+                        <small className="text-primary d-block mt-1">
+                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                          Uploading photo(s)...
+                        </small>
+                      )}
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description / Remarks (Optional)</label>
+
+                  {parseRoomImages(formData.image).length > 0 && (
+                    <div className="mb-2 p-2 bg-light rounded border">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <small className="fw-semibold text-muted" style={{ fontSize: '0.75rem' }}>
+                          Attached Room Photos ({parseRoomImages(formData.image).length}/5 max):
+                        </small>
+                        <button
+                          type="button"
+                          className="btn btn-link text-danger p-0 text-decoration-none"
+                          style={{ fontSize: '0.75rem' }}
+                          onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                        >
+                          Remove All
+                        </button>
+                      </div>
+                      <div className="d-flex flex-wrap gap-2">
+                        {parseRoomImages(formData.image).map((imgUrl, idx) => (
+                          <div key={idx} className="position-relative d-inline-block border rounded p-1 bg-white shadow-sm">
+                            <img
+                              src={imgUrl}
+                              alt={`Room photo ${idx + 1}`}
+                              className="rounded"
+                              style={{ width: '70px', height: '50px', objectFit: 'cover' }}
+                              onError={(e) => { e.currentTarget.src = '/assets/images/logo.jpg'; }}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-xs position-absolute top-0 end-0 translate-middle badge rounded-circle p-1"
+                              style={{ width: '18px', height: '18px', fontSize: '0.6rem', lineHeight: '8px' }}
+                              onClick={() => removePhotoFromForm(imgUrl)}
+                              title="Remove photo"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-1">
+                    <label className="form-label small fw-semibold mb-1">Description / Remarks (Optional)</label>
                     <textarea
                       name="description"
                       className="form-control"
-                      rows="3"
+                      rows="2"
                       value={formData.description}
                       onChange={handleInputChange}
                       placeholder="Enter room details, features, or description..."
