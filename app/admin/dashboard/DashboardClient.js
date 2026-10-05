@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+import { AdminDashboardSkeleton } from '@/app/components/skeletons/AdminSkeletons';
+
 export default function DashboardClient({ userName }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -106,16 +108,7 @@ export default function DashboardClient({ userName }) {
   }, [resetting, showResetModal]);
 
   if (loading) {
-    return (
-      <div className="d-flex align-items-center justify-content-center py-5" style={{ minHeight: '50vh' }}>
-        <div className="text-center">
-          <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
-            <span className="visually-hidden">Loading Dashboard...</span>
-          </div>
-          <p className="text-muted mt-3 fw-semibold">Loading dashboard data...</p>
-        </div>
-      </div>
-    );
+    return <AdminDashboardSkeleton userName={userName} />;
   }
 
   if (error) {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 export default function UsersClient() {
   const [users, setUsers] = useState([]);
@@ -436,11 +437,7 @@ export default function UsersClient() {
       {/* Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         {loading ? (
-          <div className="text-center py-4">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
+          <SkeletonTable columns={8} rows={7} colWidths={['10%', '18%', '20%', '14%', '12%', '10%', '10%', '6%']} />
         ) : (
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">

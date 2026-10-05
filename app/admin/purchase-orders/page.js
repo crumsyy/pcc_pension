@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 // Searchable Combobox Component (defined outside to prevent unmounting/focus issues)
 function Combobox({ options, value, onChange, placeholder, disabled }) {
@@ -860,11 +861,7 @@ export default function AdminPurchaseOrders() {
           {/* Purchase Orders Table */}
           <div className="card-module pcc-table-card flex-grow-1 d-flex flex-column overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
             {loading ? (
-              <div className="text-center py-4">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-              </div>
+              <SkeletonTable columns={6} rows={6} colWidths={['15%', '18%', '15%', '18%', '16%', '18%']} />
             ) : (
               <div className="table-responsive flex-grow-1 overflow-auto">
                 <table className="table align-middle mb-0">

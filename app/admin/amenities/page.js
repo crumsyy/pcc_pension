@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
+import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 export default function AdminAmenities() {
   const [items, setItems] = useState([]);
@@ -388,11 +389,7 @@ export default function AdminAmenities() {
       {/* Amenities Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         {loading ? (
-          <div className="text-center py-4">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
+          <SkeletonTable columns={8} rows={7} colWidths={['5%', '22%', '13%', '12%', '12%', '8%', '18%', '10%']} />
         ) : (
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">

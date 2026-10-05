@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import { Skeleton, SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 export default function AdminDiscounts() {
   const [discounts, setDiscounts] = useState([]);
@@ -520,11 +521,16 @@ export default function AdminDiscounts() {
       </div>
 
       {loading ? (
-        <div className="text-center py-4">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
+        <>
+          <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <Skeleton width="180px" height="1.3rem" className="mb-3" />
+            <SkeletonTable columns={6} rows={4} colWidths={['30%', '16%', '16%', '12%', '14%', '12%']} />
           </div>
-        </div>
+          <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <Skeleton width="180px" height="1.3rem" className="mb-3" />
+            <SkeletonTable columns={7} rows={4} colWidths={['26%', '10%', '14%', '14%', '16%', '10%', '10%']} />
+          </div>
+        </>
       ) : (
         <>
           {/* Discounts Section */}

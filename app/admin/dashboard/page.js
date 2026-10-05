@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import DashboardClient from './DashboardClient';
 import { requireSessionRole } from "@/lib/session";
+import { AdminDashboardSkeleton } from '@/app/components/skeletons/AdminSkeletons';
 
 export const unstable_instant = {
   prefetch: 'static',
@@ -12,18 +13,7 @@ export default async function AdminDashboardPage() {
   const userName = auth.session?.fullName || "Admin";
 
   return (
-    <Suspense
-      fallback={
-        <div className="d-flex align-items-center justify-content-center py-5" style={{ minHeight: '50vh' }}>
-          <div className="text-center">
-            <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
-              <span className="visually-hidden">Loading Dashboard...</span>
-            </div>
-            <p className="text-muted mt-3 fw-semibold">Loading stats...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AdminDashboardSkeleton userName={userName} />}>
       <DashboardClient userName={userName} />
     </Suspense>
   );

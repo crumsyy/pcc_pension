@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { LineChart, BarChart, DoughnutChart } from '../../components/ReportsCharts';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import { Skeleton, SkeletonTable, SkeletonChart } from '@/app/components/skeletons/Skeleton';
 
 export default function AdminReports() {
   // 4 Core Pillar Reports
@@ -1559,11 +1560,33 @@ export default function AdminReports() {
       </div>
 
       {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-pcc-primary" role="status">
-            <span className="visually-hidden">Generating Report...</span>
+        <div className="mt-3">
+          {/* Summary Cards */}
+          <div className="row g-3 mb-4">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div className="col-md-3" key={idx}>
+                <div className="card shadow-sm border-0 p-3 bg-white h-100">
+                  <Skeleton width="110px" height="12px" className="mb-2" />
+                  <Skeleton width="130px" height="1.8rem" />
+                </div>
+              </div>
+            ))}
           </div>
-          <p className="text-muted mt-2">Gathering database records and calculations...</p>
+
+          {/* Chart Skeleton Card */}
+          <div className="card shadow-sm border-0 p-3 bg-white mb-4">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <Skeleton width="200px" height="1.2rem" />
+              <Skeleton width="90px" height="24px" borderRadius="12px" />
+            </div>
+            <SkeletonChart height="240px" />
+          </div>
+
+          {/* Table Skeleton Card */}
+          <div className="card shadow-sm border-0 p-3 bg-white">
+            <Skeleton width="220px" height="1.2rem" className="mb-3" />
+            <SkeletonTable columns={6} rows={6} colWidths={['20%', '20%', '15%', '15%', '15%', '15%']} />
+          </div>
         </div>
       ) : error ? (
         <div className="alert alert-danger shadow-sm mb-4" role="alert">

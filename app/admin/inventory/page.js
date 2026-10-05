@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import { AdminInventorySkeleton } from '@/app/components/skeletons/AdminSkeletons';
 
 export default function AdminInventory() {
   const router = useRouter();
@@ -532,6 +533,10 @@ export default function AdminInventory() {
   };
 
   const lowStockItems = items.filter(item => item.availableQty <= item.minStock);
+
+  if (loading) {
+    return <AdminInventorySkeleton activeTab={activeTab} />;
+  }
 
   return (
     <div className="pcc-page-container">

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
+import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 export default function RoomsClient() {
   const [rooms, setRooms] = useState([]);
@@ -538,11 +539,7 @@ export default function RoomsClient() {
       {/* Rooms Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         {loading ? (
-          <div className="text-center py-4">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
+          <SkeletonTable columns={9} rows={7} colWidths={['9%', '11%', '13%', '10%', '13%', '13%', '11%', '10%', '10%']} />
         ) : (
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">

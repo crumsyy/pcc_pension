@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import StatusBadge, { getStatusBadgeStyle, RESERVATION_STATUSES } from '@/app/components/StatusBadge';
+import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 export default function AdminReservations() {
   const [reservations, setReservations] = useState([]);
@@ -164,12 +165,7 @@ export default function AdminReservations() {
       {/* Reservations Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "10px", border: "1px solid var(--pcc-mist)" }}>
         {loading ? (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <div className="small text-muted mt-2">Loading reservation records...</div>
-          </div>
+          <SkeletonTable columns={7} rows={7} colWidths={['6%', '22%', '14%', '20%', '16%', '12%', '10%']} />
         ) : (
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table table-hover align-middle mb-0">
