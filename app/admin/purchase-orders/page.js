@@ -91,6 +91,7 @@ export default function AdminPurchaseOrders() {
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'stock_in' | null
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isSubmittingStockIn, setIsSubmittingStockIn] = useState(false);
 
   // Catalog integration states
   const [catalogItems, setCatalogItems] = useState([]); // [{ id, name, type, itemType, basePrice }]
@@ -151,9 +152,12 @@ export default function AdminPurchaseOrders() {
       message,
       confirmText: 'Confirm',
       cancelText: 'Cancel',
-      onConfirm: () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        onConfirmCallback();
+      onConfirm: async () => {
+        try {
+          await onConfirmCallback();
+        } finally {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
@@ -607,6 +611,7 @@ export default function AdminPurchaseOrders() {
 
   const handleStockInSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingStockIn) return;
 
     for (const itemID in receivedQtys) {
       const val = receivedQtys[itemID];
@@ -637,6 +642,7 @@ export default function AdminPurchaseOrders() {
 
     showConfirm('Process Stock In', 'Are you sure you want to process this stock in? This will update the inventory stock levels.', async () => {
       try {
+        setIsSubmittingStockIn(true);
         const res = await fetch('/api/admin/purchase-orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -665,6 +671,8 @@ export default function AdminPurchaseOrders() {
         }
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setIsSubmittingStockIn(false);
       }
     });
   };
@@ -1184,7 +1192,12 @@ export default function AdminPurchaseOrders() {
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
                 <h5 className="modal-title">Record Stock-In — PO-{String(selectedOrder.purchaseOrderID).padStart(4, '0')}</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  disabled={isSubmittingStockIn}
+                  onClick={() => !isSubmittingStockIn && setActiveModal(null)}
+                ></button>
               </div>
               <form onSubmit={handleStockInSubmit}>
                 <div className="modal-body">
@@ -1274,8 +1287,28 @@ export default function AdminPurchaseOrders() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">Confirm Stock-In</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button
+                    type="submit"
+                    className="btn btn-pcc-primary d-inline-flex align-items-center justify-content-center gap-2"
+                    disabled={isSubmittingStockIn}
+                  >
+                    {isSubmittingStockIn ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span>Processing Stock-In...</span>
+                      </>
+                    ) : (
+                      'Confirm Stock-In'
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={isSubmittingStockIn}
+                    onClick={() => setActiveModal(null)}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </form>
             </div>

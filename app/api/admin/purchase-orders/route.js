@@ -220,6 +220,7 @@ export async function POST(request) {
 
           const totalReceivedSoFar = parseInt(item.quantityReceived || 0);
           if (totalReceivedSoFar + newQty > item.quantity) {
+            await conn.rollback();
             return NextResponse.json({ 
               error: `Received quantity for "${item.itemName}" (${totalReceivedSoFar + newQty}) cannot exceed the ordered quantity of ${item.quantity}.` 
             }, { status: 400 });

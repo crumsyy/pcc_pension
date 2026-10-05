@@ -47,6 +47,7 @@ export default function AdminInventory() {
   const [editExpiryDate, setEditExpiryDate] = useState('');
   const [editMinStock, setEditMinStock] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSubmittingStock, setIsSubmittingStock] = useState(false);
 
   // Form states
   const [addStockForm, setAddStockForm] = useState({
@@ -185,9 +186,12 @@ export default function AdminInventory() {
       message,
       confirmText: 'Confirm',
       cancelText: 'Cancel',
-      onConfirm: () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        onConfirmCallback();
+      onConfirm: async () => {
+        try {
+          await onConfirmCallback();
+        } finally {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
@@ -305,6 +309,7 @@ export default function AdminInventory() {
 
   const handleAddStockSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingStock) return;
     if (!addStockForm.itemID) {
       showAlert('error', 'Validation Error', 'Please select an item to stock.');
       return;
@@ -324,6 +329,7 @@ export default function AdminInventory() {
 
     showConfirm('Confirm Stock In', `Are you sure you want to add ${addStockForm.quantity} units to ${matchItem ? matchItem.name : 'this item'}?`, async () => {
       try {
+        setIsSubmittingStock(true);
         const res = await fetch('/api/admin/inventory', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -348,6 +354,8 @@ export default function AdminInventory() {
         notifyCrossModuleSync();
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setIsSubmittingStock(false);
       }
     });
   };
@@ -1796,10 +1804,30 @@ export default function AdminInventory() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary">
-                    <i className="fa-solid fa-plus me-1"></i> Add Stock Now
+                  <button
+                    type="submit"
+                    className="btn btn-pcc-primary d-inline-flex align-items-center justify-content-center gap-2"
+                    disabled={isSubmittingStock}
+                  >
+                    {isSubmittingStock ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span>Adding Stock...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-plus me-1"></i> Add Stock Now
+                      </>
+                    )}
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={isSubmittingStock}
+                    onClick={() => setActiveModal(null)}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </form>
             </div>
