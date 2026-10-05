@@ -10,12 +10,13 @@ export default function DashboardClient({ userName }) {
   const cached = clientCache.get('admin-dashboard');
   const [stats, setStats] = useState(cached ? cached.data : null);
   const [loading, setLoading] = useState(!cached);
-  const [shouldAnimate, setShouldAnimate] = useState(!cached);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState('');
   const [resetting, setResetting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetFeedback, setResetFeedback] = useState(null);
+
+  const displayUserName = userName || stats?.userName || clientCache.get('admin-user-name')?.data || 'Admin';
 
   const handleExecuteReset = async () => {
     setResetting(true);
@@ -50,6 +51,9 @@ export default function DashboardClient({ userName }) {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch dashboard data');
       setStats(data);
       clientCache.set('admin-dashboard', data, CACHE_TTL.DASHBOARD);
+      if (data.userName) {
+        clientCache.set('admin-user-name', data.userName, 86400000);
+      }
       if (!isBackground) setError('');
     } catch (err) {
       if (!isBackground) setError(err.message);
@@ -158,11 +162,11 @@ export default function DashboardClient({ userName }) {
   const cleanedPercent = totalRoomsCount > 0 ? Math.round((cleanedCount / totalRoomsCount) * 100) : 0;
 
   return (
-    <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
+    <div className="pcc-content-reveal">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Administrator</div>
-          <h2 className="section-title mb-0">Welcome, {userName || 'Admin'}!</h2>
+          <h2 className="section-title mb-0">Welcome, {displayUserName}!</h2>
           <div className="d-flex align-items-center gap-2 mt-1">
             <small className="text-muted">{currentTime}</small>
             <span className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 px-2 py-0.5" style={{ fontSize: '0.68rem' }}>

@@ -820,7 +820,7 @@ export default function AdminPurchaseOrders() {
   const recommendedItems = inventoryItems;
 
   return (
-    <div className="pcc-page-container d-flex flex-column" style={{ height: 'calc(100vh - 90px)', overflow: 'hidden', padding: '1rem' }}>
+    <div className="pcc-page-container pcc-content-reveal d-flex flex-column" style={{ height: 'calc(100vh - 90px)', overflow: 'hidden', padding: '1rem' }}>
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}

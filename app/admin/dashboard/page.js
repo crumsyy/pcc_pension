@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import DashboardClient from './DashboardClient';
-import { requireSessionRole } from "@/lib/session";
 import { AdminDashboardSkeleton } from '@/app/components/skeletons/AdminSkeletons';
 
 export const unstable_instant = {
@@ -8,13 +7,10 @@ export const unstable_instant = {
   unstable_disableValidation: true,
 };
 
-export default async function AdminDashboardPage() {
-  const auth = await requireSessionRole("Administrator");
-  const userName = auth.session?.fullName || "Admin";
-
+export default function AdminDashboardPage() {
   return (
-    <Suspense fallback={<AdminDashboardSkeleton userName={userName} />}>
-      <DashboardClient userName={userName} />
+    <Suspense fallback={<AdminDashboardSkeleton />}>
+      <DashboardClient />
     </Suspense>
   );
 }

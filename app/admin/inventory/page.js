@@ -565,7 +565,7 @@ export default function AdminInventory() {
   }
 
   return (
-    <div className={`pcc-page-container ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
+    <div className="pcc-page-container pcc-content-reveal">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}

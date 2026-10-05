@@ -354,7 +354,7 @@ export default function AdminProducts() {
   };
 
   return (
-    <div className="pcc-page-container">
+    <div className="pcc-page-container pcc-content-reveal">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}

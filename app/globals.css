@@ -55,11 +55,11 @@ body.dark-theme {
   line-height: 1;
 }
 
-/* Subtle content reveal on initial data load */
+/* Subtle content reveal on page transfer and initial data load */
 @keyframes pcc-content-reveal {
   0% {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
@@ -68,7 +68,7 @@ body.dark-theme {
 }
 
 .pcc-content-reveal {
-  animation: pcc-content-reveal 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pcc-content-reveal 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Base Brand Utility Classes */

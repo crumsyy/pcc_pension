@@ -107,6 +107,7 @@ export async function GET() {
     const pendingResCount = pendingResRes[0]?.count || 0;
 
     return NextResponse.json({
+      userName: auth.session?.fullName || 'Admin',
       roomStats,
       totalRooms,
       todayRevenue,

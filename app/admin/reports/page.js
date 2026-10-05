@@ -1277,7 +1277,7 @@ export default function AdminReports() {
   };
 
   return (
-    <div className="pb-5">
+    <div className="pb-5 pcc-content-reveal">
       {/* 4 CORE PILLAR REPORT CARDS (REQ076) */}
       <div className="row g-3 mb-4 d-print-none">
         {[

@@ -69,7 +69,7 @@ export default function AdminReservations() {
   }, [search, statusFilter, dateFilter]);
 
   return (
-    <div className="pcc-page-container">
+    <div className="pcc-page-container pcc-content-reveal">
       {/* Top Header with Switcher Button */}
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
