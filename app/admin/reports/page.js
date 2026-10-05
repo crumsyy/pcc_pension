@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { LineChart, BarChart, DoughnutChart } from '../../components/ReportsCharts';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { Skeleton, SkeletonTable, SkeletonChart } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminReports() {
   // 4 Core Pillar Reports
@@ -24,10 +25,14 @@ export default function AdminReports() {
   const [movementTypeFilter, setMovementTypeFilter] = useState('ALL'); // 'ALL' | 'STOCK_IN' | 'STOCK_OUT'
   const [fulfillmentStatusFilter, setFulfillmentStatusFilter] = useState('ALL'); // 'ALL' | 'ORDERED' | 'DELIVERED'
 
+  const baseCacheKey = `admin-reports:${report}_${dateFrom}_${dateTo}_${grouping}_${roomFilter}_${roomTypeFilter}_${itemClassification}_${paymentMethodFilter}_${statusFilter}_${discountFilter}_${movementTypeFilter}_${fulfillmentStatusFilter}`;
+  const cached = clientCache.get(baseCacheKey);
+
   // Server & Data States
-  const [reportData, setReportData] = useState(null);
-  const [filterOptions, setFilterOptions] = useState({ rooms: [], roomTypes: [], discounts: [] });
-  const [loading, setLoading] = useState(true);
+  const [reportData, setReportData] = useState(cached?.data?.reportData || null);
+  const [filterOptions, setFilterOptions] = useState(cached?.data?.filterOptions || { rooms: [], roomTypes: [], discounts: [] });
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
   const [error, setError] = useState('');
 
   // Table Search, Pagination & Sorting
@@ -41,8 +46,18 @@ export default function AdminReports() {
   const handleSelectReport = (newReport) => {
     if (newReport === report) return;
     setReport(newReport);
-    setReportData(null);
-    setLoading(true);
+    const nextKey = `admin-reports:${newReport}_${dateFrom}_${dateTo}_${grouping}_${roomFilter}_${roomTypeFilter}_${itemClassification}_${paymentMethodFilter}_${statusFilter}_${discountFilter}_${movementTypeFilter}_${fulfillmentStatusFilter}`;
+    const nextCached = clientCache.get(nextKey);
+    if (nextCached) {
+      setReportData(nextCached.data.reportData);
+      if (nextCached.data.filterOptions) setFilterOptions(nextCached.data.filterOptions);
+      setLoading(false);
+      setShouldAnimate(false);
+    } else {
+      setReportData(null);
+      setLoading(true);
+      setShouldAnimate(true);
+    }
     setError('');
     setCurrentPage(1);
     setSearchTerm('');
@@ -106,13 +121,13 @@ export default function AdminReports() {
   }, [datePreset]);
 
   // Fetch Report Data from API
-  const fetchReport = async () => {
+  const fetchReport = async (isBackground = false) => {
     if (!dateFrom || !dateTo) return;
     if (!isValidDate(dateFrom) || !isValidDate(dateTo)) {
       setError('Please enter valid From and To dates in MM/DD/YYYY format.');
       return;
     }
-    setLoading(true);
+    if (!isBackground) setLoading(true);
     setError('');
     try {
       const query = new URLSearchParams({
@@ -134,21 +149,36 @@ export default function AdminReports() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate report');
 
-      setReportData({ ...(data.data || {}), _reportType: data.report || report });
+      const freshReport = { ...(data.data || {}), _reportType: data.report || report };
+      setReportData(freshReport);
+      const freshFilters = data.filterOptions || filterOptions;
       if (data.filterOptions) {
         setFilterOptions(data.filterOptions);
       }
+      clientCache.set(baseCacheKey, { reportData: freshReport, filterOptions: freshFilters }, CACHE_TTL.REPORTS);
       setCurrentPage(1);
       setSearchTerm('');
     } catch (err) {
-      setError(err.message);
+      if (!isBackground) setError(err.message);
+      else console.warn('Background reports refresh error:', err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchReport();
+    if (!dateFrom || !dateTo) return;
+    const entry = clientCache.get(baseCacheKey);
+    if (!entry) {
+      fetchReport(false);
+    } else {
+      setReportData(entry.data.reportData);
+      if (entry.data.filterOptions) setFilterOptions(entry.data.filterOptions);
+      setLoading(false);
+      if (entry.isStale) {
+        fetchReport(true);
+      }
+    }
   }, [report, dateFrom, dateTo, grouping, roomFilter, roomTypeFilter, itemClassification, paymentMethodFilter, statusFilter, discountFilter, movementTypeFilter, fulfillmentStatusFilter]);
 
   // Reset Filters to defaults
@@ -1593,7 +1623,7 @@ export default function AdminReports() {
           <strong>⚠ Error generating report:</strong> {error}
         </div>
       ) : reportData && reportData._reportType === report ? (
-        <>
+        <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
           {/* EXPORTS & REPORT SUB-TABS TOOLBAR */}
           <div className="card shadow-sm border-0 bg-white mb-3 p-2 d-print-none">
             <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -2551,7 +2581,7 @@ export default function AdminReports() {
               </div>
             </div>
           )}
-        </>
+        </div>
       ) : (
         <div className="text-center py-5 bg-white border rounded shadow-sm">
           <i className="bi bi-file-earmark-bar-graph text-muted" style={{ fontSize: '2.5rem' }}></i>

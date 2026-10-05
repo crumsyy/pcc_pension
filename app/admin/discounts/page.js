@@ -5,18 +5,22 @@ import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { Skeleton, SkeletonTable } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminDiscounts() {
-  const [discounts, setDiscounts] = useState([]);
-  const [promotions, setPromotions] = useState([]);
-  const [discountTypes, setDiscountTypes] = useState([]);
-  const [eligibilityTypes, setEligibilityTypes] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const [roomTypes, setRoomTypes] = useState([]);
-
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('active_discounts');
-  const [loading, setLoading] = useState(true);
+
+  const baseCacheKey = `admin-discounts:${search}_${activeTab}`;
+  const cached = clientCache.get(baseCacheKey);
+  const [discounts, setDiscounts] = useState(cached?.data?.discounts || []);
+  const [promotions, setPromotions] = useState(cached?.data?.promotions || []);
+  const [discountTypes, setDiscountTypes] = useState(cached?.data?.discountTypes || []);
+  const [eligibilityTypes, setEligibilityTypes] = useState(cached?.data?.eligibilityTypes || []);
+  const [rooms, setRooms] = useState(cached?.data?.rooms || []);
+  const [roomTypes, setRoomTypes] = useState(cached?.data?.roomTypes || []);
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create_disc' | 'edit_disc' | 'create_promo' | 'edit_promo' | null
@@ -87,7 +91,10 @@ export default function AdminDiscounts() {
   };
 
   const fetchData = async (isSilent = false, isInitial = false) => {
-    if (!isSilent) setLoading(true);
+    if (!isSilent) {
+      setLoading(true);
+      clientCache.invalidate('admin-discounts');
+    }
     try {
       const query = new URLSearchParams({
         search,
@@ -98,23 +105,58 @@ export default function AdminDiscounts() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch data');
 
-      setDiscounts(data.discounts || []);
-      setPromotions(data.promotions || []);
+      const discData = data.discounts || [];
+      const promoData = data.promotions || [];
+      setDiscounts(discData);
+      setPromotions(promoData);
+
+      let dt = discountTypes;
+      let et = eligibilityTypes;
+      let rm = rooms;
+      let rt = roomTypes;
       if (isInitial) {
-        setDiscountTypes(data.discountTypes || []);
-        setEligibilityTypes(data.eligibilityTypes || []);
-        setRooms(data.rooms || []);
-        setRoomTypes(data.roomTypes || []);
+        dt = data.discountTypes || [];
+        et = data.eligibilityTypes || [];
+        rm = data.rooms || [];
+        rt = data.roomTypes || [];
+        setDiscountTypes(dt);
+        setEligibilityTypes(et);
+        setRooms(rm);
+        setRoomTypes(rt);
       }
+
+      clientCache.set(baseCacheKey, {
+        discounts: discData,
+        promotions: promoData,
+        discountTypes: dt,
+        eligibilityTypes: et,
+        rooms: rm,
+        roomTypes: rt
+      }, CACHE_TTL.DISCOUNTS);
     } catch (err) {
       if (!isSilent) showAlert('error', 'Error', err.message);
+      else console.warn('Background discounts refresh error:', err.message);
     } finally {
       if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData(false, true);
+    const entry = clientCache.get(baseCacheKey);
+    if (!entry) {
+      fetchData(false, true);
+    } else {
+      setDiscounts(entry.data.discounts || []);
+      setPromotions(entry.data.promotions || []);
+      if (entry.data.discountTypes) setDiscountTypes(entry.data.discountTypes);
+      if (entry.data.eligibilityTypes) setEligibilityTypes(entry.data.eligibilityTypes);
+      if (entry.data.rooms) setRooms(entry.data.rooms);
+      if (entry.data.roomTypes) setRoomTypes(entry.data.roomTypes);
+      setLoading(false);
+      if (entry.isStale) {
+        fetchData(true, false);
+      }
+    }
   }, [search, activeTab]);
 
   useEffect(() => {
@@ -532,7 +574,7 @@ export default function AdminDiscounts() {
           </div>
         </>
       ) : (
-        <>
+        <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
           {/* Discounts Section */}
           {(activeTab === 'active_discounts' || activeTab === 'archived') && (
             <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -661,7 +703,7 @@ export default function AdminDiscounts() {
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* ==========================================

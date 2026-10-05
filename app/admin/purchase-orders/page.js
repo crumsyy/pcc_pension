@@ -7,6 +7,7 @@ import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 // Searchable Combobox Component (defined outside to prevent unmounting/focus issues)
 function Combobox({ options, value, onChange, placeholder, disabled }) {
@@ -83,11 +84,16 @@ export default function AdminPurchaseOrders() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [searchVal, setSearchVal] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [loading, setLoading] = useState(true);
+
+  const baseCacheKey = `admin-purchase-orders:${statusFilter}_${searchVal}_${dateFilter}`;
+  const cached = clientCache.get(baseCacheKey);
+  const [orders, setOrders] = useState(cached?.data?.orders || []);
+  const [inventoryItems, setInventoryItems] = useState(cached?.data?.inventoryItems || []);
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'stock_in' | null
@@ -96,7 +102,6 @@ export default function AdminPurchaseOrders() {
 
   // Catalog integration states
   const [catalogItems, setCatalogItems] = useState([]); // [{ id, name, type, itemType, basePrice }]
-  const [inventoryItems, setInventoryItems] = useState([]);
   const [productCategories, setProductCategories] = useState([]);
   const [amenityCategories, setAmenityCategories] = useState([]);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
@@ -164,8 +169,8 @@ export default function AdminPurchaseOrders() {
     });
   };
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const dateVal = dateFilter && isValidDate(dateFilter) ? toDbDate(dateFilter) : '';
       const query = new URLSearchParams({ 
@@ -177,12 +182,15 @@ export default function AdminPurchaseOrders() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch purchase orders');
 
-      setOrders(data.orders || []);
+      const ordersData = data.orders || [];
+      setOrders(ordersData);
+      clientCache.set(baseCacheKey, { orders: ordersData, inventoryItems }, CACHE_TTL.PURCHASE_ORDERS);
       fetchInventory();
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
+      else console.warn('Background PO refresh error:', err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
@@ -199,7 +207,17 @@ export default function AdminPurchaseOrders() {
   };
 
   useEffect(() => {
-    fetchOrders();
+    const entry = clientCache.get(baseCacheKey);
+    if (!entry) {
+      fetchOrders(false);
+    } else {
+      setOrders(entry.data.orders || []);
+      if (entry.data.inventoryItems) setInventoryItems(entry.data.inventoryItems);
+      setLoading(false);
+      if (entry.isStale) {
+        fetchOrders(true);
+      }
+    }
   }, [statusFilter, searchVal, dateFilter]);
 
   useEffect(() => {
@@ -569,6 +587,9 @@ export default function AdminPurchaseOrders() {
         if (!res.ok) throw new Error(data.error || 'Failed to update status');
 
         showAlert('success', 'Success', data.message || `Purchase Order status updated to ${status}.`);
+        clientCache.invalidate('admin-purchase-orders');
+        clientCache.invalidate('admin-inventory');
+        clientCache.invalidate('admin-dashboard');
         fetchOrders();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -603,6 +624,9 @@ export default function AdminPurchaseOrders() {
 
         showAlert('success', 'Success', data.message || 'Purchase Order created successfully.');
         setActiveModal(null);
+        clientCache.invalidate('admin-purchase-orders');
+        clientCache.invalidate('admin-inventory');
+        clientCache.invalidate('admin-dashboard');
         fetchOrders();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -660,6 +684,9 @@ export default function AdminPurchaseOrders() {
 
         showAlert('success', 'Success', data.message || 'Stock In processed successfully.');
         setActiveModal(null);
+        clientCache.invalidate('admin-purchase-orders');
+        clientCache.invalidate('admin-inventory');
+        clientCache.invalidate('admin-dashboard');
         fetchOrders();
 
         if (typeof window !== 'undefined') {
@@ -694,6 +721,9 @@ export default function AdminPurchaseOrders() {
 
         showAlert('success', 'Success', data.message || 'Reorder generated successfully.');
         setActiveModal(null);
+        clientCache.invalidate('admin-purchase-orders');
+        clientCache.invalidate('admin-inventory');
+        clientCache.invalidate('admin-dashboard');
         fetchOrders();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -863,7 +893,7 @@ export default function AdminPurchaseOrders() {
             {loading ? (
               <SkeletonTable columns={6} rows={6} colWidths={['15%', '18%', '15%', '18%', '16%', '18%']} />
             ) : (
-              <div className="table-responsive flex-grow-1 overflow-auto">
+              <div className={`table-responsive flex-grow-1 overflow-auto ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
                 <table className="table align-middle mb-0">
                   <thead>
                     <tr>

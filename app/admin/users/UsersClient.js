@@ -5,15 +5,20 @@ import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function UsersClient() {
-  const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [currentUserID, setCurrentUserID] = useState(null);
+
+  const baseCacheKey = `admin-users:${search}_${roleFilter}_${statusFilter}`;
+  const cached = clientCache.get(baseCacheKey);
+  const [users, setUsers] = useState(cached?.data?.users || []);
+  const [roles, setRoles] = useState(cached?.data?.roles || []);
+  const [currentUserID, setCurrentUserID] = useState(cached?.data?.currentUserID || null);
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'edit' | 'suspend' | null
@@ -87,8 +92,8 @@ export default function UsersClient() {
   };
 
   // Fetch users on load & filter changes
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const query = new URLSearchParams({
         search,
@@ -100,20 +105,40 @@ export default function UsersClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
       
-      setUsers(data.users || []);
-      setRoles(data.roles || []);
-      if (data.currentUser) {
-        setCurrentUserID(data.currentUser.userID);
-      }
+      const usersData = data.users || [];
+      const rolesData = data.roles || [];
+      const currentUid = data.currentUser ? data.currentUser.userID : null;
+
+      setUsers(usersData);
+      setRoles(rolesData);
+      if (currentUid) setCurrentUserID(currentUid);
+
+      clientCache.set(baseCacheKey, {
+        users: usersData,
+        roles: rolesData,
+        currentUserID: currentUid
+      }, CACHE_TTL.USERS);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
+      else console.warn('Background users refresh error:', err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
+    const entry = clientCache.get(baseCacheKey);
+    if (!entry) {
+      fetchUsers(false);
+    } else {
+      setUsers(entry.data.users || []);
+      setRoles(entry.data.roles || []);
+      if (entry.data.currentUserID) setCurrentUserID(entry.data.currentUserID);
+      setLoading(false);
+      if (entry.isStale) {
+        fetchUsers(true);
+      }
+    }
   }, [search, roleFilter, statusFilter]);
 
   const handleInputChange = (e) => {
@@ -179,6 +204,7 @@ export default function UsersClient() {
 
         showAlert('success', 'Success', data.message || 'Staff created successfully');
         setActiveModal(null);
+        clientCache.invalidate('admin-users');
         fetchUsers();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -241,6 +267,7 @@ export default function UsersClient() {
 
         showAlert('success', 'Success', data.message || 'Account updated successfully');
         setActiveModal(null);
+        clientCache.invalidate('admin-users');
         fetchUsers();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -269,6 +296,7 @@ export default function UsersClient() {
           if (!res.ok) throw new Error(data.error || 'Failed to update status');
 
           showAlert('success', 'Success', data.message);
+          clientCache.invalidate('admin-users');
           fetchUsers();
         } catch (err) {
           showAlert('error', 'Error', err.message);
@@ -313,6 +341,7 @@ export default function UsersClient() {
         if (!res.ok) throw new Error(data.error || 'Failed to suspend user');
         showAlert('success', 'Success', data.message);
         setActiveModal(null);
+        clientCache.invalidate('admin-users');
         fetchUsers();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -439,7 +468,7 @@ export default function UsersClient() {
         {loading ? (
           <SkeletonTable columns={8} rows={7} colWidths={['10%', '18%', '20%', '14%', '12%', '10%', '10%', '6%']} />
         ) : (
-          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
                 <tr>

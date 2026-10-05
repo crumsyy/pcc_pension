@@ -4,10 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 import { AdminDashboardSkeleton } from '@/app/components/skeletons/AdminSkeletons';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function DashboardClient({ userName }) {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cached = clientCache.get('admin-dashboard');
+  const [stats, setStats] = useState(cached ? cached.data : null);
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState('');
   const [resetting, setResetting] = useState(false);
@@ -30,7 +33,8 @@ export default function DashboardClient({ userName }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Reset failed');
       setResetFeedback(data);
-      await fetchDashboardStats();
+      clientCache.invalidate('admin-dashboard');
+      await fetchDashboardStats(false);
     } catch (err) {
       alert('Error during reset: ' + err.message);
     } finally {
@@ -45,16 +49,23 @@ export default function DashboardClient({ userName }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch dashboard data');
       setStats(data);
+      clientCache.set('admin-dashboard', data, CACHE_TTL.DASHBOARD);
       if (!isBackground) setError('');
     } catch (err) {
       if (!isBackground) setError(err.message);
+      else console.warn('Background dashboard refresh error:', err.message);
     } finally {
       if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboardStats(false);
+    const currentCached = clientCache.get('admin-dashboard');
+    if (!currentCached) {
+      fetchDashboardStats(false);
+    } else if (currentCached.isStale) {
+      fetchDashboardStats(true);
+    }
     // Clock updates
     const updateTime = () => {
       const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
@@ -147,7 +158,7 @@ export default function DashboardClient({ userName }) {
   const cleanedPercent = totalRoomsCount > 0 ? Math.round((cleanedCount / totalRoomsCount) * 100) : 0;
 
   return (
-    <div>
+    <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Administrator</div>

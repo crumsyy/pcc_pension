@@ -4,15 +4,20 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminAmenities() {
-  const [items, setItems] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
-  const [loading, setLoading] = useState(true);
+
+  const baseCacheKey = `admin-amenities:${search}_${catFilter}_${typeFilter}_${showArchived}`;
+  const cached = clientCache.get(baseCacheKey);
+  const [items, setItems] = useState(cached?.data?.items || []);
+  const [categories, setCategories] = useState(cached?.data?.categories || []);
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | null
@@ -75,8 +80,8 @@ export default function AdminAmenities() {
     });
   };
 
-  const fetchAmenities = async () => {
-    setLoading(true);
+  const fetchAmenities = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const query = new URLSearchParams({
         search,
@@ -89,17 +94,36 @@ export default function AdminAmenities() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch amenities');
 
-      setItems(data.items || []);
-      setCategories(data.categories || []);
+      const itemsData = data.items || [];
+      const categoriesData = data.categories || [];
+
+      setItems(itemsData);
+      setCategories(categoriesData);
+
+      clientCache.set(baseCacheKey, {
+        items: itemsData,
+        categories: categoriesData
+      }, CACHE_TTL.AMENITIES);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
+      else console.warn('Background amenities refresh error:', err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAmenities();
+    const entry = clientCache.get(baseCacheKey);
+    if (!entry) {
+      fetchAmenities(false);
+    } else {
+      setItems(entry.data.items || []);
+      setCategories(entry.data.categories || []);
+      setLoading(false);
+      if (entry.isStale) {
+        fetchAmenities(true);
+      }
+    }
   }, [search, catFilter, typeFilter, showArchived]);
 
   const handleInputChange = (e) => {
@@ -143,6 +167,7 @@ export default function AdminAmenities() {
 
         showAlert('success', 'Success', data.message || 'Amenity created successfully');
         setActiveModal(null);
+        clientCache.invalidate('admin-amenities');
         fetchAmenities();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -187,6 +212,7 @@ export default function AdminAmenities() {
 
         showAlert('success', 'Success', data.message || 'Amenity updated successfully');
         setActiveModal(null);
+        clientCache.invalidate('admin-amenities');
         fetchAmenities();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -210,6 +236,7 @@ export default function AdminAmenities() {
         if (!res.ok) throw new Error(data.error || 'Failed to delete');
 
         showAlert('success', 'Success', data.message || 'Amenity deleted successfully');
+        clientCache.invalidate('admin-amenities');
         fetchAmenities();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -233,6 +260,7 @@ export default function AdminAmenities() {
         if (!res.ok) throw new Error(data.error || 'Failed to restore');
 
         showAlert('success', 'Success', data.message || 'Amenity restored successfully');
+        clientCache.invalidate('admin-amenities');
         fetchAmenities();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -391,7 +419,7 @@ export default function AdminAmenities() {
         {loading ? (
           <SkeletonTable columns={8} rows={7} colWidths={['5%', '22%', '13%', '12%', '12%', '8%', '18%', '10%']} />
         ) : (
-          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
                 <tr>

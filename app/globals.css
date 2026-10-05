@@ -55,6 +55,22 @@ body.dark-theme {
   line-height: 1;
 }
 
+/* Subtle content reveal on initial data load */
+@keyframes pcc-content-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pcc-content-reveal {
+  animation: pcc-content-reveal 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Base Brand Utility Classes */
 .text-pcc-blue {
   color: var(--pcc-blue, #2155B5) !important;

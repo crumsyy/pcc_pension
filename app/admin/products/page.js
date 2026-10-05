@@ -4,15 +4,20 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminProducts() {
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [activeTab, setActiveTab] = useState('products'); // 'products' | 'meals' | 'archived'
-  const [loading, setLoading] = useState(true);
+
+  const baseCacheKey = `admin-products:${search}_${catFilter}_${typeFilter}_${activeTab}`;
+  const cached = clientCache.get(baseCacheKey);
+  const [products, setProducts] = useState(cached?.data?.products || []);
+  const [categories, setCategories] = useState(cached?.data?.categories || []);
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | null
@@ -75,8 +80,8 @@ export default function AdminProducts() {
     });
   };
 
-  const fetchProducts = async () => {
-    setLoading(true);
+  const fetchProducts = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const isArchivedQuery = activeTab === 'archived';
       const query = new URLSearchParams({
@@ -90,17 +95,36 @@ export default function AdminProducts() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch products');
 
-      setProducts(data.products || []);
-      setCategories(data.categories || []);
+      const productsData = data.products || [];
+      const categoriesData = data.categories || [];
+
+      setProducts(productsData);
+      setCategories(categoriesData);
+
+      clientCache.set(baseCacheKey, {
+        products: productsData,
+        categories: categoriesData
+      }, CACHE_TTL.PRODUCTS);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
+      else console.warn('Background products refresh error:', err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProducts();
+    const entry = clientCache.get(baseCacheKey);
+    if (!entry) {
+      fetchProducts(false);
+    } else {
+      setProducts(entry.data.products || []);
+      setCategories(entry.data.categories || []);
+      setLoading(false);
+      if (entry.isStale) {
+        fetchProducts(true);
+      }
+    }
   }, [search, catFilter, typeFilter, activeTab]);
 
   const handleInputChange = (e) => {
@@ -144,6 +168,7 @@ export default function AdminProducts() {
 
         showAlert('success', 'Success', data.message || 'Product created successfully');
         setActiveModal(null);
+        clientCache.invalidate('admin-products');
         fetchProducts();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -188,6 +213,7 @@ export default function AdminProducts() {
 
         showAlert('success', 'Success', data.message || 'Product updated successfully');
         setActiveModal(null);
+        clientCache.invalidate('admin-products');
         fetchProducts();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -211,6 +237,7 @@ export default function AdminProducts() {
         if (!res.ok) throw new Error(data.error || 'Failed to delete');
 
         showAlert('success', 'Success', data.message || 'Product deleted successfully');
+        clientCache.invalidate('admin-products');
         fetchProducts();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -234,6 +261,7 @@ export default function AdminProducts() {
         if (!res.ok) throw new Error(data.error || 'Failed to restore');
 
         showAlert('success', 'Success', data.message || 'Product restored successfully');
+        clientCache.invalidate('admin-products');
         fetchProducts();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -259,6 +287,7 @@ export default function AdminProducts() {
         if (!res.ok) throw new Error(data.error || 'Failed to update availability');
 
         showAlert('success', 'Success', data.message || 'Product availability updated successfully.');
+        clientCache.invalidate('admin-products');
         fetchProducts();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -441,7 +470,7 @@ export default function AdminProducts() {
         {loading ? (
           <SkeletonTable columns={9} rows={7} colWidths={['4%', '20%', '12%', '11%', '10%', '7%', '14%', '12%', '10%']} />
         ) : (
-          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
                 <tr>

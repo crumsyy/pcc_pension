@@ -4,16 +4,21 @@ import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ActionButtons from '../../components/ActionButtons';
 import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function RoomsClient() {
-  const [rooms, setRooms] = useState([]);
-  const [floors, setFloors] = useState([]);
-  const [roomTypes, setRoomTypes] = useState([]);
-  const [roomRates, setRoomRates] = useState([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
+
+  const baseCacheKey = `admin-rooms:${search}_${typeFilter}_${showArchived}`;
+  const cached = clientCache.get(baseCacheKey);
+  const [rooms, setRooms] = useState(cached?.data?.rooms || []);
+  const [floors, setFloors] = useState(cached?.data?.floors || []);
+  const [roomTypes, setRoomTypes] = useState(cached?.data?.roomTypes || []);
+  const [roomRates, setRoomRates] = useState(cached?.data?.roomRates || []);
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
   const [uploadingImage, setUploadingImage] = useState(false);
   const parseRoomImages = (imgVal) => {
     if (!imgVal) return [];
@@ -211,8 +216,8 @@ export default function RoomsClient() {
     });
   };
 
-  const fetchRooms = async () => {
-    setLoading(true);
+  const fetchRooms = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
       const query = new URLSearchParams({
         search,
@@ -224,19 +229,44 @@ export default function RoomsClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch rooms');
 
-      setRooms(data.rooms || []);
-      setFloors(data.floors || []);
-      setRoomTypes(data.roomTypes || []);
-      setRoomRates(data.roomRates || []);
+      const roomsData = data.rooms || [];
+      const floorsData = data.floors || [];
+      const roomTypesData = data.roomTypes || [];
+      const roomRatesData = data.roomRates || [];
+
+      setRooms(roomsData);
+      setFloors(floorsData);
+      setRoomTypes(roomTypesData);
+      setRoomRates(roomRatesData);
+
+      clientCache.set(baseCacheKey, {
+        rooms: roomsData,
+        floors: floorsData,
+        roomTypes: roomTypesData,
+        roomRates: roomRatesData
+      }, CACHE_TTL.ROOMS);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
+      else console.warn('Background rooms refresh error:', err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRooms();
+    const entry = clientCache.get(baseCacheKey);
+    if (!entry) {
+      fetchRooms(false);
+    } else {
+      setRooms(entry.data.rooms || []);
+      setFloors(entry.data.floors || []);
+      setRoomTypes(entry.data.roomTypes || []);
+      setRoomRates(entry.data.roomRates || []);
+      setLoading(false);
+      if (entry.isStale) {
+        fetchRooms(true);
+      }
+    }
   }, [search, typeFilter, showArchived]);
 
   const getSelectedRates = (floorID, roomTypeID) => {
@@ -299,6 +329,7 @@ export default function RoomsClient() {
 
         showAlert('success', 'Success', data.message || 'Room and rates created successfully');
         setActiveModal(null);
+        clientCache.invalidate('admin-rooms');
         fetchRooms();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -335,6 +366,7 @@ export default function RoomsClient() {
 
         showAlert('success', 'Success', data.message || 'Room and rates updated successfully');
         setActiveModal(null);
+        clientCache.invalidate('admin-rooms');
         fetchRooms();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -365,6 +397,7 @@ export default function RoomsClient() {
           if (!res.ok) throw new Error(data.error || 'Failed to archive room');
 
           showAlert('success', 'Success', 'Room archived successfully.');
+          clientCache.invalidate('admin-rooms');
           fetchRooms();
         } catch (err) {
           showAlert('error', 'Error', err.message);
@@ -392,6 +425,7 @@ export default function RoomsClient() {
           if (!res.ok) throw new Error(data.error || 'Failed to restore room');
 
           showAlert('success', 'Success', 'Room restored successfully.');
+          clientCache.invalidate('admin-rooms');
           fetchRooms();
         } catch (err) {
           showAlert('error', 'Error', err.message);
@@ -541,7 +575,7 @@ export default function RoomsClient() {
         {loading ? (
           <SkeletonTable columns={9} rows={7} colWidths={['9%', '11%', '13%', '10%', '13%', '13%', '11%', '10%', '10%']} />
         ) : (
-          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
                 <tr>

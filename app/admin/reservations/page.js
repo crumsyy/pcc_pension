@@ -1,22 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import StatusBadge, { getStatusBadgeStyle, RESERVATION_STATUSES } from '@/app/components/StatusBadge';
 import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminReservations() {
-  const [reservations, setReservations] = useState([]);
-  const [counts, setCounts] = useState({});
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  const fetchReservations = async () => {
-    setLoading(true);
-    setError('');
+  const cacheKey = `admin-reservations:${search}_${statusFilter}_${dateFilter}`;
+  const initialCache = clientCache.get(cacheKey);
+
+  const [reservations, setReservations] = useState(initialCache?.data?.reservations || []);
+  const [counts, setCounts] = useState(initialCache?.data?.counts || {});
+  const [loading, setLoading] = useState(!initialCache);
+  const [shouldAnimate, setShouldAnimate] = useState(!initialCache);
+  const [error, setError] = useState('');
+  const isFirstMount = useRef(true);
+
+  const fetchReservations = async (isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const query = new URLSearchParams({
         search,
@@ -28,17 +37,35 @@ export default function AdminReservations() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch reservations');
 
-      setReservations(data.reservations || []);
-      setCounts(data.counts || {});
+      const nextReservations = data.reservations || [];
+      const nextCounts = data.counts || {};
+      setReservations(nextReservations);
+      setCounts(nextCounts);
+      clientCache.set(cacheKey, { reservations: nextReservations, counts: nextCounts }, CACHE_TTL.RESERVATIONS);
     } catch (err) {
-      setError(err.message);
+      if (!isBackground) setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchReservations();
+    const entry = clientCache.get(cacheKey);
+    if (entry) {
+      setReservations(entry.data?.reservations || []);
+      setCounts(entry.data?.counts || {});
+      setLoading(false);
+      setShouldAnimate(false);
+      if (entry.isStale) {
+        fetchReservations(true);
+      }
+    } else {
+      if (!isFirstMount.current) {
+        setShouldAnimate(true);
+      }
+      fetchReservations(false);
+    }
+    isFirstMount.current = false;
   }, [search, statusFilter, dateFilter]);
 
   return (
@@ -163,7 +190,7 @@ export default function AdminReservations() {
       </div>
 
       {/* Reservations Table */}
-      <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "10px", border: "1px solid var(--pcc-mist)" }}>
+      <div className={`card-module pcc-table-card ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "10px", border: "1px solid var(--pcc-mist)" }}>
         {loading ? (
           <SkeletonTable columns={7} rows={7} colWidths={['6%', '22%', '14%', '20%', '16%', '12%', '10%']} />
         ) : (

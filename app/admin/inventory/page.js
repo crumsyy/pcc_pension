@@ -6,17 +6,18 @@ import { useRouter } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { AdminInventorySkeleton } from '@/app/components/skeletons/AdminSkeletons';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminInventory() {
   const router = useRouter();
 
-  // Data states
-  const [items, setItems] = useState([]);
-  const [batches, setBatches] = useState([]);
-  const [borrowLogs, setBorrowLogs] = useState([]);
-  const [disposalLogs, setDisposalLogs] = useState([]);
-  const [movements, setMovements] = useState([]);
-  const [stats, setStats] = useState({
+  const cached = clientCache.get('admin-inventory');
+  const [items, setItems] = useState(cached?.data?.items || []);
+  const [batches, setBatches] = useState(cached?.data?.batches || []);
+  const [borrowLogs, setBorrowLogs] = useState(cached?.data?.borrowLogs || []);
+  const [disposalLogs, setDisposalLogs] = useState(cached?.data?.disposalLogs || []);
+  const [movements, setMovements] = useState(cached?.data?.movements || []);
+  const [stats, setStats] = useState(cached?.data?.stats || {
     totalConsumables: 0,
     totalNonConsumables: 0,
     totalStock: 0,
@@ -37,7 +38,8 @@ export default function AdminInventory() {
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [expiredOnly, setExpiredOnly] = useState(false);
   const [expiryDateFilter, setExpiryDateFilter] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cached);
+  const [shouldAnimate, setShouldAnimate] = useState(!cached);
   const [error, setError] = useState('');
 
   // Modals state
@@ -187,6 +189,8 @@ export default function AdminInventory() {
   };
 
   const notifyCrossModuleSync = () => {
+    clientCache.invalidate('admin-inventory');
+    clientCache.invalidate('admin-dashboard');
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('pcc-inventory-sync'));
       try {
@@ -205,12 +209,12 @@ export default function AdminInventory() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch inventory');
 
-      setItems(data.items || []);
-      setBatches(data.batches || []);
-      setBorrowLogs(data.borrowLogs || []);
-      setDisposalLogs(data.disposalLogs || []);
-      setMovements(data.movements || []);
-      setStats(data.stats || {
+      const itemsData = data.items || [];
+      const batchesData = data.batches || [];
+      const borrowLogsData = data.borrowLogs || [];
+      const disposalLogsData = data.disposalLogs || [];
+      const movementsData = data.movements || [];
+      const statsData = data.stats || {
         totalConsumables: 0,
         totalNonConsumables: 0,
         totalStock: 0,
@@ -221,16 +225,38 @@ export default function AdminInventory() {
         totalDamaged: 0,
         totalLost: 0,
         nearExpirationCount: 0
-      });
+      };
+
+      setItems(itemsData);
+      setBatches(batchesData);
+      setBorrowLogs(borrowLogsData);
+      setDisposalLogs(disposalLogsData);
+      setMovements(movementsData);
+      setStats(statsData);
+
+      clientCache.set('admin-inventory', {
+        items: itemsData,
+        batches: batchesData,
+        borrowLogs: borrowLogsData,
+        disposalLogs: disposalLogsData,
+        movements: movementsData,
+        stats: statsData
+      }, CACHE_TTL.INVENTORY);
     } catch (err) {
-      setError(err.message);
+      if (!isSilent) setError(err.message);
+      else console.warn('Background inventory refresh error:', err.message);
     } finally {
       if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchInventory(); // Initial full load
+    const currentCached = clientCache.get('admin-inventory');
+    if (!currentCached) {
+      fetchInventory(false);
+    } else if (currentCached.isStale) {
+      fetchInventory(true);
+    }
 
     // Real-time polling every 3 seconds
     const interval = setInterval(() => {
@@ -539,7 +565,7 @@ export default function AdminInventory() {
   }
 
   return (
-    <div className="pcc-page-container">
+    <div className={`pcc-page-container ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
