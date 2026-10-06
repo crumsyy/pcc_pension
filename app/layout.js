@@ -3,6 +3,8 @@ import Script from "next/script";
 import InactivityTimeout from "./components/InactivityTimeout";
 import MobileKeyboardViewportHelper from "./components/MobileKeyboardViewportHelper";
 
+import { Toaster } from "sonner";
+
 export const metadata = {
   title: "PCC Home Suite Home | Koronadal City",
   description: "PCC Home Suite Home offers comfortable, affordable, and well-kept rooms in Koronadal City.",
@@ -29,6 +31,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
+        <Toaster position="top-right" richColors closeButton duration={4000} />
         <InactivityTimeout />
         <MobileKeyboardViewportHelper />
         {children}

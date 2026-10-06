@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
 import ReservationCalendar from '../../components/ReservationCalendar';
 import { ReceptionistCheckInSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
@@ -172,8 +173,13 @@ function CheckInClient() {
     });
   };
 
-  const fetchBookings = async () => {
-    setLoading(true);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const isFirstMount = useRef(true);
+
+  const fetchBookings = async (isBackground = false) => {
+    if (!isBackground && !clientCache.has('RECEPTIONIST_CHECKIN')) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/receptionist/bookings');
       const data = await res.json();
@@ -181,15 +187,29 @@ function CheckInClient() {
       setBookings(data.bookings || []);
       setRoomSchedules(data.roomSchedules || []);
       setRooms(data.rooms || []);
+
+      clientCache.set('RECEPTIONIST_CHECKIN', data, CACHE_TTL.RECEPTIONIST_CHECKIN);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBookings();
+    const entry = clientCache.get('RECEPTIONIST_CHECKIN');
+    if (entry) {
+      setBookings(entry.data?.bookings || []);
+      setRoomSchedules(entry.data?.roomSchedules || []);
+      setRooms(entry.data?.rooms || []);
+      setLoading(false);
+      setShouldAnimate(false);
+      if (entry.isStale) fetchBookings(true);
+    } else {
+      if (!isFirstMount.current) setShouldAnimate(true);
+      fetchBookings(false);
+    }
+    isFirstMount.current = false;
   }, []);
 
   // Handle auto-action from dashboard redirect query param
@@ -370,7 +390,7 @@ function CheckInClient() {
   };
 
   return (
-    <>
+    <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
       <div className="mb-4">
         <div className="section-eyebrow">Receptionist</div>
         <h2 className="section-title mb-0">Front Desk (Check-In & Check-Out)</h2>
@@ -706,7 +726,7 @@ function CheckInClient() {
           z-index: 10;
         }
       `}</style>
-    </>
+    </div>
   );
 }
 

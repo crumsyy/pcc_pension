@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
@@ -83,8 +84,13 @@ export default function ReceptionistBilling() {
     });
   };
 
-  const fetchActiveBookings = async () => {
-    setLoadingList(true);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const isFirstMount = useRef(true);
+
+  const fetchActiveBookings = async (isBackground = false) => {
+    if (!isBackground && !clientCache.has('RECEPTIONIST_BILLING')) {
+      setLoadingList(true);
+    }
     try {
       const res = await fetch('/api/receptionist/payments');
       const data = await res.json();
@@ -95,8 +101,10 @@ export default function ReceptionistBilling() {
       if (data.paymentMethods) {
         setPaymentMethods(data.paymentMethods);
       }
+
+      clientCache.set('RECEPTIONIST_BILLING', data, CACHE_TTL.RECEPTIONIST_BILLING);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
       setLoadingList(false);
     }
@@ -523,7 +531,20 @@ export default function ReceptionistBilling() {
   };
 
   useEffect(() => {
-    fetchActiveBookings();
+    const entry = clientCache.get('RECEPTIONIST_BILLING');
+    if (entry) {
+      const data = entry.data;
+      setActiveBookings(data.allBillingStays || data.activeBookings || []);
+      if (data.paymentMethods) setPaymentMethods(data.paymentMethods);
+      setLoadingList(false);
+      setShouldAnimate(false);
+      if (entry.isStale) fetchActiveBookings(true);
+    } else {
+      if (!isFirstMount.current) setShouldAnimate(true);
+      fetchActiveBookings(false);
+    }
+    isFirstMount.current = false;
+
     const params = new URLSearchParams(window.location.search);
     const bID = params.get('bookingID');
     if (bID) {
@@ -595,7 +616,7 @@ export default function ReceptionistBilling() {
 
   return (
     <>
-      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
+      <div className={`container-fluid py-3 d-flex flex-column ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div>
             <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)' }}>Guest Billing</h2>

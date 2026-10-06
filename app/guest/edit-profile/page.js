@@ -5,6 +5,7 @@ import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
 import LoadingButton from '../../components/LoadingButton';
 import { GuestEditProfileSkeleton } from '@/app/components/skeletons/GuestSkeletons';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function EditProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,7 @@ export default function EditProfilePage() {
 
   const [profilePicture, setProfilePicture] = useState('');
   const [uploadingPic, setUploadingPic] = useState(false);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
 
   const handleProfilePictureUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -99,6 +101,7 @@ export default function EditProfilePage() {
         body: JSON.stringify({ profilePicture: uploadedUrl })
       });
 
+      clientCache.remove('GUEST_PROFILE');
       showAlert('success', 'Profile Picture Updated', 'Your profile picture has been uploaded and saved!');
     } catch (err) {
       showAlert('error', 'Upload Failed', err.message);
@@ -120,6 +123,7 @@ export default function EditProfilePage() {
       if (!res.ok) throw new Error(data.error || 'Failed to remove profile picture.');
 
       setProfilePicture('');
+      clientCache.remove('GUEST_PROFILE');
       showAlert('success', 'Profile Picture Removed', 'Your profile picture has been removed.');
     } catch (err) {
       showAlert('error', 'Remove Failed', err.message);
@@ -128,8 +132,10 @@ export default function EditProfilePage() {
     }
   };
 
-  const fetchProfile = async () => {
-    setLoading(true);
+  const fetchProfile = async (isBackground = false) => {
+    if (!isBackground && !clientCache.has('GUEST_PROFILE')) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/guest/profile');
       const data = await res.json();
@@ -145,18 +151,36 @@ export default function EditProfilePage() {
         });
         setProfilePicture(data.guest.profilePicture || '');
         setCurrentEmail(data.email || '');
+        clientCache.set('GUEST_PROFILE', data, CACHE_TTL.GUEST_PROFILE);
       } else {
-        showAlert('error', 'Error', data.error || 'Failed to load profile.');
+        if (!isBackground) showAlert('error', 'Error', data.error || 'Failed to load profile.');
       }
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProfile();
+    const cached = clientCache.get('GUEST_PROFILE');
+    if (cached) {
+      setProfileForm({
+        firstName: cached.guest?.firstName || '',
+        middleName: cached.guest?.middleName || '',
+        lastName: cached.guest?.lastName || '',
+        contact: cached.guest?.contact || '',
+        gender: cached.guest?.gender || 'Other',
+        city: cached.guest?.city || '',
+        province: cached.guest?.province || ''
+      });
+      setProfilePicture(cached.guest?.profilePicture || '');
+      setCurrentEmail(cached.email || '');
+      setLoading(false);
+      fetchProfile(true);
+    } else {
+      fetchProfile(false);
+    }
   }, []);
 
   // 1. SAVE BASIC PROFILE DETAILS (Direct to MySQL without OTP)
@@ -172,6 +196,7 @@ export default function EditProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update profile.');
 
+      clientCache.remove('GUEST_PROFILE');
       showAlert('success', 'Profile Updated', data.message || 'Your profile details have been saved.');
     } catch (err) {
       showAlert('error', 'Update Failed', err.message);
@@ -360,7 +385,7 @@ export default function EditProfilePage() {
         </div>
       </nav>
 
-      <div className="container py-4" style={{ maxWidth: '800px' }}>
+      <div className={`container py-4 ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxWidth: '800px' }}>
         {loading ? (
           <GuestEditProfileSkeleton />
         ) : (

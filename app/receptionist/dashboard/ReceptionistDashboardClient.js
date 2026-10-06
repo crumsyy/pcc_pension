@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 
 export default function ReceptionistDashboardClient({ initialData }) {
-  const [data, setData] = useState(initialData || {});
+  const [data, setData] = useState(() => {
+    return clientCache.get('RECEPTIONIST_DASHBOARD')?.data || initialData || {};
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const isFetchingRef = useRef(false);
@@ -26,6 +29,7 @@ export default function ReceptionistDashboardClient({ initialData }) {
             ...prev,
             ...json
           }));
+          clientCache.set('RECEPTIONIST_DASHBOARD', json, CACHE_TTL.RECEPTIONIST_DASHBOARD);
           setLastUpdated(new Date());
         }
       }
@@ -116,7 +120,7 @@ export default function ReceptionistDashboardClient({ initialData }) {
   ];
 
   return (
-    <>
+    <div className="pcc-content-reveal">
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <div>
           <div className="section-eyebrow">Receptionist Portal</div>
@@ -466,6 +470,6 @@ export default function ReceptionistDashboardClient({ initialData }) {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

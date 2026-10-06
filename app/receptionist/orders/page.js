@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
@@ -331,8 +332,13 @@ function ReceptionistOrdersContent() {
     });
   };
 
+  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const isFirstMount = useRef(true);
+
   const fetchData = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
+    if (!isBackground && !clientCache.has('RECEPTIONIST_ORDERS')) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/receptionist/orders');
       const data = await res.json();
@@ -343,6 +349,8 @@ function ReceptionistOrdersContent() {
       setCookedMeals(data.cookedMeals || []);
       setAmenities(data.amenities || []);
       setActiveBookings(data.activeBookings || []);
+
+      clientCache.set('RECEPTIONIST_ORDERS', data, CACHE_TTL.RECEPTIONIST_ORDERS);
     } catch (err) {
       if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
@@ -351,12 +359,27 @@ function ReceptionistOrdersContent() {
   };
 
   useEffect(() => {
-    fetchData(false);
+    const entry = clientCache.get('RECEPTIONIST_ORDERS');
+    if (entry) {
+      const data = entry.data;
+      setOrders(data.orders || []);
+      setProducts(data.products || []);
+      setCookedMeals(data.cookedMeals || []);
+      setAmenities(data.amenities || []);
+      setActiveBookings(data.activeBookings || []);
+      setLoading(false);
+      setShouldAnimate(false);
+      if (entry.isStale) fetchData(true);
+    } else {
+      if (!isFirstMount.current) setShouldAnimate(true);
+      fetchData(false);
+    }
+    isFirstMount.current = false;
 
-    // Real-time polling every 8 seconds
+    // Real-time background sync polling every 10 seconds
     const interval = setInterval(() => {
       fetchData(true);
-    }, 8000);
+    }, 10000);
 
     const handleFocus = () => {
       fetchData(true);
@@ -940,7 +963,7 @@ function ReceptionistOrdersContent() {
   };
 
   return (
-    <div className="container-fluid py-3 px-3 px-md-4">
+    <div className={`container-fluid py-3 px-3 px-md-4 ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
       {/* TOP HEADER */}
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 border-bottom pb-3">
         <div>

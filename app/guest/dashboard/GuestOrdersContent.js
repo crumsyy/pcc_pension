@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import LoadingButton from '@/app/components/LoadingButton';
 import ViewOrdersModal from './ViewOrdersModal';
+import { toast } from 'sonner';
 
 // Fast client-side module cache so switching tabs preserves catalog and renders at 0ms
 let cachedOrdersCatalog = null;
@@ -592,12 +593,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   const [deliveryTime, setDeliveryTime] = useState('07:30 AM');
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [isClientMounted, setIsClientMounted] = useState(false);
-  const [orderSuccessModal, setOrderSuccessModal] = useState({
-    isOpen: false,
-    orderID: null,
-    totalAmount: 0,
-    summary: ''
-  });
 
   useEffect(() => {
     try {
@@ -938,21 +933,18 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
         }));
       }
 
-      // Show dialog box "Order Submitted"
-      setOrderSuccessModal({
-        isOpen: true,
-        orderID: placedOrderID,
-        totalAmount: placedTotal,
-        summary: data.summary || 'Your room order has been placed and received.'
+      // Show non-blocking rich Sonner toast for Order Submitted
+      toast.success(`Order #${placedOrderID} Placed Successfully!`, {
+        description: `Total: ₱${placedTotal.toFixed(2)} charged to stay billing. Front Desk notified.`,
+        duration: 5000
       });
-      if (typeof showAlert === 'function') {
-        showAlert('success', 'Order Submitted', 'Your order has been submitted successfully and recorded. Front Desk has been notified.');
-      }
+      setActiveCategory('history');
+      fetchOrderHistory();
     } catch (err) {
       setFeedback({ type: 'danger', message: err.message });
-      if (typeof showAlert === 'function') {
-        showAlert('error', 'Order Failed', err.message || 'Failed to submit room order.');
-      }
+      toast.error('Order Submission Failed', {
+        description: err.message || 'Failed to submit room order.'
+      });
     } finally {
       setSubmitting(false);
     }
@@ -1545,80 +1537,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
             }
           }}
         />
-      )}
-      {/* ORDER SUBMITTED SUCCESS DIALOG MODAL */}
-      {orderSuccessModal.isOpen && (
-        <div
-          className="modal d-block animate__animated animate__fadeIn"
-          tabIndex="-1"
-          style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1080 }}
-        >
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '460px' }}>
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '16px', overflow: 'hidden' }}>
-              <div className="modal-header border-0 text-white p-3 px-4" style={{ backgroundColor: 'var(--pcc-blue, #2155B5)' }}>
-                <div className="d-flex align-items-center gap-2">
-                  <i className="bi bi-check-circle-fill fs-5 text-warning"></i>
-                  <h5 className="modal-title fw-bold mb-0" style={{ fontSize: '1.05rem' }}>Order Submitted</h5>
-                </div>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  aria-label="Close"
-                  onClick={() => setOrderSuccessModal(prev => ({ ...prev, isOpen: false }))}
-                ></button>
-              </div>
-              <div className="modal-body text-center p-4">
-                <div
-                  className="d-inline-flex align-items-center justify-content-center rounded-circle mb-3 shadow-xs"
-                  style={{ width: '72px', height: '72px', backgroundColor: '#e8f5e9', color: '#2e7d32' }}
-                >
-                  <i className="bi bi-send-check-fill" style={{ fontSize: '2.2rem' }}></i>
-                </div>
-                <h4 className="fw-bold text-dark mb-1">Order Submitted</h4>
-                <p className="text-muted small mb-3">
-                  Your room order has been placed and recorded successfully. It has been sent to Front Desk &amp; Room Service and added to your stay billing.
-                </p>
-
-                <div className="p-3 bg-light rounded-3 border text-start mb-3" style={{ fontSize: '0.84rem' }}>
-                  <div className="d-flex justify-content-between mb-1.5 pb-1 border-bottom">
-                    <span className="text-muted">Order Tracking Ref:</span>
-                    <strong className="text-primary font-monospace">#{orderSuccessModal.orderID}</strong>
-                  </div>
-                  <div className="d-flex justify-content-between mb-1.5 pb-1 border-bottom">
-                    <span className="text-muted">Total Charged:</span>
-                    <strong className="text-dark">₱{orderSuccessModal.totalAmount.toFixed(2)}</strong>
-                  </div>
-                  <div className="d-flex justify-content-between">
-                    <span className="text-muted">Status:</span>
-                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning">
-                      Recorded / In Queue
-                    </span>
-                  </div>
-                </div>
-
-                <div className="alert alert-info py-2 px-3 small text-start d-flex align-items-center gap-2 mb-0" style={{ fontSize: '0.76rem' }}>
-                  <i className="bi bi-info-circle-fill text-primary flex-shrink-0 fs-6"></i>
-                  <div>You can track real-time delivery and preparation status anytime under <strong>Order History</strong>.</div>
-                </div>
-              </div>
-              <div className="modal-footer border-0 p-3 pt-0 d-flex justify-content-center">
-                <button
-                  type="button"
-                  className="btn btn-primary px-4 py-2 fw-bold text-white shadow-sm"
-                  style={{ backgroundColor: 'var(--pcc-blue, #2155B5)', borderRadius: '8px' }}
-                  onClick={() => {
-                    setOrderSuccessModal(prev => ({ ...prev, isOpen: false }));
-                    setActiveCategory('history');
-                    fetchOrderHistory();
-                  }}
-                >
-                  <i className="bi bi-clock-history me-1.5"></i>
-                  <span>View in Order History</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

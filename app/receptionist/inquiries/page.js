@@ -5,6 +5,7 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import { ReceptionistInquiriesListSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function ReceptionistInquiries() {
   const [inquiries, setInquiries] = useState([]);
@@ -16,6 +17,7 @@ export default function ReceptionistInquiries() {
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
   const chatMessagesRef = useRef(null);
 
   // Reach Out to Guest Modal State
@@ -48,7 +50,7 @@ export default function ReceptionistInquiries() {
   };
 
   const fetchInquiries = async (silent = false) => {
-    if (!silent) setLoading(true);
+    if (!silent && !clientCache.has('RECEPTIONIST_INQUIRIES')) setLoading(true);
     try {
       const selectedID = selectedInquiry?.inquiryID ? `?inquiryID=${selectedInquiry.inquiryID}` : '';
       const res = await fetch(`/api/receptionist/inquiries${selectedID}`);
@@ -56,6 +58,7 @@ export default function ReceptionistInquiries() {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch inquiries');
 
       setInquiries(data.inquiries || []);
+      clientCache.set('RECEPTIONIST_INQUIRIES', data, CACHE_TTL.RECEPTIONIST_INQUIRIES);
 
       if (data.inquiries?.length > 0 && !selectedInquiry) {
         setSelectedInquiry(data.inquiries[0]);
@@ -111,7 +114,20 @@ export default function ReceptionistInquiries() {
   };
 
   useEffect(() => {
-    fetchInquiries();
+    const cached = clientCache.get('RECEPTIONIST_INQUIRIES');
+    if (cached) {
+      setInquiries(cached.inquiries || []);
+      if (cached.inquiries?.length > 0) {
+        setSelectedInquiry(cached.inquiries[0]);
+      }
+      if (cached.selectedMessages?.length > 0) {
+        setMessages(cached.selectedMessages);
+      }
+      setLoading(false);
+      fetchInquiries(true);
+    } else {
+      fetchInquiries(false);
+    }
     fetchRegisteredGuests();
   }, []);
 
@@ -319,7 +335,7 @@ export default function ReceptionistInquiries() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 70px)', overflow: 'hidden' }}>
+      <div className={`container-fluid py-3 d-flex flex-column ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 70px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div>
             <h2 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.5rem' }}>Guest Live Chat & Inquiry Management Desk</h2>

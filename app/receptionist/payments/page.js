@@ -7,6 +7,7 @@ import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import { Skeleton } from '@/app/components/skeletons/Skeleton';
+import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 function PaymentsClient() {
   const searchParams = useSearchParams();
@@ -78,9 +79,13 @@ function PaymentsClient() {
   const [historySearch, setHistorySearch] = useState('');
   const [historyMethodFilter, setHistoryMethodFilter] = useState('All');
   const [historyDateFilter, setHistoryDateFilter] = useState('');
+  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const isFirstMount = useRef(true);
 
-  const fetchInitialData = async () => {
-    setLoading(true);
+  const fetchInitialData = async (isBackground = false) => {
+    if (!isBackground && !clientCache.has('RECEPTIONIST_PAYMENTS')) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/receptionist/payments');
       const data = await res.json();
@@ -91,12 +96,14 @@ function PaymentsClient() {
       setPaymentMethods(data.paymentMethods || []);
       setPaymentHistory(data.paymentHistory || []);
       
-      if (initialBookingID) {
+      clientCache.set('RECEPTIONIST_PAYMENTS', data, CACHE_TTL.RECEPTIONIST_PAYMENTS);
+
+      if (initialBookingID && isFirstMount.current) {
         setSelectedBookingID(initialBookingID);
         fetchBillingDetails(initialBookingID);
       }
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
@@ -121,7 +128,22 @@ function PaymentsClient() {
   };
 
   useEffect(() => {
-    fetchInitialData();
+    const cached = clientCache.get('RECEPTIONIST_PAYMENTS');
+    if (cached) {
+      setActiveBookings(cached.activeBookings || []);
+      setDiscounts(cached.discounts || []);
+      setPaymentMethods(cached.paymentMethods || []);
+      setPaymentHistory(cached.paymentHistory || []);
+      setLoading(false);
+      if (initialBookingID) {
+        setSelectedBookingID(initialBookingID);
+        fetchBillingDetails(initialBookingID);
+      }
+      fetchInitialData(true);
+    } else {
+      fetchInitialData(false);
+    }
+    isFirstMount.current = false;
   }, []);
 
   const handleBookingChange = (bID) => {
@@ -523,7 +545,7 @@ function PaymentsClient() {
 
   return (
     <>
-      <div className="container-fluid py-3 d-flex flex-column" style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
+      <div className={`container-fluid py-3 d-flex flex-column ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div>
             <h2 className="fw-bold mb-1 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.4rem' }}>

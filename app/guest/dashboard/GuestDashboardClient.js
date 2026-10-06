@@ -2282,7 +2282,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         )}
 
         {/* MAIN WORKSPACE CONTENT */}
-        <main className={`flex-grow-1 p-3 p-lg-4 ${!isDesktop ? 'pb-5 mb-4' : ''}`} style={{ minWidth: 0, paddingBottom: !isDesktop ? '95px' : undefined }}>
+        <main className={`flex-grow-1 p-3 p-lg-4 pcc-content-reveal ${!isDesktop ? 'pb-5 mb-4' : ''}`} style={{ minWidth: 0, paddingBottom: !isDesktop ? '95px' : undefined }}>
           {viewMode === 'select_room' ? (
             /* VISUAL ROOM LAYOUT SELECTION WORKSPACE */
             <div className="animate__animated animate__fadeIn">

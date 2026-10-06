@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
@@ -840,8 +841,13 @@ function BookingsClient() {
     };
   }, [updatingBooking, walkinGcashRef, showAlert]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const isFirstMount = useRef(true);
+
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground && !clientCache.has('RECEPTIONIST_BOOKINGS')) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/receptionist/bookings');
       const data = await res.json();
@@ -854,15 +860,38 @@ function BookingsClient() {
       setPaymentMethods(data.paymentMethods || []);
       if (data.vatPercentage !== undefined) setVatPercentage(parseFloat(data.vatPercentage) || 0);
       if (data.roomSchedules) setRoomSchedules(data.roomSchedules);
+
+      clientCache.set('RECEPTIONIST_BOOKINGS', data, CACHE_TTL.RECEPTIONIST_BOOKINGS);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    const entry = clientCache.get('RECEPTIONIST_BOOKINGS');
+    if (entry) {
+      const data = entry.data;
+      setBookings(data.bookings || []);
+      setGuests(data.guests || []);
+      setRooms(data.rooms || []);
+      setAvailableDiscounts(data.discounts || []);
+      setPaymentMethods(data.paymentMethods || []);
+      if (data.vatPercentage !== undefined) setVatPercentage(parseFloat(data.vatPercentage) || 0);
+      if (data.roomSchedules) setRoomSchedules(data.roomSchedules);
+      setLoading(false);
+      setShouldAnimate(false);
+      if (entry.isStale) {
+        fetchData(true);
+      }
+    } else {
+      if (!isFirstMount.current) {
+        setShouldAnimate(true);
+      }
+      fetchData(false);
+    }
+    isFirstMount.current = false;
   }, []);
 
   const openCreateModal = () => {
@@ -1624,7 +1653,7 @@ function BookingsClient() {
   const selectedRoomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
 
   return (
-    <div className="container-fluid py-3">
+    <div className={`container-fluid py-3 ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
       <ModalDialog
         isOpen={modalConfig.isOpen}
         type={modalConfig.type}

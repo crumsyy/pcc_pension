@@ -99,7 +99,7 @@ export default function GuestLayout({ children, activeTab = 'orders', guest: pro
 
       {/* MAIN WORKSPACE CONTENT */}
       <main
-        className={`flex-grow-1 ${!isDesktop ? 'pb-5' : ''}`}
+        className={`flex-grow-1 pcc-content-reveal ${!isDesktop ? 'pb-5' : ''}`}
         style={{
           minWidth: 0,
           paddingBottom: !isDesktop ? '95px' : undefined

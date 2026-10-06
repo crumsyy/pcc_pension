@@ -1,5 +1,6 @@
 import React from 'react';
 import ModalPortal from './ModalPortal';
+import { toast } from 'sonner';
 
 export default function ModalDialog({
   isOpen,
@@ -17,9 +18,39 @@ export default function ModalDialog({
 
   React.useEffect(() => {
     setIsSubmitting(false);
-  }, [isOpen]);
 
-  if (!isOpen) return null;
+    if (isOpen && type !== 'confirm') {
+      const toastTitle = title && title !== 'Success' && title !== 'Error' && title !== 'Warning' && title !== 'Info' && title !== 'System Notification' ? title : '';
+      const toastMsg = message || title || 'Notification';
+
+      if (type === 'success') {
+        toast.success(toastMsg, {
+          description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
+        });
+      } else if (type === 'error') {
+        toast.error(toastMsg, {
+          description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
+        });
+      } else if (type === 'warning') {
+        toast.warning(toastMsg, {
+          description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
+        });
+      } else {
+        toast.info(toastMsg, {
+          description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
+        });
+      }
+
+      // Automatically notify parent to close alert state
+      if (typeof onConfirm === 'function') {
+        onConfirm();
+      } else if (typeof onCancel === 'function') {
+        onCancel();
+      }
+    }
+  }, [isOpen, type, title, message, onConfirm, onCancel]);
+
+  if (!isOpen || type !== 'confirm') return null;
 
   const handleConfirmClick = async () => {
     if (!onConfirm || isSubmitting) return;

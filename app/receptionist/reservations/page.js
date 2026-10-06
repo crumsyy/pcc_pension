@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
@@ -373,8 +374,13 @@ function ReservationsClient() {
     return `${pad(target.getMonth() + 1)}/${pad(target.getDate())}/${target.getFullYear()}`;
   };
 
-  const fetchData = async () => {
-    setLoading(true);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const isFirstMount = useRef(true);
+
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground && !clientCache.has('RECEPTIONIST_RESERVATIONS')) {
+      setLoading(true);
+    }
     try {
       const res = await fetch('/api/receptionist/reservations');
       const data = await res.json();
@@ -386,15 +392,37 @@ function ReservationsClient() {
       setPaymentMethods(data.paymentMethods || []);
       setAvailableDiscounts(data.discounts || []);
       if (data.roomSchedules) setRoomSchedules(data.roomSchedules);
+
+      clientCache.set('RECEPTIONIST_RESERVATIONS', data, CACHE_TTL.RECEPTIONIST_RESERVATIONS);
     } catch (err) {
-      showAlert('error', 'Error', err.message);
+      if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    const entry = clientCache.get('RECEPTIONIST_RESERVATIONS');
+    if (entry) {
+      const data = entry.data;
+      setReservations(data.reservations || []);
+      setGuests(data.guests || []);
+      setRooms(data.rooms || []);
+      setPaymentMethods(data.paymentMethods || []);
+      setAvailableDiscounts(data.discounts || []);
+      if (data.roomSchedules) setRoomSchedules(data.roomSchedules);
+      setLoading(false);
+      setShouldAnimate(false);
+      if (entry.isStale) {
+        fetchData(true);
+      }
+    } else {
+      if (!isFirstMount.current) {
+        setShouldAnimate(true);
+      }
+      fetchData(false);
+    }
+    isFirstMount.current = false;
   }, []);
 
   useEffect(() => {
@@ -894,7 +922,7 @@ function ReservationsClient() {
 
   return (
     <>
-      <div className="container-fluid p-4">
+      <div className={`container-fluid p-4 ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
