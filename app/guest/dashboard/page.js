@@ -19,7 +19,7 @@ export default async function GuestDashboard() {
 
     // 1. Fetch guest profile
     let guests = await dbQuery(
-      "SELECT g.*, u.email, u.createdAt FROM guest g JOIN user u ON u.userID = g.userID WHERE g.userID = ?",
+      "SELECT g.*, DATE_FORMAT(g.dateOfBirth, '%Y-%m-%d') as dateOfBirth, u.email, u.createdAt FROM guest g JOIN user u ON u.userID = g.userID WHERE g.userID = ?",
       [session.userID]
     );
     
@@ -33,7 +33,7 @@ export default async function GuestDashboard() {
           [firstName || 'Guest', lastName, session.email || '', session.userID]
         );
         guests = await dbQuery(
-          "SELECT g.*, u.email, u.createdAt FROM guest g JOIN user u ON u.userID = g.userID WHERE g.guestID = ?",
+          "SELECT g.*, DATE_FORMAT(g.dateOfBirth, '%Y-%m-%d') as dateOfBirth, u.email, u.createdAt FROM guest g JOIN user u ON u.userID = g.userID WHERE g.guestID = ?",
           [insertRes.insertId]
         );
       } catch (provErr) {

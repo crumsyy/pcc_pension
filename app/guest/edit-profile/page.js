@@ -17,6 +17,7 @@ export default function EditProfilePage() {
     lastName: '',
     contact: '',
     gender: 'Other',
+    dateOfBirth: '',
     city: '',
     province: ''
   });
@@ -146,6 +147,7 @@ export default function EditProfilePage() {
           lastName: data.guest.lastName || '',
           contact: data.guest.contact || '',
           gender: data.guest.gender || 'Other',
+          dateOfBirth: data.guest.dateOfBirth || '',
           city: data.guest.city || '',
           province: data.guest.province || ''
         });
@@ -171,6 +173,7 @@ export default function EditProfilePage() {
         lastName: cached.guest?.lastName || '',
         contact: cached.guest?.contact || '',
         gender: cached.guest?.gender || 'Other',
+        dateOfBirth: cached.guest?.dateOfBirth || '',
         city: cached.guest?.city || '',
         province: cached.guest?.province || ''
       });
@@ -488,7 +491,7 @@ export default function EditProfilePage() {
                       required
                     />
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <label className="form-label fw-semibold small">Phone / Contact Number *</label>
                     <input
                       type="tel"
@@ -498,7 +501,7 @@ export default function EditProfilePage() {
                       required
                     />
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <label className="form-label fw-semibold small">Gender</label>
                     <select
                       className="form-select"
@@ -509,6 +512,16 @@ export default function EditProfilePage() {
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                     </select>
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label fw-semibold small">Date of Birth</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      max={new Date().toISOString().split('T')[0]}
+                      value={profileForm.dateOfBirth}
+                      onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                    />
                   </div>
                   <div className="col-md-6">
                     <label className="form-label fw-semibold small">City</label>

@@ -25,6 +25,7 @@ import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
 import { generateReceiptPNG } from '@/app/paymongo/test/page';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber, formatTo12Hour, formatDateTime12H, formatCurrency } from '@/lib/formatters';
+import clientCache from '@/lib/clientCache';
 
 function getCourtesyHoldTimeInfo(expiryStr) {
   if (!expiryStr) return { expired: true, text: 'Expired', inGrace: false, hours: 0, mins: 0 };
@@ -506,10 +507,80 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     lastName: '',
     contact: '',
     gender: 'Other',
+    dateOfBirth: '',
     city: '',
     province: '',
     profilePicture: ''
   });
+
+  // Change Password States & Modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordStep, setPasswordStep] = useState(0);
+  const [passwordOtp, setPasswordOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordProcessing, setPasswordProcessing] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleStartPasswordChange = async () => {
+    setPasswordProcessing(true);
+    try {
+      const res = await fetch('/api/guest/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'request_password_otp' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send password reset OTP.');
+
+      setPasswordStep(1);
+      setShowPasswordModal(true);
+      showAlert('info', 'OTP Sent', data.message || `A 6-digit OTP code has been sent to your registered email (${guest.email || 'account email'}).`);
+    } catch (err) {
+      showAlert('error', 'OTP Error', err.message);
+    } finally {
+      setPasswordProcessing(false);
+    }
+  };
+
+  const handleVerifyPasswordChange = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      showAlert('warning', 'Password Mismatch', 'New password and confirmation password do not match.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      showAlert('warning', 'Weak Password', 'New password must be at least 6 characters.');
+      return;
+    }
+    setPasswordProcessing(true);
+
+    try {
+      const res = await fetch('/api/guest/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify_password_otp',
+          passwordOtp: passwordOtp.trim(),
+          newPassword
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Password update failed.');
+
+      setShowPasswordModal(false);
+      setPasswordStep(0);
+      setPasswordOtp('');
+      setNewPassword('');
+      setConfirmPassword('');
+      showAlert('success', 'Password Changed', data.message || 'Your password has been successfully updated.');
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    } finally {
+      setPasswordProcessing(false);
+    }
+  };
 
   const handleModalProfilePicUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -582,6 +653,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         ...prev,
         ...editProfileForm
       }));
+      clientCache.remove('GUEST_PROFILE');
       showAlert('success', 'Success', data.message || 'Profile updated successfully!');
       setShowEditProfileModal(false);
     } catch (err) {
@@ -3462,6 +3534,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <td>{guest.gender}</td>
                       </tr>
                       <tr>
+                        <td className="text-muted">Date of Birth:</td>
+                        <td>{guest.dateOfBirth ? formatDate(guest.dateOfBirth) : 'Not specified'}</td>
+                      </tr>
+                      <tr>
                         <td className="text-muted">Address:</td>
                         <td>{guest.city}, {guest.province}</td>
                       </tr>
@@ -3473,32 +3549,50 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </table>
                 </div>
 
-                {/* EDIT PROFILE SETTINGS BUTTON */}
-                <div className="mb-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditProfileForm({
-                        firstName: guest.firstName || '',
-                        middleName: guest.middleName || '',
-                        lastName: guest.lastName || '',
-                        contact: guest.contact || '',
-                        gender: guest.gender || 'Other',
-                        city: guest.city || '',
-                        province: guest.province || '',
-                        profilePicture: guest.profilePicture || ''
-                      });
-                      setShowEditProfileModal(true);
-                    }}
-                    className="btn btn-pcc-primary text-white w-100 text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm"
-                    style={{ borderRadius: '12px' }}
-                  >
-                    <span className="d-flex align-items-center gap-2">
-                      <i className="bi bi-person-lines-fill"></i>
-                      <span>Edit Profile Settings</span>
-                    </span>
-                    <i className="bi bi-pencil-square"></i>
-                  </button>
+                {/* ACCOUNT ACTION BUTTONS */}
+                <div className="row g-2 mb-4">
+                  <div className="col-12 col-md-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditProfileForm({
+                          firstName: guest.firstName || '',
+                          middleName: guest.middleName || '',
+                          lastName: guest.lastName || '',
+                          contact: guest.contact || '',
+                          gender: guest.gender || 'Other',
+                          dateOfBirth: guest.dateOfBirth ? String(guest.dateOfBirth).substring(0, 10) : '',
+                          city: guest.city || '',
+                          province: guest.province || '',
+                          profilePicture: guest.profilePicture || ''
+                        });
+                        setShowEditProfileModal(true);
+                      }}
+                      className="btn btn-pcc-primary text-white w-100 text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm h-100"
+                      style={{ borderRadius: '12px' }}
+                    >
+                      <span className="d-flex align-items-center gap-2">
+                        <i className="bi bi-person-lines-fill"></i>
+                        <span>Edit Profile Settings</span>
+                      </span>
+                      <i className="bi bi-pencil-square"></i>
+                    </button>
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <button
+                      type="button"
+                      onClick={handleStartPasswordChange}
+                      disabled={passwordProcessing}
+                      className="btn btn-outline-primary text-primary w-100 text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm bg-white h-100"
+                      style={{ borderRadius: '12px', border: '1.5px solid var(--pcc-blue)' }}
+                    >
+                      <span className="d-flex align-items-center gap-2">
+                        <i className="bi bi-shield-lock-fill text-primary"></i>
+                        <span>Change Account Password</span>
+                      </span>
+                      <i className="bi bi-key-fill text-muted"></i>
+                    </button>
+                  </div>
                 </div>
 
                 {/* THEME & APPEARANCE SETTINGS CARD */}
@@ -5038,7 +5132,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
 
                   <div className="row g-3 mb-3">
-                    <div className="col-md-6">
+                    <div className="col-md-4">
                       <label className="form-label small fw-semibold">Contact Number *</label>
                       <input
                         type="text"
@@ -5048,7 +5142,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         onChange={(e) => setEditProfileForm(prev => ({ ...prev, contact: e.target.value }))}
                       />
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-4">
                       <label className="form-label small fw-semibold">Gender</label>
                       <select
                         className="form-select form-select-sm"
@@ -5060,9 +5154,19 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                         <option value="Other">Other</option>
                       </select>
                     </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-semibold">Date of Birth</label>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        max={new Date().toISOString().split('T')[0]}
+                        value={editProfileForm.dateOfBirth}
+                        onChange={(e) => setEditProfileForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                      />
+                    </div>
                   </div>
 
-                  <div className="row g-3">
+                  <div className="row g-3 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">City / Municipality</label>
                       <input
@@ -5082,6 +5186,20 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       />
                     </div>
                   </div>
+
+                  <div className="pt-2 border-top d-flex justify-content-between align-items-center">
+                    <span className="small text-muted">Need to update your security password?</span>
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm text-decoration-none p-0 fw-semibold text-primary"
+                      onClick={() => {
+                        setShowEditProfileModal(false);
+                        handleStartPasswordChange();
+                      }}
+                    >
+                      <i className="bi bi-shield-lock me-1"></i>Change Password
+                    </button>
+                  </div>
                 </div>
                 <div className="modal-footer border-top-0 pt-0 pb-4 px-4">
                   <button type="button" className="btn btn-secondary text-white fw-bold px-4" onClick={() => setShowEditProfileModal(false)}>
@@ -5099,6 +5217,126 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHANGE PASSWORD WORKFLOW MODAL */}
+      {showPasswordModal && (
+        <div className="modal d-block tab-modal-backdrop" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1080 }}>
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '440px' }}>
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+              <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue)' }}>
+                <h5 className="modal-title fw-bold d-flex align-items-center gap-2 fs-6">
+                  <i className="bi bi-shield-lock-fill"></i> Change Account Password
+                </h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowPasswordModal(false)}></button>
+              </div>
+              <div className="modal-body p-4">
+                <form onSubmit={handleVerifyPasswordChange}>
+                  <div className="p-3 bg-light rounded border mb-3">
+                    <div className="text-muted small">Registered Email Address:</div>
+                    <div className="fw-bold text-dark">{guest.email || 'Your account email'}</div>
+                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>A 6-digit security OTP was sent to this email address.</div>
+                  </div>
+
+                  <div className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <label className="form-label small fw-semibold mb-0">6-Digit Email OTP *</label>
+                      <button
+                        type="button"
+                        className="btn btn-link btn-xs p-0 text-decoration-none"
+                        style={{ fontSize: '0.75rem' }}
+                        disabled={passwordProcessing}
+                        onClick={handleStartPasswordChange}
+                      >
+                        Resend OTP
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      className="form-control text-center fw-bold fs-5 font-monospace"
+                      placeholder="123456"
+                      maxLength={6}
+                      required
+                      value={passwordOtp}
+                      onChange={(e) => setPasswordOtp(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">New Password (Min 6 chars) *</label>
+                    <div className="input-group">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        className="form-control form-control-sm"
+                        placeholder="••••••••"
+                        required
+                        minLength={6}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        tabIndex="-1"
+                      >
+                        <i className={`bi ${showNewPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="form-label small fw-semibold">Confirm New Password *</label>
+                    <div className="input-group">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="form-control form-control-sm"
+                        placeholder="••••••••"
+                        required
+                        minLength={6}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        tabIndex="-1"
+                      >
+                        <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="d-flex gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-secondary text-white fw-bold w-50"
+                      onClick={() => setShowPasswordModal(false)}
+                      disabled={passwordProcessing}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-pcc-primary text-white fw-bold w-50"
+                      disabled={passwordProcessing}
+                    >
+                      {passwordProcessing ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                          Updating...
+                        </>
+                      ) : (
+                        'Update Password'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </div>
