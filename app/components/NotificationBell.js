@@ -13,7 +13,7 @@ export default function NotificationBell() {
   const [isRinging, setIsRinging] = useState(false);
   const [filterTab, setFilterTab] = useState("all"); // "all" | "unread"
 
-  const drawerRef = useRef(null);
+  const dropdownRef = useRef(null);
   const clientReadIDsRef = useRef(new Set());
   const knownNotifIDsRef = useRef(null);
 
@@ -151,7 +151,18 @@ export default function NotificationBell() {
     };
   }, []);
 
-  // Handle ESC key to close drawer
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close dropdown on ESC
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape" && isOpen) {
@@ -162,23 +173,7 @@ export default function NotificationBell() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
-  // Lock background scroll when drawer is open
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      if (isOpen) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "";
-      }
-    }
-    return () => {
-      if (typeof document !== "undefined") {
-        document.body.style.overflow = "";
-      }
-    };
-  }, [isOpen]);
-
-  const toggleDrawer = async () => {
+  const toggleDropdown = async () => {
     const willOpen = !isOpen;
     setIsOpen(willOpen);
     if (willOpen) {
@@ -425,10 +420,10 @@ export default function NotificationBell() {
   });
 
   return (
-    <>
+    <div className="position-relative d-inline-block" ref={dropdownRef}>
       <Toaster position="top-right" richColors closeButton expand={false} />
 
-      {/* Bell Shake & Drawer Keyframes */}
+      {/* Bell Shake Keyframes */}
       <style jsx global>{`
         @keyframes pccBellRing {
           0% { transform: rotate(0); }
@@ -444,51 +439,43 @@ export default function NotificationBell() {
           background-color: rgba(255, 255, 255, 0.35) !important;
           box-shadow: 0 0 12px rgba(255, 255, 255, 0.7) !important;
         }
-        .pcc-notif-drawer-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(15, 23, 42, 0.48);
-          backdrop-filter: blur(5px);
-          -webkit-backdrop-filter: blur(5px);
-          z-index: 100000;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .pcc-notif-drawer-backdrop.active {
-          opacity: 1;
-          pointer-events: auto;
-        }
-        .pcc-notif-drawer {
-          position: fixed;
-          top: 0;
+        .pcc-notif-dropdown {
+          position: absolute;
+          top: calc(100% + 8px);
           right: 0;
-          bottom: 0;
-          width: 100%;
-          max-width: 420px;
+          width: 360px;
+          max-width: 90vw;
           background: #ffffff;
-          box-shadow: -10px 0 35px rgba(0, 0, 0, 0.22);
-          z-index: 100001;
+          border-radius: 14px;
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          overflow: hidden;
           display: flex;
           flex-direction: column;
-          transform: translateX(100%);
-          transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+          z-index: 1060;
+          animation: pccFadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .pcc-notif-drawer.open {
-          transform: translateX(0);
+        @keyframes pccFadeInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
-        .pcc-notif-card {
-          transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+        .pcc-notif-card-down {
+          transition: transform 0.15s ease, background-color 0.15s ease;
         }
-        .pcc-notif-card:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+        .pcc-notif-card-down:hover {
+          background-color: #f1f5f9 !important;
         }
       `}</style>
 
       {/* Bell Trigger Button */}
       <button
-        onClick={toggleDrawer}
+        onClick={toggleDropdown}
         className={`btn btn-sm d-inline-flex align-items-center justify-content-center rounded-circle p-0 transition-all position-relative ${
           isRinging ? "bell-ring-active" : ""
         }`}
@@ -500,7 +487,7 @@ export default function NotificationBell() {
           border: "1px solid rgba(255, 255, 255, 0.3)",
           cursor: "pointer",
         }}
-        aria-label="Open notifications"
+        aria-label="Notifications"
         type="button"
       >
         <i className="bi bi-bell-fill fs-6"></i>
@@ -524,259 +511,181 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* Backdrop */}
-      <div
-        className={`pcc-notif-drawer-backdrop ${isOpen ? "active" : ""}`}
-        onClick={() => setIsOpen(false)}
-        aria-hidden="true"
-      />
-
-      {/* Slide-over Right Sidebar Drawer */}
-      <aside
-        ref={drawerRef}
-        className={`pcc-notif-drawer ${isOpen ? "open" : ""}`}
-        aria-label="Notification Center"
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Header */}
-        <div
-          className="d-flex flex-column text-white px-3 py-3"
-          style={{
-            background: "linear-gradient(135deg, #0B2F4C 0%, #164e63 100%)",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
-          }}
-        >
-          <div className="d-flex justify-content-between align-items-center mb-2.5">
-            <div className="d-flex align-items-center gap-2">
-              <div
-                className="d-flex align-items-center justify-content-center rounded-circle"
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  background: "rgba(255, 255, 255, 0.15)",
-                  backdropFilter: "blur(4px)",
-                }}
-              >
+      {/* Modern Dropdown Menu */}
+      {isOpen && (
+        <div className="pcc-notif-dropdown">
+          {/* Header */}
+          <div
+            className="d-flex flex-column text-white px-3 py-2.5"
+            style={{
+              background: "linear-gradient(135deg, #0B2F4C 0%, #164e63 100%)",
+            }}
+          >
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <div className="d-flex align-items-center gap-2">
                 <i className="bi bi-bell-fill text-warning fs-6"></i>
-              </div>
-              <div>
-                <h6 className="mb-0 fw-bold" style={{ fontSize: "1rem", letterSpacing: "-0.2px" }}>
+                <span className="fw-bold small mb-0" style={{ letterSpacing: "-0.2px" }}>
                   Notifications
-                </h6>
-                <span className="text-white-50" style={{ fontSize: "0.72rem" }}>
-                  {unreadCount > 0
-                    ? `${unreadCount} unread alert${unreadCount > 1 ? "s" : ""}`
-                    : "All alerts caught up"}
                 </span>
+                {unreadCount > 0 && (
+                  <span
+                    className="badge rounded-pill bg-danger"
+                    style={{ fontSize: "0.62rem", padding: "2px 6px" }}
+                  >
+                    {unreadCount} new
+                  </span>
+                )}
               </div>
-            </div>
 
-            <div className="d-flex align-items-center gap-1.5">
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="btn btn-sm btn-outline-light rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"
-                  style={{ fontSize: "0.72rem", borderColor: "rgba(255,255,255,0.4)" }}
+                  className="btn btn-xs btn-outline-light rounded-pill px-2 py-0.5 fw-semibold d-inline-flex align-items-center gap-1"
+                  style={{ fontSize: "0.68rem" }}
                   title="Mark all notifications as read"
                 >
                   <i className="bi bi-check2-all"></i>
-                  <span>Mark all read</span>
+                  Mark all read
                 </button>
               )}
+            </div>
+
+            {/* Segmented Filter Pills */}
+            <div
+              className="d-flex p-0.5 rounded-pill"
+              style={{
+                background: "rgba(0, 0, 0, 0.22)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+              }}
+            >
               <button
-                onClick={() => setIsOpen(false)}
-                className="btn btn-sm btn-link text-white text-decoration-none rounded-circle p-1 d-inline-flex align-items-center justify-content-center"
-                style={{ width: "32px", height: "32px", background: "rgba(255,255,255,0.12)" }}
-                aria-label="Close notification sidebar"
+                type="button"
+                onClick={() => setFilterTab("all")}
+                className={`btn btn-sm flex-fill rounded-pill py-0.5 fw-semibold transition-all ${
+                  filterTab === "all"
+                    ? "bg-white text-dark shadow-sm"
+                    : "text-white-50 border-0 bg-transparent"
+                }`}
+                style={{ fontSize: "0.7rem" }}
               >
-                <i className="bi bi-x-lg fs-6"></i>
+                All ({notifications.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterTab("unread")}
+                className={`btn btn-sm flex-fill rounded-pill py-0.5 fw-semibold transition-all ${
+                  filterTab === "unread"
+                    ? "bg-white text-dark shadow-sm"
+                    : "text-white-50 border-0 bg-transparent"
+                }`}
+                style={{ fontSize: "0.7rem" }}
+              >
+                Unread ({unreadCount})
               </button>
             </div>
           </div>
 
-          {/* Segmented Filter Pills */}
+          {/* List Area */}
           <div
-            className="d-flex p-1 rounded-pill"
-            style={{
-              background: "rgba(0, 0, 0, 0.22)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-            }}
+            className="flex-grow-1 overflow-auto p-2"
+            style={{ maxHeight: "360px", backgroundColor: "#f8fafc" }}
           >
-            <button
-              type="button"
-              onClick={() => setFilterTab("all")}
-              className={`btn btn-sm flex-fill rounded-pill py-1 fw-semibold transition-all ${
-                filterTab === "all"
-                  ? "bg-white text-dark shadow-sm"
-                  : "text-white-50 border-0 bg-transparent"
-              }`}
-              style={{ fontSize: "0.74rem" }}
-            >
-              All ({notifications.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterTab("unread")}
-              className={`btn btn-sm flex-fill rounded-pill py-1 fw-semibold transition-all ${
-                filterTab === "unread"
-                  ? "bg-white text-dark shadow-sm"
-                  : "text-white-50 border-0 bg-transparent"
-              }`}
-              style={{ fontSize: "0.74rem" }}
-            >
-              Unread ({unreadCount})
-            </button>
-          </div>
-        </div>
-
-        {/* Scrollable Notification List */}
-        <div
-          className="flex-grow-1 overflow-auto p-3"
-          style={{
-            backgroundColor: "#f8fafc",
-            scrollbarWidth: "thin",
-          }}
-        >
-          {filteredNotifications.length === 0 ? (
-            <div className="d-flex flex-column align-items-center justify-content-center h-100 text-center py-5 text-muted">
-              <div
-                className="d-flex align-items-center justify-content-center rounded-circle mb-3"
-                style={{
-                  width: "68px",
-                  height: "68px",
-                  background: "rgba(226, 232, 240, 0.7)",
-                }}
-              >
-                <i className="bi bi-bell-slash text-secondary fs-2 opacity-75"></i>
+            {filteredNotifications.length === 0 ? (
+              <div className="text-center py-4 text-muted small">
+                <i className="bi bi-bell-slash fs-3 d-block mb-1 text-secondary opacity-50"></i>
+                {filterTab === "unread" ? "No unread alerts." : "No notifications yet."}
               </div>
-              <h6 className="fw-semibold text-dark mb-1" style={{ fontSize: "0.95rem" }}>
-                {filterTab === "unread" ? "No unread notifications" : "No notifications yet"}
-              </h6>
-              <p
-                className="small text-secondary mb-0"
-                style={{ maxWidth: "260px", fontSize: "0.8rem" }}
-              >
-                {filterTab === "unread"
-                  ? "You have reviewed all incoming alerts. Good job!"
-                  : "New alerts for stock, payments, and reservations will appear here."}
-              </p>
-            </div>
-          ) : (
-            filteredNotifications.map((n) => {
-              const theme = getNotificationTheme(n.title);
-              const isUnread = !n.isRead;
+            ) : (
+              filteredNotifications.map((n) => {
+                const theme = getNotificationTheme(n.title);
+                const isUnread = !n.isRead;
 
-              return (
-                <div
-                  key={n.notificationID}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleNotificationClick(n)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") handleNotificationClick(n);
-                  }}
-                  className={`pcc-notif-card p-3 mb-2.5 rounded-3 border position-relative ${
-                    isUnread
-                      ? "bg-white border-primary-subtle shadow-xs"
-                      : "bg-white border-light text-muted opacity-85"
-                  }`}
-                  style={{
-                    cursor: "pointer",
-                    borderLeft: `4px solid ${theme.borderAccent} !important`,
-                  }}
-                  title="Click to view details"
-                >
-                  <div className="d-flex align-items-start gap-2.5">
-                    {/* Category Icon */}
-                    <div
-                      className="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0 mt-0.5"
-                      style={{
-                        width: "36px",
-                        height: "36px",
-                        background: theme.badgeBg,
-                      }}
-                    >
-                      <i className={`bi ${theme.icon} fs-6`}></i>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-grow-1 min-w-0">
-                      <div className="d-flex justify-content-between align-items-start mb-1">
-                        <span
-                          className={`fw-bold text-truncate pe-2 ${
-                            isUnread ? "text-dark" : "text-secondary"
-                          }`}
-                          style={{ fontSize: "0.86rem" }}
-                        >
-                          {n.title}
-                        </span>
-                        {isUnread && (
-                          <span
-                            className="badge rounded-circle p-1 flex-shrink-0"
-                            style={{
-                              backgroundColor: "#3b82f6",
-                              width: "8px",
-                              height: "8px",
-                              marginTop: "4px",
-                            }}
-                            title="Unread"
-                          ></span>
-                        )}
-                      </div>
-
-                      <p
-                        className="mb-2 text-secondary"
+                return (
+                  <div
+                    key={n.notificationID}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleNotificationClick(n)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") handleNotificationClick(n);
+                    }}
+                    className={`pcc-notif-card-down p-2.5 mb-1.5 rounded-3 border transition-all ${
+                      isUnread
+                        ? "bg-white border-primary-subtle shadow-xs"
+                        : "bg-white border-light text-muted opacity-85"
+                    }`}
+                    style={{
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      borderLeft: `4px solid ${theme.borderAccent} !important`,
+                    }}
+                    title="Click to view details"
+                  >
+                    <div className="d-flex align-items-start gap-2">
+                      <div
+                        className="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0 mt-0.5"
                         style={{
-                          fontSize: "0.8rem",
-                          lineHeight: "1.38",
-                          wordBreak: "break-word",
+                          width: "30px",
+                          height: "30px",
+                          background: theme.badgeBg,
                         }}
                       >
-                        {n.message}
-                      </p>
+                        <i className={`bi ${theme.icon} fs-6`}></i>
+                      </div>
 
-                      <div className="d-flex justify-content-between align-items-center pt-1 border-top border-light">
-                        <span
-                          className="text-muted d-inline-flex align-items-center gap-1"
-                          style={{ fontSize: "0.72rem" }}
+                      <div className="flex-grow-1 min-w-0">
+                        <div className="d-flex justify-content-between align-items-start mb-0.5">
+                          <span
+                            className={`fw-bold text-truncate pe-1 ${
+                              isUnread ? "text-dark" : "text-secondary"
+                            }`}
+                            style={{ fontSize: "0.82rem" }}
+                          >
+                            {n.title}
+                          </span>
+                          {isUnread && (
+                            <span
+                              className="badge rounded-circle p-1 flex-shrink-0"
+                              style={{
+                                backgroundColor: "#3b82f6",
+                                width: "6px",
+                                height: "6px",
+                                marginTop: "4px",
+                              }}
+                              title="Unread"
+                            ></span>
+                          )}
+                        </div>
+
+                        <p
+                          className="mb-1 text-secondary"
+                          style={{
+                            fontSize: "0.77rem",
+                            lineHeight: "1.32",
+                            wordBreak: "break-word",
+                          }}
                         >
-                          <i className="bi bi-clock"></i>
-                          {formatTimeAgo(n.createdAt)}
-                        </span>
-                        <span
-                          className="text-primary fw-semibold d-inline-flex align-items-center gap-0.5"
-                          style={{ fontSize: "0.72rem" }}
-                        >
-                          View <i className="bi bi-arrow-right"></i>
-                        </span>
+                          {n.message}
+                        </p>
+
+                        <div className="d-flex justify-content-between align-items-center pt-0.5">
+                          <small className="text-muted" style={{ fontSize: "0.68rem" }}>
+                            {formatTimeAgo(n.createdAt)}
+                          </small>
+                          <small className="text-primary fw-semibold" style={{ fontSize: "0.68rem" }}>
+                            View <i className="bi bi-chevron-right ms-0.5"></i>
+                          </small>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
-
-        {/* Footer */}
-        <div
-          className="px-3 py-2.5 bg-white border-top d-flex justify-content-between align-items-center"
-          style={{ fontSize: "0.75rem", color: "#64748b" }}
-        >
-          <span>
-            Showing {filteredNotifications.length} of {notifications.length} notifications
-          </span>
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            className="btn btn-sm btn-light border py-1 px-2.5 rounded-pill text-secondary fw-semibold"
-            style={{ fontSize: "0.72rem" }}
-          >
-            Close
-          </button>
-        </div>
-      </aside>
-    </>
+      )}
+    </div>
   );
 }
+

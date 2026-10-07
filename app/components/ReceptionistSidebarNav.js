@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick }) {
+export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick, isCollapsed = false }) {
   const [alertsCount, setAlertsCount] = useState(0);
 
   const fetchAlerts = async () => {
@@ -41,6 +41,39 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick })
         const isActive = pathname === path || (path !== '/receptionist/dashboard' && pathname?.startsWith(path));
         const isInquiries = path === '/receptionist/inquiries';
 
+        if (isCollapsed) {
+          return (
+            <li key={index}>
+              <Link
+                href={path}
+                onClick={onLinkClick}
+                title={isInquiries && alertsCount > 0 ? `${label} (${alertsCount})` : label}
+                className={`nav-link text-white d-flex align-items-center justify-content-center mb-1 p-2 ${isActive ? 'active' : ''}`}
+                style={{
+                  borderRadius: '9px',
+                  backgroundColor: isActive ? 'rgba(255, 255, 255, 0.22)' : 'transparent',
+                  transition: 'all 0.15s ease-in-out',
+                  height: '42px',
+                  width: '42px',
+                  margin: '0 auto',
+                }}
+              >
+                <div className="position-relative d-inline-flex align-items-center justify-content-center">
+                  <span style={{ opacity: isActive ? 1 : 0.85, width: '20px', height: '20px' }}>{icon}</span>
+                  {isInquiries && alertsCount > 0 && (
+                    <span
+                      className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light"
+                      style={{ fontSize: '0.58rem', padding: '2px 4px', zIndex: 2 }}
+                    >
+                      {alertsCount}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            </li>
+          );
+        }
+
         return (
           <li key={index}>
             <Link
@@ -48,7 +81,7 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick })
               onClick={onLinkClick}
               className={`nav-link text-white d-flex align-items-center justify-content-between mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
               style={{
-                borderRadius: '7px',
+                borderRadius: '8px',
                 fontSize: '0.88rem',
                 fontWeight: isActive ? '600' : '400',
                 backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',

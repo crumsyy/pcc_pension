@@ -64,25 +64,67 @@ export default function SidebarClient({ session, role, children }) {
     ['/receptionist/inquiries', icons.inquiries, 'Inquiries']
   ];
 
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('pcc_sidebar_collapsed');
+      if (saved !== null) {
+        setIsCollapsed(saved === 'true');
+      }
+    } catch (e) {}
+  }, []);
+
+  const toggleSidebar = () => {
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    try {
+      localStorage.setItem('pcc_sidebar_collapsed', String(next));
+    } catch (e) {}
+  };
+
   const offcanvasId = role === 'Administrator' ? 'adminOffcanvas' : 'receptionistOffcanvas';
   const labelText = role === 'Administrator' ? 'PCC Admin' : 'PCC Front Desk';
   const headingText = role === 'Administrator' ? 'PCC Administration' : 'PCC Front Desk Panel';
 
-  const renderNavLinksList = () => {
+  const renderNavLinksList = (collapsed = false) => {
     if (role === 'Receptionist') {
-      return <ReceptionistSidebarNav pathname={pathname} icons={icons} />;
+      return <ReceptionistSidebarNav pathname={pathname} icons={icons} isCollapsed={collapsed} />;
     }
     return (
       <ul className="nav flex-column gap-1" style={{ paddingLeft: '0', listStyle: 'none' }}>
         {navLinks.map(([path, icon, label], index) => {
           const isActive = pathname === path || (path !== '/admin/dashboard' && pathname?.startsWith(path));
+
+          if (collapsed) {
+            return (
+              <li key={index}>
+                <Link
+                  href={path}
+                  title={label}
+                  className={`nav-link text-white d-flex align-items-center justify-content-center mb-1 p-2 ${isActive ? 'active' : ''}`}
+                  style={{
+                    borderRadius: '9px',
+                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.22)' : 'transparent',
+                    transition: 'all 0.15s ease-in-out',
+                    height: '42px',
+                    width: '42px',
+                    margin: '0 auto',
+                  }}
+                >
+                  <span style={{ opacity: isActive ? 1 : 0.85, width: '20px', height: '20px' }}>{icon}</span>
+                </Link>
+              </li>
+            );
+          }
+
           return (
             <li key={index}>
               <Link
                 href={path}
                 className={`nav-link text-white d-flex align-items-center gap-3 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
                 style={{
-                  borderRadius: '7px',
+                  borderRadius: '8px',
                   fontSize: '0.88rem',
                   fontWeight: isActive ? '600' : '400',
                   backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
@@ -92,7 +134,7 @@ export default function SidebarClient({ session, role, children }) {
                 }}
               >
                 <span className="d-inline-flex align-items-center justify-content-center" style={{ opacity: isActive ? 1 : 0.85, width: '20px', flexShrink: 0 }}>{icon}</span>
-                <span>{label}</span>
+                <span className="text-truncate">{label}</span>
               </Link>
             </li>
           );
@@ -146,7 +188,7 @@ export default function SidebarClient({ session, role, children }) {
           <div className="mb-2" style={{ fontFamily: 'var(--font-tag)', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.45)' }}>
             Navigation Menu
           </div>
-          {renderNavLinksList()}
+          {renderNavLinksList(false)}
           <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
             <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
               <div className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold flex-shrink-0" style={{ width: '32px', height: '32px', fontSize: '0.85rem' }}>
@@ -177,67 +219,154 @@ export default function SidebarClient({ session, role, children }) {
         </div>
       </div>
 
-      {/* DESKTOP SIDEBAR */}
+      {/* DESKTOP COLLAPSIBLE SIDEBAR */}
       <nav
         style={{
-          width: '240px',
+          width: isCollapsed ? '72px' : '250px',
+          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1), padding 0.25s ease',
           backgroundColor: 'var(--pcc-blue)',
           flexShrink: 0,
           position: 'sticky',
           top: 0,
           height: '100vh',
-          zIndex: 1020
+          zIndex: 1020,
+          overflowX: 'hidden'
         }}
         className="d-none d-lg-flex flex-column p-3 pcc-fixed-sidebar"
       >
-        <div className="mb-4 text-center">
-          <Link href={dashboardUrl}>
-            <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ maxWidth: '140px', borderRadius: '6px' }} />
-          </Link>
-        </div>
-        <div
-          style={{
-            fontFamily: 'var(--font-tag)',
-            fontSize: '0.68rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-            color: 'rgba(255, 255, 255, 0.45)',
-            marginBottom: '0.5rem',
-          }}
-        >
-          {role === 'Administrator' ? 'Administration' : 'Front Desk'}
-        </div>
-        
-        {renderNavLinksList()}
-
-        <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)' }}>
-          <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
-            <div className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold flex-shrink-0" style={{ width: '34px', height: '34px', fontSize: '0.88rem' }}>
-              {session?.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
-            </div>
-            <div className="overflow-hidden" style={{ minWidth: 0 }}>
-              <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.84rem' }}>{session?.fullName}</div>
-              <div className="text-white-50 text-truncate" style={{ fontSize: '0.72rem' }}>{role}</div>
-            </div>
+        {/* Sidebar Header Brand + Toggle */}
+        {!isCollapsed ? (
+          <div className="d-flex align-items-center justify-content-between mb-3 px-1">
+            <Link href={dashboardUrl} className="d-flex align-items-center gap-2 text-decoration-none min-w-0">
+              <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ height: '34px', borderRadius: '5px' }} />
+              <div className="text-truncate">
+                <span className="fw-bold text-white d-block text-truncate" style={{ fontSize: '0.9rem', lineHeight: '1.2' }}>
+                  {labelText}
+                </span>
+                <span className="text-white-50" style={{ fontSize: '0.68rem' }}>Suite Home</span>
+              </div>
+            </Link>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              title="Collapse sidebar"
+              className="btn btn-sm text-white-50 p-0 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+              style={{
+                width: '28px',
+                height: '28px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease'
+              }}
+            >
+              <i className="bi bi-chevron-left" style={{ fontSize: '0.75rem' }}></i>
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
-            onClick={() => setShowLogoutModal(true)}
+        ) : (
+          <div className="d-flex flex-column align-items-center mb-3">
+            <Link href={dashboardUrl} className="mb-2" title={labelText}>
+              <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
+            </Link>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              title="Expand sidebar"
+              className="btn btn-sm text-white-50 p-0 rounded-circle d-flex align-items-center justify-content-center"
+              style={{
+                width: '26px',
+                height: '26px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease'
+              }}
+            >
+              <i className="bi bi-chevron-right" style={{ fontSize: '0.72rem' }}></i>
+            </button>
+          </div>
+        )}
+
+        {/* Section Label */}
+        {!isCollapsed ? (
+          <div
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.12)',
-              color: '#fff',
-              border: '1px solid rgba(255, 255, 255, 0.22)',
-              borderRadius: '7px',
-              fontWeight: '500',
-              padding: '6px 12px',
-              transition: 'all 0.15s ease',
+              fontFamily: 'var(--font-tag)',
+              fontSize: '0.66rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: 'rgba(255, 255, 255, 0.45)',
+              marginBottom: '0.5rem',
+              paddingLeft: '0.5rem',
             }}
           >
-            <i className="bi bi-box-arrow-right"></i>
-            Log Out
-          </button>
+            {role === 'Administrator' ? 'Administration' : 'Front Desk'}
+          </div>
+        ) : (
+          <div className="w-100 my-2" style={{ height: '1px', background: 'rgba(255, 255, 255, 0.12)' }} />
+        )}
+        
+        {/* Links List */}
+        <div className="flex-grow-1 overflow-auto" style={{ scrollbarWidth: 'none' }}>
+          {renderNavLinksList(isCollapsed)}
         </div>
+
+        {/* Footer User Profile & Logout */}
+        {!isCollapsed ? (
+          <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)' }}>
+            <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
+              <div className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold flex-shrink-0" style={{ width: '34px', height: '34px', fontSize: '0.88rem' }}>
+                {session?.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="overflow-hidden" style={{ minWidth: 0 }}>
+                <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.84rem' }}>{session?.fullName}</div>
+                <div className="text-white-50 text-truncate" style={{ fontSize: '0.72rem' }}>{role}</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
+              onClick={() => setShowLogoutModal(true)}
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                color: '#fff',
+                border: '1px solid rgba(255, 255, 255, 0.22)',
+                borderRadius: '7px',
+                fontWeight: '500',
+                padding: '6px 12px',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <i className="bi bi-box-arrow-right"></i>
+              Log Out
+            </button>
+          </div>
+        ) : (
+          <div className="mt-auto pt-3 d-flex flex-column align-items-center gap-2" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)' }}>
+            <div
+              title={`${session?.fullName} (${role})`}
+              className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold"
+              style={{ width: '36px', height: '36px', fontSize: '0.88rem', cursor: 'default' }}
+            >
+              {session?.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <button
+              type="button"
+              title="Log Out"
+              onClick={() => setShowLogoutModal(true)}
+              className="btn btn-sm d-flex align-items-center justify-content-center text-white p-0 rounded-circle"
+              style={{
+                width: '36px',
+                height: '36px',
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                border: '1px solid rgba(255, 255, 255, 0.22)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <i className="bi bi-box-arrow-right fs-6"></i>
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* MAIN CONTENT WRAPPER */}
