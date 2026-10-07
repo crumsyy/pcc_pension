@@ -642,7 +642,7 @@ export async function POST(request) {
       );
 
       // Notify Receptionists
-      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'New Guest Room Order', ?)",
@@ -855,9 +855,9 @@ export async function PATCH(request) {
 
       await connection.commit();
 
-      // Log notification for staff
+      // Log notification for receptionists
       try {
-        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
         for (const r of staffToNotify) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Order Delivery Mode Updated', ?)",
@@ -987,9 +987,9 @@ export async function DELETE(request) {
 
       await connection.commit();
 
-      // Notify front desk/kitchen staff
+      // Notify front desk/kitchen staff (roleID = 2)
       try {
-        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+        const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
         for (const r of staffToNotify) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Scheduled Order Canceled', ?)",

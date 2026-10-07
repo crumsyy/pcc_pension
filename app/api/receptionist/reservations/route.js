@@ -69,7 +69,7 @@ async function resolveReservationConflicts(conn, confirmedRoomID, confirmedReser
       );
     }
 
-    const [staffList] = await conn.execute("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+    const [staffList] = await conn.execute("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
     for (const s of staffList) {
       await conn.execute(
         "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Conflict Cancelled', ?)",
@@ -880,8 +880,8 @@ export async function POST(request) {
         );
       }
 
-      // 2. Audit Log for Receptionist/Admin Panel
-      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      // 2. Audit Log for Receptionist Panel (Admin does not receive reservations)
+      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
       for (const s of staffUsers) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Cancelled Audit', ?)",
@@ -910,7 +910,7 @@ export async function POST(request) {
         );
       }
 
-      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
       for (const s of staffUsers) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Courtesy Hold Released', ?)",

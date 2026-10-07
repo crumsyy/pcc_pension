@@ -143,8 +143,8 @@ export async function POST(request) {
       [inquiryID, senderID, name, message, message]
     );
 
-    // Notify all active receptionists & admins via notification bell
-    const staffToNotify = await dbQuery("SELECT u.userID FROM user u WHERE u.roleID IN (1, 2) AND u.status = 'Active'");
+    // Notify all active receptionists via notification bell (Admin does not receive inquiries)
+    const staffToNotify = await dbQuery("SELECT u.userID FROM user u WHERE u.roleID = 2 AND u.status = 'Active'");
     for (const r of staffToNotify) {
       await dbQuery(
         "INSERT INTO notification(userID, title, message) VALUES(?, 'New Inquiry Live Message', ?)",

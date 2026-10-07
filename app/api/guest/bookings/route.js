@@ -158,8 +158,8 @@ export async function POST(request) {
         [bookingID]
       );
 
-      // Notify receptionists & administrators
-      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      // Notify receptionists (Admin does not receive booking/checkout requests)
+      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checkout Requested', ?)",
@@ -205,8 +205,8 @@ export async function POST(request) {
       // Release room status back to Available if it was Reserved
       await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ? AND status = 'Reserved'", [booking.roomID]);
 
-      // Notify receptionists
-      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      // Notify receptionists (Admin does not receive booking cancellations)
+      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Booking Canceled by Guest', ?)",
@@ -619,13 +619,21 @@ export async function POST(request) {
         // Non-blocking background notifications & email dispatch
         setImmediate(async () => {
           try {
-            const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+            const receptionistStaff = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
+            const adminStaff = await dbQuery("SELECT userID FROM user WHERE roleID = 1 AND status = 'Active'");
             const notifValues = [];
 
-            for (const r of staffToNotify) {
+            for (const r of receptionistStaff) {
               notifValues.push([r.userID, 'New Guest Booking Request', `Guest ${guest.firstName} ${guest.lastName} created Booking #${bookingID} for ${checkInDate}.`]);
               if (receiptData) {
                 notifValues.push([r.userID, 'New GCash Online Payment', `GCash down payment of ₱${downPaymentAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${bookingID} (Ref #${body.referenceNumber}).`]);
+              }
+            }
+
+            // Admin receives the payment notification if payment was made, but NOT the booking notification
+            if (receiptData) {
+              for (const a of adminStaff) {
+                notifValues.push([a.userID, 'New GCash Online Payment', `GCash down payment of ₱${downPaymentAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${bookingID} (Ref #${body.referenceNumber}).`]);
               }
             }
 

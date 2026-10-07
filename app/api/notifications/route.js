@@ -12,18 +12,30 @@ export async function GET() {
   const isStaff = session.role === 'Administrator' || session.role === 'Receptionist';
 
   try {
-    // 1. Auto-generate Low Inventory Alerts (quantity <= reorderLevel) for Staff
+    // 1. Auto-generate Low Inventory Alerts (quantity <= minStock) for Staff
     if (isStaff) {
       try {
-        const lowStockItems = await dbQuery(`
-          SELECT i.inventoryID, p.name as productName, i.quantity, COALESCE(i.reorderLevel, 5) as reorderLevel
-          FROM inventory i
-          JOIN products p ON p.productID = i.productID
-          WHERE i.quantity <= COALESCE(i.reorderLevel, 5) AND i.isArchived = 0
-        `);
+        const [lowProducts, lowAmenities] = await Promise.all([
+          dbQuery(`
+            SELECT p.productID as id, p.name, p.quantity, COALESCE(p.minStock, 5) as threshold
+            FROM products p
+            JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
+            WHERE p.isArchived = 0 AND pc.name != 'Cooked Meals' AND p.quantity <= COALESCE(p.minStock, 5)
+          `),
+          dbQuery(`
+            SELECT a.amenityID as id, a.name, a.quantity, COALESCE(a.minStock, 5) as threshold
+            FROM amenities a
+            WHERE a.isArchived = 0 AND a.quantity <= COALESCE(a.minStock, 5)
+          `)
+        ]);
 
-        for (const item of lowStockItems) {
-          const alertMsg = `Low Inventory Alert: ${item.productName} stock has dropped to ${item.quantity} units (Threshold: ${item.reorderLevel} units).`;
+        const allLowItems = [
+          ...lowProducts.map(p => ({ name: p.name, quantity: p.quantity, threshold: p.threshold })),
+          ...lowAmenities.map(a => ({ name: a.name, quantity: a.quantity, threshold: a.threshold }))
+        ];
+
+        for (const item of allLowItems) {
+          const alertMsg = `Low Inventory Alert: ${item.name} stock has dropped to ${item.quantity} units (Threshold: ${item.threshold} units).`;
           const alreadyNotified = await dbQuery(
             "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
             [userID, alertMsg]
@@ -40,9 +52,9 @@ export async function GET() {
       }
     }
 
-    // 2. Auto-generate Pre-Check-in (3h), Pre-Check-out (2h), and Exceeded Check-out Alerts for Front Desk & Admins
+    // 2. Auto-generate Pre-Check-in (3h), Pre-Check-out (2h), and Exceeded Check-out Alerts for Front Desk Receptionists (Admin does not receive booking operations)
     try {
-      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      const staffUsers = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
       const staffUserIDs = staffUsers.map(a => a.userID);
 
       // A. Pre-Check-In Notifications (within 3 hours of scheduled check-in)
@@ -137,6 +149,23 @@ export async function GET() {
     if (session.role === 'Guest') {
       // Payment receipts and staff online payment alerts are strictly for Admin and Receptionist
       sql += " AND title NOT LIKE '%Payment Received%' AND title NOT LIKE '%New GCash%'";
+    } else if (session.role === 'Administrator') {
+      // Administrator strictly receives inventory low stock and payments received notifications (no inquiries, reservations, or bookings)
+      sql += ` AND (
+        title LIKE '%Payment%' 
+        OR title LIKE '%GCash%' 
+        OR title LIKE '%Inventory%' 
+        OR title LIKE '%Stock%' 
+        OR title LIKE '%Password%' 
+        OR title LIKE '%Security%'
+      )
+      AND title NOT LIKE '%Inquiry%' 
+      AND title NOT LIKE '%Reservation%' 
+      AND title NOT LIKE '%Courtesy Hold%' 
+      AND title NOT LIKE '%Pre-Check%' 
+      AND title NOT LIKE '%Exceeded Check%' 
+      AND (title NOT LIKE '%Booking%' OR title LIKE '%Payment%') 
+      AND title NOT LIKE '%Inspection%'`;
     }
     sql += " ORDER BY createdAt DESC LIMIT 30";
 

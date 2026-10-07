@@ -146,8 +146,8 @@ export async function POST(request) {
         ? `Guest ${guest.firstName} ${guest.lastName} has cancelled the courtesy hold on Room #${targetRes.roomID}.`
         : `Guest ${guest.firstName} ${guest.lastName} has canceled Reservation #${reservationID}.`;
 
-      // Notify receptionists
-      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      // Notify receptionists (Admin does not receive reservations)
+      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, ?, ?)",
@@ -360,8 +360,8 @@ export async function POST(request) {
       ]
     );
 
-    // Notify active receptionists
-    const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+    // Notify active receptionists (Admin does not receive reservations)
+    const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
     for (const r of staffToNotify) {
       await dbQuery(
         "INSERT INTO notification (userID, title, message) VALUES (?, 'New Courtesy Hold', ?)",

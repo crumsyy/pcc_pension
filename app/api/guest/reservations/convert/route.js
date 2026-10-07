@@ -241,9 +241,9 @@ export async function POST(request) {
         }
       }
 
-      // G. Notify receptionist and admin staff
+      // G. Notify active receptionists (Admin does not receive reservations)
       const [staffUsers] = await conn.execute(
-        "SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'"
+        "SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'"
       );
       for (const staff of staffUsers) {
         await conn.execute(

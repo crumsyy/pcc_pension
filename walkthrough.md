@@ -1,90 +1,73 @@
-# Walkthrough: Double Booking & Reservation Conflict Prevention
+# Walkthrough: Restrict Admin Notifications to Inventory Low Stock & Payments Received
 
-This update guarantees that no room can be double-booked or double-reserved for overlapping dates and times across the system. It adds comprehensive schedule conflict verification to both the backend APIs and receptionist user interfaces without affecting any existing billing calculations, guest check-in flows, or receipt generation.
-
----
-
-## Root Causes Identified & Resolved
-
-1. **Missing General Booking Overlap Check in `app/api/receptionist/bookings/route.js`**:
-   - The booking route previously only checked whether the *same guest* had a conflicting booking on that room (`guestID = ? AND roomID = ?`). It **never checked if another guest had already booked the room**, allowing any two different walk-ins or guests to book the same room on identical dates.
-2. **Missing Statuses in Reservation Overlap Detection in `app/api/receptionist/reservations/route.js`**:
-   - The reservation route checked `status IN ('Pending', 'Confirmed', 'Booked')`. It missed normalized statuses such as `'Reserved'` and `'On Hold'`, permitting overlapping reservations.
-3. **No Validation in Update Actions**:
-   - Rescheduling an existing booking or reservation (`update_booking` / `update`) did not verify if the new date range overlapped with another guest's booking or courtesy hold.
-4. **Permissive Client-Side Dropdowns & Missing Pre-Submit Checks in `app/receptionist/bookings/page.js`**:
-   - When "Current time" was checked for check-in, `isRoomAvailableForDates` returned `room.status === 'Available'` without checking whether there was a scheduled reservation or booking later that day or week.
-   - `handleSubmit` did not perform a pre-submit conflict check against loaded `roomSchedules`.
+This update ensures that **Administrators do not receive inquiry, reservation, or booking notifications**, and exclusively receive **inventory low stock alerts** and **payments received notifications** (along with critical account security notices).
 
 ---
 
-## Detailed Changes Implemented
+## Changes Implemented
 
-### 1. Receptionist Bookings API (`app/api/receptionist/bookings/route.js`)
-- **Booking Creation (`action === 'create'`)**:
-  - Added global overlapping active booking check:
-    ```sql
-    SELECT bookingID, status, checkInDateTime, checkOutDateTime FROM booking 
-    WHERE roomID = ? 
-      AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Completed')
-      AND checkInDateTime < ? 
-      AND checkOutDateTime > ?
-    ```
-    Returns `409 Conflict` notice if found.
-  - Added overlapping active reservation & courtesy hold check (excluding converted reservation if applicable):
-    ```sql
-    SELECT reservationID, status, holdExpiryDateTime FROM reservation 
-    WHERE roomID = ? 
-      AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'Completed')
-      AND NOT (status IN ('Courtesy Hold', 'On Hold') AND holdExpiryDateTime IS NOT NULL AND NOW() > DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE))
-      AND reservationDateTime < ? 
-      AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?
-    ```
-- **Booking Update (`action === 'update_booking'`)**:
-  - Enforced overlapping booking verification (`bookingID != ?`) and active reservation verification before updating stay dates or room ID.
-- **Advance Check-In (`action === 'checkin'`)**:
-  - Added verification to ensure the room is not currently occupied by another active stay (`status IN ('Checked In', 'Active Stay', 'Pending Checkout', 'Room Verified')`) before an advance check-in can be confirmed.
-- **Schedules Fetch**:
-  - Updated `roomSchedules` query to ensure all active reservations with checkout dates extending into today or the future are included.
+### 1. Inquiries Notifications Dispatched Only to Receptionists
+- **[`app/api/guest/inquiries/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/inquiries/route.js)**:
+  - Updated staff notification query from `roleID IN (1, 2)` to `roleID = 2`.
+  - Admin (`roleID = 1`) no longer receives `'New Inquiry Live Message'` alerts. Only front-desk receptionists receive live guest chat/inquiry notifications.
 
 ---
 
-### 2. Receptionist Reservations API (`app/api/receptionist/reservations/route.js`)
-- **Reservation Creation (`action === 'create'`)**:
-  - Updated conflict detection to include all active statuses (`'Reserved'`, `'Confirmed'`, `'Pending'`, `'Booked'`, `'On Hold'`, `'Courtesy Hold'`), excluding only cancelled, released, or expired holds.
-  - Concurrently queries both active bookings and active reservations using `Promise.all`.
-- **Reservation Update (`action === 'update'`)**:
-  - Added conflict queries against both active bookings and active reservations (excluding the current `reservationID`).
-- **Convert to Booking (`action === 'confirm'` / `action === 'convert_to_booking'`)**:
-  - Added pre-conversion conflict check ensuring no other guest has booked or occupied the room during the stay interval before conversion proceeds.
+### 2. Reservation Notifications Dispatched Only to Receptionists
+- **[`app/api/guest/reservations/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/reservations/route.js)**:
+  - Updated queries from `roleID IN (1, 2)` to `roleID = 2` for `'Reservation Auto-Cancelled'` and `'New Courtesy Hold'`.
+- **[`app/api/guest/reservations/convert/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/reservations/convert/route.js)**:
+  - Updated query from `roleID IN (1, 2)` to `roleID = 2` for `'Reservation Converted to Booking'`.
+- **[`app/api/receptionist/reservations/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/receptionist/reservations/route.js)**:
+  - Updated queries from `roleID IN (1, 2)` to `roleID = 2` for `'Reservation Conflict Cancelled'`, `'Reservation Cancelled Audit'`, and `'Courtesy Hold Released'`.
 
 ---
 
-### 3. Receptionist Bookings UI (`app/receptionist/bookings/page.js`)
-- **`checkScheduleConflict` Helper**:
-  - Added helper comparing requested interval `[reqIn, reqOut)` against all active entries in `roomSchedules` and loaded `bookings`.
-  - Returns structured conflict metadata (type: Booking / Reservation / Courtesy Hold, ID, and schedule time window).
-- **`isRoomAvailableForDates` Enhancements**:
-  - Excludes maintenance/out-of-order rooms.
-  - Evaluates actual requested check-in and check-out times against schedule overlaps.
-  - Correctly validates multi-day stays even when "Current time" check-in is selected.
-- **Pre-Submit Validation in `handleCreateSubmit`**:
-  - Validates room availability prior to submitting. Displays an immediate error notice if a conflicting booking, reservation, or hold exists.
-- **Pre-Submit Validation in `handleUpdateBookingSubmit`**:
-  - Validates new dates/times against other bookings before saving changes.
+### 3. Booking & Operational Alerts Dispatched Only to Receptionists
+- **[`app/api/guest/bookings/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/bookings/route.js)**:
+  - Updated queries from `roleID IN (1, 2)` to `roleID = 2` for `'Guest Checkout Requested'`, `'Booking Canceled by Guest'`, and `'New Guest Booking Request'`.
+  - **Payments Preserved for Admin**: If a down payment was paid on booking creation, `'New GCash Online Payment'` is specifically sent to both Receptionists and Admin (`roleID = 1`).
+- **[`app/api/receptionist/bookings/checkout-request/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/receptionist/bookings/checkout-request/route.js)**:
+  - Updated query from `roleID IN (1, 2)` to `roleID = 2`.
+- **[`app/api/guest/checkout-request/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/checkout-request/route.js)**:
+  - Updated query from `roleID IN (1, 2)` to `roleID = 2`.
+- **[`app/api/receptionist/billing/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/receptionist/billing/route.js)**:
+  - Updated query from `roleID IN (1, 2)` to `roleID = 2` for `'Guest Checked Out'`.
+- **[`app/api/guest/orders/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/orders/route.js)**:
+  - Updated queries from `roleID IN (1, 2)` to `roleID = 2` for front-desk room orders and delivery changes.
+- **[`app/api/notifications/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/notifications/route.js)**:
+  - In auto-reminder generator, updated target from `roleID IN (1, 2)` to `roleID = 2` so `Pre-Check-In Alert`, `Pre-Check-Out Alert`, and `Exceeded Check-Out Alert` only notify Receptionists.
 
 ---
 
-### 4. Receptionist Reservations UI (`app/receptionist/reservations/page.js`)
-- **`checkScheduleConflict` Enhancements**:
-  - Extended helper to accept explicit `inTime` and `outTime` rather than hardcoded 14:00/12:00.
-  - Excluded inactive statuses (`'Cancelled'`, `'Canceled'`, `'Checked Out'`, `'No Show'`, `'Released'`, `'Completed'`).
-  - Passed selected times into form submit validations and disabled state of the submit button.
+### 4. Admin Notification Fetch Filter ([`app/api/notifications/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/notifications/route.js))
+In `GET /api/notifications`, added a role-based query filter for `session.role === 'Administrator'`:
+```sql
+AND (
+  title LIKE '%Payment%' 
+  OR title LIKE '%GCash%' 
+  OR title LIKE '%Inventory%' 
+  OR title LIKE '%Stock%' 
+  OR title LIKE '%Password%' 
+  OR title LIKE '%Security%'
+)
+AND title NOT LIKE '%Inquiry%' 
+AND title NOT LIKE '%Reservation%' 
+AND title NOT LIKE '%Courtesy Hold%' 
+AND title NOT LIKE '%Pre-Check%' 
+AND title NOT LIKE '%Exceeded Check%' 
+AND (title NOT LIKE '%Booking%' OR title LIKE '%Payment%') 
+AND title NOT LIKE '%Inspection%'
+```
+- Guarantees that even if older operational or inquiry alerts exist in the database, the Admin notification bell will **only show Inventory Low Stock and Payments Received** (and account security notices).
+- Enhanced low inventory auto-generation to check both active `products` and `amenities` whose stock is at or below `minStock`.
 
 ---
 
-### 5. Guest Reservations API (`app/api/guest/reservations/route.js`)
-- Updated conflict detection during reservation updates to query all active bookings (`status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Completed')`), ensuring `'Active Stay'` is never overlooked.
+### 5. Admin Notification Navigation ([`app/components/NotificationBell.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/NotificationBell.js))
+- When an Administrator clicks an **Inventory Low Stock** notification, routes to `/admin/inventory`.
+- When an Administrator clicks a **Payment Received** notification, routes to `/admin/reports` (financial & payment audit logs).
+- Receptionists continue to route to `/receptionist/payments`, `/receptionist/checkin`, etc.
 
 ---
 
@@ -93,9 +76,9 @@ This update guarantees that no room can be double-booked or double-reserved for 
 ### Next.js Production Build
 Executed `npm run build` using Next.js 16.2.9 with Turbopack:
 ```text
-✓ Compiled successfully in 29.3s
-✓ Running TypeScript in 505ms
-✓ Generating static pages using 11 workers (96/96) in 4.8s
+✓ Compiled successfully in 6.0s
+✓ Running TypeScript in 146ms
+✓ Generating static pages using 11 workers (96/96) in 1547ms
 Exit code: 0
 ```
 All 96 routes compiled cleanly with 0 errors.

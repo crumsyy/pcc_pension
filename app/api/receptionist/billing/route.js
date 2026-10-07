@@ -419,7 +419,7 @@ export async function POST(request) {
           );
         }
 
-        const staffList = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+        const staffList = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
         for (const s of staffList) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checked Out', ?)",

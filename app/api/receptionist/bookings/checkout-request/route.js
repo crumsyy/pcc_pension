@@ -55,9 +55,9 @@ export async function POST(request) {
       [bookingID]
     );
 
-    // Notify receptionists & administrators
+    // Notify active receptionists (Admin does not receive checkout requests)
     try {
-      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID IN (1, 2) AND status = 'Active'");
+      const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checkout Requested', ?)",

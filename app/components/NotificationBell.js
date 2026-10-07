@@ -218,7 +218,20 @@ export default function NotificationBell() {
       return;
     }
 
-    // Receptionist / Admin Routing
+    // Admin Routing
+    const isAdmin = pathname ? pathname.startsWith('/admin') : false;
+    if (isAdmin) {
+      if (lowerTitle.includes('inventory') || lowerTitle.includes('stock')) {
+        router.push('/admin/inventory');
+        return;
+      }
+      if (lowerTitle.includes('payment') || lowerMsg.includes('payment') || lowerTitle.includes('down payment') || lowerTitle.includes('gcash')) {
+        router.push('/admin/reports');
+        return;
+      }
+    }
+
+    // Receptionist Routing
     if (lowerTitle.includes('checkout') || lowerMsg.includes('checkout')) {
       const url = bookingID ? `/receptionist/checkin?highlightBookingID=${bookingID}` : '/receptionist/checkin';
       router.push(url);
