@@ -24,12 +24,19 @@
   /* Skeleton Loading System Tokens */
   --skeleton-bg: #e2e8f0;
   --skeleton-shimmer: #f8fafc;
+
+  /* Modal Tokens */
+  --modal-footer-bg: #fafbfc;
+  --modal-footer-border: #e9ecef;
 }
 
 [data-bs-theme="dark"],
 body.dark-theme {
   --skeleton-bg: #334155;
   --skeleton-shimmer: #475569;
+
+  --modal-footer-bg: #1e293b;
+  --modal-footer-border: #334155;
 }
 
 @keyframes pcc-skeleton-shimmer {
@@ -187,8 +194,8 @@ body.dark-theme {
   border-bottom-left-radius: 14px !important;
   border-bottom-right-radius: 14px !important;
   padding: 0.75rem 1.25rem !important;
-  background-color: #fafbfc !important;
-  border-top: 1px solid #e9ecef !important;
+  background-color: var(--modal-footer-bg, #fafbfc) !important;
+  border-top: 1px solid var(--modal-footer-border, #e9ecef) !important;
 }
 
 .modal.show .modal-body,
@@ -1485,6 +1492,16 @@ body.dark-theme .modal-content,
 body.dark-theme .modal-header,
 [data-bs-theme="dark"] .modal-footer,
 body.dark-theme .modal-footer,
+[data-bs-theme="dark"] .modal.show .modal-footer,
+[data-bs-theme="dark"] .modal.d-block .modal-footer,
+[data-bs-theme="dark"] .modal .modal-footer,
+body.dark-theme .modal.show .modal-footer,
+body.dark-theme .modal.d-block .modal-footer,
+body.dark-theme .modal .modal-footer,
+[data-bs-theme="dark"] .modal-footer.bg-light,
+body.dark-theme .modal-footer.bg-light,
+[data-bs-theme="dark"] .modal-footer.bg-white,
+body.dark-theme .modal-footer.bg-white,
 [data-bs-theme="dark"] .dropdown-menu,
 body.dark-theme .dropdown-menu,
 [data-bs-theme="dark"] header,
@@ -1502,6 +1519,15 @@ body.dark-theme div[style*="backgroundColor: '#fff'"] {
   background-color: #1e293b !important;
   color: #f8fafc !important;
   border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .modal-footer.border-0,
+body.dark-theme .modal-footer.border-0,
+[data-bs-theme="dark"] .modal.show .modal-footer.border-0,
+body.dark-theme .modal.show .modal-footer.border-0,
+[data-bs-theme="dark"] .modal.d-block .modal-footer.border-0,
+body.dark-theme .modal.d-block .modal-footer.border-0 {
+  border: none !important;
 }
 
 /* Key Tag Receptionist Board Light & Dark Theme Styling */

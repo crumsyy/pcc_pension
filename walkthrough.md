@@ -1,15 +1,23 @@
-# Walkthrough: Base UI Toast Notification System
+# Walkthrough: Base UI Toast Notification System & Dark Mode Dialog Fix
 
 ## Summary
-Integrated the official `@base-ui/react` Toast primitive and shadcn Toast API (`toast.add`, `<Toaster />`). Fixed root cause where confirmation modal lifecycle (`finally { setModalConfig({ isOpen: false }) }`) immediately destroyed alert state in React 19 batched updates, ensuring that every successful or error process displays a visible, high-priority toast across Admin, Receptionist, and Guest portals.
-
-Relocated the toast viewport to **Top-Center** with tactile spring **pop-up** in animation and smooth **pop-out** exit animation.
+1. Integrated the official `@base-ui/react` Toast primitive and shadcn Toast API (`toast.add`, `<Toaster />`). Fixed root cause where confirmation modal lifecycle (`finally { setModalConfig({ isOpen: false }) }`) immediately destroyed alert state in React 19 batched updates, ensuring that every successful or error process displays a visible, high-priority toast across Admin, Receptionist, and Guest portals.
+2. Relocated the toast viewport to **Top-Center** with tactile spring **pop-up** in animation and smooth **pop-out** exit animation.
+3. Fixed dark mode dialogs having white background at the bottom by resolving CSS specificity collisions and introducing theme tokens for `.modal-footer`.
 
 ---
 
 ## Changes
 
-### 1. Toast Relocation & Pop-Up / Pop-Out Animations
+### 1. Dark Mode Dialog Footer Fix
+- **[`app/globals.css`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/globals.css)**:
+  - **CSS Specificity Resolution**: In `.modal.show .modal-footer`, replaced hardcoded `#fafbfc` and `#e9ecef` with CSS variables `--modal-footer-bg` and `--modal-footer-border`.
+  - Defined tokens:
+    - Light theme: `--modal-footer-bg: #fafbfc; --modal-footer-border: #e9ecef;`
+    - Dark theme (`[data-bs-theme="dark"]`, `body.dark-theme`): `--modal-footer-bg: #1e293b; --modal-footer-border: #334155;`
+  - Added explicit high-specificity overrides (`[data-bs-theme="dark"] .modal.show .modal-footer`, `body.dark-theme .modal.show .modal-footer`, `.modal-footer.bg-light`, etc.) to guarantee modal footers seamlessly match the dark slate modal body (`#1e293b`) with no white bars at the bottom.
+
+### 2. Toast Relocation & Pop-Up / Pop-Out Animations
 - **[`components/ui/toast.jsx`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/components/ui/toast.jsx)**:
   - **Top-Center Placement**: Positioned `.pcc-toast-viewport` at `top: 1.25rem; left: 50%; transform: translateX(-50%)`, eliminating overlaps with header controls (user avatar, notification bell dropdown) and sidebars.
   - **Bouncy Pop-Up Animation (`pccToastPopIn`)**:
@@ -19,22 +27,15 @@ Relocated the toast viewport to **Top-Center** with tactile spring **pop-up** in
   - **Smooth Pop-Out Animation (`pccToastPopOut`)**:
     - Gracefully scales down to `0.92`, glides up `20px`, and fades out on dismissal.
 
-### 2. Toast Primitives & Global Manager
+### 3. Toast Primitives & Global Manager
 - **[`components/ui/toast.jsx`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/components/ui/toast.jsx)** & **[`components/ui/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/components/ui/toast.js)**:
   - Created global singleton manager via `Toast.createToastManager()`.
-  - Exported standard shadcn / Base UI `toast` API:
-    - `toast.add({ type, title, description, actionProps, priority })`
-    - `toast.success(title, description)`
-    - `toast.error(title, description)`
-    - `toast.warning(title, description)`
-    - `toast.info(title, description)`
-    - `toast.promise(promise, { loading, success, error })`
-    - `toast.close(id)`
-  - Exported `<Toaster />` component styled with glassmorphism, z-index `10000000` (sits above full-screen dialog backdrops), custom color accents (green for success, red for error, amber for warning, blue for info), smooth enter/exit animations, and dark mode support.
+  - Exported standard shadcn / Base UI `toast` API (`toast.add`, `toast.success`, `toast.error`, `toast.warning`, `toast.info`, `toast.promise`, `toast.close`).
+  - Exported `<Toaster />` component styled with glassmorphism, z-index `10000000`, custom color accents, smooth enter/exit animations, and dark mode support.
 - **[`app/components/ui/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/ui/toast.js)**:
   - Re-export for path compatibility with `@/app/components/ui/toast`.
 
-### 3. Root Layout Integration
+### 4. Root Layout Integration
 - **[`app/layout.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/layout.js)**:
   - Replaced legacy toast wrapper with `<Toaster />` from `@/components/ui/toast`.
 - **[`app/components/ToasterClient.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/ToasterClient.js)**:
@@ -42,7 +43,7 @@ Relocated the toast viewport to **Top-Center** with tactile spring **pop-up** in
 - **[`lib/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/lib/toast.js)**:
   - Updated `showToast.success`, `showToast.error`, `showToast.warning`, and `showToast.info` to dispatch directly to `toast.add(...)`.
 
-### 4. Immediate Notification Dispatch (Decoupled from Modal State)
+### 5. Immediate Notification Dispatch (Decoupled from Modal State)
 - **[`app/admin/rooms/RoomsClient.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/rooms/RoomsClient.js)**:
   - Rewrote `showAlert` to directly trigger `toast.add(...)`.
   - When creating a room, editing a room, archiving/restoring a room, or uploading photos, toasts fire immediately into `<Toaster />` regardless of modal closures or `showConfirm`'s `finally` reset block.
