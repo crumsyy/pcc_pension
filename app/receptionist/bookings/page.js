@@ -493,6 +493,7 @@ function BookingsClient() {
           setActiveModal(null);
           showAlert('success', 'Booking Updated', data.message || 'Booking updated successfully!');
         }
+        clientCache.delete('RECEPTIONIST_BOOKINGS');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -1404,6 +1405,8 @@ function BookingsClient() {
         });
 
         setActiveModal('downpayment_receipt');
+        clientCache.delete('RECEPTIONIST_BOOKINGS');
+        clientCache.delete('RECEPTIONIST_RESERVATIONS');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -1600,7 +1603,7 @@ function BookingsClient() {
       matchesStatus = normalizeBookingStatus(b.status) === normalizeBookingStatus(statusFilter);
     }
     return matchesSearch && matchesStatus;
-  });
+  }).sort((a, b) => (parseInt(b.bookingID, 10) || 0) - (parseInt(a.bookingID, 10) || 0));
 
   const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, isCurrentTime = false) => {
     const room = rooms.find(r => String(r.roomID) === String(roomID));

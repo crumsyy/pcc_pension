@@ -123,7 +123,7 @@ export async function GET(request) {
         LEFT JOIN room_rate rr2 ON rr2.roomTypeID = rm.roomTypeID AND rr2.floorID = rm.floorID AND rr2.breakfastID = 1
         LEFT JOIN booking b ON b.reservationID = r.reservationID
         WHERE rm.isArchived = 0
-        ORDER BY r.reservationDateTime DESC
+        ORDER BY r.reservationID DESC
       `),
       dbQuery("SELECT guestID, userID, firstName, middleName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`

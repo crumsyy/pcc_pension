@@ -43,7 +43,7 @@ export async function GET(request) {
         JOIN room rm ON rm.roomID = b.roomID
         LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
         WHERE rm.isArchived = 0
-        ORDER BY b.checkInDateTime DESC
+        ORDER BY b.bookingID DESC
       `),
       dbQuery("SELECT guestID, userID, firstName, middleName, lastName, contact, email, DATE_FORMAT(dateOfBirth, '%Y-%m-%d') as dateOfBirth, gender FROM guest WHERE userID IS NOT NULL ORDER BY lastName, firstName"),
       dbQuery(`

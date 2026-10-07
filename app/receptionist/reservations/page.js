@@ -729,6 +729,7 @@ function ReservationsClient() {
 
         showAlert('success', 'Success', data.message || 'Courtesy hold created successfully.');
         setActiveModal(null);
+        clientCache.delete('RECEPTIONIST_RESERVATIONS');
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
@@ -916,7 +917,7 @@ function ReservationsClient() {
       matchesStatus = (rNorm === statusFilter || (statusFilter === 'Booked' && r.bookingID));
     }
     return matchesSearch && matchesStatus;
-  });
+  }).sort((a, b) => (parseInt(b.reservationID, 10) || 0) - (parseInt(a.reservationID, 10) || 0));
 
   const selectedRoomObj = rooms.find(rm => String(rm.roomID) === String(formData.roomID));
 
@@ -1923,6 +1924,8 @@ function ReservationsClient() {
 
             showAlert('success', 'Booking Confirmed', data.message || (payload.checkInNow ? 'Reservation confirmed and guest checked in successfully.' : 'Reservation confirmed and converted to booking successfully.'));
             setActiveModal(null);
+            clientCache.delete('RECEPTIONIST_RESERVATIONS');
+            clientCache.delete('RECEPTIONIST_BOOKINGS');
             fetchData();
           } catch (err) {
             showAlert('error', 'Conversion Error', err.message);
