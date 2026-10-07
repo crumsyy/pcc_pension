@@ -1602,10 +1602,7 @@ function ReservationsClient() {
                           {selectedRoomType ? "Select Available Room" : "Choose Room Type first"}
                         </option>
                         {rooms
-                          .filter(rm => (rm.roomType || 'Standard Room') === selectedRoomType && (
-                            String(rm.roomID) === String(formData.roomID) ||
-                            !checkScheduleConflict(rm.roomID, resDate, checkOutDate, selectedRes?.reservationID)
-                          ))
+                          .filter(rm => (rm.roomType || 'Standard Room') === selectedRoomType)
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
                               Room {rm.roomNumber} (Max {rm.occupancyLimit || 4} Pax)

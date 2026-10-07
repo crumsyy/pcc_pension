@@ -163,10 +163,11 @@ function CheckInClient() {
       confirmText,
       cancelText,
       onConfirm: async () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
         try {
           if (onConfirmCallback) await onConfirmCallback();
-        } finally {
-          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        } catch (e) {
+          console.error("Confirmation action error:", e);
         }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
@@ -287,7 +288,10 @@ function CheckInClient() {
           return;
         }
 
-        showAlert('success', 'Success', data.message || `${guestName} checked in successfully.`);
+        showAlert('success', 'Guest Checked In', data.message || `${guestName} checked in successfully.`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('pcc-refresh-dashboard'));
+        }
         fetchBookings();
       } catch (err) {
         showAlert('error', 'Error', err.message);
