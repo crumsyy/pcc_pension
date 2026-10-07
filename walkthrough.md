@@ -3,11 +3,23 @@
 ## Summary
 Integrated the official `@base-ui/react` Toast primitive and shadcn Toast API (`toast.add`, `<Toaster />`). Fixed root cause where confirmation modal lifecycle (`finally { setModalConfig({ isOpen: false }) }`) immediately destroyed alert state in React 19 batched updates, ensuring that every successful or error process displays a visible, high-priority toast across Admin, Receptionist, and Guest portals.
 
+Relocated the toast viewport to **Top-Center** with tactile spring **pop-up** in animation and smooth **pop-out** exit animation.
+
 ---
 
 ## Changes
 
-### 1. Toast Primitives & Global Manager
+### 1. Toast Relocation & Pop-Up / Pop-Out Animations
+- **[`components/ui/toast.jsx`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/components/ui/toast.jsx)**:
+  - **Top-Center Placement**: Positioned `.pcc-toast-viewport` at `top: 1.25rem; left: 50%; transform: translateX(-50%)`, eliminating overlaps with header controls (user avatar, notification bell dropdown) and sidebars.
+  - **Bouncy Pop-Up Animation (`pccToastPopIn`)**:
+    - Starts with upward offset and scale down (`translateY(-24px) scale(0.88)`).
+    - Pops slightly outward (`translateY(2px) scale(1.025)`).
+    - Settles cleanly into `translateY(0) scale(1)` using spring curve `cubic-bezier(0.34, 1.56, 0.64, 1)`.
+  - **Smooth Pop-Out Animation (`pccToastPopOut`)**:
+    - Gracefully scales down to `0.92`, glides up `20px`, and fades out on dismissal.
+
+### 2. Toast Primitives & Global Manager
 - **[`components/ui/toast.jsx`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/components/ui/toast.jsx)** & **[`components/ui/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/components/ui/toast.js)**:
   - Created global singleton manager via `Toast.createToastManager()`.
   - Exported standard shadcn / Base UI `toast` API:
@@ -22,7 +34,7 @@ Integrated the official `@base-ui/react` Toast primitive and shadcn Toast API (`
 - **[`app/components/ui/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/ui/toast.js)**:
   - Re-export for path compatibility with `@/app/components/ui/toast`.
 
-### 2. Root Layout Integration
+### 3. Root Layout Integration
 - **[`app/layout.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/layout.js)**:
   - Replaced legacy toast wrapper with `<Toaster />` from `@/components/ui/toast`.
 - **[`app/components/ToasterClient.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/ToasterClient.js)**:
@@ -30,7 +42,7 @@ Integrated the official `@base-ui/react` Toast primitive and shadcn Toast API (`
 - **[`lib/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/lib/toast.js)**:
   - Updated `showToast.success`, `showToast.error`, `showToast.warning`, and `showToast.info` to dispatch directly to `toast.add(...)`.
 
-### 3. Immediate Notification Dispatch (Decoupled from Modal State)
+### 4. Immediate Notification Dispatch (Decoupled from Modal State)
 - **[`app/admin/rooms/RoomsClient.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/rooms/RoomsClient.js)**:
   - Rewrote `showAlert` to directly trigger `toast.add(...)`.
   - When creating a room, editing a room, archiving/restoring a room, or uploading photos, toasts fire immediately into `<Toaster />` regardless of modal closures or `showConfirm`'s `finally` reset block.

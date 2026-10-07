@@ -206,14 +206,17 @@ export function Toaster() {
       <style jsx global>{`
         .pcc-toast-viewport {
           position: fixed !important;
-          top: 1rem !important;
-          right: 1rem !important;
+          top: 1.25rem !important;
+          left: 50% !important;
+          transform: translateX(-50%) !important;
+          right: auto !important;
           z-index: 10000000 !important;
           display: flex !important;
           flex-direction: column !important;
+          align-items: center !important;
           gap: 0.65rem !important;
           width: 100% !important;
-          max-width: 400px !important;
+          max-width: 440px !important;
           pointer-events: none !important;
           box-sizing: border-box !important;
         }
@@ -221,15 +224,17 @@ export function Toaster() {
         @media (max-width: 576px) {
           .pcc-toast-viewport {
             top: 0.75rem !important;
-            right: 0.5rem !important;
-            left: 0.5rem !important;
-            max-width: calc(100vw - 1rem) !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: calc(100vw - 1.5rem) !important;
+            max-width: calc(100vw - 1.5rem) !important;
           }
         }
 
         .pcc-toast-list {
           display: flex;
           flex-direction: column;
+          align-items: center;
           gap: 0.65rem;
           width: 100%;
           pointer-events: none;
@@ -246,7 +251,7 @@ export function Toaster() {
           box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
           overflow: hidden;
           transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, box-shadow 0.2s ease;
-          animation: pccToastSlideIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: pccToastPopIn 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
         [data-bs-theme="dark"] .pcc-toast-root,
@@ -257,28 +262,32 @@ export function Toaster() {
         }
 
         .pcc-toast-root[data-transition-status="exiting"] {
-          animation: pccToastSlideOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+          animation: pccToastPopOut 0.22s cubic-bezier(0.4, 0, 1, 1) forwards !important;
         }
 
-        @keyframes pccToastSlideIn {
-          from {
+        @keyframes pccToastPopIn {
+          0% {
             opacity: 0;
-            transform: translateX(30px) scale(0.96);
+            transform: translateY(-24px) scale(0.88);
           }
-          to {
+          65% {
             opacity: 1;
-            transform: translateX(0) scale(1);
+            transform: translateY(2px) scale(1.025);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
           }
         }
 
-        @keyframes pccToastSlideOut {
-          from {
+        @keyframes pccToastPopOut {
+          0% {
             opacity: 1;
-            transform: translateX(0) scale(1);
+            transform: translateY(0) scale(1);
           }
-          to {
+          100% {
             opacity: 0;
-            transform: translateX(25px) scale(0.94);
+            transform: translateY(-20px) scale(0.92);
           }
         }
 
