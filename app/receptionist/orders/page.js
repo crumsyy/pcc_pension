@@ -289,6 +289,7 @@ function ReceptionistOrdersContent() {
   const [deliveryDate, setDeliveryDate] = useState(getTomorrowManila());
   const [deliveryTime, setDeliveryTime] = useState('07:30 AM');
   const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
 
   // Modals
   const [viewingOrder, setViewingOrder] = useState(null);
@@ -322,8 +323,11 @@ function ReceptionistOrdersContent() {
       confirmText: 'Confirm',
       cancelText: 'Cancel',
       onConfirm: async () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        await onConfirmCallback();
+        try {
+          if (onConfirmCallback) await onConfirmCallback();
+        } finally {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
@@ -654,6 +658,7 @@ function ReceptionistOrdersContent() {
     }
 
     showConfirm('Update Order Status', `Mark order #${orderID} as ${status}?`, async () => {
+      setUpdatingOrderId(orderID);
       try {
         const res = await fetch('/api/receptionist/orders', {
           method: 'POST',
@@ -671,6 +676,8 @@ function ReceptionistOrdersContent() {
         fetchData();
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setUpdatingOrderId(null);
       }
     });
   };
@@ -1229,18 +1236,29 @@ function ReceptionistOrdersContent() {
                               <>
                                 {(() => {
                                   const isReadyForDelivery = isOrderDeliveryTimeReached(o);
+                                  const isUpdatingThisOrder = updatingOrderId === o.orderID;
                                   return (
                                     <button
                                       type="button"
                                       className={`btn btn-sm ${isReadyForDelivery ? 'btn-success text-white' : 'btn-outline-secondary'} fw-semibold d-flex align-items-center gap-1.5 shadow-xs px-2.5 py-1`}
                                       style={{ fontSize: '0.78rem', borderRadius: '6px' }}
                                       onClick={() => handleUpdateOrderStatus(o.orderID, 'Delivered')}
+                                      disabled={Boolean(updatingOrderId)}
                                       title={isReadyForDelivery ? "Confirm delivery to room" : `Scheduled for ${o.deliveryDate || ''} ${o.deliveryTime || ''} (Not on time yet)`}
                                     >
-                                      <i className={`bi ${isReadyForDelivery ? 'bi-check2-circle' : 'bi-clock-history'}`}></i>
-                                      <span>Confirm Delivered</span>
-                                      {!isReadyForDelivery && (
-                                        <span className="badge bg-warning text-dark px-1.5 py-0.5 ms-1" style={{ fontSize: '0.62rem' }}>Not Yet</span>
+                                      {isUpdatingThisOrder ? (
+                                        <>
+                                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                          <span>Updating...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <i className={`bi ${isReadyForDelivery ? 'bi-check2-circle' : 'bi-clock-history'}`}></i>
+                                          <span>Confirm Delivered</span>
+                                          {!isReadyForDelivery && (
+                                            <span className="badge bg-warning text-dark px-1.5 py-0.5 ms-1" style={{ fontSize: '0.62rem' }}>Not Yet</span>
+                                          )}
+                                        </>
                                       )}
                                     </button>
                                   );
@@ -1249,6 +1267,7 @@ function ReceptionistOrdersContent() {
                                   type="button"
                                   className="btn btn-sm btn-outline-danger fw-semibold d-flex align-items-center gap-1 shadow-xs px-2.5 py-1"
                                   style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                                  disabled={Boolean(updatingOrderId)}
                                   onClick={() => handleUpdateOrderStatus(o.orderID, 'Canceled')}
                                 >
                                   <i className="bi bi-x-lg"></i>

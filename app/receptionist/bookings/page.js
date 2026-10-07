@@ -254,6 +254,8 @@ function BookingsClient() {
   const [discountedGuests, setDiscountedGuests] = useState([]);
   const [managingBooking, setManagingBooking] = useState(null);
   const [managingGuests, setManagingGuests] = useState([]);
+  const [isSavingGuests, setIsSavingGuests] = useState(false);
+  const [isCancellingBooking, setIsCancellingBooking] = useState(false);
   const [downPaymentReceipt, setDownPaymentReceipt] = useState(null);
 
   // Update Booking Modal State
@@ -775,8 +777,11 @@ function BookingsClient() {
       confirmText: 'Confirm',
       cancelText: 'Cancel',
       onConfirm: async () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        await onConfirmCallback();
+        try {
+          if (onConfirmCallback) await onConfirmCallback();
+        } finally {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
@@ -1498,12 +1503,13 @@ function BookingsClient() {
 
   const handleCancelSubmit = async (e) => {
     e.preventDefault();
-    if (!cancellingBookingID) return;
+    if (!cancellingBookingID || isCancellingBooking) return;
     if (!cancelRemarks.trim()) {
       showAlert('error', 'Validation Error', 'Please enter cancellation remarks.');
       return;
     }
 
+    setIsCancellingBooking(true);
     try {
       const res = await fetch('/api/receptionist/bookings', {
         method: 'POST',
@@ -1524,12 +1530,14 @@ function BookingsClient() {
       fetchData();
     } catch (err) {
       showAlert('error', 'Error', err.message);
+    } finally {
+      setIsCancellingBooking(false);
     }
   };
 
   const handleSaveGuestsSubmit = async (e) => {
     e.preventDefault();
-    if (!managingBooking) return;
+    if (!managingBooking || isSavingGuests) return;
 
     for (let i = 0; i < managingGuests.length; i++) {
       const g = managingGuests[i];
@@ -1543,6 +1551,7 @@ function BookingsClient() {
       }
     }
 
+    setIsSavingGuests(true);
     try {
       const res = await fetch('/api/receptionist/bookings', {
         method: 'POST',
@@ -1562,6 +1571,8 @@ function BookingsClient() {
       fetchData();
     } catch (err) {
       showAlert('error', 'Error', err.message);
+    } finally {
+      setIsSavingGuests(false);
     }
   };
 
@@ -3195,8 +3206,15 @@ function BookingsClient() {
                   ))}
                 </div>
                 <div className="modal-footer border-top">
-                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                  <button type="submit" className="btn btn-pcc-primary text-white fw-bold">Save Registered Guests</button>
+                  <button type="button" className="btn btn-secondary text-white" disabled={isSavingGuests} onClick={() => setActiveModal(null)}>Cancel</button>
+                  <LoadingButton
+                    type="submit"
+                    isLoading={isSavingGuests}
+                    loadingText="Saving Guests..."
+                    className="btn btn-pcc-primary text-white fw-bold"
+                  >
+                    Save Registered Guests
+                  </LoadingButton>
                 </div>
               </form>
             </div>
@@ -3241,12 +3259,17 @@ function BookingsClient() {
                   </div>
                 </div>
                 <div className="modal-footer border-top px-4 py-3 d-flex justify-content-end gap-2">
-                  <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>
+                  <button type="button" className="btn btn-secondary text-white" disabled={isCancellingBooking} onClick={() => setActiveModal(null)}>
                     Dismiss
                   </button>
-                  <button type="submit" className="btn btn-danger text-white fw-bold">
+                  <LoadingButton
+                    type="submit"
+                    isLoading={isCancellingBooking}
+                    loadingText="Cancelling..."
+                    className="btn btn-danger text-white fw-bold"
+                  >
                     Confirm Cancellation
-                  </button>
+                  </LoadingButton>
                 </div>
               </form>
             </div>

@@ -6,6 +6,7 @@ import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
+import LoadingButton from '../../components/LoadingButton';
 import { formatCurrency } from '@/lib/formatters';
 import { Skeleton, SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
@@ -25,11 +26,13 @@ export default function ReceptionistBilling() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [isReportingDamage, setIsReportingDamage] = useState(false);
+  const [isSubmittingDamageReport, setIsSubmittingDamageReport] = useState(false);
   const [selectedBorrowItem, setSelectedBorrowItem] = useState(null);
   const [damageForm, setDamageForm] = useState({ status: 'Lost', amount: '', remarks: '' });
 
   // Settle Bill / Record Payment State
   const [isSettlingBill, setIsSettlingBill] = useState(false);
+  const [isSettlingBillPayment, setIsSettlingBillPayment] = useState(false);
   const [finalizingBill, setFinalizingBill] = useState(false);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -73,9 +76,12 @@ export default function ReceptionistBilling() {
       message,
       confirmText,
       cancelText,
-      onConfirm: () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        if (onConfirm) onConfirm();
+      onConfirm: async () => {
+        try {
+          if (onConfirm) await onConfirm();
+        } finally {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
@@ -163,7 +169,7 @@ export default function ReceptionistBilling() {
 
   const handleSettleBillSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (!billDetails || !selectedBookingID) return;
+    if (!billDetails || !selectedBookingID || isSettlingBillPayment) return;
 
     const bal = parseFloat(billDetails.chargesSummary?.balance || 0);
     const amountToPay = parseFloat(settleForm.amount || bal);
@@ -177,6 +183,7 @@ export default function ReceptionistBilling() {
 
     const change = Math.max(0, cash - amountToPay);
 
+    setIsSettlingBillPayment(true);
     try {
       const res = await fetch('/api/receptionist/payments', {
         method: 'POST',
@@ -202,6 +209,8 @@ export default function ReceptionistBilling() {
       fetchBillingDetails(selectedBookingID);
     } catch (err) {
       showAlert('error', 'Error', err.message);
+    } finally {
+      setIsSettlingBillPayment(false);
     }
   };
 
@@ -488,6 +497,8 @@ export default function ReceptionistBilling() {
 
   const handleReportDamageSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingDamageReport) return;
+    setIsSubmittingDamageReport(true);
     try {
       const resOrder = await fetch('/api/receptionist/orders', {
         method: 'POST',
@@ -524,6 +535,8 @@ export default function ReceptionistBilling() {
       fetchBillingDetails(selectedBookingID);
     } catch (err) {
       showAlert('error', 'Error', err.message);
+    } finally {
+      setIsSubmittingDamageReport(false);
     }
   };
 
@@ -2041,8 +2054,15 @@ export default function ReceptionistBilling() {
                   </div>
                 </div>
                 <div className="modal-footer border-top-0">
-                  <button type="submit" className="btn btn-danger text-white">Process Report</button>
-                  <button type="button" className="btn btn-secondary text-white" onClick={() => setIsReportingDamage(false)}>Cancel</button>
+                  <button type="button" className="btn btn-secondary text-white" disabled={isSubmittingDamageReport} onClick={() => setIsReportingDamage(false)}>Cancel</button>
+                  <LoadingButton
+                    type="submit"
+                    isLoading={isSubmittingDamageReport}
+                    loadingText="Processing Report..."
+                    className="btn btn-danger text-white fw-bold"
+                  >
+                    Process Report
+                  </LoadingButton>
                 </div>
               </form>
             </div>
@@ -2183,13 +2203,19 @@ export default function ReceptionistBilling() {
                   <button
                     type="button"
                     className="btn btn-secondary text-white"
+                    disabled={isSettlingBillPayment}
                     onClick={() => setIsSettlingBill(false)}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary fw-bold text-white d-inline-flex align-items-center gap-1 shadow-sm">
+                  <LoadingButton
+                    type="submit"
+                    isLoading={isSettlingBillPayment}
+                    loadingText="Recording Payment..."
+                    className="btn btn-primary fw-bold text-white d-inline-flex align-items-center gap-1 shadow-sm"
+                  >
                     <i className="fa-solid fa-check"></i> Record Counter Payment
-                  </button>
+                  </LoadingButton>
                 </div>
               </form>
             </div>

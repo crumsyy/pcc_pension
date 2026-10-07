@@ -6,6 +6,7 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
+import LoadingButton from '../../components/LoadingButton';
 import { Skeleton } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
@@ -20,6 +21,7 @@ function PaymentsClient() {
   const [selectedBookingID, setSelectedBookingID] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingBill, setLoadingBill] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const paymentSuccessHandledRef = useRef(false);
 
   // Bill summary states
@@ -64,8 +66,11 @@ function PaymentsClient() {
       confirmText: 'Confirm',
       cancelText: 'Cancel',
       onConfirm: async () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        await onConfirmCallback();
+        try {
+          if (onConfirmCallback) await onConfirmCallback();
+        } finally {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
@@ -198,6 +203,7 @@ function PaymentsClient() {
     const effectiveChange = payableAmount > 0 ? (paymentForm.paymentMethodID === '1' ? change : 0) : 0;
 
     showConfirm('Confirm Payment Process', 'Process payment and record transaction?', async () => {
+      setIsProcessingPayment(true);
       try {
         const res = await fetch('/api/receptionist/payments', {
           method: 'POST',
@@ -259,6 +265,8 @@ function PaymentsClient() {
         showAlert('success', 'Payment Recorded', 'Payment recorded successfully. Room remains Occupied until you click "Complete Booking (Zero Balance)".');
       } catch (err) {
         showAlert('error', 'Error', err.message);
+      } finally {
+        setIsProcessingPayment(false);
       }
     });
   };
@@ -678,14 +686,16 @@ function PaymentsClient() {
                       ✓ Complete Booking (Zero Balance)
                     </button>
                   ) : (
-                    <button
+                    <LoadingButton
                       type="submit"
                       className="btn btn-pcc-primary text-white w-100 py-2 fw-bold"
                       style={{ fontSize: '0.95rem' }}
                       disabled={!selectedBookingID || loadingBill || paymentForm.paymentMethodID === '2'}
+                      isLoading={isProcessingPayment}
+                      loadingText="Processing Payment..."
                     >
                       {paymentForm.paymentMethodID === '2' ? 'Scan GCash QR Code Above' : 'Confirm & Settle Cash Payment'}
-                    </button>
+                    </LoadingButton>
                   )}
                 </div>
               </form>

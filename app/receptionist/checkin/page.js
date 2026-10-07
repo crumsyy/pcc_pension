@@ -163,8 +163,11 @@ function CheckInClient() {
       confirmText,
       cancelText,
       onConfirm: async () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        await onConfirmCallback();
+        try {
+          if (onConfirmCallback) await onConfirmCallback();
+        } finally {
+          setModalConfig(prev => ({ ...prev, isOpen: false }));
+        }
       },
       onCancel: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
     });
