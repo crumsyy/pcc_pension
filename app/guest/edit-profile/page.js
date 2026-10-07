@@ -6,6 +6,7 @@ import ModalDialog from '../../components/ModalDialog';
 import LoadingButton from '../../components/LoadingButton';
 import { GuestEditProfileSkeleton } from '@/app/components/skeletons/GuestSkeletons';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
+import { toast } from '@/components/ui/toast';
 
 export default function EditProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -33,13 +34,10 @@ export default function EditProfilePage() {
   });
 
   const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false }))
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
   };
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
+import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import { formatCurrency } from '@/lib/formatters';
@@ -54,18 +55,14 @@ export default function ReceptionistBilling() {
   });
 
   const showAlert = (type, title, message, onOk = null) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => {
-        setModalConfig(prev => ({ ...prev, isOpen: false }));
-        if (onOk) onOk();
-      },
-      onCancel: null
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
+    if (typeof onOk === 'function') {
+      onOk();
+    }
   };
 
   const showConfirm = (title, message, onConfirm, confirmText = 'Confirm', cancelText = 'Cancel', type = 'warning') => {

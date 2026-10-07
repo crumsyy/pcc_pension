@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
+import { toast } from '@/components/ui/toast';
 import GuestBottomNav from './GuestBottomNav';
 import GuestSidebarNav from './GuestSidebarNav';
 import ThemeToggle from '../../components/ThemeToggle';
@@ -201,17 +202,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   });
 
   const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      cancelText: 'Cancel',
-      confirmVariant: 'primary',
-      cancelVariant: 'secondary',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
-      onCancel: null
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
   };
 

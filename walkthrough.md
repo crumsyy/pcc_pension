@@ -1,26 +1,49 @@
-# Walkthrough: Two-Column Split Layout for Booking Modal
+# Walkthrough: Base UI Toast Notification System
 
-## Commit Summary
-**Message:** `feat(receptionist): redesign booking modal into two-column split workspace`
+## Summary
+Integrated the official `@base-ui/react` Toast primitive and shadcn Toast API (`toast.add`, `<Toaster />`). Fixed root cause where confirmation modal lifecycle (`finally { setModalConfig({ isOpen: false }) }`) immediately destroyed alert state in React 19 batched updates, ensuring that every successful or error process displays a visible, high-priority toast across Admin, Receptionist, and Guest portals.
 
 ---
 
 ## Changes
 
-### 1. Two-Column Layout (`app/receptionist/ConfirmReservationModal.js`)
-- Refactored the modal structure to use Tailwind grid (`grid grid-cols-12`).
-- **Left Column (65%)**: Handles guest details, room selection, special discounts, stay schedule, and down payment tier selection.
-- **Right Column (35%)**: A sticky billing summary panel that stays pinned while the left form scrolls.
-- **UI/UX**: Modal resized to `modal-xl` for better workspace area.
+### 1. Toast Primitives & Global Manager
+- **[`components/ui/toast.jsx`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/components/ui/toast.jsx)** & **[`components/ui/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/components/ui/toast.js)**:
+  - Created global singleton manager via `Toast.createToastManager()`.
+  - Exported standard shadcn / Base UI `toast` API:
+    - `toast.add({ type, title, description, actionProps, priority })`
+    - `toast.success(title, description)`
+    - `toast.error(title, description)`
+    - `toast.warning(title, description)`
+    - `toast.info(title, description)`
+    - `toast.promise(promise, { loading, success, error })`
+    - `toast.close(id)`
+  - Exported `<Toaster />` component styled with glassmorphism, z-index `10000000` (sits above full-screen dialog backdrops), custom color accents (green for success, red for error, amber for warning, blue for info), smooth enter/exit animations, and dark mode support.
+- **[`app/components/ui/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/ui/toast.js)**:
+  - Re-export for path compatibility with `@/app/components/ui/toast`.
+
+### 2. Root Layout Integration
+- **[`app/layout.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/layout.js)**:
+  - Replaced legacy toast wrapper with `<Toaster />` from `@/components/ui/toast`.
+- **[`app/components/ToasterClient.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/ToasterClient.js)**:
+  - Updated to wrap `<Toaster />`.
+- **[`lib/toast.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/lib/toast.js)**:
+  - Updated `showToast.success`, `showToast.error`, `showToast.warning`, and `showToast.info` to dispatch directly to `toast.add(...)`.
+
+### 3. Immediate Notification Dispatch (Decoupled from Modal State)
+- **[`app/admin/rooms/RoomsClient.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/rooms/RoomsClient.js)**:
+  - Rewrote `showAlert` to directly trigger `toast.add(...)`.
+  - When creating a room, editing a room, archiving/restoring a room, or uploading photos, toasts fire immediately into `<Toaster />` regardless of modal closures or `showConfirm`'s `finally` reset block.
+- **Admin Pages** ([`amenities`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/amenities/page.js), [`discounts`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/discounts/page.js), [`products`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/products/page.js), [`inventory`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/inventory/page.js), [`purchase-orders`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/purchase-orders/page.js), [`users`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/admin/users/UsersClient.js)):
+  - Updated `showAlert` to dispatch `toast.add(...)` directly.
+- **Receptionist Pages** ([`reservations`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/receptionist/reservations/page.js), [`payments`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/receptionist/payments/page.js), [`orders`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/receptionist/orders/page.js), [`inquiries`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/receptionist/inquiries/page.js), [`checkin`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/receptionist/checkin/page.js), [`bookings`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/receptionist/bookings/page.js), [`billing`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/receptionist/billing/page.js)):
+  - Updated `showAlert` to dispatch `toast.add(...)` directly.
+- **Guest Portal** ([`edit-profile`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/guest/edit-profile/page.js), [`dashboard`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/guest/dashboard/GuestDashboardClient.js)):
+  - Updated `showAlert` to dispatch `toast.add(...)` directly.
+- **[`app/components/ModalDialog.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/ModalDialog.js)**:
+  - Synchronously triggers `toast.add(...)` if any non-confirm modal is passed, eliminating race conditions.
 
 ---
 
-## Build & Verification
-- `next build`: **PASSES** — all pages compiled successfully.
-
----
-
-## Impact
-- **Improved Workflow**: Receptionists can now input reservation details and view the resulting billing changes in real-time without vertical scrolling.
-- **Better Visual Hierarchy**: Separated input and output (billing) data into dedicated columns.
-- **Fixed Layout**: Modal is now constrained and sticky-scrolling, eliminating the previous long-form scroll experience.
+## Build Verification
+- `npm run build`: **PASSED** (0 errors across all 96 static and dynamic routes).

@@ -8,6 +8,7 @@ import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { AdminInventorySkeleton } from '@/app/components/skeletons/AdminSkeletons';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
+import { toast } from '@/components/ui/toast';
 
 export default function AdminInventory() {
   const router = useRouter();
@@ -159,14 +160,10 @@ export default function AdminInventory() {
   }, [movements, items, search, typeFilter, itemTypeFilter]);
 
   const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
-      onCancel: null
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
   };
 

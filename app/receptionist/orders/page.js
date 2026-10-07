@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, Suspense, useRef } fr
 import { useSearchParams } from 'next/navigation';
 import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
+import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import { ReceptionistOrdersSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
@@ -305,14 +306,10 @@ function ReceptionistOrdersContent() {
   });
 
   const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
-      onCancel: null
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
   };
 

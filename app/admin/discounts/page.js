@@ -7,6 +7,7 @@ import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { Skeleton, SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
+import { toast } from '@/components/ui/toast';
 
 export default function AdminDiscounts() {
   const [search, setSearch] = useState('');
@@ -61,14 +62,10 @@ export default function AdminDiscounts() {
   });
 
   const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
-      onCancel: null
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
   };
 

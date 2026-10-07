@@ -3,7 +3,7 @@ import Script from "next/script";
 import InactivityTimeout from "./components/InactivityTimeout";
 import MobileKeyboardViewportHelper from "./components/MobileKeyboardViewportHelper";
 
-import ToasterClient from "./components/ToasterClient";
+import { Toaster } from "@/components/ui/toast";
 
 export const metadata = {
   title: "PCC Home Suite Home | Koronadal City",
@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <ToasterClient />
+        <Toaster />
         <InactivityTimeout />
         <MobileKeyboardViewportHelper />
         {children}

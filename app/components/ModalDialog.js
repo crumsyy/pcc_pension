@@ -2,7 +2,7 @@
 
 import React from 'react';
 import ModalPortal from './ModalPortal';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/toast';
 
 export default function ModalDialog({
   isOpen,
@@ -22,37 +22,21 @@ export default function ModalDialog({
     setIsSubmitting(false);
 
     if (isOpen && type !== 'confirm') {
-      const toastTitle = title && title !== 'Success' && title !== 'Error' && title !== 'Warning' && title !== 'Info' && title !== 'System Notification' ? title : '';
-      const toastMsg = message || title || 'Notification';
+      const toastTitle = title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification');
+      const toastMsg = message || '';
 
-      const timer = setTimeout(() => {
-        if (type === 'success') {
-          toast.success(toastMsg, {
-            description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
-          });
-        } else if (type === 'error') {
-          toast.error(toastMsg, {
-            description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
-          });
-        } else if (type === 'warning') {
-          toast.warning(toastMsg, {
-            description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
-          });
-        } else {
-          toast.info(toastMsg, {
-            description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
-          });
-        }
+      toast.add({
+        type: type === 'warning' ? 'warning' : type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
+        title: toastTitle,
+        description: toastMsg
+      });
 
-        // Automatically notify parent to close alert state after dispatching toast
-        if (typeof onConfirm === 'function') {
-          onConfirm();
-        } else if (typeof onCancel === 'function') {
-          onCancel();
-        }
-      }, 10);
-
-      return () => clearTimeout(timer);
+      // Automatically notify parent to close alert state after dispatching toast
+      if (typeof onConfirm === 'function') {
+        onConfirm();
+      } else if (typeof onCancel === 'function') {
+        onCancel();
+      }
     }
   }, [isOpen, type, title, message, onConfirm, onCancel]);
 

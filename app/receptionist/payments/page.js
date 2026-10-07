@@ -8,6 +8,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import { Skeleton } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
+import { toast } from '@/components/ui/toast';
 
 function PaymentsClient() {
   const searchParams = useSearchParams();
@@ -47,14 +48,10 @@ function PaymentsClient() {
   });
 
   const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
-      onCancel: null
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
   };
 

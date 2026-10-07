@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
+import { toast } from '@/components/ui/toast';
 import ReservationCalendar from '../../components/ReservationCalendar';
 import { ReceptionistCheckInSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 
@@ -146,14 +147,10 @@ function CheckInClient() {
   };
 
   const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
-      onCancel: null
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
   };
 

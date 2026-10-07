@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
+import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import CalendarDatePicker from '../../components/CalendarDatePicker';
@@ -758,14 +759,10 @@ function BookingsClient() {
   });
 
   const showAlert = (type, title, message) => {
-    setModalConfig({
-      isOpen: true,
-      type,
-      title,
-      message,
-      confirmText: 'OK',
-      onConfirm: () => setModalConfig(prev => ({ ...prev, isOpen: false })),
-      onCancel: null
+    toast.add({
+      type: type || 'info',
+      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
+      description: message || ''
     });
   };
 
