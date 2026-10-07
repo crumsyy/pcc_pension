@@ -518,12 +518,17 @@ export default function NotificationBell() {
           <div
             className="d-flex flex-column text-white px-3 py-2.5"
             style={{
-              background: "linear-gradient(135deg, #0B2F4C 0%, #164e63 100%)",
+              background: "linear-gradient(135deg, var(--pcc-blue-dark, #163E82) 0%, var(--pcc-blue, #2155B5) 100%)",
             }}
           >
             <div className="d-flex justify-content-between align-items-center mb-2">
               <div className="d-flex align-items-center gap-2">
-                <i className="bi bi-bell-fill text-warning fs-6"></i>
+                <div
+                  className="d-flex align-items-center justify-content-center rounded-circle"
+                  style={{ width: "26px", height: "26px", background: "rgba(255, 255, 255, 0.18)" }}
+                >
+                  <i className="bi bi-bell-fill text-white" style={{ fontSize: "0.85rem" }}></i>
+                </div>
                 <span className="fw-bold small mb-0" style={{ letterSpacing: "-0.2px" }}>
                   Notifications
                 </span>
@@ -541,7 +546,7 @@ export default function NotificationBell() {
                 <button
                   onClick={handleMarkAllRead}
                   className="btn btn-xs btn-outline-light rounded-pill px-2 py-0.5 fw-semibold d-inline-flex align-items-center gap-1"
-                  style={{ fontSize: "0.68rem" }}
+                  style={{ fontSize: "0.68rem", borderColor: "rgba(255, 255, 255, 0.4)" }}
                   title="Mark all notifications as read"
                 >
                   <i className="bi bi-check2-all"></i>
@@ -555,7 +560,7 @@ export default function NotificationBell() {
               className="d-flex p-0.5 rounded-pill"
               style={{
                 background: "rgba(0, 0, 0, 0.22)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
               }}
             >
               <button
@@ -563,10 +568,13 @@ export default function NotificationBell() {
                 onClick={() => setFilterTab("all")}
                 className={`btn btn-sm flex-fill rounded-pill py-0.5 fw-semibold transition-all ${
                   filterTab === "all"
-                    ? "bg-white text-dark shadow-sm"
-                    : "text-white-50 border-0 bg-transparent"
+                    ? "bg-white shadow-sm"
+                    : "border-0 bg-transparent"
                 }`}
-                style={{ fontSize: "0.7rem" }}
+                style={{
+                  fontSize: "0.7rem",
+                  color: filterTab === "all" ? "var(--pcc-blue-dark, #163E82)" : "rgba(255, 255, 255, 0.8)",
+                }}
               >
                 All ({notifications.length})
               </button>
@@ -575,10 +583,13 @@ export default function NotificationBell() {
                 onClick={() => setFilterTab("unread")}
                 className={`btn btn-sm flex-fill rounded-pill py-0.5 fw-semibold transition-all ${
                   filterTab === "unread"
-                    ? "bg-white text-dark shadow-sm"
-                    : "text-white-50 border-0 bg-transparent"
+                    ? "bg-white shadow-sm"
+                    : "border-0 bg-transparent"
                 }`}
-                style={{ fontSize: "0.7rem" }}
+                style={{
+                  fontSize: "0.7rem",
+                  color: filterTab === "unread" ? "var(--pcc-blue-dark, #163E82)" : "rgba(255, 255, 255, 0.8)",
+                }}
               >
                 Unread ({unreadCount})
               </button>
@@ -645,15 +656,19 @@ export default function NotificationBell() {
                           </span>
                           {isUnread && (
                             <span
-                              className="badge rounded-circle p-1 flex-shrink-0"
                               style={{
-                                backgroundColor: "#3b82f6",
-                                width: "6px",
-                                height: "6px",
-                                marginTop: "4px",
+                                width: "8px",
+                                height: "8px",
+                                minWidth: "8px",
+                                minHeight: "8px",
+                                borderRadius: "50%",
+                                backgroundColor: "var(--pcc-blue, #2155B5)",
+                                display: "inline-block",
+                                marginTop: "5px",
+                                flexShrink: 0,
                               }}
                               title="Unread"
-                            ></span>
+                            />
                           )}
                         </div>
 
@@ -672,7 +687,10 @@ export default function NotificationBell() {
                           <small className="text-muted" style={{ fontSize: "0.68rem" }}>
                             {formatTimeAgo(n.createdAt)}
                           </small>
-                          <small className="text-primary fw-semibold" style={{ fontSize: "0.68rem" }}>
+                          <small
+                            className="fw-semibold d-inline-flex align-items-center"
+                            style={{ fontSize: "0.68rem", color: "var(--pcc-blue, #2155B5)" }}
+                          >
                             View <i className="bi bi-chevron-right ms-0.5"></i>
                           </small>
                         </div>
