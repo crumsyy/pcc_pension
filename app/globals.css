@@ -1185,7 +1185,17 @@ h4,
 .pcc-fixed-sidebar .nav-link,
 #receptionistOffcanvas .nav-link,
 #adminOffcanvas .nav-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
   transition: background-color 0.25s ease, padding-left 0.25s ease, color 0.25s ease !important;
+}
+
+.pcc-fixed-sidebar .nav-link svg,
+#receptionistOffcanvas .nav-link svg,
+#adminOffcanvas .nav-link svg {
+  flex-shrink: 0 !important;
+  margin-right: 0 !important;
 }
 
 .pcc-fixed-sidebar .nav-link:hover,

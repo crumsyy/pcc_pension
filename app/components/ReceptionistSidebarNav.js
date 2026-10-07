@@ -56,8 +56,8 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick })
                 transition: 'all 0.15s ease-in-out',
               }}
             >
-              <div className="d-flex align-items-center gap-2.5">
-                <span style={{ opacity: isActive ? 1 : 0.85 }}>{icon}</span>
+              <div className="d-flex align-items-center gap-3" style={{ gap: '12px' }}>
+                <span className="d-inline-flex align-items-center justify-content-center" style={{ opacity: isActive ? 1 : 0.85, width: '20px', flexShrink: 0 }}>{icon}</span>
                 <span>{label}</span>
               </div>
               {isInquiries && alertsCount > 0 && (

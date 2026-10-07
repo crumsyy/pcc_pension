@@ -80,7 +80,7 @@ export default function SidebarClient({ session, role, children }) {
             <li key={index}>
               <Link
                 href={path}
-                className={`nav-link text-white d-flex align-items-center gap-2.5 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
+                className={`nav-link text-white d-flex align-items-center gap-3 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
                 style={{
                   borderRadius: '7px',
                   fontSize: '0.88rem',
@@ -88,9 +88,10 @@ export default function SidebarClient({ session, role, children }) {
                   backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
                   borderLeft: isActive ? '3px solid #fff' : '3px solid transparent',
                   transition: 'all 0.15s ease-in-out',
+                  gap: '12px',
                 }}
               >
-                <span style={{ opacity: isActive ? 1 : 0.85 }}>{icon}</span>
+                <span className="d-inline-flex align-items-center justify-content-center" style={{ opacity: isActive ? 1 : 0.85, width: '20px', flexShrink: 0 }}>{icon}</span>
                 <span>{label}</span>
               </Link>
             </li>

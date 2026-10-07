@@ -1,73 +1,43 @@
-# Walkthrough: Restrict Admin Notifications to Inventory Low Stock & Payments Received
+# Walkthrough: Sidebar Navigation Icon and Label Spacing
 
-This update ensures that **Administrators do not receive inquiry, reservation, or booking notifications**, and exclusively receive **inventory low stock alerts** and **payments received notifications** (along with critical account security notices).
+This update fixes the spacing issue in the navigation sidebars of the **Admin Portal** and **Receptionist Portal**, creating a clean, consistent, and balanced gap between every navigation icon and its label.
 
 ---
 
 ## Changes Implemented
 
-### 1. Inquiries Notifications Dispatched Only to Receptionists
-- **[`app/api/guest/inquiries/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/inquiries/route.js)**:
-  - Updated staff notification query from `roleID IN (1, 2)` to `roleID = 2`.
-  - Admin (`roleID = 1`) no longer receives `'New Inquiry Live Message'` alerts. Only front-desk receptionists receive live guest chat/inquiry notifications.
+### 1. Receptionist Navigation ([`app/components/ReceptionistSidebarNav.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/ReceptionistSidebarNav.js))
+- Replaced the undefined `gap-2.5` class with `gap-3` and an explicit `gap: '12px'`.
+- Wrapped the SVG icon in a fixed-width container (`width: '20px'`, `flex-shrink: 0`, `display: inline-flex`) to guarantee consistent vertical alignment and a clean 12px gap before the navigation label.
 
 ---
 
-### 2. Reservation Notifications Dispatched Only to Receptionists
-- **[`app/api/guest/reservations/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/reservations/route.js)**:
-  - Updated queries from `roleID IN (1, 2)` to `roleID = 2` for `'Reservation Auto-Cancelled'` and `'New Courtesy Hold'`.
-- **[`app/api/guest/reservations/convert/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/reservations/convert/route.js)**:
-  - Updated query from `roleID IN (1, 2)` to `roleID = 2` for `'Reservation Converted to Booking'`.
-- **[`app/api/receptionist/reservations/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/receptionist/reservations/route.js)**:
-  - Updated queries from `roleID IN (1, 2)` to `roleID = 2` for `'Reservation Conflict Cancelled'`, `'Reservation Cancelled Audit'`, and `'Courtesy Hold Released'`.
+### 2. Admin Navigation ([`app/components/SidebarClient.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/SidebarClient.js))
+- Updated the Admin sidebar `Link` elements in `renderNavLinksList()` from `gap-2.5` to `gap-3` with explicit `gap: '12px'`.
+- Placed the SVG icon inside a fixed-width alignment container (`width: '20px'`, `flex-shrink: 0`, `display: inline-flex`), preventing icon compression and creating uniform spacing across all navigation items.
 
 ---
 
-### 3. Booking & Operational Alerts Dispatched Only to Receptionists
-- **[`app/api/guest/bookings/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/bookings/route.js)**:
-  - Updated queries from `roleID IN (1, 2)` to `roleID = 2` for `'Guest Checkout Requested'`, `'Booking Canceled by Guest'`, and `'New Guest Booking Request'`.
-  - **Payments Preserved for Admin**: If a down payment was paid on booking creation, `'New GCash Online Payment'` is specifically sent to both Receptionists and Admin (`roleID = 1`).
-- **[`app/api/receptionist/bookings/checkout-request/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/receptionist/bookings/checkout-request/route.js)**:
-  - Updated query from `roleID IN (1, 2)` to `roleID = 2`.
-- **[`app/api/guest/checkout-request/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/checkout-request/route.js)**:
-  - Updated query from `roleID IN (1, 2)` to `roleID = 2`.
-- **[`app/api/receptionist/billing/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/receptionist/billing/route.js)**:
-  - Updated query from `roleID IN (1, 2)` to `roleID = 2` for `'Guest Checked Out'`.
-- **[`app/api/guest/orders/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/guest/orders/route.js)**:
-  - Updated queries from `roleID IN (1, 2)` to `roleID = 2` for front-desk room orders and delivery changes.
-- **[`app/api/notifications/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/notifications/route.js)**:
-  - In auto-reminder generator, updated target from `roleID IN (1, 2)` to `roleID = 2` so `Pre-Check-In Alert`, `Pre-Check-Out Alert`, and `Exceeded Check-Out Alert` only notify Receptionists.
+### 3. Global CSS Layout Enforcement ([`app/globals.css`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/globals.css))
+- Configured `.pcc-fixed-sidebar .nav-link`, `#receptionistOffcanvas .nav-link`, and `#adminOffcanvas .nav-link`:
+  ```css
+  .pcc-fixed-sidebar .nav-link,
+  #receptionistOffcanvas .nav-link,
+  #adminOffcanvas .nav-link {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    transition: background-color 0.25s ease, padding-left 0.25s ease, color 0.25s ease !important;
+  }
 
----
-
-### 4. Admin Notification Fetch Filter ([`app/api/notifications/route.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/api/notifications/route.js))
-In `GET /api/notifications`, added a role-based query filter for `session.role === 'Administrator'`:
-```sql
-AND (
-  title LIKE '%Payment%' 
-  OR title LIKE '%GCash%' 
-  OR title LIKE '%Inventory%' 
-  OR title LIKE '%Stock%' 
-  OR title LIKE '%Password%' 
-  OR title LIKE '%Security%'
-)
-AND title NOT LIKE '%Inquiry%' 
-AND title NOT LIKE '%Reservation%' 
-AND title NOT LIKE '%Courtesy Hold%' 
-AND title NOT LIKE '%Pre-Check%' 
-AND title NOT LIKE '%Exceeded Check%' 
-AND (title NOT LIKE '%Booking%' OR title LIKE '%Payment%') 
-AND title NOT LIKE '%Inspection%'
-```
-- Guarantees that even if older operational or inquiry alerts exist in the database, the Admin notification bell will **only show Inventory Low Stock and Payments Received** (and account security notices).
-- Enhanced low inventory auto-generation to check both active `products` and `amenities` whose stock is at or below `minStock`.
-
----
-
-### 5. Admin Notification Navigation ([`app/components/NotificationBell.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/components/NotificationBell.js))
-- When an Administrator clicks an **Inventory Low Stock** notification, routes to `/admin/inventory`.
-- When an Administrator clicks a **Payment Received** notification, routes to `/admin/reports` (financial & payment audit logs).
-- Receptionists continue to route to `/receptionist/payments`, `/receptionist/checkin`, etc.
+  .pcc-fixed-sidebar .nav-link svg,
+  #receptionistOffcanvas .nav-link svg,
+  #adminOffcanvas .nav-link svg {
+    flex-shrink: 0 !important;
+    margin-right: 0 !important;
+  }
+  ```
+- Ensures both desktop fixed sidebars and mobile offcanvas drawers apply the exact same 12px gap consistently across all screen sizes.
 
 ---
 
@@ -76,9 +46,9 @@ AND title NOT LIKE '%Inspection%'
 ### Next.js Production Build
 Executed `npm run build` using Next.js 16.2.9 with Turbopack:
 ```text
-✓ Compiled successfully in 6.0s
-✓ Running TypeScript in 146ms
-✓ Generating static pages using 11 workers (96/96) in 1547ms
+✓ Compiled successfully in 28.7s
+✓ Running TypeScript in 317ms
+✓ Generating static pages using 11 workers (96/96) in 4.7s
 Exit code: 0
 ```
 All 96 routes compiled cleanly with 0 errors.
