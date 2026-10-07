@@ -12,9 +12,18 @@ export async function GET() {
   const isStaff = session.role === 'Administrator' || session.role === 'Receptionist';
 
   try {
-    // 1. Auto-generate Low Inventory Alerts (quantity <= minStock) for Staff
+    // 1. Auto-generate Inventory Alerts (No Stock <= 0, Low Inventory <= minStock) for Staff
     if (isStaff) {
       try {
+        // Retroactively update existing 0-unit notifications that were mistakenly labeled 'Low Inventory Alert'
+        await dbQuery(`
+          UPDATE notification
+          SET title = 'No Stock Alert',
+              message = REPLACE(message, 'Low Inventory Alert:', 'No Stock Alert:')
+          WHERE title = 'Low Inventory Alert' 
+            AND (message LIKE '%dropped to 0 units%' OR message LIKE '% 0 units%')
+        `).catch(() => {});
+
         const [lowProducts, lowAmenities] = await Promise.all([
           dbQuery(`
             SELECT p.productID as id, p.name, p.quantity, COALESCE(p.minStock, 5) as threshold
@@ -35,20 +44,25 @@ export async function GET() {
         ];
 
         for (const item of allLowItems) {
-          const alertMsg = `Low Inventory Alert: ${item.name} stock has dropped to ${item.quantity} units (Threshold: ${item.threshold} units).`;
+          const isZero = (item.quantity ?? 0) <= 0;
+          const title = isZero ? 'No Stock Alert' : 'Low Inventory Alert';
+          const alertMsg = isZero
+            ? `No Stock Alert: ${item.name} is completely out of stock (0 units remaining). Please replenish inventory immediately.`
+            : `Low Inventory Alert: ${item.name} stock has dropped to ${item.quantity} units (Threshold: ${item.threshold} units).`;
+
           const alreadyNotified = await dbQuery(
             "SELECT notificationID FROM notification WHERE userID = ? AND message = ?",
             [userID, alertMsg]
           );
           if (alreadyNotified.length === 0) {
             await dbQuery(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Low Inventory Alert', ?)",
-              [userID, alertMsg]
+              "INSERT INTO notification (userID, title, message) VALUES (?, ?, ?)",
+              [userID, title, alertMsg]
             );
           }
         }
       } catch (invErr) {
-        console.error("Low inventory notification check failed:", invErr);
+        console.error("Inventory notification check failed:", invErr);
       }
     }
 

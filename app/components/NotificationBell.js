@@ -258,6 +258,7 @@ export default function NotificationBell() {
 
   const getNotificationIcon = (title = '') => {
     const t = title.toLowerCase();
+    if (t.includes('no stock') || t.includes('out of stock')) return 'bi-x-octagon-fill text-danger';
     if (t.includes('payment') || t.includes('billing') || t.includes('balance')) return 'bi-credit-card-fill text-success';
     if (t.includes('booking') || t.includes('reservation') || t.includes('check-in')) return 'bi-calendar-check-fill text-primary';
     if (t.includes('alert') || t.includes('stock') || t.includes('warning')) return 'bi-exclamation-triangle-fill text-warning';
