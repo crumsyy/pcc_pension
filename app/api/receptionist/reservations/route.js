@@ -293,29 +293,30 @@ export async function POST(request) {
       const reqIn = reservationDateTime;
       const reqOut = checkOutDateTime || new Date(new Date(reservationDateTime.replace(' ', 'T')).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
 
-      const conflictingBookings = await dbQuery(`
-        SELECT bookingID FROM booking
-        WHERE roomID = ?
-          AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
-          AND checkInDateTime < ?
-          AND checkOutDateTime > ?
-      `, [roomID, reqOut, reqIn]);
+      const [conflictingBookings, conflictingReservations] = await Promise.all([
+        dbQuery(`
+          SELECT bookingID FROM booking
+          WHERE roomID = ?
+            AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+            AND checkInDateTime < ?
+            AND checkOutDateTime > ?
+        `, [roomID, reqOut, reqIn]),
+        dbQuery(`
+          SELECT reservationID FROM reservation
+          WHERE roomID = ?
+            AND (
+              (status IN ('Pending', 'Confirmed', 'Booked') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+              OR
+              (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+            )
+        `, [roomID, reqOut, reqIn, reqOut, reqIn])
+      ]);
 
       if (conflictingBookings.length > 0) {
         return NextResponse.json({
           error: "This room is already booked for the selected dates."
         }, { status: 409 });
       }
-
-      const conflictingReservations = await dbQuery(`
-        SELECT reservationID FROM reservation
-        WHERE roomID = ?
-          AND (
-            (status IN ('Pending', 'Confirmed', 'Booked') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
-            OR
-            (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
-          )
-      `, [roomID, reqOut, reqIn, reqOut, reqIn]);
 
       if (conflictingReservations.length > 0) {
         return NextResponse.json({

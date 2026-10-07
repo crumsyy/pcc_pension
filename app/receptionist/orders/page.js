@@ -433,6 +433,7 @@ function ReceptionistOrdersContent() {
     const itemID = type === 'Product' ? item.productID : item.amenityID;
     const defaultDeliveryType = isCookedMeal ? 'scheduled' : (chosenDeliveryType || 'immediate');
 
+    toast.info('Item Added', `${item.name} added to Order Tray.`);
     setCart(prev => {
       const existsIndex = prev.findIndex(c => c.itemID === itemID && c.type === type);
       if (existsIndex >= 0) {
@@ -584,12 +585,14 @@ function ReceptionistOrdersContent() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to place order');
 
+        toast.success('Order Placed Successfully', `Order for ${selectedBooking?.roomNumber ? 'Room ' + selectedBooking.roomNumber : 'Guest'} recorded in stay billing.`);
         showAlert('success', 'Order Placed', 'Order placed successfully and recorded on the stay billing.');
         setCart([]);
         setDeliveryDate(getTomorrowManila());
         fetchData();
         setActiveCategory('history');
       } catch (err) {
+        toast.error('Order Failed', err.message);
         showAlert('error', 'Error', err.message);
       } finally {
         setSubmittingOrder(false);
@@ -672,9 +675,11 @@ function ReceptionistOrdersContent() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update order status');
 
+        toast.success('Status Updated', `Order #${orderID} updated to ${status}.`);
         showAlert('success', 'Status Updated', `Order #${orderID} updated to ${status}.`);
         fetchData();
       } catch (err) {
+        toast.error('Update Failed', err.message);
         showAlert('error', 'Error', err.message);
       } finally {
         setUpdatingOrderId(null);

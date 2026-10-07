@@ -727,11 +727,13 @@ function ReservationsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to place courtesy hold');
 
+        toast.success('Courtesy Hold Created', data.message || 'Courtesy hold created successfully for 48 hours.');
         showAlert('success', 'Success', data.message || 'Courtesy hold created successfully.');
         setActiveModal(null);
         clientCache.delete('RECEPTIONIST_RESERVATIONS');
         fetchData();
       } catch (err) {
+        toast.error('Reservation Failed', err.message);
         showAlert('error', 'Error', err.message);
       } finally {
         setIsSubmitting(false);
@@ -815,10 +817,12 @@ function ReservationsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update reservation');
 
+        toast.success('Reservation Updated', 'Reservation updated successfully.');
         showAlert('success', 'Success', 'Reservation updated successfully.');
         setActiveModal(null);
         fetchData();
       } catch (err) {
+        toast.error('Update Failed', err.message);
         showAlert('error', 'Error', err.message);
       } finally {
         setIsSubmitting(false);
@@ -837,9 +841,11 @@ function ReservationsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to cancel reservation');
 
+        toast.success('Reservation Canceled', 'Reservation canceled successfully.');
         showAlert('success', 'Success', 'Reservation canceled successfully.');
         fetchData();
       } catch (err) {
+        toast.error('Cancel Failed', err.message);
         showAlert('error', 'Error', err.message);
       }
     });
@@ -856,9 +862,11 @@ function ReservationsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to release courtesy hold');
 
+        toast.success('Hold Released', data.message || 'Courtesy hold released successfully.');
         showAlert('success', 'Hold Released', data.message || 'Courtesy hold released successfully.');
         fetchData();
       } catch (err) {
+        toast.error('Release Failed', err.message);
         showAlert('error', 'Error', err.message);
       }
     });

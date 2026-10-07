@@ -517,12 +517,12 @@ export async function POST(request) {
 
         // Insert registered guests details (with discountID NULL until verified in Billing)
         if (guests.length > 0) {
-          for (const g of guests) {
-            await conn.execute(
+          await Promise.all(guests.map(g =>
+            conn.execute(
               "INSERT INTO booking_guest_details (bookingID, fullName, age, discountID, discountIdNumber) VALUES (?, ?, ?, NULL, ?)",
               [bookingID, g.fullName.trim(), parseInt(g.age) || 30, g.discountIdNumber?.trim() || null]
-            );
-          }
+            )
+          ));
         } else {
           // Fetch guest name to insert as default single guest
           const [gInfo] = await conn.execute("SELECT firstName, lastName FROM guest WHERE guestID = ?", [guestID]);
@@ -587,18 +587,17 @@ export async function POST(request) {
           referenceNumber: refNumber
         });
 
-        // Notify Administrators (roleID = 1) of down payment
+        // Notify Administrators (roleID = 1) of down payment in a single bulk query
         try {
-          const [admins] = await conn.execute("SELECT userID FROM user WHERE roleID = 1 AND status = 'Active'");
-          for (const adm of admins) {
-            await conn.execute(
-              "INSERT INTO notification (userID, title, message) VALUES (?, 'Down Payment Received Alert', ?)",
-          [adm.userID, `Down payment of ₱${parseFloat(downPaymentAmount).toFixed(2)} received for Booking #${bookingID}.`]
-        );
-      }
-    } catch (adminNotifyErr) {
-      console.error("Failed to notify admin of down payment:", adminNotifyErr);
-    }
+          await conn.execute(
+            `INSERT INTO notification (userID, title, message)
+             SELECT userID, 'Down Payment Received Alert', ?
+             FROM user WHERE roleID = 1 AND status = 'Active'`,
+            [`Down payment of ₱${parseFloat(downPaymentAmount).toFixed(2)} received for Booking #${bookingID}.`]
+          );
+        } catch (adminNotifyErr) {
+          console.error("Failed to notify admin of down payment:", adminNotifyErr);
+        }
 
 
         await syncNormalizedBillingLineItems(conn, billingID, bookingID);

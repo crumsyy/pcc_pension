@@ -491,11 +491,13 @@ function BookingsClient() {
           setActiveModal('downpayment_receipt');
         } else {
           setActiveModal(null);
+          toast.success('Booking Updated', data.message || 'Booking updated successfully!');
           showAlert('success', 'Booking Updated', data.message || 'Booking updated successfully!');
         }
         clientCache.delete('RECEPTIONIST_BOOKINGS');
         fetchData();
       } catch (err) {
+        toast.error('Update Failed', err.message);
         showAlert('error', 'Error', err.message);
       } finally {
         setIsUpdatingBooking(false);
@@ -1404,11 +1406,14 @@ function BookingsClient() {
           paymentMethodName: pmObj?.paymentMethod || 'Cash'
         });
 
+        toast.success('Booking Created', `Booking #${data.bookingID || ''} created successfully with down payment.`);
+        showAlert('success', 'Booking Created', `Booking #${data.bookingID || ''} created successfully with down payment.`);
         setActiveModal('downpayment_receipt');
         clientCache.delete('RECEPTIONIST_BOOKINGS');
         clientCache.delete('RECEPTIONIST_RESERVATIONS');
         fetchData();
       } catch (err) {
+        toast.error('Booking Failed', err.message);
         showAlert('error', 'Error', err.message);
       } finally {
         setIsSubmitting(false);
@@ -1445,9 +1450,11 @@ function BookingsClient() {
           return;
         }
 
+        toast.success('Check-In Complete', data.message || 'Guest checked in successfully.');
         showAlert('success', 'Success', data.message || 'Guest checked in successfully.');
         fetchData();
       } catch (err) {
+        toast.error('Check-In Failed', err.message);
         showAlert('error', 'Error', err.message);
       }
     };
@@ -1483,9 +1490,11 @@ function BookingsClient() {
           return;
         }
 
+        toast.success('Check-Out Complete', data.message || 'Guest checked out successfully.');
         showAlert('success', 'Success', data.message || 'Guest checked out successfully.');
         fetchData();
       } catch (err) {
+        toast.error('Check-Out Failed', err.message);
         showAlert('error', 'Error', err.message);
       }
     };
@@ -1527,11 +1536,13 @@ function BookingsClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to cancel booking');
 
+      toast.success('Booking Cancelled', data.message || 'Booking cancelled successfully.');
       showAlert('success', 'Booking Cancelled', data.message || 'Booking cancelled successfully.');
       setActiveModal(null);
       setCancellingBookingObj(null);
       fetchData();
     } catch (err) {
+      toast.error('Cancellation Failed', err.message);
       showAlert('error', 'Error', err.message);
     } finally {
       setIsCancellingBooking(false);

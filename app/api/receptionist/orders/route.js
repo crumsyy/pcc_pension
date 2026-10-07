@@ -462,7 +462,7 @@ export async function POST(request) {
         }
 
         await connection.commit();
-        await syncInventoryStock();
+        syncInventoryStock().catch(err => console.error("Background syncInventoryStock error:", err));
         return NextResponse.json({ 
           success: true, 
           message: 'Order created successfully.', 
@@ -659,7 +659,7 @@ export async function POST(request) {
         }
 
         await connection.commit();
-        await syncInventoryStock();
+        syncInventoryStock().catch(err => console.error("Background syncInventoryStock error:", err));
         return NextResponse.json({ success: true, message: `Order status updated to ${newStatus}.` });
       } catch (err) {
         await connection.rollback();
@@ -771,7 +771,7 @@ export async function POST(request) {
         }
 
         await connection.commit();
-        await syncInventoryStock();
+        syncInventoryStock().catch(err => console.error("Background syncInventoryStock error:", err));
         return NextResponse.json({ success: true, message: 'Return recorded successfully.' });
       } catch (e) {
         await connection.rollback();
