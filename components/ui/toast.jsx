@@ -6,69 +6,101 @@ import { Toast } from '@base-ui/react/toast';
 // Create a singleton manager instance outside React tree for global imperative access
 const manager = Toast.createToastManager();
 
+const activeToastIds = new Set();
+
 /**
  * Universal imperative toast API
  */
 export const toast = {
   add: (options = {}) => {
-    return manager.add(options);
+    const id = manager.add(options);
+    if (id) activeToastIds.add(id);
+    return id;
   },
   success: (titleOrDesc, descriptionOrOptions) => {
     if (typeof titleOrDesc === 'object' && titleOrDesc !== null) {
-      return manager.add({ type: 'success', ...titleOrDesc });
+      const id = manager.add({ type: 'success', ...titleOrDesc });
+      if (id) activeToastIds.add(id);
+      return id;
     }
     const hasDesc = typeof descriptionOrOptions === 'string';
-    return manager.add({
+    const id = manager.add({
       type: 'success',
       title: hasDesc ? titleOrDesc : (titleOrDesc || 'Success'),
       description: hasDesc ? descriptionOrOptions : undefined,
       ...(typeof descriptionOrOptions === 'object' ? descriptionOrOptions : {})
     });
+    if (id) activeToastIds.add(id);
+    return id;
   },
   error: (titleOrDesc, descriptionOrOptions) => {
     if (typeof titleOrDesc === 'object' && titleOrDesc !== null) {
-      return manager.add({ type: 'error', ...titleOrDesc });
+      const id = manager.add({ type: 'error', ...titleOrDesc });
+      if (id) activeToastIds.add(id);
+      return id;
     }
     const hasDesc = typeof descriptionOrOptions === 'string';
-    return manager.add({
+    const id = manager.add({
       type: 'error',
       title: hasDesc ? titleOrDesc : 'Error',
       description: hasDesc ? descriptionOrOptions : (titleOrDesc || 'An error occurred'),
       ...(typeof descriptionOrOptions === 'object' ? descriptionOrOptions : {})
     });
+    if (id) activeToastIds.add(id);
+    return id;
   },
   warning: (titleOrDesc, descriptionOrOptions) => {
     if (typeof titleOrDesc === 'object' && titleOrDesc !== null) {
-      return manager.add({ type: 'warning', ...titleOrDesc });
+      const id = manager.add({ type: 'warning', ...titleOrDesc });
+      if (id) activeToastIds.add(id);
+      return id;
     }
     const hasDesc = typeof descriptionOrOptions === 'string';
-    return manager.add({
+    const id = manager.add({
       type: 'warning',
       title: hasDesc ? titleOrDesc : 'Warning',
       description: hasDesc ? descriptionOrOptions : (titleOrDesc || 'Please review this notice'),
       ...(typeof descriptionOrOptions === 'object' ? descriptionOrOptions : {})
     });
+    if (id) activeToastIds.add(id);
+    return id;
   },
   info: (titleOrDesc, descriptionOrOptions) => {
     if (typeof titleOrDesc === 'object' && titleOrDesc !== null) {
-      return manager.add({ type: 'info', ...titleOrDesc });
+      const id = manager.add({ type: 'info', ...titleOrDesc });
+      if (id) activeToastIds.add(id);
+      return id;
     }
     const hasDesc = typeof descriptionOrOptions === 'string';
-    return manager.add({
+    const id = manager.add({
       type: 'info',
       title: hasDesc ? titleOrDesc : 'Notice',
       description: hasDesc ? descriptionOrOptions : titleOrDesc,
       ...(typeof descriptionOrOptions === 'object' ? descriptionOrOptions : {})
     });
+    if (id) activeToastIds.add(id);
+    return id;
   },
   promise: (promise, options = {}) => {
     return manager.promise(promise, options);
   },
   close: (id) => {
-    if (id) manager.close(id);
+    if (id) {
+      try { manager.close(id); } catch (e) {}
+      activeToastIds.delete(id);
+    }
   },
   dismiss: (id) => {
-    if (id) manager.close(id);
+    if (id) {
+      try { manager.close(id); } catch (e) {}
+      activeToastIds.delete(id);
+    }
+  },
+  dismissAll: () => {
+    activeToastIds.forEach((id) => {
+      try { manager.close(id); } catch (e) {}
+    });
+    activeToastIds.clear();
   }
 };
 
@@ -194,7 +226,7 @@ export function Toaster() {
 
   return (
     <>
-      <Toast.Provider toastManager={manager} timeout={4500} limit={5}>
+      <Toast.Provider toastManager={manager} timeout={3800} limit={3}>
         <Toast.Portal>
           <Toast.Viewport className="pcc-toast-viewport">
             <ToastList />

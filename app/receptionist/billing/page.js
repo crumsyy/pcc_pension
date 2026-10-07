@@ -89,6 +89,8 @@ export default function ReceptionistBilling() {
 
   const [shouldAnimate, setShouldAnimate] = useState(true);
   const isFirstMount = useRef(true);
+  const selectedBookingIDRef = useRef('');
+  selectedBookingIDRef.current = selectedBookingID;
 
   const fetchActiveBookings = async (isBackground = false) => {
     if (!isBackground && !clientCache.has('RECEPTIONIST_BILLING')) {
@@ -561,6 +563,34 @@ export default function ReceptionistBilling() {
       setSelectedBookingID(bID);
       fetchBillingDetails(bID);
     }
+
+    // Real-time background sync polling every 6 seconds
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchActiveBookings(true);
+        if (selectedBookingIDRef.current) {
+          fetchBillingDetails(selectedBookingIDRef.current);
+        }
+      }
+    }, 6000);
+
+    const handleFocus = () => {
+      fetchActiveBookings(true);
+      if (selectedBookingIDRef.current) fetchBillingDetails(selectedBookingIDRef.current);
+    };
+    const handleCustomRefresh = () => {
+      fetchActiveBookings(true);
+      if (selectedBookingIDRef.current) fetchBillingDetails(selectedBookingIDRef.current);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pcc-refresh-billing', handleCustomRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pcc-refresh-billing', handleCustomRefresh);
+    };
   }, []);
 
   const handleBookingChange = (e) => {

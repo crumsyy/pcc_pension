@@ -917,6 +917,25 @@ function BookingsClient() {
       fetchData(false);
     }
     isFirstMount.current = false;
+
+    // Real-time background sync polling every 5 seconds
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchData(true);
+      }
+    }, 5000);
+
+    const handleFocus = () => fetchData(true);
+    const handleCustomRefresh = () => fetchData(true);
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pcc-refresh-bookings', handleCustomRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pcc-refresh-bookings', handleCustomRefresh);
+    };
   }, []);
 
   const openCreateModal = () => {

@@ -102,6 +102,7 @@ export default function DashboardClient({ userName }) {
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('pcc-inventory-sync', handleSync);
+    window.addEventListener('pcc-refresh-dashboard', handleSync);
 
     let bc;
     try {
@@ -117,6 +118,7 @@ export default function DashboardClient({ userName }) {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('pcc-inventory-sync', handleSync);
+      window.removeEventListener('pcc-refresh-dashboard', handleSync);
       if (bc) {
         try { bc.close(); } catch (e) {}
       }

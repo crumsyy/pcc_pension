@@ -9,7 +9,7 @@ export async function GET() {
   }
 
   try {
-    await syncRoomStatuses(true);
+    await syncRoomStatuses(false);
 
     const [
       totalCheckInsRes,

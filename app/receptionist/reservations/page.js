@@ -424,6 +424,25 @@ function ReservationsClient() {
       fetchData(false);
     }
     isFirstMount.current = false;
+
+    // Real-time background sync polling every 5 seconds
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchData(true);
+      }
+    }, 5000);
+
+    const handleFocus = () => fetchData(true);
+    const handleCustomRefresh = () => fetchData(true);
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pcc-refresh-reservations', handleCustomRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pcc-refresh-reservations', handleCustomRefresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -729,13 +748,14 @@ function ReservationsClient() {
         if (!res.ok) throw new Error(data.error || 'Failed to place courtesy hold');
 
         toast.success('Courtesy Hold Created', data.message || 'Courtesy hold created successfully for 48 hours.');
-        showAlert('success', 'Success', data.message || 'Courtesy hold created successfully.');
         setActiveModal(null);
         clientCache.delete('RECEPTIONIST_RESERVATIONS');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('pcc-refresh-dashboard'));
+        }
         fetchData();
       } catch (err) {
         toast.error('Reservation Failed', err.message);
-        showAlert('error', 'Error', err.message);
       } finally {
         setIsSubmitting(false);
       }

@@ -290,6 +290,7 @@ function ReceptionistOrdersContent() {
   const [deliveryTime, setDeliveryTime] = useState('07:30 AM');
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
+  const lastAddToastIdRef = useRef(null);
 
   // Modals
   const [viewingOrder, setViewingOrder] = useState(null);
@@ -377,19 +378,27 @@ function ReceptionistOrdersContent() {
     }
     isFirstMount.current = false;
 
-    // Real-time background sync polling every 10 seconds
+    // Real-time background sync polling every 5 seconds
     const interval = setInterval(() => {
-      fetchData(true);
-    }, 10000);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchData(true);
+      }
+    }, 5000);
 
     const handleFocus = () => {
       fetchData(true);
     };
+    const handleCustomRefresh = () => {
+      fetchData(true);
+    };
+
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('pcc-refresh-orders', handleCustomRefresh);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pcc-refresh-orders', handleCustomRefresh);
     };
   }, []);
 
@@ -433,7 +442,11 @@ function ReceptionistOrdersContent() {
     const itemID = type === 'Product' ? item.productID : item.amenityID;
     const defaultDeliveryType = isCookedMeal ? 'scheduled' : (chosenDeliveryType || 'immediate');
 
-    toast.info('Item Added', `${item.name} added to Order Tray.`);
+    if (lastAddToastIdRef.current) {
+      toast.dismiss(lastAddToastIdRef.current);
+    }
+    const newToastId = toast.info('Item Added', `${item.name} added to Order Tray.`);
+    lastAddToastIdRef.current = newToastId;
     setCart(prev => {
       const existsIndex = prev.findIndex(c => c.itemID === itemID && c.type === type);
       if (existsIndex >= 0) {
@@ -586,14 +599,15 @@ function ReceptionistOrdersContent() {
         if (!res.ok) throw new Error(data.error || 'Failed to place order');
 
         toast.success('Order Placed Successfully', `Order for ${selectedBooking?.roomNumber ? 'Room ' + selectedBooking.roomNumber : 'Guest'} recorded in stay billing.`);
-        showAlert('success', 'Order Placed', 'Order placed successfully and recorded on the stay billing.');
         setCart([]);
         setDeliveryDate(getTomorrowManila());
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('pcc-refresh-dashboard'));
+        }
         fetchData();
         setActiveCategory('history');
       } catch (err) {
         toast.error('Order Failed', err.message);
-        showAlert('error', 'Error', err.message);
       } finally {
         setSubmittingOrder(false);
       }
