@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import ModalPortal from './ModalPortal';
 import { toast } from 'sonner';
@@ -23,30 +25,34 @@ export default function ModalDialog({
       const toastTitle = title && title !== 'Success' && title !== 'Error' && title !== 'Warning' && title !== 'Info' && title !== 'System Notification' ? title : '';
       const toastMsg = message || title || 'Notification';
 
-      if (type === 'success') {
-        toast.success(toastMsg, {
-          description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
-        });
-      } else if (type === 'error') {
-        toast.error(toastMsg, {
-          description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
-        });
-      } else if (type === 'warning') {
-        toast.warning(toastMsg, {
-          description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
-        });
-      } else {
-        toast.info(toastMsg, {
-          description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
-        });
-      }
+      const timer = setTimeout(() => {
+        if (type === 'success') {
+          toast.success(toastMsg, {
+            description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
+          });
+        } else if (type === 'error') {
+          toast.error(toastMsg, {
+            description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
+          });
+        } else if (type === 'warning') {
+          toast.warning(toastMsg, {
+            description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
+          });
+        } else {
+          toast.info(toastMsg, {
+            description: toastTitle && toastTitle !== toastMsg ? toastTitle : undefined,
+          });
+        }
 
-      // Automatically notify parent to close alert state
-      if (typeof onConfirm === 'function') {
-        onConfirm();
-      } else if (typeof onCancel === 'function') {
-        onCancel();
-      }
+        // Automatically notify parent to close alert state after dispatching toast
+        if (typeof onConfirm === 'function') {
+          onConfirm();
+        } else if (typeof onCancel === 'function') {
+          onCancel();
+        }
+      }, 10);
+
+      return () => clearTimeout(timer);
     }
   }, [isOpen, type, title, message, onConfirm, onCancel]);
 
