@@ -250,19 +250,20 @@ function ReservationsClient() {
     return Array.from(disabledSet);
   };
 
-  const checkScheduleConflict = (roomId, inDate, outDate, currentResId = null) => {
+  const checkScheduleConflict = (roomId, inDate, outDate, currentResId = null, inTime = '14:00', outTime = '12:00') => {
     if (!roomId || !inDate || !roomSchedules || roomSchedules.length === 0) return false;
     const dbIn = toDbDate(inDate);
     const dbOut = outDate ? toDbDate(outDate) : null;
     if (!dbIn) return false;
 
-    const reqIn = new Date(`${dbIn}T14:00:00`);
-    const reqOut = dbOut ? new Date(`${dbOut}T12:00:00`) : new Date(new Date(`${dbIn}T14:00:00`).getTime() + 24 * 3600 * 1000);
+    const reqIn = new Date(`${dbIn}T${inTime || '14:00'}:00`);
+    const reqOut = dbOut ? new Date(`${dbOut}T${outTime || '12:00'}:00`) : new Date(reqIn.getTime() + 24 * 3600 * 1000);
     if (isNaN(reqIn.getTime()) || isNaN(reqOut.getTime())) return false;
 
     return roomSchedules.some(sched => {
       if (String(sched.roomID) !== String(roomId)) return false;
       if (currentResId && String(sched.reservationID) === String(currentResId)) return false;
+      if (['Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Released', 'Completed'].includes(sched.status)) return false;
       const sIn = new Date((sched.checkInDateTime || '').replace(' ', 'T'));
       const sOut = new Date((sched.checkOutDateTime || '').replace(' ', 'T'));
       if (isNaN(sIn.getTime()) || isNaN(sOut.getTime())) return false;
@@ -679,7 +680,7 @@ function ReservationsClient() {
     }
 
     if (formData.roomID && resDate && checkOutDate) {
-      const hasConflict = checkScheduleConflict(formData.roomID, resDate, checkOutDate);
+      const hasConflict = checkScheduleConflict(formData.roomID, resDate, checkOutDate, null, resTime, checkOutTime);
       if (hasConflict) {
         errors.conflict = `Room ${selectedRoomObj?.roomNumber || ''} is already reserved, held, or booked for the selected dates.`;
       }
@@ -783,7 +784,7 @@ function ReservationsClient() {
     }
 
     if (formData.roomID && resDate && checkOutDate) {
-      const hasConflict = checkScheduleConflict(formData.roomID, resDate, checkOutDate, selectedRes.reservationID);
+      const hasConflict = checkScheduleConflict(formData.roomID, resDate, checkOutDate, selectedRes.reservationID, resTime, checkOutTime);
       if (hasConflict) {
         errors.conflict = `Room ${selectedRoomObj?.roomNumber || ''} is already reserved, held, or booked for the selected dates.`;
       }
@@ -1890,7 +1891,7 @@ function ReservationsClient() {
                   <LoadingButton
                     type="submit"
                     isLoading={isSubmitting}
-                    disabled={Boolean(formData.roomID && resDate && checkScheduleConflict(formData.roomID, resDate, checkOutDate, activeModal === 'edit' ? selectedRes?.reservationID : null))}
+                    disabled={Boolean(formData.roomID && resDate && checkScheduleConflict(formData.roomID, resDate, checkOutDate, activeModal === 'edit' ? selectedRes?.reservationID : null, resTime, checkOutTime))}
                     loadingText={activeModal === 'create' ? 'Placing Hold...' : 'Updating Reservation...'}
                     className={`btn ${activeModal === 'create' ? 'btn-warning text-dark' : 'btn-pcc-primary text-white'} fw-bold`}
                   >

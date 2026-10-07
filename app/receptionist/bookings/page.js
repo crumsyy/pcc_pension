@@ -392,6 +392,26 @@ function BookingsClient() {
       return;
     }
 
+    const targetRoomID = formData.roomID || updatingBooking.roomID;
+    const updateConflict = checkScheduleConflict(
+      targetRoomID,
+      checkInDate,
+      checkOutDate,
+      checkInTime,
+      checkOutTime,
+      updatingBooking.bookingID
+    );
+    if (updateConflict) {
+      const roomObj = rooms.find(r => String(r.roomID) === String(targetRoomID));
+      const roomNum = roomObj ? roomObj.roomNumber : '';
+      showAlert(
+        'error',
+        'Schedule Conflict',
+        `Room ${roomNum} is not available for the updated schedule. It has a conflicting ${updateConflict.type} (${updateConflict.id}) scheduled from ${updateConflict.checkIn} to ${updateConflict.checkOut}.`
+      );
+      return;
+    }
+
     const origInStr = (updatingBooking.checkInDateTime || '').replace(' ', 'T').substring(0, 16);
     const origOutStr = (updatingBooking.checkOutDateTime || '').replace(' ', 'T').substring(0, 16);
     const newInStr = (toDbDate(checkInDate) + 'T' + checkInTime).substring(0, 16);
@@ -1223,6 +1243,26 @@ function BookingsClient() {
       return;
     }
 
+    const inTimeEffective = useCurrentTimeIn ? (currentTimeStr || '14:00') : (checkInTime || '14:00');
+    const outTimeEffective = checkOutTime || '12:00';
+    const createConflict = checkScheduleConflict(
+      formData.roomID,
+      checkInDate,
+      checkOutDate,
+      inTimeEffective,
+      outTimeEffective
+    );
+    if (createConflict) {
+      const selectedRoomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
+      const roomNum = selectedRoomObj ? selectedRoomObj.roomNumber : '';
+      showAlert(
+        'error',
+        'Schedule Conflict',
+        `Room ${roomNum} is already booked or reserved during this schedule (${createConflict.type} ${createConflict.id} from ${createConflict.checkIn} to ${createConflict.checkOut}). Please select another room or adjust the dates.`
+      );
+      return;
+    }
+
     const selectedRoom = rooms.find(r => String(r.roomID) === String(formData.roomID));
     const maxOccupancy = selectedRoom ? (parseInt(selectedRoom.occupancyLimit || selectedRoom.roomBasePax) || 4) : 4;
 
@@ -1616,47 +1656,84 @@ function BookingsClient() {
     return matchesSearch && matchesStatus;
   }).sort((a, b) => (parseInt(b.bookingID, 10) || 0) - (parseInt(a.bookingID, 10) || 0));
 
-  const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, isCurrentTime = false) => {
-    const room = rooms.find(r => String(r.roomID) === String(roomID));
-    if (!room) return false;
-    if (isCurrentTime) {
-      return room.status === 'Available';
-    }
-    if (!inDateStr || !outDateStr) {
-      return room.status === 'Available';
-    }
-    const inD = toDbDate(inDateStr);
-    const outD = toDbDate(outDateStr);
-    if (!inD || !outD) return room.status === 'Available';
+  const checkScheduleConflict = (roomId, inDate, outDate, inTime = '14:00', outTime = '12:00', currentBookingId = null) => {
+    if (!roomId || !inDate) return null;
+    const dbIn = toDbDate(inDate);
+    const dbOut = outDate ? toDbDate(outDate) : null;
+    if (!dbIn || !dbOut) return null;
 
-    const reqIn = new Date(`${inD}T14:00:00`);
-    const reqOut = new Date(`${outD}T12:00:00`);
-    if (isNaN(reqIn.getTime()) || isNaN(reqOut.getTime()) || reqOut <= reqIn) return room.status === 'Available';
+    const reqIn = new Date(`${dbIn}T${inTime || '14:00'}:00`);
+    const reqOut = new Date(`${dbOut}T${outTime || '12:00'}:00`);
+    if (isNaN(reqIn.getTime()) || isNaN(reqOut.getTime()) || reqOut <= reqIn) return null;
 
-    const hasOverlap = bookings.some(b => {
-      if (String(b.roomID) !== String(roomID)) return false;
-      if (['Cancelled', 'Checked Out', 'No Show', 'Completed'].includes(b.status)) return false;
-      const bIn = new Date((b.checkInDateTime || '').replace(' ', 'T'));
-      const bOut = new Date((b.checkOutDateTime || '').replace(' ', 'T'));
-      if (isNaN(bIn.getTime()) || isNaN(bOut.getTime())) return false;
-      return bIn < reqOut && bOut > reqIn;
-    });
-
-    if (hasOverlap) return false;
-
+    // Check roomSchedules (all active bookings and active reservations)
     if (roomSchedules && roomSchedules.length > 0) {
-      const hasSchedOverlap = roomSchedules.some(sched => {
-        if (String(sched.roomID) !== String(roomID)) return false;
-        if (['Cancelled', 'Checked Out', 'No Show', 'Released', 'Completed'].includes(sched.status)) return false;
+      const conflictSched = roomSchedules.find(sched => {
+        if (String(sched.roomID) !== String(roomId)) return false;
+        if (currentBookingId && String(sched.bookingID) === String(currentBookingId)) return false;
+        if (['Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Released', 'Completed'].includes(sched.status)) return false;
         const sIn = new Date((sched.checkInDateTime || '').replace(' ', 'T'));
         const sOut = new Date((sched.checkOutDateTime || '').replace(' ', 'T'));
         if (isNaN(sIn.getTime()) || isNaN(sOut.getTime())) return false;
         return sIn < reqOut && sOut > reqIn;
       });
-      if (hasSchedOverlap) return false;
+      if (conflictSched) {
+        const isRes = conflictSched.type === 'reservation' || conflictSched.reservationID;
+        const typeLabel = isRes ? (conflictSched.isCourtesyHold || conflictSched.status === 'Courtesy Hold' ? 'Courtesy Hold' : 'Reservation') : 'Booking';
+        const idLabel = isRes ? `#${conflictSched.reservationID}` : `#${conflictSched.bookingID}`;
+        return {
+          conflict: true,
+          type: typeLabel,
+          id: idLabel,
+          checkIn: conflictSched.checkInDateTime,
+          checkOut: conflictSched.checkOutDateTime,
+          status: conflictSched.status
+        };
+      }
     }
 
-    return true;
+    // Also check bookings in state
+    if (bookings && bookings.length > 0) {
+      const conflictBooking = bookings.find(b => {
+        if (String(b.roomID) !== String(roomId)) return false;
+        if (currentBookingId && String(b.bookingID) === String(currentBookingId)) return false;
+        if (['Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Completed'].includes(b.status)) return false;
+        const bIn = new Date((b.checkInDateTime || '').replace(' ', 'T'));
+        const bOut = new Date((b.checkOutDateTime || '').replace(' ', 'T'));
+        if (isNaN(bIn.getTime()) || isNaN(bOut.getTime())) return false;
+        return bIn < reqOut && bOut > reqIn;
+      });
+      if (conflictBooking) {
+        return {
+          conflict: true,
+          type: 'Booking',
+          id: `#${conflictBooking.bookingID}`,
+          checkIn: conflictBooking.checkInDateTime,
+          checkOut: conflictBooking.checkOutDateTime,
+          status: conflictBooking.status
+        };
+      }
+    }
+
+    return null;
+  };
+
+  const isRoomAvailableForDates = (roomID, inDateStr, outDateStr, isCurrentTime = false, inTime = '14:00', outTime = '12:00', excludeBookingId = null) => {
+    const room = rooms.find(r => String(r.roomID) === String(roomID));
+    if (!room) return false;
+
+    if (['Maintenance', 'Under Maintenance', 'Out of Order', 'Disabled'].includes(room.status)) {
+      return false;
+    }
+
+    if (!inDateStr || !outDateStr) {
+      return room.status === 'Available';
+    }
+
+    const checkTimeIn = isCurrentTime ? (currentTimeStr || '14:00') : (inTime || '14:00');
+    const checkTimeOut = outTime || '12:00';
+    const conflict = checkScheduleConflict(roomID, inDateStr, outDateStr, checkTimeIn, checkTimeOut, excludeBookingId);
+    return !conflict;
   };
 
   const getStatusBadge = (status) => {
@@ -2339,7 +2416,7 @@ function BookingsClient() {
                           {selectedRoomType ? "Select Available Room" : "Choose Room Type first"}
                         </option>
                         {rooms
-                          .filter(rm => (rm.roomType || 'Standard Room') === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, useCurrentTimeIn))
+                          .filter(rm => (rm.roomType || 'Standard Room') === selectedRoomType && isRoomAvailableForDates(rm.roomID, checkInDate, checkOutDate, useCurrentTimeIn, checkInTime, checkOutTime))
                           .map(rm => (
                             <option key={rm.roomID} value={String(rm.roomID)}>
                               Room {rm.roomNumber} (Max {rm.occupancyLimit || 4} Pax)

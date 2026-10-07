@@ -88,7 +88,7 @@ export async function GET(request) {
       dbQuery(`
         SELECT bookingID, roomID, checkInDateTime, checkOutDateTime, status, 'booking' as type
         FROM booking
-        WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        WHERE status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Completed')
           AND checkOutDateTime >= CURDATE()
       `),
       dbQuery(`
@@ -96,9 +96,9 @@ export async function GET(request) {
                COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) as checkOutDateTime,
                status, 'reservation' as type, isCourtesyHold
         FROM reservation
-        WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show', 'Released')
+        WHERE status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Released', 'Completed')
           AND (
-            reservationDateTime >= CURDATE()
+            COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) >= CURDATE()
             OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
           )
       `)
@@ -405,35 +405,50 @@ export async function POST(request) {
           return NextResponse.json({ error: "Cannot proceed: GCash payment not settled." }, { status: 400 });
         }
 
-        // Check for duplicate booking for same guest, same room, and same check-in date
-        const [dupCheck] = await conn.execute(
-          `SELECT bookingID, status FROM booking 
-           WHERE guestID = ? AND roomID = ? 
-             AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
-             AND DATE(checkInDateTime) = DATE(?)`,
-          [guestID, roomID, checkInDateTime]
+        const reqIn = checkInDateTime;
+        const reqOut = checkOutDateTime || new Date(new Date(checkInDateTime.replace(' ', 'T')).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+
+        // 1. Conflict Detection: Verify room is not already booked by another guest for overlapping dates
+        const [conflictingBookings] = await conn.execute(
+          `SELECT bookingID FROM booking 
+           WHERE roomID = ? 
+             AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
+             AND checkInDateTime < ? 
+             AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?`,
+          [roomID, reqOut, reqIn]
         );
-        if (dupCheck.length > 0) {
+        if (conflictingBookings.length > 0) {
+          await conn.rollback();
           return NextResponse.json({
-            error: `A booking already exists for this guest in this room on ${inDateOnlyStr}. Duplicate booking blocked.`
+            error: "This room is already booked by another guest for the selected dates and times."
           }, { status: 409 });
         }
 
         const convReservationID = body.reservationID ? parseInt(body.reservationID) : null;
 
-        // Auto-cancel any competing active reservations for this room overlapping the stay
-        const [compRes] = await conn.execute(
-          `SELECT reservationID, guestID FROM reservation 
-           WHERE roomID = ? AND status IN ('Pending', 'Confirmed')
-             ${convReservationID ? 'AND reservationID != ' + convReservationID : ''}
-             AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?`,
-          [roomID, checkOutDateTime, checkInDateTime]
-        );
-        for (const c of compRes) {
-          await conn.execute(
-            `UPDATE reservation SET status = 'Cancelled', specialRequests = CONCAT(COALESCE(specialRequests, ''), ' [Auto-cancelled: Room booked for conflicting dates]') WHERE reservationID = ?`,
-            [c.reservationID]
-          );
+        // 2. Conflict Detection: Verify room does not already have an active reservation or courtesy hold
+        let resConflictSql = `SELECT reservationID, status, holdExpiryDateTime FROM reservation 
+           WHERE roomID = ? 
+             AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired')
+             AND NOT (
+               status IN ('Courtesy Hold', 'On Hold') 
+               AND holdExpiryDateTime IS NOT NULL 
+               AND NOW() > DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)
+             )
+             AND reservationDateTime < ? 
+             AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?`;
+        const resConflictParams = [roomID, reqOut, reqIn];
+        if (convReservationID) {
+          resConflictSql += " AND reservationID != ?";
+          resConflictParams.push(convReservationID);
+        }
+
+        const [conflictingReservations] = await conn.execute(resConflictSql, resConflictParams);
+        if (conflictingReservations.length > 0) {
+          await conn.rollback();
+          return NextResponse.json({
+            error: "This room already has an active reservation or courtesy hold for the selected dates."
+          }, { status: 409 });
         }
 
         // Timestamp resolution based on useCurrentTime
@@ -702,6 +717,48 @@ export async function POST(request) {
         // Update booking checkIn/Out timestamps and room/guest if specified
         const newRoomID = body.roomID ? parseInt(body.roomID) : oldBooking.roomID;
         const newGuestID = body.guestID ? parseInt(body.guestID) : oldBooking.guestID;
+
+        const reqIn = checkInDateTime;
+        const reqOut = checkOutDateTime || new Date(new Date(checkInDateTime.replace(' ', 'T')).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+
+        // Conflict Detection: Verify room is not already booked by another guest for overlapping dates
+        const [conflictingBookings] = await conn.execute(
+          `SELECT bookingID FROM booking 
+           WHERE roomID = ? 
+             AND bookingID != ?
+             AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
+             AND checkInDateTime < ? 
+             AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?`,
+          [newRoomID, bookingID, reqOut, reqIn]
+        );
+        if (conflictingBookings.length > 0) {
+          await conn.rollback();
+          return NextResponse.json({
+            error: "This room is already booked by another guest for the selected dates and times."
+          }, { status: 409 });
+        }
+
+        // Conflict Detection: Verify room does not already have an active reservation or courtesy hold
+        const [conflictingReservations] = await conn.execute(
+          `SELECT reservationID, status, holdExpiryDateTime FROM reservation 
+           WHERE roomID = ? 
+             AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired')
+             AND NOT (
+               status IN ('Courtesy Hold', 'On Hold') 
+               AND holdExpiryDateTime IS NOT NULL 
+               AND NOW() > DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)
+             )
+             AND reservationDateTime < ? 
+             AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?`,
+          [newRoomID, reqOut, reqIn]
+        );
+        if (conflictingReservations.length > 0) {
+          await conn.rollback();
+          return NextResponse.json({
+            error: "This room already has an active reservation or courtesy hold for the selected dates."
+          }, { status: 409 });
+        }
+
         let updateBookingSql = "UPDATE booking SET checkInDateTime = ?, checkOutDateTime = ?, roomID = ?, guestID = ?";
         let updateBookingParams = [checkInDateTime, checkOutDateTime, newRoomID, newGuestID];
         if (body.breakfastOption !== undefined) {
@@ -988,6 +1045,22 @@ export async function POST(request) {
 
       // 1. Advance Check-In: guest checks in 1 or more days ahead of scheduled check-in date
       if (manilaDateStr < scheduledCheckInDate) {
+        // Ensure no active stay is currently occupying the room
+        const activeOccupant = await dbQuery(`
+          SELECT bookingID, guestID, checkInDateTime, checkOutDateTime
+          FROM booking
+          WHERE roomID = ?
+            AND bookingID != ?
+            AND status IN ('Checked In', 'Active Stay', 'Pending Checkout', 'Room Verified')
+          LIMIT 1
+        `, [roomID, bookingID]);
+
+        if (activeOccupant && activeOccupant.length > 0) {
+          return NextResponse.json({
+            error: `Cannot perform advance check-in: Room ${roomNumber} is currently occupied by another guest until ${activeOccupant[0].checkOutDateTime}.`
+          }, { status: 409 });
+        }
+
         const scheduledDateObj = new Date(scheduledCheckInDate + 'T00:00:00');
         const currentDateObj = new Date(manilaDateStr + 'T00:00:00');
         advanceNights = Math.max(1, Math.ceil((scheduledDateObj - currentDateObj) / (1000 * 60 * 60 * 24)));

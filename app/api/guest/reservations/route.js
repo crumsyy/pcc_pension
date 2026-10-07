@@ -462,7 +462,7 @@ export async function PATCH(request) {
       SELECT bookingID, status
       FROM booking
       WHERE roomID = ?
-        AND status IN ('Confirmed', 'Checked In', 'Pending Check-in', 'Late Checkout')
+        AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Completed')
         AND checkInDateTime < ?
         AND checkOutDateTime > ?
       LIMIT 1

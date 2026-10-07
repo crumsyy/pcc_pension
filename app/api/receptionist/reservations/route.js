@@ -144,7 +144,7 @@ export async function GET(request) {
       dbQuery(`
         SELECT bookingID, roomID, checkInDateTime, checkOutDateTime, status, 'booking' as type
         FROM booking
-        WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        WHERE status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Completed')
           AND checkOutDateTime >= CURDATE()
       `),
       dbQuery(`
@@ -152,9 +152,9 @@ export async function GET(request) {
                COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) as checkOutDateTime,
                status, 'reservation' as type, isCourtesyHold
         FROM reservation
-        WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show', 'Released')
+        WHERE status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Released', 'Completed')
           AND (
-            reservationDateTime >= CURDATE()
+            COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) >= CURDATE()
             OR (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
           )
       `)
@@ -297,19 +297,22 @@ export async function POST(request) {
         dbQuery(`
           SELECT bookingID FROM booking
           WHERE roomID = ?
-            AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+            AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
             AND checkInDateTime < ?
-            AND checkOutDateTime > ?
+            AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?
         `, [roomID, reqOut, reqIn]),
         dbQuery(`
           SELECT reservationID FROM reservation
           WHERE roomID = ?
-            AND (
-              (status IN ('Pending', 'Confirmed', 'Booked') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
-              OR
-              (status = 'Courtesy Hold' AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+            AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired')
+            AND NOT (
+              status IN ('Courtesy Hold', 'On Hold') 
+              AND holdExpiryDateTime IS NOT NULL 
+              AND NOW() > DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)
             )
-        `, [roomID, reqOut, reqIn, reqOut, reqIn])
+            AND reservationDateTime < ? 
+            AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?
+        `, [roomID, reqOut, reqIn])
       ]);
 
       if (conflictingBookings.length > 0) {
@@ -417,6 +420,44 @@ export async function POST(request) {
         return NextResponse.json({ error: dupCheck.message }, { status: 400 });
       }
 
+      const reqIn = reservationDateTime;
+      const reqOut = checkOutDateTime || new Date(new Date(reservationDateTime.replace(' ', 'T')).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+
+      const [conflictingBookings, conflictingReservations] = await Promise.all([
+        dbQuery(`
+          SELECT bookingID FROM booking
+          WHERE roomID = ?
+            AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
+            AND checkInDateTime < ?
+            AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?
+        `, [roomID, reqOut, reqIn]),
+        dbQuery(`
+          SELECT reservationID FROM reservation
+          WHERE roomID = ?
+            AND reservationID != ?
+            AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired')
+            AND NOT (
+              status IN ('Courtesy Hold', 'On Hold') 
+              AND holdExpiryDateTime IS NOT NULL 
+              AND NOW() > DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)
+            )
+            AND reservationDateTime < ? 
+            AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?
+        `, [roomID, reservationID, reqOut, reqIn])
+      ]);
+
+      if (conflictingBookings.length > 0) {
+        return NextResponse.json({
+          error: "This room is already booked for the selected dates."
+        }, { status: 409 });
+      }
+
+      if (conflictingReservations.length > 0) {
+        return NextResponse.json({
+          error: "This room already has an active reservation or courtesy hold for the selected dates."
+        }, { status: 409 });
+      }
+
       await dbQuery(
         "UPDATE reservation SET roomID = ?, reservationDateTime = ?, checkOutDateTime = ?, guestCount = ?, specialRequests = ?, breakfastOption = ? WHERE reservationID = ?",
         [roomID, reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption, reservationID]
@@ -505,6 +546,23 @@ export async function POST(request) {
         const bookingStatus = checkInNow ? 'Active Stay' : 'Pending';
         const roomStatus = checkInNow ? 'Occupied' : 'Reserved';
         const finalCheckInDateTime = checkInNow ? nowStr : checkInDateTime;
+
+        // Check if room is already booked by another booking for overlapping dates
+        const [conflictBookings] = await conn.execute(
+          `SELECT bookingID FROM booking 
+           WHERE roomID = ? 
+             AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
+             AND checkInDateTime < ? 
+             AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?`,
+          [roomID, checkOutDateTime, finalCheckInDateTime]
+        );
+        if (conflictBookings.length > 0) {
+          await conn.rollback();
+          conn.release();
+          return NextResponse.json({
+            error: "This room is already booked by another guest for the selected dates."
+          }, { status: 409 });
+        }
 
         // 1. Update reservation status to Booked
         await conn.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [reservationID]);
