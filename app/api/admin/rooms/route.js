@@ -64,6 +64,10 @@ export async function POST(request) {
 
     if (action === 'create') {
       const roomNumber = body.roomNumber.trim();
+
+      if (!/^\d+$/.test(roomNumber)) {
+        return NextResponse.json({ error: 'Room Number must contain numbers only (no letters).' }, { status: 400 });
+      }
       const status = body.status || 'Available';
       const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);
@@ -117,6 +121,10 @@ export async function POST(request) {
     if (action === 'update') {
       const roomID = parseInt(body.roomID);
       const roomNumber = body.roomNumber.trim();
+
+      if (!/^\d+$/.test(roomNumber)) {
+        return NextResponse.json({ error: 'Room Number must contain numbers only (no letters).' }, { status: 400 });
+      }
       const status = body.status;
       const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);

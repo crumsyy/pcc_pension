@@ -1,18 +1,19 @@
-# Walkthrough — Faster Admin Portal Loading (P1–P3)
+# Walkthrough — Rooms: Delete "Ro", Numeric Numbers, Footer Order
 
-## Changes (no commit/push yet)
-- **P1 — 350ms debounced search** (timer + `useRef`, no new effects): bookings, reservations, users, rooms, amenities, products, purchase-orders, discounts, inventory. Typing updates the input instantly and fires ONE fetch 350ms after stopping (was: one MySQL round-trip per keystroke). Pagination resets and Clear buttons preserved. Reports needed nothing (its text input is client-side only).
-- **P2 — polling hygiene** (same intervals, zero freshness change while visible): dashboard, inventory, purchase-orders, discounts polls now skip when the tab is hidden and when a fetch is already in flight (flag always cleared in `finally`).
-- **P3 — parallel reports queries** (`app/api/admin/reports/route.js` GET only): independent queries batched into `Promise.all` groups (sales 4-way, counts 3-way, occupancy 4-way + 5-way, inventory 6-way + 2-way, guests 4-way); result-dependent fallbacks and JS aggregation order untouched — identical response values.
-- No visual/logic/API-shape changes.
+## Data change (done, verified)
+- Room "Ro" (roomID 360002, Available) had 0 reservations + 0 bookings → hard-deleted (`DELETE` affected 1 row, re-SELECT confirms 0 remaining). Temp scripts removed.
+
+## Code changes (no commit/push yet)
+- `RoomsClient.js`: room-number inputs strip non-digits live (create + edit); create/edit submit guards reject non-`^\d+$` with a clear error; create modal footer swapped to Cancel (left) → Create Room (right). Edit modal footer untouched.
+- `app/api/admin/rooms/route.js`: create + update reject non-numeric numbers with 400 (direct API POSTs covered too).
 
 ## Verification
-- `npx eslint` on all touched files: only pre-existing findings, nothing new.
+- `npx eslint`: only pre-existing findings on untouched lines.
 - `npm run build` success, 96/96 pages.
 
 ## Manual check
-1. Network tab: typing a search word = 1 list request; results identical.
-2. Background tab = no polling requests; visible tab refreshes as before.
-3. Reports numbers identical, loading noticeably quicker.
+1. Room list has no "Ro" (active or archived).
+2. Typing letters in Room Number does nothing; submitting numeric works; direct API POST with letters returns 400.
+3. Create modal shows Cancel left, Create Room right.
 
 Awaiting review. Say `"push"` only when you want commit + push.

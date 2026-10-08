@@ -286,7 +286,11 @@ export default function RoomsClient() {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let { value } = e.target;
+    if (name === 'roomNumber') {
+      value = String(value).replace(/[^0-9]/g, '');
+    }
     setFormData(prev => {
       const next = { ...prev, [name]: value };
       if (name === 'floorID' || name === 'roomTypeID') {
@@ -307,6 +311,10 @@ export default function RoomsClient() {
     e.preventDefault();
     if (!formData.roomNumber.trim()) {
       showAlert('error', 'Validation Error', 'Room Number is required and cannot be empty.');
+      return;
+    }
+    if (!/^\d+$/.test(formData.roomNumber.trim())) {
+      showAlert('error', 'Validation Error', 'Room Number must contain numbers only (no letters).');
       return;
     }
     if (parseFloat(formData.rateWithoutBreakfast) < 0 || parseFloat(formData.rateWithBreakfast) < 0) {
@@ -343,6 +351,10 @@ export default function RoomsClient() {
     e.preventDefault();
     if (!formData.roomNumber.trim()) {
       showAlert('error', 'Validation Error', 'Room Number is required and cannot be empty.');
+      return;
+    }
+    if (!/^\d+$/.test(formData.roomNumber.trim())) {
+      showAlert('error', 'Validation Error', 'Room Number must contain numbers only (no letters).');
       return;
     }
     if (parseFloat(formData.rateWithoutBreakfast) < 0 || parseFloat(formData.rateWithBreakfast) < 0) {
@@ -857,8 +869,8 @@ export default function RoomsClient() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary text-white">Create Room</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-pcc-primary text-white">Create Room</button>
                 </div>
               </form>
             </div>
