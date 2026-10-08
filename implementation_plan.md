@@ -1,27 +1,28 @@
-# Implementation Plan — Inventory Dashboard Movements Panel Fit
+# Implementation Plan — Stock Out Red Badge + Audit Panel Fit
 
 ## 1. Goal
-Recent Stock Movements panel (Inventory → Dashboard tab) shows its pagination footer with breathing room, no bottom cut. No API/DB/count changes (stays 10/page).
+On Inventory → Movement Logs (and dashboard movements): Stock Out badges red instead of black; All Stock Movements Audit History panel fits with its pagination footer visible. No API/DB/count changes.
 
-## 2. Root Cause (verified `inventory/page.js:893-935`)
-The table scroller is fixed at `maxHeight: 350px`, ignoring the ~450px of content stacked above it on the dashboard tab (page title, tab bar, 6 stat cards, card header). 350 + footer overflows the flex:1 container, so the footer renders below the fold and is clipped (screenshot).
+## 2. Current State (verified `inventory/page.js`)
+- Stock Out badge is `text-bg-dark` in two movement-badge mappings: dashboard table (`:917`) and audit history (`:1316`). Quantity `-N` text is already red.
+- Audit panel (`:1295-1334`) is already paginated (`logsPaginated` + footer `:1332`) — the footer exists but is cut: its scroller cap `calc(100vh - 380px)` (~550px at 930px viewport) makes the card overshoot the viewport, unlike the sibling Disposed panel which uses fixed `350px` and fits (`:1265`).
 
 ## 3. Scope
-- IN: one style value on the dashboard movements scroller.
-- OUT: other tabs, counts, APIs.
+- IN: badge classes (2 spots) + audit scroller cap (1 value).
+- OUT: counts, pagination logic, other tabs, APIs.
 
 ## 4. Design
-- `maxHeight: 'max(200px, calc(100vh - 500px))'` (replaces fixed `350px`): reserves ~500px for header + title + tabs + stats + card chrome + footer, so the footer stays visible with room to spare at normal heights; `200px` floor keeps the table usable on short screens (internal scroll, footer still pinned below in flow).
-- Other tabs already use viewport-relative caps (`calc(100vh - 380px)`) suited to their slimmer headers — untouched.
+- `Stock Out` → `text-bg-danger` in both mappings (dashboard + audit). Other types unchanged (In: green, Borrow: yellow, Return: light-blue, fallback: red).
+- Audit scroller `maxHeight` → fixed `350px`, matching the sibling Disposed panel so both cards align and both footers sit on screen.
 
 ## 5. Steps
-1. One-line edit in `inventory/page.js`.
+1. Three small edits in `inventory/page.js`.
 2. `npx eslint` file + `npm run build`.
-3. Manual on localhost: dashboard footer fully visible with whitespace below at ~900px height; short screens scroll the table only.
+3. Manual: Stock Out badges red in both tables; audit footer fully visible with whitespace below; disposal panel unchanged.
 4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- Footer visible with breathing room, no cut; build passes.
+- Red Stock Out badges; audit footer visible, no cut; build passes.
 
 ## 7. Risks
-- None; single viewport-relative cap.
+- None; class + cap changes only.

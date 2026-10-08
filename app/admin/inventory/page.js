@@ -914,7 +914,7 @@ export default function AdminInventory() {
                         <td><strong>{m.itemName}</strong></td>
                         <td>
                           <span className={`badge ${m.movementType === 'Stock In' ? 'text-bg-success' :
-                              m.movementType === 'Stock Out' ? 'text-bg-dark' :
+                              m.movementType === 'Stock Out' ? 'text-bg-danger' :
                                 m.movementType === 'Borrow' ? 'text-bg-warning' :
                                   m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
                             }`}>
@@ -1295,7 +1295,7 @@ export default function AdminInventory() {
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border">
               <h5 className="text-blue mb-3">All Stock Movements Audit History</h5>
-              <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
                 <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
                   <thead>
                     <tr>
@@ -1313,7 +1313,7 @@ export default function AdminInventory() {
                         <td><strong>{m.itemName}</strong></td>
                         <td>
                           <span className={`badge ${m.movementType === 'Stock In' ? 'text-bg-success' :
-                              m.movementType === 'Stock Out' ? 'text-bg-dark' :
+                              m.movementType === 'Stock Out' ? 'text-bg-danger' :
                                 m.movementType === 'Borrow' ? 'text-bg-warning' :
                                   m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
                             }`}>
