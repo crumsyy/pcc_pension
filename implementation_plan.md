@@ -1,30 +1,33 @@
-# Implementation Plan — Sonner Message Toasts in Inquiries + Quick-Replay Fix
+# Implementation Plan — Register: Inter Fonts, Province→City Suggest, Password Checklist
 
 ## 1. Goals
-(a) Add a `toast.message()` API (Sonner-style neutral message toast) to the toast wrapper and use it for inquiry notices instead of native `alert()` popups. (b) Fix the dead quick-reply menu buttons. No API/DB changes.
+Guest register page (`app/auth/register/page.js`): (a) all fonts Inter; (b) Province-first + City with the same suggest-dropdown inputs as User Management; (c) real-time password checklist per the screenshot. No API changes.
 
-## 2. Findings (verified)
-- Wrapper `components/ui/toast.jsx` exposes `add/success/error/warning/info/promise/close/dismiss` — no `message` type; icon renderer + accent CSS keyed by type.
-- `GuestChatBubble.js` uses native `alert()` on connect/ticket failures (`:241, :283`) — the popups to replace. Receptionist inquiries (`receptionist/inquiries/page.js`) already notifies via the wrapper — untouched.
-- Quick replies (`GuestChatBubble.js:661-693`) call undefined `handleQuickOption` → ReferenceError on every click. "Room Service Info" label matches no bot keyword, so it needs an explicit query map.
+## 2. Current State (verified)
+- Fonts inherit the global theme (`section-title` Fraunces, `section-eyebrow`/mono tags); page has no font scope.
+- City input (`:397-416`) comes before Province (`:418-437`); both free text via `handleAddressChange`; submit checks non-empty + address pattern (`:117-118`).
+- Password: submit enforces `strongPw` (`:150-154`, 8+upper+lower+number+special set); backend (`api/auth/register/route.js:75-81`) enforces the same 5 (incl. lowercase). Neither checks the username rule, so the checklist's "not contain your username" row would be advisory-only unless submit also enforces it.
+- `ProvinceCityInputs` (`app/components/ProvinceCityInputs.js`) hardcodes `col-md-6` wrappers and `form-label` labels; register grid uses `col-12 col-md-6` + `form-label small fw-bold`.
 
 ## 3. Scope
-- IN: `toast.message()` (+ `pcc-toast-message` accent/icon styling), 2 alert swaps in `GuestChatBubble.js`, new `handleQuickOption` with key→query map.
-- OUT: thread/bubble markup, bot knowledge content, APIs.
+- IN: register page + additive optional props on `ProvinceCityInputs` + one Inter scope block in `globals.css`.
+- OUT: APIs, DB, DOB logic (already 18+), other auth pages.
 
 ## 4. Design
-- `toast.message(title, description?)` mirrors the `info()` helper shape: `manager.add({ type: 'message', ... })`, tracked in `activeToastIds`, neutral chat-bubble icon + slate accent (full dark-theme parity like other types).
-- GuestChatBubble failures → `toast.message('Connection failed', err.message)` (notice UI, no blocking popup). In-thread success messages stay as-is.
-- `handleQuickOption(key, label)`: appends user `label`, replies via existing `getBotReply` over mapped queries `{rates:'room rates price', checkin:'check-in checkout time', amenities:'amenities wifi', location:'location address contact', orders:'order food breakfast'}` on the existing 400ms typing-indicator path.
+- **Fonts**: wrap page return in `<div className="register-inter">` + CSS mirroring the admin-inter rule (Inter `!important`, excluding `i/svg/path/fa-*/bi-*` so icons survive). Portaled terms/privacy modals already use Bootstrap defaults (Inter) — verified no display-font classes inside.
+- **Location**: `ProvinceCityInputs idPrefix="reg-loc"` with new optional `columnClassName` (default `'col-md-6'`) and `labelClassName` (default `'form-label'`) props — register passes `col-12 col-md-6` / `form-label small fw-bold`. Adapter maps its `{target:{name,value}}` events to `setProvince/setCity` + clears field errors (component already clears city on province mismatch). Submit adds `isKnownProvince` / `isCityInProvince` checks (same messages); `fieldOrder` reordered province-before-city.
+- **Checklist** (replaces the static hint under Password; submit error stays): 6 live rows — 8+ chars; no username (email local-part, applied when ≥3 chars, case-insensitive); one allowed special (same set as `strongPw`); one uppercase; one lowercase; one numeric. Green `bi-check-circle-fill` when met, grey otherwise (screenshot style; "allowed" tinted primary). Submit additionally rejects username-containing passwords so the checklist never lies (backend remains a satisfied subset).
 
 ## 5. Steps
-1. Wrapper `message` API + styles.
-2. Alert swaps + `handleQuickOption`.
-3. `npx eslint` touched files + `npm run build`; manual: failures show message toasts (no `alert`), all 5 menu buttons answer correctly, other toast types unchanged.
-4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
+1. CSS scope + page wrapper; `ProvinceCityInputs` optional props.
+2. Swap City/Province blocks; adapter + submit checks + fieldOrder.
+3. Checklist UI + submit username rule.
+4. `npx eslint` + `npm run build`; manual: fonts Inter everywhere, province suggest → city follows, checklist ticks live, submit/API agree.
+5. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- Zero native `alert()` in inquiries flows; message toasts styled consistently; menu buttons work with no console errors; build passes.
+- Inter-only register page; invalid province/city combos blocked with clear errors; all 6 rows green ⇔ submit passes ⇔ backend accepts; build passes.
 
 ## 7. Risks
-- None; additive API + local handlers.
+- Extra lowercase row deviates from the 5-row screenshot — required for backend parity; flagged explicitly.
+- Username rule ignored when email local-part <3 chars (avoids absurd single-char blocks); noted in helper text.

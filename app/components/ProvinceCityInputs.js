@@ -16,6 +16,8 @@ export default function ProvinceCityInputs({
   onChange,
   required = false,
   disabled = false,
+  columnClassName = 'col-md-6',
+  labelClassName = 'form-label',
 }) {
   const provinceNames = useMemo(() => getProvinceNames(), []);
 
@@ -43,8 +45,8 @@ export default function ProvinceCityInputs({
 
   return (
     <>
-      <div className="col-md-6">
-        <label className="form-label" htmlFor={`${idPrefix}-province`}>
+      <div className={columnClassName}>
+        <label className={labelClassName} htmlFor={`${idPrefix}-province`}>
           Province <span className="required-asterisk">*</span>
         </label>
         <input
@@ -66,8 +68,8 @@ export default function ProvinceCityInputs({
           ))}
         </datalist>
       </div>
-      <div className="col-md-6">
-        <label className="form-label" htmlFor={`${idPrefix}-city`}>
+      <div className={columnClassName}>
+        <label className={labelClassName} htmlFor={`${idPrefix}-city`}>
           City / Municipality <span className="required-asterisk">*</span>
         </label>
         <input

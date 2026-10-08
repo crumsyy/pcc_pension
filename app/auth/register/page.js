@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DateInput, { isValidDate, toDbDate } from "@/app/components/DateInput";
+import ProvinceCityInputs from "@/app/components/ProvinceCityInputs";
+import { isKnownProvince, isCityInProvince } from "@/lib/phLocations";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import LoadingButton from "@/app/components/LoadingButton";
 import ModalPortal from "@/app/components/ModalPortal";
@@ -81,13 +83,6 @@ export default function RegisterPage() {
     setFieldErrors((prev) => ({ ...prev, [fieldName]: false }));
   };
 
-  const handleAddressChange = (val, setter, fieldName) => {
-    // Allow letters, numbers, spaces, periods, commas, and hyphens for addresses
-    const sanitized = val.replace(/[^A-Za-z0-9Ññ\s.,'#\-]/g, "");
-    setter(sanitized);
-    setFieldErrors((prev) => ({ ...prev, [fieldName]: false }));
-  };
-
   const handleContactChange = (val) => {
     let raw = val.replace(/[^0-9]/g, "");
     // Auto-convert +639 or 639 into 09
@@ -99,6 +94,34 @@ export default function RegisterPage() {
     setFieldErrors((prev) => ({ ...prev, contact: false }));
   };
 
+  const handleLocationChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'province') {
+      setProvince(value);
+      setFieldErrors((prev) => ({ ...prev, province: false }));
+    } else if (name === 'city') {
+      setCity(value);
+      setFieldErrors((prev) => ({ ...prev, city: false }));
+    }
+  };
+
+  // Live password requirement checklist (mirrors submit + backend rules)
+  const emailLocalPart = (email.split('@')[0] || '').trim();
+  const pwHasMinLength = password.length >= 8;
+  const pwNoUsername = emailLocalPart.length >= 3 && !password.toLowerCase().includes(emailLocalPart.toLowerCase());
+  const pwHasUpper = /[A-Z]/.test(password);
+  const pwHasLower = /[a-z]/.test(password);
+  const pwHasNumber = /[0-9]/.test(password);
+  const pwHasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  const pwChecklist = [
+    { key: 'length', text: 'Password should be at least 8 characters long.', met: pwHasMinLength },
+    { key: 'username', text: 'Password should not contain your username.', met: pwNoUsername },
+    { key: 'special', text: (<>Password should contain at least one <span className="text-primary">allowed</span> special character.</>), met: pwHasSpecial },
+    { key: 'upper', text: 'Password should contain at least one uppercase character.', met: pwHasUpper },
+    { key: 'lower', text: 'Password should contain at least one lowercase character.', met: pwHasLower },
+    { key: 'number', text: 'Password should contain at least one numeric character.', met: pwHasNumber },
+  ];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -107,15 +130,14 @@ export default function RegisterPage() {
 
     const errors = {};
     const namePattern = /^[A-Za-zÑñ\s'\-]+$/;
-    const addressPattern = /^[A-Za-z0-9Ññ\s.,'#\-]+$/;
 
     // Frontend validations
     if (!firstName.trim() || !namePattern.test(firstName)) errors.firstName = true;
     if (middleName.trim() !== "" && !namePattern.test(middleName)) errors.middleName = true;
     if (!lastName.trim() || !namePattern.test(lastName)) errors.lastName = true;
     if (!gender) errors.gender = true;
-    if (!city.trim() || !addressPattern.test(city)) errors.city = true;
-    if (!province.trim() || !addressPattern.test(province)) errors.province = true;
+    if (!isKnownProvince(province)) errors.province = true;
+    if (!isCityInProvince(city, province)) errors.city = true;
     
     // Normalize and validate Philippine contact number
     let cleanContact = contact.replace(/[^0-9]/g, "");
@@ -147,9 +169,10 @@ export default function RegisterPage() {
       }
     }
 
-    // Password strength check (min 8 chars, uppercase, lowercase, number, special char)
+    // Password strength check (must match the live checklist below)
     const strongPw = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-    if (!strongPw.test(password)) {
+    const containsUsername = emailLocalPart.length >= 3 && password.toLowerCase().includes(emailLocalPart.toLowerCase());
+    if (!strongPw.test(password) || containsUsername) {
       errors.password = true;
     }
     if (!confirmPassword || password !== confirmPassword) {
@@ -169,7 +192,7 @@ export default function RegisterPage() {
       setLoading(false);
 
       // Auto-scroll to the first invalid field
-      const fieldOrder = ['firstName', 'middleName', 'lastName', 'gender', 'dob', 'city', 'province', 'contact', 'email', 'password', 'confirmPassword', 'terms', 'privacy'];
+      const fieldOrder = ['firstName', 'middleName', 'lastName', 'gender', 'dob', 'province', 'city', 'contact', 'email', 'password', 'confirmPassword', 'terms', 'privacy'];
       const firstKey = fieldOrder.find(k => errors[k]);
       if (firstKey) {
         setTimeout(() => {
@@ -243,7 +266,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <>
+    <div className="register-inter">
       <nav className="navbar navbar-expand-lg navbar-pcc">
         <div className="container">
           <Link href="/" className="navbar-brand">
@@ -394,47 +417,26 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* City */}
-                  <div className="col-12 col-md-6">
-                    <label className="form-label small fw-bold" htmlFor="city">
-                      City / Municipality <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      id="city"
-                      name="city"
-                      type="text"
-                      className={`form-control ${fieldErrors.city ? "is-invalid border-danger" : ""}`}
-                      placeholder="e.g. Koronadal City"
-                      value={city}
-                      onChange={(e) => handleAddressChange(e.target.value, setCity, "city")}
-                      onFocus={handleInputFocus}
-                      required
-                    />
-                    {fieldErrors.city && (
-                      <div className="text-danger small mt-1 fw-semibold d-block">Please enter a valid city or municipality name.</div>
-                    )}
-                  </div>
-
-                  {/* Province */}
-                  <div className="col-12 col-md-6">
-                    <label className="form-label small fw-bold" htmlFor="province">
-                      Province <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      id="province"
-                      name="province"
-                      type="text"
-                      className={`form-control ${fieldErrors.province ? "is-invalid border-danger" : ""}`}
-                      placeholder="e.g. South Cotabato"
-                      value={province}
-                      onChange={(e) => handleAddressChange(e.target.value, setProvince, "province")}
-                      onFocus={handleInputFocus}
-                      required
-                    />
-                    {fieldErrors.province && (
-                      <div className="text-danger small mt-1 fw-semibold d-block">Please enter a valid province name.</div>
-                    )}
-                  </div>
+                  {/* Province + City (province first, suggest dropdowns) */}
+                  <ProvinceCityInputs
+                    idPrefix="reg-loc"
+                    province={province}
+                    city={city}
+                    onChange={handleLocationChange}
+                    required
+                    columnClassName="col-12 col-md-6"
+                    labelClassName="form-label small fw-bold"
+                  />
+                  {fieldErrors.province && (
+                    <div className="col-12 col-md-6">
+                      <div className="text-danger small mt-1 fw-semibold d-block">Please select a valid province from the suggestions.</div>
+                    </div>
+                  )}
+                  {fieldErrors.city && (
+                    <div className="col-12 col-md-6">
+                      <div className="text-danger small mt-1 fw-semibold d-block">Please select a valid city or municipality for the chosen province.</div>
+                    </div>
+                  )}
 
                   {/* Contact Number */}
                   <div className="col-12 col-md-6">
@@ -534,11 +536,20 @@ export default function RegisterPage() {
                     </div>
                     {fieldErrors.password ? (
                       <div className="text-danger small mt-1 fw-semibold d-block">
-                        Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
+                        Password must meet all the requirements below.
                       </div>
-                    ) : (
-                      <div className="form-text small text-muted">Min. 8 chars with uppercase, lowercase, number &amp; symbol.</div>
-                    )}
+                    ) : null}
+                    <div className="mt-2">
+                      <div className="small fw-semibold text-dark mb-1">Password checklist</div>
+                      <ul className="list-unstyled mb-0 d-flex flex-column gap-1">
+                        {pwChecklist.map((rule) => (
+                          <li key={rule.key} className="d-flex align-items-start gap-1.5 small" style={{ fontSize: '0.82rem' }}>
+                            <i className={`bi ${rule.met ? 'bi-check-circle-fill text-success' : 'bi-check-circle text-muted'} mt-0.5`}></i>
+                            <span className={rule.met ? 'text-success' : 'text-muted'}>{rule.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
 
                   {/* Confirm Password */}
@@ -1007,6 +1018,6 @@ export default function RegisterPage() {
         </div>
       </ModalPortal>
     )}
-    </>
+    </div>
   );
 }
