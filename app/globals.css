@@ -1055,6 +1055,13 @@ h4,
     width: 240px !important;
     z-index: 1020;
     overflow-y: auto;
+    transition: width 0.2s ease-in-out;
+  }
+
+  /* Collapsed icon-only rail (toggled via .sidebar-collapsed on the nav).
+     Nav and .pcc-main-wrapper are siblings: keep the override paired. */
+  .pcc-fixed-sidebar.sidebar-collapsed {
+    width: 76px !important;
   }
 
   .pcc-main-wrapper {
@@ -1063,6 +1070,19 @@ h4,
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
+    transition: margin-left 0.2s ease-in-out;
+  }
+
+  .pcc-fixed-sidebar.sidebar-collapsed ~ .pcc-main-wrapper {
+    margin-left: 76px !important;
+  }
+
+  /* Keep nav labels on a single line */
+  .pcc-fixed-sidebar .nav-link span:last-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
   .pcc-main-wrapper main {

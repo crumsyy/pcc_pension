@@ -210,7 +210,7 @@ export default function SidebarClient({ session, role, children }) {
           zIndex: 1020,
           transition: 'width 0.2s ease-in-out'
         }}
-        className="d-none d-lg-flex flex-column p-3 pcc-fixed-sidebar"
+        className={`d-none d-lg-flex flex-column p-3 pcc-fixed-sidebar ${collapsed && isAdmin ? 'sidebar-collapsed' : ''}`}
       >
         <div className="mb-4 text-center">
           <Link href={dashboardUrl} title={collapsed && isAdmin ? 'Dashboard' : undefined}>
