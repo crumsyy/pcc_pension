@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
+import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -12,6 +13,14 @@ export default function AdminAmenities() {
   const [catFilter, setCatFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const handleSearchChange = (e) => { setSearch(e.target.value); setPage(1); };
+  const handleCatFilterChange = (e) => { setCatFilter(e.target.value); setPage(1); };
+  const handleTypeFilterChange = (e) => { setTypeFilter(e.target.value); setPage(1); };
+  const handleShowActive = () => { setShowArchived(false); setPage(1); };
+  const handleShowArchivedTab = () => { setShowArchived(true); setPage(1); };
+  const handleClearFilters = () => { setSearch(''); setCatFilter(''); setTypeFilter(''); setPage(1); };
 
   const baseCacheKey = `admin-amenities:${search}_${catFilter}_${typeFilter}_${showArchived}`;
   const cached = clientCache.get(baseCacheKey);
@@ -317,6 +326,8 @@ export default function AdminAmenities() {
     setActiveModal('edit');
   };
 
+  const { totalPages, safePage, rows: pagedItems, start, end, total } = paginate(items, page, ADMIN_PAGE_SIZE);
+
   return (
     <div className="pcc-page-container pcc-content-reveal">
       {/* Custom Modal Dialog */}
@@ -346,7 +357,7 @@ export default function AdminAmenities() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(false)}
+            onClick={handleShowActive}
           >
             Active Amenities
           </button>
@@ -354,7 +365,7 @@ export default function AdminAmenities() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(true)}
+            onClick={handleShowArchivedTab}
           >
             Archived Amenities
           </button>
@@ -370,14 +381,14 @@ export default function AdminAmenities() {
               className="form-control"
               placeholder="Search by name or category..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
           <div className="col-md-3">
             <select
               className="form-select"
               value={catFilter}
-              onChange={(e) => setCatFilter(e.target.value)}
+              onChange={handleCatFilterChange}
             >
               <option value="">All Categories</option>
               {categories.map((c) => (
@@ -391,7 +402,7 @@ export default function AdminAmenities() {
             <select
               className="form-select"
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={handleTypeFilterChange}
             >
               <option value="">All Types</option>
               <option value="Consumable">Consumable</option>
@@ -399,7 +410,7 @@ export default function AdminAmenities() {
             </select>
           </div>
           <div className="col-md-2 d-flex gap-2">
-            <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setCatFilter(''); setTypeFilter(''); }}>
+            <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFilters}>
               Clear
             </button>
           </div>
@@ -430,9 +441,9 @@ export default function AdminAmenities() {
                     </td>
                   </tr>
                 ) : (
-                  items.map((item, index) => (
+                  pagedItems.map((item, index) => (
                     <tr key={item.amenityID}>
-                      <td>{index + 1}</td>
+                      <td>{start + index}</td>
                       <td>
                         <div className="d-flex align-items-center gap-2">
                           {item.image ? (
@@ -472,6 +483,7 @@ export default function AdminAmenities() {
               </tbody>
             </table>
           </div>
+          <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label="amenities" />
       </div>
 
       {/* ==========================================

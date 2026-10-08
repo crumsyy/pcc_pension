@@ -8,10 +8,31 @@ import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
+import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/AdminPagination';
 
 export default function AdminDiscounts() {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('active_discounts');
+  const [discPage, setDiscPage] = useState(1);
+  const [promoPage, setPromoPage] = useState(1);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setDiscPage(1);
+    setPromoPage(1);
+  };
+
+  const handleSearchChange = (v) => {
+    setSearch(v);
+    setDiscPage(1);
+    setPromoPage(1);
+  };
+
+  const handleClearSearch = () => {
+    setSearch('');
+    setDiscPage(1);
+    setPromoPage(1);
+  };
 
   const baseCacheKey = `admin-discounts:${search}_${activeTab}`;
   const cached = clientCache.get(baseCacheKey);
@@ -476,6 +497,9 @@ export default function AdminDiscounts() {
     return today >= start && today <= end;
   };
 
+  const discPaginated = paginate(discounts, discPage, ADMIN_PAGE_SIZE);
+  const promoPaginated = paginate(promotions, promoPage, ADMIN_PAGE_SIZE);
+
 
   return (
     <div className="pcc-page-container pcc-content-reveal">
@@ -498,12 +522,16 @@ export default function AdminDiscounts() {
           <p className="text-muted small mb-0 mt-1">Manage guest discounts, PWD/Senior Citizen rules, and promotional codes</p>
         </div>
         <div className="d-flex gap-2 align-items-center">
-          <button className="btn btn-pcc-primary ms-2" onClick={openCreateDiscModal}>
-            + Create Discount
-          </button>
-          <button className="btn btn-pcc-primary" onClick={openCreatePromoModal}>
-            + Create Promotion
-          </button>
+          {activeTab === 'active_discounts' && (
+            <button className="btn btn-pcc-primary ms-2" onClick={openCreateDiscModal}>
+              + Create Discount
+            </button>
+          )}
+          {activeTab === 'active_promos' && (
+            <button className="btn btn-pcc-primary" onClick={openCreatePromoModal}>
+              + Create Promo
+            </button>
+          )}
         </div>
       </div>
 
@@ -512,7 +540,7 @@ export default function AdminDiscounts() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${activeTab === 'active_discounts' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setActiveTab('active_discounts')}
+            onClick={() => handleTabChange('active_discounts')}
           >
             Active Discounts
           </button>
@@ -520,7 +548,7 @@ export default function AdminDiscounts() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${activeTab === 'active_promos' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setActiveTab('active_promos')}
+            onClick={() => handleTabChange('active_promos')}
           >
             Active Promos
           </button>
@@ -528,7 +556,7 @@ export default function AdminDiscounts() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${activeTab === 'archived' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setActiveTab('archived')}
+            onClick={() => handleTabChange('archived')}
           >
             Archived Discounts &amp; Promos
           </button>
@@ -544,11 +572,11 @@ export default function AdminDiscounts() {
               className="form-control"
               placeholder="Search by discount/promo name..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
           <div className="col-md-3">
-            <button className="btn btn-pcc-primary text-white w-100" onClick={() => setSearch('')}>
+            <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearSearch}>
               Clear
             </button>
           </div>
@@ -573,14 +601,14 @@ export default function AdminDiscounts() {
                     </tr>
                   </thead>
                   <tbody>
-                    {discounts.length === 0 ? (
+                    {discPaginated.rows.length === 0 ? (
                       <tr>
                         <td colSpan="6" className="text-center text-muted py-3">
                           No discounts found.
                         </td>
                       </tr>
                     ) : (
-                      discounts.map((d) => (
+                      discPaginated.rows.map((d) => (
                         <tr key={d.discountID}>
                           <td>
                             <strong>{d.name}</strong>
@@ -606,6 +634,7 @@ export default function AdminDiscounts() {
                   </tbody>
                 </table>
               </div>
+              <AdminPagination page={discPaginated.safePage} totalPages={discPaginated.totalPages} onPage={setDiscPage} start={discPaginated.start} end={discPaginated.end} total={discPaginated.total} label="discounts" ariaLabel="Discounts pagination" />
             </div>
           )}
 
@@ -627,14 +656,14 @@ export default function AdminDiscounts() {
                     </tr>
                   </thead>
                   <tbody>
-                    {promotions.length === 0 ? (
+                    {promoPaginated.rows.length === 0 ? (
                       <tr>
                         <td colSpan="7" className="text-center text-muted py-3">
                           No promotions found.
                         </td>
                       </tr>
                     ) : (
-                      promotions.map((p) => {
+                      promoPaginated.rows.map((p) => {
                         const active = isPromoActive(p.startDate, p.endDate);
                         return (
                           <tr key={p.promotionID}>
@@ -682,6 +711,7 @@ export default function AdminDiscounts() {
                   </tbody>
                 </table>
               </div>
+              <AdminPagination page={promoPaginated.safePage} totalPages={promoPaginated.totalPages} onPage={setPromoPage} start={promoPaginated.start} end={promoPaginated.end} total={promoPaginated.total} label="promos" ariaLabel="Promotions pagination" />
             </div>
           )}
         </div>

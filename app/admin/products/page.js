@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
+import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -12,6 +13,7 @@ export default function AdminProducts() {
   const [catFilter, setCatFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [activeTab, setActiveTab] = useState('products'); // 'products' | 'meals' | 'archived'
+  const [page, setPage] = useState(1);
 
   const baseCacheKey = `admin-products:${search}_${catFilter}_${typeFilter}_${activeTab}`;
   const cached = clientCache.get(baseCacheKey);
@@ -345,6 +347,41 @@ export default function AdminProducts() {
     setActiveModal('edit');
   };
 
+  const filteredProducts = products.filter(p => {
+    if (activeTab === 'products') return p.productCategoryID !== 3;
+    if (activeTab === 'meals') return p.productCategoryID === 3;
+    return true;
+  });
+  const { totalPages, safePage, rows: pagedProducts, start, end, total } = paginate(filteredProducts, page, ADMIN_PAGE_SIZE);
+
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
+    setPage(1);
+  };
+
+  const handleCatFilterChange = (e) => {
+    setCatFilter(e.target.value);
+    setPage(1);
+  };
+
+  const handleTypeFilterChange = (e) => {
+    setTypeFilter(e.target.value);
+    setPage(1);
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCatFilter(tab === 'meals' ? '3' : '');
+    setPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setCatFilter(activeTab === 'meals' ? '3' : '');
+    setTypeFilter('');
+    setPage(1);
+  };
+
   return (
     <div className="pcc-page-container pcc-content-reveal">
       {/* Custom Modal Dialog */}
@@ -364,9 +401,11 @@ export default function AdminProducts() {
           <div className="section-eyebrow">Admin</div>
           <h2 className="section-title mb-0">Products Management</h2>
         </div>
-        <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
-          + Create Product
-        </button>
+        {activeTab !== 'archived' && (
+          <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
+            {activeTab === 'meals' ? '+ Create Meal' : '+ Create Product'}
+          </button>
+        )}
       </div>
 
       {/* Tabs for Products, Cooked Meals, and Archived */}
@@ -374,10 +413,7 @@ export default function AdminProducts() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${activeTab === 'products' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => {
-              setActiveTab('products');
-              setCatFilter('');
-            }}
+            onClick={() => handleTabChange('products')}
           >
             Active Products
           </button>
@@ -385,10 +421,7 @@ export default function AdminProducts() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${activeTab === 'meals' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => {
-              setActiveTab('meals');
-              setCatFilter('3');
-            }}
+            onClick={() => handleTabChange('meals')}
           >
             Cooked Meals
           </button>
@@ -396,10 +429,7 @@ export default function AdminProducts() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${activeTab === 'archived' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => {
-              setActiveTab('archived');
-              setCatFilter('');
-            }}
+            onClick={() => handleTabChange('archived')}
           >
             Archived Items
           </button>
@@ -415,7 +445,7 @@ export default function AdminProducts() {
               className="form-control"
               placeholder={activeTab === 'meals' ? "Search cooked meals..." : "Search product name or category..."}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
           {activeTab !== 'meals' && (
@@ -424,7 +454,7 @@ export default function AdminProducts() {
                 <select
                   className="form-select"
                   value={catFilter}
-                  onChange={(e) => setCatFilter(e.target.value)}
+                  onChange={handleCatFilterChange}
                 >
                   <option value="">All Categories</option>
                   {categories
@@ -440,7 +470,7 @@ export default function AdminProducts() {
                 <select
                   className="form-select"
                   value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
+                  onChange={handleTypeFilterChange}
                 >
                   <option value="">All Types</option>
                   <option value="Consumable">Consumable</option>
@@ -450,7 +480,7 @@ export default function AdminProducts() {
             </>
           )}
           <div className="col-md-2 d-flex gap-2">
-            <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setCatFilter(activeTab === 'meals' ? '3' : ''); setTypeFilter(''); }}>
+            <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFilters}>
               Clear
             </button>
           </div>
@@ -476,13 +506,7 @@ export default function AdminProducts() {
               </thead>
               <tbody>
                 {(() => {
-                  const filteredProducts = products.filter(p => {
-                    if (activeTab === 'products') return p.productCategoryID !== 3;
-                    if (activeTab === 'meals') return p.productCategoryID === 3;
-                    return true;
-                  });
-
-                  if (filteredProducts.length === 0) {
+                  if (pagedProducts.length === 0) {
                     return (
                       <tr>
                         <td colSpan="9" className="text-center text-muted py-4">
@@ -492,9 +516,9 @@ export default function AdminProducts() {
                     );
                   }
 
-                  return filteredProducts.map((p, index) => (
+                  return pagedProducts.map((p, index) => (
                     <tr key={p.productID}>
-                      <td>{index + 1}</td>
+                      <td>{start + index}</td>
                       <td>
                         <div className="d-flex align-items-center gap-2">
                           {p.image ? (
@@ -554,6 +578,7 @@ export default function AdminProducts() {
               </tbody>
             </table>
           </div>
+          <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label={activeTab === 'meals' ? 'meals' : 'products'} />
       </div>
 
       {/* ==========================================

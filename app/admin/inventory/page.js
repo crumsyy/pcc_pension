@@ -9,6 +9,7 @@ import FlatDatePicker from '../../components/FlatDatePicker';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
+import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/AdminPagination';
 
 export default function AdminInventory() {
   const router = useRouter();
@@ -41,6 +42,68 @@ export default function AdminInventory() {
   const [expiredOnly, setExpiredOnly] = useState(false);
   const [expiryDateFilter, setExpiryDateFilter] = useState('');
   const [error, setError] = useState('');
+
+  // Client-side pagination (10/page) — separate page per table
+  const [dashPage, setDashPage] = useState(1);
+  const [stocksPage, setStocksPage] = useState(1);
+  const [batchesPage, setBatchesPage] = useState(1);
+  const [borrowPage, setBorrowPage] = useState(1);
+  const [disposalPage, setDisposalPage] = useState(1);
+  const [logsPage, setLogsPage] = useState(1);
+
+  const resetAllPages = () => {
+    setDashPage(1);
+    setStocksPage(1);
+    setBatchesPage(1);
+    setBorrowPage(1);
+    setDisposalPage(1);
+    setLogsPage(1);
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    resetAllPages();
+  };
+
+  const handleSearchChange = (v) => {
+    setSearch(v);
+    resetAllPages();
+  };
+
+  const handleTypeFilterChange = (v) => {
+    setTypeFilter(v);
+    resetAllPages();
+  };
+
+  const handleItemTypeFilterChange = (v) => {
+    setItemTypeFilter(v);
+    resetAllPages();
+  };
+
+  const handleLowStockChange = (v) => {
+    setLowStockOnly(v);
+    setStocksPage(1);
+  };
+
+  const handleExpiredChange = (v) => {
+    setExpiredOnly(v);
+    setBatchesPage(1);
+  };
+
+  const handleExpiryDateChange = (v) => {
+    setExpiryDateFilter(v);
+    setBatchesPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setTypeFilter('');
+    setItemTypeFilter('');
+    setLowStockOnly(false);
+    setExpiredOnly(false);
+    setExpiryDateFilter('');
+    resetAllPages();
+  };
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'dispose' | 'borrow' | 'return' | 'add_stock' | 'min_stock' | 'edit_expiry' | null
@@ -156,6 +219,13 @@ export default function AdminInventory() {
       return matchesSearch && matchesType && matchesItemType;
     });
   }, [movements, items, search, typeFilter, itemTypeFilter]);
+
+  const dashPaginated = paginate(movements, dashPage, ADMIN_PAGE_SIZE);
+  const stocksPaginated = paginate(filteredItems, stocksPage, ADMIN_PAGE_SIZE);
+  const batchesPaginated = paginate(filteredBatches, batchesPage, ADMIN_PAGE_SIZE);
+  const borrowPaginated = paginate(filteredBorrowLogs, borrowPage, ADMIN_PAGE_SIZE);
+  const disposalPaginated = paginate(disposalLogs, disposalPage, ADMIN_PAGE_SIZE);
+  const logsPaginated = paginate(filteredMovements, logsPage, ADMIN_PAGE_SIZE);
 
   const showAlert = (type, title, message) => {
     toast.add({
@@ -593,7 +663,7 @@ export default function AdminInventory() {
               borderBottom: activeTab === 'dashboard' ? '3px solid var(--pcc-blue)' : '',
               color: activeTab === 'dashboard' ? 'var(--pcc-blue)' : ''
             }}
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => handleTabChange('dashboard')}
           >
             Dashboard
           </button>
@@ -605,7 +675,7 @@ export default function AdminInventory() {
               borderBottom: activeTab === 'stocks' ? '3px solid var(--pcc-blue)' : '',
               color: activeTab === 'stocks' ? 'var(--pcc-blue)' : ''
             }}
-            onClick={() => setActiveTab('stocks')}
+            onClick={() => handleTabChange('stocks')}
           >
             Current Stocks
           </button>
@@ -617,7 +687,7 @@ export default function AdminInventory() {
               borderBottom: activeTab === 'batches' ? '3px solid var(--pcc-blue)' : '',
               color: activeTab === 'batches' ? 'var(--pcc-blue)' : ''
             }}
-            onClick={() => setActiveTab('batches')}
+            onClick={() => handleTabChange('batches')}
           >
             Batch Tracker
           </button>
@@ -629,7 +699,7 @@ export default function AdminInventory() {
               borderBottom: activeTab === 'borrow' ? '3px solid var(--pcc-blue)' : '',
               color: activeTab === 'borrow' ? 'var(--pcc-blue)' : ''
             }}
-            onClick={() => setActiveTab('borrow')}
+            onClick={() => handleTabChange('borrow')}
           >
             Borrowing System
           </button>
@@ -641,7 +711,7 @@ export default function AdminInventory() {
               borderBottom: activeTab === 'logs' ? '3px solid var(--pcc-blue)' : '',
               color: activeTab === 'logs' ? 'var(--pcc-blue)' : ''
             }}
-            onClick={() => setActiveTab('logs')}
+            onClick={() => handleTabChange('logs')}
           >
             Movement Logs
           </button>
@@ -838,7 +908,7 @@ export default function AdminInventory() {
                     </tr>
                   </thead>
                   <tbody>
-                    {movements.map((m) => (
+                    {dashPaginated.rows.map((m) => (
                       <tr key={m.movementID}>
                         <td>{new Date(m.movementDateTime).toLocaleString()}</td>
                         <td><strong>{m.itemName}</strong></td>
@@ -862,6 +932,7 @@ export default function AdminInventory() {
                   </tbody>
                 </table>
               </div>
+              <AdminPagination page={dashPaginated.safePage} totalPages={dashPaginated.totalPages} onPage={setDashPage} start={dashPaginated.start} end={dashPaginated.end} total={dashPaginated.total} label="movements" ariaLabel="Dashboard movements pagination" />
             </div>
           </div>
         </div>
@@ -877,18 +948,18 @@ export default function AdminInventory() {
                 className="form-control"
                 placeholder="Search catalog items..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
             </div>
             <div className="col-md-2">
-              <select className="form-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <select className="form-select" value={typeFilter} onChange={(e) => handleTypeFilterChange(e.target.value)}>
                 <option value="">All Categories</option>
                 <option value="Amenity">Amenities</option>
                 <option value="Product">Products</option>
               </select>
             </div>
             <div className="col-md-2">
-              <select className="form-select" value={itemTypeFilter} onChange={(e) => setItemTypeFilter(e.target.value)}>
+              <select className="form-select" value={itemTypeFilter} onChange={(e) => handleItemTypeFilterChange(e.target.value)}>
                 <option value="">All Item Types</option>
                 <option value="Consumable">Consumable</option>
                 <option value="Non-Consumable">Non-Consumable</option>
@@ -903,7 +974,7 @@ export default function AdminInventory() {
                   <FlatDatePicker
                     className="form-control border-start-0 ps-0"
                     value={expiryDateFilter}
-                    onChange={(val) => setExpiryDateFilter(typeof val === 'string' ? val : val?.target?.value || '')}
+                    onChange={(val) => handleExpiryDateChange(typeof val === 'string' ? val : val?.target?.value || '')}
                     dateFormat="m/d/Y"
                   />
                 </div>
@@ -918,7 +989,7 @@ export default function AdminInventory() {
                     role="switch" 
                     id="lowStockOnlySwitch"
                     checked={lowStockOnly}
-                    onChange={(e) => setLowStockOnly(e.target.checked)}
+                    onChange={(e) => handleLowStockChange(e.target.checked)}
                   />
                   <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="lowStockOnlySwitch">
                     ⚠️ Low Stock Only
@@ -933,7 +1004,7 @@ export default function AdminInventory() {
                     role="switch" 
                     id="expiredOnlySwitch"
                     checked={expiredOnly}
-                    onChange={(e) => setExpiredOnly(e.target.checked)}
+                    onChange={(e) => handleExpiredChange(e.target.checked)}
                   />
                   <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="expiredOnlySwitch">
                     ⌛ Expired
@@ -942,7 +1013,7 @@ export default function AdminInventory() {
               )}
             </div>
             <div className="col-md-2">
-              <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setTypeFilter(''); setItemTypeFilter(''); setLowStockOnly(false); setExpiredOnly(false); setExpiryDateFilter(''); }}>
+              <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFilters}>
                 Clear Filters
               </button>
             </div>
@@ -968,7 +1039,7 @@ export default function AdminInventory() {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item) => {
+                {stocksPaginated.rows.map((item) => {
                   const isLow = item.availableQty <= item.minStock;
                   return (
                     <tr key={`${item.sourceTable}-${item.itemID}`} className={isLow ? 'table-warning' : ''}>
@@ -1038,6 +1109,7 @@ export default function AdminInventory() {
               </tbody>
             </table>
           </div>
+          <AdminPagination page={stocksPaginated.safePage} totalPages={stocksPaginated.totalPages} onPage={setStocksPage} start={stocksPaginated.start} end={stocksPaginated.end} total={stocksPaginated.total} label="items" ariaLabel="Current stocks pagination" />
         </div>
       )}
 
@@ -1061,7 +1133,7 @@ export default function AdminInventory() {
                 </tr>
               </thead>
               <tbody>
-                {filteredBatches.map((b) => {
+                {batchesPaginated.rows.map((b) => {
                   const todayStr = (() => {
                     const today = new Date();
                     const pad = (n) => String(n).padStart(2, '0');
@@ -1133,6 +1205,7 @@ export default function AdminInventory() {
               </tbody>
             </table>
           </div>
+          <AdminPagination page={batchesPaginated.safePage} totalPages={batchesPaginated.totalPages} onPage={setBatchesPage} start={batchesPaginated.start} end={batchesPaginated.end} total={batchesPaginated.total} label="batches" ariaLabel="Batch tracker pagination" />
         </div>
       )}
 
@@ -1156,7 +1229,7 @@ export default function AdminInventory() {
                 </tr>
               </thead>
               <tbody>
-                {filteredBorrowLogs.map((log) => (
+                {borrowPaginated.rows.map((log) => (
                   <tr key={log.borrowID}>
                     <td><code>BOR-{log.borrowID}</code></td>
                     <td><strong>{log.itemName}</strong></td>
@@ -1179,6 +1252,7 @@ export default function AdminInventory() {
               </tbody>
             </table>
           </div>
+          <AdminPagination page={borrowPaginated.safePage} totalPages={borrowPaginated.totalPages} onPage={setBorrowPage} start={borrowPaginated.start} end={borrowPaginated.end} total={borrowPaginated.total} label="records" ariaLabel="Borrow transactions pagination" />
         </div>
       )}
 
@@ -1201,7 +1275,7 @@ export default function AdminInventory() {
                     </tr>
                   </thead>
                   <tbody>
-                    {disposalLogs.map((d) => (
+                    {disposalPaginated.rows.map((d) => (
                       <tr key={d.disposalID}>
                         <td>{new Date(d.disposalDateTime).toLocaleDateString()}</td>
                         <td><strong>{d.itemName}</strong></td>
@@ -1214,6 +1288,7 @@ export default function AdminInventory() {
                   </tbody>
                 </table>
               </div>
+              <AdminPagination page={disposalPaginated.safePage} totalPages={disposalPaginated.totalPages} onPage={setDisposalPage} start={disposalPaginated.start} end={disposalPaginated.end} total={disposalPaginated.total} label="records" ariaLabel="Disposal logs pagination" />
             </div>
           </div>
 
@@ -1232,7 +1307,7 @@ export default function AdminInventory() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMovements.map((m) => (
+                    {logsPaginated.rows.map((m) => (
                       <tr key={m.movementID}>
                         <td>{new Date(m.movementDateTime).toLocaleString()}</td>
                         <td><strong>{m.itemName}</strong></td>
@@ -1254,6 +1329,7 @@ export default function AdminInventory() {
                   </tbody>
                 </table>
               </div>
+              <AdminPagination page={logsPaginated.safePage} totalPages={logsPaginated.totalPages} onPage={setLogsPage} start={logsPaginated.start} end={logsPaginated.end} total={logsPaginated.total} label="movements" ariaLabel="Stock movements pagination" />
             </div>
           </div>
         </div>

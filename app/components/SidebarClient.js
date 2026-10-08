@@ -11,15 +11,34 @@ import ModalPortal from './ModalPortal';
 
 export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
+  const isAdmin = role === 'Administrator';
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && role === 'Administrator' && localStorage.getItem('pcc-sidebar-collapsed') === '1') {
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  });
+
+  const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const toggleCollapsed = () => {
+    setCollapsed((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem('pcc-sidebar-collapsed', next ? '1' : '0');
+      } catch (e) {}
+      return next;
+    });
+  };
 
   // If this is the guest-facing dual-monitor QR payment page, render standalone view without receptionist controls
   if (pathname?.startsWith('/receptionist/qr-payment')) {
     return <>{children}</>;
   }
-
-  const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
 
   // SVG Icons
   const icons = {
@@ -49,7 +68,7 @@ export default function SidebarClient({ session, role, children }) {
     ['/admin/rooms', icons.rooms, 'Room Management'],
     ['/admin/amenities', icons.amenities, 'Amenities'],
     ['/admin/products', icons.products, 'Products'],
-    ['/admin/inventory', icons.inventory, 'Inventory'],
+    ['/admin/inventory', icons.inventory, 'Inventory Management'],
     ['/admin/purchase-orders', icons.purchaseOrders, 'Purchase Orders'],
     ['/admin/discounts', icons.discounts, 'Discounts & Promos'],
     ['/admin/reports', icons.reports, 'Reports']
@@ -80,6 +99,7 @@ export default function SidebarClient({ session, role, children }) {
             <li key={index}>
               <Link
                 href={path}
+                title={collapsed && isAdmin ? label : undefined}
                 className={`nav-link text-white d-flex align-items-center gap-3 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
                 style={{
                   borderRadius: '7px',
@@ -89,10 +109,11 @@ export default function SidebarClient({ session, role, children }) {
                   borderLeft: isActive ? '3px solid #fff' : '3px solid transparent',
                   transition: 'all 0.15s ease-in-out',
                   gap: '12px',
+                  justifyContent: collapsed && isAdmin ? 'center' : 'flex-start',
                 }}
               >
                 <span className="d-inline-flex align-items-center justify-content-center" style={{ opacity: isActive ? 1 : 0.85, width: '20px', flexShrink: 0 }}>{icon}</span>
-                <span>{label}</span>
+                {!(collapsed && isAdmin) && <span>{label}</span>}
               </Link>
             </li>
           );
@@ -180,50 +201,79 @@ export default function SidebarClient({ session, role, children }) {
       {/* DESKTOP SIDEBAR */}
       <nav
         style={{
-          width: '240px',
+          width: collapsed && isAdmin ? '76px' : '240px',
           backgroundColor: 'var(--pcc-blue)',
           flexShrink: 0,
           position: 'sticky',
           top: 0,
           height: '100vh',
-          zIndex: 1020
+          zIndex: 1020,
+          transition: 'width 0.2s ease-in-out'
         }}
         className="d-none d-lg-flex flex-column p-3 pcc-fixed-sidebar"
       >
         <div className="mb-4 text-center">
-          <Link href={dashboardUrl}>
-            <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ maxWidth: '140px', borderRadius: '6px' }} />
+          <Link href={dashboardUrl} title={collapsed && isAdmin ? 'Dashboard' : undefined}>
+            <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ maxWidth: collapsed && isAdmin ? '44px' : '140px', borderRadius: '6px', transition: 'max-width 0.2s ease-in-out' }} />
           </Link>
         </div>
-        <div
-          style={{
-            fontFamily: 'var(--font-tag)',
-            fontSize: '0.68rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-            color: 'rgba(255, 255, 255, 0.45)',
-            marginBottom: '0.5rem',
-          }}
-        >
-          {role === 'Administrator' ? 'Administration' : 'Front Desk'}
+        <div className="d-flex align-items-center justify-content-between" style={{ marginBottom: '0.5rem' }}>
+          {!(collapsed && isAdmin) && (
+            <div
+              style={{
+                fontFamily: 'var(--font-tag)',
+                fontSize: '0.68rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: 'rgba(255, 255, 255, 0.45)',
+              }}
+            >
+              {role === 'Administrator' ? 'Administration' : 'Front Desk'}
+            </div>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-sm d-inline-flex align-items-center justify-content-center"
+              onClick={toggleCollapsed}
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.12)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.22)',
+                borderRadius: '6px',
+                width: '28px',
+                height: '28px',
+                marginLeft: collapsed ? 'auto' : undefined,
+                marginRight: collapsed ? 'auto' : undefined,
+              }}
+            >
+              <i className={`bi ${collapsed ? 'bi-chevron-double-right' : 'bi-chevron-double-left'}`}></i>
+            </button>
+          )}
         </div>
         
         {renderNavLinksList()}
 
         <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)' }}>
-          <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
-            <div className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold flex-shrink-0" style={{ width: '34px', height: '34px', fontSize: '0.88rem' }}>
+          <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', justifyContent: collapsed && isAdmin ? 'center' : 'flex-start' }}>
+            <div className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold flex-shrink-0" style={{ width: '34px', height: '34px', fontSize: '0.88rem' }} title={collapsed && isAdmin ? session?.fullName : undefined}>
               {session?.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
             </div>
-            <div className="overflow-hidden" style={{ minWidth: 0 }}>
-              <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.84rem' }}>{session?.fullName}</div>
-              <div className="text-white-50 text-truncate" style={{ fontSize: '0.72rem' }}>{role}</div>
-            </div>
+            {!(collapsed && isAdmin) && (
+              <div className="overflow-hidden" style={{ minWidth: 0 }}>
+                <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.84rem' }}>{session?.fullName}</div>
+                <div className="text-white-50 text-truncate" style={{ fontSize: '0.72rem' }}>{role}</div>
+              </div>
+            )}
           </div>
           <button
             type="button"
             className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
             onClick={() => setShowLogoutModal(true)}
+            title={collapsed && isAdmin ? 'Log Out' : undefined}
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.12)',
               color: '#fff',
@@ -235,7 +285,7 @@ export default function SidebarClient({ session, role, children }) {
             }}
           >
             <i className="bi bi-box-arrow-right"></i>
-            Log Out
+            {!(collapsed && isAdmin) && 'Log Out'}
           </button>
         </div>
       </nav>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
+import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
@@ -89,6 +90,7 @@ export default function AdminPurchaseOrders() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchVal, setSearchVal] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [page, setPage] = useState(1);
 
   const baseCacheKey = `admin-purchase-orders:${statusFilter}_${searchVal}_${dateFilter}`;
   const cached = clientCache.get(baseCacheKey);
@@ -812,6 +814,30 @@ export default function AdminPurchaseOrders() {
 
   const recommendedItems = inventoryItems;
 
+  const { totalPages, safePage, rows: pagedOrders, start, end, total } = paginate(orders, page, ADMIN_PAGE_SIZE);
+
+  const handleSearchChange = (e) => {
+    setSearchVal(e.target.value);
+    setPage(1);
+  };
+
+  const handleStatusFilterChange = (e) => {
+    setStatusFilter(e.target.value);
+    setPage(1);
+  };
+
+  const handleDateFilterChange = (val) => {
+    setDateFilter(typeof val === 'string' ? val : val?.target?.value || '');
+    setPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setStatusFilter('');
+    setSearchVal('');
+    setDateFilter('');
+    setPage(1);
+  };
+
   return (
     <div className="pcc-page-container pcc-content-reveal d-flex flex-column" style={{ height: 'calc(100vh - 90px)', overflow: 'hidden', padding: '1rem' }}>
       {/* Custom Modal Dialog */}
@@ -849,7 +875,7 @@ export default function AdminPurchaseOrders() {
                   className="form-control"
                   placeholder="Search PO #, item, remarks..."
                   value={searchVal}
-                  onChange={(e) => setSearchVal(e.target.value)}
+                  onChange={handleSearchChange}
                 />
               </div>
               <div className="col-md-3">
@@ -857,7 +883,7 @@ export default function AdminPurchaseOrders() {
                 <select
                   className="form-select"
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={handleStatusFilterChange}
                 >
                   <option value="">All Status</option>
                   <option value="Pending">Pending</option>
@@ -870,12 +896,12 @@ export default function AdminPurchaseOrders() {
                 <label className="form-label small fw-bold mb-1">Order Date</label>
                 <FlatDatePicker
                   value={dateFilter}
-                  onChange={(val) => setDateFilter(typeof val === 'string' ? val : val?.target?.value || '')}
+                  onChange={handleDateFilterChange}
                   dateFormat="m/d/Y"
                 />
               </div>
               <div className="col-md-2">
-                <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setStatusFilter(''); setSearchVal(''); setDateFilter(''); }}>
+                <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFilters}>
                   Clear
                 </button>
               </div>
@@ -897,14 +923,14 @@ export default function AdminPurchaseOrders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.length === 0 ? (
+                    {pagedOrders.length === 0 ? (
                       <tr>
                         <td colSpan="6" className="text-center text-muted py-4">
                           No purchase orders found.
                         </td>
                       </tr>
                     ) : (
-                      orders.map((po) => (
+                      pagedOrders.map((po) => (
                         <tr key={po.purchaseOrderID}>
                           <td>
                             <strong>PO-{String(po.purchaseOrderID).padStart(4, '0')}</strong>
@@ -947,6 +973,7 @@ export default function AdminPurchaseOrders() {
                   </tbody>
                 </table>
               </div>
+              <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label="purchase orders" />
           </div>
         </div>
 

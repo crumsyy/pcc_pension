@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
+import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -11,6 +12,13 @@ export default function RoomsClient() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
+  const [page, setPage] = useState(1);
+
+  const handleSearchChange = (e) => { setSearch(e.target.value); setPage(1); };
+  const handleTypeFilterChange = (e) => { setTypeFilter(e.target.value); setPage(1); };
+  const handleShowActive = () => { setShowArchived(false); setPage(1); };
+  const handleShowArchivedTab = () => { setShowArchived(true); setPage(1); };
+  const handleClearFilters = () => { setSearch(''); setTypeFilter(''); setPage(1); };
 
   const baseCacheKey = `admin-rooms:${search}_${typeFilter}_${showArchived}`;
   const cached = clientCache.get(baseCacheKey);
@@ -484,6 +492,8 @@ export default function RoomsClient() {
     return baseOptions;
   };
 
+  const { totalPages, safePage, rows: pagedRooms, start, end, total } = paginate(rooms, page, ADMIN_PAGE_SIZE);
+
   return (
     <div className="pcc-page-container pcc-content-reveal">
       {/* Custom Modal Dialog */}
@@ -513,7 +523,7 @@ export default function RoomsClient() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(false)}
+            onClick={handleShowActive}
           >
             Active Rooms
           </button>
@@ -521,7 +531,7 @@ export default function RoomsClient() {
         <li className="nav-item">
           <button
             className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => setShowArchived(true)}
+            onClick={handleShowArchivedTab}
           >
             Archived Rooms
           </button>
@@ -537,14 +547,14 @@ export default function RoomsClient() {
               className="form-control"
               placeholder="Search room number or type..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
           <div className="col-md-4">
             <select
               className="form-select"
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={handleTypeFilterChange}
             >
               <option value="">All Types</option>
               {roomTypes.map((rt) => (
@@ -555,7 +565,7 @@ export default function RoomsClient() {
             </select>
           </div>
           <div className="col-md-3 d-flex gap-2">
-            <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setTypeFilter(''); }}>
+            <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFilters}>
               Clear
             </button>
           </div>
@@ -587,7 +597,7 @@ export default function RoomsClient() {
                     </td>
                   </tr>
                 ) : (
-                  rooms.map((rm) => {
+                  pagedRooms.map((rm) => {
                     const isOccupied = rm.status === 'Occupied';
                     return (
                       <tr key={rm.roomID}>
@@ -647,6 +657,7 @@ export default function RoomsClient() {
               </tbody>
             </table>
           </div>
+          <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label="rooms" />
       </div>
 
       {/* ==========================================
