@@ -6,7 +6,8 @@ import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
-import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import FlatDatePicker from '../../components/FlatDatePicker';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -867,9 +868,10 @@ export default function AdminPurchaseOrders() {
               </div>
               <div className="col-md-3">
                 <label className="form-label small fw-bold mb-1">Order Date</label>
-                <DateInput
+                <FlatDatePicker
                   value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
+                  onChange={(val) => setDateFilter(typeof val === 'string' ? val : val?.target?.value || '')}
+                  dateFormat="m/d/Y"
                 />
               </div>
               <div className="col-md-2">
@@ -1025,10 +1027,11 @@ export default function AdminPurchaseOrders() {
                 <div className="modal-body">
                   <div className="mb-3">
                     <label className="form-label small fw-bold">Expected Delivery Date (Optional)</label>
-                    <DateInput
+                    <FlatDatePicker
                       className="form-control form-control-sm"
                       value={expectedDeliveryDate}
-                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                      onChange={(val) => setExpectedDeliveryDate(typeof val === 'string' ? val : val?.target?.value || '')}
+                      dateFormat="m/d/Y"
                     />
                   </div>
                   <hr />
@@ -1266,10 +1269,11 @@ export default function AdminPurchaseOrders() {
                               </td>
                               <td>
                                 {itemClassType === 'Consumable' ? (
-                                  <DateInput
+                                  <FlatDatePicker
                                     className="form-control form-control-sm"
                                     value={val.expirationDate || ''}
-                                    onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'expirationDate', e.target.value)}
+                                    onChange={(v) => handleReceivedQtyChange(item.orderItemID, 'expirationDate', typeof v === 'string' ? v : v?.target?.value || '')}
+                                    dateFormat="m/d/Y"
                                   />
                                 ) : (
                                   <span className="text-muted small">N/A</span>

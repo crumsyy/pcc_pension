@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import StatusBadge, { getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
+import FlatDatePicker from '../../components/FlatDatePicker';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminBookings() {
@@ -157,13 +158,7 @@ export default function AdminBookings() {
             </select>
           </div>
           <div className="col-md-3">
-            <input
-              type="date"
-              className="form-control"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              title="Filter by check-in date"
-            />
+            <FlatDatePicker dateFormat="Y-m-d" className="form-control" value={dateFilter} onChange={(val)=>setDateFilter(typeof val==='string'?val:val?.target?.value||'')} />
           </div>
           <div className="col-md-2 d-flex gap-2">
             <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setStatusFilter(''); setDateFilter(''); }}>

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
-import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import FlatDatePicker from '../../components/FlatDatePicker';
+import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -570,7 +571,7 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Date of Birth *</label>
-                      <DateInput name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} />
+                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">City *</label>
@@ -747,7 +748,7 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Date of Birth *</label>
-                      <DateInput name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} />
+                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">City *</label>

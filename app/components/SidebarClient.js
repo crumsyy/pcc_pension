@@ -104,7 +104,7 @@ export default function SidebarClient({ session, role, children }) {
   const mainBgColor = role === 'Administrator' ? '#f6faf7' : '#f0f4f8';
 
   return (
-    <div className="d-flex flex-column flex-lg-row" style={{ minHeight: '100vh' }}>
+    <div className={`d-flex flex-column flex-lg-row ${role === 'Administrator' ? 'admin-inter' : ''}`} style={{ minHeight: '100vh' }}>
       {/* MOBILE TOP BAR */}
       <div 
         className="d-flex d-lg-none justify-content-between align-items-center p-3 text-white sticky-top" 

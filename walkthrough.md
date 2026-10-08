@@ -1,27 +1,21 @@
-# Walkthrough — Remove Admin Skeleton Loading
+# Walkthrough — Admin Inter Font + Flatpickr
 
 ## Changes (no commit/push yet)
-- Removed all skeleton imports/rendering from `app/admin/*` (grep for `Skeleton` in `app/admin` now returns zero matches).
-- Wrappers: `dashboard/page.js`, `users/page.js`, `rooms/page.js` — `Suspense fallback` changed from `Admin*Skeleton` to `null`.
-- Clients/pages now render instantly:
-  - `DashboardClient.js` — removed `AdminDashboardSkeleton` import + `loading` state; fetch is background-style; error only shows when no cached data.
-  - `UsersClient.js`, `RoomsClient.js` — removed `SkeletonTable` import + `loading` gating; tables always render with existing empty states (`No users/rooms found`).
-  - `bookings`, `reservations` — removed `SkeletonTable` gate; `loading` kept at `false` only for refresh-button spin.
-  - `amenities`, `products`, `purchase-orders` — removed `SkeletonTable` import + `loading` state; `uploadingImage` flows untouched.
-  - `discounts` — removed `Skeleton/SkeletonTable` gate; always renders content.
-  - `reports` — removed `Skeleton/SkeletonTable/SkeletonChart` gate; cards/chart/table render with `No report data` empty state.
-  - `inventory` — removed `AdminInventorySkeleton` early return.
-- Skeleton source files kept (`app/components/skeletons/*`) but no longer used by admin. Receptionist/guest skeletons untouched.
-- Cache-first + background revalidate preserved; no API/DB changes.
+- Font (admin-only): `SidebarClient.js` root adds `admin-inter` for Administrator role; `globals.css` forces Inter on `.admin-inter, .admin-inter *` + flatpickr popup. Landing/guest/receptionist untouched.
+- `FlatDatePicker.js` extended (backward-compatible): `dateFormat` prop (`m/d/Y` default, `Y-m-d` supported), iso/slash normalization, dual onChange (event `{target:{name,value}}` when `name` set, else plain string). Landing plain-string usage unaffected.
+- Admin pickers converted (formats preserved):
+  - `bookings/page.js`, `reservations/page.js` — native `type="date"` → `FlatDatePicker dateFormat="Y-m-d"` (API param unchanged).
+  - `users/UsersClient.js` (dob x2), `inventory/page.js` (x3), `reports/page.js` (dateFrom/dateTo), `purchase-orders/page.js` (x3), `discounts/page.js` (x4) — `DateInput` → `FlatDatePicker dateFormat="m/d/Y"`; helpers (`isValidDate/toDbDate/toUiDate`) kept.
+- Grep check: no `<DateInput` component and no `type="date"` remain under `app/admin` (only helper imports).
 
 ## Verification
-- `grep Skeleton app/admin` — clean.
-- `npm run build` — success, 96/96 pages.
-- ESLint on edited files — no new unused-var errors (remaining warnings pre-existing).
+- `npx eslint app/components/FlatDatePicker.js` clean.
+- `npm run build` success, 96/96 pages.
+- Other eslint findings on admin pages pre-existing (hooks/img), untouched.
 
 ## Manual check (please review)
-1. Hard-refresh each admin page (dashboard, users, rooms, bookings, reservations, amenities, products, purchase-orders, discounts, reports, inventory) → real headers/filters/tables paint immediately, no skeleton flash.
-2. Throttle network → shell content shows instantly, data fills in; refresh spin only where present.
-3. API failure → empty state + existing toast, no hang.
+1. Open each admin page → all text (sidebar, headings, badges, tables, modals) renders in Inter.
+2. Each date field opens flatpickr calendar; select/clear/type works; filters and form submits behave as before.
+3. Landing hero pickers still work (plain-string regression check).
 
 Awaiting review. Say `"push"` only when you want commit + push.

@@ -2297,6 +2297,14 @@ body.dark-theme .qr-payment-container h4 {
 }
 
 /* Visual Calendar & Date-Time Pickers Styling Standards */
+.admin-inter,
+.admin-inter * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
+.admin-inter .flatpickr-calendar,
+.admin-inter .flatpickr-calendar * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
 .flatpickr-calendar {
   z-index: 99999;
 }

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
-import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import FlatDatePicker from '../../components/FlatDatePicker';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -990,22 +991,24 @@ export default function AdminDiscounts() {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Start Date *</label>
-                      <DateInput
+                      <FlatDatePicker
                         name="startDate"
                         className="form-control"
                         required
                         value={promoFormData.startDate}
                         onChange={handlePromoInputChange}
+                        dateFormat="m/d/Y"
                       />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">End Date *</label>
-                      <DateInput
+                      <FlatDatePicker
                         name="endDate"
                         className="form-control"
                         required
                         value={promoFormData.endDate}
                         onChange={handlePromoInputChange}
+                        dateFormat="m/d/Y"
                       />
                     </div>
                   </div>
@@ -1113,22 +1116,24 @@ export default function AdminDiscounts() {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Start Date *</label>
-                      <DateInput
+                      <FlatDatePicker
                         name="startDate"
                         className="form-control"
                         required
                         value={promoFormData.startDate}
                         onChange={handlePromoInputChange}
+                        dateFormat="m/d/Y"
                       />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">End Date *</label>
-                      <DateInput
+                      <FlatDatePicker
                         name="endDate"
                         className="form-control"
                         required
                         value={promoFormData.endDate}
                         onChange={handlePromoInputChange}
+                        dateFormat="m/d/Y"
                       />
                     </div>
                   </div>

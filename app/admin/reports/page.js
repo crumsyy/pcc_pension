@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { LineChart, BarChart, DoughnutChart } from '../../components/ReportsCharts';
-import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import FlatDatePicker from '../../components/FlatDatePicker';
+import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminReports() {
@@ -1373,28 +1374,30 @@ export default function AdminReports() {
           {/* From Date */}
           <div className="col-6 col-md-2">
             <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>From</label>
-            <DateInput
+            <FlatDatePicker
               value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
+              onChange={(val) => {
+                setDateFrom(typeof val === 'string' ? val : val?.target?.value || '');
                 setDatePreset('Custom Range');
               }}
               className="form-control form-control-sm"
               style={{ height: '36px', margin: 0, marginBottom: 0 }}
+              dateFormat="m/d/Y"
             />
           </div>
 
           {/* To Date */}
           <div className="col-6 col-md-2">
             <label className="form-label small fw-semibold text-muted mb-1 text-truncate d-block" style={{ minHeight: '18px' }}>To</label>
-            <DateInput
+            <FlatDatePicker
               value={dateTo}
-              onChange={(e) => {
-                setDateTo(e.target.value);
+              onChange={(val) => {
+                setDateTo(typeof val === 'string' ? val : val?.target?.value || '');
                 setDatePreset('Custom Range');
               }}
               className="form-control form-control-sm"
               style={{ height: '36px', margin: 0, marginBottom: 0 }}
+              dateFormat="m/d/Y"
             />
           </div>
 

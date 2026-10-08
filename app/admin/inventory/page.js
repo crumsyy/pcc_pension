@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
-import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import FlatDatePicker from '../../components/FlatDatePicker';
+import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -899,10 +900,11 @@ export default function AdminInventory() {
                   <span className="input-group-text bg-light text-muted border-end-0" title="Filter by Expiration Date">
                     <i className="bi bi-calendar-event"></i>
                   </span>
-                  <DateInput
+                  <FlatDatePicker
                     className="form-control border-start-0 ps-0"
                     value={expiryDateFilter}
-                    onChange={(e) => setExpiryDateFilter(e.target.value)}
+                    onChange={(val) => setExpiryDateFilter(typeof val === 'string' ? val : val?.target?.value || '')}
+                    dateFormat="m/d/Y"
                   />
                 </div>
               </div>
@@ -1428,10 +1430,11 @@ export default function AdminInventory() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label">Expected Return Date</label>
-                    <DateInput
+                    <FlatDatePicker
                       className="form-control"
                       value={borrowForm.expectedReturnDate}
-                      onChange={(e) => setBorrowForm(prev => ({ ...prev, expectedReturnDate: e.target.value }))}
+                      onChange={(val) => setBorrowForm(prev => ({ ...prev, expectedReturnDate: typeof val === 'string' ? val : val?.target?.value || '' }))}
+                      dateFormat="m/d/Y"
                     />
                   </div>
                   <div className="mb-3">
@@ -1536,10 +1539,11 @@ export default function AdminInventory() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label fw-bold">Expiration Date</label>
-                    <DateInput
+                    <FlatDatePicker
                       className="form-control"
                       value={editExpiryDate}
-                      onChange={(e) => setEditExpiryDate(e.target.value)}
+                      onChange={(val) => setEditExpiryDate(typeof val === 'string' ? val : val?.target?.value || '')}
+                      dateFormat="m/d/Y"
                     />
                     <div className="form-text text-muted">
                       Leave empty if the item does not expire.

@@ -17,12 +17,36 @@ function normalizeToSlash(val) {
   return s;
 }
 
+function normalizeToIso(val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (s.includes('-')) return s.substring(0, 10);
+  if (s.includes('/')) {
+    const parts = s.split('/');
+    if (parts.length === 3) {
+      const m = parts[0].padStart(2, '0');
+      const d = parts[1].padStart(2, '0');
+      const y = parts[2];
+      if (y.length === 4 && !isNaN(Number(y)) && !isNaN(Number(m)) && !isNaN(Number(d))) {
+        return `${y}-${m}-${d}`;
+      }
+    }
+  }
+  return s;
+}
+
+function normalizeForFormat(val, dateFormat) {
+  if (dateFormat === 'Y-m-d') return normalizeToIso(val);
+  return normalizeToSlash(val);
+}
+
 export default function FlatDatePicker({
   value = '',
   onChange,
   min,
   max,
-  placeholder = 'MM/DD/YYYY',
+  dateFormat = 'm/d/Y',
+  placeholder,
   disabled = false,
   required = false,
   id,
@@ -30,8 +54,11 @@ export default function FlatDatePicker({
   className = 'form-control',
   style,
 }) {
+  const resolvedPlaceholder = placeholder || (dateFormat === 'Y-m-d' ? 'YYYY-MM-DD' : 'MM/DD/YYYY');
   const inputRef = useRef(null);
   const fpRef = useRef(null);
+  const formatRef = useRef(dateFormat);
+  const nameRef = useRef(name);
   const onChangeRef = useRef(onChange);
   const lastEmittedRef = useRef('');
 
@@ -40,20 +67,33 @@ export default function FlatDatePicker({
   }, [onChange]);
 
   useEffect(() => {
+    nameRef.current = name;
+  }, [name]);
+
+  const emit = (str) => {
+    lastEmittedRef.current = str;
+    const fn = onChangeRef.current;
+    if (typeof fn !== 'function') return;
+    if (nameRef.current) {
+      fn({ target: { name: nameRef.current, value: str } });
+    } else {
+      fn(str);
+    }
+  };
+
+  useEffect(() => {
     if (!inputRef.current) return;
+    formatRef.current = dateFormat;
     const fp = flatpickr(inputRef.current, {
-      dateFormat: 'm/d/Y',
-      defaultDate: normalizeToSlash(value) || undefined,
-      minDate: normalizeToSlash(min) || undefined,
-      maxDate: normalizeToSlash(max) || undefined,
+      dateFormat,
+      defaultDate: normalizeForFormat(value, dateFormat) || undefined,
+      minDate: normalizeForFormat(min, dateFormat) || undefined,
+      maxDate: normalizeForFormat(max, dateFormat) || undefined,
       disableMobile: true,
       allowInput: true,
       clickOpens: !disabled,
       onChange: (selectedDates, dateStr) => {
-        lastEmittedRef.current = dateStr;
-        if (typeof onChangeRef.current === 'function') {
-          onChangeRef.current(dateStr);
-        }
+        emit(dateStr);
       },
     });
     fpRef.current = fp;
@@ -67,26 +107,26 @@ export default function FlatDatePicker({
   useEffect(() => {
     const fp = fpRef.current;
     if (!fp) return;
-    fp.set('minDate', normalizeToSlash(min) || undefined);
-    fp.set('maxDate', normalizeToSlash(max) || undefined);
+    if (formatRef.current !== dateFormat) {
+      formatRef.current = dateFormat;
+      fp.set('dateFormat', dateFormat);
+    }
+    fp.set('minDate', normalizeForFormat(min, dateFormat) || undefined);
+    fp.set('maxDate', normalizeForFormat(max, dateFormat) || undefined);
     fp.set('clickOpens', !disabled);
-  }, [min, max, disabled]);
+  }, [min, max, disabled, dateFormat]);
 
   useEffect(() => {
     const fp = fpRef.current;
     if (!fp || !inputRef.current) return;
-    const normalized = normalizeToSlash(value);
+    const normalized = normalizeForFormat(value, formatRef.current);
     if (normalized !== lastEmittedRef.current && inputRef.current.value !== normalized) {
       fp.setDate(normalized || undefined, false);
     }
   }, [value]);
 
   const handleInputChange = (e) => {
-    const raw = e.target.value;
-    lastEmittedRef.current = raw;
-    if (typeof onChangeRef.current === 'function') {
-      onChangeRef.current(raw);
-    }
+    emit(e.target.value);
   };
 
   return (
@@ -96,10 +136,10 @@ export default function FlatDatePicker({
       name={name}
       className={className}
       style={style}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       disabled={disabled}
       required={required}
-      defaultValue={normalizeToSlash(value)}
+      defaultValue={normalizeForFormat(value, dateFormat)}
       onChange={handleInputChange}
     />
   );
