@@ -1,28 +1,28 @@
-# Implementation Plan — Audit Panel: Slim Rows + Viewport Cap
+# Implementation Plan — Level Logs Tab Panels (Equal Height, Bottom-Aligned Footers)
 
 ## 1. Goal
-Audit History footer visible with breathing room at laptop viewport heights (~768px), not just tall screens. No API/DB/count changes (stays 10/page).
+Disposed Inventory Logs and All Stock Movements Audit History panels render at equal height with footers on the same baseline. No API/DB/count changes.
 
-## 2. Root Cause (verified)
-- Audit rows run ~75px tall (date wraps to 2 lines, item names wrap) vs ~55px in Disposal. Fixed `350px` cap + footer + chrome ≈ 510px card, but at a 768px viewport only ~460px is available after header/title/tabs — footer lands below the fold (screenshot).
-- A fixed cap can't fit all viewports; the Disposal panel fits only because it renders 5 short rows.
+## 2. Current State (verified from screenshot + code)
+- Logs tab (`inventory/page.js:1260-1334`): two `col-12 col-lg-6` columns; cards are plain `card bg-white p-3 border` (natural height), footers sit directly under each table. The audit card (10 tall rows) runs longer, so bottoms misalign.
 
 ## 3. Scope
-- IN: audit table date cell + audit scroller cap in `inventory/page.js`.
-- OUT: counts, pagination, disposal panel, APIs.
+- IN: card/column classes + footer wrappers in the logs tab only.
+- OUT: caps, counts, pagination logic, other tabs, APIs.
 
 ## 4. Design
-- Date `td` gains `text-nowrap` (single-line dates → rows drop to ~50px like the rest).
-- Scroller cap → `max(180px, calc(100vh - 500px))`: reserves ~500px for shell + title + tabs + card chrome + footer. At 930px shows ~8 rows; at 768px ~5 rows + internal scroll; footer always visible with room to spare.
+- Both cards: add `h-100 d-flex flex-column` (columns already stretch to equal height; cards fill them).
+- Wrap each `AdminPagination` in `<div className="mt-auto">` so both footers pin to the cards' shared bottom edge; shorter panel gains whitespace above its footer.
+- Everything else (scroller caps, 5/10-per-page, badges) untouched.
 
 ## 5. Steps
-1. Two small edits in `inventory/page.js`.
+1. Four small edits in `inventory/page.js` (2 card classes + 2 footer wrappers).
 2. `npx eslint` file + `npm run build`.
-3. Manual: footer visible with whitespace below at 768px and 930px heights; rows single-line dates.
+3. Manual: bottom borders + footers aligned at 768px and 930px heights.
 4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- Footer visible with breathing room at laptop heights; build passes.
+- Panels level with aligned footers; build passes.
 
 ## 7. Risks
-- Narrow screens may horizontal-scroll the nowrap date column inside `table-responsive` — acceptable, standard pattern.
+- None; flex alignment only.

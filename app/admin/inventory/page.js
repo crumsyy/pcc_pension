@@ -1260,7 +1260,7 @@ export default function AdminInventory() {
       {activeTab === 'logs' && (
         <div className="row g-3">
           <div className="col-12 col-lg-6">
-            <div className="card bg-white p-3 border">
+            <div className="card bg-white p-3 border h-100 d-flex flex-column">
               <h5 className="text-blue mb-3">Disposed Inventory Logs</h5>
               <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
                 <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
@@ -1288,12 +1288,14 @@ export default function AdminInventory() {
                   </tbody>
                 </table>
               </div>
-              <AdminPagination page={disposalPaginated.safePage} totalPages={disposalPaginated.totalPages} onPage={setDisposalPage} start={disposalPaginated.start} end={disposalPaginated.end} total={disposalPaginated.total} label="records" ariaLabel="Disposal logs pagination" />
+              <div className="mt-auto">
+                <AdminPagination page={disposalPaginated.safePage} totalPages={disposalPaginated.totalPages} onPage={setDisposalPage} start={disposalPaginated.start} end={disposalPaginated.end} total={disposalPaginated.total} label="records" ariaLabel="Disposal logs pagination" />
+              </div>
             </div>
           </div>
 
           <div className="col-12 col-lg-6">
-            <div className="card bg-white p-3 border">
+            <div className="card bg-white p-3 border h-100 d-flex flex-column">
               <h5 className="text-blue mb-3">All Stock Movements Audit History</h5>
               <div className="table-responsive" style={{ maxHeight: 'max(180px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
@@ -1329,7 +1331,9 @@ export default function AdminInventory() {
                   </tbody>
                 </table>
               </div>
-              <AdminPagination page={logsPaginated.safePage} totalPages={logsPaginated.totalPages} onPage={setLogsPage} start={logsPaginated.start} end={logsPaginated.end} total={logsPaginated.total} label="movements" ariaLabel="Stock movements pagination" />
+              <div className="mt-auto">
+                <AdminPagination page={logsPaginated.safePage} totalPages={logsPaginated.totalPages} onPage={setLogsPage} start={logsPaginated.start} end={logsPaginated.end} total={logsPaginated.total} label="movements" ariaLabel="Stock movements pagination" />
+              </div>
             </div>
           </div>
         </div>
