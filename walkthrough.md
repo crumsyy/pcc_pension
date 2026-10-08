@@ -1,15 +1,21 @@
-# Walkthrough — Restore Admin Action Button Icons
+# Walkthrough — User Management Updates
 
 ## Changes (no commit/push yet)
-- `app/globals.css`: scoped Inter override to exclude icon glyphs — `i`, `svg`, `path`, `[class*="fa-"]`, `[class*="bi-"]` — plus explicit restore: FA icons → `"Font Awesome 6 Free"`, BI icons → `"bootstrap-icons"`. Text (sidebar, headings, tables, modals, flatpickr) stays Inter.
-- `app/components/ActionButtons.js`: stock-in icon `fa-box-archive` → `fa-boxes-stacked` (archive keeps `fa-box-archive`); view stays `fa-eye`, edit `fa-pen`, delete `fa-trash`, restore `fa-rotate-left`, print `fa-print`, suspend `fa-user-slash`, activate/approve `fa-circle-check`, deactivate `fa-circle-xmark`, cancel `fa-ban`, create-PO `fa-file-circle-plus`.
+- `app/admin/users/UsersClient.js` only (API/DB untouched):
+  - Masked IDs: new `toPublicUserCode(userID)` (stable hash → `USR-XXXXXX`, non-sequential). Table header `User ID` → `User Code`, cell shows code; view modal adds User Code row. Real `userID` kept for `key`, self-check, and all API payloads.
+  - Staff-only: `staffUsers`/`staffRoles` exclude `Guest`; table, counts, role filter, create/edit role selects, and create/edit submit guards (reject Guest role) all staff-only.
+  - Role badges: `roleBadgeClass` — Administrator `text-bg-primary` (blue), Receptionist `text-bg-success` (green); applied table + view modal.
+  - Pagination: 10/page with `page` state, reset on search/filter/clear, clamped `safePage`, `Showing X–Y of Z users` + Prev/numbered (windowed)/Next footer.
 
 ## Verification
-- `npx eslint app/components/ActionButtons.js` clean.
+- `grep #USER- / User ID` in `app/admin/users` — clean.
+- `npx eslint` — only pre-existing `set-state-in-effect`/`exhaustive-deps` findings (fetch effect predates change); no new unused-var issues.
 - `npm run build` success, 96/96 pages.
 
 ## Manual check (please review)
-1. Open admin tables (users, rooms, amenities, products, inventory, purchase orders, discounts) → colored buttons show eye/pen/trash/etc. with hover tooltips.
-2. Confirm admin text is still Inter and other portals unchanged.
+1. User Management shows `USR-XXXXXX` codes (stable across refresh, non-sequential), no raw DB IDs.
+2. No Guest rows in table/filter/create/edit; creating with staff roles works, Guest rejected.
+3. Admin badges blue, receptionist green (table + view modal).
+4. 10 rows/page; filters reset to page 1; last-page clamp + counts correct.
 
-Awaiting review. Say `"push"` only when you want commit + push.
+Note: masking is display-only; raw IDs still travel in API JSON. Say `"push"` only when you want commit + push.

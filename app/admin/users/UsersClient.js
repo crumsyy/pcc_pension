@@ -9,10 +9,26 @@ import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
+function toPublicUserCode(userID) {
+  const id = parseInt(userID, 10);
+  if (isNaN(id)) return 'USR-XXXXXX';
+  const hashed = ((id * 2654435761) >>> 0).toString(36).toUpperCase().padStart(6, '0').slice(-6);
+  return `USR-${hashed}`;
+}
+
+function roleBadgeClass(role) {
+  if (role === 'Administrator') return 'text-bg-primary';
+  if (role === 'Receptionist') return 'text-bg-success';
+  return 'text-bg-secondary';
+}
+
+const USERS_PAGE_SIZE = 10;
+
 export default function UsersClient() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
 
   const baseCacheKey = `admin-users:${search}_${roleFilter}_${statusFilter}`;
   const cached = clientCache.get(baseCacheKey);
@@ -134,6 +150,11 @@ export default function UsersClient() {
     }
   }, [search, roleFilter, statusFilter]);
 
+  const handleSearchChange = (v) => { setSearch(v); setPage(1); };
+  const handleRoleFilterChange = (v) => { setRoleFilter(v); setPage(1); };
+  const handleStatusFilterChange = (v) => { setStatusFilter(v); setPage(1); };
+  const handleClearFilters = () => { setSearch(''); setRoleFilter(''); setStatusFilter(''); setPage(1); };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -173,6 +194,11 @@ export default function UsersClient() {
     }
     if (formData.password.length < 8) {
       showAlert('error', 'Validation Error', 'Password must be at least 8 characters long.');
+      return;
+    }
+    const createRole = roles.find((r) => String(r.roleID) === String(formData.roleID));
+    if (!createRole || createRole.role === 'Guest') {
+      showAlert('error', 'Validation Error', 'Only Administrator or Receptionist accounts can be created here.');
       return;
     }
 
@@ -234,6 +260,11 @@ export default function UsersClient() {
     }
     if (formData.newPassword && formData.newPassword.length < 8) {
       showAlert('error', 'Validation Error', 'New password must be at least 8 characters long.');
+      return;
+    }
+    const editRole = roles.find((r) => String(r.roleID) === String(formData.roleID));
+    if (!editRole || editRole.role === 'Guest') {
+      showAlert('error', 'Validation Error', 'Only Administrator or Receptionist roles are allowed here.');
       return;
     }
 
@@ -385,6 +416,25 @@ export default function UsersClient() {
     setActiveModal('edit');
   };
 
+  const staffRoles = roles.filter((r) => r.role !== 'Guest');
+  const staffUsers = users.filter((u) => u.role !== 'Guest');
+  const totalPages = Math.max(1, Math.ceil(staffUsers.length / USERS_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedUsers = staffUsers.slice((safePage - 1) * USERS_PAGE_SIZE, safePage * USERS_PAGE_SIZE);
+  const pageStart = staffUsers.length === 0 ? 0 : (safePage - 1) * USERS_PAGE_SIZE + 1;
+  const pageEnd = Math.min(safePage * USERS_PAGE_SIZE, staffUsers.length);
+  const pageNumbers = (() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const nums = [1];
+    const start = Math.max(2, safePage - 1);
+    const end = Math.min(totalPages - 1, safePage + 1);
+    if (start > 2) nums.push('…');
+    for (let n = start; n <= end; n++) nums.push(n);
+    if (end < totalPages - 1) nums.push('…');
+    nums.push(totalPages);
+    return nums;
+  })();
+
   return (
     <div className="pcc-page-container pcc-content-reveal">
       {/* Custom Modal Dialog */}
@@ -420,17 +470,17 @@ export default function UsersClient() {
               className="form-control"
               placeholder="Search by name or email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
           <div className="col-md-3">
             <select
               className="form-select"
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
+              onChange={(e) => handleRoleFilterChange(e.target.value)}
             >
               <option value="">All Roles</option>
-              {roles.map((r) => (
+              {staffRoles.map((r) => (
                 <option key={r.roleID} value={r.role}>
                   {r.role}
                 </option>
@@ -441,7 +491,7 @@ export default function UsersClient() {
             <select
               className="form-select"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => handleStatusFilterChange(e.target.value)}
             >
               <option value="">All Status</option>
               <option value="Active">Active</option>
@@ -449,7 +499,7 @@ export default function UsersClient() {
             </select>
           </div>
           <div className="col-md-2 d-flex gap-2">
-            <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}>
+            <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFilters}>
               Clear
             </button>
           </div>
@@ -462,7 +512,7 @@ export default function UsersClient() {
             <table className="table align-middle mb-0">
               <thead>
                 <tr>
-                  <th>User ID</th>
+                  <th>User Code</th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Contact</th>
@@ -473,18 +523,18 @@ export default function UsersClient() {
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 ? (
+                {staffUsers.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="text-center text-muted py-4">
                       No users found.
                     </td>
                   </tr>
                 ) : (
-                  users.map((u, i) => {
+                  pagedUsers.map((u, i) => {
                     const isSelf = u.userID === currentUserID;
                     return (
                       <tr key={u.userID}>
-                        <td><strong className="text-pcc-blue">#USER-{u.userID}</strong></td>
+                        <td><strong className="text-pcc-blue">{toPublicUserCode(u.userID)}</strong></td>
                         <td>
                           <strong>
                             {u.middleName ? `${u.firstName} ${u.middleName.charAt(0).toUpperCase()}. ${u.lastName}` : `${u.firstName} ${u.lastName}`}
@@ -493,7 +543,7 @@ export default function UsersClient() {
                         <td>{u.email}</td>
                         <td>{u.contact || '—'}</td>
                         <td>
-                          <span className="badge text-bg-secondary">{u.role}</span>
+                          <span className={`badge ${roleBadgeClass(u.role)}`}>{u.role}</span>
                         </td>
                         <td>
                           <span
@@ -529,6 +579,38 @@ export default function UsersClient() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 mt-3">
+            <small className="text-muted">
+              Showing {pageStart}–{pageEnd} of {staffUsers.length} users
+            </small>
+            <nav aria-label="Users pagination">
+              <ul className="pagination pagination-sm mb-0">
+                <li className={`page-item ${safePage <= 1 ? 'disabled' : ''}`}>
+                  <button type="button" className="page-link" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                    Prev
+                  </button>
+                </li>
+                {pageNumbers.map((n, idx) => (
+                  n === '…' ? (
+                    <li key={`ellipsis-${idx}`} className="page-item disabled">
+                      <span className="page-link">…</span>
+                    </li>
+                  ) : (
+                    <li key={n} className={`page-item ${n === safePage ? 'active' : ''}`}>
+                      <button type="button" className="page-link" onClick={() => setPage(n)}>
+                        {n}
+                      </button>
+                    </li>
+                  )
+                ))}
+                <li className={`page-item ${safePage >= totalPages ? 'disabled' : ''}`}>
+                  <button type="button" className="page-link" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+                    Next
+                  </button>
+                </li>
+              </ul>
+            </nav>
           </div>
       </div>
 
@@ -589,7 +671,7 @@ export default function UsersClient() {
                       <label className="form-label">Role *</label>
                       <select name="roleID" className="form-select" required value={formData.roleID} onChange={handleInputChange}>
                         <option value="" disabled>Select role</option>
-                        {roles.map(r => (
+                        {staffRoles.map(r => (
                           <option key={r.roleID} value={r.roleID}>{r.role}</option>
                         ))}
                       </select>
@@ -665,6 +747,10 @@ export default function UsersClient() {
                 <table className="table table-sm table-borderless mb-0">
                   <tbody>
                     <tr>
+                      <td className="text-muted" style={{ width: '35%' }}>User Code</td>
+                      <td><strong className="text-pcc-blue">{toPublicUserCode(selectedUser.userID)}</strong></td>
+                    </tr>
+                    <tr>
                       <td className="text-muted" style={{ width: '35%' }}>Full Name</td>
                       <td><strong>{`${selectedUser.firstName || ''} ${selectedUser.middleName || ''} ${selectedUser.lastName || ''}`.trim() || '—'}</strong></td>
                     </tr>
@@ -685,7 +771,7 @@ export default function UsersClient() {
                     </tr>
                     <tr><td className="text-muted">City</td><td>{selectedUser.city || '—'}</td></tr>
                     <tr><td className="text-muted">Province</td><td>{selectedUser.province || '—'}</td></tr>
-                    <tr><td className="text-muted">Role</td><td><span className="badge text-bg-secondary">{selectedUser.role}</span></td></tr>
+                    <tr><td className="text-muted">Role</td><td><span className={`badge ${roleBadgeClass(selectedUser.role)}`}>{selectedUser.role}</span></td></tr>
                     <tr>
                       <td className="text-muted">Status</td>
                       <td>
@@ -768,7 +854,7 @@ export default function UsersClient() {
                         <input type="text" className="form-control" value="Guest" disabled />
                       ) : (
                         <select name="roleID" className="form-select" required value={formData.roleID} onChange={handleInputChange}>
-                          {roles.filter(r => r.role !== 'Guest').map(r => (
+                          {staffRoles.map(r => (
                             <option key={r.roleID} value={r.roleID}>{r.role}</option>
                           ))}
                         </select>
