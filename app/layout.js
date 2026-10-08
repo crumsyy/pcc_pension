@@ -1,4 +1,5 @@
 import "./globals.css";
+import "flatpickr/dist/flatpickr.min.css";
 import Script from "next/script";
 import InactivityTimeout from "./components/InactivityTimeout";
 import MobileKeyboardViewportHelper from "./components/MobileKeyboardViewportHelper";

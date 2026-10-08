@@ -11,6 +11,7 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "bcryptjs": "^3.0.3",
+    "flatpickr": "^4.6.13",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.22.5",
     "next": "16.2.9",

@@ -2297,6 +2297,12 @@ body.dark-theme .qr-payment-container h4 {
 }
 
 /* Visual Calendar & Date-Time Pickers Styling Standards */
+.flatpickr-calendar {
+  z-index: 99999;
+}
+.availability-bar .flatpickr-input {
+  background-color: #fff;
+}
 .calendar-visual {
   pointer-events: none; /* disables interaction */
   opacity: 0.95;

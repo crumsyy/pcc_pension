@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import GuestChatBubble from "./components/GuestChatBubble";
-import DateInput, { isValidDate, toDbDate } from "./components/DateInput";
+import { isValidDate, toDbDate } from "./components/DateInput";
+import FlatDatePicker from "./components/FlatDatePicker";
 import ThemeToggle from "./components/ThemeToggle";
 import ModalPortal from "./components/ModalPortal";
 
@@ -16,7 +17,7 @@ function parseRoomImages(imgVal) {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) return parsed.filter(Boolean);
-      } catch (e) {}
+      } catch (e) { }
     }
     return trimmed.split(',').map(s => s.trim()).filter(Boolean);
   }
@@ -106,6 +107,7 @@ export default function Home() {
   // Search state
   const [checkIn, setCheckIn] = useState("");
   const [minCheckIn, setMinCheckIn] = useState("");
+  const [maxCheckIn, setMaxCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [roomType, setRoomType] = useState("Any room type");
   const [breakfast, setBreakfast] = useState("With Breakfast");
@@ -123,6 +125,9 @@ export default function Home() {
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [bookingInProgress, setBookingInProgress] = useState(false);
+  const VISIBLE_COUNT = 6;
+  const [showAllPromos, setShowAllPromos] = useState(false);
+  const [showAllRooms, setShowAllRooms] = useState(false);
 
   useEffect(() => {
     setYear(new Date().getFullYear());
@@ -165,7 +170,11 @@ export default function Home() {
     const tomorrow = new Date(today.getTime() + (24 * 60 * 60 * 1000));
     const tomorrowStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
 
+    const maxLead = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
+    const maxLeadStr = `${pad(maxLead.getMonth() + 1)}/${pad(maxLead.getDate())}/${maxLead.getFullYear()}`;
+
     setMinCheckIn(todayStr);
+    setMaxCheckIn(maxLeadStr);
     setCheckIn(todayStr);
     setCheckOut(tomorrowStr);
   }, []);
@@ -239,6 +248,11 @@ export default function Home() {
     'Deluxe Matrimonial': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
   };
 
+  const allPromos = landingData.promotions || [];
+  const visiblePromos = showAllPromos ? allPromos : allPromos.slice(0, VISIBLE_COUNT);
+  const allRooms = landingData.rooms || [];
+  const visibleRooms = showAllRooms ? allRooms : allRooms.slice(0, VISIBLE_COUNT);
+
   return (
     <>
       {/* NAVBAR */}
@@ -298,18 +312,19 @@ export default function Home() {
                   </div>
                   <div className="col-md-6">
                     <label className="form-label d-block mb-1.5 fw-semibold small">Check-in *</label>
-                    <DateInput
+                    <FlatDatePicker
                       value={checkIn}
-                      onChange={(e) => setCheckIn(e.target.value)}
+                      onChange={setCheckIn}
                       required
                       min={minCheckIn}
+                      max={maxCheckIn}
                     />
                   </div>
                   <div className="col-md-6">
                     <label className="form-label d-block mb-1.5 fw-semibold small">Check-out *</label>
-                    <DateInput
+                    <FlatDatePicker
                       value={checkOut}
-                      onChange={(e) => setCheckOut(e.target.value)}
+                      onChange={setCheckOut}
                       required
                       min={checkIn || minCheckIn}
                     />
@@ -405,7 +420,7 @@ export default function Home() {
               <p className="text-muted">Enjoy exclusive savings when you book during our active promotion periods.</p>
             </div>
             <div className="row g-4 justify-content-center">
-              {landingData.promotions.map((promo) => (
+              {visiblePromos.map((promo) => (
                 <div key={promo.promotionID} className="col-md-6 col-lg-4">
                   <div className="card h-100 border-0 shadow-sm p-4 bg-white" style={{ borderRadius: '12px', borderLeft: '5px solid var(--pcc-blue)' }}>
                     <div className="d-flex justify-content-between align-items-start mb-2">
@@ -424,6 +439,17 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            {allPromos.length > VISIBLE_COUNT && (
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  className="btn btn-pcc-outline px-4 fw-bold"
+                  onClick={() => setShowAllPromos((v) => !v)}
+                >
+                  {showAllPromos ? 'Show Less' : `See More (${allPromos.length - VISIBLE_COUNT} more)`}
+                </button>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -437,101 +463,114 @@ export default function Home() {
             <p className="text-muted">All rates are per night and listed without &amp; with breakfast.</p>
           </div>
 
-          {landingData.rooms && landingData.rooms.length > 0 ? (
-            (() => {
-              const roomsByFloor = (landingData.rooms || []).reduce((acc, rm) => {
-                const floorKey = rm.floorName || (rm.floorID === 2 ? 'Second Floor' : 'Ground Floor');
-                if (!acc[floorKey]) acc[floorKey] = [];
-                acc[floorKey].push(rm);
-                return acc;
-              }, {});
+          {allRooms.length > 0 ? (
+            <>
+              {(() => {
+                const roomsByFloor = visibleRooms.reduce((acc, rm) => {
+                  const floorKey = rm.floorName || (rm.floorID === 2 ? 'Second Floor' : 'Ground Floor');
+                  if (!acc[floorKey]) acc[floorKey] = [];
+                  acc[floorKey].push(rm);
+                  return acc;
+                }, {});
 
-              return Object.entries(roomsByFloor).map(([floorName, floorRooms], fIdx) => (
-                <div key={floorName} className={`floor-block ${fIdx === Object.keys(roomsByFloor).length - 1 ? 'mb-0' : 'mb-5'}`}>
-                  <div className="floor-label mb-3">
-                    <div className="floor-number">{String(fIdx + 1).padStart(2, '0')}</div>
-                    <div>
-                      <div className="display-font text-blue" style={{ fontSize: "1.2rem", fontWeight: "bold" }}>{floorName}</div>
-                      <div className="floor-name text-muted small">{floorRooms.length} room{floorRooms.length > 1 ? 's' : ''} available on this floor</div>
+                return Object.entries(roomsByFloor).map(([floorName, floorRooms], fIdx) => (
+                  <div key={floorName} className={`floor-block ${fIdx === Object.keys(roomsByFloor).length - 1 ? 'mb-0' : 'mb-5'}`}>
+                    <div className="floor-label mb-3">
+                      <div className="floor-number">{String(fIdx + 1).padStart(2, '0')}</div>
+                      <div>
+                        <div className="display-font text-blue" style={{ fontSize: "1.2rem", fontWeight: "bold" }}>{floorName}</div>
+                        <div className="floor-name text-muted small">{floorRooms.length} room{floorRooms.length > 1 ? 's' : ''} available on this floor</div>
+                      </div>
+                      <hr />
                     </div>
-                    <hr />
-                  </div>
-                  <div className="row g-4">
-                    {floorRooms.map((rm) => {
-                      const parsedImages = parseRoomImages(rm.image);
-                      const defaultImg = defaultRoomImages[rm.roomType] || null;
-                      const hasCustomBreakfast = rm.breakfastRate !== null && rm.breakfastRate !== undefined;
-                      const isBreakfastFree = hasCustomBreakfast && parseFloat(rm.breakfastRate) === 0;
-                      const breakfastDiff = hasCustomBreakfast
-                        ? parseFloat(rm.breakfastRate)
-                        : (parseFloat(rm.rateWithBreakfast || 0) - parseFloat(rm.rateWithoutBreakfast || 0));
+                    <div className="row g-4">
+                      {floorRooms.map((rm) => {
+                        const parsedImages = parseRoomImages(rm.image);
+                        const defaultImg = defaultRoomImages[rm.roomType] || null;
+                        const hasCustomBreakfast = rm.breakfastRate !== null && rm.breakfastRate !== undefined;
+                        const isBreakfastFree = hasCustomBreakfast && parseFloat(rm.breakfastRate) === 0;
+                        const breakfastDiff = hasCustomBreakfast
+                          ? parseFloat(rm.breakfastRate)
+                          : (parseFloat(rm.rateWithBreakfast || 0) - parseFloat(rm.rateWithoutBreakfast || 0));
 
-                      return (
-                        <div key={rm.roomID} className="col-md-6 col-lg-4">
-                          <div className="card h-100 border-0 shadow-sm overflow-hidden room-card-hover" style={{ borderRadius: '12px', backgroundColor: '#fff' }}>
-                            <div style={{ height: '210px', overflow: 'hidden', position: 'relative' }}>
-                              <RoomImageCarousel
-                                images={parsedImages}
-                                fallbackImg={defaultImg}
-                                alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
-                              />
-                              <span className="badge bg-dark text-white position-absolute top-0 start-0 m-3 px-3 py-1 shadow-sm" style={{ fontSize: '0.82rem', zIndex: 6 }}>
-                                {rm.floorName || floorName}
-                              </span>
-                              <span className={`badge ${rm.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'} position-absolute top-0 end-0 m-3 px-3 py-1 shadow-sm`} style={{ fontSize: '0.82rem', zIndex: 6 }}>
-                                Room {rm.roomNumber} • {rm.status}
-                              </span>
-                            </div>
-                            <div className="card-body p-4 d-flex flex-column justify-content-between">
-                              <div>
-                                <h5 className="fw-bold text-pcc-blue mb-1">{rm.roomType} (Room {rm.roomNumber})</h5>
-                                <small className="text-muted d-block mb-2">Max Occupancy: {rm.occupancyLimit || 4} Guests</small>
-                                <p className="text-muted small mb-3">{rm.description || rm.typeDescription || 'Comfortable stay with essential amenities and daily housekeeping.'}</p>
+                        return (
+                          <div key={rm.roomID} className="col-md-6 col-lg-4">
+                            <div className="card h-100 border-0 shadow-sm overflow-hidden room-card-hover" style={{ borderRadius: '12px', backgroundColor: '#fff' }}>
+                              <div style={{ height: '210px', overflow: 'hidden', position: 'relative' }}>
+                                <RoomImageCarousel
+                                  images={parsedImages}
+                                  fallbackImg={defaultImg}
+                                  alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
+                                />
+                                <span className="badge bg-dark text-white position-absolute top-0 start-0 m-3 px-3 py-1 shadow-sm" style={{ fontSize: '0.82rem', zIndex: 6 }}>
+                                  {rm.floorName || floorName}
+                                </span>
+                                <span className={`badge ${rm.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'} position-absolute top-0 end-0 m-3 px-3 py-1 shadow-sm`} style={{ fontSize: '0.82rem', zIndex: 6 }}>
+                                  Room {rm.roomNumber} • {rm.status}
+                                </span>
                               </div>
-                              <div>
-                                <div className="p-2.5 bg-light rounded mb-3" style={{ fontSize: '0.82rem' }}>
-                                  <div className="d-flex justify-content-between mb-1">
-                                    <span className="text-muted">Without Breakfast:</span>
-                                    <span className="fw-bold text-dark">₱{parseFloat(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                  </div>
-                                  <div className="d-flex justify-content-between mb-1">
-                                    <span className="text-muted">With Breakfast:</span>
-                                    <span className="fw-bold text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                  </div>
-                                  <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.78rem' }}>
-                                    <span className="text-muted">Breakfast Option:</span>
-                                    {isBreakfastFree ? (
-                                      <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">
-                                        <i className="bi bi-cup-hot me-1"></i>Free / Included
-                                      </span>
-                                    ) : (
-                                      <span className="text-success fw-bold">
-                                        ₱{breakfastDiff.toFixed(2)} add-on
-                                      </span>
-                                    )}
-                                  </div>
+                              <div className="card-body p-4 d-flex flex-column justify-content-between">
+                                <div>
+                                  <h5 className="fw-bold text-pcc-blue mb-1">{rm.roomType} (Room {rm.roomNumber})</h5>
+                                  <small className="text-muted d-block mb-2">Max Occupancy: {rm.occupancyLimit || 4} Guests</small>
+                                  <p className="text-muted small mb-3">{rm.description || rm.typeDescription || 'Comfortable stay with essential amenities and daily housekeeping.'}</p>
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRoomType(rm.roomType);
-                                    setCheckIn(minCheckIn);
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                  }}
-                                  className="btn btn-pcc-primary btn-sm text-white w-100 fw-bold"
-                                >
-                                  Check Availability &amp; Reserve
-                                </button>
+                                <div>
+                                  <div className="p-2.5 bg-light rounded mb-3" style={{ fontSize: '0.82rem' }}>
+                                    <div className="d-flex justify-content-between mb-1">
+                                      <span className="text-muted">Without Breakfast:</span>
+                                      <span className="fw-bold text-dark">₱{parseFloat(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="d-flex justify-content-between mb-1">
+                                      <span className="text-muted">With Breakfast:</span>
+                                      <span className="fw-bold text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.78rem' }}>
+                                      <span className="text-muted">Breakfast Option:</span>
+                                      {isBreakfastFree ? (
+                                        <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">
+                                          <i className="bi bi-cup-hot me-1"></i>Free / Included
+                                        </span>
+                                      ) : (
+                                        <span className="text-success fw-bold">
+                                          ₱{breakfastDiff.toFixed(2)} add-on
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRoomType(rm.roomType);
+                                      setCheckIn(minCheckIn);
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className="btn btn-pcc-primary btn-sm text-white w-100 fw-bold"
+                                  >
+                                    Check Availability &amp; Reserve
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
+                ));
+              })()}
+              {allRooms.length > VISIBLE_COUNT && (
+                <div className="text-center mt-4">
+                  <button
+                    type="button"
+                    className="btn btn-pcc-outline px-4 fw-bold"
+                    onClick={() => setShowAllRooms((v) => !v)}
+                  >
+                    {showAllRooms ? 'Show Less' : `See More (${allRooms.length - VISIBLE_COUNT} more)`}
+                  </button>
                 </div>
-              ));
-            })()
+              )}
+            </>
           ) : (
             <>
               {/* Ground Floor Fallback */}
@@ -719,70 +758,70 @@ export default function Home() {
       {showResultsModal && (
         <ModalPortal>
           <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content border-0" style={{ borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
-              <div className="modal-header px-4 py-3" style={{ background: 'var(--pcc-blue)', color: '#fff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
-                <h5 className="modal-title fw-bold">Available Rooms</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowResultsModal(false)}></button>
-              </div>
-              <div className="modal-body p-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                <div className="mb-3 p-3 bg-light rounded" style={{ fontSize: '0.9rem' }}>
-                  Dates: <strong>{new Date(checkIn).toLocaleDateString()}</strong> to <strong>{new Date(checkOut).toLocaleDateString()}</strong>
-                  <span className="mx-2">|</span> Option: <strong>{breakfast}</strong>
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+              <div className="modal-content border-0" style={{ borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
+                <div className="modal-header px-4 py-3" style={{ background: 'var(--pcc-blue)', color: '#fff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
+                  <h5 className="modal-title fw-bold">Available Rooms</h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setShowResultsModal(false)}></button>
                 </div>
+                <div className="modal-body p-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                  <div className="mb-3 p-3 bg-light rounded" style={{ fontSize: '0.9rem' }}>
+                    Dates: <strong>{new Date(checkIn).toLocaleDateString()}</strong> to <strong>{new Date(checkOut).toLocaleDateString()}</strong>
+                    <span className="mx-2">|</span> Option: <strong>{breakfast}</strong>
+                  </div>
 
-                {availableRooms.length === 0 ? (
-                  <div className="text-center py-5 text-muted">
-                    <h5 className="mt-3 fw-bold">No Rooms Available</h5>
-                    <p className="small mb-0">Sorry, there are no rooms of this type vacant for the selected stay dates. Please try other dates.</p>
-                  </div>
-                ) : (
-                  <div className="d-flex flex-column gap-3">
-                    {availableRooms.map((rm) => (
-                      <div key={rm.roomID} className="p-3 border rounded d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white shadow-sm" style={{ transition: 'all 0.2s' }}>
-                        <div>
-                          <div className="d-flex align-items-center gap-2 mb-1">
-                            <span className="fw-bold text-dark" style={{ fontSize: '1.1rem' }}>Room {rm.roomNumber}</span>
-                            <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill" style={{ fontSize: '0.75rem' }}>Available</span>
-                          </div>
-                          <h6 className="text-pcc-primary fw-semibold mb-1">{rm.roomType} · {rm.floor}</h6>
-                          <p className="text-muted small mb-0" style={{ maxWidth: '480px' }}>{rm.description}</p>
-                        </div>
-                        <div className="text-md-end mt-3 mt-md-0 d-flex flex-row flex-md-column justify-content-between align-items-center align-items-md-end gap-2">
+                  {availableRooms.length === 0 ? (
+                    <div className="text-center py-5 text-muted">
+                      <h5 className="mt-3 fw-bold">No Rooms Available</h5>
+                      <p className="small mb-0">Sorry, there are no rooms of this type vacant for the selected stay dates. Please try other dates.</p>
+                    </div>
+                  ) : (
+                    <div className="d-flex flex-column gap-3">
+                      {availableRooms.map((rm) => (
+                        <div key={rm.roomID} className="p-3 border rounded d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white shadow-sm" style={{ transition: 'all 0.2s' }}>
                           <div>
-                            <div className="text-muted small">Price per night</div>
-                            <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.35rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</span>
+                            <div className="d-flex align-items-center gap-2 mb-1">
+                              <span className="fw-bold text-dark" style={{ fontSize: '1.1rem' }}>Room {rm.roomNumber}</span>
+                              <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill" style={{ fontSize: '0.75rem' }}>Available</span>
+                            </div>
+                            <h6 className="text-pcc-primary fw-semibold mb-1">{rm.roomType} · {rm.floor}</h6>
+                            <p className="text-muted small mb-0" style={{ maxWidth: '480px' }}>{rm.description}</p>
                           </div>
-                          {currentUser && currentUser.role === 'Guest' ? (
-                            <button 
-                              onClick={() => handleBookNow(rm.roomID)}
-                              className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
-                              style={{ borderRadius: '6px' }}
-                              disabled={bookingInProgress}
-                            >
-                              {bookingInProgress ? "Booking..." : "Book Now"}
-                            </button>
-                          ) : (
-                            <Link 
-                              href={`/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${rm.roomID}&breakfast=${breakfast}`}
-                              className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
-                              style={{ borderRadius: '6px' }}
-                            >
-                              Book Now
-                            </Link>
-                          )}
+                          <div className="text-md-end mt-3 mt-md-0 d-flex flex-row flex-md-column justify-content-between align-items-center align-items-md-end gap-2">
+                            <div>
+                              <div className="text-muted small">Price per night</div>
+                              <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.35rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</span>
+                            </div>
+                            {currentUser && currentUser.role === 'Guest' ? (
+                              <button
+                                onClick={() => handleBookNow(rm.roomID)}
+                                className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
+                                style={{ borderRadius: '6px' }}
+                                disabled={bookingInProgress}
+                              >
+                                {bookingInProgress ? "Booking..." : "Book Now"}
+                              </button>
+                            ) : (
+                              <Link
+                                href={`/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${rm.roomID}&breakfast=${breakfast}`}
+                                className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
+                                style={{ borderRadius: '6px' }}
+                              >
+                                Book Now
+                              </Link>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="modal-footer border-0 px-4 py-3">
-                <button type="button" className="btn btn-secondary text-white px-4" onClick={() => setShowResultsModal(false)}>Close</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer border-0 px-4 py-3">
+                  <button type="button" className="btn btn-secondary text-white px-4" onClick={() => setShowResultsModal(false)}>Close</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
     </>
