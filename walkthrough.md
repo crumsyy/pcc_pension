@@ -1,17 +1,16 @@
-# Walkthrough — Register: Inter, Location Suggest, Password Checklist
+# Walkthrough — Username Rule Out, shadcn Checkbox + Dialog
 
 ## Changes (no commit/push yet)
-- Inter everywhere: page wrapped in `register-inter` + CSS scope (same icon-safe pattern as admin); portaled modals already use Bootstrap defaults.
-- Province-first + shared `ProvinceCityInputs` (new optional `columnClassName`/`labelClassName` props, defaults keep User Management styling); submit validates against the province/city lists with clear errors; error scroll order updated.
-- Real-time 6-row password checklist (green/grey checks, "allowed" tinted) replacing the static hint; submit additionally rejects username-containing passwords so the checklist never lies (backend remains a satisfied subset).
+- Username checklist row + submit rule removed (5 exact rules; backend parity intact).
+- New `components/ui/checkbox.jsx` + `dialog.jsx` (shadcn-style API over React Aria, `.jsx`): Checkbox `isSelected/onChange/isInvalid`; Dialog set with Trigger/Header/Title/Description/Body/Footer/Close; theme-aware + Inter CSS in `globals.css` (+ `react-aria-components` dep).
+- Register agreements rebuilt on them: linked words open the Dialog with verbatim document content; scroll-to-bottom gating, badges, and submit validation preserved 1:1; old `ModalPortal` blocks deleted (also cleared a pre-existing lint error).
 
 ## Verification
-- `npx eslint`: the 2 findings are pre-existing on untouched lines (DOB effect, terms-modal apostrophe) — verified zero added lines involved.
+- `npx eslint`: only the pre-existing DOB-effect finding on an untouched line; new files clean.
 - `npm run build` success, 96/96 pages.
 
 ## Manual check
-1. Whole page renders Inter, icons intact.
-2. Province suggest → city follows it; invalid combos blocked on submit.
-3. Checklist ticks live as you type; all-green ⇔ submit passes ⇔ backend accepts.
+1. Checklist shows 5 rows ticking live; all-green ⇔ submit passes.
+2. Clicking Terms/Privacy words opens the Dialog; checkbox uncheckable until bottom reached; accept enables check; light/dark + Inter correct.
 
 Awaiting review. Say `"push"` only when you want commit + push.

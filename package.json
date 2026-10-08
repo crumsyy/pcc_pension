@@ -18,6 +18,7 @@
     "nodemailer": "^9.0.1",
     "philippines": "^1.0.0",
     "react": "19.2.4",
+    "react-aria-components": "^1.22.0",
     "react-dom": "19.2.4",
     "sonner": "^2.0.8"
   },
