@@ -1064,9 +1064,14 @@ h4,
     width: 76px !important;
   }
 
+  /* Exact-fit shell: flexbox sizes wrapper/main/page from the real header
+     height instead of magic-number calcs, so footers are never clipped. */
   .pcc-main-wrapper {
     margin-left: 240px !important;
+    height: 100vh !important;
+    height: 100dvh !important;
     max-height: 100vh !important;
+    max-height: 100dvh !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
@@ -1085,8 +1090,14 @@ h4,
     min-width: 0;
   }
 
+  .pcc-main-wrapper > header {
+    flex-shrink: 0 !important;
+  }
+
   .pcc-main-wrapper main {
-    max-height: calc(100vh - 62px) !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow-y: auto !important;
     display: flex !important;
     flex-direction: column !important;
@@ -1095,19 +1106,14 @@ h4,
   .pcc-page-container {
     display: flex !important;
     flex-direction: column !important;
-    height: calc(100vh - 62px - 3.2rem) !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
     overflow: hidden !important;
   }
 
   .pcc-page-container.pcc-page-natural {
-    height: auto !important;
     overflow: visible !important;
-  }
-
-  @media (max-width: 991.98px) {
-    .pcc-page-container {
-      height: calc(100vh - 56px - 2.2rem) !important;
-    }
   }
 
   /* Minimized Search Filters, Headers, and Spacing for locked layout */
@@ -2325,6 +2331,20 @@ body.dark-theme .qr-payment-container h4 {
 .required-asterisk {
   color: #dc3545;
   font-weight: 700;
+}
+
+/* Purchase Orders compact density: fit 8 rows + footer on screen */
+.po-compact .table > :not(caption) > * > * {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+.po-compact .table .action-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+}
+.po-compact .table .badge {
+  font-size: 0.68rem;
 }
 .admin-inter,
 .admin-inter *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {

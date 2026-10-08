@@ -852,7 +852,7 @@ export default function AdminPurchaseOrders() {
   };
 
   return (
-    <div className="pcc-page-container pcc-content-reveal d-flex flex-column" style={{ height: 'calc(100vh - 90px)', overflow: 'hidden', padding: '1rem' }}>
+    <div className="pcc-page-container po-compact pcc-content-reveal d-flex flex-column" style={{ height: 'calc(100vh - 90px)', overflow: 'hidden', padding: '0.75rem 1rem' }}>
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -865,7 +865,7 @@ export default function AdminPurchaseOrders() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+      <div className="d-flex justify-content-between align-items-center mb-2 flex-shrink-0">
         <div>
           <div className="section-eyebrow">Admin</div>
           <h2 className="section-title mb-0">Purchase Orders</h2>
@@ -879,7 +879,7 @@ export default function AdminPurchaseOrders() {
         {/* Left Column: PO Table & Filters */}
         <div className="col-lg-8 d-flex flex-column h-100 overflow-hidden" style={{ minHeight: 0 }}>
           {/* Filter */}
-          <div className="card-module mb-3 flex-shrink-0" style={{ backgroundColor: "#fff", padding: "1rem 1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className="card-module mb-2 flex-shrink-0" style={{ backgroundColor: "#fff", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
             <div className="row g-2 align-items-end">
               <div className="col-md-4">
                 <label className="form-label small fw-bold mb-1">Search</label>
@@ -922,7 +922,7 @@ export default function AdminPurchaseOrders() {
           </div>
 
           {/* Purchase Orders Table */}
-          <div className="card-module pcc-table-card flex-grow-1 d-flex flex-column overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
+          <div className="card-module pcc-table-card flex-grow-1 d-flex flex-column overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
               <div className={`table-responsive flex-grow-1 overflow-auto ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ minHeight: 0 }}>
                 <table className="table table-sm align-middle mb-0">
                   <thead>
