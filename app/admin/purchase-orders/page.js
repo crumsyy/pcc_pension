@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
@@ -92,6 +92,9 @@ export default function AdminPurchaseOrders() {
 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchVal, setSearchVal] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimer = useRef(null);
+  const fetchInFlight = useRef(false);
   const [dateFilter, setDateFilter] = useState('');
   const [page, setPage] = useState(1);
 
@@ -194,6 +197,8 @@ export default function AdminPurchaseOrders() {
   };
 
   const fetchInventory = async () => {
+    if (fetchInFlight.current) return;
+    fetchInFlight.current = true;
     try {
       const res = await fetch('/api/admin/inventory/low-stock');
       const data = await res.json();
@@ -202,6 +207,8 @@ export default function AdminPurchaseOrders() {
       }
     } catch (e) {
       console.error("Failed to fetch inventory for restock panel:", e);
+    } finally {
+      fetchInFlight.current = false;
     }
   };
 
@@ -220,7 +227,11 @@ export default function AdminPurchaseOrders() {
 
   useEffect(() => {
     fetchInventory();
-    const interval = setInterval(fetchInventory, 5000);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (fetchInFlight.current) return;
+      fetchInventory();
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -830,8 +841,10 @@ export default function AdminPurchaseOrders() {
   } = paginate(recommendedItems, restockPage, RESTOCK_PAGE_SIZE);
 
   const handleSearchChange = (e) => {
-    setSearchVal(e.target.value);
-    setPage(1);
+    const val = e.target.value;
+    setSearchInput(val);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => { setSearchVal(val); setPage(1); }, 350);
   };
 
   const handleStatusFilterChange = (e) => {
@@ -845,8 +858,10 @@ export default function AdminPurchaseOrders() {
   };
 
   const handleClearFilters = () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
     setStatusFilter('');
     setSearchVal('');
+    setSearchInput('');
     setDateFilter('');
     setPage(1);
   };
@@ -887,7 +902,7 @@ export default function AdminPurchaseOrders() {
                   type="text"
                   className="form-control"
                   placeholder="Search PO #, item, remarks..."
-                  value={searchVal}
+                  value={searchInput}
                   onChange={handleSearchChange}
                 />
               </div>

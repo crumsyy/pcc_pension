@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
@@ -12,6 +12,9 @@ import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/Adm
 
 export default function AdminDiscounts() {
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimer = useRef(null);
+  const fetchInFlight = useRef(false);
   const [activeTab, setActiveTab] = useState('active_discounts');
   const [discPage, setDiscPage] = useState(1);
   const [promoPage, setPromoPage] = useState(1);
@@ -28,7 +31,17 @@ export default function AdminDiscounts() {
     setPromoPage(1);
   };
 
+  const handleSearchInputChange = (v) => {
+    setSearchInput(v);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      handleSearchChange(v);
+    }, 350);
+  };
+
   const handleClearSearch = () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    setSearchInput('');
     setSearch('');
     setDiscPage(1);
     setPromoPage(1);
@@ -109,6 +122,8 @@ export default function AdminDiscounts() {
   };
 
   const fetchData = async (isSilent = false, isInitial = false) => {
+    if (isSilent && fetchInFlight.current) return;
+    fetchInFlight.current = true;
     if (!isSilent) {
       clientCache.invalidate('admin-discounts');
     }
@@ -153,6 +168,8 @@ export default function AdminDiscounts() {
     } catch (err) {
       if (!isSilent) showAlert('error', 'Error', err.message);
       else console.warn('Background discounts refresh error:', err.message);
+    } finally {
+      fetchInFlight.current = false;
     }
   };
 
@@ -175,6 +192,8 @@ export default function AdminDiscounts() {
 
   useEffect(() => {
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (fetchInFlight.current) return;
       fetchData(true, false);
     }, 5000);
     return () => clearInterval(interval);
@@ -571,8 +590,8 @@ export default function AdminDiscounts() {
               type="text"
               className="form-control"
               placeholder="Search by discount/promo name..."
-              value={search}
-              onChange={(e) => handleSearchChange(e.target.value)}
+              value={searchInput}
+              onChange={(e) => handleSearchInputChange(e.target.value)}
             />
           </div>
           <div className="col-md-3">

@@ -8,6 +8,9 @@ import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminBookings() {
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(search);
+  const searchTimer = useRef(null);
+  const handleSearchInput = (v) => { setSearchInput(v); if (searchTimer.current) clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => setSearch(v), 350); };
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
@@ -141,8 +144,8 @@ export default function AdminBookings() {
               type="text"
               className="form-control"
               placeholder="Search guest name or room..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => handleSearchInput(e.target.value)}
             />
           </div>
           <div className="col-md-3">
@@ -161,7 +164,7 @@ export default function AdminBookings() {
             <FlatDatePicker dateFormat="Y-m-d" className="form-control" value={dateFilter} onChange={(val)=>setDateFilter(typeof val==='string'?val:val?.target?.value||'')} />
           </div>
           <div className="col-md-2 d-flex gap-2">
-            <button className="btn btn-pcc-primary text-white w-100" onClick={() => { setSearch(''); setStatusFilter(''); setDateFilter(''); }}>
+            <button className="btn btn-pcc-primary text-white w-100" onClick={() => { if (searchTimer.current) clearTimeout(searchTimer.current); setSearchInput(''); setSearch(''); setStatusFilter(''); setDateFilter(''); }}>
               Clear
             </button>
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
@@ -42,6 +42,8 @@ function isAtLeast18(dobUi) {
 
 export default function UsersClient() {
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(search);
+  const searchTimer = useRef(null);
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -166,10 +168,10 @@ export default function UsersClient() {
     }
   }, [search, roleFilter, statusFilter]);
 
-  const handleSearchChange = (v) => { setSearch(v); setPage(1); };
+  const handleSearchChange = (v) => { setSearchInput(v); if (searchTimer.current) clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => { setSearch(v); setPage(1); }, 350); };
   const handleRoleFilterChange = (v) => { setRoleFilter(v); setPage(1); };
   const handleStatusFilterChange = (v) => { setStatusFilter(v); setPage(1); };
-  const handleClearFilters = () => { setSearch(''); setRoleFilter(''); setStatusFilter(''); setPage(1); };
+  const handleClearFilters = () => { if (searchTimer.current) clearTimeout(searchTimer.current); setSearchInput(''); setSearch(''); setRoleFilter(''); setStatusFilter(''); setPage(1); };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -509,7 +511,7 @@ export default function UsersClient() {
               type="text"
               className="form-control"
               placeholder="Search by name or email..."
-              value={search}
+              value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>

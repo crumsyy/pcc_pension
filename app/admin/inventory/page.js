@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
@@ -36,6 +36,8 @@ export default function AdminInventory() {
   // UI state
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'stocks' | 'batches' | 'borrow' | 'logs'
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimer = useRef(null);
   const [typeFilter, setTypeFilter] = useState(''); // 'Amenity' | 'Product'
   const [itemTypeFilter, setItemTypeFilter] = useState(''); // 'Consumable' | 'Non-Consumable'
   const [lowStockOnly, setLowStockOnly] = useState(false);
@@ -70,6 +72,14 @@ export default function AdminInventory() {
     resetAllPages();
   };
 
+  const handleSearchInputChange = (v) => {
+    setSearchInput(v);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      handleSearchChange(v);
+    }, 350);
+  };
+
   const handleTypeFilterChange = (v) => {
     setTypeFilter(v);
     resetAllPages();
@@ -96,6 +106,8 @@ export default function AdminInventory() {
   };
 
   const handleClearFilters = () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    setSearchInput('');
     setSearch('');
     setTypeFilter('');
     setItemTypeFilter('');
@@ -254,6 +266,8 @@ export default function AdminInventory() {
     });
   };
 
+  const fetchInFlight = useRef(false);
+
   const notifyCrossModuleSync = () => {
     clientCache.invalidate('admin-inventory');
     clientCache.invalidate('admin-dashboard');
@@ -268,6 +282,8 @@ export default function AdminInventory() {
   };
 
   const fetchInventory = async (isSilent = false) => {
+    if (isSilent && fetchInFlight.current) return;
+    fetchInFlight.current = true;
     setError('');
     try {
       const res = await fetch('/api/admin/inventory', { cache: 'no-store' });
@@ -310,6 +326,8 @@ export default function AdminInventory() {
     } catch (err) {
       if (!isSilent) setError(err.message);
       else console.warn('Background inventory refresh error:', err.message);
+    } finally {
+      fetchInFlight.current = false;
     }
   };
 
@@ -323,6 +341,8 @@ export default function AdminInventory() {
 
     // Real-time polling every 3 seconds
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (fetchInFlight.current) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         fetchInventory(true);
       }
@@ -947,8 +967,8 @@ export default function AdminInventory() {
                 type="text"
                 className="form-control"
                 placeholder="Search catalog items..."
-                value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
+                value={searchInput}
+                onChange={(e) => handleSearchInputChange(e.target.value)}
               />
             </div>
             <div className="col-md-2">

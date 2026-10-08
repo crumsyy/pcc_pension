@@ -8,6 +8,9 @@ import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminReservations() {
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(search);
+  const searchTimer = useRef(null);
+  const handleSearchInput = (v) => { setSearchInput(v); if (searchTimer.current) clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => setSearch(v), 350); };
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
@@ -149,8 +152,8 @@ export default function AdminReservations() {
                 type="text"
                 className="form-control border-start-0"
                 placeholder="Guest name, email, contact, or room..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => handleSearchInput(e.target.value)}
               />
             </div>
           </div>
@@ -175,7 +178,7 @@ export default function AdminReservations() {
             <button
               className="btn btn-sm btn-pcc-primary text-white w-100"
               style={{ height: '31px' }}
-              onClick={() => { setSearch(''); setStatusFilter(''); setDateFilter(''); }}
+              onClick={() => { if (searchTimer.current) clearTimeout(searchTimer.current); setSearchInput(''); setSearch(''); setStatusFilter(''); setDateFilter(''); }}
             >
               <i className="bi bi-x-circle me-1"></i> Clear
             </button>

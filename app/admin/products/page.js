@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
@@ -10,6 +10,8 @@ import { toast } from '@/components/ui/toast';
 
 export default function AdminProducts() {
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimer = useRef(null);
   const [catFilter, setCatFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [activeTab, setActiveTab] = useState('products'); // 'products' | 'meals' | 'archived'
@@ -355,8 +357,10 @@ export default function AdminProducts() {
   const { totalPages, safePage, rows: pagedProducts, start, end, total } = paginate(filteredProducts, page, ADMIN_PAGE_SIZE);
 
   const handleSearchChange = (e) => {
-    setSearch(e.target.value);
-    setPage(1);
+    const val = e.target.value;
+    setSearchInput(val);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => { setSearch(val); setPage(1); }, 350);
   };
 
   const handleCatFilterChange = (e) => {
@@ -376,7 +380,9 @@ export default function AdminProducts() {
   };
 
   const handleClearFilters = () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
     setSearch('');
+    setSearchInput('');
     setCatFilter(activeTab === 'meals' ? '3' : '');
     setTypeFilter('');
     setPage(1);
@@ -444,7 +450,7 @@ export default function AdminProducts() {
               type="text"
               className="form-control"
               placeholder={activeTab === 'meals' ? "Search cooked meals..." : "Search product name or category..."}
-              value={search}
+              value={searchInput}
               onChange={handleSearchChange}
             />
           </div>

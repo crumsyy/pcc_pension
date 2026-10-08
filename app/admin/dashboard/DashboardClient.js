@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import ModalPortal from '../../components/ModalPortal';
 
@@ -14,6 +14,7 @@ export default function DashboardClient({ userName }) {
   const [resetting, setResetting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetFeedback, setResetFeedback] = useState(null);
+  const fetchInFlight = useRef(false);
 
   const displayUserName = userName || stats?.userName || clientCache.get('admin-user-name')?.data || 'Admin';
 
@@ -43,6 +44,8 @@ export default function DashboardClient({ userName }) {
   };
 
   const fetchDashboardStats = async (isBackground = false) => {
+    if (isBackground && fetchInFlight.current) return;
+    fetchInFlight.current = true;
     try {
       const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
       const data = await res.json();
@@ -56,6 +59,8 @@ export default function DashboardClient({ userName }) {
     } catch (err) {
       if (!isBackground) setError(err.message);
       else console.warn('Background dashboard refresh error:', err.message);
+    } finally {
+      fetchInFlight.current = false;
     }
   };
 
@@ -76,6 +81,8 @@ export default function DashboardClient({ userName }) {
 
     // Real-time polling every 3.5 seconds when tab is active and not resetting
     const pollTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (fetchInFlight.current) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !resetting && !showResetModal) {
         fetchDashboardStats(true);
       }

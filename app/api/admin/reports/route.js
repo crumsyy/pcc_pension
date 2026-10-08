@@ -74,10 +74,12 @@ export async function GET(request) {
 
       txSql += " ORDER BY t.transactionDateTime ASC";
 
-      const transactions = await dbQuery(txSql, txParams);
-
-      // 2. Fetch all bookings to compute detailed discounts
-      const bookings = await dbQuery(`
+      // Batch S1: transactions + bookings + guest discounts + PO expenses are SQL-independent
+      // (JS aggregation order below is preserved). Saves 3 sequential round-trips.
+      const [transactions, bookings, guestDetails, poItemsRes] = await Promise.all([
+        dbQuery(txSql, txParams),
+        // 2. Fetch all bookings to compute detailed discounts
+        dbQuery(`
         SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, 
                DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, 
                b.status, COALESCE(rr.rate, 0) as roomPrice
@@ -85,14 +87,27 @@ export async function GET(request) {
         JOIN room r ON r.roomID = b.roomID
         JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
         LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
-      `);
-
-      // 3. Fetch guest details with discount percentage and name
-      const guestDetails = await dbQuery(`
+      `),
+        // 3. Fetch guest details with discount percentage and name
+        dbQuery(`
         SELECT bg.bookingID, bg.discountID, d.name as discountName, d.percentage 
         FROM booking_guest_details bg
         JOIN discounts d ON d.discountID = bg.discountID
-      `).catch(() => []);
+      `).catch(() => []),
+        // 2b. Purchase Orders within date range (Expenses) — only needs from/to
+        dbQuery(`
+        SELECT po.purchaseOrderID, DATE_FORMAT(po.orderDate, '%Y-%m-%dT%H:%i:%s') as orderDate,
+               po.status as poStatus, po.remarks,
+               poi.orderItemID, poi.itemName, poi.itemType, poi.quantity,
+               COALESCE(poi.quantityReceived, 0) as quantityReceived,
+               COALESCE(poi.unitPrice, 0) as unitPrice
+        FROM purchase_order po
+        JOIN purchase_order_items poi ON poi.purchaseOrderID = po.purchaseOrderID
+        WHERE DATE(po.orderDate) BETWEEN ? AND ?
+          AND po.status != 'Canceled'
+        ORDER BY po.orderDate DESC
+      `, [from, to]).catch(() => [])
+      ]);
 
       // Pre-compute discounts per booking ID
       const bookingDiscounts = {};
@@ -265,20 +280,7 @@ export async function GET(request) {
         });
       }
 
-      // 2. Fetch Purchase Orders within date range (Expenses)
-      const poItemsRes = await dbQuery(`
-        SELECT po.purchaseOrderID, DATE_FORMAT(po.orderDate, '%Y-%m-%dT%H:%i:%s') as orderDate,
-               po.status as poStatus, po.remarks,
-               poi.orderItemID, poi.itemName, poi.itemType, poi.quantity,
-               COALESCE(poi.quantityReceived, 0) as quantityReceived,
-               COALESCE(poi.unitPrice, 0) as unitPrice
-        FROM purchase_order po
-        JOIN purchase_order_items poi ON poi.purchaseOrderID = po.purchaseOrderID
-        WHERE DATE(po.orderDate) BETWEEN ? AND ?
-          AND po.status != 'Canceled'
-        ORDER BY po.orderDate DESC
-      `, [from, to]).catch(() => []);
-
+      // 2. Purchase Orders already fetched in Batch S1 above; aggregate here in original order
       const poMap = {};
       let totalPoExpenses = 0;
 
@@ -478,16 +480,7 @@ export async function GET(request) {
         bkCountParams.push(parseInt(roomTypeID));
       }
 
-      const bookingsInRange = await dbQuery(bkCountSql, bkCountParams);
-      const completedBookingsInRange = await dbQuery(
-        bkCountSql + " AND b.status IN ('Checked Out', 'Bill Finalized', 'Payment Completed')",
-        bkCountParams
-      );
-
-      const numberBookings = bookingsInRange[0]?.count || 0;
-      const completedBookings = completedBookingsInRange[0]?.count || 0;
-
-      // Calculate previous period sales for growth comparison
+      // Calculate previous period sales for growth comparison (dates only — no query dependency)
       const daysCount = Math.ceil((new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24)) + 1;
       const prevFromDate = new Date(from);
       prevFromDate.setDate(prevFromDate.getDate() - daysCount);
@@ -497,7 +490,8 @@ export async function GET(request) {
       const prevFromStr = prevFromDate.toISOString().substring(0, 10);
       const prevToStr = prevToDate.toISOString().substring(0, 10);
 
-      const prevSalesRes = await dbQuery(`
+      // Batch S3: booking counts + previous-period revenue are SQL-independent
+      const prevSalesSql = `
         SELECT SUM(p.amount) as revenue
         FROM transactions t
         JOIN payment p ON p.paymentID = t.paymentID
@@ -507,7 +501,18 @@ export async function GET(request) {
         WHERE DATE(t.transactionDateTime) BETWEEN ? AND ?
         ${roomID ? ` AND b.roomID = ${parseInt(roomID)}` : ''}
         ${roomTypeID ? ` AND r.roomTypeID = ${parseInt(roomTypeID)}` : ''}
-      `, [prevFromStr, prevToStr]);
+      `;
+      const [bookingsInRange, completedBookingsInRange, prevSalesRes] = await Promise.all([
+        dbQuery(bkCountSql, bkCountParams),
+        dbQuery(
+          bkCountSql + " AND b.status IN ('Checked Out', 'Bill Finalized', 'Payment Completed')",
+          bkCountParams
+        ),
+        dbQuery(prevSalesSql, [prevFromStr, prevToStr])
+      ]);
+
+      const numberBookings = bookingsInRange[0]?.count || 0;
+      const completedBookings = completedBookingsInRange[0]?.count || 0;
       const prevRevenue = parseFloat(prevSalesRes[0]?.revenue || 0);
       const revenueGrowth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
 
@@ -575,10 +580,13 @@ export async function GET(request) {
         roomFilterParams.push(parseInt(roomTypeID));
       }
 
-      const totalRoomsRes = await dbQuery(`SELECT COUNT(*) as count FROM room r ${roomFilterSql}`, roomFilterParams);
-      const occupiedNowRes = await dbQuery(`SELECT COUNT(*) as count FROM room r ${roomFilterSql} AND r.status = 'Occupied'`, roomFilterParams);
-      const maintenanceNowRes = await dbQuery(`SELECT COUNT(*) as count FROM room r ${roomFilterSql} AND r.status = 'Under Maintenance'`, roomFilterParams);
-      const availableNowRes = await dbQuery(`SELECT COUNT(*) as count FROM room r ${roomFilterSql} AND r.status = 'Available'`, roomFilterParams);
+      // Batch O1: room status COUNT(*) queries share only filter params — no data dependencies
+      const [totalRoomsRes, occupiedNowRes, maintenanceNowRes, availableNowRes] = await Promise.all([
+        dbQuery(`SELECT COUNT(*) as count FROM room r ${roomFilterSql}`, roomFilterParams),
+        dbQuery(`SELECT COUNT(*) as count FROM room r ${roomFilterSql} AND r.status = 'Occupied'`, roomFilterParams),
+        dbQuery(`SELECT COUNT(*) as count FROM room r ${roomFilterSql} AND r.status = 'Under Maintenance'`, roomFilterParams),
+        dbQuery(`SELECT COUNT(*) as count FROM room r ${roomFilterSql} AND r.status = 'Available'`, roomFilterParams)
+      ]);
 
       const totalRooms = totalRoomsRes[0]?.count || 0;
       const occupiedNow = occupiedNowRes[0]?.count || 0;
@@ -597,11 +605,7 @@ export async function GET(request) {
         bkCheckParams.push(parseInt(roomTypeID));
       }
 
-      const checkInsRes = await dbQuery(bkCheckSql, bkCheckParams);
-      const checkOutsRes = await dbQuery(
-        bkCheckSql.replace('DATE(b.checkInDateTime)', 'DATE(b.checkOutDateTime)'),
-        bkCheckParams
-      );
+      const checkOutSql = bkCheckSql.replace('DATE(b.checkInDateTime)', 'DATE(b.checkOutDateTime)');
 
       // Occupancy daily trend
       const daysList = [];
@@ -628,23 +632,6 @@ export async function GET(request) {
         activeBkSql += " AND r.roomTypeID = ?";
         activeBkParams.push(parseInt(roomTypeID));
       }
-      const activeBookings = await dbQuery(activeBkSql, activeBkParams);
-
-      const occupancyTrend = daysList.map(day => {
-        const occupiedCount = activeBookings.filter(b => {
-          const checkIn = new Date(b.checkInDateTime).toISOString().substring(0, 10);
-          const checkOut = new Date(b.checkOutDateTime).toISOString().substring(0, 10);
-          return checkIn <= day && checkOut >= day;
-        }).length;
-
-        const activeTotalRooms = Math.max(1, totalRooms - maintenanceNow);
-        const rate = (occupiedCount / activeTotalRooms) * 100;
-        return {
-          date: day,
-          occupied: occupiedCount,
-          occupancyRate: parseFloat(Math.min(100, rate).toFixed(1))
-        };
-      });
 
       // Room Type Utilization
       let utilSql = `
@@ -664,7 +651,6 @@ export async function GET(request) {
         utilParams.push(parseInt(roomTypeID));
       }
       utilSql += " GROUP BY rt.type ORDER BY bookingsCount DESC";
-      const roomUtilRows = await dbQuery(utilSql, utilParams);
 
       // Detailed Room Performance / Utilization table
       let perfSql = `
@@ -696,7 +682,32 @@ export async function GET(request) {
         perfParams.push(parseInt(roomTypeID));
       }
       perfSql += " GROUP BY rm.roomID, rm.roomNumber, rm.status, fl.name, rt.type ORDER BY totalBookings DESC, rm.roomNumber ASC";
-      const roomPerformance = await dbQuery(perfSql, perfParams);
+
+      // Batch O2: check-ins + check-outs + active bookings + utilization + performance.
+      // All five SQLs need only from/to/room filters — no result feeds another query.
+      const [checkInsRes, checkOutsRes, activeBookings, roomUtilRows, roomPerformance] = await Promise.all([
+        dbQuery(bkCheckSql, bkCheckParams),
+        dbQuery(checkOutSql, bkCheckParams),
+        dbQuery(activeBkSql, activeBkParams),
+        dbQuery(utilSql, utilParams),
+        dbQuery(perfSql, perfParams)
+      ]);
+
+      const occupancyTrend = daysList.map(day => {
+        const occupiedCount = activeBookings.filter(b => {
+          const checkIn = new Date(b.checkInDateTime).toISOString().substring(0, 10);
+          const checkOut = new Date(b.checkOutDateTime).toISOString().substring(0, 10);
+          return checkIn <= day && checkOut >= day;
+        }).length;
+
+        const activeTotalRooms = Math.max(1, totalRooms - maintenanceNow);
+        const rate = (occupiedCount / activeTotalRooms) * 100;
+        return {
+          date: day,
+          occupied: occupiedCount,
+          occupancyRate: parseFloat(Math.min(100, rate).toFixed(1))
+        };
+      });
 
       // Peak booking dates
       let peakOccupancyDate = '—';
@@ -772,16 +783,15 @@ export async function GET(request) {
       };
 
       // 1. Fetch amenities and products
-      const amenities = await safeDbQuery(`
+      const amenitiesSql = `
         SELECT 'Amenity' as sourceTable, a.amenityID as itemID, a.name, COALESCE(ac.name, 'General') as category,
                'Amenity' as itemClass, 'Amenity' as itemClassification, COALESCE(a.minStock, 5) as minStock,
                'Consumable' as itemType, COALESCE(a.unit, 'pcs') as unit, COALESCE(a.price, 0) as defaultCost
         FROM amenities a
         LEFT JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
         WHERE a.isArchived = 0
-      `);
-
-      let products = await safeDbQuery(`
+      `;
+      const productsSql = `
         SELECT 'Product' as sourceTable, p.productID as itemID, p.name, COALESCE(pc.name, 'General') as category,
                'Product' as itemClass,
                CASE WHEN p.productCategoryID = 3 OR LOWER(pc.name) = 'cooked meals' THEN 'Cooked Meal' ELSE 'Product' END as itemClassification,
@@ -790,7 +800,17 @@ export async function GET(request) {
         FROM products p
         LEFT JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
         WHERE p.isArchived = 0
-      `);
+      `;
+      // Batch I1: catalog + stock tables are SQL-independent (no result feeds another query)
+      const [amenities, productsFirst, batches, borrows, disposals, allMovements] = await Promise.all([
+        safeDbQuery(amenitiesSql),
+        safeDbQuery(productsSql),
+        safeDbQuery("SELECT * FROM inventory_batch"),
+        safeDbQuery("SELECT * FROM borrow_transaction"),
+        safeDbQuery("SELECT * FROM inventory_disposal"),
+        safeDbQuery("SELECT * FROM inventory_movement")
+      ]);
+      let products = productsFirst;
 
       if (!products || products.length === 0) {
         // Fallback to product singular if schema uses product
@@ -817,12 +837,7 @@ export async function GET(request) {
         catalog = catalog.filter(i => i.itemClassification === 'Amenity');
       }
 
-      // Fetch batch data
-      const batches = await safeDbQuery("SELECT * FROM inventory_batch");
-      const borrows = await safeDbQuery("SELECT * FROM borrow_transaction");
-      const disposals = await safeDbQuery("SELECT * FROM inventory_disposal");
-      const allMovements = await safeDbQuery("SELECT * FROM inventory_movement");
-
+      // Fetch batch data already retrieved in Batch I1 above
       const todayStr = new Date().toISOString().substring(0, 10);
 
       const getFormatDate = (d) => {
@@ -873,8 +888,8 @@ export async function GET(request) {
         };
       });
 
-      // 2. Fetch Ordered Stock (Pending / Partially Received Purchase Orders)
-      const purchaseOrderItems = await safeDbQuery(`
+      // 2. Ordered Stock SQL + 3. Movements SQL — independent (only from/to), so batch first attempts
+      const poOrderedSql = `
         SELECT po.purchaseOrderID, DATE_FORMAT(po.orderDate, '%Y-%m-%dT%H:%i:%s') as orderDate, po.status as poStatus,
                poi.orderItemID, poi.itemName, poi.itemType, poi.quantity, COALESCE(poi.quantityReceived, 0) as quantityReceived,
                COALESCE(poi.unitPrice, 0) as unitPrice,
@@ -884,7 +899,35 @@ export async function GET(request) {
         LEFT JOIN user u ON u.userID = po.staffID
         WHERE DATE(po.orderDate) BETWEEN ? AND ?
           AND po.status IN ('Pending', 'Approved', 'Partially Received')
-      `, [from, to]);
+      `;
+      let movementsSql = `
+        SELECT im.*, 
+               DATE_FORMAT(im.movementDateTime, '%Y-%m-%dT%H:%i:%s') as movementDateTimeStr,
+               COALESCE(a.name, p.name) as itemName,
+               COALESCE(ac.name, pc.name, im.itemType) as category,
+               CASE 
+                 WHEN im.itemType = 'Amenity' THEN 'Amenity'
+                 WHEN p.productCategoryID = 3 OR LOWER(pc.name) = 'cooked meals' THEN 'Cooked Meal'
+                 ELSE 'Product'
+               END as itemClassification,
+               ib.batchNumber, COALESCE(ib.unitCost, p.basePrice, p.price, a.price, 0) as resolvedUnitCost,
+               u.email as userEmail, u.firstName as userFirstName, u.lastName as userLastName
+        FROM inventory_movement im
+        LEFT JOIN amenities a ON im.itemType = 'Amenity' AND a.amenityID = im.itemID
+        LEFT JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
+        LEFT JOIN products p ON im.itemType = 'Product' AND p.productID = im.itemID
+        LEFT JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
+        LEFT JOIN inventory_batch ib ON ib.batchID = im.batchID
+        LEFT JOIN user u ON u.userID = im.userID
+        WHERE DATE(im.movementDateTime) BETWEEN ? AND ?
+        ORDER BY im.movementDateTime DESC
+      `;
+      // Batch I2: pending-PO items + delivered movements
+      const [purchaseOrderItems, movementsFirst] = await Promise.all([
+        safeDbQuery(poOrderedSql, [from, to]),
+        safeDbQuery(movementsSql, [from, to])
+      ]);
+      let movements = movementsFirst;
 
       const orderedRows = [];
       for (const poi of purchaseOrderItems) {
@@ -916,30 +959,7 @@ export async function GET(request) {
         });
       }
 
-      // 3. Fetch Delivered Stock & Stock-Out Movements from inventory_movement
-      let movementsSql = `
-        SELECT im.*, 
-               DATE_FORMAT(im.movementDateTime, '%Y-%m-%dT%H:%i:%s') as movementDateTimeStr,
-               COALESCE(a.name, p.name) as itemName,
-               COALESCE(ac.name, pc.name, im.itemType) as category,
-               CASE 
-                 WHEN im.itemType = 'Amenity' THEN 'Amenity'
-                 WHEN p.productCategoryID = 3 OR LOWER(pc.name) = 'cooked meals' THEN 'Cooked Meal'
-                 ELSE 'Product'
-               END as itemClassification,
-               ib.batchNumber, COALESCE(ib.unitCost, p.basePrice, p.price, a.price, 0) as resolvedUnitCost,
-               u.email as userEmail, u.firstName as userFirstName, u.lastName as userLastName
-        FROM inventory_movement im
-        LEFT JOIN amenities a ON im.itemType = 'Amenity' AND a.amenityID = im.itemID
-        LEFT JOIN amenities_category ac ON ac.amenityCategoryID = a.amenityCategoryID
-        LEFT JOIN products p ON im.itemType = 'Product' AND p.productID = im.itemID
-        LEFT JOIN product_category pc ON pc.productCategoryID = p.productCategoryID
-        LEFT JOIN inventory_batch ib ON ib.batchID = im.batchID
-        LEFT JOIN user u ON u.userID = im.userID
-        WHERE DATE(im.movementDateTime) BETWEEN ? AND ?
-        ORDER BY im.movementDateTime DESC
-      `;
-      let movements = await safeDbQuery(movementsSql, [from, to]);
+      // (movementsSql defined in Batch I2 above)
       if (!movements || movements.length === 0) {
         // Fallback for schema using product singular
         movements = await safeDbQuery(movementsSql.replace('LEFT JOIN products p', 'LEFT JOIN product p'), [from, to]);
@@ -1096,41 +1116,7 @@ export async function GET(request) {
       }
       guestSql += " ORDER BY b.checkInDateTime DESC";
 
-      const guests = await dbQuery(guestSql, guestParams);
-
-      // Previous stays calculation
-      const allGuestStays = await dbQuery("SELECT guestID, bookingID, DATE_FORMAT(checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime FROM booking");
-      const guestDetails = await dbQuery(`
-        SELECT bg.bookingID, d.name as discountName
-        FROM booking_guest_details bg
-        JOIN discounts d ON d.discountID = bg.discountID
-      `);
-
-      const guestRows = guests.map(g => {
-        const checkIn = new Date(g.checkInDateTime);
-        const checkOut = new Date(g.checkOutDateTime);
-        const stayNights = Math.max(1, Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
-        const prevVisits = allGuestStays.filter(s => s.guestID === g.guestID && new Date(s.checkInDateTime) < checkIn).length;
-        const discountApplied = guestDetails.find(gd => gd.bookingID === g.bookingID)?.discountName || '—';
-
-        return {
-          guestID: g.guestID,
-          guestName: `${g.firstName} ${g.lastName || ''}`.trim(),
-          contact: g.contact || '—',
-          email: g.email || '—',
-          checkIn: checkIn.toLocaleDateString(),
-          checkOut: checkOut.toLocaleDateString(),
-          roomNumber: g.roomNumber ? `Room ${g.roomNumber}` : '—',
-          roomTypeName: g.roomTypeName || '—',
-          lengthOfStay: stayNights,
-          amountPaid: parseFloat(g.amountPaid || 0),
-          discountApplied,
-          bookingStatus: g.bookingStatus,
-          previousVisits: prevVisits
-        };
-      });
-
-      // Reservations Activity Log
+      // Reservations Activity Log SQL — hoisted here so it can join the batch (only needs from/to/filters)
       let resSql = `
         SELECT r.reservationID, 
                DATE_FORMAT(r.reservationDateTime, '%Y-%m-%dT%H:%i:%s') as reservationDateTime, 
@@ -1159,8 +1145,45 @@ export async function GET(request) {
       }
       resSql += " ORDER BY r.reservationDateTime DESC";
 
-      const reservationsList = await dbQuery(resSql, resParams);
+      // Batch G1: guest stays + all stays (previous-visits) + discounts + reservations.
+      // All four SQLs need only request filters — guestRows JS aggregation stays sequential below.
+      const [guests, allGuestStays, guestDetails, reservationsList] = await Promise.all([
+        dbQuery(guestSql, guestParams),
+        // Previous stays calculation
+        dbQuery("SELECT guestID, bookingID, DATE_FORMAT(checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime FROM booking"),
+        dbQuery(`
+        SELECT bg.bookingID, d.name as discountName
+        FROM booking_guest_details bg
+        JOIN discounts d ON d.discountID = bg.discountID
+      `),
+        dbQuery(resSql, resParams)
+      ]);
 
+      const guestRows = guests.map(g => {
+        const checkIn = new Date(g.checkInDateTime);
+        const checkOut = new Date(g.checkOutDateTime);
+        const stayNights = Math.max(1, Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
+        const prevVisits = allGuestStays.filter(s => s.guestID === g.guestID && new Date(s.checkInDateTime) < checkIn).length;
+        const discountApplied = guestDetails.find(gd => gd.bookingID === g.bookingID)?.discountName || '—';
+
+        return {
+          guestID: g.guestID,
+          guestName: `${g.firstName} ${g.lastName || ''}`.trim(),
+          contact: g.contact || '—',
+          email: g.email || '—',
+          checkIn: checkIn.toLocaleDateString(),
+          checkOut: checkOut.toLocaleDateString(),
+          roomNumber: g.roomNumber ? `Room ${g.roomNumber}` : '—',
+          roomTypeName: g.roomTypeName || '—',
+          lengthOfStay: stayNights,
+          amountPaid: parseFloat(g.amountPaid || 0),
+          discountApplied,
+          bookingStatus: g.bookingStatus,
+          previousVisits: prevVisits
+        };
+      });
+
+      // Reservations Activity Log rows (resSql/resParams + reservationsList from Batch G1 above)
       const reservationRows = reservationsList.map(r => ({
         reservationID: r.reservationID,
         guestName: `${r.firstName} ${r.lastName || ''}`.trim(),

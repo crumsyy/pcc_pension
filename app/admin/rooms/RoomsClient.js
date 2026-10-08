@@ -10,15 +10,17 @@ import { toast } from '@/components/ui/toast';
 
 export default function RoomsClient() {
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(search);
+  const searchTimer = useRef(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
   const [page, setPage] = useState(1);
 
-  const handleSearchChange = (e) => { setSearch(e.target.value); setPage(1); };
+  const handleSearchChange = (e) => { const v = e.target.value; setSearchInput(v); if (searchTimer.current) clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => { setSearch(v); setPage(1); }, 350); };
   const handleTypeFilterChange = (e) => { setTypeFilter(e.target.value); setPage(1); };
   const handleShowActive = () => { setShowArchived(false); setPage(1); };
   const handleShowArchivedTab = () => { setShowArchived(true); setPage(1); };
-  const handleClearFilters = () => { setSearch(''); setTypeFilter(''); setPage(1); };
+  const handleClearFilters = () => { if (searchTimer.current) clearTimeout(searchTimer.current); setSearchInput(''); setSearch(''); setTypeFilter(''); setPage(1); };
 
   const baseCacheKey = `admin-rooms:${search}_${typeFilter}_${showArchived}`;
   const cached = clientCache.get(baseCacheKey);
@@ -546,7 +548,7 @@ export default function RoomsClient() {
               type="text"
               className="form-control"
               placeholder="Search room number or type..."
-              value={search}
+              value={searchInput}
               onChange={handleSearchChange}
             />
           </div>

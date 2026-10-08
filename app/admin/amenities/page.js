@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
@@ -10,17 +10,24 @@ import { toast } from '@/components/ui/toast';
 
 export default function AdminAmenities() {
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimer = useRef(null);
   const [catFilter, setCatFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(1);
 
-  const handleSearchChange = (e) => { setSearch(e.target.value); setPage(1); };
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchInput(val);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => { setSearch(val); setPage(1); }, 350);
+  };
   const handleCatFilterChange = (e) => { setCatFilter(e.target.value); setPage(1); };
   const handleTypeFilterChange = (e) => { setTypeFilter(e.target.value); setPage(1); };
   const handleShowActive = () => { setShowArchived(false); setPage(1); };
   const handleShowArchivedTab = () => { setShowArchived(true); setPage(1); };
-  const handleClearFilters = () => { setSearch(''); setCatFilter(''); setTypeFilter(''); setPage(1); };
+  const handleClearFilters = () => { if (searchTimer.current) clearTimeout(searchTimer.current); setSearch(''); setSearchInput(''); setCatFilter(''); setTypeFilter(''); setPage(1); };
 
   const baseCacheKey = `admin-amenities:${search}_${catFilter}_${typeFilter}_${showArchived}`;
   const cached = clientCache.get(baseCacheKey);
@@ -380,7 +387,7 @@ export default function AdminAmenities() {
               type="text"
               className="form-control"
               placeholder="Search by name or category..."
-              value={search}
+              value={searchInput}
               onChange={handleSearchChange}
             />
           </div>
