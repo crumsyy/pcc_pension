@@ -894,7 +894,7 @@ export default function AdminInventory() {
           <div className="col-12 mt-4">
             <div className="card shadow-sm border-0 bg-white p-3">
               <h5 style={{ color: 'var(--pcc-blue)', fontWeight: 600 }} className="mb-3">Recent Stock Movements</h5>
-              <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table table-hover align-middle table-sm" style={{ fontSize: '0.85rem' }}>
                   <thead>
                     <tr>

@@ -1,31 +1,27 @@
-# Implementation Plan — PO Mirrors Room Management Layout
+# Implementation Plan — Inventory Dashboard Movements Panel Fit
 
 ## 1. Goal
-Purchase Orders panels behave exactly like Room Management: natural-height cards, footer below the table in normal flow, breathing room at the viewport bottom, internal table scroll only as a short-screen fallback. No API/DB/count changes (stay 8/page + 4/page restock).
+Recent Stock Movements panel (Inventory → Dashboard tab) shows its pagination footer with breathing room, no bottom cut. No API/DB/count changes (stays 10/page).
 
-## 2. Current State (verified from screenshots + code)
-- Rooms (`RoomsClient.js:576-577,660`): plain table card + `table-responsive maxHeight calc(100vh - 280px), overflowY auto` + footer below → content shorter than viewport → whitespace below, never edge-to-edge.
-- PO (`purchase-orders/page.js`): locked flex (`flex-grow-1/h-100/overflow-hidden` row, columns, cards) stretches content to fill the container exactly → footers sit at the very viewport edge, perceived as cut (Image 2), even though nothing is technically clipped.
+## 2. Root Cause (verified `inventory/page.js:893-935`)
+The table scroller is fixed at `maxHeight: 350px`, ignoring the ~450px of content stacked above it on the dashboard tab (page title, tab bar, 6 stat cards, card header). 350 + footer overflows the flex:1 container, so the footer renders below the fold and is clipped (screenshot).
 
 ## 3. Scope
-- IN: `purchase-orders/page.js` layout classes/styles only.
-- OUT: pagination, shell CSS, other pages, APIs.
+- IN: one style value on the dashboard movements scroller.
+- OUT: other tabs, counts, APIs.
 
-## 4. Design (copy the Rooms pattern)
-- Container: drop inline fixed height/overflow (keep `po-compact` + padding).
-- Row/columns/table card/restock card: drop all `flex-grow-1/h-100/overflow-hidden/minHeight` locks → plain `row g-3`, plain cols, plain cards (restore filter `mb-3`, card paddings `1.25rem`, title `mb-3` to match Rooms rhythm).
-- Table scroller: `maxHeight: calc(100vh - 340px), overflowY: auto` (340 covers title + filter + thead + footer + paddings, so 8 compact rows show fully at normal heights with room to spare).
-- Restock list: same `maxHeight` cap + `overflowY: auto`; footers stay in normal flow below each card.
-- Keep `table-sm`, `.po-compact`, 8/4 pagination, pinned-footer wrappers (harmless).
+## 4. Design
+- `maxHeight: 'max(200px, calc(100vh - 500px))'` (replaces fixed `350px`): reserves ~500px for header + title + tabs + stats + card chrome + footer, so the footer stays visible with room to spare at normal heights; `200px` floor keeps the table usable on short screens (internal scroll, footer still pinned below in flow).
+- Other tabs already use viewport-relative caps (`calc(100vh - 380px)`) suited to their slimmer headers — untouched.
 
 ## 5. Steps
-1. Layout edits in `purchase-orders/page.js`.
+1. One-line edit in `inventory/page.js`.
 2. `npx eslint` file + `npm run build`.
-3. Manual on localhost + deployed: PO panels show top+bottom borders with whitespace below like Rooms; no internal scroll at ~900px; short screens fall back to in-table scroll with footers visible.
+3. Manual on localhost: dashboard footer fully visible with whitespace below at ~900px height; short screens scroll the table only.
 4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- PO visually matches Rooms panel behavior; zero edge-touching/cut panels; build passes.
+- Footer visible with breathing room, no cut; build passes.
 
 ## 7. Risks
-- Very short viewports use in-table scroll (same as Rooms) — intended fallback.
+- None; single viewport-relative cap.
