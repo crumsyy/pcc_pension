@@ -1,30 +1,30 @@
-# Implementation Plan — Rooms: Delete "Ro", Numeric-Only Numbers, Button Order
+# Implementation Plan — Sonner Message Toasts in Inquiries + Quick-Replay Fix
 
 ## 1. Goals
-(a) Remove test room "Ro" from the database. (b) Room numbers accept digits only, enforced front-end + API on create and edit. (c) Create Room modal footer order becomes Cancel (left) → Create Room (right).
+(a) Add a `toast.message()` API (Sonner-style neutral message toast) to the toast wrapper and use it for inquiry notices instead of native `alert()` popups. (b) Fix the dead quick-reply menu buttons. No API/DB changes.
 
-## 2. Current State (verified)
-- `RoomsClient.js:648-649` table actions offer view/edit/archive only; `handleArchive (:379-393)` calls API `action: 'delete'`, which is a **soft-delete** (`route.js:176-190`, sets archive flag; blocked when Occupied). No hard-delete path exists in the app.
-- Create validation (`:306-311`) checks non-empty only; API create (`route.js:65-94`) checks duplicates only — hence "Ro" got in.
-- Create modal footer (`:860-861`) is currently Create Room → Cancel.
+## 2. Findings (verified)
+- Wrapper `components/ui/toast.jsx` exposes `add/success/error/warning/info/promise/close/dismiss` — no `message` type; icon renderer + accent CSS keyed by type.
+- `GuestChatBubble.js` uses native `alert()` on connect/ticket failures (`:241, :283`) — the popups to replace. Receptionist inquiries (`receptionist/inquiries/page.js`) already notifies via the wrapper — untouched.
+- Quick replies (`GuestChatBubble.js:661-693`) call undefined `handleQuickOption` → ReferenceError on every click. "Room Service Info" label matches no bot keyword, so it needs an explicit query map.
 
 ## 3. Scope
-- IN: one-time verified hard-delete of room "Ro" via script; numeric guards in `RoomsClient.js` (create + edit submit + live digit-stripping on both room-number inputs) and `route.js` create/update actions; create-modal footer swap.
-- OUT: schema changes, other entities, edit-modal footer (unchanged unless you ask).
+- IN: `toast.message()` (+ `pcc-toast-message` accent/icon styling), 2 alert swaps in `GuestChatBubble.js`, new `handleQuickOption` with key→query map.
+- OUT: thread/bubble markup, bot knowledge content, APIs.
 
 ## 4. Design
-- **Delete "Ro"**: run a node script with repo `mysql2` + server env creds: 1) `SELECT` the room row and any referencing `reservation`/`booking` rows by `roomID`; 2) proceed with `DELETE FROM room WHERE roomNumber='Ro'` ONLY if zero references (else stop and report — never cascade blindly); 3) re-SELECT to confirm gone. Row dump shown before deleting. If DB is unreachable from here, fallback: archive "Ro" via the UI (reversible, same visible result).
-- **Numeric-only**: front-end `handleInputChange` strips non-digits for `roomNumber` (both modals) + submit guards `/^\d+$/` with error toast; API create/update reject non-`^\d+$` with 400. Existing numbers unaffected.
-- **Footer**: swap the two buttons in the create modal only.
+- `toast.message(title, description?)` mirrors the `info()` helper shape: `manager.add({ type: 'message', ... })`, tracked in `activeToastIds`, neutral chat-bubble icon + slate accent (full dark-theme parity like other types).
+- GuestChatBubble failures → `toast.message('Connection failed', err.message)` (notice UI, no blocking popup). In-thread success messages stay as-is.
+- `handleQuickOption(key, label)`: appends user `label`, replies via existing `getBotReply` over mapped queries `{rates:'room rates price', checkin:'check-in checkout time', amenities:'amenities wifi', location:'location address contact', orders:'order food breakfast'}` on the existing 400ms typing-indicator path.
 
 ## 5. Steps
-1. Verify references → delete "Ro" → confirm (or report + UI-archive fallback).
-2. Code edits (client + API + footer).
-3. `npx eslint` + `npm run build`; manual: "Ro" gone from active + archived lists, letters rejected with clear error, footer order correct.
+1. Wrapper `message` API + styles.
+2. Alert swaps + `handleQuickOption`.
+3. `npx eslint` touched files + `npm run build`; manual: failures show message toasts (no `alert`), all 5 menu buttons answer correctly, other toast types unchanged.
 4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- No room "Ro" anywhere; non-numeric numbers impossible via UI or direct API POST; footer Cancel-left/Create-right; build passes.
+- Zero native `alert()` in inquiries flows; message toasts styled consistently; menu buttons work with no console errors; build passes.
 
 ## 7. Risks
-- Hard delete is irreversible — mitigated by reference check + pre-delete row dump in this chat. Say the word if you'd rather archive instead.
+- None; additive API + local handlers.

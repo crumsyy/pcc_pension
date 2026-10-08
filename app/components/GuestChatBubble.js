@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { toast } from '@/components/ui/toast';
 
 export default function GuestChatBubble({ inlineView = false, hideFloating = false, bottomOffset = '24px' }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -184,6 +185,27 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     return "I can help with room rates, check-in times, amenities, location, or reservations. For food and room service, please visit the Orders tab. You can also click 'Request Receptionist' to chat directly with our staff!";
   };
 
+  const QUICK_OPTION_QUERIES = {
+    rates: 'room rates price',
+    checkin: 'check-in checkout time',
+    amenities: 'amenities wifi',
+    location: 'location address contact',
+    orders: 'order food breakfast'
+  };
+
+  const handleQuickOption = (key, label) => {
+    if (submittingRequest || isSendingMessage) return;
+    const query = QUICK_OPTION_QUERIES[key] || label;
+    setBotMessages(prev => [...prev, { sender: 'user', text: label }]);
+    setIsSendingMessage(true);
+
+    setTimeout(() => {
+      const reply = getBotReply(query);
+      setBotMessages(prev => [...prev, { sender: 'bot', text: reply }]);
+      setIsSendingMessage(false);
+    }, 400);
+  };
+
   const handleSendBotMessage = (text) => {
     if (!text.trim()) return;
 
@@ -238,7 +260,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
       setShowRequestForm(false);
       setActiveTabMode('live');
     } catch (err) {
-      alert(err.message || 'Failed to connect to receptionist. Please try again.');
+      toast.message('Connection notice', err.message || 'Failed to connect to receptionist. Please try again.');
     } finally {
       setSubmittingRequest(false);
     }
@@ -280,7 +302,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
       setShowRequestForm(false);
       setActiveTabMode('live');
     } catch (err) {
-      alert(err.message || 'Failed to connect to receptionist. Please try again.');
+      toast.message('Connection notice', err.message || 'Failed to connect to receptionist. Please try again.');
     } finally {
       setSubmittingRequest(false);
     }

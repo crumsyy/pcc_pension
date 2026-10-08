@@ -84,6 +84,22 @@ export const toast = {
   promise: (promise, options = {}) => {
     return manager.promise(promise, options);
   },
+  message: (titleOrDesc, descriptionOrOptions) => {
+    if (typeof titleOrDesc === 'object' && titleOrDesc !== null) {
+      const id = manager.add({ type: 'message', ...titleOrDesc });
+      if (id) activeToastIds.add(id);
+      return id;
+    }
+    const hasDesc = typeof descriptionOrOptions === 'string';
+    const id = manager.add({
+      type: 'message',
+      title: hasDesc ? titleOrDesc : (titleOrDesc || 'Message'),
+      description: hasDesc ? descriptionOrOptions : undefined,
+      ...(typeof descriptionOrOptions === 'object' ? descriptionOrOptions : {})
+    });
+    if (id) activeToastIds.add(id);
+    return id;
+  },
   close: (id) => {
     if (id) {
       try { manager.close(id); } catch (e) {}
@@ -146,6 +162,14 @@ function getToastIcon(type) {
             <line x1="18" y1="12" x2="22" y2="12" />
             <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
             <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+          </svg>
+        </span>
+      );
+    case 'message':
+      return (
+        <span className="pcc-toast-icon pcc-toast-icon-message">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </span>
       );
@@ -360,6 +384,10 @@ export function Toaster() {
           background: #2563eb;
         }
 
+        .pcc-toast-message::before {
+          background: #64748b;
+        }
+
         .pcc-toast-body {
           display: flex;
           align-items: flex-start;
@@ -399,6 +427,11 @@ export function Toaster() {
           color: #2563eb;
         }
 
+        .pcc-toast-icon-message {
+          background: #f1f5f9;
+          color: #475569;
+        }
+
         .pcc-toast-icon-loading {
           background: #eff6ff;
           color: #2563eb;
@@ -426,6 +459,12 @@ export function Toaster() {
         body.dark-theme .pcc-toast-icon-info {
           background: rgba(37, 99, 235, 0.2);
           color: #60a5fa;
+        }
+
+        [data-bs-theme="dark"] .pcc-toast-icon-message,
+        body.dark-theme .pcc-toast-icon-message {
+          background: rgba(100, 116, 139, 0.2);
+          color: #94a3b8;
         }
 
         .pcc-toast-spin {

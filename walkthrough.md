@@ -1,19 +1,15 @@
-# Walkthrough — Rooms: Delete "Ro", Numeric Numbers, Footer Order
+# Walkthrough — Sonner Message Toasts + Quick Replies
 
-## Data change (done, verified)
-- Room "Ro" (roomID 360002, Available) had 0 reservations + 0 bookings → hard-deleted (`DELETE` affected 1 row, re-SELECT confirms 0 remaining). Temp scripts removed.
-
-## Code changes (no commit/push yet)
-- `RoomsClient.js`: room-number inputs strip non-digits live (create + edit); create/edit submit guards reject non-`^\d+$` with a clear error; create modal footer swapped to Cancel (left) → Create Room (right). Edit modal footer untouched.
-- `app/api/admin/rooms/route.js`: create + update reject non-numeric numbers with 400 (direct API POSTs covered too).
+## Changes (no commit/push yet)
+- `components/ui/toast.jsx`: new `toast.message(title, description?)` (same call shape as `info()`), neutral chat-bubble icon + slate accent with dark-theme parity.
+- `app/components/GuestChatBubble.js`: both native `alert()` failure popups → `toast.message(...)` notices; defined the missing `handleQuickOption(key, label)` with a key→query map so all 5 menu buttons post and answer (Room Service included) on the existing typing-indicator path.
 
 ## Verification
-- `npx eslint`: only pre-existing findings on untouched lines.
+- Zero native `alert()` in the chat component; `npx eslint` shows only pre-existing findings on untouched lines.
 - `npm run build` success, 96/96 pages.
 
 ## Manual check
-1. Room list has no "Ro" (active or archived).
-2. Typing letters in Room Number does nothing; submitting numeric works; direct API POST with letters returns 400.
-3. Create modal shows Cancel left, Create Room right.
+1. Force a connect failure (e.g. offline) → message toast, no browser popup.
+2. Click each menu button (Rates, Check-In Times, Amenities, Location, Room Service) → correct answers, no console errors.
 
 Awaiting review. Say `"push"` only when you want commit + push.
