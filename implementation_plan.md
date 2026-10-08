@@ -1,31 +1,31 @@
-# Implementation Plan — PO Compact Density (Fit 8 Rows, No Scroll)
+# Implementation Plan — PO Mirrors Room Management Layout
 
 ## 1. Goal
-All 8 PO rows + footer visible with zero internal scrolling at normal desktop heights. No API/DB/pagination-count changes.
+Purchase Orders panels behave exactly like Room Management: natural-height cards, footer below the table in normal flow, breathing room at the viewport bottom, internal table scroll only as a short-screen fallback. No API/DB/count changes (stay 8/page + 4/page restock).
 
-## 2. Current State (verified from localhost screenshot)
-- Footers now fully render (flexbox shell + pinned footers work), but rows run ~55-60px tall so only ~7.5 of 8 rows fit; the 8th requires internal scroll and the top row renders half-cut.
-- `purchase-orders/page.js` table already has `table-sm`; row height is driven by 32px action buttons + default cell/badge padding and a roomy filter card.
+## 2. Current State (verified from screenshots + code)
+- Rooms (`RoomsClient.js:576-577,660`): plain table card + `table-responsive maxHeight calc(100vh - 280px), overflowY auto` + footer below → content shorter than viewport → whitespace below, never edge-to-edge.
+- PO (`purchase-orders/page.js`): locked flex (`flex-grow-1/h-100/overflow-hidden` row, columns, cards) stretches content to fill the container exactly → footers sit at the very viewport edge, perceived as cut (Image 2), even though nothing is technically clipped.
 
 ## 3. Scope
-- IN: PO-page-scoped density CSS + class hooks in `purchase-orders/page.js`.
-- OUT: other pages, counts, APIs.
+- IN: `purchase-orders/page.js` layout classes/styles only.
+- OUT: pagination, shell CSS, other pages, APIs.
 
-## 4. Design (scoped `.po-compact` on the page container)
-- Table cells: `padding-top/bottom .3rem`; badges `font-size .68rem`; action buttons 28px / `.8rem`.
-- Filter card padding `1rem 1.25rem` → `.75rem 1rem`; title block margins tightened.
-- Restock items: `py-2` → keep, but name `font-size .85rem`, meta lines tightened (panel is the shorter column; leave mostly as-is unless needed).
-- Target stack: 8×~40 + thead ~36 + footer ~55 + card padding ~40 + filter ~110 + title ~65 ≈ 625 + shell ≈ fits <864px viewports with margin.
-- Keep `table-sm`, locked flex layout, 8/4 pagination untouched.
+## 4. Design (copy the Rooms pattern)
+- Container: drop inline fixed height/overflow (keep `po-compact` + padding).
+- Row/columns/table card/restock card: drop all `flex-grow-1/h-100/overflow-hidden/minHeight` locks → plain `row g-3`, plain cols, plain cards (restore filter `mb-3`, card paddings `1.25rem`, title `mb-3` to match Rooms rhythm).
+- Table scroller: `maxHeight: calc(100vh - 340px), overflowY: auto` (340 covers title + filter + thead + footer + paddings, so 8 compact rows show fully at normal heights with room to spare).
+- Restock list: same `maxHeight` cap + `overflowY: auto`; footers stay in normal flow below each card.
+- Keep `table-sm`, `.po-compact`, 8/4 pagination, pinned-footer wrappers (harmless).
 
 ## 5. Steps
-1. Add `.po-compact` CSS rules + container class.
-2. `npm run build` (CSS/JSX-only; eslint N/A).
-3. Manual on localhost: all 8 rows + footer visible, no table scrollbar at ~900px height; restock 4 + footer visible; shorter viewports degrade to internal scroll with pinned footers (acceptable fallback).
+1. Layout edits in `purchase-orders/page.js`.
+2. `npx eslint` file + `npm run build`.
+3. Manual on localhost + deployed: PO panels show top+bottom borders with whitespace below like Rooms; no internal scroll at ~900px; short screens fall back to in-table scroll with footers visible.
 4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- 8 rows fully visible, no internal table scroll, no clipped rows at normal desktop height; build passes.
+- PO visually matches Rooms panel behavior; zero edge-touching/cut panels; build passes.
 
 ## 7. Risks
-- Denser rows slightly reduce touch targets — still ≥28px buttons, acceptable for desktop admin.
+- Very short viewports use in-table scroll (same as Rooms) — intended fallback.

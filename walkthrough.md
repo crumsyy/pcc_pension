@@ -1,12 +1,15 @@
-# Walkthrough — PO Compact Specificity + Sidebar Hydration Fix
+# Walkthrough — PO Matches Rooms Panel Pattern
 
 ## Changes (no commit/push yet)
-- `globals.css`: `.po-compact` cell rule rewritten as `.po-compact .table-responsive table th/td` — higher specificity than the global cell rule, so compact padding genuinely applies (~38px rows).
-- `SidebarClient.js`: collapsed state initializes `false` (matches server HTML) and applies the persisted preference in a mount effect — fixes the hydration-mismatch "1 Issue" dev error. Hooks order kept valid.
-- Build passes 96/96; eslint 0 errors.
+- `purchase-orders/page.js` layout only: removed the locked flex stretch (fixed heights, `flex-grow-1`/`h-100`/`overflow-hidden` on container, row, columns, cards); cards are now natural height like Room Management, with `table-responsive`/`restock` capped at `maxHeight calc(100vh - 340px)` + internal scroll as short-screen fallback. Footers sit in normal flow with whitespace below.
+- Kept: 8/page + 4/page restock pagers, `table-sm`, `.po-compact`, shell flexbox. No logic/API changes.
+
+## Verification
+- `npx eslint`: only pre-existing findings on untouched effects.
+- `npm run build` success, 96/96 pages.
 
 ## Manual check (localhost http://localhost:3000, hard-refresh)
-1. PO rows visibly tighter; all 8 + footer + restock 4 + footer on screen with breathing room, no cut.
-2. Collapsed-sidebar preference still works; "1 Issue" badge gone.
+1. PO table + restock panels show top and bottom borders with whitespace below, like Room Management.
+2. No internal scroll at normal heights; short screens fall back to in-table scroll with footers visible.
 
 Awaiting review. Say `"push"` only when you want commit + push.

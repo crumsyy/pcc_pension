@@ -852,7 +852,7 @@ export default function AdminPurchaseOrders() {
   };
 
   return (
-    <div className="pcc-page-container po-compact pcc-content-reveal d-flex flex-column" style={{ height: 'calc(100vh - 90px)', overflow: 'hidden', padding: '0.75rem 1rem' }}>
+    <div className="pcc-page-container po-compact pcc-content-reveal" style={{ padding: '1rem' }}>
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -865,7 +865,7 @@ export default function AdminPurchaseOrders() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-2 flex-shrink-0">
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <div className="section-eyebrow">Admin</div>
           <h2 className="section-title mb-0">Purchase Orders</h2>
@@ -875,11 +875,11 @@ export default function AdminPurchaseOrders() {
         </button>
       </div>
 
-      <div className="row g-3 flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
+      <div className="row g-3">
         {/* Left Column: PO Table & Filters */}
-        <div className="col-lg-8 d-flex flex-column h-100 overflow-hidden" style={{ minHeight: 0 }}>
+        <div className="col-lg-8">
           {/* Filter */}
-          <div className="card-module mb-2 flex-shrink-0" style={{ backgroundColor: "#fff", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem 1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
             <div className="row g-2 align-items-end">
               <div className="col-md-4">
                 <label className="form-label small fw-bold mb-1">Search</label>
@@ -922,8 +922,8 @@ export default function AdminPurchaseOrders() {
           </div>
 
           {/* Purchase Orders Table */}
-          <div className="card-module pcc-table-card flex-grow-1 d-flex flex-column overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
-              <div className={`table-responsive flex-grow-1 overflow-auto ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ minHeight: 0 }}>
+          <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+              <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 340px)', overflowY: 'auto' }}>
                 <table className="table table-sm align-middle mb-0">
                   <thead>
                     <tr>
@@ -993,9 +993,9 @@ export default function AdminPurchaseOrders() {
         </div>
 
         {/* Right Column: Recommended Restock */}
-        <div className="col-lg-4 d-flex flex-column h-100 overflow-hidden" style={{ minHeight: 0 }}>
+        <div className="col-lg-4">
           {/* Recommended Restock Panel */}
-          <div className="card-module flex-grow-1 d-flex flex-column overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
+          <div className="card-module" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
             <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
               <h4 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.1rem', whiteSpace: 'nowrap' }}>
                 ⚠️ Recommended for Restock
@@ -1011,7 +1011,7 @@ export default function AdminPurchaseOrders() {
                 </button>
               )}
             </div>
-            <div className="flex-grow-1 overflow-auto" style={{ minHeight: 0 }}>
+            <div style={{ maxHeight: 'calc(100vh - 340px)', overflowY: 'auto' }}>
               {pagedRestock.length === 0 ? (
                 <div className="text-center text-muted py-5 small">
                   All items are well stocked.
