@@ -2298,11 +2298,17 @@ body.dark-theme .qr-payment-container h4 {
 
 /* Visual Calendar & Date-Time Pickers Styling Standards */
 .admin-inter,
-.admin-inter * {
+.admin-inter *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
 }
+.admin-inter i[class*="fa-"] {
+  font-family: "Font Awesome 6 Free" !important;
+}
+.admin-inter i[class*="bi-"] {
+  font-family: "bootstrap-icons" !important;
+}
 .admin-inter .flatpickr-calendar,
-.admin-inter .flatpickr-calendar * {
+.admin-inter .flatpickr-calendar *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
 }
 .flatpickr-calendar {

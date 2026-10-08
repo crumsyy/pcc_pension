@@ -196,7 +196,7 @@ export default function ActionButtons({
           title="Receive Stock In"
           aria-label="Receive Stock In"
         >
-          <i className="fa-solid fa-box-archive"></i>
+          <i className="fa-solid fa-boxes-stacked"></i>
         </button>
       )}
 
