@@ -7,7 +7,6 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
-import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -94,7 +93,6 @@ export default function AdminPurchaseOrders() {
   const cached = clientCache.get(baseCacheKey);
   const [orders, setOrders] = useState(cached?.data?.orders || []);
   const [inventoryItems, setInventoryItems] = useState(cached?.data?.inventoryItems || []);
-  const [loading, setLoading] = useState(!cached);
   const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
@@ -168,7 +166,6 @@ export default function AdminPurchaseOrders() {
   };
 
   const fetchOrders = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
     try {
       const dateVal = dateFilter && isValidDate(dateFilter) ? toDbDate(dateFilter) : '';
       const query = new URLSearchParams({ 
@@ -187,8 +184,6 @@ export default function AdminPurchaseOrders() {
     } catch (err) {
       if (!isBackground) showAlert('error', 'Error', err.message);
       else console.warn('Background PO refresh error:', err.message);
-    } finally {
-      if (!isBackground) setLoading(false);
     }
   };
 
@@ -211,7 +206,6 @@ export default function AdminPurchaseOrders() {
     } else {
       setOrders(entry.data.orders || []);
       if (entry.data.inventoryItems) setInventoryItems(entry.data.inventoryItems);
-      setLoading(false);
       if (entry.isStale) {
         fetchOrders(true);
       }
@@ -888,9 +882,6 @@ export default function AdminPurchaseOrders() {
 
           {/* Purchase Orders Table */}
           <div className="card-module pcc-table-card flex-grow-1 d-flex flex-column overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
-            {loading ? (
-              <SkeletonTable columns={6} rows={6} colWidths={['15%', '18%', '15%', '18%', '16%', '18%']} />
-            ) : (
               <div className={`table-responsive flex-grow-1 overflow-auto ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
                 <table className="table align-middle mb-0">
                   <thead>
@@ -954,7 +945,6 @@ export default function AdminPurchaseOrders() {
                   </tbody>
                 </table>
               </div>
-            )}
           </div>
         </div>
 

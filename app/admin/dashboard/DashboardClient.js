@@ -4,13 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ModalPortal from '../../components/ModalPortal';
 
-import { AdminDashboardSkeleton } from '@/app/components/skeletons/AdminSkeletons';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function DashboardClient({ userName }) {
   const cached = clientCache.get('admin-dashboard');
   const [stats, setStats] = useState(cached ? cached.data : null);
-  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState('');
   const [resetting, setResetting] = useState(false);
@@ -46,7 +44,6 @@ export default function DashboardClient({ userName }) {
 
   const fetchDashboardStats = async (isBackground = false) => {
     try {
-      if (!isBackground) setLoading(true);
       const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch dashboard data');
@@ -55,12 +52,10 @@ export default function DashboardClient({ userName }) {
       if (data.userName) {
         clientCache.set('admin-user-name', data.userName, 86400000);
       }
-      if (!isBackground) setError('');
+      setError('');
     } catch (err) {
       if (!isBackground) setError(err.message);
       else console.warn('Background dashboard refresh error:', err.message);
-    } finally {
-      if (!isBackground) setLoading(false);
     }
   };
 
@@ -125,11 +120,7 @@ export default function DashboardClient({ userName }) {
     };
   }, [resetting, showResetModal]);
 
-  if (loading) {
-    return <AdminDashboardSkeleton userName={userName} />;
-  }
-
-  if (error) {
+  if (error && !stats) {
     return (
       <div className="alert alert-danger" role="alert">
         <strong>Error loading dashboard:</strong> {error}

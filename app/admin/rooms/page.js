@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import RoomsClient from './RoomsClient';
-import { AdminRoomsSkeleton } from '@/app/components/skeletons/AdminSkeletons';
 
 export const unstable_instant = {
   prefetch: 'static',
@@ -9,7 +8,7 @@ export const unstable_instant = {
 
 export default function AdminRoomsPage() {
   return (
-    <Suspense fallback={<AdminRoomsSkeleton />}>
+    <Suspense fallback={null}>
       <RoomsClient />
     </Suspense>
   );

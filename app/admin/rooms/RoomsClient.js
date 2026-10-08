@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
-import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -19,7 +18,6 @@ export default function RoomsClient() {
   const [floors, setFloors] = useState(cached?.data?.floors || []);
   const [roomTypes, setRoomTypes] = useState(cached?.data?.roomTypes || []);
   const [roomRates, setRoomRates] = useState(cached?.data?.roomRates || []);
-  const [loading, setLoading] = useState(!cached);
   const [shouldAnimate, setShouldAnimate] = useState(!cached);
   const [uploadingImage, setUploadingImage] = useState(false);
   const parseRoomImages = (imgVal) => {
@@ -215,7 +213,6 @@ export default function RoomsClient() {
   };
 
   const fetchRooms = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
     try {
       const query = new URLSearchParams({
         search,
@@ -246,8 +243,6 @@ export default function RoomsClient() {
     } catch (err) {
       if (!isBackground) showAlert('error', 'Error', err.message);
       else console.warn('Background rooms refresh error:', err.message);
-    } finally {
-      if (!isBackground) setLoading(false);
     }
   };
 
@@ -260,7 +255,6 @@ export default function RoomsClient() {
       setFloors(entry.data.floors || []);
       setRoomTypes(entry.data.roomTypes || []);
       setRoomRates(entry.data.roomRates || []);
-      setLoading(false);
       if (entry.isStale) {
         fetchRooms(true);
       }
@@ -570,9 +564,6 @@ export default function RoomsClient() {
 
       {/* Rooms Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        {loading ? (
-          <SkeletonTable columns={9} rows={7} colWidths={['9%', '11%', '13%', '10%', '13%', '13%', '11%', '10%', '10%']} />
-        ) : (
           <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
@@ -656,7 +647,6 @@ export default function RoomsClient() {
               </tbody>
             </table>
           </div>
-        )}
       </div>
 
       {/* ==========================================

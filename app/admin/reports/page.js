@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { LineChart, BarChart, DoughnutChart } from '../../components/ReportsCharts';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
-import { Skeleton, SkeletonTable, SkeletonChart } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminReports() {
@@ -31,7 +30,6 @@ export default function AdminReports() {
   // Server & Data States
   const [reportData, setReportData] = useState(cached?.data?.reportData || null);
   const [filterOptions, setFilterOptions] = useState(cached?.data?.filterOptions || { rooms: [], roomTypes: [], discounts: [] });
-  const [loading, setLoading] = useState(!cached);
   const [shouldAnimate, setShouldAnimate] = useState(!cached);
   const [error, setError] = useState('');
 
@@ -51,11 +49,9 @@ export default function AdminReports() {
     if (nextCached) {
       setReportData(nextCached.data.reportData);
       if (nextCached.data.filterOptions) setFilterOptions(nextCached.data.filterOptions);
-      setLoading(false);
       setShouldAnimate(false);
     } else {
       setReportData(null);
-      setLoading(true);
       setShouldAnimate(true);
     }
     setError('');
@@ -127,7 +123,6 @@ export default function AdminReports() {
       setError('Please enter valid From and To dates in MM/DD/YYYY format.');
       return;
     }
-    if (!isBackground) setLoading(true);
     setError('');
     try {
       const query = new URLSearchParams({
@@ -161,8 +156,6 @@ export default function AdminReports() {
     } catch (err) {
       if (!isBackground) setError(err.message);
       else console.warn('Background reports refresh error:', err.message);
-    } finally {
-      if (!isBackground) setLoading(false);
     }
   };
 
@@ -174,7 +167,6 @@ export default function AdminReports() {
     } else {
       setReportData(entry.data.reportData);
       if (entry.data.filterOptions) setFilterOptions(entry.data.filterOptions);
-      setLoading(false);
       if (entry.isStale) {
         fetchReport(true);
       }
@@ -1589,36 +1581,7 @@ export default function AdminReports() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="mt-3">
-          {/* Summary Cards */}
-          <div className="row g-3 mb-4">
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <div className="col-md-3" key={idx}>
-                <div className="card shadow-sm border-0 p-3 bg-white h-100">
-                  <Skeleton width="110px" height="12px" className="mb-2" />
-                  <Skeleton width="130px" height="1.8rem" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Chart Skeleton Card */}
-          <div className="card shadow-sm border-0 p-3 bg-white mb-4">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <Skeleton width="200px" height="1.2rem" />
-              <Skeleton width="90px" height="24px" borderRadius="12px" />
-            </div>
-            <SkeletonChart height="240px" />
-          </div>
-
-          {/* Table Skeleton Card */}
-          <div className="card shadow-sm border-0 p-3 bg-white">
-            <Skeleton width="220px" height="1.2rem" className="mb-3" />
-            <SkeletonTable columns={6} rows={6} colWidths={['20%', '20%', '15%', '15%', '15%', '15%']} />
-          </div>
-        </div>
-      ) : error ? (
+      {error ? (
         <div className="alert alert-danger shadow-sm mb-4" role="alert">
           <strong>⚠ Error generating report:</strong> {error}
         </div>

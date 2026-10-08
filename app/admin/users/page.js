@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import UsersClient from './UsersClient';
-import { AdminUsersSkeleton } from '@/app/components/skeletons/AdminSkeletons';
 
 export const unstable_instant = {
   prefetch: 'static',
@@ -9,7 +8,7 @@ export const unstable_instant = {
 
 export default function AdminUsersPage() {
   return (
-    <Suspense fallback={<AdminUsersSkeleton />}>
+    <Suspense fallback={null}>
       <UsersClient />
     </Suspense>
   );

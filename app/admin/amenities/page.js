@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
-import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -18,7 +17,6 @@ export default function AdminAmenities() {
   const cached = clientCache.get(baseCacheKey);
   const [items, setItems] = useState(cached?.data?.items || []);
   const [categories, setCategories] = useState(cached?.data?.categories || []);
-  const [loading, setLoading] = useState(!cached);
   const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
@@ -79,7 +77,6 @@ export default function AdminAmenities() {
   };
 
   const fetchAmenities = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
     try {
       const query = new URLSearchParams({
         search,
@@ -105,8 +102,6 @@ export default function AdminAmenities() {
     } catch (err) {
       if (!isBackground) showAlert('error', 'Error', err.message);
       else console.warn('Background amenities refresh error:', err.message);
-    } finally {
-      if (!isBackground) setLoading(false);
     }
   };
 
@@ -117,7 +112,6 @@ export default function AdminAmenities() {
     } else {
       setItems(entry.data.items || []);
       setCategories(entry.data.categories || []);
-      setLoading(false);
       if (entry.isStale) {
         fetchAmenities(true);
       }
@@ -414,9 +408,6 @@ export default function AdminAmenities() {
 
       {/* Amenities Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        {loading ? (
-          <SkeletonTable columns={8} rows={7} colWidths={['5%', '22%', '13%', '12%', '12%', '8%', '18%', '10%']} />
-        ) : (
           <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
@@ -481,7 +472,6 @@ export default function AdminAmenities() {
               </tbody>
             </table>
           </div>
-        )}
       </div>
 
       {/* ==========================================

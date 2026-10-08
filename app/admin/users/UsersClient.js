@@ -5,7 +5,6 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
-import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -19,7 +18,6 @@ export default function UsersClient() {
   const [users, setUsers] = useState(cached?.data?.users || []);
   const [roles, setRoles] = useState(cached?.data?.roles || []);
   const [currentUserID, setCurrentUserID] = useState(cached?.data?.currentUserID || null);
-  const [loading, setLoading] = useState(!cached);
   const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
@@ -91,7 +89,6 @@ export default function UsersClient() {
 
   // Fetch users on load & filter changes
   const fetchUsers = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
     try {
       const query = new URLSearchParams({
         search,
@@ -119,8 +116,6 @@ export default function UsersClient() {
     } catch (err) {
       if (!isBackground) showAlert('error', 'Error', err.message);
       else console.warn('Background users refresh error:', err.message);
-    } finally {
-      if (!isBackground) setLoading(false);
     }
   };
 
@@ -132,7 +127,6 @@ export default function UsersClient() {
       setUsers(entry.data.users || []);
       setRoles(entry.data.roles || []);
       if (entry.data.currentUserID) setCurrentUserID(entry.data.currentUserID);
-      setLoading(false);
       if (entry.isStale) {
         fetchUsers(true);
       }
@@ -463,9 +457,6 @@ export default function UsersClient() {
 
       {/* Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        {loading ? (
-          <SkeletonTable columns={8} rows={7} colWidths={['10%', '18%', '20%', '14%', '12%', '10%', '10%', '6%']} />
-        ) : (
           <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
@@ -538,7 +529,6 @@ export default function UsersClient() {
               </tbody>
             </table>
           </div>
-        )}
       </div>
 
       {/* ==========================================

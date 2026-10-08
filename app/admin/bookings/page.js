@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import StatusBadge, { getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
-import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminBookings() {
@@ -16,7 +15,7 @@ export default function AdminBookings() {
 
   const [bookings, setBookings] = useState(initialCache?.data?.bookings || []);
   const [counts, setCounts] = useState(initialCache?.data?.counts || {});
-  const [loading, setLoading] = useState(!initialCache);
+  const [loading, setLoading] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(!initialCache);
   const [error, setError] = useState('');
   const isFirstMount = useRef(true);
@@ -176,9 +175,6 @@ export default function AdminBookings() {
 
       {/* Bookings Table */}
       <div className={`card-module pcc-table-card ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        {loading ? (
-          <SkeletonTable columns={8} rows={7} colWidths={['5%', '18%', '13%', '15%', '10%', '14%', '14%', '11%']} />
-        ) : (
           <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
@@ -237,7 +233,6 @@ export default function AdminBookings() {
               </tbody>
             </table>
           </div>
-        )}
       </div>
     </div>
   );

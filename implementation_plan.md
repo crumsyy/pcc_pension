@@ -1,40 +1,42 @@
-# Implementation Plan — Landing Page "Show 6 + See More"
+# Implementation Plan — Remove Admin Skeleton Loading (Fast Load)
 
 ## 1. Goal
-Limit landing page (`app/page.js`) data lists to 6 visible items initially with a "See More / Show Less" toggle. No API/DB changes.
+Remove skeleton loading UI in `app/admin/*` so pages render instantly (no blank/skeleton flash). Keep data correct via cache-first + background revalidate. No API/DB changes.
 
-## 2. Current State (verified `app/page.js`)
-- Promotions (`page.js:399-429`): maps ALL `landingData.promotions` — no limit, no toggle.
-- Rooms & Rates dynamic (`page.js:440-534`): groups `landingData.rooms` by floor (`roomsByFloor`), then maps ALL floors + ALL `floorRooms` — no limit.
-- Rooms fallback (no API data, `page.js:536-624`): 3 Ground + 3 Second = exactly 6 static cards — already meets "6", no change needed.
-- No existing `showMore`/`slice` state on landing page.
+## 2. Current State (verified)
+- Skeleton components: `app/components/skeletons/Skeleton.js` (base), `AdminSkeletons.js` (11 variants: Dashboard/Users/Rooms/Amenities/Products/Inventory/PurchaseOrders/Discounts/Reports/Bookings/Reservations).
+- Used in 12 admin routes:
+  - `dashboard/page.js:12` + `DashboardClient.js:129` (`AdminDashboardSkeleton`)
+  - `users/page.js:12` + `UsersClient.js:467` (`SkeletonTable`)
+  - `rooms/page.js:12` + `RoomsClient.js:574` (`SkeletonTable`)
+  - `bookings/page.js:180`, `reservations/page.js:195`, `amenities/page.js:418`, `products/page.js:469`, `purchase-orders/page.js:892`, `discounts/page.js:563-571`, `reports/page.js:1592-1618`, `inventory/page.js:561-562`
+- Pattern: `const [loading, setLoading] = useState(!cached)` then `if (loading) return <Skeleton/>` or `{loading ? <SkeletonTable/> : <table/>}`. First visit (no cache) always shows skeleton until fetch completes.
+- `lib/clientCache` already exists and is used for instant cached render on repeat visits.
 
 ## 3. Scope
-- IN: `app/page.js` only — promotions grid + dynamic rooms grid.
-- OUT: API (`/api/landing`), CSS framework, fallback static rooms, About/Amenities/Footer, modal, search logic.
+- IN: all `app/admin/*` pages + `DashboardClient`, `UsersClient`, `RoomsClient` loading branches only.
+- OUT: skeleton files themselves (kept, unused), receptionist/guest skeletons, APIs, styles, landing page flatpickr work.
 
-## 4. Design
-- Add state: `const [showAllPromos, setShowAllPromos] = useState(false)` and `const [showAllRooms, setShowAllRooms] = useState(false)`.
-- Constant `VISIBLE_COUNT = 6`.
-- Promotions: `const visiblePromos = showAllPromos ? promotions : promotions.slice(0, 6)`; render `visiblePromos`; if `promotions.length > 6` show toggle button below grid: `See More (X more)` ↔ `Show Less`.
-- Rooms: flatten-preserving-floors problem — simplest that keeps floor headers correct:
-  - Option A (recommended): flatten all rooms to one ordered list, `visibleRooms = showAllRooms ? rooms : rooms.slice(0,6)`, then re-group `visibleRooms` by floor for rendering. Floor headers show only for floors with visible rooms; counts reflect visible subset. Toggle below section shows `See More Rooms (X more)` ↔ `Show Less`.
-  - This keeps total visible = 6 across both floors (e.g. 3+3 or 4+2 depending on order), which matches "only show 6".
-- Button style: reuse existing `btn btn-pcc-outline` centered (`text-center mt-4`), no new deps.
-- No behavior change when list length <= 6 (no button rendered).
+## 4. Approach (no skeleton flash, still correct)
+- Cache-first instant render: initialize `loading=false` (or `initialLoading=false`), render real layout immediately with cached data if present, else empty-state tables (`No records found` / `0` stats) — never `<Skeleton*>`.
+- Background fetch: keep existing `fetch... (isBackground=true)` on mount; update state when done; show tiny non-blocking refresh indicator only (existing spin icon where present, e.g. `bookings/page.js:94`), no full-page replacement.
+- Remove `Suspense fallback={<Admin*Skeleton>}` in `dashboard/page.js`, `users/page.js`, `rooms/page.js` → `fallback={null}` (or real children directly since clients are client components).
+- Remove `if (loading) return <Admin*Skeleton>` early-returns → return real JSX always; convert `{loading ? <SkeletonTable/> : <table/>}` → always `<table/>` with empty-state row when `data.length===0`.
+- Keep `loading` var only for refresh-button spin/disabled if already present; do not gate rendering on it. Delete unused skeleton imports per file.
+- Honest speed note: this removes *perceived* loading, not API latency; data still loads async. True faster API would need pagination/lighter queries (out of scope unless you ask).
 
 ## 5. Steps
-1. Edit `app/page.js`: add `VISIBLE_COUNT`, two states.
-2. Promotions block: compute `visiblePromos`, render it, add conditional toggle.
-3. Rooms dynamic block: compute `allRooms = landingData.rooms`, `visibleRooms`, re-group, render, add conditional toggle.
-4. Verify `npm run build` + manual: >6 promos/rooms → 6 shown + button; expand/collapse works; <=6 → no button; fallback (no data) unchanged.
-5. Write `walkthrough.md` for review; no commit/push until exact keyword `"push"`.
+1. `dashboard`: `page.js` fallback null; `DashboardClient.js` remove early skeleton return, render stats/tables with `data ?? []` + empty states.
+2. `users`/`rooms`: `page.js` fallback null; `UsersClient.js`/`RoomsClient.js` always render table.
+3. `bookings`, `reservations`, `amenities`, `products`, `purchase-orders`, `discounts`, `reports`, `inventory`: set initial loading false / remove skeleton branches, always render content + empty states; remove skeleton imports.
+4. `npm run build` + manual: hard-refresh each admin page → instant content, no skeleton flash; throttle network → content shell shows immediately, data fills in; refresh icon spins only.
+5. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- Initial landing shows max 6 promos and max 6 rooms with See More buttons only when more exist.
-- Toggle expands/collapses without breaking floor grouping, search, or booking buttons.
+- No `Admin*Skeleton`/`SkeletonTable` rendered from any `app/admin` route (grep clean for those imports in admin).
+- First paint shows real headers/filters/tables instantly; no layout shift from skeleton→content swap.
 - Build passes.
 
 ## 7. Risks
-- Floor grouping after slice may hide a floor header initially — acceptable and expected; full grouping returns on expand.
-- Alternative (per-floor 6) rejected as it could show up to 12 total, violating "only show 6".
+- Empty-state flash before fetch completes (better than skeleton per request; mitigated by cache-first).
+- If API fails, page shows empty state + existing error toast (no hang).

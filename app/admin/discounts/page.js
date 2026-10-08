@@ -5,7 +5,6 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
-import { Skeleton, SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -21,7 +20,6 @@ export default function AdminDiscounts() {
   const [eligibilityTypes, setEligibilityTypes] = useState(cached?.data?.eligibilityTypes || []);
   const [rooms, setRooms] = useState(cached?.data?.rooms || []);
   const [roomTypes, setRoomTypes] = useState(cached?.data?.roomTypes || []);
-  const [loading, setLoading] = useState(!cached);
   const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
@@ -90,7 +88,6 @@ export default function AdminDiscounts() {
 
   const fetchData = async (isSilent = false, isInitial = false) => {
     if (!isSilent) {
-      setLoading(true);
       clientCache.invalidate('admin-discounts');
     }
     try {
@@ -134,8 +131,6 @@ export default function AdminDiscounts() {
     } catch (err) {
       if (!isSilent) showAlert('error', 'Error', err.message);
       else console.warn('Background discounts refresh error:', err.message);
-    } finally {
-      if (!isSilent) setLoading(false);
     }
   };
 
@@ -150,7 +145,6 @@ export default function AdminDiscounts() {
       if (entry.data.eligibilityTypes) setEligibilityTypes(entry.data.eligibilityTypes);
       if (entry.data.rooms) setRooms(entry.data.rooms);
       if (entry.data.roomTypes) setRoomTypes(entry.data.roomTypes);
-      setLoading(false);
       if (entry.isStale) {
         fetchData(true, false);
       }
@@ -560,19 +554,7 @@ export default function AdminDiscounts() {
         </div>
       </div>
 
-      {loading ? (
-        <>
-          <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-            <Skeleton width="180px" height="1.3rem" className="mb-3" />
-            <SkeletonTable columns={6} rows={4} colWidths={['30%', '16%', '16%', '12%', '14%', '12%']} />
-          </div>
-          <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-            <Skeleton width="180px" height="1.3rem" className="mb-3" />
-            <SkeletonTable columns={7} rows={4} colWidths={['26%', '10%', '14%', '14%', '16%', '10%', '10%']} />
-          </div>
-        </>
-      ) : (
-        <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
+      <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
           {/* Discounts Section */}
           {(activeTab === 'active_discounts' || activeTab === 'archived') && (
             <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -702,7 +684,6 @@ export default function AdminDiscounts() {
             </div>
           )}
         </div>
-      )}
 
       {/* ==========================================
           MODALS — DISCOUNTS & PROMOTIONS

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
-import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -18,7 +17,6 @@ export default function AdminProducts() {
   const cached = clientCache.get(baseCacheKey);
   const [products, setProducts] = useState(cached?.data?.products || []);
   const [categories, setCategories] = useState(cached?.data?.categories || []);
-  const [loading, setLoading] = useState(!cached);
   const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
@@ -79,7 +77,6 @@ export default function AdminProducts() {
   };
 
   const fetchProducts = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
     try {
       const isArchivedQuery = activeTab === 'archived';
       const query = new URLSearchParams({
@@ -106,8 +103,6 @@ export default function AdminProducts() {
     } catch (err) {
       if (!isBackground) showAlert('error', 'Error', err.message);
       else console.warn('Background products refresh error:', err.message);
-    } finally {
-      if (!isBackground) setLoading(false);
     }
   };
 
@@ -118,7 +113,6 @@ export default function AdminProducts() {
     } else {
       setProducts(entry.data.products || []);
       setCategories(entry.data.categories || []);
-      setLoading(false);
       if (entry.isStale) {
         fetchProducts(true);
       }
@@ -465,9 +459,6 @@ export default function AdminProducts() {
 
       {/* Products Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        {loading ? (
-          <SkeletonTable columns={9} rows={7} colWidths={['4%', '20%', '12%', '11%', '10%', '7%', '14%', '12%', '10%']} />
-        ) : (
           <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
@@ -563,7 +554,6 @@ export default function AdminProducts() {
               </tbody>
             </table>
           </div>
-        )}
       </div>
 
       {/* ==========================================

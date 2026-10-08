@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
-import { AdminInventorySkeleton } from '@/app/components/skeletons/AdminSkeletons';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -40,8 +39,6 @@ export default function AdminInventory() {
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [expiredOnly, setExpiredOnly] = useState(false);
   const [expiryDateFilter, setExpiryDateFilter] = useState('');
-  const [loading, setLoading] = useState(!cached);
-  const [shouldAnimate, setShouldAnimate] = useState(!cached);
   const [error, setError] = useState('');
 
   // Modals state
@@ -200,7 +197,6 @@ export default function AdminInventory() {
   };
 
   const fetchInventory = async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
     setError('');
     try {
       const res = await fetch('/api/admin/inventory', { cache: 'no-store' });
@@ -243,8 +239,6 @@ export default function AdminInventory() {
     } catch (err) {
       if (!isSilent) setError(err.message);
       else console.warn('Background inventory refresh error:', err.message);
-    } finally {
-      if (!isSilent) setLoading(false);
     }
   };
 
@@ -557,10 +551,6 @@ export default function AdminInventory() {
   };
 
   const lowStockItems = items.filter(item => item.availableQty <= item.minStock);
-
-  if (loading) {
-    return <AdminInventorySkeleton activeTab={activeTab} />;
-  }
 
   return (
     <div className="pcc-page-container pcc-content-reveal">

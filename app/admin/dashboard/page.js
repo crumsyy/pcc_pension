@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import DashboardClient from './DashboardClient';
-import { AdminDashboardSkeleton } from '@/app/components/skeletons/AdminSkeletons';
 
 export const unstable_instant = {
   prefetch: 'static',
@@ -9,7 +8,7 @@ export const unstable_instant = {
 
 export default function AdminDashboardPage() {
   return (
-    <Suspense fallback={<AdminDashboardSkeleton />}>
+    <Suspense fallback={null}>
       <DashboardClient />
     </Suspense>
   );
