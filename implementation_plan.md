@@ -1,28 +1,28 @@
-# Implementation Plan — Stock Out Red Badge + Audit Panel Fit
+# Implementation Plan — Audit Panel: Slim Rows + Viewport Cap
 
 ## 1. Goal
-On Inventory → Movement Logs (and dashboard movements): Stock Out badges red instead of black; All Stock Movements Audit History panel fits with its pagination footer visible. No API/DB/count changes.
+Audit History footer visible with breathing room at laptop viewport heights (~768px), not just tall screens. No API/DB/count changes (stays 10/page).
 
-## 2. Current State (verified `inventory/page.js`)
-- Stock Out badge is `text-bg-dark` in two movement-badge mappings: dashboard table (`:917`) and audit history (`:1316`). Quantity `-N` text is already red.
-- Audit panel (`:1295-1334`) is already paginated (`logsPaginated` + footer `:1332`) — the footer exists but is cut: its scroller cap `calc(100vh - 380px)` (~550px at 930px viewport) makes the card overshoot the viewport, unlike the sibling Disposed panel which uses fixed `350px` and fits (`:1265`).
+## 2. Root Cause (verified)
+- Audit rows run ~75px tall (date wraps to 2 lines, item names wrap) vs ~55px in Disposal. Fixed `350px` cap + footer + chrome ≈ 510px card, but at a 768px viewport only ~460px is available after header/title/tabs — footer lands below the fold (screenshot).
+- A fixed cap can't fit all viewports; the Disposal panel fits only because it renders 5 short rows.
 
 ## 3. Scope
-- IN: badge classes (2 spots) + audit scroller cap (1 value).
-- OUT: counts, pagination logic, other tabs, APIs.
+- IN: audit table date cell + audit scroller cap in `inventory/page.js`.
+- OUT: counts, pagination, disposal panel, APIs.
 
 ## 4. Design
-- `Stock Out` → `text-bg-danger` in both mappings (dashboard + audit). Other types unchanged (In: green, Borrow: yellow, Return: light-blue, fallback: red).
-- Audit scroller `maxHeight` → fixed `350px`, matching the sibling Disposed panel so both cards align and both footers sit on screen.
+- Date `td` gains `text-nowrap` (single-line dates → rows drop to ~50px like the rest).
+- Scroller cap → `max(180px, calc(100vh - 500px))`: reserves ~500px for shell + title + tabs + card chrome + footer. At 930px shows ~8 rows; at 768px ~5 rows + internal scroll; footer always visible with room to spare.
 
 ## 5. Steps
-1. Three small edits in `inventory/page.js`.
+1. Two small edits in `inventory/page.js`.
 2. `npx eslint` file + `npm run build`.
-3. Manual: Stock Out badges red in both tables; audit footer fully visible with whitespace below; disposal panel unchanged.
+3. Manual: footer visible with whitespace below at 768px and 930px heights; rows single-line dates.
 4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- Red Stock Out badges; audit footer visible, no cut; build passes.
+- Footer visible with breathing room at laptop heights; build passes.
 
 ## 7. Risks
-- None; class + cap changes only.
+- Narrow screens may horizontal-scroll the nowrap date column inside `table-responsive` — acceptable, standard pattern.

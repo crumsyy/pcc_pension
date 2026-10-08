@@ -1295,7 +1295,7 @@ export default function AdminInventory() {
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border">
               <h5 className="text-blue mb-3">All Stock Movements Audit History</h5>
-              <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ maxHeight: 'max(180px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
                   <thead>
                     <tr>
@@ -1309,7 +1309,7 @@ export default function AdminInventory() {
                   <tbody>
                     {logsPaginated.rows.map((m) => (
                       <tr key={m.movementID}>
-                        <td>{new Date(m.movementDateTime).toLocaleString()}</td>
+                        <td className="text-nowrap">{new Date(m.movementDateTime).toLocaleString()}</td>
                         <td><strong>{m.itemName}</strong></td>
                         <td>
                           <span className={`badge ${m.movementType === 'Stock In' ? 'text-bg-success' :
