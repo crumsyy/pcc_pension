@@ -2333,10 +2333,12 @@ body.dark-theme .qr-payment-container h4 {
   font-weight: 700;
 }
 
-/* Purchase Orders compact density: fit 8 rows + footer on screen */
-.po-compact .table > :not(caption) > * > * {
-  padding-top: 0.3rem;
-  padding-bottom: 0.3rem;
+/* Purchase Orders compact density: fit 8 rows + footer on screen.
+   Beats the global .table-responsive cell rule (higher specificity + !important). */
+.po-compact .table-responsive table th,
+.po-compact .table-responsive table td {
+  padding-top: 0.3rem !important;
+  padding-bottom: 0.3rem !important;
 }
 .po-compact .table .action-btn {
   width: 28px;

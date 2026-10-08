@@ -12,14 +12,18 @@ import ModalPortal from './ModalPortal';
 export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
   const isAdmin = role === 'Administrator';
-  const [collapsed, setCollapsed] = useState(() => {
+  // Always render expanded on first paint (matches server HTML), then apply
+  // the persisted preference on mount to avoid a hydration mismatch.
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
     try {
-      if (typeof window !== 'undefined' && role === 'Administrator' && localStorage.getItem('pcc-sidebar-collapsed') === '1') {
-        return true;
+      if (isAdmin && localStorage.getItem('pcc-sidebar-collapsed') === '1') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- apply persisted pref after mount to avoid hydration mismatch
+        setCollapsed(true);
       }
     } catch (e) {}
-    return false;
-  });
+  }, []);
 
   const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
   const [showLogoutModal, setShowLogoutModal] = useState(false);
