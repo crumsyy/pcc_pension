@@ -1099,6 +1099,11 @@ h4,
     overflow: hidden !important;
   }
 
+  .pcc-page-container.pcc-page-natural {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   @media (max-width: 991.98px) {
     .pcc-page-container {
       height: calc(100vh - 56px - 2.2rem) !important;

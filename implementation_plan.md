@@ -1,28 +1,30 @@
-# Implementation Plan — Purchase Orders Clipped Footer Fix
+# Implementation Plan — Purchase Orders: No-Cut Natural Flow Layout
 
 ## 1. Goal
-Stop the `Showing 1–10 of 40` + pagination footer from being cut off at the bottom of the Purchase Orders table card. No API/DB/logic changes.
+Purchase Orders page shows all 10 rows + footer with nothing clipped at any viewport. No API/DB/pagination-logic changes.
 
-## 2. Root Cause (verified `purchase-orders/page.js:912-976`)
-The table card is `d-flex flex-column overflow-hidden` with a fixed page height (`842: height calc(100vh - 90px), overflow hidden`). The `table-responsive` scroller is `flex-grow-1` but has no `min-height: 0`, so as a flex item it refuses to shrink below the 10-row table's content height — it pushes the `AdminPagination` footer past the card's bottom edge, where `overflow-hidden` clips it (matches screenshot).
+## 2. Root Cause (verified)
+- `purchase-orders/page.js:842` locks the page to viewport height with `overflow: hidden`; columns/card/table scroller are `flex-grow-1 / h-100 / overflow-hidden|auto`, so rows beyond the space are trapped in an internal scroll region (screenshot: only ~7 of 10 rows visible).
+- Global `globals.css:1095-1100` also forces `.pcc-page-container { height: ... !important; overflow: hidden !important }`, so inline styles alone cannot unlock it.
 
 ## 3. Scope
-- IN: `purchase-orders/page.js` table card only (2 small JSX/style edits).
-- OUT: pagination logic, other tables, APIs.
+- IN: PO page layout classes/styles + one `globals.css` unlock modifier + compact table density.
+- OUT: pagination counts (stay 10/page), other pages, APIs.
 
 ## 4. Design
-- Scroller: add `style={{ minHeight: 0 }}` so it shrinks and scrolls internally.
-- Footer: wrap `<AdminPagination>` in `<div className="flex-shrink-0">` so it always keeps its space at the card bottom.
-- No other layout changes; right-hand Restock column untouched.
+- Add `globals.css` modifier: `.pcc-page-container.pcc-page-natural { height: auto !important; overflow: visible !important; }`.
+- PO page: add `pcc-page-natural`, drop inline fixed height/overflow; columns and table card drop `h-100/flex-grow-1/overflow-hidden` constraints; table scroller becomes plain `table-responsive` (no internal scroll); right Restock column flows naturally too. Page scrolls via `main` (`overflow-y: auto` already), so nothing is ever clipped.
+- Density: add Bootstrap `table-sm` to the PO table so more rows fit per screen.
+- Keep `AdminPagination` footer in normal flow (always fully visible).
 
 ## 5. Steps
-1. Two edits in `purchase-orders/page.js`.
+1. CSS modifier + PO layout edits + `table-sm`.
 2. `npx eslint` file + `npm run build`.
-3. Manual: 10 rows visible with internal scroll when needed, footer fully visible, page through all 4 pages; shorter viewports still show footer.
+3. Manual: all 10 rows + footer visible/reachable at desktop and short viewports with zero clipping; restock column intact; other pages unchanged.
 4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- Footer never clipped at any viewport height; table scrolls internally; build passes.
+- No clipped/cut UI anywhere on PO page; footer always fully visible; build passes.
 
 ## 7. Risks
-- None expected; pure flexbox sizing fix.
+- Page now scrolls in `main` instead of internal boxes — intended; consistent with other admin pages (users/rooms).
