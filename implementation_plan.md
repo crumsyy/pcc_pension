@@ -1,30 +1,31 @@
-# Implementation Plan — Purchase Orders: No-Cut Natural Flow Layout
+# Implementation Plan — PO Locked Layout: 8/Page Table + 4/Page Restock
 
 ## 1. Goal
-Purchase Orders page shows all 10 rows + footer with nothing clipped at any viewport. No API/DB/pagination-logic changes.
+Purchase Orders page goes back to a locked viewport layout (only tables scroll internally, no whole-page scroll) with everything fitting: PO table 8 rows/page, Recommended Restock 4 items/page with its own pagination. No API/DB changes.
 
-## 2. Root Cause (verified)
-- `purchase-orders/page.js:842` locks the page to viewport height with `overflow: hidden`; columns/card/table scroller are `flex-grow-1 / h-100 / overflow-hidden|auto`, so rows beyond the space are trapped in an internal scroll region (screenshot: only ~7 of 10 rows visible).
-- Global `globals.css:1095-1100` also forces `.pcc-page-container { height: ... !important; overflow: hidden !important }`, so inline styles alone cannot unlock it.
+## 2. Current State (verified)
+- Page is natural flow after last change (`pcc-page-natural`, plain `table-responsive`, `table-sm` added). Pagination is 10/page via `paginate(orders, page, ADMIN_PAGE_SIZE)` (`page.js:817`); restock panel renders all `recommendedItems` with its own internal scroller (`:1001`).
+- Previous locked layout clipped because the scroller lacked `min-height: 0` and the footer wasn't pinned — both fixed already and kept.
 
 ## 3. Scope
-- IN: PO page layout classes/styles + one `globals.css` unlock modifier + compact table density.
-- OUT: pagination counts (stay 10/page), other pages, APIs.
+- IN: `purchase-orders/page.js` + tiny `globals.css` tweak if needed.
+- OUT: other pages, page-size standard elsewhere (stays 10), APIs.
 
 ## 4. Design
-- Add `globals.css` modifier: `.pcc-page-container.pcc-page-natural { height: auto !important; overflow: visible !important; }`.
-- PO page: add `pcc-page-natural`, drop inline fixed height/overflow; columns and table card drop `h-100/flex-grow-1/overflow-hidden` constraints; table scroller becomes plain `table-responsive` (no internal scroll); right Restock column flows naturally too. Page scrolls via `main` (`overflow-y: auto` already), so nothing is ever clipped.
-- Density: add Bootstrap `table-sm` to the PO table so more rows fit per screen.
-- Keep `AdminPagination` footer in normal flow (always fully visible).
+- Restore locked flex layout (container fixed height + `overflow-hidden` columns/card as before), keep `min-height: 0` scroller + pinned footer + `table-sm` density.
+- PO table: `paginate(orders, page, 8)` with `PO_PAGE_SIZE = 8` constant; footer reads `Showing 1–8 of 40`.
+- Restock: `restockPage` state + `paginate(recommendedItems, restockPage, 4)` + compact `AdminPagination` footer (label "items"); clamping handles list shrinkage, no extra effects.
+- Fit math (864px viewport): rows 8×~44 + thead + footer ≈ 450; filter + title ≈ 200; total ≈ 650 + padding < ~780 available. Restock 4×~90 + header + footer ≈ 480. Both fit without page scroll.
 
 ## 5. Steps
-1. CSS modifier + PO layout edits + `table-sm`.
-2. `npx eslint` file + `npm run build`.
-3. Manual: all 10 rows + footer visible/reachable at desktop and short viewports with zero clipping; restock column intact; other pages unchanged.
-4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
+1. Revert container/columns/card to locked flex classes; keep scroller fix, pinned footer, `table-sm`.
+2. PO page size 8; restock pagination 4/page with footer.
+3. `npx eslint` file + `npm run build`.
+4. Manual: no whole-page scroll; table and restock scroll internally only if overflow; footers fully visible; page through POs (5 pages) and restock pages.
+5. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- No clipped/cut UI anywhere on PO page; footer always fully visible; build passes.
+- No whole-page scroll; no clipped UI; 8 PO rows and 4 restock items per page with working pagers; build passes.
 
 ## 7. Risks
-- Page now scrolls in `main` instead of internal boxes — intended; consistent with other admin pages (users/rooms).
+- Very short viewports (<700px) may still internal-scroll tables — acceptable fallback, footers stay pinned.
