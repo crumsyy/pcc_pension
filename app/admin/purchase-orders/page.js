@@ -910,7 +910,7 @@ export default function AdminPurchaseOrders() {
 
           {/* Purchase Orders Table */}
           <div className="card-module pcc-table-card flex-grow-1 d-flex flex-column overflow-hidden mb-0" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)", minHeight: 0 }}>
-              <div className={`table-responsive flex-grow-1 overflow-auto ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
+              <div className={`table-responsive flex-grow-1 overflow-auto ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ minHeight: 0 }}>
                 <table className="table align-middle mb-0">
                   <thead>
                     <tr>
@@ -973,7 +973,9 @@ export default function AdminPurchaseOrders() {
                   </tbody>
                 </table>
               </div>
-              <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label="purchase orders" />
+              <div className="flex-shrink-0">
+                <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label="purchase orders" />
+              </div>
           </div>
         </div>
 

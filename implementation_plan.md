@@ -1,32 +1,28 @@
-# Implementation Plan — Sidebar 1-Line Labels + Real Collapse Width
+# Implementation Plan — Purchase Orders Clipped Footer Fix
 
 ## 1. Goal
-Fix two reported sidebar issues (screenshots): (a) `Inventory Management` wraps to 2 lines — force single line; (b) collapsing hides labels but width stays wide — actually shrink the rail. No API/DB changes.
+Stop the `Showing 1–10 of 40` + pagination footer from being cut off at the bottom of the Purchase Orders table card. No API/DB/logic changes.
 
-## 2. Root Causes (verified)
-- (b) `app/globals.css:1048-1066`: desktop `@media (min-width:992px)` forces `.pcc-fixed-sidebar { width: 240px !important }` and `.pcc-main-wrapper { margin-left: 240px !important }`, which override the inline `width: 76px` set by the collapse state in `SidebarClient.js` — so icons center but the rail never narrows (matches screenshot 2).
-- (a) Nav label spans have no wrapping constraint, so the longest label (`Inventory Management`) wraps inside the 240px rail (screenshot 1).
+## 2. Root Cause (verified `purchase-orders/page.js:912-976`)
+The table card is `d-flex flex-column overflow-hidden` with a fixed page height (`842: height calc(100vh - 90px), overflow hidden`). The `table-responsive` scroller is `flex-grow-1` but has no `min-height: 0`, so as a flex item it refuses to shrink below the 10-row table's content height — it pushes the `AdminPagination` footer past the card's bottom edge, where `overflow-hidden` clips it (matches screenshot).
 
 ## 3. Scope
-- IN: `app/globals.css` (collapsed overrides + label single-line rule), tiny `SidebarClient.js` toggle (add `sidebar-collapsed` class when collapsed).
-- OUT: nav items, collapse behavior/state, other portals.
+- IN: `purchase-orders/page.js` table card only (2 small JSX/style edits).
+- OUT: pagination logic, other tables, APIs.
 
 ## 4. Design
-- CSS (inside the existing desktop media query):
-  `.pcc-fixed-sidebar.sidebar-collapsed { width: 76px !important; }`
-  `.pcc-fixed-sidebar.sidebar-collapsed ~ .pcc-main-wrapper { margin-left: 76px !important; }`
-  plus `transition: width .2s, margin .2s` on both (inline transition on nav already exists; add margin transition via CSS).
-- `SidebarClient.js`: nav `className` gains `${collapsed && isAdmin ? 'sidebar-collapsed' : ''}` (keep inline width as fallback).
-- Single-line labels: `.pcc-fixed-sidebar .nav-link span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }` — full text stays readable at 240px; longest label fits on one line (verify visually; font-size stays 0.88rem).
+- Scroller: add `style={{ minHeight: 0 }}` so it shrinks and scrolls internally.
+- Footer: wrap `<AdminPagination>` in `<div className="flex-shrink-0">` so it always keeps its space at the card bottom.
+- No other layout changes; right-hand Restock column untouched.
 
 ## 5. Steps
-1. Edit `globals.css` + one-line class toggle in `SidebarClient.js`.
-2. `npx eslint` changed JS file + `npm run build`.
-3. Manual: expanded → `Inventory Management` on one line; collapse → rail narrows to ~76px icons-only and content shifts left; expand restores; preference persists; mobile drawer unchanged.
+1. Two edits in `purchase-orders/page.js`.
+2. `npx eslint` file + `npm run build`.
+3. Manual: 10 rows visible with internal scroll when needed, footer fully visible, page through all 4 pages; shorter viewports still show footer.
 4. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- Label never wraps; collapse visibly narrows rail + content margin; build passes.
+- Footer never clipped at any viewport height; table scrolls internally; build passes.
 
 ## 7. Risks
-- `~` sibling selector depends on nav/main-wrapper staying siblings in `SidebarClient.js` — true today; noted in code comment.
+- None expected; pure flexbox sizing fix.
