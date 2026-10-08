@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DateInput, { isValidDate, toDbDate } from "@/app/components/DateInput";
+import FlatDatePicker from "@/app/components/FlatDatePicker";
 import ProvinceCityInputs from "@/app/components/ProvinceCityInputs";
 import { isKnownProvince, isCityInProvince } from "@/lib/phLocations";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -66,13 +67,13 @@ export default function RegisterPage() {
   
   // Field specific invalid states
   const [fieldErrors, setFieldErrors] = useState({});
-  const [maxDobStr, setMaxDobStr] = useState('');
+  const [maxDobSlash, setMaxDobSlash] = useState('');
 
   useEffect(() => {
     const today = new Date();
     const year18Ago = today.getFullYear() - 18;
     const pad = (n) => String(n).padStart(2, '0');
-    setMaxDobStr(`${year18Ago}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
+    setMaxDobSlash(`${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${year18Ago}`);
   }, []);
 
   // Mobile focus centering
@@ -404,16 +405,17 @@ export default function RegisterPage() {
                     <label className="form-label small fw-bold" htmlFor="dob">
                       Date of Birth <span className="text-danger">*</span>
                     </label>
-                    <DateInput
+                    <FlatDatePicker
                       id="dob"
                       name="dob"
+                      dateFormat="m/d/Y"
                       className={`form-control ${fieldErrors.dob ? "is-invalid border-danger" : ""}`}
                       value={dob}
                       onChange={(e) => {
-                        setDob(e.target.value);
+                        setDob(typeof e === 'string' ? e : e.target.value);
                         setFieldErrors((prev) => ({ ...prev, dob: false }));
                       }}
-                      max={maxDobStr}
+                      max={maxDobSlash}
                       required
                     />
                     {fieldErrors.dob && (

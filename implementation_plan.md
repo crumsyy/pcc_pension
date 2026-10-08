@@ -1,31 +1,26 @@
-# Implementation Plan — Register: Drop Username Rule, shadcn Checkbox + Dialog
+# Implementation Plan — Register DOB Flatpickr (+ shadcn provenance note)
 
-## 1. Goals
-(a) Remove the "not contain your username" checklist row + its submit rule (no username field exists). (b) Rebuild Terms & Privacy agreements with shadcn-style Checkbox + Dialog: linked words open dialogs, checkbox unlocks only after reading to bottom, theme-connected Inter UI. No API/DB changes.
+## 1. Note on the shadcn question (no code)
+The Terms/Privacy UI is **shadcn-style, not shadcn CLI code**: same component names/props/structure as the pasted docs (`Checkbox`, `DialogTrigger/Dialog/Header/Title/Description/Body/Footer/Close` over React Aria), hand-written as `.jsx` because the CLI was never initialized here and the registry sources are `.tsx`. Behavior and API match the docs; the implementation is ours.
 
-## 2. Current State (verified)
-- Register page: 6-row checklist + `containsUsername` submit gate; backend enforces only the other 5.
-- Agreements: Bootstrap checkboxes + `ModalPortal` modals, scroll-gating, badges, submit validation.
-- shadcn never initialized; `react-aria-components` not installed; project is JS; theme hooks `data-bs-theme`/`body.dark-theme`; `register-inter` scope exists.
+## 2. Goal
+Register Date of Birth uses Flatpickr like the rest of the app. No API/validation changes (still 18+, `MM/DD/YYYY` state).
 
-## 3. Scope
-- IN: username removal; `npm install react-aria-components`; new `components/ui/checkbox.jsx` + `dialog.jsx` (JS port, `@/*` paths); swap both agreement blocks preserving gating/badges/validation.
-- OUT: APIs, other pages.
+## 3. Current State (verified)
+- `register/page.js` DOB uses `DateInput` (native `type="date"`) with `max={maxDobStr}` in `YYYY-MM-DD` + 18+ submit check.
+- `FlatDatePicker` supports `dateFormat="m/d/Y"`, `min/max` in slash format, and event-mode `onChange` when `name` is set — the existing `(e) => setDob(e.target.value)` handler works unchanged with `name="dob"`.
 
 ## 4. Design
-- Checklist back to the screenshot's exact 5 rules; backend parity intact.
-- Checkbox: `isSelected/onChange/isInvalid/isDisabled`; Dialog set: `DialogTrigger/Dialog/Header/Title/Description/Footer`; full document content moved verbatim; accept disabled until 30px-threshold scroll-bottom; theme + Inter styling.
-- React Aria gives focus scope/aria-modal/labelledby.
+- Swap `DateInput` → `FlatDatePicker dateFormat="m/d/Y" name="dob"`, add `maxDobSlash` (`MM/DD/YYYY`, today − 18y) alongside existing `maxDobStr`, pass as `max`. Keep `id`, classes, error text, submit logic.
+- `DateInput` import stays for `isValidDate`/`toDbDate` helpers.
 
 ## 5. Steps
-1. Username removal.
-2. Install dep; write components; lint new files.
-3. Swap agreement blocks; rewire gating/accept/badges/validation.
-4. Build + manual verification per acceptance.
-5. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
+1. Two-part edit (state + JSX swap).
+2. `npx eslint` + `npm run build`; manual: calendar popup, under-18 blocked, valid submit unchanged.
+3. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- 5-row checklist, all-green ⇔ submit passes; linked words open dialogs; no accept without reading; theme + Inter correct; build passes.
+- DOB opens flatpickr, 18+ enforced in UI + submit; build passes.
 
 ## 7. Risks
-- New dep + `.tsx`→`.jsx` port; fallback (same-API, zero-dep) only if port fails — will confirm first.
+- None; same value contract.
