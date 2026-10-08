@@ -1,41 +1,37 @@
-# Implementation Plan — User Management: Masked IDs, Staff-Only, Role Colors, Pagination
+# Implementation Plan — User Creation: 18+ DOB, Province→City Suggest, Red Asterisks
 
 ## 1. Goal
-User Management (`app/admin/users/UsersClient.js`) shows public display codes instead of raw DB IDs, lists/creates only Administrator + Receptionist (no guests), colors role badges (admin blue, receptionist green), and paginates 10/page. No API/DB changes (display-level only).
+In User Management user creation (and edit for consistency): DOB restricted to 18+; Province field first, then City; both use a PH province/city library with type-to-suggest dropdowns where City depends on Province. Admin-wide, required-field `*` markers become red. No API/DB changes (names still stored as plain text).
 
 ## 2. Current State (verified)
-- Table `UsersClient.js:465-487`: header `User ID`, cell `#USER-{u.userID}`, `key={u.userID}`; view modal (`:656-716`) shows no ID; edit/toggle/suspend payloads use real `userID`/`staffID`/`guestID` (`:247-249,283,329`).
-- API `GET /api/admin/users/route.js:19-39` UNIONs staff (Admin/Receptionist) + guests; `roles` returns all incl. Guest; `create` accepts any `roleID`.
-- Role badges grey for all (`:496`, view `:688`); status badges already colored (`:499-506`).
-- Role filter (`:427-438`) + create role select (`:590-595`) list all roles; edit modal locks Guest rows (`:767-775`).
-- No pagination: all `users` rendered in scroll box (`:483-529`); cache key `admin-users:{search}_{role}_{status}`.
+- `UsersClient.js:655-664` (create) and `:836-845` (edit): order is City then Province, both free-text inputs; DOB is `FlatDatePicker` with no max and validation only checks `isValidDate` (`:191-192`, `:257-258`).
+- Labels are plain text like `First Name *` (`:635,647,659,663,...`); admin-wide grep shows the same pattern in amenities/discounts/etc. A bare `*` inside a text node cannot be colored by CSS alone — markup change required.
+- No PH location library installed (`package.json` has only flatpickr added recently).
 
 ## 3. Scope
-- IN: `UsersClient.js` only (helper + table + view modal + filters + create/edit guards + pagination UI).
-- OUT: API route, DB, other admin pages, `ActionButtons`, stylesheets (use existing Bootstrap badge classes).
+- IN: `UsersClient.js` create + edit modals (DOB 18+, Province-first order, suggest inputs, validation); new `app/components/PhLocationSelect.js` (or inline datalist logic); `npm install philippines` (darklight721, MIT, JSON data: provinces + cities keyed by province); red-asterisk markup swap across `app/admin/**/*.js` + one CSS rule.
+- OUT: API validation, DB schema, receptionist/guest forms (follow-up if wanted), other pickers.
 
 ## 4. Design
-- Public code helper (stable, non-sequential, front-end only):
-  `toPublicUserCode(userID)` → e.g. `((userID * 2654435761) >>> 0).toString(36).toUpperCase().padStart(6,'0')` → `USR-XXXXXX`. Same ID always maps same code; not reversible to sequence at a glance.
-  Real `userID` kept for `key`, `isSelf`, and all API bodies; only display text changes. Empty-state `colSpan` unchanged.
-- Staff-only display: `const staffUsers = users.filter(u => u.role !== 'Guest')`; table/pagination/empty-state use `staffUsers`. Role filter options + create role options filtered to `role !== 'Guest'`; create/edit submit guards reject Guest role with error toast. Suspend-reason guest wording left as-is (functional text, not user listing).
-- Badges: `roleBadgeClass(role)` → Administrator `text-bg-primary`, Receptionist `text-bg-success`, fallback `text-bg-secondary`; applied table `:496` + view modal `:688`.
-- Pagination: `PAGE_SIZE = 10`, `page` state reset to 1 whenever `search/roleFilter/statusFilter/staffUsers.length` change; `totalPages = max(1, ceil(staffUsers.length/10))`, clamp page; slice for rows; footer `Showing X–Y of Z users` + Prev/numbered/Next (numbers compact, e.g. windowed when many pages). Header `User ID` → `User Code`.
+- Library: `philippines` (`require('philippines/provinces')`, `require('philippines/cities')`; cities carry province key — verify exact key name in `node_modules/philippines/cities.json` after install and adapt).
+- UX: `Province` = text input + `<datalist>` of all province names (typing filters natively); `City/Municipality` = text input + `<datalist>` of cities where `city.province === selectedProvinceKey` (disabled/placeholder prompt until province chosen; clears city when province changes to a non-matching one). Submit validates province ∈ list and city ∈ that province's list, else error toast naming the field.
+- DOB 18+: `maxDate` = today minus 18 years (MM/DD/YYYY) on both DOB pickers + `isAdult(dob)` check in create/edit submit (reject <18 with "must be 18 years old or older"). Keep `isValidDate` check first.
+- Order: Province block before City block in both modals (labels/inputs/validation move together).
+- Red `*`: replace admin label trailing ` *</label>` with ` <span className="required-asterisk">*</span></label>` via careful edits per file (bounded: labels in admin modals/filters), plus CSS `.required-asterisk{color:#dc3545;font-weight:700}` in `globals.css`. Only touches labels where `*` means required (skip decorative `*`, e.g. `accept="image/*"`, multiplication, password `••••`).
 
 ## 5. Steps
-1. Add helper + badge fn + pagination state in `UsersClient.js`.
-2. Filter guests from table/filter/create; add guards.
-3. Swap ID cell + view modal row; recolor badges.
-4. Add pagination footer; reset/clamp logic.
-5. `npx eslint` edited file (fix only new issues) + `npm run build`; manual: codes non-sequential/stable, no guests anywhere, badge colors, 10/page incl. filter-reset and last-page clamp.
+1. `npm install philippines`; confirm cities→province key shape.
+2. New location suggest component (province datalist + dependent city datalist, props fit `handleInputChange` event shape).
+3. `UsersClient.js`: reorder Province/City, wire suggest inputs, DOB maxDate + 18+ guards in create/edit.
+4. Admin-wide asterisk markup swap + CSS rule (verify each file compiles; no logic changes).
+5. `npx eslint` changed files (fix only new issues) + `npm run build`; manual: under-18 blocked, province suggest filters, city list changes per province, asterisks red, stored names unchanged.
 6. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
 
 ## 6. Acceptance
-- No raw `#USER-<id>` visible in User Management; codes stable across refresh.
-- No Guest rows/options; only Admin/Receptionist creatable (front-end).
-- Admin badges blue, receptionist green (table + view modal).
-- 10/page with correct counts/controls; build passes.
+- DOB after (today−18y) rejected in UI + submit for create/edit.
+- Province-first; typing suggests provinces; city suggestions follow province; invalid combos blocked with clear errors.
+- Every required `*` in admin renders red; build passes.
 
 ## 7. Risks
-- Masking is display-only; raw IDs remain in network JSON (accepted per user).
-- Hash collisions negligible for user-table scale; codes unique in practice.
+- `philippines` data may be dated (e.g. renamed provinces) — acceptable for suggestions; validation errors guide users to list values.
+- `datalist` styling is browser-native (fine for admin); custom dropdown only if you prefer (heavier).

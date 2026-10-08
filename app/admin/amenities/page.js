@@ -492,7 +492,7 @@ export default function AdminAmenities() {
                 <div className="modal-body p-3">
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Name *</label>
+                      <label className="form-label small fw-semibold mb-1">Name <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         name="name"
@@ -503,7 +503,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Category *</label>
+                      <label className="form-label small fw-semibold mb-1">Category <span className="required-asterisk">*</span></label>
                       <select
                         name="amenityCategoryID"
                         className="form-select"
@@ -521,7 +521,7 @@ export default function AdminAmenities() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Item Type *</label>
+                      <label className="form-label small fw-semibold mb-1">Item Type <span className="required-asterisk">*</span></label>
                       <select
                         name="itemType"
                         className="form-select"
@@ -534,7 +534,7 @@ export default function AdminAmenities() {
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Unit *</label>
+                      <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         name="unit"
@@ -549,7 +549,7 @@ export default function AdminAmenities() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-4">
-                      <label className="form-label small fw-semibold mb-1">Base Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Base Price (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="basePrice"
@@ -561,7 +561,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="sellingPrice"
@@ -573,7 +573,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label small fw-semibold mb-1">Min Stock Level *</label>
+                      <label className="form-label small fw-semibold mb-1">Min Stock Level <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="minStock"
@@ -651,7 +651,7 @@ export default function AdminAmenities() {
                 <div className="modal-body p-3">
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Name *</label>
+                      <label className="form-label small fw-semibold mb-1">Name <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         name="name"
@@ -662,7 +662,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Category *</label>
+                      <label className="form-label small fw-semibold mb-1">Category <span className="required-asterisk">*</span></label>
                       <select
                         name="amenityCategoryID"
                         className="form-select"
@@ -679,7 +679,7 @@ export default function AdminAmenities() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Item Type *</label>
+                      <label className="form-label small fw-semibold mb-1">Item Type <span className="required-asterisk">*</span></label>
                       <select
                         name="itemType"
                         className="form-select"
@@ -692,7 +692,7 @@ export default function AdminAmenities() {
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Unit *</label>
+                      <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         name="unit"
@@ -707,7 +707,7 @@ export default function AdminAmenities() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-4">
-                      <label className="form-label small fw-semibold mb-1">Base Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Base Price (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="basePrice"
@@ -719,7 +719,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="sellingPrice"
@@ -731,7 +731,7 @@ export default function AdminAmenities() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label small fw-semibold mb-1">Min Stock Level *</label>
+                      <label className="form-label small fw-semibold mb-1">Min Stock Level <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="minStock"

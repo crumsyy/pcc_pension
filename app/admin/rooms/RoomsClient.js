@@ -667,7 +667,7 @@ export default function RoomsClient() {
                 <div className="modal-body p-3">
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Room Number *</label>
+                      <label className="form-label small fw-semibold mb-1">Room Number <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         name="roomNumber"
@@ -679,7 +679,7 @@ export default function RoomsClient() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Floor *</label>
+                      <label className="form-label small fw-semibold mb-1">Floor <span className="required-asterisk">*</span></label>
                       <select
                         name="floorID"
                         className="form-select"
@@ -697,7 +697,7 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Room Type *</label>
+                      <label className="form-label small fw-semibold mb-1">Room Type <span className="required-asterisk">*</span></label>
                       <select
                         name="roomTypeID"
                         className="form-select"
@@ -712,7 +712,7 @@ export default function RoomsClient() {
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Occupancy Limit (Pax) *</label>
+                      <label className="form-label small fw-semibold mb-1">Occupancy Limit (Pax) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="occupancyLimit"
@@ -728,7 +728,7 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Rate W/O Breakfast (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Rate W/O Breakfast (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="rateWithoutBreakfast"
@@ -741,7 +741,7 @@ export default function RoomsClient() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Rate W/ Breakfast (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Rate W/ Breakfast (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="rateWithBreakfast"
@@ -866,7 +866,7 @@ export default function RoomsClient() {
                 <div className="modal-body p-3">
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Room Number *</label>
+                      <label className="form-label small fw-semibold mb-1">Room Number <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         name="roomNumber"
@@ -877,7 +877,7 @@ export default function RoomsClient() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Floor *</label>
+                      <label className="form-label small fw-semibold mb-1">Floor <span className="required-asterisk">*</span></label>
                       <select
                         name="floorID"
                         className="form-select"
@@ -894,7 +894,7 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Room Type *</label>
+                      <label className="form-label small fw-semibold mb-1">Room Type <span className="required-asterisk">*</span></label>
                       <select
                         name="roomTypeID"
                         className="form-select"
@@ -908,7 +908,7 @@ export default function RoomsClient() {
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Occupancy Limit (Pax) *</label>
+                      <label className="form-label small fw-semibold mb-1">Occupancy Limit (Pax) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="occupancyLimit"
@@ -924,7 +924,7 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Rate W/O Breakfast (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Rate W/O Breakfast (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="rateWithoutBreakfast"
@@ -937,7 +937,7 @@ export default function RoomsClient() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Rate W/ Breakfast (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Rate W/ Breakfast (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="rateWithBreakfast"

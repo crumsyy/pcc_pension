@@ -2297,6 +2297,10 @@ body.dark-theme .qr-payment-container h4 {
 }
 
 /* Visual Calendar & Date-Time Pickers Styling Standards */
+.required-asterisk {
+  color: #dc3545;
+  font-weight: 700;
+}
 .admin-inter,
 .admin-inter *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;

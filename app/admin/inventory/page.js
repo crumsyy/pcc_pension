@@ -1281,7 +1281,7 @@ export default function AdminInventory() {
                     </div>
                   )}
                   <div className="mb-3">
-                    <label className="form-label">Quantity to Dispose *</label>
+                    <label className="form-label">Quantity to Dispose <span className="required-asterisk">*</span></label>
                     <input
                       type="number"
                       className="form-control"
@@ -1293,7 +1293,7 @@ export default function AdminInventory() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Reason *</label>
+                    <label className="form-label">Reason <span className="required-asterisk">*</span></label>
                     <select
                       className="form-select"
                       required
@@ -1346,7 +1346,7 @@ export default function AdminInventory() {
                     </div>
                   )}
                   <div className="mb-3">
-                    <label className="form-label">Quantity to Stock Out *</label>
+                    <label className="form-label">Quantity to Stock Out <span className="required-asterisk">*</span></label>
                     <input
                       type="number"
                       className="form-control"
@@ -1358,7 +1358,7 @@ export default function AdminInventory() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Reason *</label>
+                    <label className="form-label">Reason <span className="required-asterisk">*</span></label>
                     <select
                       className="form-select"
                       required
@@ -1405,7 +1405,7 @@ export default function AdminInventory() {
               <form onSubmit={handleBorrowSubmit}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label className="form-label">Quantity to Borrow *</label>
+                    <label className="form-label">Quantity to Borrow <span className="required-asterisk">*</span></label>
                     <input
                       type="number"
                       className="form-control"
@@ -1418,7 +1418,7 @@ export default function AdminInventory() {
                     <div className="form-text small text-muted">Available stock: {selectedItem.availableQty}</div>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Borrowed By *</label>
+                    <label className="form-label">Borrowed By <span className="required-asterisk">*</span></label>
                     <input
                       type="text"
                       className="form-control"
@@ -1473,7 +1473,7 @@ export default function AdminInventory() {
                     <strong>Quantity borrowed:</strong> {selectedBorrow.quantity} units
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Quantity Returned *</label>
+                    <label className="form-label">Quantity Returned <span className="required-asterisk">*</span></label>
                     <input
                       type="number"
                       className="form-control"
@@ -1485,7 +1485,7 @@ export default function AdminInventory() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label">Return Status / Condition *</label>
+                    <label className="form-label">Return Status / Condition <span className="required-asterisk">*</span></label>
                     <select
                       className="form-select"
                       required
@@ -1580,7 +1580,7 @@ export default function AdminInventory() {
                     <input type="text" className="form-control bg-light" value={selectedItem.sourceTable} disabled />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label fw-bold">Minimum Stock Level *</label>
+                    <label className="form-label fw-bold">Minimum Stock Level <span className="required-asterisk">*</span></label>
                     <input
                       type="number"
                       className="form-control"

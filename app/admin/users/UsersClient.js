@@ -5,6 +5,8 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import FlatDatePicker from '../../components/FlatDatePicker';
+import ProvinceCityInputs from '../../components/ProvinceCityInputs';
+import { isKnownProvince, isCityInProvince } from '@/lib/phLocations';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
@@ -23,6 +25,20 @@ function roleBadgeClass(role) {
 }
 
 const USERS_PAGE_SIZE = 10;
+
+// Users must be 18+ : latest allowed birthdate is today minus 18 years.
+const adultCutoff = (() => {
+  const t = new Date();
+  return new Date(t.getFullYear() - 18, t.getMonth(), t.getDate());
+})();
+const pad2 = (n) => String(n).padStart(2, '0');
+const maxDobSlash = `${pad2(adultCutoff.getMonth() + 1)}/${pad2(adultCutoff.getDate())}/${adultCutoff.getFullYear()}`;
+const maxDobDb = `${adultCutoff.getFullYear()}-${pad2(adultCutoff.getMonth() + 1)}-${pad2(adultCutoff.getDate())}`;
+function isAtLeast18(dobUi) {
+  if (!dobUi) return false;
+  const db = toDbDate(dobUi);
+  return Boolean(db) && db <= maxDobDb;
+}
 
 export default function UsersClient() {
   const [search, setSearch] = useState('');
@@ -192,6 +208,18 @@ export default function UsersClient() {
       showAlert('error', 'Validation Error', 'Please enter a valid Date of Birth (MM/DD/YYYY).');
       return;
     }
+    if (!isAtLeast18(formData.dob)) {
+      showAlert('error', 'Validation Error', 'User must be at least 18 years old.');
+      return;
+    }
+    if (!isKnownProvince(formData.province)) {
+      showAlert('error', 'Validation Error', 'Please select a valid Province from the suggestions.');
+      return;
+    }
+    if (!isCityInProvince(formData.city, formData.province)) {
+      showAlert('error', 'Validation Error', 'Please select a valid City / Municipality for the chosen province.');
+      return;
+    }
     if (formData.password.length < 8) {
       showAlert('error', 'Validation Error', 'Password must be at least 8 characters long.');
       return;
@@ -256,6 +284,18 @@ export default function UsersClient() {
     }
     if (!formData.dob || !isValidDate(formData.dob)) {
       showAlert('error', 'Validation Error', 'Please enter a valid Date of Birth (MM/DD/YYYY).');
+      return;
+    }
+    if (!isAtLeast18(formData.dob)) {
+      showAlert('error', 'Validation Error', 'User must be at least 18 years old.');
+      return;
+    }
+    if (!isKnownProvince(formData.province)) {
+      showAlert('error', 'Validation Error', 'Please select a valid Province from the suggestions.');
+      return;
+    }
+    if (!isCityInProvince(formData.city, formData.province)) {
+      showAlert('error', 'Validation Error', 'Please select a valid City / Municipality for the chosen province.');
       return;
     }
     if (formData.newPassword && formData.newPassword.length < 8) {
@@ -632,7 +672,7 @@ export default function UsersClient() {
                 <div className="modal-body">
                   <div className="row g-3">
                     <div className="col-md-4">
-                      <label className="form-label">First Name *</label>
+                      <label className="form-label">First Name <span className="required-asterisk">*</span></label>
                       <input type="text" name="firstName" className="form-control" required value={formData.firstName} onChange={handleInputChange} placeholder="Juan" />
                     </div>
                     <div className="col-md-4">
@@ -640,11 +680,11 @@ export default function UsersClient() {
                       <input type="text" name="middleName" className="form-control" value={formData.middleName} onChange={handleInputChange} placeholder="(Optional)" />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label">Last Name *</label>
+                      <label className="form-label">Last Name <span className="required-asterisk">*</span></label>
                       <input type="text" name="lastName" className="form-control" required value={formData.lastName} onChange={handleInputChange} placeholder="Dela Cruz" />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Gender *</label>
+                      <label className="form-label">Gender <span className="required-asterisk">*</span></label>
                       <select name="gender" className="form-select" required value={formData.gender} onChange={handleInputChange}>
                         <option value="" disabled>Select gender</option>
                         <option value="Male">Male</option>
@@ -652,23 +692,22 @@ export default function UsersClient() {
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Date of Birth *</label>
-                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" />
+                      <label className="form-label">Date of Birth <span className="required-asterisk">*</span></label>
+                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" max={maxDobSlash} />
                     </div>
+                    <ProvinceCityInputs
+                      idPrefix="create-loc"
+                      province={formData.province}
+                      city={formData.city}
+                      onChange={handleInputChange}
+                      required
+                    />
                     <div className="col-md-6">
-                      <label className="form-label">City *</label>
-                      <input type="text" name="city" className="form-control" required value={formData.city} onChange={handleInputChange} placeholder="Koronadal" />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Province *</label>
-                      <input type="text" name="province" className="form-control" required value={formData.province} onChange={handleInputChange} placeholder="South Cotabato" />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Contact Number *</label>
+                      <label className="form-label">Contact Number <span className="required-asterisk">*</span></label>
                       <input type="text" name="contact" className="form-control" maxLength="11" required value={formData.contact} onChange={handleInputChange} placeholder="09XXXXXXXXX" />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Role *</label>
+                      <label className="form-label">Role <span className="required-asterisk">*</span></label>
                       <select name="roleID" className="form-select" required value={formData.roleID} onChange={handleInputChange}>
                         <option value="" disabled>Select role</option>
                         {staffRoles.map(r => (
@@ -677,11 +716,11 @@ export default function UsersClient() {
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Email Address *</label>
+                      <label className="form-label">Email Address <span className="required-asterisk">*</span></label>
                       <input type="email" name="email" className="form-control" required value={formData.email} onChange={handleInputChange} placeholder="staff@email.com" />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Password *</label>
+                      <label className="form-label">Password <span className="required-asterisk">*</span></label>
                       <div className="password-field-wrap" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input
                           type={showCreatePassword ? "text" : "password"}
@@ -814,7 +853,7 @@ export default function UsersClient() {
                 <div className="modal-body">
                   <div className="row g-3">
                     <div className="col-md-4">
-                      <label className="form-label">First Name *</label>
+                      <label className="form-label">First Name <span className="required-asterisk">*</span></label>
                       <input type="text" name="firstName" className="form-control" required value={formData.firstName} onChange={handleInputChange} />
                     </div>
                     <div className="col-md-4">
@@ -822,34 +861,33 @@ export default function UsersClient() {
                       <input type="text" name="middleName" className="form-control" value={formData.middleName} onChange={handleInputChange} />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label">Last Name *</label>
+                      <label className="form-label">Last Name <span className="required-asterisk">*</span></label>
                       <input type="text" name="lastName" className="form-control" required value={formData.lastName} onChange={handleInputChange} />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Gender *</label>
+                      <label className="form-label">Gender <span className="required-asterisk">*</span></label>
                       <select name="gender" className="form-select" required value={formData.gender} onChange={handleInputChange}>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Date of Birth *</label>
-                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" />
+                      <label className="form-label">Date of Birth <span className="required-asterisk">*</span></label>
+                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" max={maxDobSlash} />
                     </div>
+                    <ProvinceCityInputs
+                      idPrefix="edit-loc"
+                      province={formData.province}
+                      city={formData.city}
+                      onChange={handleInputChange}
+                      required
+                    />
                     <div className="col-md-6">
-                      <label className="form-label">City *</label>
-                      <input type="text" name="city" className="form-control" required value={formData.city} onChange={handleInputChange} />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Province *</label>
-                      <input type="text" name="province" className="form-control" required value={formData.province} onChange={handleInputChange} />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Contact Number *</label>
+                      <label className="form-label">Contact Number <span className="required-asterisk">*</span></label>
                       <input type="text" name="contact" className="form-control" maxLength="11" required value={formData.contact} onChange={handleInputChange} />
                     </div>
                     <div className="col-md-3">
-                      <label className="form-label">Role *</label>
+                      <label className="form-label">Role <span className="required-asterisk">*</span></label>
                       {selectedUser.role === 'Guest' ? (
                         <input type="text" className="form-control" value="Guest" disabled />
                       ) : (
@@ -861,7 +899,7 @@ export default function UsersClient() {
                       )}
                     </div>
                     <div className="col-md-3">
-                      <label className="form-label">Status *</label>
+                      <label className="form-label">Status <span className="required-asterisk">*</span></label>
                       <select name="status" className="form-select" required value={formData.status} onChange={handleInputChange}>
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
@@ -939,7 +977,7 @@ export default function UsersClient() {
                     <div className="text-muted small mt-1">{suspendUser.email}</div>
                   </div>
                   <div className="mb-3">
-                    <label className="form-label fw-semibold">Suspension Duration (Days) *</label>
+                    <label className="form-label fw-semibold">Suspension Duration (Days) <span className="required-asterisk">*</span></label>
                     <input
                       type="number"
                       className="form-control"
@@ -951,7 +989,7 @@ export default function UsersClient() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="form-label fw-semibold">Reason for Suspension *</label>
+                    <label className="form-label fw-semibold">Reason for Suspension <span className="required-asterisk">*</span></label>
                     <select
                       className="form-select"
                       value={suspendReason}

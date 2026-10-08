@@ -1,21 +1,22 @@
-# Walkthrough — User Management Updates
+# Walkthrough — User Creation: 18+ DOB, Province→City Suggest, Red Asterisks
 
 ## Changes (no commit/push yet)
-- `app/admin/users/UsersClient.js` only (API/DB untouched):
-  - Masked IDs: new `toPublicUserCode(userID)` (stable hash → `USR-XXXXXX`, non-sequential). Table header `User ID` → `User Code`, cell shows code; view modal adds User Code row. Real `userID` kept for `key`, self-check, and all API payloads.
-  - Staff-only: `staffUsers`/`staffRoles` exclude `Guest`; table, counts, role filter, create/edit role selects, and create/edit submit guards (reject Guest role) all staff-only.
-  - Role badges: `roleBadgeClass` — Administrator `text-bg-primary` (blue), Receptionist `text-bg-success` (green); applied table + view modal.
-  - Pagination: 10/page with `page` state, reset on search/filter/clear, clamped `safePage`, `Showing X–Y of Z users` + Prev/numbered (windowed)/Next footer.
+- Installed `philippines` (province/city JSON data, MIT).
+- New `lib/phLocations.js` — province names, exact-match lookup, cities-per-province, validators.
+- New `app/components/ProvinceCityInputs.js` — Province-first inputs with type-to-suggest `<datalist>` dropdowns; city list follows the exactly-matched province (disabled until province chosen; clears city when province changes away); emits `handleInputChange`-compatible events.
+- `app/admin/users/UsersClient.js`:
+  - Create + edit modals: Province block now before City block, both via `ProvinceCityInputs`.
+  - DOB 18+: picker `max` = today minus 18 years + submit guard rejecting under-18 in both modals; province/city validated against suggestion lists with clear error toasts.
+- Red required markers: all 86 required `*` labels across `app/admin` (amenities, discounts, inventory, products, rooms, users) converted to `<span className="required-asterisk">*</span>`; CSS `.required-asterisk { color:#dc3545; font-weight:700 }` in `globals.css` (global scope so portaled modals are covered).
+- Stored values unchanged (plain province/city names, `YYYY-MM-DD` DOB); no API/DB changes.
 
 ## Verification
-- `grep #USER- / User ID` in `app/admin/users` — clean.
-- `npx eslint` — only pre-existing `set-state-in-effect`/`exhaustive-deps` findings (fetch effect predates change); no new unused-var issues.
+- `npx eslint` on new files clean; `UsersClient.js` shows only pre-existing `set-state-in-effect`/`exhaustive-deps` findings.
 - `npm run build` success, 96/96 pages.
 
 ## Manual check (please review)
-1. User Management shows `USR-XXXXXX` codes (stable across refresh, non-sequential), no raw DB IDs.
-2. No Guest rows in table/filter/create/edit; creating with staff roles works, Guest rejected.
-3. Admin badges blue, receptionist green (table + view modal).
-4. 10 rows/page; filters reset to page 1; last-page clamp + counts correct.
+1. Create User: DOB picker blocks dates newer than 18 years ago; submitting under-18 shows validation error.
+2. Type in Province → suggestions appear; pick e.g. South Cotabato → City suggests its cities/municipalities; changing province clears mismatched city; invalid combos blocked on submit.
+3. All required `*` in admin render red; edit modal behaves the same.
 
-Note: masking is display-only; raw IDs still travel in API JSON. Say `"push"` only when you want commit + push.
+Awaiting review. Say `"push"` only when you want commit + push.

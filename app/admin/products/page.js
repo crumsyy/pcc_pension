@@ -576,7 +576,7 @@ export default function AdminProducts() {
                     <>
                       <div className="row g-2 mb-2">
                         <div className="col-md-6">
-                          <label className="form-label small fw-semibold mb-1">Name *</label>
+                          <label className="form-label small fw-semibold mb-1">Name <span className="required-asterisk">*</span></label>
                           <input
                             type="text"
                             name="name"
@@ -587,7 +587,7 @@ export default function AdminProducts() {
                           />
                         </div>
                         <div className="col-md-6">
-                          <label className="form-label small fw-semibold mb-1">Category *</label>
+                          <label className="form-label small fw-semibold mb-1">Category <span className="required-asterisk">*</span></label>
                           <select
                             name="productCategoryID"
                             className="form-select"
@@ -605,7 +605,7 @@ export default function AdminProducts() {
 
                       <div className="row g-2 mb-2">
                         <div className="col-md-6">
-                          <label className="form-label small fw-semibold mb-1">Item Type *</label>
+                          <label className="form-label small fw-semibold mb-1">Item Type <span className="required-asterisk">*</span></label>
                           <select
                             name="itemType"
                             className="form-select"
@@ -618,7 +618,7 @@ export default function AdminProducts() {
                           </select>
                         </div>
                         <div className="col-md-6">
-                          <label className="form-label small fw-semibold mb-1">Unit *</label>
+                          <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
                           <input
                             type="text"
                             name="unit"
@@ -634,7 +634,7 @@ export default function AdminProducts() {
                   ) : (
                     <div className="row g-2 mb-2">
                       <div className="col-md-8">
-                        <label className="form-label small fw-semibold mb-1">Meal Name *</label>
+                        <label className="form-label small fw-semibold mb-1">Meal Name <span className="required-asterisk">*</span></label>
                         <input
                           type="text"
                           name="name"
@@ -645,7 +645,7 @@ export default function AdminProducts() {
                         />
                       </div>
                       <div className="col-md-4">
-                        <label className="form-label small fw-semibold mb-1">Unit *</label>
+                        <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
                         <input
                           type="text"
                           name="unit"
@@ -661,7 +661,7 @@ export default function AdminProducts() {
 
                   <div className="row g-2 mb-2">
                     <div className={activeTab === 'meals' ? 'col-md-6' : 'col-md-4'}>
-                      <label className="form-label small fw-semibold mb-1">Base Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Base Price (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="basePrice"
@@ -673,7 +673,7 @@ export default function AdminProducts() {
                       />
                     </div>
                     <div className={activeTab === 'meals' ? 'col-md-6' : 'col-md-4'}>
-                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) *</label>
+                      <label className="form-label small fw-semibold mb-1">Selling Price (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="sellingPrice"
@@ -686,7 +686,7 @@ export default function AdminProducts() {
                     </div>
                     {activeTab !== 'meals' && (
                       <div className="col-md-4">
-                        <label className="form-label small fw-semibold mb-1">Min Stock *</label>
+                        <label className="form-label small fw-semibold mb-1">Min Stock <span className="required-asterisk">*</span></label>
                         <input
                           type="number"
                           name="minStock"
@@ -768,7 +768,7 @@ export default function AdminProducts() {
                       <>
                         <div className="row g-2 mb-2">
                           <div className="col-md-6">
-                            <label className="form-label small fw-semibold mb-1">Name *</label>
+                            <label className="form-label small fw-semibold mb-1">Name <span className="required-asterisk">*</span></label>
                             <input
                               type="text"
                               name="name"
@@ -779,7 +779,7 @@ export default function AdminProducts() {
                             />
                           </div>
                           <div className="col-md-6">
-                            <label className="form-label small fw-semibold mb-1">Category *</label>
+                            <label className="form-label small fw-semibold mb-1">Category <span className="required-asterisk">*</span></label>
                             <select
                               name="productCategoryID"
                               className="form-select"
@@ -796,7 +796,7 @@ export default function AdminProducts() {
 
                         <div className="row g-2 mb-2">
                           <div className="col-md-6">
-                            <label className="form-label small fw-semibold mb-1">Item Type *</label>
+                            <label className="form-label small fw-semibold mb-1">Item Type <span className="required-asterisk">*</span></label>
                             <select
                               name="itemType"
                               className="form-select"
@@ -809,7 +809,7 @@ export default function AdminProducts() {
                             </select>
                           </div>
                           <div className="col-md-6">
-                            <label className="form-label small fw-semibold mb-1">Unit *</label>
+                            <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
                             <input
                               type="text"
                               name="unit"
@@ -825,7 +825,7 @@ export default function AdminProducts() {
                     ) : (
                       <div className="row g-2 mb-2">
                         <div className="col-md-8">
-                          <label className="form-label small fw-semibold mb-1">Meal Name *</label>
+                          <label className="form-label small fw-semibold mb-1">Meal Name <span className="required-asterisk">*</span></label>
                           <input
                             type="text"
                             name="name"
@@ -836,7 +836,7 @@ export default function AdminProducts() {
                           />
                         </div>
                         <div className="col-md-4">
-                          <label className="form-label small fw-semibold mb-1">Unit *</label>
+                          <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
                           <input
                             type="text"
                             name="unit"
@@ -852,7 +852,7 @@ export default function AdminProducts() {
 
                     <div className="row g-2 mb-2">
                       <div className={isMeal ? 'col-md-6' : 'col-md-4'}>
-                        <label className="form-label small fw-semibold mb-1">Base Price (₱) *</label>
+                        <label className="form-label small fw-semibold mb-1">Base Price (₱) <span className="required-asterisk">*</span></label>
                         <input
                           type="number"
                           name="basePrice"
@@ -864,7 +864,7 @@ export default function AdminProducts() {
                         />
                       </div>
                       <div className={isMeal ? 'col-md-6' : 'col-md-4'}>
-                        <label className="form-label small fw-semibold mb-1">Selling Price (₱) *</label>
+                        <label className="form-label small fw-semibold mb-1">Selling Price (₱) <span className="required-asterisk">*</span></label>
                         <input
                           type="number"
                           name="sellingPrice"
@@ -877,7 +877,7 @@ export default function AdminProducts() {
                       </div>
                       {!isMeal && (
                         <div className="col-md-4">
-                          <label className="form-label small fw-semibold mb-1">Min Stock *</label>
+                          <label className="form-label small fw-semibold mb-1">Min Stock <span className="required-asterisk">*</span></label>
                           <input
                             type="number"
                             name="minStock"

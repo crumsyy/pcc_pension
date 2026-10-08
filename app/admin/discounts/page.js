@@ -703,7 +703,7 @@ export default function AdminDiscounts() {
               <form onSubmit={handleCreateDiscSubmit}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label className="form-label">Name *</label>
+                    <label className="form-label">Name <span className="required-asterisk">*</span></label>
                     <input
                       type="text"
                       name="name"
@@ -725,7 +725,7 @@ export default function AdminDiscounts() {
                   </div>
                   <div className="row g-2 mb-3">
                     <div className="col">
-                      <label className="form-label">Percentage (1-100) *</label>
+                      <label className="form-label">Percentage (1-100) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="percentage"
@@ -751,7 +751,7 @@ export default function AdminDiscounts() {
                   </div>
                   <div className="row g-2">
                     <div className="col">
-                      <label className="form-label">Discount Type *</label>
+                      <label className="form-label">Discount Type <span className="required-asterisk">*</span></label>
                       <select
                         name="discountTypeID"
                         className="form-select"
@@ -766,7 +766,7 @@ export default function AdminDiscounts() {
                       </select>
                     </div>
                     <div className="col">
-                      <label className="form-label">Eligibility *</label>
+                      <label className="form-label">Eligibility <span className="required-asterisk">*</span></label>
                       <select
                         name="eligibilityTypeID"
                         className="form-select"
@@ -804,7 +804,7 @@ export default function AdminDiscounts() {
               <form onSubmit={handleEditDiscSubmit}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label className="form-label">Name *</label>
+                    <label className="form-label">Name <span className="required-asterisk">*</span></label>
                     <input
                       type="text"
                       name="name"
@@ -826,7 +826,7 @@ export default function AdminDiscounts() {
                   </div>
                   <div className="row g-2 mb-3">
                     <div className="col">
-                      <label className="form-label">Percentage *</label>
+                      <label className="form-label">Percentage <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="percentage"
@@ -852,7 +852,7 @@ export default function AdminDiscounts() {
                   </div>
                   <div className="row g-2">
                     <div className="col">
-                      <label className="form-label">Discount Type *</label>
+                      <label className="form-label">Discount Type <span className="required-asterisk">*</span></label>
                       <select
                         name="discountTypeID"
                         className="form-select"
@@ -866,7 +866,7 @@ export default function AdminDiscounts() {
                       </select>
                     </div>
                     <div className="col">
-                      <label className="form-label">Eligibility *</label>
+                      <label className="form-label">Eligibility <span className="required-asterisk">*</span></label>
                       <select
                         name="eligibilityTypeID"
                         className="form-select"
@@ -908,7 +908,7 @@ export default function AdminDiscounts() {
                 <div className="modal-body p-4">
                   <div className="row g-3 mb-3">
                     <div className="col-md-8">
-                      <label className="form-label small fw-semibold">Promotion Name *</label>
+                      <label className="form-label small fw-semibold">Promotion Name <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         name="name"
@@ -920,7 +920,7 @@ export default function AdminDiscounts() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label small fw-semibold">Discount Percentage (1-100)% *</label>
+                      <label className="form-label small fw-semibold">Discount Percentage (1-100)% <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="percentage"
@@ -990,7 +990,7 @@ export default function AdminDiscounts() {
 
                   <div className="row g-3">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Start Date *</label>
+                      <label className="form-label small fw-semibold">Start Date <span className="required-asterisk">*</span></label>
                       <FlatDatePicker
                         name="startDate"
                         className="form-control"
@@ -1001,7 +1001,7 @@ export default function AdminDiscounts() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold">End Date *</label>
+                      <label className="form-label small fw-semibold">End Date <span className="required-asterisk">*</span></label>
                       <FlatDatePicker
                         name="endDate"
                         className="form-control"
@@ -1036,7 +1036,7 @@ export default function AdminDiscounts() {
                 <div className="modal-body p-4">
                   <div className="row g-3 mb-3">
                     <div className="col-md-8">
-                      <label className="form-label small fw-semibold">Promotion Name *</label>
+                      <label className="form-label small fw-semibold">Promotion Name <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         name="name"
@@ -1047,7 +1047,7 @@ export default function AdminDiscounts() {
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label small fw-semibold">Discount Percentage (1-100)% *</label>
+                      <label className="form-label small fw-semibold">Discount Percentage (1-100)% <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
                         name="percentage"
@@ -1115,7 +1115,7 @@ export default function AdminDiscounts() {
 
                   <div className="row g-3">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Start Date *</label>
+                      <label className="form-label small fw-semibold">Start Date <span className="required-asterisk">*</span></label>
                       <FlatDatePicker
                         name="startDate"
                         className="form-control"
@@ -1126,7 +1126,7 @@ export default function AdminDiscounts() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold">End Date *</label>
+                      <label className="form-label small fw-semibold">End Date <span className="required-asterisk">*</span></label>
                       <FlatDatePicker
                         name="endDate"
                         className="form-control"
