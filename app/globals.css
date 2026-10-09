@@ -2672,6 +2672,10 @@ body.dark-theme .pcc-checkbox-label {
   outline: none;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+.pcc-dialog,
+.pcc-dialog *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
 .pcc-dialog[data-entering] {
   animation: pccDialogPopIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
