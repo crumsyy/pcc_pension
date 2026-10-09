@@ -493,7 +493,7 @@ export default function UsersClient() {
   const pageEnd = Math.min(safePage * USERS_PAGE_SIZE, searchedUsers.length);
 
   return (
-    <div className="pcc-page-container pcc-content-reveal">
+    <div className="pcc-page-container users-compact pcc-content-reveal">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -506,24 +506,21 @@ export default function UsersClient() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-end align-items-center mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        {/* Staffs / Guests tabs */}
+        <Tabs selectedKey={activeTab} onSelectionChange={handleTabChange}>
+          <TabList aria-label="User types">
+            <Tab id="staff">Staffs</Tab>
+            <Tab id="guests">Guests</Tab>
+          </TabList>
+        </Tabs>
         <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
           {activeTab === 'guests' ? '+ Create Guest' : '+ Create Staff'}
         </button>
       </div>
 
-      {/* Staffs / Guests tabs */}
-      <Tabs selectedKey={activeTab} onSelectionChange={handleTabChange} className="mb-3">
-        <TabList aria-label="User types">
-          <Tab id="staff">Staffs</Tab>
-          <Tab id="guests">Guests</Tab>
-        </TabList>
-      </Tabs>
-
-
-
       {/* Search & Filters */}
-      <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
           <div className={activeTab === 'guests' ? 'col-md-7' : 'col-md-4'}>
             <input
@@ -570,8 +567,8 @@ export default function UsersClient() {
       </div>
 
       {/* Table */}
-      <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+      <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
                 <tr>

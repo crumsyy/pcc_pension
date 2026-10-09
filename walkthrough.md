@@ -1,16 +1,16 @@
-# Walkthrough — Inline Header Searchbar
+# Walkthrough — Users Page Compaction
 
 ## Changes (no commit/push yet)
-- Header search is now a directly typeable input (no dialog): typing filters sidebar pages live with debounced room/stay results beneath it; hover/arrows highlight, click/mousedown/Enter navigates, Esc or click-away closes, Ctrl+K focuses. Reuses the proven keyword + room fetch logic.
-- Dead dialog block removed; new dropdown styles added.
+- Top row merged: tabs left + create button right (one row instead of two); filter card tightened; table card padding reduced.
+- `.users-compact` density (28px action buttons, tighter cells/badges — same proven pattern as PO).
+- Table cap retuned so 10 compact rows + footer fit laptop heights with room to spare.
 
 ## Verification
-- `npx eslint`: 0 errors (2 pre-existing img warnings).
+- `npx eslint`: only the pre-existing finding.
 - `npm run build` success, 97/97 pages.
 
 ## Manual check
-1. Click the bar and type immediately; suggestions narrow per keystroke.
-2. Type "rooms" → Room Management; Enter/click navigates (room picks land prefiltered).
-3. Esc closes; Ctrl+K refocuses; empty query shows all pages.
+1. No dead gap up top; 10 rows + footer visible with whitespace below.
+2. If any dead space persists, send a DevTools element id from the gap and I'll target it exactly.
 
 Awaiting review. Say `"push"` only when you want commit + push.

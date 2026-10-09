@@ -1,25 +1,27 @@
-# Implementation Plan — Inline Header Searchbar with Suggestions
+# Implementation Plan — Users Page Compaction (Merge Top Rows + Compact Table)
 
 ## 1. Goal
-Header search becomes a directly typeable input; matches drop down beneath it in place (MEDIPRIME-style). No dialog. No API changes.
+Eliminate the dead space between the create-button row and tabs; fit all 10 rows + footer on screen with breathing room. No logic/count/API changes.
 
-## 2. Current State (verified from screenshot)
-Palette dialog opens and lists correctly — mechanics proven. Only the interaction shape changes.
+## 2. Current State (verified)
+- `UsersClient.js`: separate create-button row, `Tabs mb-3`, filter card `mb-4 p-1.25rem`, table scroller capped `calc(100vh - 280px)`, standard-density rows (~55px with 32px action buttons). Footer already renders — the waste is vertical rhythm, not clipping logic.
 
 ## 3. Scope
-- IN: `SidebarClient.js` header block only (+ small CSS for the inline dropdown panel).
-- OUT: dialog component (left in place, unused by header), destinations/room fetching, navigation targets.
+- IN: `UsersClient.js` top-row merge + spacing + table cap; one `.users-compact` CSS block (28px action buttons, tighter cells/badges) mirroring the proven `po-compact` pattern.
+- OUT: counts, filters, pagination, modals, APIs.
 
 ## 4. Design
-- Replace the search button with an inline `<input>` (same pill styling, magnifier icon, Ctrl+K hint). Typing filters destinations with the existing keyword algorithm + debounced room/stay fetch (reuse `handlePaletteQuery`).
-- Suggestions render in an absolutely-positioned card under the input reusing `pcc-command-item` styles; mouse hover highlights, click navigates; ArrowUp/Down + Enter keyboard support; Esc or outside-click closes; Ctrl+K focuses the input.
-- Results capped as today (9 pages + 6 records).
+- Single top row: tabs left, create button right (`justify-content-between`), `mb-2`.
+- Filter card `mb-3`, padding `1rem`; table card padding `1rem`.
+- `.users-compact` density: cells `.3rem`, action buttons 28px/`.8rem`, badges `.68rem` → ~42px rows.
+- Scroller cap → `max(200px, calc(100vh - 300px))` so 10 compact rows show fully at laptop heights with the footer visible; short screens fall back to in-table scroll.
 
 ## 5. Steps
-1. Header block rewrite. 2. Lint + build. 3. Walkthrough; no commit/push until `"push"`.
+1. Merge + spacing + density + cap. 2. Lint + build. 3. Walkthrough; no commit/push until `"push"`.
+4. If dead space persists after this (i.e., not inter-row rhythm), I'll need a DevTools element id from you to target it exactly.
 
 ## 6. Acceptance
-- Click input → type immediately (no popup); suggestions narrow live; Enter/click navigates; Esc closes; empty query hides dropdown; build passes.
+- No dead gap; 10 rows + footer visible with room to spare at ~870px viewport; build passes.
 
 ## 7. Risks
-- Dropdown overlap with page content: panel is absolutely positioned with high z-index inside the sticky header — verified pattern.
+- Denser rows/buttons (still ≥28px, desktop admin context) — stated.
