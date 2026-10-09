@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { LineChart, BarChart, DoughnutChart } from '../../components/ReportsCharts';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import AdminPagination from '../../components/AdminPagination';
@@ -121,12 +121,20 @@ export default function AdminReports() {
   }, [datePreset]);
 
   // Fetch Report Data from API
+  // AbortController: only the latest request may commit state, so rapid
+  // report/filter switches can never pile up full-dataset loads.
+  const reportAbort = useRef(null);
   const fetchReport = async (isBackground = false) => {
     if (!dateFrom || !dateTo) return;
     if (!isValidDate(dateFrom) || !isValidDate(dateTo)) {
       setError('Please enter valid From and To dates in MM/DD/YYYY format.');
       return;
     }
+    if (reportAbort.current) {
+      try { reportAbort.current.abort(); } catch (e) {}
+    }
+    const controller = new AbortController();
+    reportAbort.current = controller;
     setError('');
     try {
       const query = new URLSearchParams({
@@ -144,7 +152,7 @@ export default function AdminReports() {
         fulfillmentStatus: fulfillmentStatusFilter
       }).toString();
 
-      const res = await fetch(`/api/admin/reports?${query}`);
+      const res = await fetch(`/api/admin/reports?${query}`, { signal: controller.signal });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate report');
 
@@ -158,10 +166,19 @@ export default function AdminReports() {
       setCurrentPage(1);
       setSearchTerm('');
     } catch (err) {
+      if (err && err.name === 'AbortError') return;
       if (!isBackground) setError(err.message);
       else console.warn('Background reports refresh error:', err.message);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (reportAbort.current) {
+        try { reportAbort.current.abort(); } catch (e) {}
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!dateFrom || !dateTo) return;

@@ -1,26 +1,24 @@
-# Implementation Plan — Compaction Rollout, Reports Tabs, Crash Hardening
+# Implementation Plan — Abortable Report Fetches (Kill the Pile-Up Crash)
 
-## 1. Goals
-(a) Users-style compaction (merged top rows, tightened cards, shared compact density, retuned caps) for rooms, amenities, products, inventory, discounts & promos; POs filter+table verified/aligned. (b) Reports crash on type-switch can never kill the page. (c) Report-type cards → shadcn Tabs. No API/count/logic changes.
+## 1. Goal
+Switching report types rapidly can never stack concurrent full-dataset loads. No API/visual/logic changes to results.
 
-## 2. Findings
-- Charts are hand-rolled SVG (no canvas leak). Crash likely comes from transitional render states when switching types (reportData null/stale-shaped) with no boundary — production then dies instead of degrading.
-- Each target page has the same rhythm as users had: separate create-button row + tabs + roomy cards + tall rows.
+## 2. Root Cause (verified `reports/page.js:124-164`)
+`fetchReport` has no cancellation: sales → occupancy → sales fires 3 overlapping full-dataset requests; every completion runs big `setState`s + full re-renders + SVG chart recomputes + cache writes. That pile-up is what kills the tab renderer.
 
 ## 3. Scope
-- IN: shared `.table-compact` CSS (one block covering the 5 pages; po-/users- variants left untouched); per-page merge/tighten/cap edits; reports Tabs conversion; per-view remount `key={report}` + null-shape guards + error boundary around report views.
-- OUT: APIs, counts, filters, sorting.
+- IN: `AbortController` wiring in `fetchReport` + abort on unmount.
+- OUT: APIs, views, tabs, counts.
 
 ## 4. Design
-- Compaction recipe per page: tabs + create button share one `mb-2` row; filter/table cards `mb-3` + `1rem` padding; container gains `table-compact`; scroller caps retuned so footers sit on screen with whitespace (report exact reserves per page).
-- Reports: `Tabs selectedKey={report} onSelectionChange={handleSelectReport}` with the 4 full labels; views render under `key={report}` (clean slate per switch, kills stale-shape crashes); boundary fallback card ("Report failed to load, pick another type") if anything still throws.
-- PO: verify filter/table match the pattern; adjust only if deviating.
+- `reportAbort` ref: each `fetchReport` aborts the previous controller, creates a new one, passes `signal` to `fetch`; `AbortError` is swallowed silently (not shown as an error); unmount effect aborts pending work. Stale responses can never commit state.
 
 ## 5. Steps
-1. CSS block + 5 page compactions + PO check (subagents, no commits). 2. Reports tabs + hardening (direct). 3. Lint + build + manual incl. rapid type-switching. 4. Walkthrough; no commit/push until `"push"`.
+1. Edit + lint + build. 2. Walkthrough; no commit/push until `"push"`.
+3. Retest protocol for you: latest commit Ready → hard refresh → switch sales→occupancy→sales rapidly several times. If it still dies, the cause is outside fetch pile-up and I'll need console text.
 
 ## 6. Acceptance
-- All six pages compact with visible footers; report switching never kills the page (boundary + remount); tabs styled; build passes.
+- Rapid switching issues at most one live request (Network tab); no crash across repeated switches; build passes.
 
 ## 7. Risks
-- Remount per report type discards per-view scroll position — acceptable (fresh data anyway).
+- None to results; aborted requests never resolve.
