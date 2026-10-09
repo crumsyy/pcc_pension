@@ -2557,6 +2557,14 @@ textarea,
 }
 
 /* =====================================================================
+   shadcn-style DataTable (TanStack)
+   ===================================================================== */
+.pcc-datatable,
+.pcc-datatable *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* =====================================================================
    Sonner Toast Notification Overrides & High Z-Index
    ===================================================================== */
 [data-sonner-toaster] {

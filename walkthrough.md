@@ -1,23 +1,16 @@
-# Walkthrough — Billing & Checkout Workspace
+# Walkthrough — DataTable Foundation + Inventory Pilot
 
 ## Changes (no commit/push yet)
-- New `components/ui/tabs.jsx` (shadcn-style `Tabs/TabList/Tab/TabPanel` over React Aria) + theme-aware Inter CSS in `globals.css`. Hand-built like checkbox/dialog — not CLI code.
-- New route `/receptionist/billing-checkout`: `page.js` (server + Suspense) + `WorkspaceClient.js` (tab state synced to `?tab=`, booking carried in `?bookingID=`).
-- `BillingTab.js` / `PaymentsTab.js`: exact copies of the old pages; only additions are a `syncBookingToUrl` write on every selection/clear site and one internal link pointed at the workspace. All billing/payment/checkout logic byte-identical.
-- Sharing model: URL is the store — tabs write `?bookingID` on select, read it on mount; inactive panels unmount on switch (verified in RAC source), so each activation refetches fresh. Existing polling untouched.
-- Old `/billing` + `/payments` routes are now thin server redirects preserving all query params (+ correct `tab=`). Sidebar has one "Billing & Checkout" entry (active-state matching works via prefix).
+- Installed `@tanstack/react-table@8.21.3` (pinned v8 — v9 renamed the APIs; verified against installed package).
+- New `components/ui/table.jsx` (Table/Header/Body/Row/Head/Cell primitives, Bootstrap-compatible classes) + `components/ui/data-table.jsx` (TanStack shell: header groups, rows, stable keys, empty states) + Inter enforcement CSS. Hand-built shadcn-style, not CLI code.
+- Pilot: inventory logs tab disposal + audit tables migrated with verbatim cell renderers (badges, colors, nowrap dates, sticky headers via existing global rule); pagination footers untouched.
 
 ## Verification
-- `npx eslint` on touched files: only pre-existing findings copied with the pages; new files clean.
-- `npm run build` success, 97/97 pages (`billing-checkout` listed).
+- `npx eslint`: pre-existing inventory finding + expected TanStack memoization warning only.
+- `npm run build` success, 97/97 pages.
 
-## Manual check
-1. Open workspace, pick a booking in Billing → switch to Payments → same booking loaded; reverse works; refresh keeps tab + booking.
-2. Legacy links (`/payments?bookingID=`, `/billing?bookingID=`) land on the right tab with the booking loaded.
-3. Full flow: edit bill/finalize in Billing → pay + Complete Booking in Payments → room released.
-4. Sidebar single entry highlights on the workspace.
-
-## Known tradeoff
-- Switching tabs remounts the panel (loses half-filled form input, guarantees fresh data). Say the word if you want state preserved instead.
+## Manual check (pilot)
+1. Logs tab tables render identically (content, badges, actions, empty states); pagination works.
+2. Remaining 49 tables untouched this round — phased rollout continues on approval.
 
 Awaiting review. Say `"push"` only when you want commit + push.

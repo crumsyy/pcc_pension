@@ -10,6 +10,7 @@ import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/AdminPagination';
+import { DataTable } from '@/components/ui/data-table';
 
 export default function AdminInventory() {
   const router = useRouter();
@@ -231,6 +232,45 @@ export default function AdminInventory() {
       return matchesSearch && matchesType && matchesItemType;
     });
   }, [movements, items, search, typeFilter, itemTypeFilter]);
+
+  const disposalColumns = useMemo(() => ([
+    { id: 'date', header: 'Date', cell: ({ row }) => new Date(row.original.disposalDateTime).toLocaleDateString() },
+    { id: 'item', header: 'Item', cell: ({ row }) => (<strong>{row.original.itemName}</strong>) },
+    { id: 'qty', header: 'Qty', cell: ({ row }) => (<span className="text-danger fw-bold">{row.original.quantity}</span>) },
+    { id: 'reason', header: 'Reason', cell: ({ row }) => (<span className="badge text-bg-warning">{row.original.reason}</span>) },
+    { id: 'remarks', header: 'Remarks', cell: ({ row }) => row.original.remarks || '—' },
+    { id: 'user', header: 'By User', cell: ({ row }) => row.original.userEmail },
+  ]), []);
+
+  const auditColumns = useMemo(() => ([
+    { id: 'date', header: 'Date', cell: ({ row }) => (<span className="text-nowrap">{new Date(row.original.movementDateTime).toLocaleString()}</span>) },
+    { id: 'item', header: 'Item', cell: ({ row }) => (<strong>{row.original.itemName}</strong>) },
+    {
+      id: 'type', header: 'Type', cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <span className={`badge ${m.movementType === 'Stock In' ? 'text-bg-success' :
+            m.movementType === 'Stock Out' ? 'text-bg-danger' :
+              m.movementType === 'Borrow' ? 'text-bg-warning' :
+                m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
+            }`}>
+            {m.movementType}
+          </span>
+        );
+      }
+    },
+    {
+      id: 'qty', header: 'Qty', cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <span className={m.quantity > 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
+            {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
+          </span>
+        );
+      }
+    },
+    { id: 'user', header: 'User', cell: ({ row }) => row.original.userEmail || 'System' },
+  ]), []);
 
   const dashPaginated = paginate(movements, dashPage, ADMIN_PAGE_SIZE);
   const stocksPaginated = paginate(filteredItems, stocksPage, ADMIN_PAGE_SIZE);
@@ -1283,30 +1323,14 @@ export default function AdminInventory() {
             <div className="card bg-white p-3 border h-100 d-flex flex-column">
               <h5 className="text-blue mb-3">Disposed Inventory Logs</h5>
               <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: '#fff' }}>
-                    <tr>
-                      <th>Date</th>
-                      <th>Item</th>
-                      <th>Qty</th>
-                      <th>Reason</th>
-                      <th>Remarks</th>
-                      <th>By User</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {disposalPaginated.rows.map((d) => (
-                      <tr key={d.disposalID}>
-                        <td>{new Date(d.disposalDateTime).toLocaleDateString()}</td>
-                        <td><strong>{d.itemName}</strong></td>
-                        <td className="text-danger fw-bold">{d.quantity}</td>
-                        <td><span className="badge text-bg-warning">{d.reason}</span></td>
-                        <td>{d.remarks || '—'}</td>
-                        <td>{d.userEmail}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <DataTable
+                  columns={disposalColumns}
+                  data={disposalPaginated.rows}
+                  getRowId={(d) => String(d.disposalID)}
+                  emptyText="No disposal records found."
+                  tableClassName="table-sm"
+                  style={{ fontSize: '0.85rem' }}
+                />
               </div>
               <div className="mt-auto">
                 <AdminPagination page={disposalPaginated.safePage} totalPages={disposalPaginated.totalPages} onPage={setDisposalPage} start={disposalPaginated.start} end={disposalPaginated.end} total={disposalPaginated.total} label="records" ariaLabel="Disposal logs pagination" />
@@ -1318,38 +1342,14 @@ export default function AdminInventory() {
             <div className="card bg-white p-3 border h-100 d-flex flex-column">
               <h5 className="text-blue mb-3">All Stock Movements Audit History</h5>
               <div className="table-responsive" style={{ maxHeight: 'max(180px, calc(100vh - 500px))', overflowY: 'auto' }}>
-                <table className="table table-sm align-middle" style={{ fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Item</th>
-                      <th>Type</th>
-                      <th>Qty</th>
-                      <th>User</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logsPaginated.rows.map((m) => (
-                      <tr key={m.movementID}>
-                        <td className="text-nowrap">{new Date(m.movementDateTime).toLocaleString()}</td>
-                        <td><strong>{m.itemName}</strong></td>
-                        <td>
-                          <span className={`badge ${m.movementType === 'Stock In' ? 'text-bg-success' :
-                              m.movementType === 'Stock Out' ? 'text-bg-danger' :
-                                m.movementType === 'Borrow' ? 'text-bg-warning' :
-                                  m.movementType === 'Return' ? 'text-bg-info' : 'text-bg-danger'
-                            }`}>
-                            {m.movementType}
-                          </span>
-                        </td>
-                        <td className={m.quantity > 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                          {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
-                        </td>
-                        <td>{m.userEmail || 'System'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <DataTable
+                  columns={auditColumns}
+                  data={logsPaginated.rows}
+                  getRowId={(m) => String(m.movementID)}
+                  emptyText="No movements found."
+                  tableClassName="table-sm"
+                  style={{ fontSize: '0.85rem' }}
+                />
               </div>
               <div className="mt-auto">
                 <AdminPagination page={logsPaginated.safePage} totalPages={logsPaginated.totalPages} onPage={setLogsPage} start={logsPaginated.start} end={logsPaginated.end} total={logsPaginated.total} label="movements" ariaLabel="Stock movements pagination" />
