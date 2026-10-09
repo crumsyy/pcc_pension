@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { LineChart, BarChart, DoughnutChart } from '../../components/ReportsCharts';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import AdminPagination from '../../components/AdminPagination';
+import HeaderWidgetBoundary from '../../components/HeaderWidgetBoundary';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
@@ -1272,73 +1274,15 @@ export default function AdminReports() {
 
   return (
     <div className="pb-5 pcc-content-reveal">
-      {/* 4 CORE PILLAR REPORT CARDS (REQ076) */}
-      <div className="row g-3 mb-4 d-print-none">
-        {[
-          {
-            id: 'sales',
-            icon: 'bi-cash-coin',
-            title: 'Sales & Financials',
-            desc: 'Gross & Net revenue, Cash vs GCash breakdown, discounts, and payment folios.',
-            bg: '#2155B5'
-          },
-          {
-            id: 'occupancy',
-            icon: 'bi-building-check',
-            title: 'Occupancy & Utilization',
-            desc: 'Occupancy rates, room-by-room performance, room type demand, and peak dates.',
-            bg: '#198754'
-          },
-          {
-            id: 'inventory',
-            icon: 'bi-box-seam',
-            title: 'Inventory Report',
-            desc: 'Stock balances, consumable usage, stock movements audit trail, and replenishment alerts.',
-            bg: '#0891b2'
-          },
-          {
-            id: 'guests',
-            icon: 'bi-people-fill',
-            title: 'Guest History & Reservations',
-            desc: 'Guest stay records, repeat visitors, VIP guest spending, and reservation activity.',
-            bg: '#7c3aed'
-          }
-        ].map(cat => (
-          <div key={cat.id} className="col-12 col-sm-6 col-lg-3">
-            <div
-              className="card shadow-sm border-0 h-100 p-3 bg-white border-start border-4"
-              style={{
-                borderLeftColor: cat.bg,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease-in-out',
-                transform: report === cat.id ? 'translateY(-2px)' : 'none',
-                boxShadow: report === cat.id ? '0 4px 12px rgba(0,0,0,0.1)' : undefined
-              }}
-              onClick={() => handleSelectReport(cat.id)}
-            >
-              <div className="d-flex align-items-center gap-3">
-                <div className="rounded p-2 text-white" style={{ backgroundColor: cat.bg }}>
-                  <i className={`bi ${cat.icon}`} style={{ fontSize: '1.4rem' }}></i>
-                </div>
-                <div>
-                  <h6 className="fw-bold text-dark mb-0">{cat.title}</h6>
-                  <small className="text-muted" style={{ fontSize: '0.75rem' }}>{cat.desc}</small>
-                </div>
-              </div>
-              <button
-                type="button"
-                className={`btn btn-sm mt-3 w-100 fw-semibold ${report === cat.id ? 'btn-dark' : 'btn-outline-secondary'}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSelectReport(cat.id);
-                }}
-              >
-                {report === cat.id ? '✓ Active Report' : 'Select Report'}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* REPORT TYPE SELECTOR */}
+      <Tabs selectedKey={report} onSelectionChange={(key) => handleSelectReport(key)} className="mb-4 d-print-none">
+        <TabList aria-label="Report types">
+          <Tab id="sales">Sales & Financials</Tab>
+          <Tab id="occupancy">Occupancy & Utilization</Tab>
+          <Tab id="inventory">Inventory Report</Tab>
+          <Tab id="guests">Guest History & Reservations</Tab>
+        </TabList>
+      </Tabs>
 
       {/* MULTI-CRITERIA FILTER CONTROL CARD (REQ084) */}
       <div className="card shadow-sm border-0 mb-4 bg-white p-3 d-print-none" style={{ borderRadius: '8px' }}>
@@ -1705,6 +1649,9 @@ export default function AdminReports() {
             </div>
           </div>
 
+          {/* Report views remount per type (clean slate) and are isolated: a view
+              failure can never kill the page — switch types to recover. */}
+          <HeaderWidgetBoundary key={report}>
           {/* ================================================================= */}
           {/* REPORT VIEW 1: SALES & FINANCIALS */}
           {/* ================================================================= */}
@@ -2560,6 +2507,7 @@ export default function AdminReports() {
               </div>
             </div>
           )}
+          </HeaderWidgetBoundary>
         </div>
       ) : (
         <div className="text-center py-5 bg-white border rounded shadow-sm">

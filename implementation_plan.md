@@ -1,27 +1,26 @@
-# Implementation Plan — Users Page Compaction (Merge Top Rows + Compact Table)
+# Implementation Plan — Compaction Rollout, Reports Tabs, Crash Hardening
 
-## 1. Goal
-Eliminate the dead space between the create-button row and tabs; fit all 10 rows + footer on screen with breathing room. No logic/count/API changes.
+## 1. Goals
+(a) Users-style compaction (merged top rows, tightened cards, shared compact density, retuned caps) for rooms, amenities, products, inventory, discounts & promos; POs filter+table verified/aligned. (b) Reports crash on type-switch can never kill the page. (c) Report-type cards → shadcn Tabs. No API/count/logic changes.
 
-## 2. Current State (verified)
-- `UsersClient.js`: separate create-button row, `Tabs mb-3`, filter card `mb-4 p-1.25rem`, table scroller capped `calc(100vh - 280px)`, standard-density rows (~55px with 32px action buttons). Footer already renders — the waste is vertical rhythm, not clipping logic.
+## 2. Findings
+- Charts are hand-rolled SVG (no canvas leak). Crash likely comes from transitional render states when switching types (reportData null/stale-shaped) with no boundary — production then dies instead of degrading.
+- Each target page has the same rhythm as users had: separate create-button row + tabs + roomy cards + tall rows.
 
 ## 3. Scope
-- IN: `UsersClient.js` top-row merge + spacing + table cap; one `.users-compact` CSS block (28px action buttons, tighter cells/badges) mirroring the proven `po-compact` pattern.
-- OUT: counts, filters, pagination, modals, APIs.
+- IN: shared `.table-compact` CSS (one block covering the 5 pages; po-/users- variants left untouched); per-page merge/tighten/cap edits; reports Tabs conversion; per-view remount `key={report}` + null-shape guards + error boundary around report views.
+- OUT: APIs, counts, filters, sorting.
 
 ## 4. Design
-- Single top row: tabs left, create button right (`justify-content-between`), `mb-2`.
-- Filter card `mb-3`, padding `1rem`; table card padding `1rem`.
-- `.users-compact` density: cells `.3rem`, action buttons 28px/`.8rem`, badges `.68rem` → ~42px rows.
-- Scroller cap → `max(200px, calc(100vh - 300px))` so 10 compact rows show fully at laptop heights with the footer visible; short screens fall back to in-table scroll.
+- Compaction recipe per page: tabs + create button share one `mb-2` row; filter/table cards `mb-3` + `1rem` padding; container gains `table-compact`; scroller caps retuned so footers sit on screen with whitespace (report exact reserves per page).
+- Reports: `Tabs selectedKey={report} onSelectionChange={handleSelectReport}` with the 4 full labels; views render under `key={report}` (clean slate per switch, kills stale-shape crashes); boundary fallback card ("Report failed to load, pick another type") if anything still throws.
+- PO: verify filter/table match the pattern; adjust only if deviating.
 
 ## 5. Steps
-1. Merge + spacing + density + cap. 2. Lint + build. 3. Walkthrough; no commit/push until `"push"`.
-4. If dead space persists after this (i.e., not inter-row rhythm), I'll need a DevTools element id from you to target it exactly.
+1. CSS block + 5 page compactions + PO check (subagents, no commits). 2. Reports tabs + hardening (direct). 3. Lint + build + manual incl. rapid type-switching. 4. Walkthrough; no commit/push until `"push"`.
 
 ## 6. Acceptance
-- No dead gap; 10 rows + footer visible with room to spare at ~870px viewport; build passes.
+- All six pages compact with visible footers; report switching never kills the page (boundary + remount); tabs styled; build passes.
 
 ## 7. Risks
-- Denser rows/buttons (still ≥28px, desktop admin context) — stated.
+- Remount per report type discards per-view scroll position — acceptable (fresh data anyway).

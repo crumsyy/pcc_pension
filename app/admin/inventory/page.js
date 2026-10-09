@@ -686,7 +686,7 @@ export default function AdminInventory() {
   const lowStockItems = items.filter(item => item.availableQty <= item.minStock);
 
   return (
-    <div className="pcc-page-container pcc-content-reveal">
+    <div className="pcc-page-container table-compact pcc-content-reveal">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -699,7 +699,17 @@ export default function AdminInventory() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-end align-items-center mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        {/* Navigation Tabs */}
+        <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)}>
+          <TabList aria-label="Inventory sections">
+            <Tab id="dashboard">Dashboard</Tab>
+            <Tab id="stocks">Current Stocks</Tab>
+            <Tab id="batches">Batch Tracker</Tab>
+            <Tab id="borrow">Borrowing System</Tab>
+            <Tab id="logs">Movement Logs</Tab>
+          </TabList>
+        </Tabs>
         <Link href="/admin/purchase-orders" className="btn btn-pcc-primary">
           + Create Purchase Order
         </Link>
@@ -712,20 +722,9 @@ export default function AdminInventory() {
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)} className="mb-4">
-        <TabList aria-label="Inventory sections">
-          <Tab id="dashboard">Dashboard</Tab>
-          <Tab id="stocks">Current Stocks</Tab>
-          <Tab id="batches">Batch Tracker</Tab>
-          <Tab id="borrow">Borrowing System</Tab>
-          <Tab id="logs">Movement Logs</Tab>
-        </TabList>
-      </Tabs>
-
       {/* DASHBOARD TAB */}
       {activeTab === 'dashboard' && (
-        <div className="row g-3 mb-4">
+        <div className="row g-3 mb-3">
           <div className="col-6 col-md-4 col-xl-2">
             <div
               className="card-module h-100 p-3 rounded"
@@ -896,7 +895,7 @@ export default function AdminInventory() {
           </div>
 
           {/* Recent movements overview */}
-          <div className="col-12 mt-4">
+          <div className="col-12 mt-3">
             <div className="card shadow-sm border-0 bg-white p-3">
               <h5 style={{ color: 'var(--pcc-blue)', fontWeight: 600 }} className="mb-3">Recent Stock Movements</h5>
               <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 500px))', overflowY: 'auto' }}>
@@ -1009,7 +1008,7 @@ export default function AdminInventory() {
       {/* CURRENT STOCKS TAB */}
       {activeTab === 'stocks' && (
         <div className="card-module pcc-table-card bg-white p-3 rounded border">
-          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
+          <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 380px))', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">
               <thead>
                 <tr>
@@ -1101,7 +1100,7 @@ export default function AdminInventory() {
       {/* BATCH TRACKER TAB */}
       {activeTab === 'batches' && (
         <div className="card-module pcc-table-card bg-white p-3 rounded border">
-          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
+          <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 380px))', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">
               <thead>
                 <tr>
@@ -1198,7 +1197,7 @@ export default function AdminInventory() {
       {activeTab === 'borrow' && (
         <div className="card-module pcc-table-card bg-white p-3 rounded border">
           <h5 className="text-blue mb-3">Asset Borrow Transactions</h5>
-          <div className="table-responsive" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
+          <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 420px))', overflowY: 'auto' }}>
             <table className="table align-middle table-hover">
               <thead>
                 <tr>
@@ -1247,7 +1246,7 @@ export default function AdminInventory() {
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border h-100 d-flex flex-column">
               <h5 className="text-blue mb-3">Disposed Inventory Logs</h5>
-              <div className="table-responsive" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <DataTable
                   columns={disposalColumns}
                   data={disposalPaginated.rows}
@@ -1266,7 +1265,7 @@ export default function AdminInventory() {
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border h-100 d-flex flex-column">
               <h5 className="text-blue mb-3">All Stock Movements Audit History</h5>
-              <div className="table-responsive" style={{ maxHeight: 'max(180px, calc(100vh - 500px))', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <DataTable
                   columns={auditColumns}
                   data={logsPaginated.rows}

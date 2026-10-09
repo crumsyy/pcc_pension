@@ -2406,6 +2406,20 @@ body.dark-theme .qr-payment-container h4 {
 .users-compact .table .badge {
   font-size: 0.68rem;
 }
+/* Shared compact density for management tables (same proven pattern) */
+.table-compact .table-responsive table th,
+.table-compact .table-responsive table td {
+  padding-top: 0.3rem !important;
+  padding-bottom: 0.3rem !important;
+}
+.table-compact .table .action-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+}
+.table-compact .table .badge {
+  font-size: 0.68rem;
+}
 .admin-inter,
 .admin-inter *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;

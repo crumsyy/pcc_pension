@@ -518,7 +518,7 @@ export default function RoomsClient() {
   const { totalPages, safePage, rows: pagedRooms, start, end, total } = paginate(rooms, page, ADMIN_PAGE_SIZE);
 
   return (
-    <div className="pcc-page-container pcc-content-reveal">
+    <div className="pcc-page-container table-compact pcc-content-reveal">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -531,22 +531,21 @@ export default function RoomsClient() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-end align-items-center mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        {/* Tabs for Rooms vs Archived */}
+        <Tabs selectedKey={showArchived ? 'archived' : 'rooms'} onSelectionChange={(key) => { if (key === 'archived') handleShowArchivedTab(); else handleShowActive(); }}>
+          <TabList aria-label="Room lists">
+            <Tab id="rooms">Rooms</Tab>
+            <Tab id="archived">Archived Rooms</Tab>
+          </TabList>
+        </Tabs>
         <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
           + Create Room
         </button>
       </div>
 
-      {/* Tabs for Rooms vs Archived */}
-      <Tabs selectedKey={showArchived ? 'archived' : 'rooms'} onSelectionChange={(key) => { if (key === 'archived') handleShowArchivedTab(); else handleShowActive(); }} className="mb-3">
-        <TabList aria-label="Room lists">
-          <Tab id="rooms">Rooms</Tab>
-          <Tab id="archived">Archived Rooms</Tab>
-        </TabList>
-      </Tabs>
-
       {/* Search & Filters */}
-      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
           <div className="col-md-5">
             <input
@@ -580,8 +579,8 @@ export default function RoomsClient() {
       </div>
 
       {/* Rooms Table */}
-      <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+      <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
             <table className="table align-middle mb-0">
               <thead>
                 <tr>

@@ -522,7 +522,7 @@ export default function AdminDiscounts() {
 
 
   return (
-    <div className="pcc-page-container pcc-content-reveal">
+    <div className="pcc-page-container table-compact pcc-content-reveal">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -535,7 +535,15 @@ export default function AdminDiscounts() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-end align-items-center mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        {/* Tabs for Active vs Archived */}
+        <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)}>
+          <TabList aria-label="Discount and promotion lists">
+            <Tab id="active_discounts">Active Discounts</Tab>
+            <Tab id="active_promos">Active Promos</Tab>
+            <Tab id="archived">Archived Discounts &amp; Promos</Tab>
+          </TabList>
+        </Tabs>
         <div className="d-flex gap-2 align-items-center">
           {activeTab === 'active_discounts' && (
             <button className="btn btn-pcc-primary ms-2" onClick={openCreateDiscModal}>
@@ -550,17 +558,8 @@ export default function AdminDiscounts() {
         </div>
       </div>
 
-      {/* Tabs for Active vs Archived */}
-      <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)} className="mb-3">
-        <TabList aria-label="Discount and promotion lists">
-          <Tab id="active_discounts">Active Discounts</Tab>
-          <Tab id="active_promos">Active Promos</Tab>
-          <Tab id="archived">Archived Discounts &amp; Promos</Tab>
-        </TabList>
-      </Tabs>
-
       {/* Search Filter */}
-      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
           <div className="col-md-9">
             <input
@@ -582,7 +581,7 @@ export default function AdminDiscounts() {
       <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
           {/* Discounts Section */}
           {(activeTab === 'active_discounts' || activeTab === 'archived') && (
-            <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
               <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Discounts' : '🏷 Discounts'}</h4>
               <div className="table-responsive" style={{ maxHeight: 'max(220px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table align-middle">
@@ -636,7 +635,7 @@ export default function AdminDiscounts() {
 
           {/* Promotions Section */}
           {(activeTab === 'active_promos' || activeTab === 'archived') && (
-            <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
               <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Promos' : '🔥 Promotions'}</h4>
               <div className="table-responsive" style={{ maxHeight: 'max(220px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table align-middle">
