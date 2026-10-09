@@ -1,29 +1,28 @@
-# Implementation Plan — User Tabs, STF/GST IDs, ID Search
+# Implementation Plan — Users Tabs Polish, Guest Creation, Dashboard Cleaning Removal
 
 ## 1. Goals
-User Management: (a) Staffs | Guests tabs (shadcn-style Tabs). (b) Column back to "User ID" with role-prefixed codes (`STF-XXXXXX` staff, `GST-XXXXXX` guests). (c) Search matches User ID (the navigation key). No API/DB changes.
+(a) Guests tab drops the redundant Roles filter (search widens). (b) Per-tab create: Staff tab `+ Create Staff`, Guests tab `+ Create Guest` (new API branch writing `user` + `guest` rows). (c) User Management footer → shared shadcn `AdminPagination`. (d) Admin dashboard drops "Cleaning" displays. No DB changes.
 
-## 2. Current State (verified from prior work)
-- `UsersClient.js`: `toPublicUserCode` (unprefixed `USR-`), guests filtered out everywhere, `User Code` column + view-modal row, server-side `search` (debounced) matching name/email only, client pagination, staff-only create guards + Guest edit lock.
+## 2. Current State (verified in discussion)
+- `UsersClient.js`: tabs, role filter with per-tab options, hand-rolled pager, staff-only create guards, Guest edit-role lock.
+- API `app/api/admin/users/route.js` `create` inserts `user` + `staff` only.
+- Dashboard (`DashboardClient.js`): 6 stat cards incl. Cleaning; board legend incl. Cleaning swatch; donut counts Cleaning internally.
 
 ## 3. Scope
-- IN: `UsersClient.js` only (tabs, prefixed codes, client-side search incl. code, header/modal relabel).
-- OUT: APIs, create-staff-only rule (kept), edit Guest lock (kept), other pages.
+- IN: role-filter conditional + grid tweak; tab-aware create button/modal; API guest-create branch (same validations); AdminPagination swap; remove Cleaning stat card + legend swatch.
+- OUT: schema, Cleaning-status data logic (donut math unchanged), other pages.
 
 ## 4. Design
-- Codes: `toPublicUserCode(userID, role)` → `STF-` (default) / `GST-` (role === 'Guest'), same hash otherwise; real `userID` stays in keys + API payloads.
-- Guests return to the table; `staffUsers`/`guestUsers` derived; Tabs (`components/ui/tabs.jsx`, controlled) with counts: `Staffs (N)` / `Guests (M)`; tab switch resets page + search + role filter.
-- Role filter options follow the tab (staff roles vs Guest); create/edit guards unchanged.
-- Search moves client-side for this page (list is tiny; server already returns full sets): drop `search` from API query + cache key, filter the tab's set by name/email/code (code matched case-insensitively with and without dash); placeholder updated; committed/instant states collapse to one (debounce no longer needed — filtering is local and instant).
-- Header + view-modal row relabeled "User ID".
+- Guests tab hides role filter, search becomes `col-md-7`; Staff tab unchanged.
+- Create modal shared, role locked per tab (title/buttons swap); API validates Guest roleID like staff, then `user` + `guest` insert in transaction; edit/suspend untouched (userID-based).
+- AdminPagination with same page state/props; empty-state row kept.
+- Dashboard: 5 stat cards; legend without Cleaning; grey fallback tile retained.
 
 ## 5. Steps
-1. Codes, tabs, search rework, relabels.
-2. `npx eslint` + `npm run build`; manual: tabs + counts, STF/GST display, ID search (full + partial), guests visible but not creatable, pagination per tab.
-3. Update `walkthrough.md`; no commit/push until exact keyword `"push"`.
+1. Filters + create UI + API branch. 2. Pagination swap. 3. Dashboard removals. 4. Lint + build + manual. 5. Walkthrough; no commit/push until `"push"`.
 
 ## 6. Acceptance
-- Staffs/Guests tabs with counts; IDs prefixed correctly and stable; typing an ID finds the user; guests listed, staff-only creation intact; build passes.
+- Guests tab has no role filter; per-tab create works with correct tables; pager identical behavior; no Cleaning card/legend; build passes.
 
 ## 7. Risks
-- Search no longer hits the server (local-only) — fine at this table size and strictly faster; noted.
+- First admin-side guest creation path — verify transaction + login-ability of created guest.

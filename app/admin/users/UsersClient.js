@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
+import AdminPagination from '../../components/AdminPagination';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import ProvinceCityInputs from '../../components/ProvinceCityInputs';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
@@ -58,6 +59,7 @@ export default function UsersClient() {
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'view' | 'edit' | 'suspend' | null
+  const [createKind, setCreateKind] = useState('staff'); // 'staff' | 'guest', captured when the create modal opens
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
@@ -228,12 +230,17 @@ export default function UsersClient() {
       return;
     }
     const createRole = roles.find((r) => String(r.roleID) === String(formData.roleID));
-    if (!createRole || createRole.role === 'Guest') {
+    if (createKind === 'guest') {
+      if (!createRole || createRole.role !== 'Guest') {
+        showAlert('error', 'Validation Error', 'Guest accounts must use the Guest role.');
+        return;
+      }
+    } else if (!createRole || createRole.role === 'Guest') {
       showAlert('error', 'Validation Error', 'Only Administrator or Receptionist accounts can be created here.');
       return;
     }
 
-    showConfirm('Create Account', 'Create this new user/staff account?', async () => {
+    showConfirm(createKind === 'guest' ? 'Create Guest' : 'Create Staff', createKind === 'guest' ? 'Create this new guest account?' : 'Create this new staff account?', async () => {
       try {
         const res = await fetch('/api/admin/users', {
           method: 'POST',
@@ -252,7 +259,7 @@ export default function UsersClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create user');
 
-        showAlert('success', 'Success', data.message || 'Staff created successfully');
+        showAlert('success', 'Success', data.message || (createKind === 'guest' ? 'Guest created successfully' : 'Staff created successfully'));
         setActiveModal(null);
         clientCache.invalidate('admin-users');
         fetchUsers();
@@ -417,6 +424,9 @@ export default function UsersClient() {
   };
 
   const openCreateModal = () => {
+    const kind = activeTab === 'guests' ? 'guest' : 'staff';
+    setCreateKind(kind);
+    const guestRole = roles.find((r) => r.role === 'Guest');
     setFormData({
       firstName: '',
       middleName: '',
@@ -426,7 +436,7 @@ export default function UsersClient() {
       city: '',
       province: '',
       contact: '',
-      roleID: '',
+      roleID: kind === 'guest' && guestRole ? String(guestRole.roleID) : '',
       email: '',
       password: '',
       newPassword: '',
@@ -481,17 +491,6 @@ export default function UsersClient() {
   const pagedUsers = searchedUsers.slice((safePage - 1) * USERS_PAGE_SIZE, safePage * USERS_PAGE_SIZE);
   const pageStart = searchedUsers.length === 0 ? 0 : (safePage - 1) * USERS_PAGE_SIZE + 1;
   const pageEnd = Math.min(safePage * USERS_PAGE_SIZE, searchedUsers.length);
-  const pageNumbers = (() => {
-    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-    const nums = [1];
-    const start = Math.max(2, safePage - 1);
-    const end = Math.min(totalPages - 1, safePage + 1);
-    if (start > 2) nums.push('…');
-    for (let n = start; n <= end; n++) nums.push(n);
-    if (end < totalPages - 1) nums.push('…');
-    nums.push(totalPages);
-    return nums;
-  })();
 
   return (
     <div className="pcc-page-container pcc-content-reveal">
@@ -513,7 +512,7 @@ export default function UsersClient() {
           <h2 className="section-title mb-0">User Management</h2>
         </div>
         <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
-          + Create User
+          {activeTab === 'guests' ? '+ Create Guest' : '+ Create Staff'}
         </button>
       </div>
 
@@ -530,7 +529,7 @@ export default function UsersClient() {
       {/* Search & Filters */}
       <div className="card-module mb-4" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
-          <div className="col-md-4">
+          <div className={activeTab === 'guests' ? 'col-md-7' : 'col-md-4'}>
             <input
               type="text"
               className="form-control"
@@ -539,6 +538,7 @@ export default function UsersClient() {
               onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
+          {activeTab !== 'guests' && (
           <div className="col-md-3">
             <select
               className="form-select"
@@ -553,6 +553,7 @@ export default function UsersClient() {
               ))}
             </select>
           </div>
+          )}
           <div className="col-md-3">
             <select
               className="form-select"
@@ -646,38 +647,16 @@ export default function UsersClient() {
               </tbody>
             </table>
           </div>
-          <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 mt-3">
-            <small className="text-muted">
-              Showing {pageStart}–{pageEnd} of {searchedUsers.length} users
-            </small>
-            <nav aria-label="Users pagination">
-              <ul className="pagination pagination-sm mb-0">
-                <li className={`page-item ${safePage <= 1 ? 'disabled' : ''}`}>
-                  <button type="button" className="page-link" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
-                    Prev
-                  </button>
-                </li>
-                {pageNumbers.map((n, idx) => (
-                  n === '…' ? (
-                    <li key={`ellipsis-${idx}`} className="page-item disabled">
-                      <span className="page-link">…</span>
-                    </li>
-                  ) : (
-                    <li key={n} className={`page-item ${n === safePage ? 'active' : ''}`}>
-                      <button type="button" className="page-link" onClick={() => setPage(n)}>
-                        {n}
-                      </button>
-                    </li>
-                  )
-                ))}
-                <li className={`page-item ${safePage >= totalPages ? 'disabled' : ''}`}>
-                  <button type="button" className="page-link" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
-                    Next
-                  </button>
-                </li>
-              </ul>
-            </nav>
-          </div>
+          <AdminPagination
+            page={safePage}
+            totalPages={totalPages}
+            onPage={setPage}
+            start={pageStart}
+            end={pageEnd}
+            total={searchedUsers.length}
+            label="users"
+            ariaLabel="Users pagination"
+          />
       </div>
 
       {/* ==========================================
@@ -691,7 +670,7 @@ export default function UsersClient() {
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Create User</h5>
+                <h5 className="modal-title">{createKind === 'guest' ? 'Create Guest' : 'Create Staff'}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleCreateSubmit}>
@@ -734,12 +713,16 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Role <span className="required-asterisk">*</span></label>
+                      {createKind === 'guest' ? (
+                        <input type="text" className="form-control" value="Guest" disabled />
+                      ) : (
                       <select name="roleID" className="form-select" required value={formData.roleID} onChange={handleInputChange}>
                         <option value="" disabled>Select role</option>
                         {staffRoles.map(r => (
                           <option key={r.roleID} value={r.roleID}>{r.role}</option>
                         ))}
                       </select>
+                      )}
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Email Address <span className="required-asterisk">*</span></label>
@@ -790,7 +773,7 @@ export default function UsersClient() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="submit" className="btn btn-pcc-primary text-white">Create User</button>
+                  <button type="submit" className="btn btn-pcc-primary text-white">{createKind === 'guest' ? 'Create Guest' : 'Create Staff'}</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                 </div>
               </form>

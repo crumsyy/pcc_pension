@@ -128,6 +128,14 @@ export async function POST(request) {
       const hashedPassword = await bcrypt.hash(passwordVal, 10);
       const conn = await pool.getConnection();
 
+      // Resolve the role name so guests land in the guest table, not staff.
+      const roleRows = await dbQuery("SELECT role FROM role WHERE roleID = ?", [roleID]);
+      const roleName = roleRows.length > 0 ? roleRows[0].role : '';
+      if (!roleName || (roleName !== 'Guest' && roleName !== 'Administrator' && roleName !== 'Receptionist')) {
+        conn.release();
+        return NextResponse.json({ error: 'Invalid role selected.' }, { status: 400 });
+      }
+
       try {
         await conn.beginTransaction();
 
@@ -137,13 +145,20 @@ export async function POST(request) {
         );
         const uid = userResult.insertId;
 
-        await conn.execute(
-          "INSERT INTO staff(firstName,middleName,lastName,gender,dateOfBirth,city,province,contact,email,userID) VALUES(?,?,?,?,?,?,?,?,?,?)",
-          [fname, mname, lname, gender, dob, city, province, contact, email, uid]
-        );
+        if (roleName === 'Guest') {
+          await conn.execute(
+            "INSERT INTO guest(firstName,middleName,lastName,gender,dateOfBirth,city,province,contact,email,userID) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            [fname, mname, lname, gender, dob, city, province, contact, email, uid]
+          );
+        } else {
+          await conn.execute(
+            "INSERT INTO staff(firstName,middleName,lastName,gender,dateOfBirth,city,province,contact,email,userID) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            [fname, mname, lname, gender, dob, city, province, contact, email, uid]
+          );
+        }
 
         await conn.commit();
-        return NextResponse.json({ success: true, message: 'Staff account created successfully.' });
+        return NextResponse.json({ success: true, message: roleName === 'Guest' ? 'Guest account created successfully.' : 'Staff account created successfully.' });
       } catch (e) {
         await conn.rollback();
         throw e;

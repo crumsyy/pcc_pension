@@ -154,7 +154,6 @@ export default function DashboardClient({ userName }) {
     'Occupied': '#2155B5',
     'Reserved': '#f0a500',
     'Under Maintenance': '#dc3545',
-    'Cleaning': '#17a2b8',
   };
 
   const totalRoomsCount = rooms ? rooms.length : 0;
@@ -200,7 +199,6 @@ export default function DashboardClient({ userName }) {
           ['Occupied', roomStats['Occupied'] || 0, '#2155B5'],
           ['Reserved', roomStats['Reserved'] || 0, '#2155B5'],
           ['Maintenance', roomStats['Under Maintenance'] || 0, '#2155B5'],
-          ['Cleaning', roomStats['Cleaning'] || 0, '#2155B5'],
         ].map(([label, val, color], idx) => (
           <div className="col-6 col-md-4 col-xl-2" key={idx}>
             <div

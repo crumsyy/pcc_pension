@@ -1,15 +1,16 @@
-# Walkthrough — User Tabs, STF/GST IDs, ID Search
+# Walkthrough — Users Tabs Polish, Guest Creation, Cleaning Removal
 
 ## Changes (no commit/push yet)
-- `UsersClient.js` only: Staffs/Guests tabs (shadcn Tabs, with counts) replace guest-hiding; IDs role-prefixed (`STF-`/`GST-`, same hash); column + view modal relabeled "User ID"; search is local/instant across name/email/code (full, partial, dashless); tab switch resets page/search/role; role options follow tab; staff-only creation + Guest edit lock kept.
+- Users: role filter hidden on Guests tab (search widens); header button + modal + confirm + success follow the tab (`Create Staff`/`Create Guest`); Guest create locks role to Guest; API `create` branches into `guest` vs `staff` tables (same validations, role allow-list, transactional); footer → shared shadcn `AdminPagination` (hand pager deleted).
+- Dashboard: Cleaning stat card + legend swatch removed (5 cards); donut math + detail badges untouched.
 
 ## Verification
-- `npx eslint`: only pre-existing findings; no leftovers (`searchInput`/`USR-` gone).
+- `npx eslint`: only pre-existing findings on untouched lines.
 - `npm run build` success, 97/97 pages.
 
 ## Manual check
-1. Tabs show correct counts; switching resets filters.
-2. IDs prefixed and stable; typing full/partial ID (with/without dash) finds the user.
-3. Guests listed; create still staff-only; pagination per tab.
+1. Guests tab: no role filter, wide search; per-tab Create buttons/modals/role locking.
+2. Create a guest → GST- ID appears in Guests tab and can log in; create staff unchanged.
+3. Users pager renders shadcn-style; dashboard shows 5 cards, no Cleaning swatch.
 
 Awaiting review. Say `"push"` only when you want commit + push.
