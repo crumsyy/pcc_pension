@@ -1,16 +1,16 @@
-# Walkthrough — Palette TDZ Crash Fix (The Real Cause)
-
-## Root cause (verified by reading)
-My rewrite referenced `safeActive` inside the render pass before its declaration line — a temporal-dead-zone `ReferenceError` on EVERY render with results. The error boundary swallowed it, so the palette silently never appeared: button visible, click seemingly dead, typing impossible. No deployment or browser issue.
+# Walkthrough — Inline Header Searchbar
 
 ## Changes (no commit/push yet)
-- `command.jsx`: count-first ordering (`countKids` → `safeActive` → render), single positional counters, keyboard Enter/hover aligned to the same positions. No identity tracking, no TDZ hazard.
+- Header search is now a directly typeable input (no dialog): typing filters sidebar pages live with debounced room/stay results beneath it; hover/arrows highlight, click/mousedown/Enter navigates, Esc or click-away closes, Ctrl+K focuses. Reuses the proven keyword + room fetch logic.
+- Dead dialog block removed; new dropdown styles added.
 
 ## Verification
-- `npx eslint`: 0 errors (1 resubscribe warning, harmless).
+- `npx eslint`: 0 errors (2 pre-existing img warnings).
 - `npm run build` success, 97/97 pages.
 
 ## Manual check
-1. Header search opens with Pages listed; type "rooms" → Room Management; Enter/click navigates; room results appear and navigate prefiltered.
+1. Click the bar and type immediately; suggestions narrow per keystroke.
+2. Type "rooms" → Room Management; Enter/click navigates (room picks land prefiltered).
+3. Esc closes; Ctrl+K refocuses; empty query shows all pages.
 
 Awaiting review. Say `"push"` only when you want commit + push.

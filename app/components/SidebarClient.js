@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import NotificationBell from './NotificationBell';
@@ -18,7 +18,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { CommandDialog, CommandGroup, CommandItem } from '@/components/ui/command';
+import { CommandGroup, CommandItem } from '@/components/ui/command';
 import { ADMIN_NAV, RECEPTIONIST_NAV, pageTitleFor } from '@/lib/portalMeta';
 import {
   Dialog,
@@ -50,10 +50,13 @@ export default function SidebarClient({ session, role, children }) {
   const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchActive, setSearchActive] = useState(0);
   const [profileOpen, setProfileOpen] = useState(false);
   const [roomResults, setRoomResults] = useState([]);
   const roomTimer = useRef(null);
+  const searchInputRef = useRef(null);
 
   const userInitial = session?.fullName ? session.fullName.trim().charAt(0).toUpperCase() : 'U';
 
@@ -102,9 +105,46 @@ export default function SidebarClient({ session, role, children }) {
     }, 300);
   }, [role]);
 
-  const goPalettePath = (path) => {
-    setPaletteOpen(false);
+  const goSearchPath = (path) => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setRoomResults([]);
+    setSearchActive(0);
+    if (searchInputRef.current) searchInputRef.current.blur();
     router.push(path);
+  };
+
+  const searchDestinations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return paletteDestinations;
+    return paletteDestinations.filter((d) =>
+      q.split(/\s+/).every((part) => `${d.label} ${d.keywords}`.toLowerCase().includes(part))
+    );
+  }, [searchQuery, paletteDestinations]);
+
+  const searchVisibleCount = searchDestinations.length + roomResults.length;
+  const safeSearchActive = searchVisibleCount === 0 ? -1 : Math.min(searchActive, searchVisibleCount - 1);
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSearchActive((i) => Math.min(i + 1, Math.max(searchVisibleCount - 1, 0)));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSearchActive((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const dest = searchDestinations[safeSearchActive];
+      if (dest) {
+        goSearchPath(dest.path);
+        return;
+      }
+      const rec = roomResults[safeSearchActive - searchDestinations.length];
+      if (rec) goSearchPath(rec.path);
+    } else if (e.key === 'Escape') {
+      setSearchOpen(false);
+      if (searchInputRef.current) searchInputRef.current.blur();
+    }
   };
 
   useEffect(() => {
@@ -113,7 +153,7 @@ export default function SidebarClient({ session, role, children }) {
         const t = e.target;
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
         e.preventDefault();
-        setPaletteOpen(true);
+        if (searchInputRef.current) searchInputRef.current.focus();
       }
     };
     document.addEventListener('keydown', onKey);
@@ -407,21 +447,86 @@ export default function SidebarClient({ session, role, children }) {
           </div>
           <div className="d-none d-md-flex flex-grow-1 justify-content-center px-4">
             <HeaderWidgetBoundary>
-            <button
-              type="button"
-              onClick={() => setPaletteOpen(true)}
-              className="btn btn-sm d-flex align-items-center gap-2 w-100"
-              style={{ maxWidth: '420px', backgroundColor: 'rgba(255,255,255,0.14)', color: '#fff', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '8px' }}
-              aria-label="Search pages and records"
-              title="Search pages and records (Ctrl+K)"
+            <div
+              className="header-search w-100"
+              style={{ maxWidth: '420px' }}
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) setSearchOpen(false);
+              }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <line x1="21" y1="21" x2="16.5" y2="16.5" />
-              </svg>
-              <span className="opacity-75 small flex-grow-1 text-start">Search pages, rooms…</span>
-              <kbd style={{ fontSize: '0.65rem', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: '4px', padding: '1px 6px' }}>Ctrl K</kbd>
-            </button>
+              <div className="d-flex align-items-center gap-2 w-100 header-search-input">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.5" y2="16.5" />
+                </svg>
+                <input
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSearchActive(0);
+                    setSearchOpen(true);
+                    handlePaletteQuery(e.target.value);
+                  }}
+                  onFocus={() => setSearchOpen(true)}
+                  onKeyDown={handleSearchKeyDown}
+                  className="header-search-field"
+                  placeholder="Search pages, rooms…"
+                  aria-label="Search pages and records"
+                />
+                <kbd style={{ fontSize: '0.65rem', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: '4px', padding: '1px 6px' }}>Ctrl K</kbd>
+              </div>
+              {searchOpen && (
+                <div className="header-search-drop">
+                  {searchDestinations.length > 0 && (
+                    <CommandGroup heading="Pages">
+                      {searchDestinations.map((d, pos) => (
+                          <CommandItem
+                            key={d.path}
+                            keywords={`${d.label} ${d.keywords}`}
+                            data-active={pos === safeSearchActive || undefined}
+                            onMouseMove={() => setSearchActive(pos)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              goSearchPath(d.path);
+                            }}
+                            onSelect={() => goSearchPath(d.path)}
+                          >
+                            <span>{d.label}</span>
+                            <span className="text-muted small ms-auto">{d.hint}</span>
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  )}
+                  {roomResults.length > 0 && (
+                    <CommandGroup heading={role === 'Administrator' ? 'Rooms' : 'Stays'}>
+                      {roomResults.map((r, idx) => {
+                        const pos = searchDestinations.length + idx;
+                        return (
+                          <CommandItem
+                            key={`${r.path}-${idx}`}
+                            keywords={r.keywords}
+                            data-active={pos === safeSearchActive || undefined}
+                            onMouseMove={() => setSearchActive(pos)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              goSearchPath(r.path);
+                            }}
+                            onSelect={() => goSearchPath(r.path)}
+                          >
+                            <span>{r.label}</span>
+                            <span className="text-muted small ms-auto">{r.hint}</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  )}
+                  {searchVisibleCount === 0 && (
+                    <div className="pcc-command-empty">No results found.</div>
+                  )}
+                </div>
+              )}
+            </div>
             </HeaderWidgetBoundary>
           </div>
           <div className="d-flex align-items-center gap-3">
@@ -469,30 +574,8 @@ export default function SidebarClient({ session, role, children }) {
         </main>
       </div>
 
-      {/* GLOBAL SEARCH PALETTE */}
-      <HeaderWidgetBoundary>
-      <CommandDialog key={paletteOpen ? 'palette-open' : 'palette-closed'} open={paletteOpen} onOpenChange={setPaletteOpen} onQueryChange={handlePaletteQuery} placeholder="Search pages, rooms, bookings…">
-        <CommandGroup heading="Pages">
-          {paletteDestinations.map((d) => (
-            <CommandItem key={d.path} keywords={`${d.label} ${d.keywords}`} onSelect={() => goPalettePath(d.path)}>
-              <span>{d.label}</span>
-              <span className="text-muted small ms-auto">{d.hint}</span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-        {roomResults.length > 0 && (
-          <CommandGroup heading={role === 'Administrator' ? 'Rooms' : 'Stays'}>
-            {roomResults.map((r, idx) => (
-              <CommandItem key={`${r.path}-${idx}`} keywords={r.keywords} onSelect={() => goPalettePath(r.path)}>
-                <span>{r.label}</span>
-                <span className="text-muted small ms-auto">{r.hint}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-      </CommandDialog>
-
       {/* PROFILE DIALOG */}
+      <HeaderWidgetBoundary>
       <DialogTrigger isOpen={profileOpen} onOpenChange={setProfileOpen}>
         <button type="button" style={{ display: 'none' }} tabIndex={-1} aria-hidden="true" />
         <Dialog>

@@ -1,24 +1,25 @@
-# Implementation Plan — Rewrite Palette Filtering (Single Pass, No Identity Tracking)
+# Implementation Plan — Inline Header Searchbar with Suggestions
 
-## 1. Goals
-Header search opens every time with correct live results; typing filters; Enter/click navigates. Same UI/API, no backend changes.
+## 1. Goal
+Header search becomes a directly typeable input; matches drop down beneath it in place (MEDIPRIME-style). No dialog. No API changes.
 
-## 2. Root Cause (verified by reading)
-`CommandList` tracks results in a `Set` of element object identities, but `Children.map/toArray/cloneElement` all mint new identities — matches can never equal, so the list renders empty/broken and the control feels dead (button itself is fine and deployed).
+## 2. Current State (verified from screenshot)
+Palette dialog opens and lists correctly — mechanics proven. Only the interaction shape changes.
 
 ## 3. Scope
-- IN: `components/ui/command.jsx` `CommandList` internals only (same props/children API; parents untouched).
-- OUT: everything else.
+- IN: `SidebarClient.js` header block only (+ small CSS for the inline dropdown panel).
+- OUT: dialog component (left in place, unused by header), destinations/room fetching, navigation targets.
 
 ## 4. Design
-- One recursive render pass: walk children in order, assign positional indexes, test each `CommandItem` against the query inline, collect the visible ones into a render-order array (ref) for Enter-pick; drop emptied groups. No Sets of elements, no cross-pass identity, no `pick()` re-walk. Keyboard/mouse drive a position index into the visible array.
+- Replace the search button with an inline `<input>` (same pill styling, magnifier icon, Ctrl+K hint). Typing filters destinations with the existing keyword algorithm + debounced room/stay fetch (reuse `handlePaletteQuery`).
+- Suggestions render in an absolutely-positioned card under the input reusing `pcc-command-item` styles; mouse hover highlights, click navigates; ArrowUp/Down + Enter keyboard support; Esc or outside-click closes; Ctrl+K focuses the input.
+- Results capped as today (9 pages + 6 records).
 
 ## 5. Steps
-1. Rewrite. 2. Lint + build. 3. Walkthrough; no commit/push until `"push"`.
-4. Retest note: confirm Vercel Ready on the new commit + hard refresh before judging (stale deploys mimicked this bug twice).
+1. Header block rewrite. 2. Lint + build. 3. Walkthrough; no commit/push until `"push"`.
 
 ## 6. Acceptance
-- Open → Pages listed; type "rooms" → Room Management; Enter/click navigates; room results appear; build passes.
+- Click input → type immediately (no popup); suggestions narrow live; Enter/click navigates; Esc closes; empty query hides dropdown; build passes.
 
 ## 7. Risks
-- None structural; pure simplification of one component.
+- Dropdown overlap with page content: panel is absolutely positioned with high z-index inside the sticky header — verified pattern.
