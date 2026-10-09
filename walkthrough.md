@@ -1,16 +1,14 @@
-# Walkthrough — DataTable Foundation + Inventory Pilot
+# Walkthrough — shadcn-Style Switch Toggles
 
 ## Changes (no commit/push yet)
-- Installed `@tanstack/react-table@8.21.3` (pinned v8 — v9 renamed the APIs; verified against installed package).
-- New `components/ui/table.jsx` (Table/Header/Body/Row/Head/Cell primitives, Bootstrap-compatible classes) + `components/ui/data-table.jsx` (TanStack shell: header groups, rows, stable keys, empty states) + Inter enforcement CSS. Hand-built shadcn-style, not CLI code.
-- Pilot: inventory logs tab disposal + audit tables migrated with verbatim cell renderers (badges, colors, nowrap dates, sticky headers via existing global rule); pagination footers untouched.
+- New `components/ui/switch.jsx` (shadcn-style `isSelected/onChange/isDisabled` over React Aria) + sliding-thumb theme CSS. Hand-built, not CLI code.
+- Inventory stocks/batches filter bars: both Bootstrap switches replaced, same labels/handlers/filters.
 
 ## Verification
-- `npx eslint`: pre-existing inventory finding + expected TanStack memoization warning only.
+- `npx eslint`: only the pre-existing fetch-effect finding; new file clean.
 - `npm run build` success, 97/97 pages.
 
-## Manual check (pilot)
-1. Logs tab tables render identically (content, badges, actions, empty states); pagination works.
-2. Remaining 49 tables untouched this round — phased rollout continues on approval.
+## Manual check
+1. Both toggles animate thumb + track, filter identically, keyboard accessible, correct in dark theme.
 
 Awaiting review. Say `"push"` only when you want commit + push.

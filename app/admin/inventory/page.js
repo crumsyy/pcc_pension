@@ -11,6 +11,7 @@ import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/AdminPagination';
 import { DataTable } from '@/components/ui/data-table';
+import { Switch } from '@/components/ui/switch';
 
 export default function AdminInventory() {
   const router = useRouter();
@@ -1042,34 +1043,14 @@ export default function AdminInventory() {
             )}
             <div className={`col-md-${activeTab === 'batches' ? '1' : '3'} d-flex align-items-center justify-content-center`}>
               {activeTab === 'stocks' && (
-                <div className="form-check form-switch mb-0">
-                  <input 
-                    className="form-check-input" 
-                    type="checkbox" 
-                    role="switch" 
-                    id="lowStockOnlySwitch"
-                    checked={lowStockOnly}
-                    onChange={(e) => handleLowStockChange(e.target.checked)}
-                  />
-                  <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="lowStockOnlySwitch">
-                    ⚠️ Low Stock Only
-                  </label>
-                </div>
+                <Switch isSelected={lowStockOnly} onChange={handleLowStockChange}>
+                  <span className="small fw-bold text-danger">⚠️ Low Stock Only</span>
+                </Switch>
               )}
               {activeTab === 'batches' && (
-                <div className="form-check form-switch mb-0 ms-1">
-                  <input 
-                    className="form-check-input" 
-                    type="checkbox" 
-                    role="switch" 
-                    id="expiredOnlySwitch"
-                    checked={expiredOnly}
-                    onChange={(e) => handleExpiredChange(e.target.checked)}
-                  />
-                  <label className="form-check-label small fw-bold text-danger ms-1" htmlFor="expiredOnlySwitch">
-                    ⌛ Expired
-                  </label>
-                </div>
+                <Switch isSelected={expiredOnly} onChange={handleExpiredChange}>
+                  <span className="small fw-bold text-danger">⌛ Expired</span>
+                </Switch>
               )}
             </div>
             <div className="col-md-2">

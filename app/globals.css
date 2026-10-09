@@ -2565,6 +2565,76 @@ textarea,
 }
 
 /* =====================================================================
+   shadcn-style Switch (React Aria)
+   ===================================================================== */
+.pcc-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.pcc-switch[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.pcc-switch-track {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  border: 1px solid #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  flex-shrink: 0;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+.pcc-switch-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pcc-switch[data-selected] .pcc-switch-track {
+  background: var(--pcc-blue, #2155B5);
+  border-color: var(--pcc-blue, #2155B5);
+}
+.pcc-switch[data-selected] .pcc-switch-thumb {
+  transform: translateX(16px);
+}
+.pcc-switch[data-hovered] .pcc-switch-track {
+  border-color: var(--pcc-blue, #2155B5);
+}
+.pcc-switch[data-focus-visible] .pcc-switch-track {
+  outline: 2px solid var(--pcc-blue, #2155B5);
+  outline-offset: 2px;
+}
+.pcc-switch[data-pressed] .pcc-switch-thumb {
+  width: 20px;
+}
+.pcc-switch[data-selected][data-pressed] .pcc-switch-thumb {
+  transform: translateX(12px);
+}
+.pcc-switch-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #1F2A24;
+}
+[data-bs-theme="dark"] .pcc-switch-track,
+body.dark-theme .pcc-switch-track {
+  background: #475569;
+  border-color: #475569;
+}
+[data-bs-theme="dark"] .pcc-switch-label,
+body.dark-theme .pcc-switch-label {
+  color: #e2e8f0;
+}
+
+/* =====================================================================
    Sonner Toast Notification Overrides & High Z-Index
    ===================================================================== */
 [data-sonner-toaster] {
