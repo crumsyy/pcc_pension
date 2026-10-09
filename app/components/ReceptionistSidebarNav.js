@@ -30,8 +30,7 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick })
     ['/receptionist/bookings', icons?.bookings, 'Bookings'],
     ['/receptionist/checkin', icons?.checkin, 'Check-In / Out'],
     ['/receptionist/orders', icons?.orders, 'Orders'],
-    ['/receptionist/billing', icons?.billing, 'Billing'],
-    ['/receptionist/payments', icons?.payments, 'Payments'],
+    ['/receptionist/billing-checkout', icons?.billing, 'Billing & Checkout'],
     ['/receptionist/inquiries', icons?.inquiries, 'Inquiries']
   ];
 

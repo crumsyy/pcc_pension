@@ -2770,3 +2770,75 @@ body.dark-theme .pcc-dialog-close-btn {
   border-color: #475569;
   color: #e2e8f0;
 }
+
+/* =====================================================================
+   shadcn-style Tabs (React Aria)
+   ===================================================================== */
+.pcc-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.pcc-tab-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+}
+[data-bs-theme="dark"] .pcc-tab-list,
+body.dark-theme .pcc-tab-list {
+  background: #0f172a;
+  border-color: #334155;
+}
+.pcc-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  padding: 0.45rem 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.pcc-tab[data-hovered] {
+  color: #0f172a;
+}
+.pcc-tab[data-selected] {
+  background: #fff;
+  color: var(--pcc-blue, #2155B5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.pcc-tab[data-focus-visible] {
+  outline: 2px solid var(--pcc-blue, #2155B5);
+  outline-offset: 2px;
+}
+[data-bs-theme="dark"] .pcc-tab,
+body.dark-theme .pcc-tab {
+  color: #94a3b8;
+}
+[data-bs-theme="dark"] .pcc-tab[data-hovered],
+body.dark-theme .pcc-tab[data-hovered] {
+  color: #e2e8f0;
+}
+[data-bs-theme="dark"] .pcc-tab[data-selected],
+body.dark-theme .pcc-tab[data-selected] {
+  background: #1e293b;
+  color: #fff;
+}
+.pcc-tab-panel {
+  outline: none;
+}
+.pcc-tab-panel[data-focus-visible] {
+  outline: 2px solid var(--pcc-blue, #2155B5);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
