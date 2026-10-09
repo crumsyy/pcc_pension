@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Children, cloneElement, toArray } from 'react';
+import { useState, useEffect, useRef, useMemo, Children, cloneElement, toArray } from 'react';
 
 /**
  * Command palette (shadcn-style API).
@@ -19,9 +19,13 @@ import { useState, useEffect, useMemo, Children, cloneElement, toArray } from 'r
  */
 export function CommandDialog({ open, onOpenChange, onQueryChange, children, placeholder = 'Type to search…' }) {
   const [query, setQuery] = useState('');
+  const lastSentQuery = useRef(null);
 
   useEffect(() => {
-    if (open && typeof onQueryChange === 'function') onQueryChange(query);
+    if (open && typeof onQueryChange === 'function' && lastSentQuery.current !== query) {
+      lastSentQuery.current = query;
+      onQueryChange(query);
+    }
   }, [query, open, onQueryChange]);
 
   useEffect(() => {

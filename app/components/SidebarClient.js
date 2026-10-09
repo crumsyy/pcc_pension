@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import NotificationBell from './NotificationBell';
@@ -64,7 +64,7 @@ export default function SidebarClient({ session, role, children }) {
 
   const headerMeta = pageTitleFor(pathname);
 
-  const handlePaletteQuery = (q) => {
+  const handlePaletteQuery = useCallback((q) => {
     if (roomTimer.current) clearTimeout(roomTimer.current);
     const query = (q || '').trim();
     if (!query) {
@@ -100,7 +100,7 @@ export default function SidebarClient({ session, role, children }) {
         setRoomResults([]);
       }
     }, 300);
-  };
+  }, [role]);
 
   const goPalettePath = (path) => {
     setPaletteOpen(false);
