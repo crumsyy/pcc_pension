@@ -1,21 +1,23 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import ProvinceCityInputs from '../../components/ProvinceCityInputs';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import { isKnownProvince, isCityInProvince } from '@/lib/phLocations';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
-function toPublicUserCode(userID) {
+function toPublicUserCode(userID, role) {
   const id = parseInt(userID, 10);
-  if (isNaN(id)) return 'USR-XXXXXX';
+  const prefix = role === 'Guest' ? 'GST' : 'STF';
+  if (isNaN(id)) return `${prefix}-XXXXXX`;
   const hashed = ((id * 2654435761) >>> 0).toString(36).toUpperCase().padStart(6, '0').slice(-6);
-  return `USR-${hashed}`;
+  return `${prefix}-${hashed}`;
 }
 
 function roleBadgeClass(role) {
@@ -42,13 +44,12 @@ function isAtLeast18(dobUi) {
 
 export default function UsersClient() {
   const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState(search);
-  const searchTimer = useRef(null);
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('staff'); // 'staff' | 'guests'
 
-  const baseCacheKey = `admin-users:${search}_${roleFilter}_${statusFilter}`;
+  const baseCacheKey = `admin-users:${roleFilter}_${statusFilter}`;
   const cached = clientCache.get(baseCacheKey);
   const [users, setUsers] = useState(cached?.data?.users || []);
   const [roles, setRoles] = useState(cached?.data?.roles || []);
@@ -126,7 +127,6 @@ export default function UsersClient() {
   const fetchUsers = async (isBackground = false) => {
     try {
       const query = new URLSearchParams({
-        search,
         role: roleFilter,
         status: statusFilter,
       }).toString();
@@ -166,12 +166,13 @@ export default function UsersClient() {
         fetchUsers(true);
       }
     }
-  }, [search, roleFilter, statusFilter]);
+  }, [roleFilter, statusFilter]);
 
-  const handleSearchChange = (v) => { setSearchInput(v); if (searchTimer.current) clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => { setSearch(v); setPage(1); }, 350); };
+  const handleSearchChange = (v) => { setSearch(v); setPage(1); };
   const handleRoleFilterChange = (v) => { setRoleFilter(v); setPage(1); };
   const handleStatusFilterChange = (v) => { setStatusFilter(v); setPage(1); };
-  const handleClearFilters = () => { if (searchTimer.current) clearTimeout(searchTimer.current); setSearchInput(''); setSearch(''); setRoleFilter(''); setStatusFilter(''); setPage(1); };
+  const handleTabChange = (key) => { setActiveTab(key === 'guests' ? 'guests' : 'staff'); setSearch(''); setRoleFilter(''); setPage(1); };
+  const handleClearFilters = () => { setSearch(''); setRoleFilter(''); setStatusFilter(''); setPage(1); };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -460,11 +461,26 @@ export default function UsersClient() {
 
   const staffRoles = roles.filter((r) => r.role !== 'Guest');
   const staffUsers = users.filter((u) => u.role !== 'Guest');
-  const totalPages = Math.max(1, Math.ceil(staffUsers.length / USERS_PAGE_SIZE));
+  const guestUsers = users.filter((u) => u.role === 'Guest');
+  const tabUsers = activeTab === 'guests' ? guestUsers : staffUsers;
+  const tabRoleOptions = activeTab === 'guests' ? roles.filter((r) => r.role === 'Guest') : staffRoles;
+  const searchedUsers = tabUsers.filter((u) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    const code = toPublicUserCode(u.userID, u.role).toLowerCase();
+    const fullName = `${u.firstName || ''} ${u.middleName || ''} ${u.lastName || ''}`.toLowerCase();
+    return (
+      fullName.includes(q) ||
+      String(u.email || '').toLowerCase().includes(q) ||
+      code.includes(q) ||
+      code.replace('-', '').includes(q.replace(/-/g, ''))
+    );
+  });
+  const totalPages = Math.max(1, Math.ceil(searchedUsers.length / USERS_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pagedUsers = staffUsers.slice((safePage - 1) * USERS_PAGE_SIZE, safePage * USERS_PAGE_SIZE);
-  const pageStart = staffUsers.length === 0 ? 0 : (safePage - 1) * USERS_PAGE_SIZE + 1;
-  const pageEnd = Math.min(safePage * USERS_PAGE_SIZE, staffUsers.length);
+  const pagedUsers = searchedUsers.slice((safePage - 1) * USERS_PAGE_SIZE, safePage * USERS_PAGE_SIZE);
+  const pageStart = searchedUsers.length === 0 ? 0 : (safePage - 1) * USERS_PAGE_SIZE + 1;
+  const pageEnd = Math.min(safePage * USERS_PAGE_SIZE, searchedUsers.length);
   const pageNumbers = (() => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
     const nums = [1];
@@ -501,6 +517,14 @@ export default function UsersClient() {
         </button>
       </div>
 
+      {/* Staffs / Guests tabs */}
+      <Tabs selectedKey={activeTab} onSelectionChange={handleTabChange} className="mb-3">
+        <TabList aria-label="User types">
+          <Tab id="staff">Staffs ({staffUsers.length})</Tab>
+          <Tab id="guests">Guests ({guestUsers.length})</Tab>
+        </TabList>
+      </Tabs>
+
 
 
       {/* Search & Filters */}
@@ -510,8 +534,8 @@ export default function UsersClient() {
             <input
               type="text"
               className="form-control"
-              placeholder="Search by name or email..."
-              value={searchInput}
+              placeholder="Search by name, email, or User ID..."
+              value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
@@ -522,7 +546,7 @@ export default function UsersClient() {
               onChange={(e) => handleRoleFilterChange(e.target.value)}
             >
               <option value="">All Roles</option>
-              {staffRoles.map((r) => (
+              {tabRoleOptions.map((r) => (
                 <option key={r.roleID} value={r.role}>
                   {r.role}
                 </option>
@@ -554,7 +578,7 @@ export default function UsersClient() {
             <table className="table align-middle mb-0">
               <thead>
                 <tr>
-                  <th>User Code</th>
+                  <th>User ID</th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Contact</th>
@@ -565,7 +589,7 @@ export default function UsersClient() {
                 </tr>
               </thead>
               <tbody>
-                {staffUsers.length === 0 ? (
+                {searchedUsers.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="text-center text-muted py-4">
                       No users found.
@@ -576,7 +600,7 @@ export default function UsersClient() {
                     const isSelf = u.userID === currentUserID;
                     return (
                       <tr key={u.userID}>
-                        <td><strong className="text-pcc-blue">{toPublicUserCode(u.userID)}</strong></td>
+                        <td><strong className="text-pcc-blue">{toPublicUserCode(u.userID, u.role)}</strong></td>
                         <td>
                           <strong>
                             {u.middleName ? `${u.firstName} ${u.middleName.charAt(0).toUpperCase()}. ${u.lastName}` : `${u.firstName} ${u.lastName}`}
@@ -624,7 +648,7 @@ export default function UsersClient() {
           </div>
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 mt-3">
             <small className="text-muted">
-              Showing {pageStart}–{pageEnd} of {staffUsers.length} users
+              Showing {pageStart}–{pageEnd} of {searchedUsers.length} users
             </small>
             <nav aria-label="Users pagination">
               <ul className="pagination pagination-sm mb-0">
@@ -788,8 +812,8 @@ export default function UsersClient() {
                 <table className="table table-sm table-borderless mb-0">
                   <tbody>
                     <tr>
-                      <td className="text-muted" style={{ width: '35%' }}>User Code</td>
-                      <td><strong className="text-pcc-blue">{toPublicUserCode(selectedUser.userID)}</strong></td>
+                      <td className="text-muted" style={{ width: '35%' }}>User ID</td>
+                      <td><strong className="text-pcc-blue">{toPublicUserCode(selectedUser.userID, selectedUser.role)}</strong></td>
                     </tr>
                     <tr>
                       <td className="text-muted" style={{ width: '35%' }}>Full Name</td>
