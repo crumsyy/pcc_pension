@@ -72,36 +72,93 @@ export function CommandList({ children, query, onOpenChange }) {
     setActiveIndex(0);
   }
 
-  const items = useMemo(() => {
-    const found = [];
+  // Assign every CommandItem a stable ordinal in traversal order, then keep
+  // the ordinals matching the query. Ordinals (not object identity) survive
+  // React's Children cloning.
+  const { visible } = useMemo(() => {
+    const all = [];
     const walk = (nodes) => {
       const arr = Array.isArray(nodes) ? nodes : [nodes];
       arr.forEach((node) => {
         if (!node || typeof node !== 'object' || !('props' in node)) return;
-        if (node.type === CommandItem) found.push(node);
+        if (node.type === CommandItem) all.push(node);
         else if (node.props && node.props.children) walk(node.props.children);
       });
     };
     walk(children);
     const q = query.trim().toLowerCase();
-    if (!q) return found;
-    return found.filter((node) => {
+    const keep = new Set();
+    all.forEach((node, idx) => {
+      if (!q) {
+        keep.add(idx);
+        return;
+      }
       const hay = `${node.props.keywords || ''} ${typeof node.props.children === 'string' ? node.props.children : ''}`.toLowerCase();
-      return q.split(/\s+/).every((part) => hay.includes(part));
+      if (q.split(/\s+/).every((part) => hay.includes(part))) keep.add(idx);
     });
+    return { visible: keep, total: all.length };
   }, [children, query]);
+
+  // Visible ordinals in traversal order; keyboard position maps onto these.
+  const order = useMemo(() => [...visible].sort((a, b) => a - b), [visible]);
+  const activeOrdinal = order.length === 0 ? -1 : order[Math.min(activeIndex, order.length - 1)];
+
+  const ordinal = { current: 0 };
+  const renderNode = (node) => {
+    if (!node || typeof node !== 'object' || !('props' in node)) return node;
+    if (node.type === CommandItem) {
+      const idx = ordinal.current;
+      ordinal.current += 1;
+      if (!visible.has(idx)) return null;
+      return cloneElement(node, {
+        key: `cmd-item-${idx}`,
+        'data-active': idx === activeOrdinal || undefined,
+        onMouseMove: () => setActiveIndex(order.indexOf(idx)),
+      });
+    }
+    if (node.type === CommandGroup) {
+      const before = ordinal.current;
+      const rendered = toArray(node.props.children).map(renderNode).filter((n) => n !== null && n !== false);
+      if (rendered.length === 0) return null;
+      return cloneElement(node, { key: `cmd-group-${before}` }, rendered);
+    }
+    return node;
+  };
+
+  const pick = (idx) => {
+    let found = null;
+    let cursor = 0;
+    const walk = (nodes) => {
+      const arr = Array.isArray(nodes) ? nodes : [nodes];
+      for (const node of arr) {
+        if (!node || typeof node !== 'object' || !('props' in node)) continue;
+        if (node.type === CommandItem) {
+          if (visible.has(cursor) && cursor === idx) {
+            found = node;
+            return true;
+          }
+          cursor += 1;
+        } else if (node.props && node.props.children) {
+          if (walk(node.props.children)) return true;
+        }
+      }
+      return false;
+    };
+    walk(children);
+    return found;
+  };
 
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActiveIndex((i) => Math.min(i + 1, Math.max(items.length - 1, 0)));
+        setActiveIndex((i) => Math.min(i + 1, Math.max(order.length - 1, 0)));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setActiveIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        const node = items[activeIndex];
+        const node = pick(activeOrdinal);
         if (node && typeof node.props.onSelect === 'function') {
           node.props.onSelect();
           onOpenChange(false);
@@ -110,32 +167,14 @@ export function CommandList({ children, query, onOpenChange }) {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [items, activeIndex, onOpenChange]);
-
-  const visible = new Set(items);
+  }, [order, activeOrdinal, onOpenChange, pick]);
 
   return (
     <div className="pcc-command-list" role="listbox">
-      {items.length === 0 ? (
+      {visible.size === 0 ? (
         <div className="pcc-command-empty">No results found.</div>
       ) : (
-        Children.map(children, (child) => {
-          if (!child || typeof child !== 'object' || !('props' in child)) return child;
-          if (child.type === CommandGroup) {
-            const kept = toArray(child.props.children).filter((c) => visible.has(c));
-            if (kept.length === 0) return null;
-            return cloneElement(child, {}, kept.map((c) => {
-              const idx = items.indexOf(c);
-              return cloneElement(c, { 'data-active': idx === activeIndex || undefined, onMouseMove: () => setActiveIndex(idx) });
-            }));
-          }
-          if (child.type === CommandItem) {
-            if (!visible.has(child)) return null;
-            const idx = items.indexOf(child);
-            return cloneElement(child, { 'data-active': idx === activeIndex || undefined, onMouseMove: () => setActiveIndex(idx) });
-          }
-          return child;
-        })
+        Children.map(children, (child) => renderNode(child))
       )}
     </div>
   );
