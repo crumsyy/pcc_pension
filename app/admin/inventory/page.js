@@ -7,6 +7,7 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/AdminPagination';
@@ -712,68 +713,15 @@ export default function AdminInventory() {
       )}
 
       {/* Navigation Tabs */}
-      <ul className="nav nav-tabs mb-4 d-print-none">
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'dashboard' ? 'active' : 'text-secondary'}`}
-            style={{
-              borderBottom: activeTab === 'dashboard' ? '3px solid var(--pcc-blue)' : '',
-              color: activeTab === 'dashboard' ? 'var(--pcc-blue)' : ''
-            }}
-            onClick={() => handleTabChange('dashboard')}
-          >
-            Dashboard
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'stocks' ? 'active' : 'text-secondary'}`}
-            style={{
-              borderBottom: activeTab === 'stocks' ? '3px solid var(--pcc-blue)' : '',
-              color: activeTab === 'stocks' ? 'var(--pcc-blue)' : ''
-            }}
-            onClick={() => handleTabChange('stocks')}
-          >
-            Current Stocks
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'batches' ? 'active' : 'text-secondary'}`}
-            style={{
-              borderBottom: activeTab === 'batches' ? '3px solid var(--pcc-blue)' : '',
-              color: activeTab === 'batches' ? 'var(--pcc-blue)' : ''
-            }}
-            onClick={() => handleTabChange('batches')}
-          >
-            Batch Tracker
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'borrow' ? 'active' : 'text-secondary'}`}
-            style={{
-              borderBottom: activeTab === 'borrow' ? '3px solid var(--pcc-blue)' : '',
-              color: activeTab === 'borrow' ? 'var(--pcc-blue)' : ''
-            }}
-            onClick={() => handleTabChange('borrow')}
-          >
-            Borrowing System
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'logs' ? 'active' : 'text-secondary'}`}
-            style={{
-              borderBottom: activeTab === 'logs' ? '3px solid var(--pcc-blue)' : '',
-              color: activeTab === 'logs' ? 'var(--pcc-blue)' : ''
-            }}
-            onClick={() => handleTabChange('logs')}
-          >
-            Movement Logs
-          </button>
-        </li>
-      </ul>
+      <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)} className="mb-4">
+        <TabList aria-label="Inventory sections">
+          <Tab id="dashboard">Dashboard</Tab>
+          <Tab id="stocks">Current Stocks</Tab>
+          <Tab id="batches">Batch Tracker</Tab>
+          <Tab id="borrow">Borrowing System</Tab>
+          <Tab id="logs">Movement Logs</Tab>
+        </TabList>
+      </Tabs>
 
       {/* DASHBOARD TAB */}
       {activeTab === 'dashboard' && (

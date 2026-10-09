@@ -1,27 +1,27 @@
-# Implementation Plan — Sidebar-Driven Palette + Header Page Titles
+# Implementation Plan — shadcn Tabs (4 Pages) + Search-Crash Hardening
 
 ## 1. Goals
-(a) Palette results mirror the sidebar exactly (single source). (b) Page eyebrow + title move into the blue header (MEDIPRIME-style); page bodies keep only their action buttons. No API/DB changes.
+(a) Amenities, Products, Inventory, Discounts tabs → shadcn `Tabs` (same pattern as Rooms/Users). (b) Make it structurally impossible for header search to crash a page + diagnose the deployed crash. No API/logic changes.
 
-## 2. Current State (verified)
-- Palette destinations are hardcoded in `SidebarClient.js` (can drift from sidebar); page titles live in ~15 page-level header blocks (eyebrow + `section-title` + action buttons in one row).
-- Header left is static text (`headingText`); dashboard welcomes are personalized (`Welcome, {name}`).
+## 2. Findings
+- Tab structures verified: amenities (boolean active/archived), products (products/meals/archived), inventory (5 custom tabs), discounts (3 tabs) — all map to controlled `selectedKey`.
+- The black "couldn't load" page is the browser's tab-crash UI (renderer died), not an app 404/500. Code review of all new shell code found no unbounded loops (palette is dormant until opened; effects all have cleanups; cache keys bounded). Prime suspects are environmental (20 open tabs + extensions in screenshot) or a bad deploy. The deployed commit must be confirmed.
+- Regardless of cause, the shell currently has no error boundary: ANY exception in the header palette would kill the whole admin layout. That gets fixed no matter what.
 
 ## 3. Scope
-- IN: new `lib/portalMeta.js` (per-role NAV links + ROUTE_TITLES map); palette reads NAV links; header renders eyebrow/title from map by pathname; strip page-level title blocks (actions preserved, rows re-justified); dashboard welcomes stay (personalized exception, header shows "Dashboard").
-- OUT: APIs, actions, logic.
+- IN: 4 tab conversions; new `components/ui/error-boundary.jsx` wrapping the palette (and user menu) so failures degrade to a hidden/quiet state instead of a dead page; palette `try/catch` already present stays.
+- OUT: APIs, tab logic/counts, other pages.
 
 ## 4. Design
-- `portalMeta.js`: `ADMIN_NAV` / `RECEPTIONIST_NAV` [{path,label,keywords}] matching sidebar labels 1:1; `pageTitle(pathname)` with longest-prefix match + role fallbacks.
-- Header: eyebrow (white-50 caps) over title (bold white) left; search stays centered; right cluster unchanged.
-- Page edits: delete the left eyebrow/title div only; if the row keeps action buttons, switch row to `justify-content-end` (or keep spacing harmless); if nothing remains, drop the row. Tabs/filters/tables untouched.
-- Palette room/stay results + `?search=` prefill unchanged.
+- Tabs: controlled `selectedKey` + existing handlers (`handleShowActive`, `setActiveTab`, etc. — including inventory's per-tab page resets and products' catFilter presets) wired through `onSelectionChange`; labels identical (incl. "Rooms"-style renames? No renames requested — keep labels verbatim).
+- Error boundary: class component with `getDerivedStateFromError` + `componentDidCatch` (console only), fallback `null` for palette/menu regions.
 
 ## 5. Steps
-1. Meta lib + header + palette source swap. 2. Page header strips in batches (subagents, no commits). 3. Lint + build; manual per-route header titles, palette coverage, no orphaned empty rows. 4. Walkthrough; no commit/push until `"push"`.
+1. Tabs × 4. 2. Boundary + wraps. 3. Lint + build. 4. Walkthrough; no commit/push until `"push"`.
+5. Diagnostics I need from you (answer in chat): Vercel deployment for the latest commit shows Ready? Crash on every page or only discounts? Same crash in Incognito (extensions off)?
 
 ## 6. Acceptance
-- Every sidebar destination appears in palette with identical labels; every management route shows its title in the header with none duplicated in-body (dashboard welcome excepted); build passes.
+- Four pages on shadcn tabs with identical behavior; palette errors cannot kill the shell; build passes.
 
 ## 7. Risks
-- Large mechanical diff (~15 files) — mitigated by row-preserving edits + per-file build check. Dynamic titles beyond dashboard welcome: none found.
+- If the crash is environmental, code cannot fix it — diagnostics answers decide next steps.

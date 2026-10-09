@@ -8,6 +8,7 @@ import ThemeToggle from './ThemeToggle';
 import LoadingButton from './LoadingButton';
 import ReceptionistSidebarNav from './ReceptionistSidebarNav';
 import ModalPortal from './ModalPortal';
+import HeaderWidgetBoundary from './HeaderWidgetBoundary';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -405,6 +406,7 @@ export default function SidebarClient({ session, role, children }) {
             )}
           </div>
           <div className="d-none d-md-flex flex-grow-1 justify-content-center px-4">
+            <HeaderWidgetBoundary>
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
@@ -420,10 +422,12 @@ export default function SidebarClient({ session, role, children }) {
               <span className="opacity-75 small flex-grow-1 text-start">Search pages, rooms…</span>
               <kbd style={{ fontSize: '0.65rem', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: '4px', padding: '1px 6px' }}>Ctrl K</kbd>
             </button>
+            </HeaderWidgetBoundary>
           </div>
           <div className="d-flex align-items-center gap-3">
             {(role === 'Administrator' || role === 'Receptionist') && <NotificationBell />}
             <ThemeToggle />
+            <HeaderWidgetBoundary>
             <DropdownMenu>
               <DropdownMenuTrigger>
                 <button
@@ -456,6 +460,7 @@ export default function SidebarClient({ session, role, children }) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </HeaderWidgetBoundary>
           </div>
         </header>
 
@@ -465,6 +470,7 @@ export default function SidebarClient({ session, role, children }) {
       </div>
 
       {/* GLOBAL SEARCH PALETTE */}
+      <HeaderWidgetBoundary>
       <CommandDialog key={paletteOpen ? 'palette-open' : 'palette-closed'} open={paletteOpen} onOpenChange={setPaletteOpen} onQueryChange={handlePaletteQuery} placeholder="Search pages, rooms, bookings…">
         <CommandGroup heading="Pages">
           {paletteDestinations.map((d) => (
@@ -529,6 +535,7 @@ export default function SidebarClient({ session, role, children }) {
           </DialogFooter>
         </Dialog>
       </DialogTrigger>
+      </HeaderWidgetBoundary>
 
       {/* PCC THEME LOGOUT CONFIRMATION MODAL */}
       {showLogoutModal && (

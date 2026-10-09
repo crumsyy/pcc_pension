@@ -5,6 +5,7 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -356,24 +357,12 @@ export default function AdminAmenities() {
       </div>
 
       {/* Tabs for Active vs Archived */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={handleShowActive}
-          >
-            Active Amenities
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={handleShowArchivedTab}
-          >
-            Archived Amenities
-          </button>
-        </li>
-      </ul>
+      <Tabs selectedKey={showArchived ? 'archived' : 'active'} onSelectionChange={(key) => { if (key === 'archived') handleShowArchivedTab(); else handleShowActive(); }} className="mb-3">
+        <TabList aria-label="Amenity lists">
+          <Tab id="active">Active Amenities</Tab>
+          <Tab id="archived">Archived Amenities</Tab>
+        </TabList>
+      </Tabs>
 
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>

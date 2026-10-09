@@ -5,6 +5,7 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -411,32 +412,13 @@ export default function AdminProducts() {
       )}
 
       {/* Tabs for Products, Cooked Meals, and Archived */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'products' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => handleTabChange('products')}
-          >
-            Active Products
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'meals' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => handleTabChange('meals')}
-          >
-            Cooked Meals
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'archived' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => handleTabChange('archived')}
-          >
-            Archived Items
-          </button>
-        </li>
-      </ul>
+      <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)} className="mb-3">
+        <TabList aria-label="Product lists">
+          <Tab id="products">Active Products</Tab>
+          <Tab id="meals">Cooked Meals</Tab>
+          <Tab id="archived">Archived Items</Tab>
+        </TabList>
+      </Tabs>
 
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>

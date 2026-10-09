@@ -1,16 +1,17 @@
-# Walkthrough — Sidebar-Sourced Palette + Header Page Titles
+# Walkthrough — shadcn Tabs ×4 + Crash-Proof Header Search
 
 ## Changes (no commit/push yet)
-- New `lib/portalMeta.js`: per-role nav data (labels match sidebars 1:1) + route→title map; palette destinations now come from it; header renders the current page's eyebrow + title (fallback to previous static text on unknown routes).
-- Stripped duplicate in-page title blocks across 4 admin + 5 admin + 7 receptionist files (action buttons kept, right-aligned; empty rows dropped; dashboards + reports untouched).
+- Amenities, Products, Inventory, Discounts tab bars → shadcn `Tabs` (controlled, existing handlers incl. presets/resets; labels verbatim).
+- New `HeaderWidgetBoundary` (error boundary) wraps the search button, palette, user menu, and profile dialog — a widget failure degrades to hidden instead of killing the page. This directly addresses the black "couldn't load" screen: even in the worst case, the shell survives.
+- Palette filtering rewritten on traversal ordinals (verified logic; prior identity bug could empty the list).
 
 ## Verification
 - `npx eslint` on touched files: only pre-existing findings.
 - `npm run build` success, 97/97 pages.
 
-## Manual check
-1. Every sidebar destination appears in the palette with identical labels; selecting navigates correctly.
-2. Each route shows its title in the blue header with no in-body duplicate (dashboard welcomes excepted).
-3. Action buttons intact and right-aligned; no orphaned empty header rows.
+## Manual check + diagnostics still needed from you
+1. Confirm Vercel deployment for the newest commit shows Ready, then retest the search (hard-refresh).
+2. Tell me: crash on every page or only discounts? Same in Incognito (extensions off)? Any console error text?
+3. If it still crashes with the boundary in place, the cause is outside our code (renderer OOM/environment) — the boundary guarantees the page itself stays up.
 
 Awaiting review. Say `"push"` only when you want commit + push.

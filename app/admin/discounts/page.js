@@ -6,6 +6,7 @@ import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import FlatDatePicker from '../../components/FlatDatePicker';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/AdminPagination';
@@ -550,32 +551,13 @@ export default function AdminDiscounts() {
       </div>
 
       {/* Tabs for Active vs Archived */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'active_discounts' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => handleTabChange('active_discounts')}
-          >
-            Active Discounts
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'active_promos' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => handleTabChange('active_promos')}
-          >
-            Active Promos
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${activeTab === 'archived' ? 'active text-blue' : 'text-muted'}`}
-            onClick={() => handleTabChange('archived')}
-          >
-            Archived Discounts &amp; Promos
-          </button>
-        </li>
-      </ul>
+      <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)} className="mb-3">
+        <TabList aria-label="Discount and promotion lists">
+          <Tab id="active_discounts">Active Discounts</Tab>
+          <Tab id="active_promos">Active Promos</Tab>
+          <Tab id="archived">Archived Discounts &amp; Promos</Tab>
+        </TabList>
+      </Tabs>
 
       {/* Search Filter */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
