@@ -1,6 +1,15 @@
 'use client';
 
 import React from 'react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
 
 export const ADMIN_PAGE_SIZE = 10;
 
@@ -31,7 +40,7 @@ export function paginate(list, page, pageSize = ADMIN_PAGE_SIZE) {
 
 /**
  * AdminPagination Component
- * Shared footer: "Showing X–Y of Z <label>" + Prev/windowed-numbers/Next.
+ * Shared footer: "Showing X–Y of Z <label>" + shadcn-style pager.
  */
 export default function AdminPagination({
   page,
@@ -49,33 +58,29 @@ export default function AdminPagination({
       <small className="text-muted">
         Showing {start}–{end} of {total} {label}
       </small>
-      <nav aria-label={ariaLabel}>
-        <ul className="pagination pagination-sm mb-0">
-          <li className={`page-item ${page <= 1 ? 'disabled' : ''}`}>
-            <button type="button" className="page-link" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-              Prev
-            </button>
-          </li>
+      <Pagination aria-label={ariaLabel}>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious disabled={page <= 1} onClick={() => onPage(page - 1)} />
+          </PaginationItem>
           {getPageNumbers(page, totalPages).map((n, idx) => (
             n === '…' ? (
-              <li key={`ellipsis-${idx}`} className="page-item disabled">
-                <span className="page-link">…</span>
-              </li>
+              <PaginationItem key={`ellipsis-${idx}`}>
+                <PaginationEllipsis />
+              </PaginationItem>
             ) : (
-              <li key={n} className={`page-item ${n === page ? 'active' : ''}`}>
-                <button type="button" className="page-link" onClick={() => onPage(n)}>
+              <PaginationItem key={n}>
+                <PaginationLink isActive={n === page} onClick={() => onPage(n)}>
                   {n}
-                </button>
-              </li>
+                </PaginationLink>
+              </PaginationItem>
             )
           ))}
-          <li className={`page-item ${page >= totalPages ? 'disabled' : ''}`}>
-            <button type="button" className="page-link" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
-              Next
-            </button>
-          </li>
-        </ul>
-      </nav>
+          <PaginationItem>
+            <PaginationNext disabled={page >= totalPages} onClick={() => onPage(page + 1)} />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
     </div>
   );
 }

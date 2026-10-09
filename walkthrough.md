@@ -1,14 +1,17 @@
-# Walkthrough — shadcn-Style Switch Toggles
+# Walkthrough — Discounts Polish + shadcn Pagination
 
 ## Changes (no commit/push yet)
-- New `components/ui/switch.jsx` (shadcn-style `isSelected/onChange/isDisabled` over React Aria) + sliding-thumb theme CSS. Hand-built, not CLI code.
-- Inventory stocks/batches filter bars: both Bootstrap switches replaced, same labels/handlers/filters.
+- Discounts headings: "Active Discounts" → "Discounts", "Active Promotions" → "Promotions" (archived variants untouched); both table caps → `max(220px, calc(100vh - 500px))` for visible footers.
+- New `components/ui/pagination.jsx` (shadcn-style Previous/Next/Link/Ellipsis buttons) + theme CSS. Hand-built, not CLI code.
+- `AdminPagination` reimplemented on it — same props, same "Showing X–Y" text — so all consumers (users, rooms, amenities, products, inventory, POs, discounts, bookings, reservations) switch automatically.
+- Reports: all 4 custom Prev/Next footers migrated (same gating + behavior, now with page numbers).
 
 ## Verification
-- `npx eslint`: only the pre-existing fetch-effect finding; new file clean.
+- `npx eslint`: only pre-existing findings on untouched lines; new files clean.
 - `npm run build` success, 97/97 pages.
 
 ## Manual check
-1. Both toggles animate thumb + track, filter identically, keyboard accessible, correct in dark theme.
+1. Headings renamed; discounts footers visible with room.
+2. Every pager renders shadcn-style with numbers; reports paging behaves as before.
 
 Awaiting review. Say `"push"` only when you want commit + push.

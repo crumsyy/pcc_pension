@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { LineChart, BarChart, DoughnutChart } from '../../components/ReportsCharts';
 import FlatDatePicker from '../../components/FlatDatePicker';
+import AdminPagination from '../../components/AdminPagination';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
@@ -1997,13 +1998,16 @@ export default function AdminReports() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <span className="small text-muted">Showing page {currentPage} of {totalPages} ({sortedData.length} records)</span>
-                    <div className="d-flex gap-1">
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(c => c - 1)}>Prev</button>
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage(c => c + 1)}>Next</button>
-                    </div>
-                  </div>
+                  <AdminPagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    onPage={setCurrentPage}
+                    start={sortedData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+                    end={Math.min(currentPage * itemsPerPage, sortedData.length)}
+                    total={sortedData.length}
+                    label="records"
+                    ariaLabel="Report pagination"
+                  />
                 )}
               </div>
             </div>
@@ -2180,13 +2184,16 @@ export default function AdminReports() {
                 </div>
 
                 {totalPages > 1 && (
-                  <div className="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <span className="small text-muted">Showing page {currentPage} of {totalPages} ({sortedData.length} records)</span>
-                    <div className="d-flex gap-1">
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(c => c - 1)}>Prev</button>
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage(c => c + 1)}>Next</button>
-                    </div>
-                  </div>
+                  <AdminPagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    onPage={setCurrentPage}
+                    start={sortedData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+                    end={Math.min(currentPage * itemsPerPage, sortedData.length)}
+                    total={sortedData.length}
+                    label="records"
+                    ariaLabel="Report pagination"
+                  />
                 )}
               </div>
             </div>
@@ -2384,13 +2391,16 @@ export default function AdminReports() {
                 </div>
 
                 {totalPages > 1 && (
-                  <div className="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <span className="small text-muted">Showing page {currentPage} of {totalPages} ({sortedData.length} records)</span>
-                    <div className="d-flex gap-1">
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(c => c - 1)}>Prev</button>
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage(c => c + 1)}>Next</button>
-                    </div>
-                  </div>
+                  <AdminPagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    onPage={setCurrentPage}
+                    start={sortedData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+                    end={Math.min(currentPage * itemsPerPage, sortedData.length)}
+                    total={sortedData.length}
+                    label="records"
+                    ariaLabel="Report pagination"
+                  />
                 )}
               </div>
             </div>
@@ -2536,13 +2546,16 @@ export default function AdminReports() {
                 </div>
 
                 {totalPages > 1 && (
-                  <div className="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                    <span className="small text-muted">Showing page {currentPage} of {totalPages} ({sortedData.length} records)</span>
-                    <div className="d-flex gap-1">
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(c => c - 1)}>Prev</button>
-                      <button className="btn btn-sm btn-outline-secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage(c => c + 1)}>Next</button>
-                    </div>
-                  </div>
+                  <AdminPagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    onPage={setCurrentPage}
+                    start={sortedData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}
+                    end={Math.min(currentPage * itemsPerPage, sortedData.length)}
+                    total={sortedData.length}
+                    label="records"
+                    ariaLabel="Report pagination"
+                  />
                 )}
               </div>
             </div>
