@@ -392,10 +392,6 @@ function CheckInClient() {
 
   return (
     <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
-      <div className="mb-4">
-        <div className="section-eyebrow">Receptionist</div>
-        <h2 className="section-title mb-0">Front Desk (Check-In & Check-Out)</h2>
-      </div>
 
       <div className="card-module p-4 mb-4" style={{ backgroundColor: "#fff", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="mb-4">

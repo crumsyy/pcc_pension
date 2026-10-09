@@ -953,12 +953,8 @@ function ReservationsClient() {
   return (
     <>
       <div className={`container-fluid p-4 ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
-        {/* Header */}
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h2 className="h4 mb-0 font-weight-bold text-pcc-primary">Reservation Management</h2>
-            <p className="text-muted small mb-0">View, manage, and process guest room reservations</p>
-          </div>
+        {/* Header actions */}
+        <div className="d-flex justify-content-end align-items-center mb-4">
           <button className="btn btn-pcc-primary text-white font-weight-bold" onClick={() => setActiveModal('create')}>
             <i className="fa-solid fa-plus me-2"></i>New Reservation
           </button>

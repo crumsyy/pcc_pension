@@ -402,17 +402,13 @@ export default function AdminProducts() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <div className="section-eyebrow">Admin</div>
-          <h2 className="section-title mb-0">Products Management</h2>
-        </div>
-        {activeTab !== 'archived' && (
+      {activeTab !== 'archived' && (
+        <div className="d-flex justify-content-end align-items-center mb-3">
           <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
             {activeTab === 'meals' ? '+ Create Meal' : '+ Create Product'}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Tabs for Products, Cooked Meals, and Archived */}
       <ul className="nav nav-tabs mb-3">

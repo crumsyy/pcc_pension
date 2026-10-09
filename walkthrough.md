@@ -1,15 +1,16 @@
-# Walkthrough — Header Search Fix (Server + Palette Identity Bug)
+# Walkthrough — Sidebar-Sourced Palette + Header Page Titles
 
 ## Changes (no commit/push yet)
-- `components/ui/command.jsx`: filtering/rendering rewritten on traversal ordinals (React clones break object identity); keyboard nav maps onto visible positions; exhaustive-deps clean.
-- Localhost dev server restarted with 4GB heap (previous instance had died of OOM — the actual "page couldn't load" cause; nothing was listening on :3000).
+- New `lib/portalMeta.js`: per-role nav data (labels match sidebars 1:1) + route→title map; palette destinations now come from it; header renders the current page's eyebrow + title (fallback to previous static text on unknown routes).
+- Stripped duplicate in-page title blocks across 4 admin + 5 admin + 7 receptionist files (action buttons kept, right-aligned; empty rows dropped; dashboards + reports untouched).
 
 ## Verification
-- `npx eslint`: clean for the component.
+- `npx eslint` on touched files: only pre-existing findings.
 - `npm run build` success, 97/97 pages.
 
-## Manual check (localhost http://localhost:3000, hard-refresh)
-1. Header search button opens the palette listing Pages; typing filters; Enter/click navigates.
-2. Typing a room/stay query shows live results after ~300ms.
+## Manual check
+1. Every sidebar destination appears in the palette with identical labels; selecting navigates correctly.
+2. Each route shows its title in the blue header with no in-body duplicate (dashboard welcomes excepted).
+3. Action buttons intact and right-aligned; no orphaned empty header rows.
 
 Awaiting review. Say `"push"` only when you want commit + push.

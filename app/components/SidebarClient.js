@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { CommandDialog, CommandGroup, CommandItem } from '@/components/ui/command';
+import { ADMIN_NAV, RECEPTIONIST_NAV, pageTitleFor } from '@/lib/portalMeta';
 import {
   Dialog,
   DialogTrigger,
@@ -55,25 +56,12 @@ export default function SidebarClient({ session, role, children }) {
 
   const userInitial = session?.fullName ? session.fullName.trim().charAt(0).toUpperCase() : 'U';
 
-  const paletteDestinations = (role === 'Administrator' ? [
-    { label: 'Dashboard', hint: 'Admin', keywords: 'dashboard home overview', path: '/admin/dashboard' },
-    { label: 'User Management', hint: 'Admin', keywords: 'users staff guests accounts user management', path: '/admin/users' },
-    { label: 'Room Management', hint: 'Admin', keywords: 'rooms room management rates', path: '/admin/rooms' },
-    { label: 'Amenities', hint: 'Admin', keywords: 'amenities inventory items', path: '/admin/amenities' },
-    { label: 'Products', hint: 'Admin', keywords: 'products meals cooked food menu', path: '/admin/products' },
-    { label: 'Inventory Management', hint: 'Admin', keywords: 'inventory stocks batches borrow movements', path: '/admin/inventory' },
-    { label: 'Purchase Orders', hint: 'Admin', keywords: 'purchase orders procurement suppliers', path: '/admin/purchase-orders' },
-    { label: 'Discounts & Promos', hint: 'Admin', keywords: 'discounts promos offers deals', path: '/admin/discounts' },
-    { label: 'Reports', hint: 'Admin', keywords: 'reports sales analytics occupancy', path: '/admin/reports' },
-  ] : [
-    { label: 'Dashboard', hint: 'Front Desk', keywords: 'dashboard home overview', path: '/receptionist/dashboard' },
-    { label: 'Reservations', hint: 'Front Desk', keywords: 'reservations holds bookings requests', path: '/receptionist/reservations' },
-    { label: 'Bookings', hint: 'Front Desk', keywords: 'bookings stays guests rooms checkin', path: '/receptionist/bookings' },
-    { label: 'Check-In / Out', hint: 'Front Desk', keywords: 'checkin checkout arrivals departures front desk', path: '/receptionist/checkin' },
-    { label: 'Orders', hint: 'Front Desk', keywords: 'orders food meals room service', path: '/receptionist/orders' },
-    { label: 'Billing & Checkout', hint: 'Front Desk', keywords: 'billing checkout payments folio settle invoice', path: '/receptionist/billing-checkout' },
-    { label: 'Inquiries', hint: 'Front Desk', keywords: 'inquiries messages chat guest questions', path: '/receptionist/inquiries' },
-  ]);
+  const paletteDestinations = (role === 'Administrator' ? ADMIN_NAV : RECEPTIONIST_NAV).map((d) => ({
+    ...d,
+    hint: role === 'Administrator' ? 'Admin' : 'Front Desk',
+  }));
+
+  const headerMeta = pageTitleFor(pathname);
 
   const handlePaletteQuery = (q) => {
     if (roomTimer.current) clearTimeout(roomTimer.current);
@@ -407,7 +395,14 @@ export default function SidebarClient({ session, role, children }) {
           style={{ position: 'sticky', top: 0, zIndex: 1050, backgroundColor: 'var(--pcc-blue)' }}
         >
           <div>
-            <h4 className="m-0 text-white fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
+            {headerMeta ? (
+              <>
+                <div className="text-white-50 fw-semibold" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.12em' }}>{headerMeta.eyebrow}</div>
+                <h4 className="m-0 text-white fw-bold" style={{ fontSize: '1.1rem' }}>{headerMeta.title}</h4>
+              </>
+            ) : (
+              <h4 className="m-0 text-white fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
+            )}
           </div>
           <div className="d-none d-md-flex flex-grow-1 justify-content-center px-4">
             <button

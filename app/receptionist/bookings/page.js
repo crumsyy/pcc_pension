@@ -1782,11 +1782,7 @@ function BookingsClient() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h2 className="section-title mb-0">Booking Management</h2>
-          <span className="section-eyebrow">Front Desk Reservations & Lodging Operations</span>
-        </div>
+      <div className="d-flex justify-content-end align-items-center mb-3">
         <button className="btn btn-pcc-primary text-white shadow-sm fw-bold" onClick={openCreateModal}>
           + New Booking
         </button>

@@ -28,11 +28,6 @@ export default function BillingCheckoutClient() {
 
   return (
     <div>
-      <div className="mb-4">
-        <div className="section-eyebrow">Receptionist</div>
-        <h2 className="section-title mb-0">Billing &amp; Checkout</h2>
-      </div>
-
       <Tabs selectedKey={tab} onSelectionChange={handleTabChange}>
         <TabList aria-label="Billing and checkout">
           <Tab id="billing">Billing</Tab>

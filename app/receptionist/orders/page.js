@@ -986,24 +986,6 @@ function ReceptionistOrdersContent() {
 
   return (
     <div className={`container-fluid py-3 px-3 px-md-4 ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
-      {/* TOP HEADER */}
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 border-bottom pb-3">
-        <div>
-          <div className="d-flex align-items-center gap-2 mb-1">
-            <span className="badge text-white px-2.5 py-1 fw-bold" style={{ backgroundColor: 'var(--pcc-blue, #2155B5)' }}>
-              Receptionist Portal
-            </span>
-            <span className="badge bg-success text-white px-2 py-1">Room Orders &amp; Store</span>
-          </div>
-          <h2 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue, #2155B5)' }}>
-            Room Orders Workspace
-          </h2>
-          <p className="text-muted small mb-0">
-            Record guest orders, schedule breakfast meals, dispatch store items, and manage real-time delivery tracking.
-          </p>
-        </div>
-      </div>
-
       {/* NAVIGATION TABS & SEARCH BAR */}
       <div className="d-flex flex-wrap flex-xl-nowrap align-items-center justify-content-between gap-3 mb-4">
         <div

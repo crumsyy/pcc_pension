@@ -698,11 +698,7 @@ export default function AdminInventory() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <div className="section-eyebrow">Admin</div>
-          <h2 className="section-title mb-0">Inventory Management</h2>
-        </div>
+      <div className="d-flex justify-content-end align-items-center mb-3">
         <Link href="/admin/purchase-orders" className="btn btn-pcc-primary">
           + Create Purchase Order
         </Link>

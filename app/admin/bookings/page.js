@@ -73,12 +73,7 @@ export default function AdminBookings() {
 
   return (
     <div className="pcc-page-container pcc-content-reveal">
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-        <div>
-          <div className="section-eyebrow">Admin</div>
-          <h2 className="section-title mb-1">Booking Status Overview</h2>
-          <small className="text-muted">View all booking records, room occupancy, and statuses</small>
-        </div>
+      <div className="d-flex flex-column flex-md-row justify-content-end align-items-md-center gap-3 mb-4">
         <div className="d-flex gap-2 align-items-center">
           <Link
             href="/admin/reservations"

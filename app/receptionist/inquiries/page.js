@@ -328,11 +328,7 @@ export default function ReceptionistInquiries() {
       />
 
       <div className={`container-fluid py-3 d-flex flex-column ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 70px)', overflow: 'hidden' }}>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <div>
-            <h2 className="fw-bold mb-0 text-pcc-blue" style={{ color: 'var(--pcc-blue)', fontSize: '1.5rem' }}>Guest Live Chat & Inquiry Management Desk</h2>
-            <p className="text-muted mb-0 small">Real-time guest live chat support and inquiry ticket tracking.</p>
-          </div>
+        <div className="d-flex justify-content-end align-items-center mb-3">
           <button
             type="button"
             className="btn btn-sm btn-pcc-primary text-white fw-bold shadow-sm d-inline-flex align-items-center"

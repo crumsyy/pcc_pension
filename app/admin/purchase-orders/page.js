@@ -880,11 +880,7 @@ export default function AdminPurchaseOrders() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <div className="section-eyebrow">Admin</div>
-          <h2 className="section-title mb-0">Purchase Orders</h2>
-        </div>
+      <div className="d-flex justify-content-end align-items-center mb-3">
         <button className="btn btn-pcc-primary" onClick={openCreateModal}>
           + Create Purchase Order
         </button>

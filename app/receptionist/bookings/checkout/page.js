@@ -41,16 +41,8 @@ function ReceptionistCheckoutContent() {
 
   return (
     <div className="container-fluid p-3 p-md-4">
-      {/* Header */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-        <div>
-          <h4 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
-            <i className="fa-solid fa-cash-register text-primary"></i> Guest Checkout &amp; QR Payment Terminal
-          </h4>
-          <p className="text-muted small mb-0">
-            View finalized guest stays and launch the dual-monitor / guest-facing QR payment terminal.
-          </p>
-        </div>
+      {/* Header actions */}
+      <div className="d-flex justify-content-end align-items-center gap-3 mb-4">
         <div className="d-flex align-items-center gap-2">
           <Link href="/receptionist/checkin" className="btn btn-outline-secondary btn-sm">
             <i className="fa-solid fa-arrow-left me-1"></i> Back to Check-In Desk

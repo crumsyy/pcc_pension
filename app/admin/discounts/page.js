@@ -534,12 +534,7 @@ export default function AdminDiscounts() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <div className="section-eyebrow">Admin</div>
-          <h2 className="section-title mb-0">Discounts &amp; Promos Management</h2>
-          <p className="text-muted small mb-0 mt-1">Manage guest discounts, PWD/Senior Citizen rules, and promotional codes</p>
-        </div>
+      <div className="d-flex justify-content-end align-items-center mb-3">
         <div className="d-flex gap-2 align-items-center">
           {activeTab === 'active_discounts' && (
             <button className="btn btn-pcc-primary ms-2" onClick={openCreateDiscModal}>
