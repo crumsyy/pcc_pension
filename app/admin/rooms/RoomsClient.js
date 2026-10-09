@@ -5,12 +5,21 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
 export default function RoomsClient() {
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState(search);
+  const readSearchParam = () => {
+    try {
+      if (typeof window === 'undefined') return '';
+      return new URLSearchParams(window.location.search).get('search') || '';
+    } catch (e) {
+      return '';
+    }
+  };
+  const [search, setSearch] = useState(readSearchParam);
+  const [searchInput, setSearchInput] = useState(readSearchParam);
   const searchTimer = useRef(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
@@ -532,25 +541,13 @@ export default function RoomsClient() {
         </button>
       </div>
 
-      {/* Tabs for Active vs Archived */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${!showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={handleShowActive}
-          >
-            Active Rooms
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link fw-semibold ${showArchived ? 'active text-blue' : 'text-muted'}`}
-            onClick={handleShowArchivedTab}
-          >
-            Archived Rooms
-          </button>
-        </li>
-      </ul>
+      {/* Tabs for Rooms vs Archived */}
+      <Tabs selectedKey={showArchived ? 'archived' : 'rooms'} onSelectionChange={(key) => { if (key === 'archived') handleShowArchivedTab(); else handleShowActive(); }} className="mb-3">
+        <TabList aria-label="Room lists">
+          <Tab id="rooms">Rooms</Tab>
+          <Tab id="archived">Archived Rooms</Tab>
+        </TabList>
+      </Tabs>
 
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>

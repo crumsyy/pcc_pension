@@ -4,21 +4,20 @@ import { useState, useEffect, useRef } from 'react';
 import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
-import { ReceptionistInquiriesListSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
 export default function ReceptionistInquiries() {
-  const [inquiries, setInquiries] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const initialInquiriesCache = typeof window !== 'undefined' ? clientCache.get('RECEPTIONIST_INQUIRIES') : null;
+  const [inquiries, setInquiries] = useState(initialInquiriesCache?.data?.inquiries || []);
+  const [messages, setMessages] = useState(initialInquiriesCache?.data?.selectedMessages || []);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Pending' | 'Responded' | 'Closed'
-  const [selectedInquiry, setSelectedInquiry] = useState(null);
+  const [selectedInquiry, setSelectedInquiry] = useState(initialInquiriesCache?.data?.inquiries?.[0] || null);
   const [replyText, setReplyText] = useState('');
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
-  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const [shouldAnimate, setShouldAnimate] = useState(!initialInquiriesCache);
   const chatMessagesRef = useRef(null);
 
   // Reach Out to Guest Modal State
@@ -47,7 +46,6 @@ export default function ReceptionistInquiries() {
   };
 
   const fetchInquiries = async (silent = false) => {
-    if (!silent && !clientCache.has('RECEPTIONIST_INQUIRIES')) setLoading(true);
     try {
       const selectedID = selectedInquiry?.inquiryID ? `?inquiryID=${selectedInquiry.inquiryID}` : '';
       const res = await fetch(`/api/receptionist/inquiries${selectedID}`);
@@ -80,8 +78,6 @@ export default function ReceptionistInquiries() {
       }
     } catch (err) {
       if (!silent) showAlert('error', 'Error', err.message);
-    } finally {
-      if (!silent) setLoading(false);
     }
   };
 
@@ -113,17 +109,16 @@ export default function ReceptionistInquiries() {
   useEffect(() => {
     const cached = clientCache.get('RECEPTIONIST_INQUIRIES');
     if (cached) {
-      setInquiries(cached.inquiries || []);
-      if (cached.inquiries?.length > 0) {
-        setSelectedInquiry(cached.inquiries[0]);
+      setInquiries(cached.data?.inquiries || []);
+      if (cached.data?.inquiries?.length > 0) {
+        setSelectedInquiry(cached.data.inquiries[0]);
       }
-      if (cached.selectedMessages?.length > 0) {
-        setMessages(cached.selectedMessages);
+      if (cached.data?.selectedMessages?.length > 0) {
+        setMessages(cached.data.selectedMessages);
       }
-      setLoading(false);
       fetchInquiries(true);
     } else {
-      fetchInquiries(false);
+      fetchInquiries(true);
     }
     fetchRegisteredGuests();
   }, []);
@@ -385,9 +380,7 @@ export default function ReceptionistInquiries() {
 
               {/* Conversation List Body */}
               <div className="card-body p-0 overflow-y-auto flex-grow-1">
-                {loading ? (
-                  <ReceptionistInquiriesListSkeleton />
-                ) : filteredInquiries.length === 0 ? (
+                {filteredInquiries.length === 0 ? (
                   <div className="text-center py-5 text-muted small">
                     <p className="mb-0">No conversations match criteria.</p>
                   </div>

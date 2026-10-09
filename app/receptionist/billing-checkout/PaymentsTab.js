@@ -7,7 +7,6 @@ import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import LoadingButton from '../../components/LoadingButton';
-import { Skeleton } from '@/app/components/skeletons/Skeleton';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -593,7 +592,9 @@ function PaymentsClient() {
                   <div className="mb-2">
                     <label className="form-label fw-semibold" style={{ fontSize: '0.85rem' }}>Select Guest / Room *</label>
                     {loading ? (
-                      <Skeleton height="38px" borderRadius="6px" />
+                      <div className="form-control bg-light text-muted small d-flex align-items-center" style={{ height: '38px', borderRadius: '6px' }}>
+                        Loading guests…
+                      </div>
                     ) : (
                       <SearchableSelect
                         options={activeBookings.map(b => {
@@ -723,20 +724,8 @@ function PaymentsClient() {
               </div>
               <div className="card-body p-4 d-flex flex-column justify-content-between flex-grow-1" style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', minHeight: 0, fontSize: '0.78rem' }}>
                 {loadingBill ? (
-                  <div>
-                    <Skeleton width="60%" height="1.1rem" className="mb-3" />
-                    {Array.from({ length: 5 }).map((_, idx) => (
-                      <div key={idx} className="d-flex justify-content-between mb-2">
-                        <Skeleton width="45%" height="13px" />
-                        <Skeleton width="25%" height="13px" />
-                      </div>
-                    ))}
-                    <div className="pt-3 border-top mt-3">
-                      <div className="d-flex justify-content-between">
-                        <Skeleton width="40%" height="1.3rem" />
-                        <Skeleton width="30%" height="1.3rem" />
-                      </div>
-                    </div>
+                  <div className="text-center py-5 text-muted my-auto">
+                    <p className="small mt-2 mb-0">Loading bill details…</p>
                   </div>
                 ) : billData ? (
                   <div>
@@ -1126,7 +1115,9 @@ export default function ReceptionistPayments() {
   return (
     <Suspense fallback={
       <div className="pcc-page-container">
-        <Skeleton height="400px" borderRadius="10px" />
+        <div className="bg-light text-center py-5 text-muted" style={{ height: '400px', borderRadius: '10px' }}>
+          Loading bill details…
+        </div>
       </div>
     }>
       <PaymentsClient />

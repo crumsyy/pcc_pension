@@ -8,7 +8,6 @@ import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import LoadingButton from '../../components/LoadingButton';
 import { formatCurrency } from '@/lib/formatters';
-import { Skeleton, SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 export default function ReceptionistBilling() {
   const [activeBookings, setActiveBookings] = useState([]);
@@ -743,16 +742,11 @@ export default function ReceptionistBilling() {
                 </thead>
                 <tbody>
                   {loadingList ? (
-                    Array.from({ length: 6 }).map((_, idx) => (
-                      <tr key={idx}>
-                        <td><Skeleton width="90px" height="14px" /><Skeleton width="60px" height="11px" className="mt-1" /></td>
-                        <td><Skeleton width="130px" height="14px" /></td>
-                        <td><Skeleton width="100px" height="12px" /></td>
-                        <td><Skeleton width="140px" height="12px" /><Skeleton width="120px" height="12px" className="mt-1" /></td>
-                        <td><Skeleton width="80px" height="20px" borderRadius="10px" /></td>
-                        <td className="text-end px-4"><Skeleton width="100px" height="30px" borderRadius="6px" /></td>
-                      </tr>
-                    ))
+                    <tr>
+                      <td colSpan="6" className="text-center py-5 text-muted">
+                        Loading bill details…
+                      </td>
+                    </tr>
                   ) : filteredBookings.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="text-center py-5 text-muted">
@@ -837,22 +831,8 @@ export default function ReceptionistBilling() {
               <div className="modal-body p-4 bg-light overflow-auto">
                 {loadingBill ? (
                   <div className="bg-white p-4 rounded shadow-sm">
-                    <div className="d-flex justify-content-between mb-4 border-bottom pb-2">
-                      <Skeleton width="180px" height="1.3rem" />
-                      <Skeleton width="90px" height="24px" borderRadius="12px" />
-                    </div>
-                    <SkeletonTable columns={4} rows={4} colWidths={['40%', '20%', '20%', '20%']} className="mb-4" />
-                    <div className="d-flex justify-content-end pt-3 border-top">
-                      <div style={{ width: '220px' }}>
-                        <div className="d-flex justify-content-between mb-2">
-                          <Skeleton width="80px" height="14px" />
-                          <Skeleton width="60px" height="14px" />
-                        </div>
-                        <div className="d-flex justify-content-between">
-                          <Skeleton width="90px" height="1.2rem" />
-                          <Skeleton width="80px" height="1.2rem" />
-                        </div>
-                      </div>
+                    <div className="text-center py-5 text-muted">
+                      Loading bill details…
                     </div>
                   </div>
                 ) : (

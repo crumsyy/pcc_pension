@@ -7,7 +7,6 @@ import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
-import { ReceptionistOrdersSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 
 const getTodayManila = () => {
   try {
@@ -1113,9 +1112,7 @@ function ReceptionistOrdersContent() {
                 </div>
               </div>
 
-              {loading ? (
-                <ReceptionistOrdersSkeleton />
-              ) : filteredHistoryOrders.length === 0 ? (
+              {filteredHistoryOrders.length === 0 ? (
                 <div className="text-center py-5 text-muted">
                   <i className="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
                   No order records found under this filter.
@@ -1325,18 +1322,6 @@ function ReceptionistOrdersContent() {
             </div>
           ) : (
             /* CATALOG SECTIONS */
-            loading ? (
-              <div className="row g-2 g-md-3">
-                {[1, 2, 3, 4, 5, 6].map(n => (
-                  <div key={n} className="col-6 col-md-6 col-xl-4">
-                    <div className="card h-100 shadow-sm border rounded-3 p-3 bg-white text-center py-5">
-                      <div className="spinner-border spinner-border-sm text-primary mx-auto mb-2" role="status"></div>
-                      <span className="text-muted small">Loading catalog items...</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
               <div className="d-flex flex-column gap-3">
                 {/* COOKED MEALS SECTION */}
                 {(activeCategory === 'all' || activeCategory === 'meals') && filteredMeals.length > 0 && (
@@ -1419,7 +1404,6 @@ function ReceptionistOrdersContent() {
                   </div>
                 )}
               </div>
-            )
           )}
         </div>
 
@@ -1646,11 +1630,7 @@ function ReceptionistOrdersContent() {
 
 export default function ReceptionistOrders() {
   return (
-    <Suspense fallback={
-      <div className="pcc-page-container">
-        <ReceptionistOrdersSkeleton />
-      </div>
-    }>
+    <Suspense fallback={null}>
       <ReceptionistOrdersContent />
     </Suspense>
   );

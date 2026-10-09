@@ -14,7 +14,6 @@ import LoadingButton from '../../components/LoadingButton';
 import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import StatusBadge, { normalizeBookingStatus } from '../../components/StatusBadge';
-import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
 import BookingBreakfastSelector from '@/app/guest/rooms/BookingBreakfastSelector';
 import { getStayNights } from '@/lib/dateUtils';
@@ -76,7 +75,7 @@ function BookingsClient() {
   const [rooms, setRooms] = useState([]);
   const [roomSchedules, setRoomSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
   const [expandedBookingId, setExpandedBookingId] = useState(null);
@@ -1866,9 +1865,7 @@ function BookingsClient() {
 
       {/* BOOKINGS TABLE */}
       <div className="card shadow-sm border-0 p-3 bg-white" style={{ borderRadius: '12px' }}>
-        {loading ? (
-          <SkeletonTable columns={6} rows={7} colWidths={['12%', '22%', '18%', '22%', '14%', '12%']} />
-        ) : filteredBookings.length === 0 ? (
+        {filteredBookings.length === 0 ? (
           <div className="p-4 text-center text-muted border rounded bg-light">
             <i className={`bi ${activeTab === 'active' ? 'bi-calendar-check text-primary' : 'bi-archive text-secondary'} fs-4 d-block mb-1`}></i>
             <p className="mb-0 fw-semibold">
@@ -3483,11 +3480,7 @@ function BookingsClient() {
 
 export default function ReceptionistBookingsPage() {
   return (
-    <Suspense fallback={
-      <div className="card shadow-sm border-0 p-3 bg-white" style={{ borderRadius: '12px' }}>
-        <SkeletonTable columns={6} rows={7} colWidths={['12%', '22%', '18%', '22%', '14%', '12%']} />
-      </div>
-    }>
+    <Suspense fallback={null}>
       <BookingsClient />
     </Suspense>
   );

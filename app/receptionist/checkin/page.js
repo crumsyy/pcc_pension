@@ -6,17 +6,17 @@ import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import ReservationCalendar from '../../components/ReservationCalendar';
-import { ReceptionistCheckInSkeleton } from '@/app/components/skeletons/ReceptionistSkeletons';
 
 function CheckInClient() {
   const searchParams = useSearchParams();
   const targetBookingID = searchParams.get('bookingID');
   const highlightBookingID = searchParams.get('highlightBookingID') || searchParams.get('highlightStayID');
 
-  const [bookings, setBookings] = useState([]);
-  const [roomSchedules, setRoomSchedules] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const initialCheckinCache = typeof window !== 'undefined' ? clientCache.get('RECEPTIONIST_CHECKIN') : null;
+  const [bookings, setBookings] = useState(initialCheckinCache?.data?.bookings || []);
+  const [roomSchedules, setRoomSchedules] = useState(initialCheckinCache?.data?.roomSchedules || []);
+  const [rooms, setRooms] = useState(initialCheckinCache?.data?.rooms || []);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [processingCheckInId, setProcessingCheckInId] = useState(null);
 
@@ -174,13 +174,10 @@ function CheckInClient() {
     });
   };
 
-  const [shouldAnimate, setShouldAnimate] = useState(true);
+  const [shouldAnimate, setShouldAnimate] = useState(!initialCheckinCache);
   const isFirstMount = useRef(true);
 
-  const fetchBookings = async (isBackground = false) => {
-    if (!isBackground && !clientCache.has('RECEPTIONIST_CHECKIN')) {
-      setLoading(true);
-    }
+  const fetchBookings = async (isBackground = true) => {
     try {
       const res = await fetch('/api/receptionist/bookings');
       const data = await res.json();
@@ -208,7 +205,7 @@ function CheckInClient() {
       if (entry.isStale) fetchBookings(true);
     } else {
       if (!isFirstMount.current) setShouldAnimate(true);
-      fetchBookings(false);
+      fetchBookings(true);
     }
     isFirstMount.current = false;
   }, []);
@@ -411,9 +408,6 @@ function CheckInClient() {
           />
         </div>
 
-        {loading ? (
-          <ReceptionistCheckInSkeleton />
-        ) : (
           <div className="row g-4">
             {/* Arriving Guests (Check-In) */}
             <div className="col-lg-6">
@@ -575,7 +569,6 @@ function CheckInClient() {
               )}
             </div>
           </div>
-        )}
       </div>
 
       {/* UPDATE CHECK-OUT DATE & TIME MODAL */}
@@ -736,11 +729,7 @@ function CheckInClient() {
 
 export default function ReceptionistCheckIn() {
   return (
-    <Suspense fallback={
-      <div className="pcc-page-container">
-        <ReceptionistCheckInSkeleton />
-      </div>
-    }>
+    <Suspense fallback={null}>
       <CheckInClient />
     </Suspense>
   );

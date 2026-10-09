@@ -1,24 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import LoadingButton from './LoadingButton';
 import ReceptionistSidebarNav from './ReceptionistSidebarNav';
 import ModalPortal from './ModalPortal';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { CommandDialog, CommandGroup, CommandItem } from '@/components/ui/command';
+import {
+  Dialog,
+  DialogTrigger,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 export default function SidebarClient({ session, role, children }) {
   const pathname = usePathname();
-  const isAdmin = role === 'Administrator';
+  const router = useRouter();
   // Always render expanded on first paint (matches server HTML), then apply
   // the persisted preference on mount to avoid a hydration mismatch.
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     try {
-      if (isAdmin && localStorage.getItem('pcc-sidebar-collapsed') === '1') {
+      if (localStorage.getItem('pcc-sidebar-collapsed') === '1') {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- apply persisted pref after mount to avoid hydration mismatch
         setCollapsed(true);
       }
@@ -28,6 +48,88 @@ export default function SidebarClient({ session, role, children }) {
   const dashboardUrl = role === 'Administrator' ? '/admin/dashboard' : '/receptionist/dashboard';
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [roomResults, setRoomResults] = useState([]);
+  const roomTimer = useRef(null);
+
+  const userInitial = session?.fullName ? session.fullName.trim().charAt(0).toUpperCase() : 'U';
+
+  const paletteDestinations = (role === 'Administrator' ? [
+    { label: 'Dashboard', hint: 'Admin', keywords: 'dashboard home overview', path: '/admin/dashboard' },
+    { label: 'User Management', hint: 'Admin', keywords: 'users staff guests accounts user management', path: '/admin/users' },
+    { label: 'Room Management', hint: 'Admin', keywords: 'rooms room management rates', path: '/admin/rooms' },
+    { label: 'Amenities', hint: 'Admin', keywords: 'amenities inventory items', path: '/admin/amenities' },
+    { label: 'Products', hint: 'Admin', keywords: 'products meals cooked food menu', path: '/admin/products' },
+    { label: 'Inventory Management', hint: 'Admin', keywords: 'inventory stocks batches borrow movements', path: '/admin/inventory' },
+    { label: 'Purchase Orders', hint: 'Admin', keywords: 'purchase orders procurement suppliers', path: '/admin/purchase-orders' },
+    { label: 'Discounts & Promos', hint: 'Admin', keywords: 'discounts promos offers deals', path: '/admin/discounts' },
+    { label: 'Reports', hint: 'Admin', keywords: 'reports sales analytics occupancy', path: '/admin/reports' },
+  ] : [
+    { label: 'Dashboard', hint: 'Front Desk', keywords: 'dashboard home overview', path: '/receptionist/dashboard' },
+    { label: 'Reservations', hint: 'Front Desk', keywords: 'reservations holds bookings requests', path: '/receptionist/reservations' },
+    { label: 'Bookings', hint: 'Front Desk', keywords: 'bookings stays guests rooms checkin', path: '/receptionist/bookings' },
+    { label: 'Check-In / Out', hint: 'Front Desk', keywords: 'checkin checkout arrivals departures front desk', path: '/receptionist/checkin' },
+    { label: 'Orders', hint: 'Front Desk', keywords: 'orders food meals room service', path: '/receptionist/orders' },
+    { label: 'Billing & Checkout', hint: 'Front Desk', keywords: 'billing checkout payments folio settle invoice', path: '/receptionist/billing-checkout' },
+    { label: 'Inquiries', hint: 'Front Desk', keywords: 'inquiries messages chat guest questions', path: '/receptionist/inquiries' },
+  ]);
+
+  const handlePaletteQuery = (q) => {
+    if (roomTimer.current) clearTimeout(roomTimer.current);
+    const query = (q || '').trim();
+    if (!query) {
+      setRoomResults([]);
+      return;
+    }
+    roomTimer.current = setTimeout(async () => {
+      try {
+        if (role === 'Administrator') {
+          const res = await fetch(`/api/admin/rooms?search=${encodeURIComponent(query)}&archived=false`);
+          const data = await res.json();
+          setRoomResults(((data && data.rooms) || []).slice(0, 6).map((r) => ({
+            label: `Room ${r.roomNumber} — ${r.typeName || r.type || r.roomType || ''}`.trim(),
+            hint: r.status || '',
+            keywords: `room ${r.roomNumber} ${r.typeName || r.type || r.roomType || ''} ${r.status || ''}`,
+            path: `/admin/rooms?search=${encodeURIComponent(r.roomNumber)}`,
+          })));
+        } else {
+          const res = await fetch('/api/receptionist/bookings');
+          const data = await res.json();
+          const all = data.bookings || data.bookingsWithGuests || [];
+          const ql = query.toLowerCase();
+          setRoomResults(all.filter((b) =>
+            `${b.roomNumber || ''} ${b.firstName || ''} ${b.lastName || ''} ${b.bookingID || ''} ${b.status || ''}`.toLowerCase().includes(ql)
+          ).slice(0, 6).map((b) => ({
+            label: `BK-${b.bookingID} · Room ${b.roomNumber} (${b.status || ''})`,
+            hint: `${b.firstName || ''} ${b.lastName || ''}`.trim(),
+            keywords: `booking ${b.bookingID} room ${b.roomNumber} ${b.firstName || ''} ${b.lastName || ''}`,
+            path: `/receptionist/bookings?search=${encodeURIComponent(query)}`,
+          })));
+        }
+      } catch (e) {
+        setRoomResults([]);
+      }
+    }, 300);
+  };
+
+  const goPalettePath = (path) => {
+    setPaletteOpen(false);
+    router.push(path);
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'k') {
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   const toggleCollapsed = () => {
     setCollapsed((v) => {
@@ -103,7 +205,7 @@ export default function SidebarClient({ session, role, children }) {
             <li key={index}>
               <Link
                 href={path}
-                title={collapsed && isAdmin ? label : undefined}
+                title={collapsed ? label : undefined}
                 className={`nav-link text-white d-flex align-items-center gap-3 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
                 style={{
                   borderRadius: '7px',
@@ -113,11 +215,11 @@ export default function SidebarClient({ session, role, children }) {
                   borderLeft: isActive ? '3px solid #fff' : '3px solid transparent',
                   transition: 'all 0.15s ease-in-out',
                   gap: '12px',
-                  justifyContent: collapsed && isAdmin ? 'center' : 'flex-start',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
                 }}
               >
                 <span className="d-inline-flex align-items-center justify-content-center" style={{ opacity: isActive ? 1 : 0.85, width: '20px', flexShrink: 0 }}>{icon}</span>
-                {!(collapsed && isAdmin) && <span>{label}</span>}
+                {!(collapsed) && <span>{label}</span>}
               </Link>
             </li>
           );
@@ -205,7 +307,7 @@ export default function SidebarClient({ session, role, children }) {
       {/* DESKTOP SIDEBAR */}
       <nav
         style={{
-          width: collapsed && isAdmin ? '76px' : '240px',
+          width: collapsed ? '76px' : '240px',
           backgroundColor: 'var(--pcc-blue)',
           flexShrink: 0,
           position: 'sticky',
@@ -214,15 +316,15 @@ export default function SidebarClient({ session, role, children }) {
           zIndex: 1020,
           transition: 'width 0.2s ease-in-out'
         }}
-        className={`d-none d-lg-flex flex-column p-3 pcc-fixed-sidebar ${collapsed && isAdmin ? 'sidebar-collapsed' : ''}`}
+        className={`d-none d-lg-flex flex-column p-3 pcc-fixed-sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}
       >
         <div className="mb-4 text-center">
-          <Link href={dashboardUrl} title={collapsed && isAdmin ? 'Dashboard' : undefined}>
-            <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ maxWidth: collapsed && isAdmin ? '44px' : '140px', borderRadius: '6px', transition: 'max-width 0.2s ease-in-out' }} />
+          <Link href={dashboardUrl} title={collapsed ? 'Dashboard' : undefined}>
+            <img src="/assets/images/logo.jpg" alt="PCC Logo" style={{ maxWidth: collapsed ? '44px' : '140px', borderRadius: '6px', transition: 'max-width 0.2s ease-in-out' }} />
           </Link>
         </div>
         <div className="d-flex align-items-center justify-content-between" style={{ marginBottom: '0.5rem' }}>
-          {!(collapsed && isAdmin) && (
+          {!(collapsed) && (
             <div
               style={{
                 fontFamily: 'var(--font-tag)',
@@ -235,7 +337,7 @@ export default function SidebarClient({ session, role, children }) {
               {role === 'Administrator' ? 'Administration' : 'Front Desk'}
             </div>
           )}
-          {isAdmin && (
+          {(
             <button
               type="button"
               className="btn btn-sm d-inline-flex align-items-center justify-content-center"
@@ -262,11 +364,11 @@ export default function SidebarClient({ session, role, children }) {
         {renderNavLinksList()}
 
         <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)' }}>
-          <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', justifyContent: collapsed && isAdmin ? 'center' : 'flex-start' }}>
-            <div className="d-flex align-items-center justify-content-center rounded-circle bg-white text-primary fw-bold flex-shrink-0" style={{ width: '34px', height: '34px', fontSize: '0.88rem' }} title={collapsed && isAdmin ? session?.fullName : undefined}>
-              {session?.fullName ? session.fullName.charAt(0).toUpperCase() : 'U'}
-            </div>
-            {!(collapsed && isAdmin) && (
+          <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+            <Avatar title={collapsed ? session?.fullName : undefined}>
+              <AvatarFallback>{userInitial}</AvatarFallback>
+            </Avatar>
+            {!(collapsed) && (
               <div className="overflow-hidden" style={{ minWidth: 0 }}>
                 <div className="text-white fw-semibold text-truncate" style={{ fontSize: '0.84rem' }}>{session?.fullName}</div>
                 <div className="text-white-50 text-truncate" style={{ fontSize: '0.72rem' }}>{role}</div>
@@ -277,7 +379,7 @@ export default function SidebarClient({ session, role, children }) {
             type="button"
             className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
             onClick={() => setShowLogoutModal(true)}
-            title={collapsed && isAdmin ? 'Log Out' : undefined}
+            title={collapsed ? 'Log Out' : undefined}
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.12)',
               color: '#fff',
@@ -289,7 +391,7 @@ export default function SidebarClient({ session, role, children }) {
             }}
           >
             <i className="bi bi-box-arrow-right"></i>
-            {!(collapsed && isAdmin) && 'Log Out'}
+            {!(collapsed) && 'Log Out'}
           </button>
         </div>
       </nav>
@@ -307,13 +409,58 @@ export default function SidebarClient({ session, role, children }) {
           <div>
             <h4 className="m-0 text-white fw-bold" style={{ fontSize: '1.1rem' }}>{headingText}</h4>
           </div>
+          <div className="d-none d-md-flex flex-grow-1 justify-content-center px-4">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="btn btn-sm d-flex align-items-center gap-2 w-100"
+              style={{ maxWidth: '420px', backgroundColor: 'rgba(255,255,255,0.14)', color: '#fff', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '8px' }}
+              aria-label="Search pages and records"
+              title="Search pages and records (Ctrl+K)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.5" y2="16.5" />
+              </svg>
+              <span className="opacity-75 small flex-grow-1 text-start">Search pages, rooms…</span>
+              <kbd style={{ fontSize: '0.65rem', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: '4px', padding: '1px 6px' }}>Ctrl K</kbd>
+            </button>
+          </div>
           <div className="d-flex align-items-center gap-3">
             {(role === 'Administrator' || role === 'Receptionist') && <NotificationBell />}
             <ThemeToggle />
-            <div className="text-end" style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}>
-              <div className="fw-semibold text-white" style={{ fontSize: '0.85rem' }}>{session.fullName}</div>
-              <div className="text-white-50" style={{ fontSize: '0.72rem' }}>{role}</div>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <button
+                  type="button"
+                  className="d-flex align-items-center gap-2 bg-transparent border-0 p-1"
+                  style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}
+                  aria-label="Account menu"
+                >
+                  <Avatar>
+                    <AvatarFallback>{userInitial}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-start">
+                    <span className="fw-semibold text-white d-block text-truncate" style={{ fontSize: '0.85rem', maxWidth: '140px' }}>{session?.fullName}</span>
+                    <span className="text-white-50 d-block" style={{ fontSize: '0.72rem' }}>{role}</span>
+                  </span>
+                  <i className="bi bi-chevron-down text-white-50" style={{ fontSize: '0.75rem' }}></i>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <strong>{session?.fullName}</strong>
+                  {session?.email ? session.email : role}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setProfileOpen(true)}>
+                  <i className="bi bi-person-circle"></i> Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShowLogoutModal(true)}>
+                  <i className="bi bi-box-arrow-right"></i> Log Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
@@ -321,6 +468,72 @@ export default function SidebarClient({ session, role, children }) {
           {children}
         </main>
       </div>
+
+      {/* GLOBAL SEARCH PALETTE */}
+      <CommandDialog key={paletteOpen ? 'palette-open' : 'palette-closed'} open={paletteOpen} onOpenChange={setPaletteOpen} onQueryChange={handlePaletteQuery} placeholder="Search pages, rooms, bookings…">
+        <CommandGroup heading="Pages">
+          {paletteDestinations.map((d) => (
+            <CommandItem key={d.path} keywords={`${d.label} ${d.keywords}`} onSelect={() => goPalettePath(d.path)}>
+              <span>{d.label}</span>
+              <span className="text-muted small ms-auto">{d.hint}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+        {roomResults.length > 0 && (
+          <CommandGroup heading={role === 'Administrator' ? 'Rooms' : 'Stays'}>
+            {roomResults.map((r, idx) => (
+              <CommandItem key={`${r.path}-${idx}`} keywords={r.keywords} onSelect={() => goPalettePath(r.path)}>
+                <span>{r.label}</span>
+                <span className="text-muted small ms-auto">{r.hint}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+      </CommandDialog>
+
+      {/* PROFILE DIALOG */}
+      <DialogTrigger isOpen={profileOpen} onOpenChange={setProfileOpen}>
+        <button type="button" style={{ display: 'none' }} tabIndex={-1} aria-hidden="true" />
+        <Dialog>
+          <DialogHeader>
+            <DialogTitle>My Profile</DialogTitle>
+            <DialogDescription>Signed-in account details for this session.</DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <Avatar>
+                <AvatarFallback>{userInitial}</AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="fw-bold" style={{ fontSize: '1rem' }}>{session?.fullName || 'User'}</div>
+                <div className="text-muted small">{role}</div>
+              </div>
+            </div>
+            <table className="table table-sm table-borderless mb-0">
+              <tbody>
+                <tr>
+                  <td className="text-muted" style={{ width: '35%' }}>Full Name</td>
+                  <td><strong>{session?.fullName || '—'}</strong></td>
+                </tr>
+                {session?.email ? (
+                  <tr>
+                    <td className="text-muted">Email</td>
+                    <td>{session.email}</td>
+                  </tr>
+                ) : null}
+                <tr>
+                  <td className="text-muted">Role</td>
+                  <td><span className="badge text-bg-primary">{role}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </DialogBody>
+          <DialogFooter>
+            <span />
+            <DialogClose>Close</DialogClose>
+          </DialogFooter>
+        </Dialog>
+      </DialogTrigger>
 
       {/* PCC THEME LOGOUT CONFIRMATION MODAL */}
       {showLogoutModal && (
