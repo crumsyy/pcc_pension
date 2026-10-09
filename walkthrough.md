@@ -1,17 +1,16 @@
-# Walkthrough — Palette Fetch-Loop Fix
+# Walkthrough — Palette TDZ Crash Fix (The Real Cause)
+
+## Root cause (verified by reading)
+My rewrite referenced `safeActive` inside the render pass before its declaration line — a temporal-dead-zone `ReferenceError` on EVERY render with results. The error boundary swallowed it, so the palette silently never appeared: button visible, click seemingly dead, typing impossible. No deployment or browser issue.
 
 ## Changes (no commit/push yet)
-- `SidebarClient.js`: `handlePaletteQuery` stabilized with `useCallback([role])` — one debounced fetch per actual query change instead of refiring on every render.
-- `command.jsx`: dialog effect skips already-sent queries (ref guard).
-- Verified live-site SSR healthy (proper auth redirect); crash is client-side tab death.
+- `command.jsx`: count-first ordering (`countKids` → `safeActive` → render), single positional counters, keyboard Enter/hover aligned to the same positions. No identity tracking, no TDZ hazard.
 
 ## Verification
-- `npx eslint`: 0 errors (warnings only).
+- `npx eslint`: 0 errors (1 resubscribe warning, harmless).
 - `npm run build` success, 97/97 pages.
 
-## Still needed from you (decisive for the crash)
-1. Vercel deployment for the newest commit = Ready?
-2. Crash on every page or only discounts?
-3. Same crash in Incognito (extensions off)?
+## Manual check
+1. Header search opens with Pages listed; type "rooms" → Room Management; Enter/click navigates; room results appear and navigate prefiltered.
 
 Awaiting review. Say `"push"` only when you want commit + push.

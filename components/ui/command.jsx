@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, Children, cloneElement, toArray } from 'react';
+import { useState, useEffect, useRef, cloneElement, toArray } from 'react';
 
 /**
  * Command palette (shadcn-style API).
@@ -76,93 +76,73 @@ export function CommandList({ children, query, onOpenChange }) {
     setActiveIndex(0);
   }
 
-  // Assign every CommandItem a stable ordinal in traversal order, then keep
-  // the ordinals matching the query. Ordinals (not object identity) survive
-  // React's Children cloning.
-  const { visible } = useMemo(() => {
-    const all = [];
-    const walk = (nodes) => {
-      const arr = Array.isArray(nodes) ? nodes : [nodes];
-      arr.forEach((node) => {
-        if (!node || typeof node !== 'object' || !('props' in node)) return;
-        if (node.type === CommandItem) all.push(node);
-        else if (node.props && node.props.children) walk(node.props.children);
-      });
-    };
-    walk(children);
+  const matchesQuery = (node) => {
     const q = query.trim().toLowerCase();
-    const keep = new Set();
-    all.forEach((node, idx) => {
-      if (!q) {
-        keep.add(idx);
-        return;
-      }
-      const hay = `${node.props.keywords || ''} ${typeof node.props.children === 'string' ? node.props.children : ''}`.toLowerCase();
-      if (q.split(/\s+/).every((part) => hay.includes(part))) keep.add(idx);
-    });
-    return { visible: keep, total: all.length };
-  }, [children, query]);
+    if (!q) return true;
+    const hay = `${node.props.keywords || ''} ${typeof node.props.children === 'string' ? node.props.children : ''}`.toLowerCase();
+    return q.split(/\s+/).every((part) => hay.includes(part));
+  };
 
-  // Visible ordinals in traversal order; keyboard position maps onto these.
-  const order = useMemo(() => [...visible].sort((a, b) => a - b), [visible]);
-  const activeOrdinal = order.length === 0 ? -1 : order[Math.min(activeIndex, order.length - 1)];
+  // One traversal per render: collect visible items AND render them.
+  // Positions are plain indexes into the visible array built below —
+  // no element-identity tracking anywhere (React may clone elements).
+  const each = (kids, fn) => (Array.isArray(kids) ? kids : [kids]).forEach(fn);
+  const isElem = (node) => node && typeof node === 'object' && 'props' in node;
 
-  const ordinal = { current: 0 };
-  const renderNode = (node) => {
-    if (!node || typeof node !== 'object' || !('props' in node)) return node;
+  // Count visible items first so the highlight index is valid before
+  // rendering starts. Positions are plain indexes — no element-identity
+  // tracking anywhere (React may clone elements).
+  let visibleCount = 0;
+  const countKids = (kids) => each(kids, (node) => {
+    if (!isElem(node)) return;
     if (node.type === CommandItem) {
-      const idx = ordinal.current;
-      ordinal.current += 1;
-      if (!visible.has(idx)) return null;
-      return cloneElement(node, {
-        key: `cmd-item-${idx}`,
-        'data-active': idx === activeOrdinal || undefined,
-        onMouseMove: () => setActiveIndex(order.indexOf(idx)),
-      });
+      if (matchesQuery(node)) visibleCount += 1;
+    } else if (node.type === CommandGroup) {
+      countKids(node.props.children);
     }
-    if (node.type === CommandGroup) {
-      const before = ordinal.current;
-      const rendered = toArray(node.props.children).map(renderNode).filter((n) => n !== null && n !== false);
-      if (rendered.length === 0) return null;
-      return cloneElement(node, { key: `cmd-group-${before}` }, rendered);
-    }
-    return node;
-  };
+  });
+  countKids(children);
+  const safeActive = visibleCount === 0 ? -1 : Math.min(activeIndex, visibleCount - 1);
 
-  const pick = (idx) => {
-    let found = null;
-    let cursor = 0;
-    const walk = (nodes) => {
-      const arr = Array.isArray(nodes) ? nodes : [nodes];
-      for (const node of arr) {
-        if (!node || typeof node !== 'object' || !('props' in node)) continue;
-        if (node.type === CommandItem) {
-          if (visible.has(cursor) && cursor === idx) {
-            found = node;
-            return true;
-          }
-          cursor += 1;
-        } else if (node.props && node.props.children) {
-          if (walk(node.props.children)) return true;
-        }
+  const pickable = [];
+  let renderPos = -1;
+  const renderKids = (kids) => {
+    const out = [];
+    each(kids, (node) => {
+      if (!isElem(node)) return;
+      if (node.type === CommandItem) {
+        if (!matchesQuery(node)) return;
+        renderPos += 1;
+        const pos = renderPos;
+        pickable.push(node);
+        out.push(cloneElement(node, {
+          key: `cmd-item-${pos}`,
+          'data-active': pos === safeActive || undefined,
+          onMouseMove: () => setActiveIndex(pos),
+        }));
+      } else if (node.type === CommandGroup) {
+        const rendered = renderKids(node.props.children);
+        if (rendered.length === 0) return;
+        out.push(cloneElement(node, { key: `cmd-group-${rendered.length}-${out.length}` }, rendered));
+      } else {
+        out.push(node);
       }
-      return false;
-    };
-    walk(children);
-    return found;
+    });
+    return out;
   };
+  const rendered = renderKids(children);
 
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setActiveIndex((i) => Math.min(i + 1, Math.max(order.length - 1, 0)));
+        setActiveIndex((i) => Math.min(i + 1, Math.max(pickable.length - 1, 0)));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setActiveIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        const node = pick(activeOrdinal);
+        const node = pickable[safeActive];
         if (node && typeof node.props.onSelect === 'function') {
           node.props.onSelect();
           onOpenChange(false);
@@ -171,14 +151,14 @@ export function CommandList({ children, query, onOpenChange }) {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [order, activeOrdinal, onOpenChange, pick]);
+  }, [pickable, safeActive, onOpenChange]);
 
   return (
     <div className="pcc-command-list" role="listbox">
-      {visible.size === 0 ? (
+      {pickable.length === 0 ? (
         <div className="pcc-command-empty">No results found.</div>
       ) : (
-        Children.map(children, (child) => renderNode(child))
+        rendered
       )}
     </div>
   );
