@@ -519,8 +519,8 @@ export default function UsersClient() {
       {/* Staffs / Guests tabs */}
       <Tabs selectedKey={activeTab} onSelectionChange={handleTabChange} className="mb-3">
         <TabList aria-label="User types">
-          <Tab id="staff">Staffs ({staffUsers.length})</Tab>
-          <Tab id="guests">Guests ({guestUsers.length})</Tab>
+          <Tab id="staff">Staffs</Tab>
+          <Tab id="guests">Guests</Tab>
         </TabList>
       </Tabs>
 
