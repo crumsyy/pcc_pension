@@ -6,6 +6,7 @@ import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -411,31 +412,31 @@ export default function AdminAmenities() {
       {/* Amenities Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
           <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
-            <table className="table align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Pricing</th>
-                  <th>Item Type</th>
-                  <th>Unit</th>
-                  <th>Description</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="table align-middle mb-0">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Pricing</TableHead>
+                  <TableHead>Item Type</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {items.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="text-center text-muted py-4">
+                  <TableRow>
+                    <TableCell colSpan="8" className="text-center text-muted py-4">
                       No amenities found.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   pagedItems.map((item, index) => (
-                    <tr key={item.amenityID}>
-                      <td>{start + index}</td>
-                      <td>
+                    <TableRow key={item.amenityID}>
+                      <TableCell>{start + index}</TableCell>
+                      <TableCell>
                         <div className="d-flex align-items-center gap-2">
                           {item.image ? (
                             <img src={item.image} alt={item.name} style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px' }} />
@@ -446,33 +447,33 @@ export default function AdminAmenities() {
                           )}
                           <strong>{item.name}</strong>
                         </div>
-                      </td>
-                      <td>{item.catName}</td>
-                      <td>
+                      </TableCell>
+                      <TableCell>{item.catName}</TableCell>
+                      <TableCell>
                         <div className="small"><strong>Base:</strong> ₱{parseFloat(item.basePrice || item.price || 0).toFixed(2)}</div>
                         <div className="small text-muted"><strong>Sell:</strong> ₱{parseFloat(item.sellingPrice || item.price || 0).toFixed(2)}</div>
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell>
                         <span className={`badge ${item.itemType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
                           {item.itemType}
                         </span>
-                      </td>
-                      <td>{item.unit}</td>
-                      <td className="text-truncate" style={{ maxWidth: '200px' }} title={item.description}>
+                      </TableCell>
+                      <TableCell>{item.unit}</TableCell>
+                      <TableCell className="text-truncate" style={{ maxWidth: '200px' }} title={item.description}>
                         {item.description || '—'}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell>
                         <ActionButtons
                           onEdit={!showArchived ? () => openEditModal(item) : null}
                           onArchive={!showArchived ? () => handleArchive(item.amenityID) : null}
                           onRestore={showArchived ? () => handleRestore(item.amenityID) : null}
                         />
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label="amenities" />
       </div>

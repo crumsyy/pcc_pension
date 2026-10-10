@@ -8,6 +8,7 @@ import AdminPagination from '../../components/AdminPagination';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import ProvinceCityInputs from '../../components/ProvinceCityInputs';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { isKnownProvince, isCityInProvince } from '@/lib/phLocations';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
@@ -569,43 +570,43 @@ export default function UsersClient() {
       {/* Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
           <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
-            <table className="table align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>User ID</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Contact</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="table align-middle mb-0">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User ID</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {searchedUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="text-center text-muted py-4">
+                  <TableRow>
+                    <TableCell colSpan="8" className="text-center text-muted py-4">
                       No users found.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   pagedUsers.map((u, i) => {
                     const isSelf = u.userID === currentUserID;
                     return (
-                      <tr key={u.userID}>
-                        <td><strong className="text-pcc-blue">{toPublicUserCode(u.userID, u.role)}</strong></td>
-                        <td>
+                      <TableRow key={u.userID}>
+                        <TableCell><strong className="text-pcc-blue">{toPublicUserCode(u.userID, u.role)}</strong></TableCell>
+                        <TableCell>
                           <strong>
                             {u.middleName ? `${u.firstName} ${u.middleName.charAt(0).toUpperCase()}. ${u.lastName}` : `${u.firstName} ${u.lastName}`}
                           </strong>
-                        </td>
-                        <td>{u.email}</td>
-                        <td>{u.contact || '—'}</td>
-                        <td>
+                        </TableCell>
+                        <TableCell>{u.email}</TableCell>
+                        <TableCell>{u.contact || '—'}</TableCell>
+                        <TableCell>
                           <span className={`badge ${roleBadgeClass(u.role)}`}>{u.role}</span>
-                        </td>
-                        <td>
+                        </TableCell>
+                        <TableCell>
                           <span
                             className={`badge ${
                               u.status === 'Active' ? 'text-bg-success' :
@@ -614,15 +615,15 @@ export default function UsersClient() {
                           >
                             {u.status}
                           </span>
-                        </td>
-                        <td style={{ fontSize: '0.82rem' }}>
+                        </TableCell>
+                        <TableCell style={{ fontSize: '0.82rem' }}>
                           {new Date(u.createdAt).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',
                           })}
-                        </td>
-                        <td>
+                        </TableCell>
+                        <TableCell>
                           <ActionButtons
                             onView={() => openViewModal(u)}
                             onEdit={() => openEditModal(u)}
@@ -632,13 +633,13 @@ export default function UsersClient() {
                             status={u.status}
                             isSelf={isSelf}
                           />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <AdminPagination
             page={safePage}

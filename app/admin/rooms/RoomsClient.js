@@ -6,6 +6,7 @@ import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
@@ -581,41 +582,41 @@ export default function RoomsClient() {
       {/* Rooms Table */}
       <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
           <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
-            <table className="table align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Room No.</th>
-                  <th>Floor</th>
-                  <th>Type</th>
-                  <th>Occupancy Limit</th>
-                  <th>Price (w/o Breakfast)</th>
-                  <th>Price (w/ Breakfast)</th>
-                  <th>Breakfast Fee</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="table align-middle mb-0">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Room No.</TableHead>
+                  <TableHead>Floor</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Occupancy Limit</TableHead>
+                  <TableHead>Price (w/o Breakfast)</TableHead>
+                  <TableHead>Price (w/ Breakfast)</TableHead>
+                  <TableHead>Breakfast Fee</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rooms.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="text-center text-muted py-4">
+                  <TableRow>
+                    <TableCell colSpan="9" className="text-center text-muted py-4">
                       No rooms found.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   pagedRooms.map((rm) => {
                     const isOccupied = rm.status === 'Occupied';
                     return (
-                      <tr key={rm.roomID}>
-                        <td>
+                      <TableRow key={rm.roomID}>
+                        <TableCell>
                           <strong>{rm.roomNumber}</strong>
-                        </td>
-                        <td>{rm.floorName}</td>
-                        <td>{rm.typeName}</td>
-                        <td>{rm.occupancyLimit || 4} Pax</td>
-                        <td>₱{Number(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>₱{Number(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>
+                        </TableCell>
+                        <TableCell>{rm.floorName}</TableCell>
+                        <TableCell>{rm.typeName}</TableCell>
+                        <TableCell>{rm.occupancyLimit || 4} Pax</TableCell>
+                        <TableCell>₱{Number(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell>₱{Number(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell>
                           {(() => {
                             const withoutBk = parseFloat(rm.rateWithoutBreakfast) || 0;
                             const withBk = parseFloat(rm.rateWithBreakfast) || 0;
@@ -633,8 +634,8 @@ export default function RoomsClient() {
                               </span>
                             );
                           })()}
-                        </td>
-                        <td>
+                        </TableCell>
+                        <TableCell>
                           <span
                             className="badge"
                             style={{
@@ -646,8 +647,8 @@ export default function RoomsClient() {
                           >
                             {rm.status}
                           </span>
-                        </td>
-                        <td>
+                        </TableCell>
+                        <TableCell>
                           <ActionButtons
                             onEdit={!showArchived ? () => openEditModal(rm) : null}
                             onArchive={!showArchived ? () => handleArchive(rm) : null}
@@ -655,13 +656,13 @@ export default function RoomsClient() {
                             disabledEdit={isOccupied}
                             editTooltip="Occupied rooms cannot be edited."
                           />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label="rooms" />
       </div>
