@@ -1,18 +1,16 @@
-# Implementation Plan — Archived Side-by-Side + Emoji Removal
+# Implementation Plan — Dashboard Equal Bottoms + List Pagination + Icon Removal
 
-## 1. Changes (`app/admin/discounts/page.js` only)
-1. Headings: `'📦 Archived Discounts'` → `'Archived Discounts'`; `'📦 Archived Promos'` → `'Archived Promos'`.
-2. Archived tab only (active tabs render one section and keep today's full-width layout):
-   - Wrap both sections in a div that is `row g-3` with fixed height `max(480px, calc(100dvh - 340px))` when `activeTab === 'archived'` (plain fragment otherwise).
-   - Each section gets a `col-12 col-lg-6` wrapper in archived mode (stacked on small screens); cards gain `h-100 d-flex flex-column` (drop `mb-4` there).
-   - Table wrappers become `flex: 1, minHeight: 0, overflowY: auto` (keep a `maxHeight` cap as safety) so both tables stretch top-to-bottom; each keeps its own `AdminPagination` pinned via `mt-auto`.
-   - Narrow screens fall back to stacked cards + horizontal table scroll (`table-responsive` kept).
-- Untouched: columns, data, pagination logic, filters, restore/edit actions, search, theme. (These two tables stay plain `<table>` — the shadcn pass covered the other four pages; say so if you want them migrated too.)
+## 1. Changes (`app/admin/dashboard/DashboardClient.js` only)
+1. **Equal bottoms**: left card (`Active Reservations and Bookings`) gains `h-100` (right card already has it; Bootstrap row stretches columns) so both cards bottom-align.
+2. **Detailed Status List pagination (6/page)**: new `statusPage` state; `rooms.slice` 6 per page; `AdminPagination` (already the repo pattern) pinned under the table; clamp page when room count shrinks. Table keeps its scroll cap as fallback.
+3. **Left-panel pagination (5/page)**: `activeResPage` + `activeBookPage` states slicing `activeResList` / `activeBookingsList` at 5 with an `AdminPagination` under each section (counts in headers stay totals).
+4. **Icon removal** across the whole left panel: header `h6` icons (`bi-bookmark-fill`, `bi-house-door-fill`), empty-state icons (`bi-bookmark-check`, `bi-calendar-check`), and the Reservations/Bookings link-button icons — text labels stay.
+- Untouched: data fetching, filters, badges, board grid, KPIs, theme. Import `AdminPagination` from `../../components/AdminPagination`.
 
 ## 2. Verify
-- `npx eslint` (stash-compared) + `npm run build`; staging visual check at desktop width (7-col promos table is tight at half width — horizontal scroll is the fallback).
+- `npx eslint` (stash-compared) + `npm run build`; staging visual check (bottom alignment, pagination behavior).
 - Commit/push only on `"push"`.
 
 ## 3. Questions
-1. Side-by-side at `lg` breakpoint and up, stacked below (Recommended) vs side-by-side at all widths?
+1. Separate 5/page paginations per section (Recommended) vs one shared pager for the panel?
 2. Proceed?

@@ -1,12 +1,13 @@
-# Walkthrough — Archived Side-by-Side, Emoji-Free (no commit/push yet)
+# Walkthrough — Dashboard Equal Bottoms + Pagination + Icon Removal (no commit/push yet)
 
-## Changes (`app/admin/discounts/page.js` only)
-- Headings: "📦 Archived Discounts" → "Archived Discounts", "📦 Archived Promos" → "Archived Promos".
-- Archived tab: both sections wrapped in a fixed-height `row` (`max(480px, calc(100dvh - 340px))`), each in `col-12 col-lg-6` (stacked below `lg`); cards `h-100 d-flex flex-column`; table areas `flex: 1` with internal scroll; each pagination pinned via `mt-auto`. Active Discounts/Promos tabs keep the exact previous full-width layout (conditionals only alter classes in archived mode).
-- Untouched: columns, data, pagination logic, filters, restore/edit actions, theme.
+## Changes (`app/admin/dashboard/DashboardClient.js` only)
+- **Equal bottoms**: left panel card gains `h-100` (right card already had it) — both bottoms align.
+- **Detailed Status List**: 6 rows per page with `AdminPagination` underneath (page state clamps when room count shrinks); scroll cap kept as fallback.
+- **Left panel**: Active Reservations and Active Stays & Bookings each paginate at 5 rows with their own `AdminPagination` (headers keep total counts).
+- **Icons removed** across the left panel: section header icons, empty-state icons, and the Reservations/Bookings button icons (text labels stay).
+- Untouched: data fetching, filters, badges, board grid, KPIs, theme.
 
 ## Verification (actually performed)
-- `npx eslint`: 3 problems, same pre-existing set (line-180 effect rule). `npm run build`: 97/97 (proves JSX balances).
-- Staging visual check needed (half-width fit of the 7-col promos table varies by screen).
+- `npx eslint`: clean, no findings. `npm run build`: 97/97.
 
 Say `"push"` only when you want commit + push.

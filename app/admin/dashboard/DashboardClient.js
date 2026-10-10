@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import ModalPortal from '../../components/ModalPortal';
+import AdminPagination from '../../components/AdminPagination';
 
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
@@ -14,6 +15,9 @@ export default function DashboardClient({ userName }) {
   const [resetting, setResetting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetFeedback, setResetFeedback] = useState(null);
+  const [statusPage, setStatusPage] = useState(1);
+  const [activeResPage, setActiveResPage] = useState(1);
+  const [activeBookPage, setActiveBookPage] = useState(1);
   const fetchInFlight = useRef(false);
 
   const displayUserName = userName || stats?.userName || clientCache.get('admin-user-name')?.data || 'Admin';
@@ -334,7 +338,7 @@ export default function DashboardClient({ userName }) {
         <div className="col-lg-6">
           {/* Reservations and Booking List status Card */}
           <div
-            className="card-module p-3 rounded"
+            className="card-module p-3 rounded h-100"
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
           >
             <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -345,7 +349,6 @@ export default function DashboardClient({ userName }) {
                   className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 px-2.5 py-1"
                   style={{ fontSize: '0.78rem', borderRadius: '6px' }}
                 >
-                  <i className="bi bi-bookmark"></i>
                   Reservations
                 </Link>
                 <Link
@@ -353,7 +356,6 @@ export default function DashboardClient({ userName }) {
                   className="btn btn-sm btn-pcc-primary text-white d-inline-flex align-items-center gap-1 px-2.5 py-1"
                   style={{ fontSize: '0.78rem', borderRadius: '6px' }}
                 >
-                  <i className="bi bi-calendar-check"></i>
                   Bookings
                 </Link>
               </div>
@@ -362,16 +364,20 @@ export default function DashboardClient({ userName }) {
             {/* Active Reservations Section */}
             {(() => {
               const activeResList = (recentRes || []).filter(r => !['Cancelled', 'Canceled', 'Released', 'Expired', 'No Show', 'Booked', 'Completed'].includes(r.status));
+              const resPerPage = 5;
+              const resTotalPages = Math.max(1, Math.ceil(activeResList.length / resPerPage));
+              const resSafePage = Math.min(activeResPage, resTotalPages);
+              const resRows = activeResList.slice((resSafePage - 1) * resPerPage, resSafePage * resPerPage);
               return (
                 <div className="mb-4">
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <h6 className="fw-bold text-secondary mb-0" style={{ fontSize: '0.85rem' }}>
-                      <i className="bi bi-bookmark-fill text-warning me-1.5"></i> Active Reservations ({activeResList.length})
+                      Active Reservations ({activeResList.length})
                     </h6>
                   </div>
                   {activeResList.length === 0 ? (
                     <div className="p-3 text-center text-muted border rounded bg-light small">
-                      <i className="bi bi-bookmark-check me-2 text-warning"></i>No active reservations right now.
+                      No active reservations right now.
                     </div>
                   ) : (
                     <div className="table-responsive">
@@ -385,7 +391,7 @@ export default function DashboardClient({ userName }) {
                           </tr>
                         </thead>
                         <tbody>
-                          {activeResList.map((r) => (
+                          {resRows.map((r) => (
                             <tr key={r.reservationID}>
                               <td>{`${r.firstName || ''} ${r.lastName || ''}`}</td>
                               <td><strong>{r.roomNumber}</strong> - {r.type}</td>
@@ -415,6 +421,9 @@ export default function DashboardClient({ userName }) {
                       </table>
                     </div>
                   )}
+                  {activeResList.length > resPerPage && (
+                    <AdminPagination page={resSafePage} totalPages={resTotalPages} onPage={setActiveResPage} start={(resSafePage - 1) * resPerPage + 1} end={Math.min(resSafePage * resPerPage, activeResList.length)} total={activeResList.length} label="reservations" ariaLabel="Active reservations pagination" />
+                  )}
                 </div>
               );
             })()}
@@ -422,16 +431,20 @@ export default function DashboardClient({ userName }) {
             {/* Active Stays & Bookings Section */}
             {(() => {
               const activeBookingsList = (recentBookings || []).filter(b => !['Completed', 'Checked Out', 'Cancelled', 'No Show'].includes(b.status));
+              const bookPerPage = 5;
+              const bookTotalPages = Math.max(1, Math.ceil(activeBookingsList.length / bookPerPage));
+              const bookSafePage = Math.min(activeBookPage, bookTotalPages);
+              const bookRows = activeBookingsList.slice((bookSafePage - 1) * bookPerPage, bookSafePage * bookPerPage);
               return (
                 <div className="mb-2">
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <h6 className="fw-bold text-secondary mb-0" style={{ fontSize: '0.85rem' }}>
-                      <i className="bi bi-house-door-fill text-primary me-1.5"></i> Active Stays & Bookings ({activeBookingsList.length})
+                      Active Stays & Bookings ({activeBookingsList.length})
                     </h6>
                   </div>
                   {activeBookingsList.length === 0 ? (
                     <div className="p-3 text-center text-muted border rounded bg-light small">
-                      <i className="bi bi-calendar-check me-2 text-primary"></i>No active bookings right now.
+                      No active bookings right now.
                     </div>
                   ) : (
                     <div className="table-responsive">
@@ -446,7 +459,7 @@ export default function DashboardClient({ userName }) {
                           </tr>
                         </thead>
                         <tbody>
-                          {activeBookingsList.map((b) => (
+                          {bookRows.map((b) => (
                             <tr key={b.bookingID}>
                               <td>{`${b.firstName || ''} ${b.lastName || ''}`}</td>
                               <td><strong>{b.roomNumber}</strong> - {b.type}</td>
@@ -481,6 +494,9 @@ export default function DashboardClient({ userName }) {
                         </tbody>
                       </table>
                     </div>
+                  )}
+                  {activeBookingsList.length > bookPerPage && (
+                    <AdminPagination page={bookSafePage} totalPages={bookTotalPages} onPage={setActiveBookPage} start={(bookSafePage - 1) * bookPerPage + 1} end={Math.min(bookSafePage * bookPerPage, activeBookingsList.length)} total={activeBookingsList.length} label="bookings" ariaLabel="Active bookings pagination" />
                   )}
                 </div>
               );
@@ -564,6 +580,13 @@ export default function DashboardClient({ userName }) {
                 {/* Detailed Room Status Table */}
                 <div className="mt-4 pt-3 border-top">
                   <h6 className="mb-2 fw-bold text-secondary" style={{ fontSize: '0.85rem' }}>Detailed Status List</h6>
+                  {(() => {
+                    const statusPerPage = 6;
+                    const statusTotalPages = Math.max(1, Math.ceil((rooms || []).length / statusPerPage));
+                    const statusSafePage = Math.min(statusPage, statusTotalPages);
+                    const statusRows = (rooms || []).slice((statusSafePage - 1) * statusPerPage, statusSafePage * statusPerPage);
+                    return (
+                      <>
                   <div className="table-responsive" style={{ maxHeight: '420px', overflowY: 'auto' }}>
                     <table className="table table-sm table-hover align-middle mb-0" style={{ fontSize: '0.78rem' }}>
                       <thead className="sticky-top bg-white" style={{ zIndex: 1 }}>
@@ -575,7 +598,7 @@ export default function DashboardClient({ userName }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {rooms.map((rm) => (
+                        {statusRows.map((rm) => (
                           <tr key={rm.roomNumber}>
                             <td className="fw-bold">Room {rm.roomNumber}</td>
                             <td>{rm.floor}</td>
@@ -597,6 +620,12 @@ export default function DashboardClient({ userName }) {
                       </tbody>
                     </table>
                   </div>
+                  {(rooms || []).length > statusPerPage && (
+                    <AdminPagination page={statusSafePage} totalPages={statusTotalPages} onPage={setStatusPage} start={(statusSafePage - 1) * statusPerPage + 1} end={Math.min(statusSafePage * statusPerPage, (rooms || []).length)} total={(rooms || []).length} label="rooms" ariaLabel="Detailed room status pagination" />
+                  )}
+                      </>
+                    );
+                  })()}
                 </div>
               </>
             )}
