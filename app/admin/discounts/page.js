@@ -539,8 +539,8 @@ export default function AdminDiscounts() {
         {/* Tabs for Active vs Archived */}
         <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)}>
           <TabList aria-label="Discount and promotion lists">
-            <Tab id="active_discounts">Active Discounts</Tab>
-            <Tab id="active_promos">Active Promos</Tab>
+            <Tab id="active_discounts">Discounts</Tab>
+            <Tab id="active_promos">Promos</Tab>
             <Tab id="archived">Archived Discounts &amp; Promos</Tab>
           </TabList>
         </Tabs>
@@ -582,7 +582,7 @@ export default function AdminDiscounts() {
           {/* Discounts Section */}
           {(activeTab === 'active_discounts' || activeTab === 'archived') && (
             <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Discounts' : '🏷 Discounts'}</h4>
+              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Discounts' : 'Discounts'}</h4>
               <div className="table-responsive" style={{ maxHeight: 'max(220px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table align-middle">
                   <thead>
@@ -636,7 +636,7 @@ export default function AdminDiscounts() {
           {/* Promotions Section */}
           {(activeTab === 'active_promos' || activeTab === 'archived') && (
             <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Promos' : '🔥 Promotions'}</h4>
+              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Promos' : 'Promotions'}</h4>
               <div className="table-responsive" style={{ maxHeight: 'max(220px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table align-middle">
                   <thead>
