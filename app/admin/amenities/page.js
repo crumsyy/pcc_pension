@@ -441,8 +441,8 @@ export default function AdminAmenities() {
                           {item.image ? (
                             <img src={item.image} alt={item.name} style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px' }} />
                           ) : (
-                            <div className="bg-light text-muted d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', borderRadius: '4px', fontSize: '0.85rem' }}>
-                              🛎️
+                            <div className="bg-light text-muted d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', borderRadius: '4px', fontSize: '1rem' }}>
+                              <i className="bi bi-box-seam"></i>
                             </div>
                           )}
                           <strong>{item.name}</strong>
