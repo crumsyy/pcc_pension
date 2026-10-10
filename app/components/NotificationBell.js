@@ -471,6 +471,24 @@ export default function NotificationBell() {
         .pcc-notif-card-down:hover {
           background-color: #f1f5f9 !important;
         }
+        /* Dark-mode surfaces (light defaults live inline / in Bootstrap classes) */
+        [data-bs-theme="dark"] .pcc-notif-dropdown,
+        body.dark-theme .pcc-notif-dropdown {
+          background: #1e293b !important;
+          border-color: rgba(51, 65, 85, 0.9) !important;
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        }
+        .pcc-notif-list {
+          background-color: #f8fafc;
+        }
+        [data-bs-theme="dark"] .pcc-notif-list,
+        body.dark-theme .pcc-notif-list {
+          background-color: #0f172a !important;
+        }
+        [data-bs-theme="dark"] .pcc-notif-card-down:hover,
+        body.dark-theme .pcc-notif-card-down:hover {
+          background-color: #334155 !important;
+        }
       `}</style>
 
       {/* Bell Trigger Button */}
@@ -598,8 +616,8 @@ export default function NotificationBell() {
 
           {/* List Area */}
           <div
-            className="flex-grow-1 overflow-auto p-2"
-            style={{ maxHeight: "360px", backgroundColor: "#f8fafc" }}
+            className="flex-grow-1 overflow-auto p-2 pcc-notif-list"
+            style={{ maxHeight: "360px" }}
           >
             {filteredNotifications.length === 0 ? (
               <div className="text-center py-4 text-muted small">

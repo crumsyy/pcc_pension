@@ -1,13 +1,11 @@
-# Walkthrough — Fixed Fit-to-Screen Inventory Tables (no commit/push yet)
+# Walkthrough — Flatpickr Dark Mode + Notification Dark Fix (no commit/push yet)
 
-## Changes (`app/admin/inventory/page.js` only)
-- Reverted `pcc-page-natural`: page is back in the exact-fit shell — no page scroll.
-- Dashboard Recent Stock Movements: fixed scroll area `max(320px, calc(100dvh - 440px))` with sticky header; pagination pinned below inside the card.
-- Movement Logs: row fixed at `max(420px, calc(100dvh - 380px))`; both tables `flex: 1` with internal scroll so both cards reach the viewport bottom; paginations pinned at card bottoms via existing `mt-auto`.
-- Untouched: columns, data, page sizes, filters, theme, shell CSS.
+## Changes
+1. **New `app/flatpickr-dark.css`** (generated, not hand-written): the official flatpickr dark theme with all 185 selectors scoped under `[data-bs-theme="dark"]` / `body.dark-theme`. Covers every `FlatDatePicker` instance automatically (single shared component); light mode untouched. Imported in `app/layout.js` after the base flatpickr CSS. Regeneration is byte-identical (script asserts it).
+2. **`app/components/NotificationBell.js`** (dropdown only): dark variants for the dropdown shell (`#1e293b`), list area (new `pcc-notif-list` class, dark `#0f172a` — replaces hardcoded `#f8fafc`), and card hover (`#334155`). Cards/text/pills/header untouched (already theme correctly).
 
 ## Verification (actually performed)
-- `npx eslint`: clean, no findings. `npm run build`: Compiled successfully, 97/97.
-- Staging visual check still needed (exact fit varies by screen height; floors guard short screens).
+- Prefix script re-ran byte-identical; `npx eslint`: 3 problems before = 3 after (pre-existing); `npm run build`: 97/97.
+- Browser visual pass still needed (I can't render): open any date picker + the bell in dark mode, and confirm light mode is unchanged.
 
 Say `"push"` only when you want commit + push.
