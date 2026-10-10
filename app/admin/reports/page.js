@@ -336,7 +336,7 @@ export default function AdminReports() {
       return;
     }
     if (exportRows.length === 0) {
-      showToast.info('No records match the selected filters - nothing to export.');
+      showToast.info('No records match the selected filters — nothing to export.');
       return;
     }
     setIsExporting('excel');
@@ -360,7 +360,7 @@ export default function AdminReports() {
       return;
     }
     if (exportRows.length === 0) {
-      showToast.info('No records match the selected filters - nothing to export.');
+      showToast.info('No records match the selected filters — nothing to export.');
       return;
     }
     setIsExporting('pdf');
@@ -527,9 +527,9 @@ export default function AdminReports() {
                 onChange={(e) => setItemClassification(e.target.value)}
               >
                 <option value="All">All Categories</option>
-                <option value="Cooked Meals">ðŸ³ Cooked Meals</option>
-                <option value="Products">ðŸ¥¤ Products & Minibar</option>
-                <option value="Amenities">ðŸ§´ Amenities & Toiletries</option>
+                <option value="Cooked Meals">🍳 Cooked Meals</option>
+                <option value="Products">🥤 Products & Minibar</option>
+                <option value="Amenities">🧴 Amenities & Toiletries</option>
               </select>
             </div>
           )}
@@ -638,7 +638,7 @@ export default function AdminReports() {
 
       {error ? (
         <div className="alert alert-danger shadow-sm mb-4" role="alert">
-          <strong>âš  Error generating report:</strong> {error}
+          <strong>⚠ Error generating report:</strong> {error}
         </div>
       ) : reportData && reportData._reportType === report ? (
         <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
@@ -759,7 +759,7 @@ export default function AdminReports() {
           </div>
 
           {/* Report views remount per type (clean slate) and are isolated: a view
-              failure can never kill the page - switch types to recover. */}
+              failure can never kill the page — switch types to recover. */}
           <HeaderWidgetBoundary key={report}>
           {/* ================================================================= */}
           {/* REPORT VIEW 1: SALES & FINANCIALS */}
@@ -772,10 +772,10 @@ export default function AdminReports() {
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-primary border-4">
                     <span className="text-muted small fw-bold">TOTAL NET REVENUE</span>
                     <h3 className="fw-bold text-primary mb-0 mt-1">
-                      â‚±{(reportData?.totalRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ₱{(reportData?.totalRevenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h3>
                     <div className="text-muted small mt-2">
-                      Gross: â‚±{(reportData?.grossRevenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      Gross: ₱{(reportData?.grossRevenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                     </div>
                   </div>
                 </div>
@@ -783,7 +783,7 @@ export default function AdminReports() {
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-danger border-4">
                     <span className="text-muted small fw-bold">PURCHASE ORDER EXPENSES</span>
                     <h3 className="fw-bold text-danger mb-0 mt-1">
-                      â‚±{(reportData?.totalPoExpenses ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ₱{(reportData?.totalPoExpenses ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h3>
                     <small className="text-muted mt-2 d-block">
                       {reportData?.poLogs?.length || 0} purchase orders placed/received
@@ -794,7 +794,7 @@ export default function AdminReports() {
                   <div className={`card shadow-sm border-0 p-3 h-100 bg-white border-start ${(reportData?.netProfit ?? 0) >= 0 ? 'border-success' : 'border-danger'} border-4`}>
                     <span className="text-muted small fw-bold">NET OPERATING PROFIT / BALANCE</span>
                     <h3 className={`fw-bold ${(reportData?.netProfit ?? 0) >= 0 ? 'text-success' : 'text-danger'} mb-0 mt-1`}>
-                      â‚±{(reportData?.netProfit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ₱{(reportData?.netProfit ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h3>
                     <small className="text-muted mt-2 d-block">
                       Net Revenue minus PO Procurement Expenses
@@ -808,18 +808,18 @@ export default function AdminReports() {
                     <div className="d-flex justify-content-between align-items-center mb-1">
                       <span className="text-muted small fw-bold">GUEST ORDERS BREAKDOWN</span>
                       <span className="badge bg-primary-subtle text-primary fw-semibold">
-                        Total: â‚±{(reportData?.ordersBreakdown?.totalOrdersTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Total: ₱{(reportData?.ordersBreakdown?.totalOrdersTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="d-flex flex-wrap gap-2 mt-2">
                       <span className="badge text-bg-warning text-dark py-2 px-2">
-                        ðŸ³ Cooked Meals: â‚±{(reportData?.ordersBreakdown?.cookedMealsTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.cookedMealsCount ?? 0} ordered)
+                        🍳 Cooked Meals: ₱{(reportData?.ordersBreakdown?.cookedMealsTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.cookedMealsCount ?? 0} ordered)
                       </span>
                       <span className="badge text-bg-primary py-2 px-2">
-                        ðŸ¥¤ Products: â‚±{(reportData?.ordersBreakdown?.productsTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.productsCount ?? 0} ordered)
+                        🥤 Products: ₱{(reportData?.ordersBreakdown?.productsTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.productsCount ?? 0} ordered)
                       </span>
                       <span className="badge text-bg-info text-white py-2 px-2">
-                        ðŸ§´ Amenities: â‚±{(reportData?.ordersBreakdown?.amenitiesTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.amenitiesCount ?? 0} ordered)
+                        🧴 Amenities: ₱{(reportData?.ordersBreakdown?.amenitiesTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({reportData?.ordersBreakdown?.amenitiesCount ?? 0} ordered)
                       </span>
                     </div>
                   </div>
@@ -831,7 +831,7 @@ export default function AdminReports() {
                     <h4 className="fw-bold text-dark mb-0 mt-1">{reportData?.numberBookings ?? 0} Bookings</h4>
                     <small className="text-muted">{reportData?.completedBookings ?? 0} completed stays</small>
                     <div className="small text-danger mt-1">
-                      Discounts: -â‚±{(reportData?.discountApplied ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      Discounts: -₱{(reportData?.discountApplied ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                     </div>
                   </div>
                 </div>
@@ -842,11 +842,11 @@ export default function AdminReports() {
                     <div className="row g-2 mt-1">
                       <div className="col-6">
                         <small className="text-muted d-block">Cash</small>
-                        <strong className="text-dark">â‚±{(reportData?.cashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                        <strong className="text-dark">₱{(reportData?.cashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
                       </div>
                       <div className="col-6">
                         <small className="text-muted d-block">GCash / Online</small>
-                        <strong className="text-info">â‚±{(reportData?.gcashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+                        <strong className="text-info">₱{(reportData?.gcashTotal ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
                       </div>
                     </div>
                   </div>
@@ -968,12 +968,12 @@ export default function AdminReports() {
                               <>
                                 <td><strong>{row.period}</strong></td>
                                 <td className="text-center">{row.bookingCount}</td>
-                                <td className="text-end">â‚±{(row.grossRevenue || 0).toFixed(2)}</td>
-                                <td className="text-end text-danger">-â‚±{(row.discount || 0).toFixed(2)}</td>
-                                <td className="text-end text-primary fw-semibold">â‚±{(row.netRevenue || 0).toFixed(2)}</td>
-                                <td className="text-end text-danger">â‚±{(row.poExpenses || 0).toFixed(2)}</td>
+                                <td className="text-end">₱{(row.grossRevenue || 0).toFixed(2)}</td>
+                                <td className="text-end text-danger">-₱{(row.discount || 0).toFixed(2)}</td>
+                                <td className="text-end text-primary fw-semibold">₱{(row.netRevenue || 0).toFixed(2)}</td>
+                                <td className="text-end text-danger">₱{(row.poExpenses || 0).toFixed(2)}</td>
                                 <td className={`text-end fw-bold ${(row.netProfit || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
-                                  â‚±{(row.netProfit || 0).toFixed(2)}
+                                  ₱{(row.netProfit || 0).toFixed(2)}
                                 </td>
                                 <td><span className="badge text-bg-light border text-muted">{row.paymentMethods || 'Cash'}</span></td>
                               </>
@@ -987,7 +987,7 @@ export default function AdminReports() {
                                 </td>
                                 <td>
                                   <span className={`badge ${row.itemType === 'Cooked Meal' ? 'text-bg-warning text-dark' : row.itemType === 'Amenity' ? 'text-bg-info text-white' : 'text-bg-primary'}`}>
-                                    {row.itemType === 'Cooked Meal' ? 'ðŸ³ Cooked Meal' : row.itemType === 'Amenity' ? 'ðŸ§´ Amenity' : 'ðŸ¥¤ Product'}
+                                    {row.itemType === 'Cooked Meal' ? '🍳 Cooked Meal' : row.itemType === 'Amenity' ? '🧴 Amenity' : '🥤 Product'}
                                   </span>
                                 </td>
                                 <td>
@@ -995,8 +995,8 @@ export default function AdminReports() {
                                   {row.isComplimentary && <span className="badge text-bg-success ms-1 small">Complimentary</span>}
                                 </td>
                                 <td className="text-center">{row.quantity}</td>
-                                <td className="text-end">â‚±{(row.unitPrice || 0).toFixed(2)}</td>
-                                <td className="text-end fw-bold text-success">â‚±{(row.totalAmount || 0).toFixed(2)}</td>
+                                <td className="text-end">₱{(row.unitPrice || 0).toFixed(2)}</td>
+                                <td className="text-end fw-bold text-success">₱{(row.totalAmount || 0).toFixed(2)}</td>
                                 <td>
                                   <span className={`badge ${row.orderStatus === 'Completed' || row.orderStatus === 'Delivered' ? 'text-bg-success' : row.orderStatus === 'Placed' || row.orderStatus === 'Pending' ? 'text-bg-warning text-dark' : 'text-bg-secondary'}`}>
                                     {row.orderStatus}
@@ -1012,17 +1012,17 @@ export default function AdminReports() {
                                     {row.poStatus}
                                   </span>
                                 </td>
-                                <td><span className="small text-muted">{row.remarks || 'â€”'}</span></td>
+                                <td><span className="small text-muted">{row.remarks || '—'}</span></td>
                                 <td>
                                   <div className="d-flex flex-wrap gap-1">
                                     {(row.items || []).map((it, i) => (
                                       <span key={i} className="badge text-bg-light border">
-                                        {it.itemName} ({it.quantityReceived ? `${it.quantityReceived}/${it.quantity}` : it.quantity} @ â‚±{it.unitPrice})
+                                        {it.itemName} ({it.quantityReceived ? `${it.quantityReceived}/${it.quantity}` : it.quantity} @ ₱{it.unitPrice})
                                       </span>
                                     ))}
                                   </div>
                                 </td>
-                                <td className="text-end fw-bold text-danger">â‚±{(row.totalExpense || 0).toFixed(2)}</td>
+                                <td className="text-end fw-bold text-danger">₱{(row.totalExpense || 0).toFixed(2)}</td>
                               </>
                             ) : (
                               <>
@@ -1040,9 +1040,9 @@ export default function AdminReports() {
                                     {row.discountType || 'None'}
                                   </span>
                                 </td>
-                                <td className="text-end">â‚±{row.grossAmount.toFixed(2)}</td>
-                                <td className="text-end text-danger">-â‚±{row.discountAmount.toFixed(2)}</td>
-                                <td className="text-end text-success fw-bold">â‚±{row.netAmount.toFixed(2)}</td>
+                                <td className="text-end">₱{row.grossAmount.toFixed(2)}</td>
+                                <td className="text-end text-danger">-₱{row.discountAmount.toFixed(2)}</td>
+                                <td className="text-end text-success fw-bold">₱{row.netAmount.toFixed(2)}</td>
                               </>
                             )}
                           </tr>
@@ -1139,7 +1139,7 @@ export default function AdminReports() {
                     <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                       <span className="text-muted small fw-bold">PEAK OCCUPANCY</span>
                       <h4 className="fw-bold text-warning mb-0 mt-1">{reportData?.peakOccupancyRate ?? 0}%</h4>
-                      <small className="text-muted">Recorded on {reportData?.peakOccupancyDate || 'â€”'}</small>
+                      <small className="text-muted">Recorded on {reportData?.peakOccupancyDate || '—'}</small>
                     </div>
                   </div>
                 </div>
@@ -1227,7 +1227,7 @@ export default function AdminReports() {
                                     {row.currentStatus}
                                   </span>
                                 </td>
-                                <td className="text-end">â‚±{parseFloat(row.standardRate || 0).toFixed(2)}</td>
+                                <td className="text-end">₱{parseFloat(row.standardRate || 0).toFixed(2)}</td>
                                 <td className="text-center fw-bold">{row.totalBookings}</td>
                                 <td className="text-center fw-bold text-primary">{row.totalNightsOccupied}</td>
                               </>
@@ -1267,28 +1267,28 @@ export default function AdminReports() {
                     <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-warning border-4">
                       <span className="text-muted small fw-bold">ORDERED (PENDING POs)</span>
                       <h3 className="fw-bold text-warning mb-0 mt-1">{reportData?.totalOrderedQty ?? 0} units</h3>
-                      <small className="text-muted">Est. Value: â‚±{(reportData?.totalOrderedValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                      <small className="text-muted">Est. Value: ₱{(reportData?.totalOrderedValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
                     </div>
                   </div>
                   <div className="col-6 col-md-3">
                     <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-success border-4">
                       <span className="text-muted small fw-bold">DELIVERED STOCK-IN</span>
                       <h3 className="fw-bold text-success mb-0 mt-1">{reportData?.totalDeliveredQty ?? 0} units</h3>
-                      <small className="text-muted">Received: â‚±{(reportData?.totalDeliveredValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                      <small className="text-muted">Received: ₱{(reportData?.totalDeliveredValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
                     </div>
                   </div>
                   <div className="col-6 col-md-3">
                     <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-danger border-4">
                       <span className="text-muted small fw-bold">STOCK-OUT USAGE</span>
                       <h3 className="fw-bold text-danger mb-0 mt-1">{reportData?.totalStockOutQty ?? 0} units</h3>
-                      <small className="text-muted">Outflow: â‚±{(reportData?.totalStockOutValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                      <small className="text-muted">Outflow: ₱{(reportData?.totalStockOutValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
                     </div>
                   </div>
                   <div className="col-6 col-md-3">
                     <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-primary border-4">
                       <span className="text-muted small fw-bold">NET MOVEMENT BALANCE</span>
                       <h3 className="fw-bold text-primary mb-0 mt-1">{(reportData?.netMovementQty ?? 0) > 0 ? `+${reportData?.netMovementQty}` : reportData?.netMovementQty ?? 0} units</h3>
-                      <small className="text-muted">Net Value: â‚±{(reportData?.netMovementValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
+                      <small className="text-muted">Net Value: ₱{(reportData?.netMovementValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</small>
                     </div>
                   </div>
                 </div>
@@ -1297,7 +1297,7 @@ export default function AdminReports() {
                   <div className="col-12 col-md-3">
                     <div className="card shadow-sm border-0 p-3 h-100 bg-white border-start border-info border-4">
                       <span className="text-muted small fw-bold">MOST USED CONSUMABLE</span>
-                      <h4 className="fw-bold text-info mb-0 mt-1 text-truncate">{reportData?.mostUsedItem || 'â€”'}</h4>
+                      <h4 className="fw-bold text-info mb-0 mt-1 text-truncate">{reportData?.mostUsedItem || '—'}</h4>
                       <small className="text-muted">{reportData?.maxUsed ?? 0} units consumed</small>
                     </div>
                   </div>
@@ -1311,7 +1311,7 @@ export default function AdminReports() {
                   <div className="col-6 col-md-3">
                     <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                       <span className="text-muted small fw-bold">MOST BORROWED ASSET</span>
-                      <h4 className="fw-bold text-success mb-0 mt-1 text-truncate">{reportData?.mostBorrowed || 'â€”'}</h4>
+                      <h4 className="fw-bold text-success mb-0 mt-1 text-truncate">{reportData?.mostBorrowed || '—'}</h4>
                       <small className="text-muted">{reportData?.maxBorrowed ?? 0} times borrowed</small>
                     </div>
                   </div>
@@ -1396,10 +1396,10 @@ export default function AdminReports() {
                                 <td className={`text-center fw-bold ${row.lowStock ? 'text-danger' : 'text-success'}`}>
                                   {row.remainingStock} {row.unit}
                                 </td>
-                                <td className="text-center text-danger">{row.expiredQty > 0 ? row.expiredQty : 'â€”'}</td>
+                                <td className="text-center text-danger">{row.expiredQty > 0 ? row.expiredQty : '—'}</td>
                                 <td>
                                   {row.lowStock ? (
-                                    <span className="badge text-bg-danger">âš  Low Stock</span>
+                                    <span className="badge text-bg-danger">⚠ Low Stock</span>
                                   ) : (
                                     <span className="badge text-bg-success">In Stock</span>
                                   )}
@@ -1409,7 +1409,7 @@ export default function AdminReports() {
                               <>
                                 <td>
                                   <strong>{row.itemName}</strong>
-                                  {row.referenceNumber && row.referenceNumber !== 'â€”' && (
+                                  {row.referenceNumber && row.referenceNumber !== '—' && (
                                     <div className="text-muted small font-monospace" style={{ fontSize: '11px' }}>
                                       {row.referenceNumber}
                                     </div>
@@ -1427,15 +1427,15 @@ export default function AdminReports() {
                                   <span className={`badge ${
                                     row.status === 'Ordered' ? 'text-bg-warning text-dark' : 'text-bg-success'
                                   }`}>
-                                    {row.status === 'Ordered' ? 'ðŸ•’ Ordered' : 'âœ“ Delivered'}
+                                    {row.status === 'Ordered' ? '🕒 Ordered' : '✓ Delivered'}
                                   </span>
                                 </td>
                                 <td className={`text-center fw-bold ${row.transactionType?.includes('Stock-In') ? 'text-success' : 'text-danger'}`}>
                                   {row.transactionType?.includes('Stock-In') ? `+${row.quantity}` : `-${row.quantity}`}
                                 </td>
-                                <td className="text-end font-monospace">â‚±{(row.unitCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="text-end font-monospace fw-bold">â‚±{(row.totalValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td className="small text-muted">{row.dateRecorded ? new Date(row.dateRecorded).toLocaleString() : 'â€”'}</td>
+                                <td className="text-end font-monospace">₱{(row.unitCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="text-end font-monospace fw-bold">₱{(row.totalValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="small text-muted">{row.dateRecorded ? new Date(row.dateRecorded).toLocaleString() : '—'}</td>
                                 <td className="small text-truncate" style={{ maxWidth: '160px' }} title={row.recordedBy}>{row.recordedBy || 'System'}</td>
                               </>
                             )}
@@ -1493,7 +1493,7 @@ export default function AdminReports() {
                 <div className="col-6 col-md-3">
                   <div className="card shadow-sm border-0 p-3 h-100 bg-white">
                     <span className="text-muted small fw-bold">TOP RETURNING GUEST</span>
-                    <h4 className="fw-bold text-warning mb-0 mt-1 text-truncate">{reportData?.mostFrequentGuest || 'â€”'}</h4>
+                    <h4 className="fw-bold text-warning mb-0 mt-1 text-truncate">{reportData?.mostFrequentGuest || '—'}</h4>
                     <small className="text-muted">{reportData?.maxVisits ?? 0} total stays on record</small>
                   </div>
                 </div>
@@ -1571,7 +1571,7 @@ export default function AdminReports() {
                                 <td>{row.checkIn}</td>
                                 <td>{row.checkOut}</td>
                                 <td className="text-center fw-bold">{row.lengthOfStay}</td>
-                                <td className="text-end fw-bold text-success">â‚±{row.amountPaid.toFixed(2)}</td>
+                                <td className="text-end fw-bold text-success">₱{row.amountPaid.toFixed(2)}</td>
                                 <td><span className="badge text-bg-light border text-muted">{row.discountApplied}</span></td>
                                 <td><span className="badge text-bg-primary">{row.bookingStatus}</span></td>
                               </>

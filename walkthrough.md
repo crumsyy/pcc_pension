@@ -1,26 +1,22 @@
-# Walkthrough — Native PDF + Genuine XLSX Reports Exports
+# Walkthrough — Fix ₱ Mojibake + PDF Currency & Document Polish (no commit/push yet)
 
-## Changes (no commit/push yet — say `"push"` only when you want commit + push)
+## Root causes (both verified with byte-level evidence)
+1. **`â‚±` on screen: my encoding bug.** The earlier PowerShell `Get-Content`/`Set-Content` splice misread UTF-8 as Windows-1252 and re-saved it (47 lines in `app/admin/reports/page.js`: `₱`→`â‚±`, 🍳🥤🧴→`ðŸ…`, `⚠`→`âš `, `—`→`â€"`).
+2. **Peso in PDF would print as `±`.** Decompressed PDF stream showed `₱` (U+20B1) emitted as raw bytes `<20 b1…>`; under Helvetica/WinAnsi byte `0xB1` renders as `±`. No shippable font exists in the repo, so PDFs now use the `PHP` code per your choice.
 
-**New (additive, `lib/reports/`):**
-- `reportExportModel.js` — single source of truth for all 10 report views (sales summary/transactions/orders/purchase_orders, occupancy trends/performance, inventory balances/movements, guests stays/reservations): titles, columns/widths/formats, KPI reuse from `reportData`, `PCC-REP-<TYPE>-<YYYYMMDD>` doc-refs, `PCC_<Report>_<from>_to_<to>` filenames. No new calculations — field names mirror the old CSV/PDF code and the `/api/admin/reports` payload.
-- `exportExcel.js` — genuine `.xlsx` via `exceljs` (already installed): Summary sheet (title, period, generated-at, filters, doc-ref, KPIs) + Details sheet (all rows, PCC-blue headers, alternating shading, autofilter, frozen header, native numeric peso `₱#,##0.00` / int / `%` formats, column widths).
-- `exportPdf.js` — native A4 portrait PDFs via `@react-pdf/renderer` (already installed): letterhead, doc-ref, metadata incl. filters + timestamp, KPI grid, paginated tables with repeated headers, Page X of Y footers, sign-off. Empty datasets render an explicit no-records page.
-
-**Modified (`app/admin/reports/page.js` only):**
-- Replaced `handleExportCSV` (CSV blob) with `handleExportExcel`, and the `window.open` + `window.print()` HTML "PDF" (~990 lines) with async `handleExportPDF` using the new lib (dynamic imports keep the page bundle lean).
-- Exports use `exportRows` = all server-filtered rows + current sort (search box ignored per your choice; no pagination cut-off). Totals come from `reportData` KPIs — same values as the on-screen cards.
-- Buttons show busy state (`Generating...`), are disabled during export, and toast success/empty/error via the existing app toast system. Theme, sidebar, layout, filters, tabs, and report data untouched.
+## Changes (Reports module only; theme, sidebar, filters, tabs, data untouched)
+- **`app/admin/reports/page.js`**: byte-exact mojibake reversal via Node (cp1252-table + strict UTF-8 decode + proved round-trip `re-corrupt(restored) === current`). Restored alphabet is exactly `₱ ×31`, `— ×8`, `⚠ ×2`, `✓ ×1`, `🍳/🥤/🧴 ×3`, `🕒 ×1` — every corrupted char accounted for. Prevention: Node-only file edits from now on.
+- **`lib/reports/exportPdf.js`**: `formatPdfMoney()` (`PHP 8,100.00`, negatives `PHP -70,054.00`); KPI peso strings converted to `PHP`; TOTAL/AVERAGE footer rows using **only** `reportData` aggregates (sales summary/transactions/orders/POs, occupancy trends, stays, reservations); meta gains Prepared-By + Source rows. Document conventions kept from hotel-report samples (memo meta, KPI summary, tabulated detail + totals, sign-off, `PCC-REP-*` ref, Page X of Y, confidentiality footer).
+- Excel (`.xlsx` `₱` formats) and on-screen `₱` cards unchanged — both render fine outside PDF.
 
 ## Verification
-- `npm run build`: Compiled successfully, 97/97 pages.
-- `npx eslint`: only pre-existing findings (verified identical on HEAD via `git stash`); `lib/reports/` clean.
-- Round-trip harness (real lib code, 15 rows × 10 views): 6/6 PASS — specs resolve, KPIs match API totals (₱8,100.00 / ₱6,900.00), filenames/doc-refs match pattern, XLSX reads back as valid zip with correct headers/row counts/numeric peso cells/autofilter/freeze/PCC-blue headers, PDFs start with `%PDF-` incl. empty-set case.
-- Note: `@react-pdf/renderer` v4 `toBuffer()` returns a PDFKit stream in Node — production code correctly uses `toBlob()` (verified working).
+- Round-trip harness (real lib code): **8/8 PASS** — specs, KPI totals, filenames, XLSX read-back (zip/headers/15 rows/money fmt/filter/freeze/PCC blue), `formatPdfMoney`, `%PDF-` for all 10 views + empty set, PDF stream contains `PHP` amounts + `TOTAL` footer.
+- `npm run build`: Compiled successfully, 97/97 pages. `npx eslint`: only the 5 pre-existing findings (verified identical on HEAD).
+- Screenshot case now renders `₱0.00`, `₱70,054.00`, `-₱70,054.00` correctly.
 
 ## Manual check
-1. Reports → any type/sub-tab → Export to Excel (.xlsx): opens with Summary + Details, formatted pesos, frozen/filterable header.
-2. Export / Download PDF: native A4 PDF with header, KPIs, full table, footers, sign-off.
-3. Empty filter result → toast, no file. Rapid filter switches unaffected (abort logic intact).
+1. Reports → Sales → Export to Excel: `₱` amounts, Summary + Details.
+2. Export / Download PDF: amounts read `PHP …`, blue TOTAL footer, sign-off, page numbers.
+3. Empty filter result → toast, no file.
 
 Awaiting review. Say `"push"` only when you want commit + push.

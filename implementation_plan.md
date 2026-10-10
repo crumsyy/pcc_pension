@@ -1,53 +1,30 @@
-# Implementation Plan — Professional PDF + Genuine XLSX Exports (Reports Module)
+# Implementation Plan — Fix ₱ Mojibake + PDF Currency & Document Look
 
-## 1. Inspection Findings (verified 2026-10-10)
+## 1. Diagnosis (verified, read-only inspection)
 
-**Project:** Next.js 16.2.9, React 19.2.4, Tailwind 4, PCC blue `#2155B5` / `#1e3a8a` theme, sidebar + layout intact.
+**Bug A — `â‚±` on screen (your screenshot): my fault, encoding corruption.**
+- The Reports KPI cards show `â‚±0.00` because `app/admin/reports/page.js` (47 lines) got double-encoded: my PowerShell `Get-Content`/`Set-Content` splice during the export rewiring misread UTF-8 bytes as Windows-1252 and re-saved them (`₱` U+20B1 → `â‚±`, 🍳🥤🧴 → `ðŸ…`, `⚠` → `âš `, `—` → `â€"`).
+- `lib/reports/*` are clean (written UTF-8; peso only as `\u20B1` escapes). No other repo file went through that splice.
 
-**Reports page:** `app/admin/reports/page.js` (~2600 lines, client component)
-- 4 report types: `sales` | `occupancy` | `inventory` | `guests`
-- 10 sub-tabs: sales `summary/transactions/orders/purchase_orders`; occupancy `trends/performance`; inventory `balances/movements`; guests `stays/reservations`
-- Filters: dateFrom/dateTo + preset, grouping (Daily/Weekly/Monthly/Yearly), roomID, roomTypeID, itemClassification, paymentMethod, status, discountType, movementType, fulfillmentStatus. Search + sort + pagination (10/page) are client-side only.
-- Data source: `GET /api/admin/reports?report=...` in `app/api/admin/reports/route.js` aggregates transactions, bookings, discounts (`lib/billingCalculator.js` per-capita logic), PO expenses, occupancy, inventory, guests. Totals (totalRevenue, grossRevenue, netProfit, averageOccupancy, etc.) come from API — must be reused verbatim.
+**Bug B — peso inside the PDF would print as `±`, not `₱` (found by decompressing a test PDF).**
+- Content stream shows the peso emitted as raw bytes `<20 b1 …>`. Under Helvetica/WinAnsi (no `₱` glyph), viewers render byte `0xB1` = `±`. So even after Bug A is fixed, PDFs need a currency fix.
 
-**Current export logic (non-compliant):**
-- `handleExportCSV` (page.js:303): builds CSV string from `sortedData` (filtered+sorted, may exclude search? actually includes search term — needs full filter set excluding search/pagination), downloads as `.csv`.
-- `handleExportPDF` (page.js:378): builds HTML string, `window.open('', '_blank')` + `window.print()` (page.js:786-1289). Violates Req #3.
-- No genuine XLSX; no PDF library usage currently.
+## 2. Proposed fixes (Reports module only, theme/filters/tabs/data untouched)
 
-**Installed deps (reuse, no new installs needed):**
-- `@react-pdf/renderer@^4.9.0` — for professional PDFs.
-- `exceljs@^4.4.0` — for genuine `.xlsx` with styling, number formats, autofilter, freeze panes.
-- `lib/formatters.js` (`formatCurrency` with ₱ U+20B1), `lib/billingCalculator.js`, `sonner` toasts, existing UI tabs.
+**Step 1 — Restore page.js bytes (reversible, verifiable).**
+- Node script (UTF-8 safe): reverse the double-encoding for the whole file (`Buffer.from(s,'latin1').toString('utf8')`), then restore the 3 spots I had converted to `-` back to `—`.
+- Verify: rescan shows only legitimate non-ASCII (`₱`, emoji, `—`, `⚠`); `git diff` on non-ASCII lines matches HEAD exactly except my intended new-code lines; build passes.
 
-**Dashboard totals:** API `reportData` KPIs are source of truth; dashboard reads same tables. Exports must reuse `reportData` KPIs + `currentRawRows`-equivalent (all rows matching server filters), not `paginatedData`.
+**Step 2 — PDF currency + document look.**
+- Currency: check for a shippable TTF with U+20B1 (repo `public/`, npm cache). If available: `Font.register` + use it for peso runs (Helvetica kept elsewhere). If not: render amounts as `PHP 8,100.00` in PDFs only (Excel keeps `₱` — it renders fine there via system fonts; on-screen cards keep `₱` once Step 1 restores them).
+- Document look: pull 1–2 online hotel/audit report samples, then refine the existing shell (letterhead, doc-ref, period/filters meta, KPI summary, repeated-header tables, Page X of Y, prepared/approved sign-off, confidentiality footer) to match conventions. No window.print, still native `@react-pdf/renderer`.
+- Re-run the 6-check round-trip harness (incl. a new assertion: PDF content stream contains no stray `0xB1`-as-peso bytes) + build + lint.
 
-## 2. Goals (per requirements 1-10)
-Preserve theme/sidebar/layout, all categories/filters/tabs/data. Replace print-window PDF with `@react-pdf/renderer` A4 documents; replace CSV with `exceljs` `.xlsx` (headers, peso/date formats, widths, autofilter, frozen header). Export all matching records. Totals = API values. Incremental, build-verified, no unrelated changes.
+**Step 3 — Prevention:** no PowerShell text cmdlets on UTF-8 files; Node-only splicing from now on.
 
-## 3. Proposed Changes (incremental)
+## 3. Open questions
+1. PDF currency if no embeddable font is found: use `PHP 8,100.00` (recommended fallback) or keep trying to source a font?
+2. Proceed with Steps 1–2 as above?
 
-**Step 0 — No new packages.** Verify `exceljs` + `@react-pdf/renderer` load under React 19 / Next 16 (dynamic import, client-only). If compat fails, fallback documented before proceeding.
-
-**Step 1 — New lib (no page rewrite):**
-- `lib/reports/reportExportModel.js` — single mapping: (report, subTab) → { title, filename base, columns [{key, header, width, numFmt}], rowMapper(row)→array, totalsMapper(reportData)→summary rows, kpiList }. Reuses exact field names from current `handleExportCSV` + PDF table sections so calculations are not reinvented.
-- `lib/reports/exportExcel.js` — `exportReportExcel({report, subTab, rows, reportData, filters})`: Summary sheet (title, period, generated-at, filters, doc-ref `PCC-REP-<TYPE>-<YYYYMMDD>`, KPIs/totals as values) + Details sheet (all `rows`, blue header `#1e3a8a`, alternating shading, autofilter, frozen top row, native numbers/dates, `₱#,##0.00` formats, column widths). Filename `PCC_<Report>_<from>_to_<to>.xlsx`.
-- `lib/reports/exportPdf.js` — `exportReportPdf(...)` via `@react-pdf/renderer`: shared A4 shell (letterhead, doc-ref, metadata incl. filters + timestamp, KPI grid per type, tables with repeated headers, Page X of Y footers, sign-off). Portrait; landscape for wide tables (sales summary/transactions, inventory movements). Empty-data page instead of misleading summary.
-- Data input = `currentRawRows`-equivalent (server-filtered, search-excluded? Decision below) sorted by current sort, NOT `paginatedData`.
-
-**Step 2 — Minimal page wiring (`app/admin/reports/page.js` only):**
-- Keep `handleExportCSV` (or repurpose as XLSX) + `handleExportPDF` signatures; replace bodies with dynamic-import calls to new lib, busy state, `sonner` success/error, empty-guard (toast, no file). Buttons disabled while generating. No theme/layout/tabs/filter changes.
-
-**Step 3 — Verification:**
-- `npm run build` + `npx eslint app/admin/reports/page.js lib/reports/` after each step; fix only introduced errors.
-- Manual + script round-trip: row counts = API rows; totals in files = `reportData` KPIs; open PDF/XLSX in viewers; check pagination, formats, filters reflected.
-
-**OUT:** report logic/filters/tabs/UI theme, other modules, git commit/push (await `"push"` keyword per workflow).
-
-## 4. Open Questions (need your choice before coding)
-1. XLSX export scope: include search-term filtering or export all server-filtered rows ignoring search box?
-2. Keep legacy CSV button alongside new XLSX, or replace CSV button with XLSX?
-3. PDF orientation: auto-landscape for wide tables (recommended) or strict A4 portrait always?
-
-## 5. Acceptance
-Valid PDF/XLSX open correctly; pagination/headers/footers/formats/totals verified; filters reflected; empty handled; build+lint clean; no unrelated diffs.
+## 4. Acceptance
+- Screenshot cards show `₱0.00`/`₱70,054.00` correctly; PDF amounts show real peso (or `PHP`); document-style layout; build + harness green; no unrelated diffs; commit/push only on `"push"`.
