@@ -5515,7 +5515,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                   {(detailedBill.chargesSummary?.downPaymentPaid > 0 || detailedBill.downPaymentPaid > 0 || detailedBill.storedDownPaymentAmount > 0) && (
                     <div className="d-flex justify-content-between align-items-center mb-1.5 small text-primary">
-                      <span>Down Payment ({detailedBill.chargesSummary?.downPaymentPercentage || detailedBill.storedDownPaymentPercentage || 30}%):</span>
+                      <span>Down Payment ({detailedBill.chargesSummary?.downPaymentPercentage || detailedBill.storedDownPaymentPercentage || 25}%):</span>
                       <strong className="fw-semibold">-₱{parseFloat(detailedBill.chargesSummary?.downPaymentPaid || detailedBill.downPaymentPaid || detailedBill.storedDownPaymentAmount || 0).toFixed(2)}</strong>
                     </div>
                   )}

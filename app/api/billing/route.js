@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, getBookingRawBalance, isSettledBalance, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
 
 export async function GET(request) {
   const session = await getSession();
@@ -295,11 +295,13 @@ export async function POST(request) {
       }
 
       if (action === 'complete_checkout' || action === 'checkout') {
-        const balance = await getBookingBalance(bookingID);
-        if (balance > 0.05) {
+        const rawBalance = await getBookingRawBalance(bookingID);
+        if (!isSettledBalance(rawBalance)) {
           await conn.rollback();
           return NextResponse.json({
-            error: `Cannot complete check-out. Outstanding balance of ₱${balance.toFixed(2)} must be settled before checkout.`
+            error: rawBalance < 0
+              ? `Cannot complete check-out: overpayment of PHP ${Math.abs(rawBalance).toFixed(2)} detected. Flagged for staff review.`
+              : `Cannot complete check-out. Outstanding balance of ₱${Number(rawBalance).toFixed(2)} must be settled before checkout.`
           }, { status: 400 });
         }
 
@@ -315,33 +317,36 @@ export async function POST(request) {
           bookingID,
           transactionType: 'Checkout Settlement',
           amount: 0,
-          balanceBefore: balance,
+          balanceBefore: rawBalance,
           balanceAfter: 0,
           userID: session.userID,
           userName: session.email || (session.role === 'Guest' ? 'Guest' : 'Receptionist'),
           userRole: session.role,
-          description: `Guest check-out completed and room freed to Available.`
+          description: `Guest check-out completed and room moved to Cleaning.`
         });
 
         return NextResponse.json({
           success: true,
-          message: 'Guest check-out completed successfully. The room is now Available.',
-          roomStatus: 'Available',
+          message: 'Guest check-out completed successfully. The room is now in Cleaning.',
+          roomStatus: checkoutRes.roomStatus || 'Cleaning',
           bookingStatus: 'Completed'
         });
       }
 
       if (action === 'validate_checkout') {
-        const balance = await getBookingBalance(bookingID);
-        const canCheckout = balance <= 0.05;
+        const rawBalance = await getBookingRawBalance(bookingID);
+        const canCheckout = isSettledBalance(rawBalance);
         await conn.rollback();
         return NextResponse.json({
           success: true,
           canCheckout,
-          remainingBalance: balance,
+          remainingBalance: rawBalance,
+          hasNegativeDiscrepancy: rawBalance < 0,
           message: canCheckout
             ? 'Account is settled. Ready for checkout.'
-            : `Outstanding balance of ₱${balance.toFixed(2)} must be settled before checkout.`
+            : rawBalance < 0
+              ? `Overpayment of PHP ${Math.abs(rawBalance).toFixed(2)} detected. Flagged for staff review.`
+              : `Outstanding balance of ₱${Number(rawBalance).toFixed(2)} must be settled before checkout.`
         });
       }
 

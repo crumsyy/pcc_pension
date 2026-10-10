@@ -191,7 +191,7 @@ function ReservationsClient() {
   const [roomGuests, setRoomGuests] = useState([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
 
   // Convert/Confirm Booking States
-  const [downPaymentOption, setDownPaymentOption] = useState('30');
+  const [downPaymentOption, setDownPaymentOption] = useState('25');
   const [paymentMethodID, setPaymentMethodID] = useState('1');
   const [downPayment, setDownPayment] = useState('');
   const [convInDate, setConvInDate] = useState('');

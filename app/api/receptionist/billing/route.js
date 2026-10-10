@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, syncInventoryStock, logBillingAudit, ensureBookingBillingSchema, syncNormalizedBillingLineItems } from '@/lib/db';
+import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, getBookingRawBalance, isSettledBalance, syncInventoryStock, logBillingAudit, ensureBookingBillingSchema, syncNormalizedBillingLineItems, assertBookingTransition } from '@/lib/db';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
 
 export async function GET(request) {
@@ -316,10 +316,12 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Missing booking ID for completing booking.' }, { status: 400 });
       }
 
-      const balance = await getBookingBalance(bookingID);
-      if (balance > 0.05) {
+      const rawBalance = await getBookingRawBalance(bookingID);
+      if (!isSettledBalance(rawBalance)) {
         return NextResponse.json({
-          error: `Cannot complete booking. Outstanding balance of ₱${balance.toFixed(2)} must be settled first.`
+          error: rawBalance < 0
+            ? `Cannot complete booking: overpayment of PHP ${Math.abs(rawBalance).toFixed(2)} detected. Flagged for staff review.`
+            : `Cannot complete booking. Outstanding balance of ₱${Number(rawBalance).toFixed(2)} must be settled first.`
         }, { status: 400 });
       }
 
@@ -334,7 +336,7 @@ export async function POST(request) {
         const nowStr = `${localNow.getFullYear()}-${pad(localNow.getMonth() + 1)}-${pad(localNow.getDate())} ${pad(localNow.getHours())}:${pad(localNow.getMinutes())}:${pad(localNow.getSeconds())}`;
 
         const [bookingData] = await conn.execute(
-          "SELECT b.roomID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID FROM booking b JOIN guest g ON g.guestID = b.guestID WHERE b.bookingID = ?",
+          "SELECT b.roomID, b.guestID, b.status, g.firstName, g.lastName, g.userID as guestUserID FROM booking b JOIN guest g ON g.guestID = b.guestID WHERE b.bookingID = ?",
           [bookingID]
         );
 
@@ -342,17 +344,30 @@ export async function POST(request) {
           return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
         }
 
+        // Lifecycle + idempotency: only an in-house stay completes; never twice.
+        const priorStatus = bookingData[0].status;
+        if (priorStatus === 'Completed' || priorStatus === 'Checked Out') {
+          await conn.rollback();
+          return NextResponse.json({ success: true, alreadyCompleted: true, message: 'Booking is already checked out (duplicate checkout blocked).' });
+        }
+        try {
+          assertBookingTransition(priorStatus, 'Completed', 'complete booking');
+        } catch (e) {
+          await conn.rollback();
+          return NextResponse.json({ error: e.message }, { status: 400 });
+        }
+
         const roomID = bookingData[0].roomID;
         const guestUserID = bookingData[0].guestUserID;
         const guestName = `${bookingData[0].firstName} ${bookingData[0].lastName}`;
 
         await conn.execute(
-          "UPDATE booking SET status = 'Checked Out', actualCheckOut = CURRENT_TIMESTAMP, checkOutDateTime = ? WHERE bookingID = ?",
+          "UPDATE booking SET status = 'Completed', actualCheckOut = CURRENT_TIMESTAMP, checkOutDateTime = ? WHERE bookingID = ?",
           [nowStr, bookingID]
         );
 
         await conn.execute(
-          "UPDATE room SET status = 'Available' WHERE roomID = ?",
+          "UPDATE room SET status = 'Cleaning' WHERE roomID = ?",
           [roomID]
         );
 
@@ -396,12 +411,12 @@ export async function POST(request) {
           bookingID,
           transactionType: 'Checkout Settlement',
           amount: 0,
-          balanceBefore: balance,
+          balanceBefore: rawBalance,
           balanceAfter: 0,
           userID: session.userID,
           userName: session.email || 'Receptionist',
           userRole: session.role,
-          description: `Guest check-out completed and room freed to Available.`
+          description: `Guest check-out completed and room moved to Cleaning.`
         });
 
         if (billingID) {
@@ -423,11 +438,11 @@ export async function POST(request) {
         for (const s of staffList) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checked Out', ?)",
-            [s.userID, `Booking #${bookingID} for ${guestName} has been checked out and Room has been marked Available.`]
+            [s.userID, `Booking #${bookingID} for ${guestName} has been checked out and Room has been marked for Cleaning.`]
           );
         }
 
-        return NextResponse.json({ success: true, message: 'Guest successfully checked out and room marked as Available.' });
+        return NextResponse.json({ success: true, message: 'Guest successfully checked out and room marked for Cleaning.', bookingStatus: 'Completed', roomStatus: 'Cleaning' });
       } catch (err) {
         await conn.rollback();
         throw err;

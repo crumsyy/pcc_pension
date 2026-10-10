@@ -191,6 +191,9 @@ function PaymentsClient() {
   const grandTotal = billData ? parseFloat(billData.chargesSummary?.netTotal || billData.chargesSummary?.grandTotal || netSubtotal) : 0;
   const totalPaid = billData ? parseFloat(billData.chargesSummary?.paid || 0) : 0;
   const balance = billData ? parseFloat(billData.chargesSummary?.balance || 0) : 0;
+  const rawBalance = billData ? parseFloat(billData.chargesSummary?.rawBalance ?? balance) : 0;
+  const isOverpaid = rawBalance < 0;
+  const isSettled = Math.round(rawBalance * 100) === 0;
   const payableAmount = balance > 0 ? balance : 0;
   const subtotal = grossSubtotal;
 
@@ -406,7 +409,19 @@ function PaymentsClient() {
 
   const handleDirectCheckOut = async () => {
     if (!selectedBookingID) return;
-    showConfirm('Complete Booking', 'This stay is fully settled. Complete booking and mark the room Available?', async () => {
+    const cs = billData?.chargesSummary || {};
+    const raw = parseFloat(cs.rawBalance ?? cs.balance ?? 0);
+    if (Math.round(raw * 100) !== 0) {
+      showAlert('error', 'Action Blocked', raw < 0
+        ? `Overpayment of PHP ${Math.abs(raw).toFixed(2)} detected. Flagged for staff review — checkout blocked.`
+        : `Outstanding balance of ₱${Number(raw).toFixed(2)} must be settled first.`);
+      return;
+    }
+    const bk = billData?.booking || {};
+    const guestName = `${bk.firstName || ''} ${bk.lastName || ''}`.trim() || 'Guest';
+    const finalTotal = parseFloat(cs.grandTotal ?? cs.netTotal ?? 0).toFixed(2);
+    const verifiedPaid = parseFloat(cs.paid ?? 0).toFixed(2);
+    showConfirm('Complete Booking', `Check out ${guestName} (Room ${bk.roomNumber || '—'})? Final bill total: ₱${finalTotal} | Verified payments: ₱${verifiedPaid} | Remaining: ₱0.00. The booking will be marked Completed and the room moved to Cleaning.`, async () => {
       try {
         const res = await fetch('/api/receptionist/billing', {
           method: 'POST',
@@ -419,7 +434,7 @@ function PaymentsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to complete booking');
 
-        showAlert('success', 'Booking Completed', 'Booking completed and room is now Available.');
+        showAlert('success', 'Booking Completed', 'Booking completed and room is now in Cleaning.');
         setSelectedBookingID('');
         syncBookingToUrl('');
         setBillData(null);
@@ -691,7 +706,12 @@ function PaymentsClient() {
                     ℹ Payment records transaction settlement. Room remains Occupied until front desk clicks <strong>Complete Booking (Zero Balance)</strong>.
                   </div>
 
-                  {payableAmount <= 0 && selectedBookingID ? (
+                  {isOverpaid && selectedBookingID ? (
+                    <div className="alert alert-danger py-2 px-3 mb-2 mt-2 fw-semibold" style={{ fontSize: '0.78rem' }}>
+                      Overpayment of PHP {Math.abs(rawBalance).toFixed(2)} flagged for review — checkout is blocked until resolved.
+                    </div>
+                  ) : null}
+                  {isSettled && !isOverpaid && selectedBookingID ? (
                     <button
                       type="button"
                       className="btn btn-success text-white w-100 py-2.5 fw-bold shadow-sm"

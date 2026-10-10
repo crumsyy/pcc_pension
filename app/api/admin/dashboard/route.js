@@ -30,6 +30,7 @@ export async function GET() {
         FROM payment p
         JOIN transactions t ON t.paymentID = p.paymentID
         WHERE DATE(t.transactionDateTime) = CURDATE()
+          AND (p.status IS NULL OR p.status = 'Settled')
       `),
       dbQuery(`
         SELECT COALESCE(SUM(p.amount), 0) as amount 
@@ -37,6 +38,7 @@ export async function GET() {
         JOIN transactions t ON t.paymentID = p.paymentID
         WHERE MONTH(t.transactionDateTime) = MONTH(NOW())
           AND YEAR(t.transactionDateTime) = YEAR(NOW())
+          AND (p.status IS NULL OR p.status = 'Settled')
       `),
       dbQuery(`
         SELECT COUNT(*) as count 

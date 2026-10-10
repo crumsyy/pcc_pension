@@ -142,7 +142,7 @@ function BookingsClient() {
   const [walkinGcashRef, setWalkinGcashRef] = useState('');
 
   const [roomFilterStatus, setRoomFilterStatus] = useState('Available');
-  const [downPaymentOption, setDownPaymentOption] = useState('30');
+  const [downPaymentOption, setDownPaymentOption] = useState('25');
   const [checkInDate, setCheckInDate] = useState('');
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutDate, setCheckOutDate] = useState('');
@@ -948,7 +948,7 @@ function BookingsClient() {
     
     setMinDateTime(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${currentTimeStr}`);
     setUseCurrentTimeIn(false);
-    setDownPaymentOption('30');
+    setDownPaymentOption('25');
     setCheckInDate(todayUiDate);
     setCheckInTime('14:00');
     setCheckOutDate(tomorrowUiDate);
@@ -982,7 +982,7 @@ function BookingsClient() {
     
     setMinDateTime(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${currentTimeStr}`);
     setUseCurrentTimeIn(false);
-    setDownPaymentOption('30');
+    setDownPaymentOption('25');
     setCheckInDate(todayUiDate);
     setCheckInTime('14:00');
     setCheckOutDate(tomorrowUiDate);
@@ -2762,10 +2762,10 @@ function BookingsClient() {
                     <div className="btn-group w-100" role="group">
                       <button
                         type="button"
-                        className={`btn ${downPaymentOption === '30' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-                        onClick={() => setDownPaymentOption('30')}
+                        className={`btn ${downPaymentOption === '25' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                        onClick={() => setDownPaymentOption('25')}
                       >
-                        30% Down Payment
+                        25% Down Payment
                       </button>
                       <button
                         type="button"

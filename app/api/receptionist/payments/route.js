@@ -66,7 +66,7 @@ export async function GET(request) {
       ].includes(b.status)) {
         return true;
       }
-      if (b.status === 'Checked Out' && parseFloat(b.remainingBalance || 0) > 0.05) {
+      if ((b.status === 'Checked Out' || b.status === 'Completed') && parseFloat(b.remainingBalance || 0) > 0.05) {
         return true;
       }
       return false;
@@ -251,10 +251,11 @@ export async function POST(request) {
       if (shouldCheckout) {
         await completeBookingAndFreeRoom(bookingID);
       } else if (bookingID) {
-        // Upon payment for an active stay booking, automatically ensure room status is Occupied
+        // Upon payment for an active stay booking, automatically ensure room status is Occupied.
+        // Never flip rooms of completed/cancelled stays (e.g. Cleaning) back to Occupied.
         const [bInfo] = await connection.execute("SELECT roomID, status FROM booking WHERE bookingID = ?", [bookingID]);
-        if (bInfo.length > 0 && bInfo[0].status !== 'Checked Out' && bInfo[0].status !== 'Cancelled') {
-          await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [bInfo[0].roomID]);
+        if (bInfo.length > 0 && !['Checked Out', 'Completed', 'Cancelled', 'Canceled', 'No Show'].includes(bInfo[0].status)) {
+          await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ? AND status NOT IN ('Cleaning', 'Under Maintenance', 'Maintenance')", [bInfo[0].roomID]);
         }
       }
 

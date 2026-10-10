@@ -55,16 +55,21 @@ export async function GET(request) {
         AND r.roomID NOT IN (
           SELECT DISTINCT b.roomID
           FROM booking b
-          WHERE b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+          WHERE b.status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
             AND b.checkInDateTime < ?
             AND b.checkOutDateTime > ?
         )
         AND r.roomID NOT IN (
           SELECT DISTINCT res.roomID
           FROM reservation res
-          WHERE res.status = 'Pending'
+          WHERE res.status IN ('Pending', 'Reserved', 'Confirmed', 'On Hold', 'Courtesy Hold')
             AND res.reservationDateTime < ?
-            AND res.checkOutDateTime > ?
+            AND COALESCE(res.checkOutDateTime, DATE_ADD(res.reservationDateTime, INTERVAL 1 DAY)) > ?
+            AND (
+              res.status NOT IN ('On Hold', 'Courtesy Hold')
+              OR res.holdExpiryDateTime IS NULL
+              OR NOW() <= DATE_ADD(res.holdExpiryDateTime, INTERVAL 30 MINUTE)
+            )
         )
     `;
 

@@ -289,45 +289,53 @@ export async function POST(request) {
       const holdExpiryDateTime = `${expiry.getFullYear()}-${pad(expiry.getMonth() + 1)}-${pad(expiry.getDate())} ${pad(expiry.getHours())}:${pad(expiry.getMinutes())}:${pad(expiry.getSeconds())}`;
       const initialStatus = 'Courtesy Hold';
 
-      // Conflict check against overlapping active bookings or reservations
+      // Conflict check against overlapping active bookings or reservations.
+      // Wrapped in a transaction with a room row lock so two concurrent
+      // requests for the same room serialize instead of double-booking.
       const reqIn = reservationDateTime;
       const reqOut = checkOutDateTime || new Date(new Date(reservationDateTime.replace(' ', 'T')).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
 
-      const [conflictingBookings, conflictingReservations] = await Promise.all([
-        dbQuery(`
+      const pool = await getDbConnection();
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        await conn.execute("SELECT roomID FROM room WHERE roomID = ? FOR UPDATE", [roomID]);
+
+        const [conflictingBookings] = await conn.execute(`
           SELECT bookingID FROM booking
           WHERE roomID = ?
             AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
             AND checkInDateTime < ?
             AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?
-        `, [roomID, reqOut, reqIn]),
-        dbQuery(`
+        `, [roomID, reqOut, reqIn]);
+        const [conflictingReservations] = await conn.execute(`
           SELECT reservationID FROM reservation
           WHERE roomID = ?
             AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired')
             AND NOT (
-              status IN ('Courtesy Hold', 'On Hold') 
-              AND holdExpiryDateTime IS NOT NULL 
+              status IN ('Courtesy Hold', 'On Hold')
+              AND holdExpiryDateTime IS NOT NULL
               AND NOW() > DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)
             )
-            AND reservationDateTime < ? 
+            AND reservationDateTime < ?
             AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?
-        `, [roomID, reqOut, reqIn])
-      ]);
+        `, [roomID, reqOut, reqIn]);
 
-      if (conflictingBookings.length > 0) {
-        return NextResponse.json({
-          error: "This room is already booked for the selected dates."
-        }, { status: 409 });
-      }
+        if (conflictingBookings.length > 0) {
+          await conn.rollback();
+          return NextResponse.json({
+            error: "This room is already booked for the selected dates."
+          }, { status: 409 });
+        }
 
-      if (conflictingReservations.length > 0) {
-        return NextResponse.json({
-          error: "This room already has an active reservation or courtesy hold for the selected dates."
-        }, { status: 409 });
-      }
+        if (conflictingReservations.length > 0) {
+          await conn.rollback();
+          return NextResponse.json({
+            error: "This room already has an active reservation or courtesy hold for the selected dates."
+          }, { status: 409 });
+        }
 
-      await ensureBookingBreakfastSchema();
+        await ensureBookingBreakfastSchema();
       const inDateStr = (reservationDateTime || '').split(' ')[0] || (reservationDateTime || '').split('T')[0];
       const outDateStr = (checkOutDateTime || '').split(' ')[0] || (checkOutDateTime || '').split('T')[0];
       const stayNights = inDateStr && outDateStr ? getStayNights(inDateStr, outDateStr) : [];
@@ -349,7 +357,7 @@ export async function POST(request) {
         breakfastFee = validBreakfastDates.length * 250;
       }
 
-      const insertRes = await dbQuery(
+      const [insertRes] = await conn.execute(
         `INSERT INTO reservation(
           reservationDateTime, checkOutDateTime, guestCount, specialRequests, breakfastOption,
           status, guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail,
@@ -362,7 +370,14 @@ export async function POST(request) {
         ]
       );
 
-      await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+      await conn.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+      await conn.commit();
+      } catch (txErr) {
+        try { await conn.rollback(); } catch (e) {}
+        throw txErr;
+      } finally {
+        conn.release();
+      }
 
       // Dispatch Courtesy Hold Confirmation Email
       if (guestEmail) {
@@ -499,6 +514,12 @@ export async function POST(request) {
         return NextResponse.json({ error: `Cannot convert reservation: status is ${res[0].status}.` }, { status: 400 });
       }
 
+      // Idempotency: an already-converted reservation cannot convert twice
+      // (covers double clicks and retried requests).
+      if (res[0].status === 'Booked') {
+        return NextResponse.json({ error: 'This reservation has already been converted to a booking.' }, { status: 400 });
+      }
+
       if (res[0].isCourtesyHold && res[0].holdExpiryDateTime) {
         const expiryWithGrace = new Date(new Date(res[0].holdExpiryDateTime).getTime() + 30 * 60 * 1000);
         if (new Date() > expiryWithGrace) {
@@ -513,6 +534,18 @@ export async function POST(request) {
 
       try {
         await conn.beginTransaction();
+
+        // Re-check inside the transaction (row lock): a concurrent conversion
+        // of the same reservation must fail instead of double-booking.
+        const [lockedRes] = await conn.execute(
+          "SELECT status FROM reservation WHERE reservationID = ? FOR UPDATE",
+          [reservationID]
+        );
+        if ((lockedRes[0]?.status) === 'Booked') {
+          await conn.rollback();
+          conn.release();
+          return NextResponse.json({ error: 'This reservation has already been converted to a booking.' }, { status: 400 });
+        }
 
         // Handle Guest Email for Conversion (optional)
         const [existingGuestRows] = await conn.execute("SELECT email, firstName, lastName FROM guest WHERE guestID = ?", [guestID]);

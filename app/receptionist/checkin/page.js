@@ -308,7 +308,12 @@ function CheckInClient() {
       const dataBill = await resBill.json();
       if (!resBill.ok) throw new Error(dataBill.error || 'Failed to fetch guest billing details');
       
+      const rawPreBalance = parseFloat(dataBill.chargesSummary?.rawBalance ?? dataBill.chargesSummary?.balance ?? 0);
       const balance = parseFloat(dataBill.chargesSummary?.balance || 0);
+      if (rawPreBalance < 0) {
+        showAlert('error', 'Overpayment Review Required', `Guest ${guestName} has an overpayment of PHP ${Math.abs(rawPreBalance).toFixed(2)} flagged for staff review. Checkout is blocked until resolved.`);
+        return;
+      }
       if (balance > 0) {
         showAlert('warning', 'Outstanding Balance Found', `Guest ${guestName} has an unpaid balance of ₱${balance.toFixed(2)}. Redirecting to the Payments page to settle the bill before check-out.`);
         setTimeout(() => {
@@ -349,7 +354,9 @@ function CheckInClient() {
         }
       };
 
-      showConfirm('Process Check-Out', `Check out ${guestName} and release the room?`, async () => {
+      const preTotal = parseFloat(dataBill.chargesSummary?.grandTotal ?? dataBill.chargesSummary?.netTotal ?? 0).toFixed(2);
+      const prePaid = parseFloat(dataBill.chargesSummary?.paid ?? 0).toFixed(2);
+      showConfirm('Process Check-Out', `Check out ${guestName}? Final bill: ₱${preTotal} | Verified payments: ₱${prePaid} | Remaining: ₱0.00. The booking will be marked Completed and the room moved to Cleaning.`, async () => {
         await performCheckOut(false);
       });
     } catch (err) {

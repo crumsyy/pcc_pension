@@ -146,7 +146,10 @@ export async function POST(request) {
 
       const currentStatus = booking.status;
       const eligibleStatuses = ['Active Stay', 'Checked In', 'Checked-In', 'Occupied'];
-      if (!eligibleStatuses.includes(currentStatus) && normalizeBookingStatus(currentStatus) !== 'Active Stay') {
+      const normalizedRequestState = normalizeBookingStatus(currentStatus);
+      // In-house states only: Active Stay family plus Paid (a fully-paid guest
+      // is still occupying the room and must be able to request checkout).
+      if (!eligibleStatuses.includes(currentStatus) && normalizedRequestState !== 'Active Stay' && normalizedRequestState !== 'Paid') {
         return NextResponse.json({ 
           error: `Cannot request checkout from current status '${currentStatus}'. Only checked-in active stays can request checkout.` 
         }, { status: 400 });
@@ -193,8 +196,8 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Booking record not found.' }, { status: 404 });
       }
 
-      if (booking.status === 'Checked In' || booking.status === 'Checked Out') {
-        return NextResponse.json({ error: 'Checked-in or Checked-out bookings cannot be canceled.' }, { status: 400 });
+      if (booking.status === 'Checked In' || booking.status === 'Checked Out' || booking.status === 'Completed' || booking.status === 'Active Stay') {
+        return NextResponse.json({ error: 'Checked-in, in-house, or checked-out bookings cannot be canceled. Please request checkout instead.' }, { status: 400 });
       }
 
       await dbQuery(
@@ -283,7 +286,7 @@ export async function POST(request) {
         const [dupCheck] = await connection.execute(
           `SELECT bookingID, status FROM booking 
            WHERE guestID = ? AND roomID = ? 
-             AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+             AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
              AND DATE(checkInDateTime) = DATE(?)`,
           [guest.guestID, roomID, checkInDateTime]
         );
@@ -300,9 +303,9 @@ export async function POST(request) {
           SELECT bookingID
           FROM booking
           WHERE roomID = ?
-            AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+            AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
             AND checkInDateTime < ?
-            AND checkOutDateTime > ?
+            AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?
         `, [roomID, checkOutDateTime, checkInDateTime]);
 
         if (conflictingBookings.length > 0) {

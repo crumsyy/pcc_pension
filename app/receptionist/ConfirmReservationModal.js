@@ -637,10 +637,10 @@ export default function ConfirmReservationModal({
                 <div className="btn-group w-100" role="group">
                   <button
                     type="button"
-                    className={`btn ${downPaymentOption === '30' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
-                    onClick={() => setDownPaymentOption('30')}
+                    className={`btn ${downPaymentOption === '25' ? 'btn-pcc-primary text-white fw-bold' : 'btn-outline-secondary'}`}
+                    onClick={() => setDownPaymentOption('25')}
                   >
-                    30% Down Payment
+                    25% Down Payment
                   </button>
                   <button
                     type="button"

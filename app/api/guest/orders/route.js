@@ -136,7 +136,7 @@ export async function GET(request) {
         FROM booking b
         LEFT JOIN reservation res ON res.reservationID = b.reservationID
         LEFT JOIN room r ON r.roomID = b.roomID
-        WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'Completed', 'No Show')
         ORDER BY b.bookingID DESC
         LIMIT 1
       `, [guestID]);
@@ -247,7 +247,7 @@ export async function POST(request) {
       FROM booking b
       LEFT JOIN reservation res ON res.reservationID = b.reservationID
       LEFT JOIN room r ON r.roomID = b.roomID
-      WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+      WHERE b.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'Completed', 'No Show')
       ORDER BY b.bookingID DESC
       LIMIT 1
     `, [guest.guestID]);

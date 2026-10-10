@@ -148,7 +148,7 @@ export default function TermsAndConditionsPage() {
                 Down Payments, Billing &amp; Payment Options
               </h4>
               <ul className="text-secondary leading-relaxed">
-                <li><strong>Required Down Payment:</strong> A minimum down payment of <strong>50%</strong> (or 100% full payment) of the Net Room Stay Charge (Room Accommodation + Breakfast Fee) is mandatory to convert a courtesy hold into a confirmed, guaranteed booking.</li>
+                <li><strong>Required Down Payment:</strong> A minimum down payment of <strong>25%</strong> (50%, or 100% full payment) of the Net Room Stay Charge (Room Accommodation + Breakfast Fee) is mandatory to convert a courtesy hold into a confirmed, guaranteed booking.</li>
                 <li><strong>Payment Channels:</strong> PCC Home Suite Home accepts verified payments via:
                   <ul>
                     <li>Dynamic <strong>QR Ph</strong> instant digital bank transfers (InstaPay / PESONet compliant).</li>

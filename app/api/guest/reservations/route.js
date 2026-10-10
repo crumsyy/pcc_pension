@@ -80,7 +80,7 @@ export async function GET(request) {
     const activeBookings = await dbQuery(`
       SELECT bookingID, roomID, checkInDateTime, checkOutDateTime, status, 'booking' as type
       FROM booking
-      WHERE status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+      WHERE status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
         AND checkOutDateTime >= CURDATE()
     `);
 
@@ -89,7 +89,7 @@ export async function GET(request) {
              COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) as checkOutDateTime,
              status, 'reservation' as type, isCourtesyHold
       FROM reservation
-      WHERE status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'No Show', 'Released')
+      WHERE status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show', 'Released')
         AND (
           reservationDateTime >= CURDATE()
           OR (status IN ('On Hold', 'Courtesy Hold') AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)))
@@ -243,9 +243,9 @@ export async function POST(request) {
       SELECT bookingID, checkInDateTime, checkOutDateTime
       FROM booking
       WHERE roomID = ?
-        AND status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
         AND checkInDateTime < ?
-        AND checkOutDateTime > ?
+        AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?
     `, [roomID, reqCheckOutSql, reservationDateTime]);
 
     if (conflictingBookings.length > 0) {
@@ -323,32 +323,71 @@ export async function POST(request) {
     }
     const breakfastTotal = validBreakfastDates.length * resolvedBfastRate;
 
-    // Zero billing record generated for courtesy holds / confirmed booking records
-    const insertRes = await dbQuery(
-      `INSERT INTO reservation (
-        reservationDateTime, checkOutDateTime, guestCount, specialRequests, status,
-        guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail, breakfastOption, breakfastDates, breakfastFee
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        reservationDateTime,
-        checkOutDateTimeFormatted,
-        parseInt(numGuests || 1),
-        specialRequests || null,
-        resStatus,
-        guest.guestID,
-        roomID,
-        isCourtesyHold ? 1 : 0,
-        isCourtesyHold ? holdDurationHours : null,
-        holdExpiryDateTime,
-        guest.email || null,
-        breakfastOption,
-        JSON.stringify(validBreakfastDates),
-        breakfastTotal
-      ]
-    );
+    // Zero billing record generated for courtesy holds / confirmed booking records.
+    // Serialize concurrent same-room requests: lock the room row and re-check
+    // overlaps inside the transaction before inserting.
+    const pool = await getDbConnection();
+    const conn = await pool.getConnection();
+    let insertRes;
+    try {
+      await conn.beginTransaction();
+      await conn.execute("SELECT roomID FROM room WHERE roomID = ? FOR UPDATE", [roomID]);
 
-    // If Courtesy Hold: set room status to 'Reserved' immediately
-    await dbQuery("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+      const [txConflicts] = await conn.execute(`
+        SELECT bookingID FROM booking
+        WHERE roomID = ?
+          AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
+          AND checkInDateTime < ?
+          AND COALESCE(checkOutDateTime, DATE_ADD(checkInDateTime, INTERVAL 1 DAY)) > ?
+      `, [roomID, reqCheckOutSql, reservationDateTime]);
+      const [txResConflicts] = await conn.execute(`
+        SELECT reservationID FROM reservation
+        WHERE roomID = ?
+          AND (
+            (status IN ('Pending', 'Reserved', 'Confirmed', 'Booked') AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+            OR
+            (status IN ('On Hold', 'Courtesy Hold') AND (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE)) AND reservationDateTime < ? AND COALESCE(checkOutDateTime, DATE_ADD(reservationDateTime, INTERVAL 1 DAY)) > ?)
+          )
+      `, [roomID, reqCheckOutSql, reservationDateTime, reqCheckOutSql, reservationDateTime]);
+      if (txConflicts.length > 0 || txResConflicts.length > 0) {
+        await conn.rollback();
+        return NextResponse.json({
+          error: "This room was just taken for the selected dates. Please choose another date or room."
+        }, { status: 409 });
+      }
+
+      [insertRes] = await conn.execute(
+        `INSERT INTO reservation (
+          reservationDateTime, checkOutDateTime, guestCount, specialRequests, status,
+          guestID, roomID, isCourtesyHold, holdDurationHours, holdExpiryDateTime, guestEmail, breakfastOption, breakfastDates, breakfastFee
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          reservationDateTime,
+          checkOutDateTimeFormatted,
+          parseInt(numGuests || 1),
+          specialRequests || null,
+          resStatus,
+          guest.guestID,
+          roomID,
+          isCourtesyHold ? 1 : 0,
+          isCourtesyHold ? holdDurationHours : null,
+          holdExpiryDateTime,
+          guest.email || null,
+          breakfastOption,
+          JSON.stringify(validBreakfastDates),
+          breakfastTotal
+        ]
+      );
+
+      // If Courtesy Hold: set room status to 'Reserved' immediately
+      await conn.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [roomID]);
+      await conn.commit();
+    } catch (txErr) {
+      try { await conn.rollback(); } catch (e) {}
+      throw txErr;
+    } finally {
+      conn.release();
+    }
 
     // Add user notification
     const holdExpiryStr = holdExpiryDateObj ? holdExpiryDateObj.toLocaleString('en-US', { timeZone: 'Asia/Manila' }) : '';

@@ -416,12 +416,19 @@ export default function ReceptionistBilling() {
   };
 
   const handleCompleteBooking = async () => {
-    const remainingBalance = parseFloat(billDetails?.chargesSummary?.remainingBalance ?? billDetails?.chargesSummary?.balance ?? 0);
-    if (remainingBalance > 0.05) {
-      showAlert('error', 'Action Blocked', `Cannot complete booking with an outstanding balance of ₱${remainingBalance.toFixed(2)}. Please settle the bill first.`);
+    const cs = billDetails?.chargesSummary || {};
+    const rawBalance = parseFloat(cs.rawBalance ?? cs.remainingBalance ?? cs.balance ?? 0);
+    if (Math.round(rawBalance * 100) !== 0) {
+      showAlert('error', 'Action Blocked', rawBalance < 0
+        ? `Overpayment of PHP ${Math.abs(rawBalance).toFixed(2)} detected. Flagged for staff review — checkout blocked.`
+        : `Cannot complete booking with an outstanding balance of ₱${Number(rawBalance).toFixed(2)}. Please settle the bill first.`);
       return;
     }
-    showConfirm('Complete Booking', 'Are you sure you want to complete this booking? The guest will be checked out, the room released to Available status, and the folio finalized.', async () => {
+    const bk = billDetails?.booking || {};
+    const guestName = `${bk.firstName || ''} ${bk.lastName || ''}`.trim() || 'Guest';
+    const finalTotal = parseFloat(cs.grandTotal ?? cs.netTotal ?? 0).toFixed(2);
+    const verifiedPaid = parseFloat(cs.paid ?? 0).toFixed(2);
+    showConfirm('Complete Booking', `Check out ${guestName} (Room ${bk.roomNumber || '—'})? Final bill total: ₱${finalTotal} | Verified payments: ₱${verifiedPaid} | Remaining: ₱0.00. The booking will be marked Completed and the room moved to Cleaning.`, async () => {
       setCheckingOut(true);
       try {
         const res = await fetch('/api/receptionist/billing', {
@@ -435,7 +442,7 @@ export default function ReceptionistBilling() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to complete booking');
 
-        showAlert('success', 'Booking Completed', 'The booking has been successfully completed, the folio finalized, and the room is now Available.');
+        showAlert('success', 'Booking Completed', 'The booking has been successfully completed, the folio finalized, and the room is now in Cleaning.');
         fetchActiveBookings();
         fetchBillingDetails(selectedBookingID);
       } catch (err) {
@@ -1602,6 +1609,9 @@ export default function ReceptionistBilling() {
 
                           {(() => {
                             const balance = parseFloat(billDetails.chargesSummary?.balance || 0);
+                            const rawBalance = parseFloat(billDetails.chargesSummary?.rawBalance ?? balance);
+                            const isSettled = Math.round(rawBalance * 100) === 0;
+                            const isOverpaid = rawBalance < 0;
                             const isFinalized = billDetails.chargesBreakdown?.isBillFinalized ||
                                                 billDetails.chargesSummary?.isBillFinalized === 1 ||
                                                 billDetails.isBillFinalized === 1 ||
@@ -1611,13 +1621,36 @@ export default function ReceptionistBilling() {
                             if (isCheckedOut) {
                               return (
                                 <div className="alert alert-secondary text-center py-2.5 mb-0 fw-semibold">
-                                  <i className="bi bi-check-circle-fill me-1 text-success"></i> Bill fully settled &amp; Guest Checked Out. Room is Available.
+                                  <i className="bi bi-check-circle-fill me-1 text-success"></i> Bill fully settled &amp; Guest Checked Out. Room is in Cleaning.
                                 </div>
                               );
                             }
 
-                            // If remaining balance > 0.05
-                            if (balance > 0.05) {
+                            // Overpaid: block checkout, flag for review (never auto-clear)
+                            if (isOverpaid) {
+                              return (
+                                <div className="d-flex flex-column gap-2">
+                                  <div className="alert alert-danger py-2.5 px-3 small d-flex align-items-center gap-2 mb-0 border-0 rounded-3 fw-semibold">
+                                    <i className="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0"></i>
+                                    <div>
+                                      <div className="fw-bold">Overpayment flagged for review (PHP {Math.abs(rawBalance).toFixed(2)})</div>
+                                      <div className="small fw-normal">Checkout is blocked until a supervisor reviews and resolves the discrepancy.</div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary text-white w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                                    disabled
+                                    title="Checkout blocked pending overpayment review"
+                                  >
+                                    <i className="fa-solid fa-lock me-1"></i> Complete Booking (Under Review)
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            // If remaining balance is not exactly ₱0.00
+                            if (!isSettled) {
                               if (!isFinalized) {
                                 // Step 1: Finalize Bill & Allow Payment
                                 return (
@@ -1692,7 +1725,7 @@ export default function ReceptionistBilling() {
                               }
                             }
 
-                            // Balance <= 0.05: Bill fully settled!
+                            // Balance is exactly ₱0.00: Bill fully settled!
                             return (
                               <div className="d-flex flex-column gap-2">
                                 <div className="alert alert-success text-center py-2 mb-0 fw-semibold">

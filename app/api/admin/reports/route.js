@@ -499,13 +499,14 @@ export async function GET(request) {
         LEFT JOIN booking b ON b.bookingID = bil.bookingID
         LEFT JOIN room r ON r.roomID = b.roomID
         WHERE DATE(t.transactionDateTime) BETWEEN ? AND ?
+          AND (p.status IS NULL OR p.status = 'Settled')
         ${roomID ? ` AND b.roomID = ${parseInt(roomID)}` : ''}
         ${roomTypeID ? ` AND r.roomTypeID = ${parseInt(roomTypeID)}` : ''}
       `;
       const [bookingsInRange, completedBookingsInRange, prevSalesRes] = await Promise.all([
         dbQuery(bkCountSql, bkCountParams),
         dbQuery(
-          bkCountSql + " AND b.status IN ('Checked Out', 'Bill Finalized', 'Payment Completed')",
+          bkCountSql + " AND b.status IN ('Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed')",
           bkCountParams
         ),
         dbQuery(prevSalesSql, [prevFromStr, prevToStr])
@@ -594,7 +595,7 @@ export async function GET(request) {
       const availableNow = availableNowRes[0]?.count || 0;
 
       // Check-ins and Check-outs
-      let bkCheckSql = "SELECT COUNT(*) as count FROM booking b JOIN room r ON r.roomID = b.roomID WHERE b.status IN ('Checked In', 'Checked Out', 'Bill Finalized', 'Payment Completed') AND DATE(b.checkInDateTime) BETWEEN ? AND ?";
+      let bkCheckSql = "SELECT COUNT(*) as count FROM booking b JOIN room r ON r.roomID = b.roomID WHERE b.status IN ('Checked In', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed') AND DATE(b.checkInDateTime) BETWEEN ? AND ?";
       const bkCheckParams = [from, to];
       if (roomID) {
         bkCheckSql += " AND b.roomID = ?";
@@ -620,7 +621,7 @@ export async function GET(request) {
                DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status 
         FROM booking b
         JOIN room r ON r.roomID = b.roomID
-        WHERE b.status IN ('Checked In', 'Checked Out', 'Bill Finalized', 'Payment Completed')
+        WHERE b.status IN ('Checked In', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed')
           AND DATE(b.checkInDateTime) <= ? AND DATE(b.checkOutDateTime) >= ?
       `;
       const activeBkParams = [to, from];
@@ -668,7 +669,7 @@ export async function GET(request) {
         JOIN floor fl ON fl.floorID = rm.floorID
         LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1
         LEFT JOIN booking b ON b.roomID = rm.roomID
-          AND b.status IN ('Checked In', 'Checked Out', 'Bill Finalized', 'Payment Completed')
+          AND b.status IN ('Checked In', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed')
           AND DATE(b.checkInDateTime) <= ? AND DATE(b.checkOutDateTime) >= ?
         WHERE rm.isArchived = 0
       `;
@@ -1094,7 +1095,7 @@ export async function GET(request) {
                DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, 
                b.status as bookingStatus, b.roomID,
                r.roomNumber, rt.type as roomTypeName,
-               (SELECT COALESCE(SUM(p.amount), 0) FROM payment p JOIN billing bil ON bil.billingID = p.billingID WHERE bil.bookingID = b.bookingID) as amountPaid
+               (SELECT COALESCE(SUM(p.amount), 0) FROM payment p JOIN billing bil ON bil.billingID = p.billingID WHERE bil.bookingID = b.bookingID AND (p.status IS NULL OR p.status = 'Settled')) as amountPaid
         FROM guest g
         JOIN booking b ON b.guestID = g.guestID
         JOIN room r ON r.roomID = b.roomID
@@ -1319,7 +1320,7 @@ export async function GET(request) {
       const billingList = await dbQuery(`
         SELECT bil.billingID, DATE_FORMAT(bil.billingDateTime, '%Y-%m-%dT%H:%i:%s') as billingDate, b.status as billingStatus, bil.bookingID,
                g.firstName, g.lastName, rm.roomNumber,
-               (SELECT COALESCE(SUM(p.amount), 0) FROM payment p WHERE p.billingID = bil.billingID) as totalPaid
+               (SELECT COALESCE(SUM(p.amount), 0) FROM payment p WHERE p.billingID = bil.billingID AND (p.status IS NULL OR p.status = 'Settled')) as totalPaid
         FROM billing bil
         JOIN booking b ON b.bookingID = bil.bookingID
         JOIN guest g ON g.guestID = b.guestID

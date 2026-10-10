@@ -74,7 +74,7 @@ export async function GET(request) {
         FROM booking b
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
-        WHERE b.status NOT IN ('Cancelled', 'Checked Out', 'No Show')
+        WHERE b.status NOT IN ('Cancelled', 'Checked Out', 'Completed', 'No Show')
         ORDER BY b.bookingID DESC
       `),
       dbQuery(`
@@ -148,7 +148,7 @@ export async function POST(request) {
              FROM booking b 
              JOIN guest g ON g.guestID = b.guestID 
              JOIN room r ON r.roomID = b.roomID
-             WHERE b.bookingID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show') 
+             WHERE b.bookingID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'Completed', 'No Show') 
              LIMIT 1`,
             [parseInt(body.bookingID)]
           );
@@ -161,7 +161,7 @@ export async function POST(request) {
              FROM booking b 
              JOIN guest g ON g.guestID = b.guestID 
              JOIN room r ON r.roomID = b.roomID
-             WHERE g.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'No Show') 
+             WHERE g.guestID = ? AND b.status NOT IN ('Cancelled', 'Checked Out', 'Completed', 'No Show') 
              ORDER BY b.bookingID DESC
              LIMIT 1`,
             [guestID]

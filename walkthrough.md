@@ -1,22 +1,30 @@
-# Walkthrough — Fix ₱ Mojibake + PDF Currency & Document Polish (no commit/push yet)
+# Walkthrough — Reservation → Booking → Payment → Checkout Workflow (no commit/push yet)
 
-## Root causes (both verified with byte-level evidence)
-1. **`â‚±` on screen: my encoding bug.** The earlier PowerShell `Get-Content`/`Set-Content` splice misread UTF-8 as Windows-1252 and re-saved it (47 lines in `app/admin/reports/page.js`: `₱`→`â‚±`, 🍳🥤🧴→`ðŸ…`, `⚠`→`âš `, `—`→`â€"`).
-2. **Peso in PDF would print as `±`.** Decompressed PDF stream showed `₱` (U+20B1) emitted as raw bytes `<20 b1…>`; under Helvetica/WinAnsi byte `0xB1` renders as `±`. No shippable font exists in the repo, so PDFs now use the `PHP` code per your choice.
+## What changed (existing architecture reused, no rebuild, PCC theme untouched)
 
-## Changes (Reports module only; theme, sidebar, filters, tabs, data untouched)
-- **`app/admin/reports/page.js`**: byte-exact mojibake reversal via Node (cp1252-table + strict UTF-8 decode + proved round-trip `re-corrupt(restored) === current`). Restored alphabet is exactly `₱ ×31`, `— ×8`, `⚠ ×2`, `✓ ×1`, `🍳/🥤/🧴 ×3`, `🕒 ×1` — every corrupted char accounted for. Prevention: Node-only file edits from now on.
-- **`lib/reports/exportPdf.js`**: `formatPdfMoney()` (`PHP 8,100.00`, negatives `PHP -70,054.00`); KPI peso strings converted to `PHP`; TOTAL/AVERAGE footer rows using **only** `reportData` aggregates (sales summary/transactions/orders/POs, occupancy trends, stays, reservations); meta gains Prepared-By + Source rows. Document conventions kept from hotel-report samples (memo meta, KPI summary, tabulated detail + totals, sign-off, `PCC-REP-*` ref, Page X of Y, confidentiality footer).
-- Excel (`.xlsx` `₱` formats) and on-screen `₱` cards unchanged — both render fine outside PDF.
+**Lifecycle enforcement (`lib/db.js`, `lib/bookingStatuses.js` unchanged)**
+- New `assertBookingTransition()` + `getBookingRawBalance()` + `isSettledBalance()` (exact ₱0.00, cent-safe).
+- Balance core: `paidTotal` now counts only `Settled`/legacy-NULL payments (Declined no longer reduces balance); signed `rawBalance` + `hasNegativeDiscrepancy` exposed (display `balance` still clamped, so cards don't change shape).
+- `completeBookingAndFreeRoom`: writes `Completed` (was `Checked Out`), room → `Cleaning` (was `Available`), idempotent incl. legacy rows, exact-zero gate with overpayment review message, still fully transactional.
+- `syncRoomStatuses` preserves `Cleaning`; booking exclusion adds legacy `Canceled`.
 
-## Verification
-- Round-trip harness (real lib code): **8/8 PASS** — specs, KPI totals, filenames, XLSX read-back (zip/headers/15 rows/money fmt/filter/freeze/PCC blue), `formatPdfMoney`, `%PDF-` for all 10 views + empty set, PDF stream contains `PHP` amounts + `TOTAL` footer.
-- `npm run build`: Compiled successfully, 97/97 pages. `npx eslint`: only the 5 pre-existing findings (verified identical on HEAD).
-- Screenshot case now renders `₱0.00`, `₱70,054.00`, `-₱70,054.00` correctly.
+**Check-in (`api/receptionist/bookings`)**: Pending-family + not-No-Show guard, same-calendar-date rule (advance check-in now 400s with "update dates first"; same-day early-fee flow kept), room Maintenance/Cleaning block, same-day occupant conflict check, duplicate check-in blocked, `assertBookingTransition` on the write.
+**Checkout (`receptionist/bookings`, `api/billing`, `receptionist/billing`)**: in-house-state guard, exact-zero gate (negative → review 400), responses return real `roomStatus`, audit/messages say Cleaning, notifications kept post-commit.
+**Cancel/no-show**: terminal-state re-entry blocked; in-house cancel → `Cleaning`; no-show Pending-only.
+**Conversion**: receptionist `convert_to_booking` rejects already-`Booked` + in-txn `FOR UPDATE` re-check (guest paths already had both).
+**Race-safe creates**: receptionist + guest reservation creates now run conflict-check + insert + room update in a transaction with room `FOR UPDATE`.
+**Availability API**: excludes all active reservation statuses (was `Pending` only), unexpired-hold grace, NULL-safe dates, `Canceled` bookings.
+**Verified-only money**: reports revenue/paid sums + admin dashboard sums exclude non-Settled payments; `Completed` added to sales/occupancy report lists + receptionist checkout counter; orders APIs + schedules exclude `Completed` so closed stays can't take orders.
+**Tiers 25/50/100** (your explicit choice): receptionist workspace + convert modal + reservations default, guest fallback label, terms Section 5 (50%→25% minimum). Server accepts any int (no whitelist existed); guest label already covered 25%.
+**Checkout UI**: BillingTab + PaymentsTab + check-in page use exact-zero + overpayment-review branch; confirm dialogs show guest/room/final-total/verified-paid/₱0.00; success copy says Cleaning. Tab sync untouched (already `?bookingID`-based). Sidebar stale Billing/Payments entries merged to Billing & Checkout (redirects preserved).
 
-## Manual check
-1. Reports → Sales → Export to Excel: `₱` amounts, Summary + Details.
-2. Export / Download PDF: amounts read `PHP …`, blue TOTAL footer, sign-off, page numbers.
-3. Empty filter result → toast, no file.
+## Decisions honored from your answers
+Canonical statuses kept (sequence enforced through them); tiers switched to 25/50/100; one-room rule left disabled + availability fixed; P0–P3 implemented. Left as-is deliberately: advance check-in removed in favor of update-dates-first (Req 5 literal); guest self-edit stays cancel+re-reserve (existing rule); `ReservationCalendar` labels already map cleanly onto Req vocabulary.
 
-Awaiting review. Say `"push"` only when you want commit + push.
+## Verification (actually performed)
+- `npm run build`: Compiled successfully, 97/97.
+- `npx eslint` on all 24 touched files: identical problem counts before/after (58→58 full set; 12→12 final trio) — zero new findings.
+- Logic harness (pure functions, no DB): 20/20 — transitions, normalization, exact-zero incl. float dust, overpayment.
+- **Not performed (no test DB in this environment; .env points at the live database, which I will not mutate): the 13 live Req-10 flows. Verify on staging:** future reservation OK; same/next-day rejected; overlap + double-click conversion blocked; partial/unverified payments don't settle; early check-in blocked; checkout disabled >₱0.00 and on overpayment, enabled at exactly ₱0.00; double checkout idempotent; Completed + Cleaning result; tab sync; regression of dashboards/reports.
+
+Say `"push"` only when you want commit + push.
