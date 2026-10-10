@@ -508,8 +508,20 @@ export default function AdminProducts() {
                           {p.image ? (
                             <img src={p.image} alt={p.name} style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px' }} />
                           ) : (
-                            <div className="bg-light text-muted d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', borderRadius: '4px', fontSize: '0.85rem' }}>
-                              {p.productCategoryID === 3 ? '🍳' : '🥤'}
+                            <div className="bg-light text-muted d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', borderRadius: '4px' }} title="No image uploaded">
+                              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                                <defs>
+                                  <clipPath id={`noimg-${p.productID}`}>
+                                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                                  </clipPath>
+                                </defs>
+                                <rect x="3" y="5" width="18" height="14" rx="2" fill="#e9ecef" />
+                                <g clipPath={`url(#noimg-${p.productID})`}>
+                                  <circle cx="9" cy="10" r="1.6" fill="#adb5bd" />
+                                  <path d="M3 19 L9 13 L13 17 L16 14 L21 19 Z" fill="#adb5bd" />
+                                </g>
+                                <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="#adb5bd" strokeWidth="1.5" />
+                              </svg>
                             </div>
                           )}
                           <strong>{p.name}</strong>
