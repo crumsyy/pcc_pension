@@ -579,11 +579,13 @@ export default function AdminDiscounts() {
       </div>
 
       <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
+        <div className={activeTab === 'archived' ? 'row g-3' : ''} style={activeTab === 'archived' ? { height: 'max(480px, calc(100dvh - 340px))' } : undefined}>
           {/* Discounts Section */}
           {(activeTab === 'active_discounts' || activeTab === 'archived') && (
-            <div className="card-module pcc-table-card mb-4" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Discounts' : 'Discounts'}</h4>
-              <div className="table-responsive" style={{ maxHeight: 'max(220px, calc(100vh - 500px))', overflowY: 'auto' }}>
+            <div className={activeTab === 'archived' ? 'col-12 col-lg-6' : ''}>
+            <div className={activeTab === 'archived' ? 'card-module pcc-table-card h-100 d-flex flex-column' : 'card-module pcc-table-card mb-4'} style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? 'Archived Discounts' : 'Discounts'}</h4>
+              <div className="table-responsive" style={activeTab === 'archived' ? { flex: 1, minHeight: 0, overflowY: 'auto' } : { maxHeight: 'max(220px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table align-middle">
                   <thead>
                     <tr>
@@ -629,15 +631,19 @@ export default function AdminDiscounts() {
                   </tbody>
                 </table>
               </div>
+              <div className={activeTab === 'archived' ? 'mt-auto' : ''}>
               <AdminPagination page={discPaginated.safePage} totalPages={discPaginated.totalPages} onPage={setDiscPage} start={discPaginated.start} end={discPaginated.end} total={discPaginated.total} label="discounts" ariaLabel="Discounts pagination" />
+              </div>
+            </div>
             </div>
           )}
 
           {/* Promotions Section */}
           {(activeTab === 'active_promos' || activeTab === 'archived') && (
-            <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? '📦 Archived Promos' : 'Promotions'}</h4>
-              <div className="table-responsive" style={{ maxHeight: 'max(220px, calc(100vh - 500px))', overflowY: 'auto' }}>
+            <div className={activeTab === 'archived' ? 'col-12 col-lg-6' : ''}>
+            <div className={activeTab === 'archived' ? 'card-module pcc-table-card h-100 d-flex flex-column' : 'card-module pcc-table-card'} style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+              <h4 className="mb-3 text-blue">{activeTab === 'archived' ? 'Archived Promos' : 'Promotions'}</h4>
+              <div className="table-responsive" style={activeTab === 'archived' ? { flex: 1, minHeight: 0, overflowY: 'auto' } : { maxHeight: 'max(220px, calc(100vh - 500px))', overflowY: 'auto' }}>
                 <table className="table align-middle">
                   <thead>
                     <tr>
@@ -706,9 +712,13 @@ export default function AdminDiscounts() {
                   </tbody>
                 </table>
               </div>
+              <div className={activeTab === 'archived' ? 'mt-auto' : ''}>
               <AdminPagination page={promoPaginated.safePage} totalPages={promoPaginated.totalPages} onPage={setPromoPage} start={promoPaginated.start} end={promoPaginated.end} total={promoPaginated.total} label="promos" ariaLabel="Promotions pagination" />
+              </div>
+            </div>
             </div>
           )}
+        </div>
         </div>
 
       {/* ==========================================
