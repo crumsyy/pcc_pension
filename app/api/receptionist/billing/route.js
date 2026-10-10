@@ -367,7 +367,7 @@ export async function POST(request) {
         );
 
         await conn.execute(
-          "UPDATE room SET status = 'Cleaning' WHERE roomID = ?",
+          "UPDATE room SET status = 'Available' WHERE roomID = ?",
           [roomID]
         );
 
@@ -416,7 +416,7 @@ export async function POST(request) {
           userID: session.userID,
           userName: session.email || 'Receptionist',
           userRole: session.role,
-          description: `Guest check-out completed and room moved to Cleaning.`
+          description: `Guest check-out completed and room freed to Available.`
         });
 
         if (billingID) {
@@ -438,11 +438,11 @@ export async function POST(request) {
         for (const s of staffList) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checked Out', ?)",
-            [s.userID, `Booking #${bookingID} for ${guestName} has been checked out and Room has been marked for Cleaning.`]
+            [s.userID, `Booking #${bookingID} for ${guestName} has been checked out and Room has been marked Available.`]
           );
         }
 
-        return NextResponse.json({ success: true, message: 'Guest successfully checked out and room marked for Cleaning.', bookingStatus: 'Completed', roomStatus: 'Cleaning' });
+        return NextResponse.json({ success: true, message: 'Guest successfully checked out and room marked as Available.', bookingStatus: 'Completed', roomStatus: 'Available' });
       } catch (err) {
         await conn.rollback();
         throw err;

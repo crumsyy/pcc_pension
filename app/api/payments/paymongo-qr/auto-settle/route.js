@@ -94,7 +94,7 @@ export async function POST(request) {
             [targetBookingID, guestName]
           );
 
-          await conn.execute("UPDATE room SET status = 'Reserved' WHERE roomID = ?", [resObj.roomID]);
+          await conn.execute("UPDATE room SET status = 'Booked' WHERE roomID = ?", [resObj.roomID]);
         }
       }
 

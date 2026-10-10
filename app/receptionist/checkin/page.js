@@ -356,7 +356,7 @@ function CheckInClient() {
 
       const preTotal = parseFloat(dataBill.chargesSummary?.grandTotal ?? dataBill.chargesSummary?.netTotal ?? 0).toFixed(2);
       const prePaid = parseFloat(dataBill.chargesSummary?.paid ?? 0).toFixed(2);
-      showConfirm('Process Check-Out', `Check out ${guestName}? Final bill: ₱${preTotal} | Verified payments: ₱${prePaid} | Remaining: ₱0.00. The booking will be marked Completed and the room moved to Cleaning.`, async () => {
+      showConfirm('Process Check-Out', `Check out ${guestName}? Final bill: ₱${preTotal} | Verified payments: ₱${prePaid} | Remaining: ₱0.00. The booking will be marked Completed and the room freed to Available.`, async () => {
         await performCheckOut(false);
       });
     } catch (err) {

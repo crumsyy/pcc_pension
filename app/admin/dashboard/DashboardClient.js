@@ -151,15 +151,11 @@ export default function DashboardClient({ userName }) {
 
   const roomStatusColors = {
     'Available': '#3FA34D',
+    'Booked': '#0dcaf0',
     'Occupied': '#2155B5',
     'Reserved': '#f0a500',
     'Under Maintenance': '#dc3545',
   };
-
-  const totalRoomsCount = rooms ? rooms.length : 0;
-  const cleanedCount = rooms ? rooms.filter(rm => ['Available', 'Occupied', 'Reserved'].includes(rm.status)).length : 0;
-  const notCleanedCount = rooms ? rooms.filter(rm => ['Cleaning', 'Under Maintenance'].includes(rm.status)).length : 0;
-  const cleanedPercent = totalRoomsCount > 0 ? Math.round((cleanedCount / totalRoomsCount) * 100) : 0;
 
   return (
     <div className="pcc-content-reveal">
@@ -191,28 +187,7 @@ export default function DashboardClient({ userName }) {
 
 
 
-      {/* Room Status Cards */}
-      <div className="row g-3 mb-3">
-        {[
-          ['Total Rooms', totalRooms, '#2155B5'],
-          ['Available', roomStats['Available'] || 0, '#2155B5'],
-          ['Occupied', roomStats['Occupied'] || 0, '#2155B5'],
-          ['Reserved', roomStats['Reserved'] || 0, '#2155B5'],
-          ['Maintenance', roomStats['Under Maintenance'] || 0, '#2155B5'],
-        ].map(([label, val, color], idx) => (
-          <div className="col-6 col-md-4 col-xl-2" key={idx}>
-            <div
-              className="stat-card text-center text-white p-3 rounded"
-              style={{ backgroundColor: color }}
-            >
-              <div style={{ fontSize: '2rem', fontWeight: '700' }}>{val}</div>
-              <div style={{ fontSize: '0.75rem', opacity: '0.9' }}>{label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Revenue + Today's Activity */}
+      {/* Revenue + Today's Activity (hero) */}
       <div className="row g-3 mb-4">
         <div className="col-md-3">
           <div
@@ -329,6 +304,28 @@ export default function DashboardClient({ userName }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Room Status Cards */}
+      <div className="row g-3 mb-3">
+        {[
+          ['Total Rooms', totalRooms, '#2155B5'],
+          ['Available', roomStats['Available'] || 0, '#2155B5'],
+          ['Booked', roomStats['Booked'] || 0, '#2155B5'],
+          ['Occupied', roomStats['Occupied'] || 0, '#2155B5'],
+          ['Reserved', roomStats['Reserved'] || 0, '#2155B5'],
+          ['Maintenance', roomStats['Under Maintenance'] || 0, '#2155B5'],
+        ].map(([label, val, color], idx) => (
+          <div className="col-6 col-md-4 col-xl-2" key={idx}>
+            <div
+              className="stat-card text-center text-white p-3 rounded"
+              style={{ backgroundColor: color }}
+            >
+              <div style={{ fontSize: '2rem', fontWeight: '700' }}>{val}</div>
+              <div style={{ fontSize: '0.75rem', opacity: '0.9' }}>{label}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Main Splits */}
@@ -499,7 +496,7 @@ export default function DashboardClient({ userName }) {
             style={{ backgroundColor: '#fff', border: '1px solid var(--pcc-mist)' }}
           >
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0 text-blue">Housekeeping & Room Status Board</h5>
+              <h5 className="mb-0 text-blue">Room Status Board</h5>
               <Link href="/admin/rooms" className="btn btn-pcc-outline btn-sm" style={{ fontSize: '0.78rem' }}>
                 Manage Rooms
               </Link>
@@ -509,8 +506,8 @@ export default function DashboardClient({ userName }) {
             ) : (
               <>
                 <div className="row align-items-center g-3">
-                  {/* Left Column: Visual Grid of rooms */}
-                  <div className="col-md-7">
+                  {/* Room grid (full width) */}
+                  <div className="col-12">
                     <div className="d-flex flex-wrap gap-2 mb-3">
                       {rooms.map((rm) => {
                         const color = roomStatusColors[rm.status] || '#6c757d';
@@ -562,61 +559,9 @@ export default function DashboardClient({ userName }) {
                       ))}
                     </div>
                   </div>
-
-                  {/* Right Column: Housekeeping Pie/Donut Chart */}
-                  <div className="col-md-5 text-center border-start ps-md-3">
-                    <h6 className="fw-bold text-muted mb-3" style={{ fontSize: '0.78rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                      Housekeeping Status
-                    </h6>
-                    {totalRoomsCount === 0 ? (
-                      <p className="text-muted small">No data</p>
-                    ) : (
-                      <>
-                        <div style={{ position: 'relative', width: '110px', height: '110px', margin: '0 auto' }}>
-                          <div style={{
-                            width: '100%',
-                            height: '100%',
-                            borderRadius: '50%',
-                            background: `conic-gradient(#3FA34D 0% ${cleanedPercent}%, #dc3545 ${cleanedPercent}% 100%)`,
-                            boxShadow: '0 3px 6px rgba(0,0,0,0.08)'
-                          }}></div>
-                          <div style={{
-                            position: 'absolute',
-                            top: '15%',
-                            left: '15%',
-                            width: '70%',
-                            height: '70%',
-                            borderRadius: '50%',
-                            backgroundColor: '#fff',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <span style={{ fontSize: '1.2rem', fontWeight: '800', color: '#1F2A24' }}>{totalRoomsCount}</span>
-                            <span style={{ fontSize: '0.55rem', color: 'var(--pcc-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Rooms</span>
-                          </div>
-                        </div>
-                        
-                        {/* Donut Chart Legend */}
-                        <div className="d-flex flex-column gap-1 align-items-center mt-3" style={{ fontSize: '0.72rem' }}>
-                          <div className="d-flex align-items-center gap-1">
-                            <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#3FA34D', borderRadius: '50%' }}></span>
-                            <span className="fw-semibold">Cleaned:</span>
-                            <span className="text-muted">{cleanedCount} ({cleanedPercent}%)</span>
-                          </div>
-                          <div className="d-flex align-items-center gap-1">
-                            <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#dc3545', borderRadius: '50%' }}></span>
-                            <span className="fw-semibold">Not Cleaned:</span>
-                            <span className="text-muted">{notCleanedCount} ({100 - cleanedPercent}%)</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
                 </div>
 
-                {/* Detailed Housekeeping & Room Status Table */}
+                {/* Detailed Room Status Table */}
                 <div className="mt-4 pt-3 border-top">
                   <h6 className="mb-2 fw-bold text-secondary" style={{ fontSize: '0.85rem' }}>Detailed Status List</h6>
                   <div className="table-responsive" style={{ maxHeight: '420px', overflowY: 'auto' }}>
@@ -640,8 +585,8 @@ export default function DashboardClient({ userName }) {
                                 className={`badge ${
                                   rm.status === 'Available' ? 'text-bg-success' :
                                   rm.status === 'Occupied' ? 'text-bg-primary' :
-                                  rm.status === 'Reserved' ? 'text-bg-warning text-dark' :
-                                  rm.status === 'Cleaning' ? 'text-bg-info text-white' : 'text-bg-danger'
+                                  rm.status === 'Booked' ? 'text-bg-info text-white' :
+                                  rm.status === 'Reserved' ? 'text-bg-warning text-dark' : 'text-bg-danger'
                                 }`}
                               >
                                 {rm.status}

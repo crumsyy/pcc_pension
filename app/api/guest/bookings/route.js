@@ -485,7 +485,7 @@ export async function POST(request) {
 
         const isCheckedInNow = !convResID && Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
         const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
-        const roomStatus = isCheckedInNow ? 'Occupied' : 'Reserved';
+        const roomStatus = isCheckedInNow ? 'Occupied' : 'Booked';
 
         // 3. Insert booking record with appropriate status, breakfastOption, breakfastID, guestCount, breakfastDates, and breakfastFee
         const [bookingRes] = await connection.execute(
@@ -539,8 +539,11 @@ export async function POST(request) {
           );
         }
 
-        // Update room status upon payment to Occupied
-        await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
+        // Room already set to Booked/Occupied at insert (roomStatus); only
+        // force Occupied here when the guest is checking in now.
+        if (isCheckedInNow) {
+          await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
+        }
 
         // Create billing record with down payment details and remaining balance
         const [billingInsert] = await connection.execute(

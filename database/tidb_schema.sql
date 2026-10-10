@@ -263,7 +263,7 @@ INSERT INTO `room_type` (`roomTypeID`, `type`, `description`, `minOccupancy`, `m
 CREATE TABLE `room` (
   `roomID` int(11) NOT NULL AUTO_INCREMENT,
   `roomNumber` varchar(10) NOT NULL,
-  `status` enum('Available','Occupied','Reserved','Under Maintenance','Cleaning') NOT NULL DEFAULT 'Available',
+  `status` enum('Available','Occupied','Reserved','Booked','Under Maintenance') NOT NULL DEFAULT 'Available',
   `floorID` int(11) NOT NULL,
   `roomTypeID` int(11) NOT NULL,
   `lastMaintainedBy` int(11) DEFAULT NULL, -- CDM: Staff Maintains Rooms

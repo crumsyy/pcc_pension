@@ -499,10 +499,10 @@ export default function RoomsClient() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Available': return '#3FA34D';
+      case 'Booked': return '#0dcaf0';
       case 'Occupied': return '#2155B5';
       case 'Reserved': return '#f0a500';
       case 'Under Maintenance': return '#dc3545';
-      case 'Cleaning': return '#17a2b8';
       default: return '#6c757d';
     }
   };

@@ -421,7 +421,7 @@ function PaymentsClient() {
     const guestName = `${bk.firstName || ''} ${bk.lastName || ''}`.trim() || 'Guest';
     const finalTotal = parseFloat(cs.grandTotal ?? cs.netTotal ?? 0).toFixed(2);
     const verifiedPaid = parseFloat(cs.paid ?? 0).toFixed(2);
-    showConfirm('Complete Booking', `Check out ${guestName} (Room ${bk.roomNumber || '—'})? Final bill total: ₱${finalTotal} | Verified payments: ₱${verifiedPaid} | Remaining: ₱0.00. The booking will be marked Completed and the room moved to Cleaning.`, async () => {
+    showConfirm('Complete Booking', `Check out ${guestName} (Room ${bk.roomNumber || '—'})? Final bill total: ₱${finalTotal} | Verified payments: ₱${verifiedPaid} | Remaining: ₱0.00. The booking will be marked Completed and the room freed to Available.`, async () => {
       try {
         const res = await fetch('/api/receptionist/billing', {
           method: 'POST',
@@ -434,7 +434,7 @@ function PaymentsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to complete booking');
 
-        showAlert('success', 'Booking Completed', 'Booking completed and room is now in Cleaning.');
+        showAlert('success', 'Booking Completed', 'Booking completed and room is now Available.');
         setSelectedBookingID('');
         syncBookingToUrl('');
         setBillData(null);

@@ -577,7 +577,7 @@ export async function POST(request) {
 
         const checkInNow = Boolean(body.checkInNow);
         const bookingStatus = checkInNow ? 'Active Stay' : 'Pending';
-        const roomStatus = checkInNow ? 'Occupied' : 'Reserved';
+        const roomStatus = checkInNow ? 'Occupied' : 'Booked';
         const finalCheckInDateTime = checkInNow ? nowStr : checkInDateTime;
 
         // Check if room is already booked by another booking for overlapping dates
@@ -815,7 +815,7 @@ export async function POST(request) {
           [nowStr, billingID, paymentID]
         );
 
-        // 8. Update Room status ('Occupied' if Book and Check-In Now, else 'Reserved')
+        // 8. Update Room status ('Occupied' if Book and Check-In Now, else 'Booked')
         await conn.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
 
         // 9. Requirement 7: Resolution of Reservation Conflicts

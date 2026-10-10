@@ -103,6 +103,7 @@ export default function ReceptionistDashboardClient({ initialData }) {
   const getRoomColor = (status) => {
     switch (status) {
       case "Available": return "#3FA34D";
+      case "Booked": return "#0dcaf0";
       case "Occupied": return "#2155B5";
       case "Reserved": return "#f0a500";
       case "Under Maintenance": return "#dc3545";
@@ -253,6 +254,10 @@ export default function ReceptionistDashboardClient({ initialData }) {
                   <span>
                     <span style={{ display: "inline-block", width: "10px", height: "10px", backgroundColor: "#3FA34D", borderRadius: "2px", marginRight: "4px" }}></span>
                     Available
+                  </span>
+                  <span>
+                    <span style={{ display: "inline-block", width: "10px", height: "10px", backgroundColor: "#0dcaf0", borderRadius: "2px", marginRight: "4px" }}></span>
+                    Booked
                   </span>
                   <span>
                     <span style={{ display: "inline-block", width: "10px", height: "10px", backgroundColor: "#2155B5", borderRadius: "2px", marginRight: "4px" }}></span>

@@ -488,8 +488,8 @@ export async function POST(request) {
           await conn.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [convReservationID]);
         }
 
-        // Update room status upon booking creation (Occupied if Active Stay / Checked In, Reserved if Pending)
-        const roomStatus = (bookingStatus === 'Active Stay' || bookingStatus === 'Checked In') ? 'Occupied' : 'Reserved';
+        // Update room status upon booking creation (Occupied if Active Stay / Checked In, Booked if Pending)
+        const roomStatus = (bookingStatus === 'Active Stay' || bookingStatus === 'Checked In') ? 'Occupied' : 'Booked';
         await conn.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
 
         if (roomStatus === 'Occupied') {
@@ -1035,7 +1035,7 @@ export async function POST(request) {
       // Room guard: never check into a room under maintenance/cleaning.
       const [roomState] = await dbQuery("SELECT status FROM room WHERE roomID = ? LIMIT 1", [roomID]);
       const roomStatusNow = roomState?.status || '';
-      if (['Under Maintenance', 'Maintenance', 'Cleaning'].includes(roomStatusNow)) {
+      if (['Under Maintenance', 'Maintenance'].includes(roomStatusNow)) {
         return NextResponse.json({
           error: `Cannot check in: Room ${roomNumber} is currently '${roomStatusNow}'.`
         }, { status: 409 });
@@ -1328,7 +1328,7 @@ export async function POST(request) {
         success: true,
         message: 'Guest checked out successfully.',
         bookingStatus: 'Completed',
-        roomStatus: checkoutRes.roomStatus || 'Cleaning'
+        roomStatus: checkoutRes.roomStatus || 'Available'
       });
     }
 
@@ -1385,8 +1385,8 @@ export async function POST(request) {
       const roomID = res[0].roomID;
 
       await dbQuery("UPDATE booking SET status = 'Cancelled', cancelRemarks = ? WHERE bookingID = ?", [cancelRemarks, bookingID]);
-      // A cancelled in-house stay still requires housekeeping; otherwise free the room.
-      await dbQuery("UPDATE room SET status = ? WHERE roomID = ?", [wasCheckedIn ? 'Cleaning' : 'Available', roomID]);
+      // No housekeeping status: freed rooms go straight back to Available.
+      await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
       await dbQuery(
         "UPDATE reservation SET status = 'Cancelled' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) OR (guestID = ? AND roomID = ? AND status IN ('Pending', 'Confirmed', 'Booked', 'Checked In'))",
         [bookingID, res[0].guestID, roomID]

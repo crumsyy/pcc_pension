@@ -322,13 +322,13 @@ export async function POST(request) {
           userID: session.userID,
           userName: session.email || (session.role === 'Guest' ? 'Guest' : 'Receptionist'),
           userRole: session.role,
-          description: `Guest check-out completed and room moved to Cleaning.`
+          description: `Guest check-out completed and room freed to Available.`
         });
 
         return NextResponse.json({
           success: true,
-          message: 'Guest check-out completed successfully. The room is now in Cleaning.',
-          roomStatus: checkoutRes.roomStatus || 'Cleaning',
+          message: 'Guest check-out completed successfully. The room is now Available.',
+          roomStatus: checkoutRes.roomStatus || 'Available',
           bookingStatus: 'Completed'
         });
       }

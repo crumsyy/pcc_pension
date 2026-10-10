@@ -324,7 +324,7 @@ This specification details the comprehensive Functional Requirements for the **P
 
 **REQ115** | The receptionist shall be able to process guest check-in by verifying guest identity and transitioning the room status to Occupied.
 
-**REQ116** | The receptionist shall be able to process guest check-out by enforcing zero-balance folio settlement before completing departure and transitioning room status to Cleaning.
+**REQ116** | The receptionist shall be able to process guest check-out by enforcing zero-balance folio settlement before completing departure and transitioning room status to Available.
 
 **REQ117** | The receptionist shall be able to update check-out dates and times to accommodate stay extensions or early departures with automatic folio recalculation.
 

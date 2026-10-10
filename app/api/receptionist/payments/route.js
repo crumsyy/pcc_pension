@@ -252,10 +252,10 @@ export async function POST(request) {
         await completeBookingAndFreeRoom(bookingID);
       } else if (bookingID) {
         // Upon payment for an active stay booking, automatically ensure room status is Occupied.
-        // Never flip rooms of completed/cancelled stays (e.g. Cleaning) back to Occupied.
+        // Never flip rooms of completed/cancelled stays back to Occupied.
         const [bInfo] = await connection.execute("SELECT roomID, status FROM booking WHERE bookingID = ?", [bookingID]);
         if (bInfo.length > 0 && !['Checked Out', 'Completed', 'Cancelled', 'Canceled', 'No Show'].includes(bInfo[0].status)) {
-          await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ? AND status NOT IN ('Cleaning', 'Under Maintenance', 'Maintenance')", [bInfo[0].roomID]);
+          await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ? AND status NOT IN ('Under Maintenance', 'Maintenance')", [bInfo[0].roomID]);
         }
       }
 

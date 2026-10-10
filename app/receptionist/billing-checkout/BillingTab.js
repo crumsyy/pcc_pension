@@ -428,7 +428,7 @@ export default function ReceptionistBilling() {
     const guestName = `${bk.firstName || ''} ${bk.lastName || ''}`.trim() || 'Guest';
     const finalTotal = parseFloat(cs.grandTotal ?? cs.netTotal ?? 0).toFixed(2);
     const verifiedPaid = parseFloat(cs.paid ?? 0).toFixed(2);
-    showConfirm('Complete Booking', `Check out ${guestName} (Room ${bk.roomNumber || '—'})? Final bill total: ₱${finalTotal} | Verified payments: ₱${verifiedPaid} | Remaining: ₱0.00. The booking will be marked Completed and the room moved to Cleaning.`, async () => {
+    showConfirm('Complete Booking', `Check out ${guestName} (Room ${bk.roomNumber || '—'})? Final bill total: ₱${finalTotal} | Verified payments: ₱${verifiedPaid} | Remaining: ₱0.00. The booking will be marked Completed and the room freed to Available.`, async () => {
       setCheckingOut(true);
       try {
         const res = await fetch('/api/receptionist/billing', {
@@ -442,7 +442,7 @@ export default function ReceptionistBilling() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to complete booking');
 
-        showAlert('success', 'Booking Completed', 'The booking has been successfully completed, the folio finalized, and the room is now in Cleaning.');
+        showAlert('success', 'Booking Completed', 'The booking has been successfully completed, the folio finalized, and the room is now Available.');
         fetchActiveBookings();
         fetchBillingDetails(selectedBookingID);
       } catch (err) {
@@ -1621,7 +1621,7 @@ export default function ReceptionistBilling() {
                             if (isCheckedOut) {
                               return (
                                 <div className="alert alert-secondary text-center py-2.5 mb-0 fw-semibold">
-                                  <i className="bi bi-check-circle-fill me-1 text-success"></i> Bill fully settled &amp; Guest Checked Out. Room is in Cleaning.
+                                  <i className="bi bi-check-circle-fill me-1 text-success"></i> Bill fully settled &amp; Guest Checked Out. Room is Available.
                                 </div>
                               );
                             }

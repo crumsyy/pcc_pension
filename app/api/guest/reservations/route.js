@@ -582,9 +582,9 @@ export async function PATCH(request) {
         [billingID, paymentID]
       );
 
-      // 6. Update room status to Reserved
+      // 6. Update room status to Booked (confirmed booking awaiting check-in)
       await conn.execute(
-        "UPDATE room SET status = 'Reserved' WHERE roomID = ?",
+        "UPDATE room SET status = 'Booked' WHERE roomID = ?",
         [reservation.roomID]
       );
 

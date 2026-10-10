@@ -74,7 +74,7 @@ export function AdminDashboardSkeleton({ userName = 'Admin' }) {
         ))}
       </div>
 
-      {/* Main Splits: Left Bookings Table, Right Housekeeping & Room Board */}
+      {/* Main Splits: Left Bookings Table, Right Room Status Board */}
       <div className="row g-4 mb-4">
         {/* Left Column */}
         <div className="col-lg-6">
