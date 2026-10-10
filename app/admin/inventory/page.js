@@ -686,7 +686,7 @@ export default function AdminInventory() {
   const lowStockItems = items.filter(item => item.availableQty <= item.minStock);
 
   return (
-    <div className="pcc-page-container pcc-page-natural table-compact pcc-content-reveal">
+    <div className="pcc-page-container table-compact pcc-content-reveal">
       {/* Custom Modal Dialog */}
       <ModalDialog
         isOpen={modalConfig.isOpen}
@@ -898,7 +898,7 @@ export default function AdminInventory() {
           <div className="col-12 mt-3">
             <div className="card shadow-sm border-0 bg-white p-3">
               <h5 style={{ color: 'var(--pcc-blue)', fontWeight: 600 }} className="mb-3">Recent Stock Movements</h5>
-              <div className="table-responsive">
+              <div className="table-responsive" style={{ maxHeight: 'max(320px, calc(100dvh - 440px))', overflowY: 'auto' }}>
                 <table className="table table-hover align-middle table-sm" style={{ fontSize: '0.85rem' }}>
                   <thead>
                     <tr>
@@ -1242,11 +1242,11 @@ export default function AdminInventory() {
 
       {/* LOGS TAB */}
       {activeTab === 'logs' && (
-        <div className="row g-3">
+        <div className="row g-3" style={{ height: 'max(420px, calc(100dvh - 380px))' }}>
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border h-100 d-flex flex-column">
               <h5 className="text-blue mb-3">Disposed Inventory Logs</h5>
-              <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 500px))', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                 <DataTable
                   columns={disposalColumns}
                   data={disposalPaginated.rows}
@@ -1265,7 +1265,7 @@ export default function AdminInventory() {
           <div className="col-12 col-lg-6">
             <div className="card bg-white p-3 border h-100 d-flex flex-column">
               <h5 className="text-blue mb-3">All Stock Movements Audit History</h5>
-              <div className="table-responsive" style={{ maxHeight: 'max(200px, calc(100vh - 500px))', overflowY: 'auto' }}>
+              <div className="table-responsive" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                 <DataTable
                   columns={auditColumns}
                   data={logsPaginated.rows}

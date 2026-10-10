@@ -1,19 +1,18 @@
-# Implementation Plan — Unclip Inventory Dashboard (Pagination Reachable)
+# Implementation Plan — Fixed Fit-to-Screen Inventory Tables (No Page Scroll)
 
-## 1. Root cause (verified in CSS + layout)
-- The app shell is exact-fit: `.pcc-main-wrapper` is `height:100vh; overflow:hidden`, `main` scrolls, but `.pcc-page-container` is `overflow:hidden` (`globals.css:1150-1157`). Any page content taller than the viewport is **clipped with no scroll**.
-- The old inner-scroll cap on Recent Stock Movements masked this by keeping the card short. Removing the cap (last push) lets the card grow — and its bottom (pagination) now renders inside the clipped zone.
-- CSS already provides the escape hatch: `.pcc-page-container.pcc-page-natural { overflow: visible }` (`globals.css:1159`), so the page flows and `main` scrolls. It is currently used by zero pages.
+## 1. Direction change (your call)
+Revert the scrolling approach: the Inventory page goes back to the exact-fit shell (no page scroll), and the three tables get fixed viewport-sized scroll areas with sticky headers + always-visible pagination.
 
-## 2. Change (one class, inventory page only)
-- Add `pcc-page-natural` to the inventory root (`page.js:689`: `pcc-page-container table-compact pcc-content-reveal` → append `pcc-page-natural`).
-- Nothing else changes: dashboard table stays cap-free (all 10 rows + pagination visible via page scroll); other tabs keep their own inner-scroll caps, which continue to work inside a scrolling page.
-- Not changing the shell CSS itself (global blast radius) or pagination behavior.
+## 2. Changes (`app/admin/inventory/page.js` only)
+1. Root: remove `pcc-page-natural` (restores shell clipping + `main` fit; page itself no longer scrolls).
+2. Dashboard Recent Stock Movements wrapper: `maxHeight: max(320px, calc(100dvh - 440px))` + `overflowY: auto` — fits all 10 rows at normal viewport heights; headers stick (global CSS), pagination sits right below inside the card.
+3. Movement Logs row (`logs` tab): fixed row height `max(420px, calc(100dvh - 380px))`; both table wrappers become `flex: 1, minHeight: 0, overflowY: auto` (replacing the short `100vh-500px` caps) so both cards stretch to the viewport bottom with internal scroll; `mt-auto` paginations stay pinned at card bottoms.
+- Untouched: columns, data, page sizes, filters, pagination component, other tabs, theme, shell CSS.
 
 ## 3. Verify
-- `npx eslint` (stash-compared) + `npm run build`; browser scroll check needs staging (unproven hatch — flagging honestly: if `main` scroll misbehaves, fallback is a taller dashboard-only cap).
+- `npx eslint` (stash-compared) + `npm run build`; staging visual check (exact pixel fit varies by screen height — floors keep short screens usable).
 - Commit/push only on `"push"`.
 
 ## 4. Questions
-1. Apply the `pcc-page-natural` class (Recommended) vs another approach?
+1. Fixed sizes as computed (Recommended) vs taller/shorter caps?
 2. Proceed?
