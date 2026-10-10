@@ -1,23 +1,17 @@
-# Implementation Plan — shadcn Table UI for Users, Rooms, Amenities, Products
+# Implementation Plan — Recent Stock Movements Fits Content (No Inner Scroll)
 
-## 1. Inspection findings
-- All 4 pages (`app/admin/users/UsersClient.js` L569-653, `app/admin/rooms/RoomsClient.js` L581-667, `app/admin/amenities/page.js` L412-478, `app/admin/products/page.js` L473-565) use the **same pattern**: plain `<table className="table align-middle mb-0">` in a `card-module` + `table-responsive` wrapper, custom filter bars, `AdminPagination` (10/page), `ActionButtons` row actions, Bootstrap modals. No sorting anywhere; none import `@/components/ui/table`.
-- shadcn setup exists (`components.json`, Tailwind, `@tanstack/react-table` installed): `components/ui/table.jsx` primitives (`Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableCaption` → same Bootstrap classes + `pcc-datatable` Inter enforcement, verified in `globals.css:2634`) and `data-table.jsx` `DataTable` (core row model only — no sorting/pagination; used solely by inventory page).
+## 1. Finding
+`app/admin/inventory/page.js:901` — the dashboard's Recent Stock Movements wrapper has `maxHeight: max(200px, calc(100vh - 500px))` + `overflowY: auto`, so the 10 paginated rows render inside a short inner scroll area (screenshot shows rows cut mid-table with its own scrollbar). Pagination (`AdminPagination`, 10/page, 75 total) already handles length — the inner cap is redundant.
 
-## 2. Proposal (recommended: primitives swap, not a TanStack rewrite)
-Per page, replace only the table markup, keeping every behavior identical:
-- `<table>` → `<Table>`, `<thead>` → `<TableHeader>`, `<tbody>` → `<TableBody>`, `<tr>` → `<TableRow>`, `<th>` → `<TableHead>`, `<td>` → `<TableCell>` (add `scope="col"` comes free; keep all existing classNames, colSpans, empty states, cell renderers verbatim).
-- Import from `@/components/ui/table`. No changes to columns, filters, tabs, pagination, `ActionButtons`, modals, caching, or data fetching.
-- **Not doing**: migrating to `DataTable`/TanStack column defs (would require extending it with sorting/pagination + rewriting 4 tables' cells — high churn, zero visual gain since `table.jsx` renders the same Bootstrap markup; can be a follow-up if you want client sorting).
+## 2. Change (one line, dashboard table only)
+- Remove the `maxHeight`/`overflowY` style on line 901, keeping `table-responsive` (horizontal scroll on narrow screens stays).
+- Card then grows to fit all 10 rows; the page scrolls naturally; pagination stays directly under the last row.
+- Out of scope (unchanged): other inventory tabs' tables (lines 1011/1103/1200/1249/1268 keep inner scroll — long lists where it makes sense), columns, data, pagination, theme.
 
-## 3. Steps
-1. Users → Rooms → Amenities → Products (one page at a time, same 6-tag swap).
-2. After each: `npx eslint` on the file + `npm run build`; visual parity check (same classes → same look, plus Inter enforcement).
-3. Walkthrough; commit/push only on `"push"`.
+## 3. Verify
+- `npx eslint` on the file (stash-compared), `npm run build`; visual check needs browser (staging).
+- Commit/push only on `"push"`.
 
 ## 4. Questions
-1. Primitives swap as above (Recommended) vs full TanStack DataTable rewrite vs primitives + add client-side sorting?
+1. Dashboard Recent Stock Movements only (Recommended) vs all inventory tables?
 2. Proceed?
-
-## 5. Acceptance
-- 4 pages render identical tables via `@/components/ui/table`; filters/pagination/actions/modals behave exactly as before; build + lint clean; no other modules touched.
