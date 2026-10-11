@@ -1,18 +1,14 @@
-# Walkthrough — Production dashboard latency fix
+# Walkthrough — Remove Sync Now + Live Real-Time from dashboard header
 
-## Changes
-- `vercel.json`: added `"regions": ["sin1"]` — functions now run next to the TiDB DB (ap-southeast) instead of default US East. Expected: per-roundtrip ~200ms+ → single-digit ms on deploy.
-- `lib/dashboardSnapshot.js` (new): all 9 dashboard reads as ONE multi-statement batch over a dedicated read-only connection (`multipleStatements`, static SQL only, pool limit 3), 15s module-level result cache (matches client poll), parallel-`Promise.all` fallback on any batch error.
-- `dashboard/page.js` + `api/receptionist/dashboard/route.js`: consume `fetchDashboardSnapshot()`; sweep calls removed; same predicates, same response keys, `Number(...) || 0` normalization (verified live: `SUM()` returns DECIMAL strings).
-- `lib/session.js`: `getSessionDetails` wrapped in React `cache()` — layout + page share one lookup per request.
-- `lib/db.js`: sweep throttle 30s → 5min backstop (cron owns the sweep).
-- Pollers calmed: inquiry alerts 10s → 60s (`ReceptionistSidebarNav.js`); dashboard focus/visibility refetch gated on >15s staleness (`lastFetchAtRef`, set on mount + each successful fetch).
+## Changes (`ReceptionistDashboardClient.js` only)
+- Deleted the `Live Real-Time` badge (+ `•` separator); header keeps title + date.
+- Deleted the `Sync Now` button and its `spin-icon` keyframes block.
+- Removed now-dead `isRefreshing` / `lastUpdated` state; `fetchDashboardData` takes no indicator param; polling, freshness-gated focus/visibility refetch, and `pcc-refresh-dashboard` event refresh all keep working silently.
 
 ## Verification
-- Live DB probes: batch shape correct (N statements → N row-arrays, one roundtrip); `SUM()` string typing confirmed and handled.
-- `eslint`: clean on all touched files (one new `purity` error I introduced was fixed via mount-effect init).
-- `npm run build`: exit 0, 97/97.
-- After deploy: confirm sin1 in function logs + dashboard TTFB; dev server prints `[dashboard] session/queries/total` timings.
+- `grep`: zero matches for `Sync Now|Live Real-Time|isRefreshing|spin-icon` in the file.
+- `eslint`: clean.
+- `npm run build`: exit 0.
 
 ## No commit/push
 No commit or push made. Awaiting explicit `push` keyword after your review.

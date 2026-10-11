@@ -1,28 +1,29 @@
-# Implementation Plan — Fix production dashboard latency (for approval)
+# Implementation Plan — Remove Sync Now + Live Real-Time from dashboard header (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Diagnosis (measured)
-- DB is TiDB on AWS ap-southeast (Singapore); `vercel.json` pins no region → functions run US East by default (~200ms+ per roundtrip).
-- Live probe: every query ~55-60ms uniform from PH, tables tiny (booking 0 / room 19 / reservation 3 / orders 0 rows) → latency-bound, not query-bound. Indexes already adequate (verified `SHOW INDEX` earlier).
-- Dashboard pays ~10 roundtrips per server render (session + 2 batched counts + reservation count + 6 lists) + TLS handshakes on cold starts; pollers (dashboard 15s, alerts 10s, focus-refetch) replay it constantly per open tab.
+## 1. User request
+- Remove the `Sync Now` button and the `Live Real-Time` badge from the receptionist dashboard header ([Image 1]).
 
-## 2. Changes
-1. **Pin region (`vercel.json`):** add `"regions": ["sin1"]` (keep existing `crons` block). Applies on next deploy; biggest win.
-2. **Single-roundtrip snapshot:** new `getDashboardSnapshot()` in `lib/db.js` (or dashboard lib) running all dashboard reads as one multi-statement batch over a dedicated connection (`multipleStatements: true`, read-only SELECTs only), returning the same keys both `dashboard/page.js` and `api/receptionist/dashboard/route.js` consume. Falls back to the current `Promise.all` path on any batch error.
-3. **Server snapshot cache (~15s):** module-level `{ data, ts }` cache in the snapshot getter (freshness matches the client's 15s poll; per-instance, zero staleness risk beyond one poll interval). Poll endpoint + page share it.
-4. **Calm pollers:** inquiry alerts `ReceptionistSidebarNav.js` 10s → 60s; dashboard client focus/visibility refetch gated on data older than ~15s (`lastUpdated` check); polling intervals themselves unchanged otherwise.
+## 2. Evidence / current state
+- `ReceptionistDashboardClient.js:148-167`: header row renders date + `•` + green `Live Real-Time` badge (151-154) on the left, and the `Sync Now` button (158-167, calls `fetchDashboardData(true)`) on the right.
+- `isRefreshing` state (line 11) exists only for that button (spinner class + `Updating...` label + `disabled`); `setIsRefreshing` is called only inside `fetchDashboardData(showIndicator)` and the button.
+- `pcc-refresh-dashboard` custom event (line ~69: `fetchDashboardData(true)`) also passes `showIndicator=true` — no UI will consume it after removal, but the fetch itself still works.
+- `spin-icon` keyframes (`170-177`) only serve the button icon.
 
-## 3. Verification
-- `eslint` touched files; `npm run build` 97/97.
-- Numbers identical before/after (same predicates/keys; client untouched).
-- Production check after deploy: dashboard TTFB seconds → few hundred ms; confirm in Vercel function logs (sin1) + browser timing.
+## 3. Proposed changes (only `ReceptionistDashboardClient.js`)
+1. Delete the badge block (lines 150-154: `•` separator + badge). Keep `Today — {date}`.
+2. Delete the `Sync Now` button (158-167) and the `spin-icon` `<style>` block (170-177).
+3. Simplify: `fetchDashboardData(showIndicator)` → drop the parameter; remove `isRefreshing` state + `setIsRefreshing` calls (keep `lastUpdated`, `lastFetchAtRef`, polling, focus gate, custom event — auto-refresh keeps working silently).
+4. Update the polling comment (line 58) that references “Sync Now”.
 
-## 4. Risks
-- `regions` change: all functions + cron move to sin1 — intended (DB is there); no code risk.
-- Multi-statement: scoped to a dedicated read-only batch connection (no global `multipleStatements`), parameterized inputs pass through existing `sanitizeSqlParams`; fallback path on error.
-- 15s server cache: worst-case staleness equals one client poll interval; mutations (check-in/out, payments) still refresh via existing `pcc-refresh-*` events + focus gate.
+## 4. Verification
+- `grep -n "Sync Now\|Live Real-Time\|isRefreshing\|spin-icon" ReceptionistDashboardClient.js` → zero matches.
+- `eslint` (pre-existing families only); `npm run build` 97/97.
+- Visual: header shows title + date only; stats auto-refresh silently every 15s as before.
 
-## 5. Questions
-- Q1: Proceed with all four steps?
-- Q2: If multi-statement proves awkward with the sanitize wrapper, fall back to keeping `Promise.all` (region pin alone) — acceptable?
+## 5. Risks / notes
+- None behavioral for data: manual sync is gone, but 15s polling + focus-gate + `pcc-refresh-dashboard` event refreshes remain. If other code dispatches `pcc-refresh-dashboard` expecting a visible indicator, it will now refresh silently — acceptable per request.
+
+## 6. Questions
+- Q1: Proceed as planned?

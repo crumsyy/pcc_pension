@@ -8,16 +8,13 @@ export default function ReceptionistDashboardClient({ initialData }) {
   const [data, setData] = useState(() => {
     return clientCache.get('RECEPTIONIST_DASHBOARD')?.data || initialData || {};
   });
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const isFetchingRef = useRef(false);
   const fetchAbort = useRef(null);
   const lastFetchAtRef = useRef(0);
 
-  const fetchDashboardData = useCallback(async (showIndicator = false) => {
+  const fetchDashboardData = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    if (showIndicator) setIsRefreshing(true);
     if (fetchAbort.current) {
       try { fetchAbort.current.abort(); } catch (e) {}
     }
@@ -38,7 +35,6 @@ export default function ReceptionistDashboardClient({ initialData }) {
             ...json
           }));
           clientCache.set('RECEPTIONIST_DASHBOARD', json, CACHE_TTL.RECEPTIONIST_DASHBOARD);
-          setLastUpdated(new Date());
           lastFetchAtRef.current = Date.now();
         }
       }
@@ -47,7 +43,6 @@ export default function ReceptionistDashboardClient({ initialData }) {
       console.error('Failed to sync receptionist dashboard:', err);
     } finally {
       isFetchingRef.current = false;
-      if (showIndicator) setIsRefreshing(false);
     }
   }, []);
 
@@ -55,21 +50,21 @@ export default function ReceptionistDashboardClient({ initialData }) {
     // Initial data comes from the server render; treat mount as a fresh fetch
     // so focus/visibility doesn't immediately refetch.
     lastFetchAtRef.current = Date.now();
-    // 15-second polling (was 3s — dashboard data changes slowly; Sync Now,
-    // focus, and refresh events still fetch on demand).
+    // 15-second polling (was 3s — dashboard data changes slowly;
+    // focus and refresh events still fetch on demand).
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        fetchDashboardData(false);
+        fetchDashboardData();
       }
     }, 15000);
 
     const isFresh = () => Date.now() - lastFetchAtRef.current < 15000;
 
-    const handleFocus = () => { if (!isFresh()) fetchDashboardData(false); };
+    const handleFocus = () => { if (!isFresh()) fetchDashboardData(); };
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && !isFresh()) fetchDashboardData(false);
+      if (document.visibilityState === 'visible' && !isFresh()) fetchDashboardData();
     };
-    const handleCustomEvent = () => fetchDashboardData(true);
+    const handleCustomEvent = () => fetchDashboardData();
 
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
@@ -147,34 +142,9 @@ export default function ReceptionistDashboardClient({ initialData }) {
           <h2 className="section-title mb-1">Welcome, {userName}!</h2>
           <div className="d-flex align-items-center gap-2 text-muted" style={{ fontSize: "0.88rem" }}>
             <span>Today — {formatDateLong(new Date())}</span>
-            <span>•</span>
-            <span className="badge bg-success bg-opacity-10 text-success border border-success-subtle d-inline-flex align-items-center gap-1.5 px-2 py-0.5" style={{ fontSize: '0.72rem' }}>
-              <span className="spinner-grow spinner-grow-sm text-success" style={{ width: '7px', height: '7px' }}></span>
-              Live Real-Time
-            </span>
           </div>
         </div>
-
-        <button
-          onClick={() => fetchDashboardData(true)}
-          disabled={isRefreshing}
-          className="btn btn-sm btn-pcc-outline d-inline-flex align-items-center gap-1.5 shadow-xs"
-          style={{ fontSize: '0.80rem' }}
-          title="Click to manually refresh all dashboard metrics"
-        >
-          <i className={`bi bi-arrow-repeat ${isRefreshing ? 'spin-icon' : ''}`}></i>
-          <span>{isRefreshing ? 'Updating...' : 'Sync Now'}</span>
-        </button>
       </div>
-
-      <style jsx global>{`
-        @keyframes pccSpin {
-          100% { transform: rotate(360deg); }
-        }
-        .spin-icon {
-          animation: pccSpin 0.75s linear infinite;
-        }
-      `}</style>
 
       {/* Quick stats */}
       <div className="row g-3 mb-4">
