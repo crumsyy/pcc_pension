@@ -1502,12 +1502,24 @@ function BookingsClient() {
           body: JSON.stringify({
             action: 'checkin',
             bookingID: id,
-            confirmEarlyCheckIn: isEarlyConfirmed
+            confirmEarlyCheckIn: isEarlyConfirmed,
+            confirmAdvanceCheckIn: isEarlyConfirmed
           })
         });
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || 'Failed to check in');
+
+        if (data.requiresAdvanceCheckInConfirmation) {
+          showConfirm(
+            data.title || 'Advance & Early Check-In Notice',
+            data.message || `This guest is checking in ${data.advanceNights} day(s) ahead of schedule. Checking in today will add ${data.advanceNights} additional night charge(s) (₱${parseFloat(data.additionalRoomCharge || 0).toFixed(2)}) to the bill.`,
+            async () => {
+              await performCheckIn(true);
+            }
+          );
+          return;
+        }
 
         if (data.requiresEarlyCheckInConfirmation) {
           showConfirm(

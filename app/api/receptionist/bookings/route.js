@@ -1022,13 +1022,14 @@ export async function POST(request) {
 
     if (action === 'checkin') {
       const bookingID = parseInt(body.bookingID);
-      const confirmEarlyCheckIn = !!body.confirmEarlyCheckIn || !!body.confirmAdvanceCheckIn;
+      const confirmEarlyCheckIn = !!body.confirmEarlyCheckIn;
+      const confirmAdvanceCheckIn = !!body.confirmAdvanceCheckIn || !!body.confirmEarlyCheckIn;
 
-      const res = await dbQuery("SELECT bookingID, roomID, status, DATE_FORMAT(checkInDateTime, '%Y-%m-%d') as scheduledCheckInDate, checkInDateTime FROM booking WHERE bookingID = ?", [bookingID]);
+      const res = await dbQuery("SELECT bookingID, roomID, status, DATE_FORMAT(checkInDateTime, '%Y-%m-%d') as scheduledCheckInDate, checkInDateTime, checkOutDateTime FROM booking WHERE bookingID = ?", [bookingID]);
       if (res.length === 0) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
-      const { roomID, scheduledCheckInDate, status: currentBookingStatus } = res[0];
+      const { roomID, scheduledCheckInDate, status: currentBookingStatus, checkOutDateTime: scheduledCheckOutDateTime } = res[0];
 
       // Lifecycle guard: only a confirmed (Pending-family) booking may check in.
       // Re-check-in of an in-house booking is rejected (duplicate operation).
@@ -1085,14 +1086,54 @@ export async function POST(request) {
       let earlyHours = 0;
       let earlyFee = 0;
 
-      // Check-in is allowed only on the booking's scheduled check-in date.
-      // Advance (different-date) check-in is blocked: update the booking dates
-      // first via Update Booking, then check in. Same-day early arrival keeps
-      // the existing early-fee confirmation flow below.
+      // Advance (different-date) check-in is allowed with confirmation.
+      // Each early day extends the stay by one night at room rate (billed
+      // automatically via the extended stay dates — no separate incidental),
+      // plus the hourly early fee when arriving before 2:00 PM.
       if (manilaDateStr < scheduledCheckInDate) {
-        return NextResponse.json({
-          error: `Check-in is only allowed on the scheduled check-in date (${scheduledCheckInDate}). To check in today, update the booking dates first.`
-        }, { status: 400 });
+        const schedMid = new Date(scheduledCheckInDate + 'T00:00:00');
+        const todayMid = new Date(manilaDateStr + 'T00:00:00');
+        advanceNights = Math.max(1, Math.round((schedMid.getTime() - todayMid.getTime()) / (1000 * 60 * 60 * 24)));
+        additionalRoomCharge = advanceNights * roomBaseRate;
+        if (manilaHour < 14) {
+          const exactRemainingMinutes = (14 * 60) - (manilaHour * 60 + manilaMinute);
+          earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
+          earlyFee = earlyHours * 50;
+        }
+
+        if (!confirmAdvanceCheckIn) {
+          return NextResponse.json({
+            requiresAdvanceCheckInConfirmation: true,
+            advanceNights,
+            additionalRoomCharge,
+            earlyHours,
+            earlyFee,
+            roomNumber,
+            title: 'Advance & Early Check-In Notice',
+            message: `This guest is checking in ${advanceNights} day(s) ahead of schedule (scheduled for ${scheduledCheckInDate}). The stay will extend by ${advanceNights} night(s) at ₱${roomBaseRate.toFixed(2)}/night (₱${additionalRoomCharge.toFixed(2)})${earlyFee > 0 ? ` plus an early check-in fee of ₱${earlyFee.toFixed(2)} (${earlyHours} hour(s) @ ₱50/hr)` : ''}, billed automatically to the bill. Proceed?`
+          });
+        }
+
+        // Gap guard: no other stay may hold this room between today and checkout.
+        const gapStart = `${manilaDateStr} 00:00:00`;
+        const gapEnd = String(scheduledCheckOutDateTime || '').replace('T', ' ').substring(0, 19) || `${scheduledCheckInDate} 12:00:00`;
+        const gapConflict = await dbQuery(`
+          SELECT 'booking' AS kind, bookingID AS refID FROM booking
+          WHERE roomID = ? AND bookingID != ?
+            AND status NOT IN ('Cancelled', 'Canceled', 'Checked Out', 'Completed', 'No Show')
+            AND checkInDateTime < ? AND checkOutDateTime > ?
+          UNION ALL
+          SELECT 'reservation' AS kind, reservationID AS refID FROM reservation
+          WHERE roomID = ?
+            AND status NOT IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show', 'Booked', 'Completed')
+            AND reservationDateTime < ? AND checkOutDateTime > ?
+          LIMIT 1
+        `, [roomID, bookingID, gapEnd, gapStart, roomID, gapEnd, gapStart]);
+        if (gapConflict && gapConflict.length > 0) {
+          return NextResponse.json({
+            error: `Cannot check in early: Room ${roomNumber} has a conflicting ${gapConflict[0].kind} (#${gapConflict[0].refID}) during the advance stay period. Please choose another room or adjust the dates.`
+          }, { status: 409 });
+        }
       }
       if (manilaDateStr === scheduledCheckInDate && manilaHour < 14) {
         // Standard same-day early check-in before 2:00 PM
@@ -1113,17 +1154,12 @@ export async function POST(request) {
 
       const nowStr = `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
 
-      // If advance check-in confirmed, record additional night charges in incidental charges / ledger
-      if (confirmEarlyCheckIn && advanceNights > 0 && additionalRoomCharge > 0) {
-        const advanceDesc = `Advance Check-In Additional Night Charge (${advanceNights} night(s) @ ₱${roomBaseRate.toFixed(2)})`;
-        await dbQuery(
-          "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
-          [bookingID, advanceDesc, additionalRoomCharge]
-        );
-      }
+      // Advance nights are billed automatically via the extended stay dates
+      // (checkInDateTime is rewritten to now below), so no separate
+      // incidental is recorded for them — that would double-charge.
 
       // If early check-in fee applies, record fee in incidental charges
-      if (confirmEarlyCheckIn && earlyFee > 0) {
+      if ((confirmEarlyCheckIn || confirmAdvanceCheckIn) && earlyFee > 0) {
         const feeDesc = `Early Check-In Fee (${earlyHours} hr(s) @ ₱50.00/hr before 2:00 PM)`;
         await dbQuery(
           "INSERT INTO incidental_charge (bookingID, description, amount) VALUES (?, ?, ?)",
