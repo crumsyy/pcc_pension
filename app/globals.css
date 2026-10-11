@@ -1,7 +1,7 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css');
 @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css');
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
 
 /* =====================================================================
    PCC Home Suite Home - Design System
@@ -3364,4 +3364,21 @@ body.dark-theme .pcc-tab[data-selected] {
   outline: 2px solid var(--pcc-blue, #2155B5);
   outline-offset: 2px;
   border-radius: 8px;
+}
+
+/* =====================================================================
+   Full Inter headings in Receptionist (.pcc-main-wrapper) + Guest portal
+   (.guest-portal). Admin/auth keep the Fraunces display font.
+   ===================================================================== */
+.pcc-main-wrapper h1,
+.pcc-main-wrapper h2,
+.pcc-main-wrapper h3,
+.pcc-main-wrapper h4,
+.pcc-main-wrapper .display-font,
+.guest-portal h1,
+.guest-portal h2,
+.guest-portal h3,
+.guest-portal h4,
+.guest-portal .display-font {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }

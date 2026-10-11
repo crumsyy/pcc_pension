@@ -627,17 +627,16 @@ export default function ReceptionistBilling() {
     fetchBillingDetails(bID);
   };
 
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'upcoming' | 'active' | 'completed'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'booked' | 'occupied' | 'completed'
 
-  const UPCOMING_STATUS_LIST = [
+  const BOOKED_STATUS_LIST = [
     'Pending',
     'Pending Check-in',
     'Confirmed',
     'Booked'
   ];
 
-  const ACTIVE_STATUS_LIST = [
-    ...UPCOMING_STATUS_LIST,
+  const OCCUPIED_STATUS_LIST = [
     'Active Stay',
     'Checked In',
     'Checked-In',
@@ -659,10 +658,10 @@ export default function ReceptionistBilling() {
     const matchesSearch = fullName.includes(query) || room.includes(query);
     if (!matchesSearch) return false;
 
-    if (statusFilter === 'active') {
-      return ACTIVE_STATUS_LIST.includes(b.status);
-    } else if (statusFilter === 'upcoming') {
-      return UPCOMING_STATUS_LIST.includes(b.status);
+    if (statusFilter === 'occupied') {
+      return OCCUPIED_STATUS_LIST.includes(b.status);
+    } else if (statusFilter === 'booked') {
+      return BOOKED_STATUS_LIST.includes(b.status);
     } else if (statusFilter === 'completed') {
       return b.status === 'Completed' || b.status === 'Checked Out';
     }
@@ -704,10 +703,10 @@ export default function ReceptionistBilling() {
               <div className="col-md-6 text-md-end">
                 <Tabs selectedKey={statusFilter} onSelectionChange={(key) => setStatusFilter(key)}>
                   <TabList aria-label="Stay filters">
-                    <Tab id="all">All Stays</Tab>
-                    <Tab id="upcoming">Upcoming / Booked</Tab>
-                    <Tab id="active">Active Stays</Tab>
-                    <Tab id="completed">Completed Stays</Tab>
+                    <Tab id="all">All</Tab>
+                    <Tab id="booked">Booked</Tab>
+                    <Tab id="occupied">Occupied</Tab>
+                    <Tab id="completed">Completed</Tab>
                   </TabList>
                 </Tabs>
               </div>
