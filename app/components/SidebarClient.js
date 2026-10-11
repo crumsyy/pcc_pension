@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import NotificationBell from './NotificationBell';
+import { Toaster as SonnerToaster } from 'sonner';
 import ThemeToggle from './ThemeToggle';
 import LoadingButton from './LoadingButton';
 import ReceptionistSidebarNav from './ReceptionistSidebarNav';
@@ -261,6 +262,9 @@ export default function SidebarClient({ session, role, children }) {
 
   return (
     <div className={`d-flex flex-column flex-lg-row ${role === 'Administrator' ? 'admin-inter' : ''}`} style={{ minHeight: '100vh' }}>
+      {/* Single shared Sonner host: NotificationBell instances (mobile + desktop
+          bars) fire toasts, but only one Toaster may render them. */}
+      <SonnerToaster position="top-right" richColors closeButton expand={false} />
       {/* MOBILE TOP BAR */}
       <div 
         className="d-flex d-lg-none justify-content-between align-items-center p-3 text-white sticky-top" 

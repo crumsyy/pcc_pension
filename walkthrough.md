@@ -1,12 +1,12 @@
-# Walkthrough — Remove manual release (lock) button
+# Walkthrough — Single-trigger toasts + notifications
 
-## Changes (`reservations/page.js` only)
-- Deleted the orange lock / “Manually Release Courtesy Hold” button from hold rows.
-- Deleted the now-dead `handleReleaseHold` handler.
-- Cancel flow, Convert/Edit buttons, auto-release scheduler, and the server `release_hold` action untouched.
+## Changes
+- `reservations/page.js`: `handleCancel` + `handleUpdateSubmit` now fire exactly one toast per path (`showAlert` only; direct `toast.success/error` removed). Create flow untouched (already single).
+- `NotificationBell.js`: module-scope `toastedNotifIDs` set shared by both mounted instances — ring/chime/sonner fire once per notification; per-instance `<Toaster>` removed.
+- `SidebarClient.js`: one shared sonner `<Toaster>` at layout root (covers mobile + desktop bells, both roles).
 
 ## Verification
-- `grep`: zero matches for handler/label/icon.
+- Live DB check: one audit row per staff user per cancel → duplicates were purely client-side; now impossible (shared set + single Toaster).
 - `eslint`: no new issues. `npm run build`: exit 0.
 
 ## No commit/push

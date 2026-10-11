@@ -880,12 +880,10 @@ function ReservationsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update reservation');
 
-        toast.success('Reservation Updated', 'Reservation updated successfully.');
         showAlert('success', 'Success', 'Reservation updated successfully.');
         setActiveModal(null);
         fetchData();
       } catch (err) {
-        toast.error('Update Failed', err.message);
         showAlert('error', 'Error', err.message);
       } finally {
         setIsSubmitting(false);
@@ -904,11 +902,9 @@ function ReservationsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to cancel reservation');
 
-        toast.success('Reservation Canceled', 'Reservation canceled successfully.');
         showAlert('success', 'Success', 'Reservation canceled successfully.');
         fetchData();
       } catch (err) {
-        toast.error('Cancel Failed', err.message);
         showAlert('error', 'Error', err.message);
       }
     });

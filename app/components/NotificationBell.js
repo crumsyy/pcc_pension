@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
+
+// IDs already toasted in THIS browser tab, shared across every mounted
+// bell instance (mobile + desktop bars both mount one) so each new
+// notification pops exactly once no matter how many bells are mounted.
+const toastedNotifIDs = new Set();
 
 export default function NotificationBell() {
   const router = useRouter();
@@ -68,13 +73,17 @@ export default function NotificationBell() {
           const brandNewUnread = list.filter(
             (n) => !n.isRead && !knownNotifIDsRef.current.has(n.notificationID)
           );
-          if (brandNewUnread.length > 0) {
+          // Only the first mounted bell instance fires; the shared set
+          // suppresses the duplicate from the second instance.
+          const toFire = brandNewUnread.filter((n) => !toastedNotifIDs.has(n.notificationID));
+          toFire.forEach((n) => toastedNotifIDs.add(n.notificationID));
+          if (toFire.length > 0) {
             setIsRinging(true);
             setTimeout(() => setIsRinging(false), 1600);
             playNotificationChime();
 
             // Fire modern Sonner rich toasts for new incoming alerts
-            brandNewUnread.slice(0, 3).forEach((n) => {
+            toFire.slice(0, 3).forEach((n) => {
               const lowerTitle = (n.title || "").toLowerCase();
               const isNoStock = lowerTitle.includes("no stock") || lowerTitle.includes("out of stock");
               const isLowStock = lowerTitle.includes("low inventory") || lowerTitle.includes("stock");
@@ -421,7 +430,6 @@ export default function NotificationBell() {
 
   return (
     <div className="position-relative d-inline-block" ref={dropdownRef}>
-      <Toaster position="top-right" richColors closeButton expand={false} />
 
       {/* Bell Shake Keyframes */}
       <style jsx global>{`
