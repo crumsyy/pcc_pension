@@ -968,7 +968,7 @@ export default function UsersClient() {
           <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '450px' }}>
             <div className="modal-content border-0 shadow-lg">
               <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue)' }}>
-                <h5 className="modal-title fw-bold">⚠️ Suspend User Account</h5>
+                <h5 className="modal-title fw-bold">Suspend User Account</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleSuspendSubmit}>
