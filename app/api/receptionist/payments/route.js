@@ -31,7 +31,10 @@ export async function GET(request) {
         )
         ORDER BY (CASE WHEN b.status IN ('Confirmed', 'Pending', 'Pending Check-in', 'Booked', 'Checked In', 'Active Stay') THEN 0 ELSE 1 END), b.bookingID DESC
       `),
-      dbQuery("SELECT discountID, name, percentage, eligibilityTypeID FROM discounts WHERE isArchived = 0"),
+      dbQuery(`SELECT d.discountID, d.name, d.percentage, COALESCE(d.requiredBookings, 0) as requiredBookings,
+               COALESCE(et.eligibility, 'ID-Based') as eligibility
+        FROM discounts d LEFT JOIN eligibility_type et ON et.eligibilityTypeID = d.eligibilityTypeID
+        WHERE d.isArchived = 0`),
       dbQuery("SELECT paymentMethodID, paymentMethod FROM payment_method"),
       dbQuery(`
         SELECT p.paymentID, p.amount, p.cashReceived, p.change, p.paymentMethodID,

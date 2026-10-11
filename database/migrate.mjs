@@ -448,12 +448,14 @@ async function run() {
         \`discountID\` INT(11) DEFAULT NULL,
         \`discountIdNumber\` VARCHAR(100) DEFAULT NULL,
         \`discountAmount\` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        \`kind\` VARCHAR(20) NOT NULL DEFAULT 'guest',
         \`createdAt\` DATETIME DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (\`bookingDiscountID\`),
         KEY \`idx_bd_bookingID\` (\`bookingID\`),
         CONSTRAINT \`fk_bd_booking\` FOREIGN KEY (\`bookingID\`) REFERENCES \`booking\` (\`bookingID\`) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
     `);
+    await ensureColumn(connection, 'booking_discount', 'kind', "VARCHAR(20) NOT NULL DEFAULT 'guest'");
 
     console.log("Ensuring system_settings table and default VAT percentage...");
     await ensureTable(connection, 'system_settings', `
@@ -467,6 +469,12 @@ async function run() {
       INSERT IGNORE INTO \`system_settings\` (\`settingKey\`, \`settingValue\`)
       VALUES ('vat_percentage', '12.00')
     `).catch(() => {});
+
+    console.log("Ensuring discount eligibility types (ID-Based, Booking Count, Open)...");
+    await connection.execute(`
+      INSERT IGNORE INTO \`eligibility_type\` (\`eligibilityTypeID\`, \`eligibility\`)
+      VALUES (1, 'ID-Based'), (2, 'Booking Count'), (3, 'Open')
+    `).catch((e) => { console.warn("Eligibility seed note:", e.message); });
 
     console.log("Backfilling normalized fields...");
     await connection.execute(`

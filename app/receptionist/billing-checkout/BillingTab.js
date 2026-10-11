@@ -331,11 +331,17 @@ export default function ReceptionistBilling() {
         showAlert('warning', 'Selection Required', `Beneficiary #${i + 1}: Please select a discount type.`);
         return;
       }
-      if (!b.beneficiaryName.trim()) {
+      const cleanId = String(b.discountID || '').replace('disc-', '').replace('promo-', '');
+      const selDisc = (billDetails?.discounts || []).find(d =>
+        String(d.discountID) === String(b.discountID) ||
+        String(d.discountID).replace('disc-', '').replace('promo-', '') === cleanId
+      );
+      const isOpenRow = selDisc?.eligibility === 'Open';
+      if (!isOpenRow && !b.beneficiaryName.trim()) {
         showAlert('warning', 'Validation Error', `Beneficiary #${i + 1}: Full name is required.`);
         return;
       }
-      if (!b.discountIdNumber.trim()) {
+      if (!isOpenRow && !b.discountIdNumber.trim()) {
         showAlert('warning', 'Validation Error', `Beneficiary #${i + 1} (${b.beneficiaryName}): ID card number is required.`);
         return;
       }
@@ -1835,7 +1841,14 @@ export default function ReceptionistBilling() {
                     </span>
                   </div>
 
-                  {discountBeneficiaries.map((b, idx) => (
+                  {discountBeneficiaries.map((b, idx) => {
+                    const cleanRowId = String(b.discountID || '').replace('disc-', '').replace('promo-', '');
+                    const rowDisc = (billDetails.discounts || []).find(d =>
+                      String(d.discountID) === String(b.discountID) ||
+                      String(d.discountID).replace('disc-', '').replace('promo-', '') === cleanRowId
+                    );
+                    const rowOpen = rowDisc?.eligibility === 'Open';
+                    return (
                     <div key={idx} className="card p-3 mb-3 border bg-light">
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         <span className="badge bg-secondary">Beneficiary #{idx + 1}</span>
@@ -1861,31 +1874,31 @@ export default function ReceptionistBilling() {
                             <option value="">-- Choose Discount --</option>
                             {billDetails.discounts.map(d => (
                               <option key={d.discountID} value={d.discountID}>
-                                {d.name} ({d.percentage}% Off)
+                                {d.name} ({d.percentage}% Off{d.eligibility === 'Booking Count' ? `, ≥${d.requiredBookings || 0} stays` : d.eligibility === 'Open' ? ', Open' : ''})
                               </option>
                             ))}
                           </select>
                         </div>
                         <div className="col-md-4">
-                          <label className="form-label fw-semibold small mb-1">Beneficiary Full Name *</label>
+                          <label className="form-label fw-semibold small mb-1">Beneficiary Full Name {rowOpen ? '(optional for Open)' : '*'}</label>
                           <input
                             type="text"
                             className="form-control form-control-sm"
-                            required
-                            placeholder="e.g. Juan Dela Cruz"
+                            required={!rowOpen}
+                            placeholder={rowOpen ? 'Not needed for Open discount' : 'e.g. Juan Dela Cruz'}
                             value={b.beneficiaryName}
                             onChange={(e) => handleUpdateBeneficiaryField(idx, 'beneficiaryName', e.target.value)}
                           />
                         </div>
                         <div className="col-md-4">
-                          <label className="form-label fw-semibold small mb-1">Government / ID No. *</label>
+                          <label className="form-label fw-semibold small mb-1">Government / ID No. {rowOpen ? '(not needed)' : '*'}</label>
                           <input
                             type="text"
                             inputMode="numeric"
                             pattern="[0-9]*"
                             className="form-control form-control-sm"
-                            required
-                            placeholder="e.g. 12345678 (Numeric Only)"
+                            required={!rowOpen}
+                            placeholder={rowOpen ? 'Not needed for Open discount' : 'e.g. 12345678 (Numeric Only)'}
                             value={b.discountIdNumber}
                             onChange={(e) => handleUpdateBeneficiaryField(idx, 'discountIdNumber', e.target.value.replace(/\D/g, ''))}
                             onKeyDown={(e) => {
@@ -1897,7 +1910,8 @@ export default function ReceptionistBilling() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
 
                   {discountBeneficiaries.length < (billDetails.chargesSummary?.totalGuests || 1) && (
                     <button
@@ -1927,10 +1941,13 @@ export default function ReceptionistBilling() {
                         );
                         if (disc) {
                           const pct = parseFloat(disc.percentage) || 0;
-                          const amt = Math.round(perCapitaShare * (pct / 100) * 100) / 100;
+                          const isOpenRow = disc.eligibility === 'Open';
+                          const amt = isOpenRow
+                            ? Math.round(grossRoomCharge * (pct / 100) * 100) / 100
+                            : Math.round(perCapitaShare * (pct / 100) * 100) / 100;
                           totalEstDiscount += amt;
                           itemizedPreview.push({
-                            name: b.beneficiaryName || `Beneficiary #${idx + 1}`,
+                            name: isOpenRow ? 'Open Discount' : (b.beneficiaryName || `Beneficiary #${idx + 1}`),
                             discountName: disc.name,
                             percentage: pct,
                             amount: amt

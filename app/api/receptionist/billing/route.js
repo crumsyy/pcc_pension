@@ -80,7 +80,10 @@ export async function GET(request) {
         GROUP BY a.amenityID, a.name, a.sellingPrice, a.price, a.description
         ORDER BY a.name ASC
       `, [booking.guestID, cleanCheckInDate]).catch(() => []),
-      dbQuery("SELECT discountID, name, percentage FROM discounts WHERE isArchived = 0 ORDER BY name").catch(() => []),
+      dbQuery(`SELECT d.discountID, d.name, d.percentage, COALESCE(d.requiredBookings, 0) as requiredBookings,
+               COALESCE(et.eligibility, 'ID-Based') as eligibility
+        FROM discounts d LEFT JOIN eligibility_type et ON et.eligibilityTypeID = d.eligibilityTypeID
+        WHERE d.isArchived = 0 ORDER BY d.name`).catch(() => []),
       dbQuery("SELECT promotionID, name, percentage FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name").catch(() => [])
     ]);
 
@@ -733,15 +736,63 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
       const allowedGuestCount = Math.max(1, parseInt(bRows[0].guestCount || 1));
+      // Pax-cap check lives after validation below (Open discounts are
+      // booking-level and do not consume guest slots).
 
-      if (discountsList.length > allowedGuestCount) {
-        return NextResponse.json({
-          error: `Cannot apply ${discountsList.length} discounts. Maximum eligible discounts for this stay is ${allowedGuestCount} (total room guests).`
-        }, { status: 400 });
-      }
+      // Booking room context (promo room limits + stay-history resolution)
+      const roomRows = await dbQuery(
+        `SELECT b.guestID, b.roomID, rm.roomTypeID,
+                TRIM(CONCAT(COALESCE(g.firstName, ''), ' ', COALESCE(g.lastName, ''))) as primaryGuestName
+         FROM booking b
+         JOIN room rm ON rm.roomID = b.roomID
+         LEFT JOIN guest g ON g.guestID = b.guestID
+         WHERE b.bookingID = ?`,
+        [bookingID]
+      );
+      const bookingRoomID = roomRows[0]?.roomID || null;
+      const bookingRoomTypeID = roomRows[0]?.roomTypeID ? parseInt(roomRows[0].roomTypeID, 10) : null;
+      const primaryGuestName = (roomRows[0]?.primaryGuestName || '').trim();
 
-      // Validate each discount
+      // Discount catalog with eligibility (single source for all branches below)
+      const discountsDb = await dbQuery(
+        `SELECT d.discountID, d.percentage, d.name, COALESCE(d.requiredBookings, 0) as requiredBookings,
+                COALESCE(et.eligibility, 'ID-Based') as eligibility
+         FROM discounts d
+         LEFT JOIN eligibility_type et ON et.eligibilityTypeID = d.eligibilityTypeID
+         WHERE d.isArchived = 0 ORDER BY d.name ASC`
+      ).catch(() => []);
+      const promotionsDb = await dbQuery(
+        "SELECT promotionID, percentage, name, roomID, roomTypeID FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name ASC"
+      ).catch(() => []);
+
+      const resolveStayHistory = async (beneficiaryName) => {
+        const target = String(beneficiaryName || '').trim().toLowerCase();
+        if (!target) return { verifiable: false, stays: 0, guestName: '' };
+        let guestID = null;
+        let guestName = String(beneficiaryName || '').trim();
+        if (primaryGuestName && primaryGuestName.toLowerCase() === target && roomRows[0]?.guestID) {
+          guestID = roomRows[0].guestID;
+        } else {
+          const matches = await dbQuery(
+            `SELECT guestID, TRIM(CONCAT(COALESCE(firstName, ''), ' ', COALESCE(lastName, ''))) as fullName
+             FROM guest
+             WHERE LOWER(TRIM(CONCAT(COALESCE(firstName, ''), ' ', COALESCE(lastName, '')))) = ?
+             LIMIT 2`,
+            [target]
+          ).catch(() => []);
+          if (!matches || matches.length !== 1) return { verifiable: false, stays: 0, guestName };
+          guestID = matches[0].guestID;
+        }
+        const stays = await dbQuery(
+          "SELECT COUNT(*) as count FROM booking WHERE guestID = ? AND status IN ('Completed', 'Checked Out')",
+          [guestID]
+        ).catch(() => [{ count: 0 }]);
+        return { verifiable: true, stays: stays[0]?.count || 0, guestName };
+      };
+
+      // Validate each discount (branching on eligibility; promos keep ID flow)
       const parsedDiscounts = [];
+      const openDiscounts = [];
       const seenCards = new Set();
 
       for (let i = 0; i < discountsList.length; i++) {
@@ -749,13 +800,90 @@ export async function POST(request) {
         if (!item.discountID) {
           return NextResponse.json({ error: `Beneficiary #${i + 1}: Please select a discount type.` }, { status: 400 });
         }
+        const rawDiscountID = String(item.discountID);
+        const isPromo = rawDiscountID.startsWith('promo-');
+
+        if (isPromo) {
+          if (!item.beneficiaryName || !item.beneficiaryName.trim()) {
+            return NextResponse.json({ error: `Beneficiary #${i + 1}: Full name is required for verification.` }, { status: 400 });
+          }
+          if (!item.discountIdNumber || !item.discountIdNumber.trim()) {
+            return NextResponse.json({ error: `Beneficiary #${i + 1} (${item.beneficiaryName.trim()}): ID card number is required for verification.` }, { status: 400 });
+          }
+          const cardKey = item.discountIdNumber.trim().toLowerCase();
+          if (seenCards.has(cardKey)) {
+            return NextResponse.json({
+              error: `Duplicate discount entry: ID card number '${item.discountIdNumber.trim()}' was entered more than once.`
+            }, { status: 400 });
+          }
+          seenCards.add(cardKey);
+          const promoID = parseInt(rawDiscountID.replace('promo-', ''), 10);
+          const pRow = (promotionsDb || []).find(p => String(p.promotionID) === String(promoID));
+          if (!pRow) {
+            return NextResponse.json({ error: `Beneficiary #${i + 1}: This promotion is no longer available (expired or archived).` }, { status: 400 });
+          }
+          if (pRow.roomID && bookingRoomID && parseInt(pRow.roomID, 10) !== parseInt(bookingRoomID, 10)) {
+            return NextResponse.json({ error: `Beneficiary #${i + 1}: ${pRow.name} is limited to another room.` }, { status: 400 });
+          }
+          if (pRow.roomTypeID && bookingRoomTypeID && parseInt(pRow.roomTypeID, 10) !== bookingRoomTypeID) {
+            return NextResponse.json({ error: `Beneficiary #${i + 1}: ${pRow.name} is limited to another room type.` }, { status: 400 });
+          }
+          parsedDiscounts.push({
+            fullName: item.beneficiaryName.trim(),
+            discountID: null,
+            promotionID: promoID,
+            discountIdNumber: item.discountIdNumber.trim()
+          });
+          continue;
+        }
+
+        const discID = parseInt(rawDiscountID.replace('disc-', ''));
+        const dRow = (discountsDb || []).find(d => String(d.discountID) === String(rawDiscountID) || String(d.discountID) === String(discID));
+        if (!dRow) {
+          return NextResponse.json({ error: `Beneficiary #${i + 1}: This discount is no longer available (archived).` }, { status: 400 });
+        }
+        const eligibility = dRow.eligibility || 'ID-Based';
+
+        if (eligibility === 'Open') {
+          if (openDiscounts.length > 0) {
+            return NextResponse.json({ error: 'Only one Open discount can be applied per booking.' }, { status: 400 });
+          }
+          openDiscounts.push({ discountID: dRow.discountID, name: dRow.name, percentage: parseFloat(dRow.percentage) || 0 });
+          continue;
+        }
+
         if (!item.beneficiaryName || !item.beneficiaryName.trim()) {
           return NextResponse.json({ error: `Beneficiary #${i + 1}: Full name is required for verification.` }, { status: 400 });
         }
+
+        if (eligibility === 'Booking Count') {
+          const required = parseInt(dRow.requiredBookings || 0, 10) || 0;
+          const history = await resolveStayHistory(item.beneficiaryName);
+          if (!history.verifiable) {
+            return NextResponse.json({ error: `Beneficiary #${i + 1} (${item.beneficiaryName.trim()}): stay history cannot be verified. They must be the booking guest or have exactly one matching guest record.` }, { status: 400 });
+          }
+          if (history.stays < required) {
+            return NextResponse.json({ error: `Beneficiary #${i + 1} (${history.guestName}): has ${history.stays} completed stay(s); ${dRow.name} requires ${required}.` }, { status: 400 });
+          }
+          const idPart = (item.discountIdNumber || '').trim();
+          const dupKey = idPart ? idPart.toLowerCase() : `name::${dRow.discountID}::${history.guestName.toLowerCase()}`;
+          if (seenCards.has(dupKey)) {
+            return NextResponse.json({ error: `Duplicate discount entry for '${history.guestName}' was entered more than once.` }, { status: 400 });
+          }
+          seenCards.add(dupKey);
+          parsedDiscounts.push({
+            fullName: history.guestName,
+            discountID: dRow.discountID,
+            promotionID: null,
+            discountIdNumber: idPart || null
+          });
+          continue;
+        }
+
+        // ID-Based (default): name + ID card required, one use per card.
         if (!item.discountIdNumber || !item.discountIdNumber.trim()) {
           return NextResponse.json({ error: `Beneficiary #${i + 1} (${item.beneficiaryName.trim()}): ID card number is required for verification.` }, { status: 400 });
         }
-
         const cardKey = item.discountIdNumber.trim().toLowerCase();
         if (seenCards.has(cardKey)) {
           return NextResponse.json({
@@ -763,24 +891,19 @@ export async function POST(request) {
           }, { status: 400 });
         }
         seenCards.add(cardKey);
-
-        let dbDiscountID = null;
-        let dbPromotionID = null;
-        const rawDiscountID = String(item.discountID);
-        if (rawDiscountID.startsWith('disc-')) {
-          dbDiscountID = parseInt(rawDiscountID.replace('disc-', ''));
-        } else if (rawDiscountID.startsWith('promo-')) {
-          dbPromotionID = parseInt(rawDiscountID.replace('promo-', ''));
-        } else {
-          dbDiscountID = parseInt(rawDiscountID);
-        }
-
         parsedDiscounts.push({
           fullName: item.beneficiaryName.trim(),
-          discountID: dbDiscountID,
-          promotionID: dbPromotionID,
+          discountID: dRow.discountID,
+          promotionID: null,
           discountIdNumber: item.discountIdNumber.trim()
         });
+      }
+
+      // Pax cap applies to guest-level rows (Open discounts are booking-level).
+      if (parsedDiscounts.length > allowedGuestCount) {
+        return NextResponse.json({
+          error: `Cannot apply ${parsedDiscounts.length} discounts. Maximum eligible discounts for this stay is ${allowedGuestCount} (total room guests).`
+        }, { status: 400 });
       }
 
       // Check if the exact same discounts are already applied (idempotency guard)
@@ -813,10 +936,7 @@ export async function POST(request) {
       const nights = detailsBefore?.nights || 1;
       const guestCount = Math.max(1, detailsBefore?.totalGuestsCount || parsedDiscounts.length);
 
-      // Fetch active discount percentages (isArchived = 0)
-      const discountsDb = await dbQuery("SELECT discountID, percentage, name FROM discounts WHERE isArchived = 0 ORDER BY name ASC").catch(() => []);
-      const promotionsDb = await dbQuery("SELECT promotionID, percentage, name FROM promotions WHERE isArchived = 0 AND (startDate <= CURDATE() AND endDate >= CURDATE()) ORDER BY name ASC").catch(() => []);
-
+      // Catalog rows were already fetched with eligibility during validation.
       const formattedGuestDiscounts = parsedDiscounts.map(pd => {
         let rate = 0;
         let dType = 'Special Discount';
@@ -839,11 +959,21 @@ export async function POST(request) {
         };
       });
 
+      // Open discounts are booking-level: fixed peso off the gross room charge.
+      let fixedOpenDiscount = 0;
+      const openDiscountRows = [];
+      for (const open of openDiscounts) {
+        const amt = Math.round(Number(baseRoomCharge || 0) * (Number(open.percentage) || 0)) / 100;
+        fixedOpenDiscount = Math.round((fixedOpenDiscount + amt) * 100) / 100;
+        openDiscountRows.push({ ...open, amount: amt });
+      }
+
       const calcResults = calculateBillingTotals({
         roomRate: (baseRoomCharge / nights) || roomRate,
         nights,
         guestCount,
         guestDiscounts: formattedGuestDiscounts,
+        fixedDiscount: fixedOpenDiscount,
         extraGuestFee: detailsBefore?.extraGuestFee || 0
       });
 
@@ -902,6 +1032,25 @@ export async function POST(request) {
         }
       }
 
+      // Booking-level Open discounts: stored rows (kind='open') survive without
+      // any guest row; the balance reader sums them and skips orphan cleanup.
+      if (openDiscountRows.length > 0) {
+        // Self-healing schema: older databases may lack booking_discount.kind
+        // (added by migrate.mjs). Without it the rows couldn't be told apart.
+        try {
+          const [kindCol] = await dbQuery("SHOW COLUMNS FROM booking_discount LIKE 'kind'");
+          if (!kindCol || kindCol.length === 0) {
+            await dbQuery("ALTER TABLE booking_discount ADD COLUMN kind VARCHAR(20) NOT NULL DEFAULT 'guest'");
+          }
+        } catch (e) {}
+        for (const open of openDiscountRows) {
+          await dbQuery(
+            "INSERT INTO booking_discount (bookingID, guestName, discountID, discountIdNumber, discountAmount, kind) VALUES (?, ?, ?, 'N/A', ?, 'open')",
+            [bookingID, open.name, open.discountID, open.amount]
+          );
+        }
+      }
+
       const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
       const billingID = billingRes[0]?.billingID || null;
       if (billingID) {
@@ -911,7 +1060,10 @@ export async function POST(request) {
       const balanceAfter = await getBookingBalance(bookingID);
       const discountSaved = Math.max(0, Math.round((balanceBefore - balanceAfter) * 100) / 100);
 
-      const descList = parsedDiscounts.map(d => `${d.fullName} (${d.discountIdNumber})`).join(', ');
+      const descList = [
+        ...parsedDiscounts.map(d => `${d.fullName} (${d.discountIdNumber || 'no ID'})`),
+        ...openDiscountRows.map(o => `${o.name} (Open, booking-level)`)
+      ].join(', ');
       await logBillingAudit(null, {
         billingID,
         bookingID,
@@ -922,12 +1074,12 @@ export async function POST(request) {
         userID: session.userID,
         userName: session.email || 'Receptionist',
         userRole: session.role,
-        description: `Applied discounts for ${parsedDiscounts.length} guest(s): ${descList}. Total Savings: ₱${discountSaved.toFixed(2)}`
+        description: `Applied discounts for ${parsedDiscounts.length} guest(s)${openDiscountRows.length > 0 ? ` + ${openDiscountRows.length} open discount(s)` : ''}: ${descList}. Total Savings: ₱${discountSaved.toFixed(2)}`
       });
 
       return NextResponse.json({
         success: true,
-        message: `${parsedDiscounts.length} discount(s) applied to billing successfully. Total savings: ₱${discountSaved.toFixed(2)}.`
+        message: `${parsedDiscounts.length} discount(s)${openDiscountRows.length > 0 ? ` + ${openDiscountRows.length} open discount(s)` : ''} applied to billing successfully. Total savings: ₱${discountSaved.toFixed(2)}.`
       });
     }
 

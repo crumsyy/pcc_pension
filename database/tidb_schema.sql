@@ -561,7 +561,8 @@ CREATE TABLE `eligibility_type` (
 -- Dumping data for table `eligibility_type`
 INSERT INTO `eligibility_type` (`eligibilityTypeID`, `eligibility`) VALUES
 (1, 'ID-Based'),
-(2, 'Booking Count');
+(2, 'Booking Count'),
+(3, 'Open');
 
 -- --------------------------------------------------------
 -- Table structure for table `discounts`

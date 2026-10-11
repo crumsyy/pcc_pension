@@ -2,6 +2,41 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { dbQuery } from '@/lib/db';
 
+// Shared create/update validation so invalid discount combos can never be saved.
+// - Percentage must be 1-100.
+// - Booking Count eligibility requires requiredBookings >= 1.
+// - Open eligibility forces requiredBookings to 0 (no proof ever asked).
+// - Referenced type/eligibility rows must exist.
+async function validateDiscountPayload({ name, percentage, requiredBookings, discountTypeID, eligibilityTypeID }) {
+  if (!name || !String(name).trim()) {
+    return { error: 'Discount name is required.' };
+  }
+  const pct = parseInt(percentage, 10);
+  if (isNaN(pct) || pct < 1 || pct > 100) {
+    return { error: 'Percentage must be a number between 1 and 100.' };
+  }
+  const [typeRows, eligRows] = await Promise.all([
+    dbQuery("SELECT discountTypeID FROM discount_type WHERE discountTypeID = ?", [parseInt(discountTypeID)]).catch(() => []),
+    dbQuery("SELECT eligibilityTypeID, eligibility FROM eligibility_type WHERE eligibilityTypeID = ?", [parseInt(eligibilityTypeID)]).catch(() => [])
+  ]);
+  if (!typeRows || typeRows.length === 0) {
+    return { error: 'Please select a valid discount type.' };
+  }
+  if (!eligRows || eligRows.length === 0) {
+    return { error: 'Please select a valid eligibility.' };
+  }
+  const eligibility = String(eligRows[0].eligibility || '');
+  let req = parseInt(requiredBookings || 0, 10);
+  if (isNaN(req) || req < 0) req = 0;
+  if (eligibility === 'Booking Count' && req < 1) {
+    return { error: 'Booking Count discounts require at least 1 required booking.' };
+  }
+  if (eligibility === 'Open') {
+    req = 0;
+  }
+  return { percentage: pct, requiredBookings: req };
+}
+
 export async function GET(request) {
   const auth = await verifyAdmin();
   if (!auth.authorized) return auth.response;
@@ -74,20 +109,22 @@ export async function POST(request) {
 
 
     // Discounts
-    if (action === 'create_discount') {
-      const { name, description, percentage, requiredBookings, discountTypeID, eligibilityTypeID } = body;
-      await dbQuery(
-        "INSERT INTO discounts(name,description,percentage,requiredBookings,discountTypeID,eligibilityTypeID) VALUES(?,?,?,?,?,?)",
-        [name.trim(), description.trim(), parseInt(percentage), parseInt(requiredBookings || 0), parseInt(discountTypeID), parseInt(eligibilityTypeID)]
-      );
-      return NextResponse.json({ success: true, message: 'Discount created successfully.' });
-    }
-
-    if (action === 'update_discount') {
+    if (action === 'create_discount' || action === 'update_discount') {
       const { discountID, name, description, percentage, requiredBookings, discountTypeID, eligibilityTypeID } = body;
+      const check = await validateDiscountPayload({ name, percentage, requiredBookings, discountTypeID, eligibilityTypeID });
+      if (check.error) {
+        return NextResponse.json({ error: check.error }, { status: 400 });
+      }
+      if (action === 'create_discount') {
+        await dbQuery(
+          "INSERT INTO discounts(name,description,percentage,requiredBookings,discountTypeID,eligibilityTypeID) VALUES(?,?,?,?,?,?)",
+          [name.trim(), (description || '').trim(), check.percentage, check.requiredBookings, parseInt(discountTypeID), parseInt(eligibilityTypeID)]
+        );
+        return NextResponse.json({ success: true, message: 'Discount created successfully.' });
+      }
       await dbQuery(
         "UPDATE discounts SET name=?, description=?, percentage=?, requiredBookings=?, discountTypeID=?, eligibilityTypeID=? WHERE discountID=?",
-        [name.trim(), description.trim(), parseInt(percentage), parseInt(requiredBookings || 0), parseInt(discountTypeID), parseInt(eligibilityTypeID), parseInt(discountID)]
+        [name.trim(), (description || '').trim(), check.percentage, check.requiredBookings, parseInt(discountTypeID), parseInt(eligibilityTypeID), parseInt(discountID)]
       );
       return NextResponse.json({ success: true, message: 'Discount updated successfully.' });
     }

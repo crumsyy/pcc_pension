@@ -210,7 +210,37 @@ export default function AdminDiscounts() {
 
   const handleDiscInputChange = (e) => {
     const { name, value } = e.target;
-    setDiscFormData(prev => ({ ...prev, [name]: value }));
+    setDiscFormData(prev => {
+      const next = { ...prev, [name]: value };
+      // Open eligibility needs no proof: lock required bookings at 0.
+      if (name === 'eligibilityTypeID') {
+        const elig = (eligibilityTypes || []).find(t => String(t.eligibilityTypeID) === String(value))?.eligibility || '';
+        if (elig === 'Open') next.requiredBookings = 0;
+      }
+      return next;
+    });
+  };
+
+  const selectedEligibility = (eligibilityTypes || []).find(t => String(t.eligibilityTypeID) === String(discFormData.eligibilityTypeID))?.eligibility || '';
+  const isOpenEligibility = selectedEligibility === 'Open';
+  const isBookingCountEligibility = selectedEligibility === 'Booking Count';
+
+  const validateDiscForm = () => {
+    if (!discFormData.name.trim()) {
+      return 'Name is required and cannot be empty.';
+    }
+    const pct = parseFloat(discFormData.percentage);
+    if (isNaN(pct) || pct < 1 || pct > 100) {
+      return 'Percentage must be a number between 1 and 100.';
+    }
+    const req = parseInt(discFormData.requiredBookings || 0, 10);
+    if (isNaN(req) || req < 0) {
+      return 'Required bookings cannot be negative.';
+    }
+    if (isBookingCountEligibility && req < 1) {
+      return 'Booking Count discounts require at least 1 required booking.';
+    }
+    return null;
   };
 
   const handlePromoInputChange = (e) => {
@@ -221,17 +251,9 @@ export default function AdminDiscounts() {
   // Discount Handlers
   const handleCreateDiscSubmit = async (e) => {
     e.preventDefault();
-    if (!discFormData.name.trim()) {
-      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
-      return;
-    }
-    const pct = parseFloat(discFormData.percentage);
-    if (isNaN(pct) || pct < 0 || pct > 100) {
-      showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
-      return;
-    }
-    if (parseInt(discFormData.requiredBookings || 0) < 0) {
-      showAlert('error', 'Validation Error', 'Required bookings cannot be negative.');
+    const formError = validateDiscForm();
+    if (formError) {
+      showAlert('error', 'Validation Error', formError);
       return;
     }
 
@@ -259,17 +281,9 @@ export default function AdminDiscounts() {
 
   const handleEditDiscSubmit = async (e) => {
     e.preventDefault();
-    if (!discFormData.name.trim()) {
-      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
-      return;
-    }
-    const pct = parseFloat(discFormData.percentage);
-    if (isNaN(pct) || pct < 0 || pct > 100) {
-      showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
-      return;
-    }
-    if (parseInt(discFormData.requiredBookings || 0) < 0) {
-      showAlert('error', 'Validation Error', 'Required bookings cannot be negative.');
+    const formError = validateDiscForm();
+    if (formError) {
+      showAlert('error', 'Validation Error', formError);
       return;
     }
 
@@ -789,12 +803,14 @@ export default function AdminDiscounts() {
                       />
                     </div>
                     <div className="col">
-                      <label className="form-label">Req. Bookings (Conditional)</label>
+                      <label className="form-label">Req. Bookings {isBookingCountEligibility ? <span className="required-asterisk">*</span> : '(Conditional)'}</label>
                       <input
                         type="number"
                         name="requiredBookings"
                         className="form-control"
                         min="0"
+                        disabled={isOpenEligibility}
+                        title={isOpenEligibility ? 'Open discounts need no stay history.' : ''}
                         value={discFormData.requiredBookings}
                         onChange={handleDiscInputChange}
                       />
@@ -830,6 +846,12 @@ export default function AdminDiscounts() {
                           <option key={e.eligibilityTypeID} value={e.eligibilityTypeID}>{e.eligibility}</option>
                         ))}
                       </select>
+                      {isOpenEligibility && (
+                        <div className="form-text text-muted">Open: no ID or stay history needed. Applies once per booking.</div>
+                      )}
+                      {isBookingCountEligibility && (
+                        <div className="form-text text-muted">Booking Count: guest needs the required completed stays as primary booker.</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -890,12 +912,14 @@ export default function AdminDiscounts() {
                       />
                     </div>
                     <div className="col">
-                      <label className="form-label">Req. Bookings</label>
+                      <label className="form-label">Req. Bookings {isBookingCountEligibility && <span className="required-asterisk">*</span>}</label>
                       <input
                         type="number"
                         name="requiredBookings"
                         className="form-control"
                         min="0"
+                        disabled={isOpenEligibility}
+                        title={isOpenEligibility ? 'Open discounts need no stay history.' : ''}
                         value={discFormData.requiredBookings}
                         onChange={handleDiscInputChange}
                       />
@@ -929,6 +953,12 @@ export default function AdminDiscounts() {
                           <option key={e.eligibilityTypeID} value={e.eligibilityTypeID}>{e.eligibility}</option>
                         ))}
                       </select>
+                      {isOpenEligibility && (
+                        <div className="form-text text-muted">Open: no ID or stay history needed. Applies once per booking.</div>
+                      )}
+                      {isBookingCountEligibility && (
+                        <div className="form-text text-muted">Booking Count: guest needs the required completed stays as primary booker.</div>
+                      )}
                     </div>
                   </div>
                 </div>
