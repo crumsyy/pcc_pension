@@ -11,16 +11,23 @@ export default function ReceptionistDashboardClient({ initialData }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const isFetchingRef = useRef(false);
+  const fetchAbort = useRef(null);
 
   const fetchDashboardData = useCallback(async (showIndicator = false) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     if (showIndicator) setIsRefreshing(true);
+    if (fetchAbort.current) {
+      try { fetchAbort.current.abort(); } catch (e) {}
+    }
+    const controller = new AbortController();
+    fetchAbort.current = controller;
 
     try {
       const res = await fetch('/api/receptionist/dashboard', {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
+        headers: { 'Cache-Control': 'no-cache' },
+        signal: controller.signal
       });
       if (res.ok) {
         const json = await res.json();
@@ -34,6 +41,7 @@ export default function ReceptionistDashboardClient({ initialData }) {
         }
       }
     } catch (err) {
+      if (err && err.name === 'AbortError') return;
       console.error('Failed to sync receptionist dashboard:', err);
     } finally {
       isFetchingRef.current = false;
@@ -42,12 +50,13 @@ export default function ReceptionistDashboardClient({ initialData }) {
   }, []);
 
   useEffect(() => {
-    // 3-second real-time polling
+    // 15-second polling (was 3s — dashboard data changes slowly; Sync Now,
+    // focus, and refresh events still fetch on demand).
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         fetchDashboardData(false);
       }
-    }, 3000);
+    }, 15000);
 
     const handleFocus = () => fetchDashboardData(false);
     const handleVisibility = () => {
@@ -61,6 +70,9 @@ export default function ReceptionistDashboardClient({ initialData }) {
 
     return () => {
       clearInterval(interval);
+      if (fetchAbort.current) {
+        try { fetchAbort.current.abort(); } catch (e) {}
+      }
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('pcc-refresh-dashboard', handleCustomEvent);

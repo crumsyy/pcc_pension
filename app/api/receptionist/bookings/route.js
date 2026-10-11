@@ -22,6 +22,27 @@ export async function GET(request) {
     }
   }
 
+  // Lightweight header-search path: top matches only (no balances, no sync).
+  if (searchParams.get('palette') !== null) {
+    try {
+      const q = `%${(searchParams.get('palette') || '').trim()}%`;
+      const rows = await dbQuery(
+        `SELECT b.bookingID, rm.roomNumber, g.firstName, g.lastName, b.status
+         FROM booking b
+         JOIN guest g ON g.guestID = b.guestID
+         JOIN room rm ON rm.roomID = b.roomID
+         WHERE rm.isArchived = 0
+           AND (CAST(b.bookingID AS CHAR) LIKE ? OR rm.roomNumber LIKE ? OR g.firstName LIKE ? OR g.lastName LIKE ? OR b.status LIKE ?)
+         ORDER BY b.bookingID DESC
+         LIMIT 8`,
+        [q, q, q, q, q]
+      );
+      return NextResponse.json({ bookings: rows });
+    } catch (error) {
+      return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
+    }
+  }
+
   await syncRoomStatuses();
   await ensureBookingBillingSchema();
 

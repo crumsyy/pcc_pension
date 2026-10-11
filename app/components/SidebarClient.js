@@ -86,7 +86,7 @@ export default function SidebarClient({ session, role, children }) {
             path: `/admin/rooms?search=${encodeURIComponent(r.roomNumber)}`,
           })));
         } else {
-          const res = await fetch('/api/receptionist/bookings');
+          const res = await fetch(`/api/receptionist/bookings?palette=${encodeURIComponent(query)}`);
           const data = await res.json();
           const all = data.bookings || data.bookingsWithGuests || [];
           const ql = query.toLowerCase();

@@ -126,12 +126,12 @@ export default function NotificationBell() {
   useEffect(() => {
     fetchNotifications();
 
-    // High-frequency 3-second real-time polling
+    // 10-second polling (visibility-gated); event-driven refreshes cover urgency.
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
         fetchNotifications();
       }
-    }, 3000);
+    }, 10000);
 
     const handleFocus = () => fetchNotifications();
     const handleVisibility = () => {

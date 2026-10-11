@@ -8,6 +8,7 @@ import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import FlatDatePicker from '../../components/FlatDatePicker';
 import CalendarDatePicker from '../../components/CalendarDatePicker';
 import ReservationCalendar from '../../components/ReservationCalendar';
 import LoadingButton from '../../components/LoadingButton';
@@ -867,13 +868,19 @@ function BookingsClient() {
 
   const [shouldAnimate, setShouldAnimate] = useState(true);
   const isFirstMount = useRef(true);
+  const fetchAbort = useRef(null);
 
   const fetchData = async (isBackground = false) => {
     if (!isBackground && !clientCache.has('RECEPTIONIST_BOOKINGS')) {
       setLoading(true);
     }
+    if (fetchAbort.current) {
+      try { fetchAbort.current.abort(); } catch (e) {}
+    }
+    const controller = new AbortController();
+    fetchAbort.current = controller;
     try {
-      const res = await fetch('/api/receptionist/bookings');
+      const res = await fetch('/api/receptionist/bookings', { signal: controller.signal });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch bookings');
 
@@ -887,11 +894,20 @@ function BookingsClient() {
 
       clientCache.set('RECEPTIONIST_BOOKINGS', data, CACHE_TTL.RECEPTIONIST_BOOKINGS);
     } catch (err) {
+      if (err && err.name === 'AbortError') return;
       if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (fetchAbort.current) {
+        try { fetchAbort.current.abort(); } catch (e) {}
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const entry = clientCache.get('RECEPTIONIST_BOOKINGS');
@@ -2635,14 +2651,14 @@ function BookingsClient() {
                   <div className="row g-3 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-In Date *</label>
-                      <input
-                        type="date"
+                      <FlatDatePicker
                         className="form-control form-control-sm mb-2"
-                        value={toDbDate(checkInDate)}
+                        value={checkInDate}
                         min={todayDbDate}
-                        onChange={(e) => handleCheckInDateChange(e.target.value)}
                         disabled={Boolean(useCurrentTimeIn)}
                         required
+                        dateFormat="m/d/Y"
+                        onChange={(val) => handleCheckInDateChange(typeof val === 'string' ? val : val?.target?.value || '')}
                       />
                       <div className="mt-2">
                         <label className="form-label small fw-semibold d-flex justify-content-between">
@@ -2697,13 +2713,13 @@ function BookingsClient() {
 
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-Out Date *</label>
-                      <input
-                        type="date"
+                      <FlatDatePicker
                         className="form-control form-control-sm mb-2"
-                        value={toDbDate(checkOutDate)}
+                        value={checkOutDate}
                         min={checkInDate ? toDbDate(checkInDate) : todayDbDate}
-                        onChange={(e) => setCheckOutDate(e.target.value)}
                         required
+                        dateFormat="m/d/Y"
+                        onChange={(val) => setCheckOutDate(typeof val === 'string' ? val : val?.target?.value || '')}
                       />
                       <div className="mt-2">
                         <label className="form-label small fw-semibold d-flex justify-content-between">

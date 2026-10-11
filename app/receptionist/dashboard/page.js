@@ -4,7 +4,7 @@ import ReceptionistDashboardClient from "./ReceptionistDashboardClient";
 
 export default async function ReceptionistDashboard() {
   const auth = await requireSessionRole("Receptionist");
-  await syncRoomStatuses(true);
+  await syncRoomStatuses(false);
   const userName = auth.session?.fullName || "Receptionist";
 
   // Fetch initial statistics, check-ins, reservations, confirmed bookings, inquiries, orders in parallel
@@ -23,7 +23,7 @@ export default async function ReceptionistDashboard() {
     guestOrdersList
   ] = await Promise.all([
     dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed')"),
-    dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status = 'Checked Out'"),
+    dbQuery("SELECT COUNT(*) as count FROM booking WHERE checkOutDateTime >= CURDATE() AND checkOutDateTime < DATE_ADD(CURDATE(), INTERVAL 1 DAY) AND status IN ('Checked Out', 'Completed')"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
     dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
     dbQuery(`
@@ -48,6 +48,7 @@ export default async function ReceptionistDashboard() {
       WHERE b.status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed')
         AND b.status NOT IN ('Completed', 'Checked Out', 'Cancelled', 'No Show')
       ORDER BY rm.roomNumber ASC
+      LIMIT 10
     `),
     dbQuery(`
       SELECT r.reservationID, r.reservationDateTime, r.status, r.isCourtesyHold, r.holdExpiryDateTime,

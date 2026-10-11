@@ -26,7 +26,7 @@ export async function GET() {
       guestOrdersList
     ] = await Promise.all([
       dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed')"),
-      dbQuery("SELECT COUNT(*) as count FROM booking WHERE DATE(checkOutDateTime) = CURDATE() AND status IN ('Checked Out', 'Completed')"),
+      dbQuery("SELECT COUNT(*) as count FROM booking WHERE checkOutDateTime >= CURDATE() AND checkOutDateTime < DATE_ADD(CURDATE(), INTERVAL 1 DAY) AND status IN ('Checked Out', 'Completed')"),
       dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
       dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
       dbQuery(`
@@ -51,6 +51,7 @@ export async function GET() {
         WHERE b.status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed')
           AND b.status NOT IN ('Completed', 'Checked Out', 'Cancelled', 'No Show')
         ORDER BY rm.roomNumber ASC
+        LIMIT 10
       `),
       dbQuery(`
         SELECT r.reservationID, r.reservationDateTime, r.status, r.isCourtesyHold, r.holdExpiryDateTime,

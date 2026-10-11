@@ -514,6 +514,7 @@ async function run() {
 
     console.log("Ensuring high-frequency composite indices for relational performance...");
     await ensureIndex(connection, 'room', 'idx_room_occupancy', '`roomID`, `occupancyLimit`');
+    await ensureIndex(connection, 'room', 'idx_room_status_archived', '`isArchived`, `status`');
     await ensureIndex(connection, 'booking', 'idx_booking_billing_perf', '`bookingID`, `status`, `roomID`');
     await ensureIndex(connection, 'orders', 'idx_orders_delivery_date', '`bookingID`, `deliveryDate`, `orderStatus`');
     await ensureIndex(connection, 'order_product', 'idx_order_comp_perf', '`orderID`, `isComplimentary`');
@@ -530,6 +531,8 @@ async function run() {
     await ensureIndex(connection, 'billing', 'idx_billing_lookup', '`bookingID`, `reservationID`, `billingStatus`');
     await ensureIndex(connection, 'inquiry', 'idx_inquiry_active', '`guestID`, `status`, `updatedAt`');
     await ensureIndex(connection, 'booking', 'idx_booking_active_stay', '`guestID`, `status`, `checkInDateTime`');
+    await ensureIndex(connection, 'booking', 'idx_booking_status_checkout', '`status`, `checkOutDateTime`');
+    await ensureIndex(connection, 'reservation', 'idx_reservation_status_hold', '`status`, `holdExpiryDateTime`, `reservationDateTime`');
 
     console.log("Backfilling inquiry message normalization...");
     await connection.execute(`

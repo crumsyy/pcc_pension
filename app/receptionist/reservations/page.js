@@ -8,6 +8,7 @@ import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
+import FlatDatePicker from '../../components/FlatDatePicker';
 import CalendarDatePicker from '../../components/CalendarDatePicker';
 import ReservationCalendar from '../../components/ReservationCalendar';
 import LoadingButton from '../../components/LoadingButton';
@@ -390,13 +391,19 @@ function ReservationsClient() {
 
   const [shouldAnimate, setShouldAnimate] = useState(true);
   const isFirstMount = useRef(true);
+  const fetchAbort = useRef(null);
 
   const fetchData = async (isBackground = false) => {
     if (!isBackground && !clientCache.has('RECEPTIONIST_RESERVATIONS')) {
       setLoading(true);
     }
+    if (fetchAbort.current) {
+      try { fetchAbort.current.abort(); } catch (e) {}
+    }
+    const controller = new AbortController();
+    fetchAbort.current = controller;
     try {
-      const res = await fetch('/api/receptionist/reservations');
+      const res = await fetch('/api/receptionist/reservations', { signal: controller.signal });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch reservations');
 
@@ -409,11 +416,20 @@ function ReservationsClient() {
 
       clientCache.set('RECEPTIONIST_RESERVATIONS', data, CACHE_TTL.RECEPTIONIST_RESERVATIONS);
     } catch (err) {
+      if (err && err.name === 'AbortError') return;
       if (!isBackground) showAlert('error', 'Error', err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (fetchAbort.current) {
+        try { fetchAbort.current.abort(); } catch (e) {}
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const entry = clientCache.get('RECEPTIONIST_RESERVATIONS');
@@ -1773,16 +1789,17 @@ function ReservationsClient() {
                   <div className="row g-3 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-In Date *</label>
-                      <input
-                        type="date"
+                      <FlatDatePicker
                         className={`form-control form-control-sm mb-1 ${formErrors.resDate ? 'is-invalid border-danger' : ''}`}
-                        value={toDbDate(resDate)}
+                        value={resDate}
                         min={minReserveDbDate}
-                        onChange={(e) => {
-                          handleResDateChange(e.target.value);
+                        required
+                        dateFormat="m/d/Y"
+                        onChange={(val) => {
+                          const v = typeof val === 'string' ? val : val?.target?.value || '';
+                          handleResDateChange(v);
                           setFormErrors(prev => ({ ...prev, resDate: '', checkOutDate: '', conflict: '' }));
                         }}
-                        required
                       />
                       {formErrors.resDate && (
                         <div className="text-danger small mb-1 fw-semibold">{formErrors.resDate}</div>
@@ -1815,16 +1832,17 @@ function ReservationsClient() {
 
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Check-Out Date *</label>
-                      <input
-                        type="date"
+                      <FlatDatePicker
                         className={`form-control form-control-sm mb-1 ${formErrors.checkOutDate ? 'is-invalid border-danger' : ''}`}
-                        value={toDbDate(checkOutDate)}
+                        value={checkOutDate}
                         min={resDate ? toDbDate(resDate) : minReserveDbDate}
-                        onChange={(e) => {
-                          setCheckOutDate(e.target.value);
+                        required
+                        dateFormat="m/d/Y"
+                        onChange={(val) => {
+                          const v = typeof val === 'string' ? val : val?.target?.value || '';
+                          setCheckOutDate(v);
                           setFormErrors(prev => ({ ...prev, checkOutDate: '', conflict: '' }));
                         }}
-                        required
                       />
                       {formErrors.checkOutDate && (
                         <div className="text-danger small mb-1 fw-semibold">{formErrors.checkOutDate}</div>
