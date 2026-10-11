@@ -261,7 +261,7 @@ export default function AdminReservations() {
                       </td>
                       <td>
                         <StatusBadge status={r.status} type="reservation" />
-                        {r.status === 'On Hold' && r.holdExpiryDateTime && (
+                        {['On Hold', 'Courtesy Hold', 'Hold'].includes(r.rawStatus) && r.holdExpiryDateTime && (
                           <div className="mt-1 small text-warning-emphasis" style={{ fontSize: '0.72rem' }}>
                             <i className="bi bi-clock me-1"></i>Expires:{' '}
                             {new Date(r.holdExpiryDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

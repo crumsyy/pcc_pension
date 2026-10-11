@@ -1426,6 +1426,11 @@ export async function POST(request) {
       const roomID = res[0].roomID;
 
       await dbQuery("UPDATE booking SET status = 'No Show' WHERE bookingID = ?", [bookingID]);
+      // Cascade: a converted reservation follows its booking into No-Show.
+      await dbQuery(
+        "UPDATE reservation SET status = 'No Show' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) AND status = 'Booked'",
+        [bookingID]
+      );
       await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ?", [roomID]);
 
       return NextResponse.json({ success: true, message: 'Booking marked as No Show.' });

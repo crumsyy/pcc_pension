@@ -916,7 +916,6 @@ function ReservationsClient() {
     const norm = normalizeReservationStatus(status);
     switch (norm) {
       case 'Reserved': return 'bg-primary text-white';
-      case 'On Hold': return 'bg-warning text-dark';
       case 'Booked': return 'bg-info text-dark';
       case 'Cancelled': return 'bg-danger text-white';
       default: return 'bg-secondary text-white';
@@ -1011,8 +1010,7 @@ function ReservationsClient() {
               {activeTab === 'active' ? (
                 <>
                   <option value="">All Active Statuses</option>
-                  <option value="Reserved">Reserved</option>
-                  <option value="On Hold">On Hold (Courtesy Hold)</option>
+                  <option value="Reserved">Reserved (incl. Courtesy Holds)</option>
                 </>
               ) : (
                 <>
@@ -1074,7 +1072,7 @@ function ReservationsClient() {
                     </td>
                     <td>{r.reservationDateTime ? new Date(r.reservationDateTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
                     <td>
-                      {['Courtesy Hold', 'On Hold', 'Hold'].includes(r.status) || normalizeReservationStatus(r.status) === 'On Hold' ? (
+                      {['Courtesy Hold', 'On Hold', 'Hold'].includes(r.status) || r.isCourtesyHold ? (
                         <div>
                           <span className="badge" style={{ backgroundColor: '#fd7e14', color: '#fff' }} aria-label="Courtesy Hold Status">
                             {r.status || 'On Hold'}
@@ -1110,7 +1108,7 @@ function ReservationsClient() {
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end align-items-center gap-1">
-                        {(['Courtesy Hold', 'On Hold', 'Hold'].includes(r.status) || normalizeReservationStatus(r.status) === 'On Hold') ? (() => {
+                        {(['Courtesy Hold', 'On Hold', 'Hold'].includes(r.status) || r.isCourtesyHold) ? (() => {
                           const holdInfo = getCourtesyHoldTimeInfo(r.holdExpiryDateTime);
                           const isExpired = holdInfo.expired;
                           return (

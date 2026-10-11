@@ -25,7 +25,7 @@ export async function GET(request) {
              COALESCE(r.breakfastOption, 'with') as breakfastOption,
              r.specialRequests,
              CASE 
-               WHEN r.status IN ('On Hold', 'Courtesy Hold') AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'On Hold'
+               WHEN r.status IN ('On Hold', 'Courtesy Hold') AND (r.holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE)) THEN 'Reserved'
                WHEN r.status IN ('On Hold', 'Courtesy Hold') AND NOW() > DATE_ADD(r.holdExpiryDateTime, INTERVAL 30 MINUTE) THEN 'Cancelled'
                WHEN r.status IN ('Confirmed', 'Booked') OR b.bookingID IS NOT NULL THEN 'Booked'
                WHEN r.status IN ('Cancelled', 'Canceled', 'Released', 'Expired', 'No Show') THEN 'Cancelled'

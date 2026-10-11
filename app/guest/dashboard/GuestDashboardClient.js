@@ -183,7 +183,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   // Derived Active Booking & Active Reservation (hoisted to top so all effects and handlers have safe access)
   const activeReservation = reservations.find(r => {
     const norm = normalizeReservationStatus(r.status);
-    return (norm === 'On Hold' || norm === 'Reserved') && r.status !== 'Cancelled' && r.status !== 'Booked';
+    return norm === 'Reserved' && r.status !== 'Cancelled' && r.status !== 'Booked';
   });
   const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Bill Finalized', 'Pending Bill', 'Checkout Requested', 'Payment Completed'].includes(b.status));
 
@@ -2054,7 +2054,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     };
   };
 
-  // Reservation Status Timeline Component Helper (Pre-payment stage: Reserved -> On Hold -> Booked / Cancelled)
+  // Reservation Status Timeline Component Helper (Pre-payment stage: Reserved -> Booked / Cancelled)
   const renderReservationStatusTimeline = (status) => {
     const norm = normalizeReservationStatus(status);
     const isCancelled = norm === 'Cancelled';
@@ -2062,20 +2062,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const reservationSteps = isCancelled
       ? [
           { id: 'Reserved', label: 'Reserved', icon: 'bi-calendar-check' },
-          { id: 'On Hold', label: 'On Hold', icon: 'bi-hourglass-split' },
           { id: 'Cancelled', label: 'Cancelled', icon: 'bi-x-circle' }
         ]
       : [
           { id: 'Reserved', label: 'Reserved', icon: 'bi-calendar-check' },
-          { id: 'On Hold', label: 'On Hold', icon: 'bi-hourglass-split' },
           { id: 'Booked', label: 'Booked', icon: 'bi-check2-circle' }
         ];
 
     let currentIdx = 0;
-    if (norm === 'On Hold') currentIdx = 1;
-    if (norm === 'Booked' || isCancelled) currentIdx = 2;
+    if (norm === 'Booked' || isCancelled) currentIdx = 1;
 
-    const trackColor = isCancelled ? '#dc3545' : (currentIdx >= 2 ? '#0dcaf0' : 'var(--pcc-blue, #0d6efd)');
+    const trackColor = isCancelled ? '#dc3545' : (currentIdx >= 1 ? '#0dcaf0' : 'var(--pcc-blue, #0d6efd)');
 
     return (
       <div className="w-100 my-2.5 p-2 rounded-3 bg-light-subtle border">
@@ -2116,7 +2113,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             const nodeBg = isCancelStep
               ? 'bg-danger text-white shadow-sm'
               : (isDone 
-                  ? (norm === 'Booked' && idx === 2 ? 'bg-info text-white shadow-sm' : 'bg-primary text-white shadow-sm')
+                  ? (norm === 'Booked' && idx === 1 ? 'bg-info text-white shadow-sm' : 'bg-primary text-white shadow-sm')
                   : 'bg-white text-muted border');
 
             return (

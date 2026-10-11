@@ -205,8 +205,14 @@ export async function POST(request) {
         [reason, bookingID]
       );
 
-      // Release room status back to Available if it was Reserved
-      await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ? AND status = 'Reserved'", [booking.roomID]);
+      // Cascade: a converted reservation follows its booking into Cancelled.
+      await dbQuery(
+        "UPDATE reservation SET status = 'Cancelled' WHERE reservationID = (SELECT reservationID FROM booking WHERE bookingID = ?) AND status = 'Booked'",
+        [bookingID]
+      );
+
+      // Release room status back to Available if it was held for this booking
+      await dbQuery("UPDATE room SET status = 'Available' WHERE roomID = ? AND status IN ('Reserved', 'Booked')", [booking.roomID]);
 
       // Notify receptionists (Admin does not receive booking cancellations)
       const staffToNotify = await dbQuery("SELECT userID FROM user WHERE roleID = 2 AND status = 'Active'");
