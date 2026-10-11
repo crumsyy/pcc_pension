@@ -79,7 +79,7 @@ function Combobox({ options, value, onChange, placeholder, disabled, stockMap })
                   }}
                 >
                   <div className="fw-bold" title={opt.name} style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25' }}>{opt.name}</div>
-                  <div className="d-flex justify-content-between align-items-center gap-2 mt-0.5">
+                  <div className="d-flex flex-wrap align-items-center gap-2 mt-0.5">
                     <span className="badge text-bg-light border text-muted small">{opt.type}</span>
                     <span className="text-muted small">
                       Stock: {stock ? `${stock.qty} ${stock.unit || ''}`.trim() : '—'}
