@@ -1,13 +1,15 @@
-# Walkthrough — Catalog Dropdown Empty Fix (no commit/push yet)
+# Walkthrough — Dropdown Footer Cut + Hover Blue (no commit/push yet)
 
-## Root cause (my regression, verified by reading the component contract)
-`CommandList` only traverses direct `CommandItem` children. My scroll wrapper `<div>` hid the items from it, so the count was always zero → permanent "No results found." (The documented usage is items as direct children.)
+## Root causes (from your screenshot)
+1. The flip measured free space against the *window*, but the list lives inside the dialog body's scroll box — the footer overlapped the "free" space the math saw, so it still opened downward into the footer.
+2. The blue is the shadcn active-item highlight (row 0 auto-selected + mouse-follow), not a bug in your data.
 
-## Fix (`app/admin/purchase-orders/page.js`, Combobox menu only)
-- Removed the inner wrapper; `maxHeight` + scroll moved to the outer menu container. Items are direct children again, so filtering, highlight, and Enter selection work. Flip, stock rows, and selection logic untouched.
+## Changes
+- `app/admin/purchase-orders/page.js`: flip measures against the visible dialog-body rect (window fallback outside dialogs).
+- `app/globals.css`: `po-pick-item` options stay plain in both themes (hover grey via existing menu behavior, no blue fill); keyboard Enter selection still works invisibly.
+- Untouched: search, stock rows, selection, dialog, submit logic.
 
 ## Verification (actually performed)
-- `npx eslint`: 5 problems before = 5 after (pre-existing). `npm run build`: 97/97.
-- A Node render test wasn't possible (JSX needs the Next toolchain), so staging must confirm: open picker empty → all items; type → filters; Enter picks.
+- `npx eslint` (page): 5 problems before = 5 after (pre-existing). CSS braces balanced 483/483. `npm run build`: 97/97.
 
 Say `"push"` only when you want commit + push.

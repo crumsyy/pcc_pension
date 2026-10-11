@@ -41,9 +41,15 @@ function Combobox({ options, value, onChange, placeholder, disabled, stockMap })
   const decideDirection = () => {
     const el = wrapRef.current;
     if (!el || typeof window === 'undefined') return;
-    const rect = el.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
+    const inputRect = el.getBoundingClientRect();
+    // Measure against the visible dialog body (the list's real clipping
+    // container), falling back to the viewport outside dialogs.
+    const scrollParent = typeof el.closest === 'function' ? el.closest('.pcc-dialog-body') : null;
+    const viewRect = scrollParent ? scrollParent.getBoundingClientRect() : null;
+    const bottomEdge = viewRect ? viewRect.bottom : window.innerHeight;
+    const topEdge = viewRect ? viewRect.top : 0;
+    const spaceBelow = bottomEdge - inputRect.bottom;
+    const spaceAbove = inputRect.top - topEdge;
     if (spaceBelow < 180 && spaceAbove > spaceBelow + 40) {
       setOpenUp(true);
       setMenuMaxHeight(Math.max(120, Math.min(220, spaceAbove - 16)));
@@ -110,6 +116,7 @@ function Combobox({ options, value, onChange, placeholder, disabled, stockMap })
                   keywords={`${opt.name} ${opt.type}`}
                   onSelect={() => selectOption(opt)}
                   onMouseDown={(e) => e.preventDefault()}
+                  className="po-pick-item"
                 >
                   <div className="w-100">
                     <div className="fw-bold" title={opt.name} style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25' }}>{opt.name}</div>

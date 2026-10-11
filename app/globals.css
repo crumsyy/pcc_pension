@@ -3068,6 +3068,17 @@ body.dark-theme .pcc-command-empty {
   color: #94a3b8;
 }
 
+/* Plain dropdown options (e.g. PO catalog picker): readable in both themes,
+   no blue active fill — keyboard selection still works invisibly. */
+.pcc-command-item.po-pick-item[data-active],
+.pcc-command-item.po-pick-item:hover {
+  background: transparent;
+  color: inherit;
+}
+.pcc-command-item.po-pick-item[data-active] .text-muted {
+  color: inherit !important;
+}
+
 /* =====================================================================
    Sonner Toast Notification Overrides & High Z-Index
    ===================================================================== */
