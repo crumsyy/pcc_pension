@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { clientCache, CACHE_TTL } from '@/lib/clientCache';
+import { Tabs, TabList, Tab, TabPanel } from '@/components/ui/tabs';
+import PaymentTerminal from './PaymentTerminal';
 import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
@@ -24,6 +26,7 @@ export default function ReceptionistBilling() {
     } catch (e) {}
   };
   const [billDetails, setBillDetails] = useState(null);
+  const [billDialogTab, setBillDialogTab] = useState('billing'); // 'billing' | 'payments'
   const [loadingList, setLoadingList] = useState(true);
   const [loadingBill, setLoadingBill] = useState(false);
   const [isEditingDiscounts, setIsEditingDiscounts] = useState(false);
@@ -584,6 +587,7 @@ export default function ReceptionistBilling() {
     const bID = params.get('bookingID');
     if (bID) {
       setSelectedBookingID(bID);
+      setBillDialogTab('billing');
       fetchBillingDetails(bID);
     }
 
@@ -810,6 +814,7 @@ export default function ReceptionistBilling() {
                               aria-label="View Billing Details"
                               onClick={() => {
                                 setSelectedBookingID(b.bookingID);
+                                setBillDialogTab('billing');
                                 syncBookingToUrl(b.bookingID);
                                 fetchBillingDetails(b.bookingID);
                               }}
@@ -836,12 +841,20 @@ export default function ReceptionistBilling() {
             <div className="modal-content border-0 shadow-lg" style={{ height: '85vh', borderRadius: '12px', overflow: 'hidden' }}>
               <div className="modal-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                 <h5 className="modal-title fw-bold text-dark m-0" style={{ fontSize: '1.1rem' }}>
-                  Billing Details — Room {billDetails.booking.roomNumber} ({billDetails.booking.roomType})
+                  Guest Bill — Room {billDetails.booking.roomNumber} ({billDetails.booking.roomType})
                 </h5>
                 <button type="button" className="btn-close" onClick={() => { setSelectedBookingID(''); syncBookingToUrl(''); setBillDetails(null); }}></button>
               </div>
 
-              <div className="modal-body p-4 bg-light overflow-auto">
+              <Tabs selectedKey={billDialogTab} onSelectionChange={setBillDialogTab} style={{ flex: '1 1 auto', minHeight: 0 }}>
+                <div className="px-4 pt-3 bg-white border-bottom" style={{ flexShrink: 0 }}>
+                  <TabList aria-label="Bill details">
+                    <Tab id="billing">Billing</Tab>
+                    <Tab id="payments">Payments</Tab>
+                  </TabList>
+                </div>
+                <TabPanel id="billing" style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+              <div className="modal-body p-4 bg-light overflow-auto" style={{ flex: '1 1 auto', minHeight: 0 }}>
                 {loadingBill ? (
                   <div className="bg-white p-4 rounded shadow-sm">
                     <div className="text-center py-5 text-muted">
@@ -1705,12 +1718,13 @@ export default function ReceptionistBilling() {
                                         </div>
                                       </div>
                                     </div>
-                                    <a
-                                      href={`/receptionist/billing-checkout?tab=payments&bookingID=${selectedBookingID}`}
-                                      className="btn btn-primary text-white fw-bold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm text-decoration-none"
+                                    <button
+                                      type="button"
+                                      onClick={() => setBillDialogTab('payments')}
+                                      className="btn btn-primary text-white fw-bold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm"
                                     >
                                       <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
-                                    </a>
+                                    </button>
                                     <button
                                       type="button"
                                       className="btn btn-outline-secondary fw-semibold w-100 py-2 d-flex align-items-center justify-content-center gap-2 shadow-sm"
@@ -1810,7 +1824,26 @@ export default function ReceptionistBilling() {
                     </div>
                   </div>
                 )}
-              </div>
+                  </div>
+                </TabPanel>
+                <TabPanel id="payments" style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
+                  <div className="modal-body p-4 bg-light overflow-auto" style={{ flex: '1 1 auto', minHeight: 0 }}>
+                    <PaymentTerminal
+                      bookingID={selectedBookingID}
+                      locked
+                      paymentMethods={paymentMethods}
+                      onPaid={() => {
+                        fetchActiveBookings(true);
+                        fetchBillingDetails(selectedBookingID);
+                      }}
+                      onCompleted={() => {
+                        fetchActiveBookings(true);
+                        fetchBillingDetails(selectedBookingID);
+                      }}
+                    />
+                  </div>
+                </TabPanel>
+              </Tabs>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-// Legacy route: Payments now lives in the Billing & Checkout workspace.
+// Legacy route: Payments now lives in the Billing & Payment workspace.
 export default async function PaymentsRedirect({ searchParams }) {
   const sp = (await searchParams) || {};
   const q = new URLSearchParams();
