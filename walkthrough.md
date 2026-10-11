@@ -1,12 +1,11 @@
-# Walkthrough — Discount/Promo Modal UX Overhaul (no commit/push yet)
+# Walkthrough — Modal Inter + shadcn Confirmations (Phase 0+1, no commit/push yet)
 
-## Changes (`app/admin/discounts/page.js` + its API route only)
-- **Hierarchy**: Identity (1) / Value (2) / Rules & Eligibility (3) sections in both discount modals; Identity / Applicability / Validity in both promo modals. Labels, order, and buttons otherwise unchanged.
-- **Explainer**: live "How this works" box per eligibility + plain-meaning option labels ("ID-Based — name + ID required", etc.); promo room-limit one-liner + end-date hint.
-- **Toasts**: all create/update/archive/restore completions and validation/API errors now call shadcn `toast.success`/`toast.error` directly with specific titles (same system as before, clearer titles). Confirms stay as dialogs.
-- **Promo validation**: client 1–100 + server shared validator (1–100, real dates, end ≥ start). No logic changes beyond validation.
+## Changes (2 files)
+- **`app/globals.css`**: Inter enforcement for legacy Bootstrap modal surfaces (same pattern as tables/toasts) — every admin/receptionist/guest modal matches the app font immediately.
+- **`app/components/ModalDialog.js`**: confirm shell rebuilt on shadcn `Dialog` primitives (React Aria). Same props/API/behavior: toast branch byte-identical, PCC-blue header, icon, message, variant buttons, submitting spinner, X button, non-dismissable overlay. All ~50 `showConfirm` calls upgrade with zero call-site changes.
 
 ## Verification (actually performed)
-- `npx eslint`: 3 problems before = 3 after (pre-existing). `npm run build`: 97/97.
+- `npx eslint`: identical counts before/after (pre-existing only). `npm run build`: 97/97. No leftover Bootstrap modal markup in the component.
+- Staging checks needed: open any confirmation (archive/cancel/checkout/payment), X + Cancel + Confirm paths, Escape/backdrop must NOT dismiss, dark-mode confirm, cmd form modals still Bootstrap (Phase 2).
 
 Say `"push"` only when you want commit + push.

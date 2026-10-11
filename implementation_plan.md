@@ -1,8 +1,6 @@
-# Implementation Plan — Discount/Promo Modal UX Overhaul
+# Implementation Plan — Modal Inter Enforcement + shadcn Confirmations (Phase 0+1)
 
-## Agreed scope (Plan-mode discussion + "proceed")
-1. Field hierarchy: grouped sections (Identity → Value → Rules / Applicability / Validity) with dividers + consistent labels in Create Discount, Update Discount, Create Promotion, Update Promotion modals.
-2. Eligibility explainer: live "How this works" summary + plain-meaning option labels; conditional Req. Bookings states (already in place — keep).
-3. Toasts: create/update/archive/restore success + validation/API errors go through shadcn `toast.success`/`toast.error` (same system `showAlert` already routes to — direct calls, no behavior change); confirms stay as dialogs.
-4. Promo inline sanity: end-date ≥ start-date message; room-limit one-liner.
-5. No changes to apply/billing/eligibility logic. Verify: eslint stash-compared, build 97/97. Commit/push only on "push".
+## Scope (user-approved)
+- Phase 0: Inter enforcement rule for Bootstrap modal surfaces (`globals.css`, same pattern as tables/toasts).
+- Phase 1: Rebuild `ModalDialog` internals on shadcn `Dialog` primitives (same props/API, all `showConfirm` calls upgrade with zero call-site changes); non-dismissable backdrop to match current behavior; dark-mode + Inter via existing `pcc-dialog` styles.
+- Out of scope: form-modal migration (Phase 2), behavior/logic changes. Verify: eslint stash-compared, build 97/97. Commit/push only on "push".

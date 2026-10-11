@@ -1,9 +1,27 @@
 'use client';
 
 import React from 'react';
-import ModalPortal from './ModalPortal';
 import { toast } from '@/components/ui/toast';
+import {
+  DialogTrigger,
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
+/**
+ * Confirm/alert dialog with a stable public API.
+ *
+ * Phase-1 shadcn migration: the confirm shell now renders on the shadcn
+ * Dialog primitives (React Aria) instead of hand-rolled Bootstrap markup.
+ * Props, toast side-effects, button variants, and the submitting state are
+ * unchanged, so every existing `showConfirm(...)` call site works verbatim.
+ * The overlay is non-dismissable (no backdrop/Escape close), matching the
+ * previous behavior — dismissal happens only via the X / Cancel / Confirm
+ * buttons wired below.
+ */
 export default function ModalDialog({
   isOpen,
   type, // 'success' | 'warning' | 'error' | 'confirm'
@@ -54,20 +72,6 @@ export default function ModalDialog({
     }
   };
 
-  const getHeaderStyle = () => {
-    switch (type) {
-      case 'success':
-        return { backgroundColor: 'var(--pcc-green)', color: '#fff' };
-      case 'warning':
-        return { backgroundColor: '#f0a500', color: '#fff' };
-      case 'error':
-        return { backgroundColor: '#dc3545', color: '#fff' };
-      case 'confirm':
-      default:
-        return { backgroundColor: 'var(--pcc-blue)', color: '#fff' };
-    }
-  };
-
   const getIcon = () => {
     switch (type) {
       case 'success':
@@ -99,7 +103,7 @@ export default function ModalDialog({
   };
 
   const isDangerConfirm = confirmVariant === 'danger';
-  const confirmClass = isDangerConfirm 
+  const confirmClass = isDangerConfirm
     ? "btn btn-danger px-4 py-2 text-white d-inline-flex align-items-center justify-content-center"
     : "btn btn-pcc-primary px-4 py-2 text-white d-inline-flex align-items-center justify-content-center";
   const cancelClass = cancelVariant === 'danger'
@@ -107,56 +111,65 @@ export default function ModalDialog({
     : "btn btn-secondary px-4 py-2 text-white";
 
   return (
-    <ModalPortal>
-      <div className="modal show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
-        <div className="modal-dialog modal-dialog-centered" role="document" style={{ maxWidth: '420px', margin: 'auto' }}>
-          <div className="modal-content shadow border-0" style={{ borderRadius: '14px', overflow: 'hidden' }}>
-            <div className="modal-header border-0 py-3" style={getHeaderStyle()}>
-              <h5 className="modal-title fw-bold">{title || 'System Notification'}</h5>
-              {onCancel && !isSubmitting && (
-                <button type="button" className="btn-close btn-close-white" aria-label="Close" onClick={onCancel}></button>
-              )}
-            </div>
-            <div className="modal-body text-center p-4">
-              <div className="mb-3">{getIcon()}</div>
-              <div className="mb-0 text-muted" style={{ fontSize: '0.95rem', whiteSpace: 'pre-line', fontWeight: '500' }}>
-                {message}
-              </div>
-            </div>
-            <div className="modal-footer border-0 justify-content-center pb-4 pt-0 d-flex gap-2">
-              {onCancel && (
-                <button
-                  type="button"
-                  className={cancelClass}
-                  onClick={onCancel}
-                  disabled={isSubmitting}
-                  style={{ borderRadius: '6px', minWidth: '100px' }}
-                >
-                  {cancelText}
-                </button>
-              )}
-              {onConfirm && (
-                <button
-                  type="button"
-                  className={confirmClass}
-                  onClick={handleConfirmClick}
-                  disabled={isSubmitting}
-                  style={{ borderRadius: '6px', minWidth: '110px' }}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Processing...
-                    </>
-                  ) : (
-                    confirmText
-                  )}
-                </button>
-              )}
-            </div>
+    <DialogTrigger isOpen={isOpen}>
+      <Dialog
+        isDismissable={false}
+        showCloseButton={false}
+        className="mx-auto w-100"
+        style={{ maxWidth: '420px' }}
+        aria-label={title || 'System Notification'}
+      >
+        <DialogHeader>
+          <DialogTitle>{title || 'System Notification'}</DialogTitle>
+          {onCancel && !isSubmitting && (
+            <button type="button" className="pcc-dialog-close" aria-label="Close" onClick={onCancel} style={{ color: '#fff' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </DialogHeader>
+        <DialogBody className="text-center">
+          <div className="mb-3">{getIcon()}</div>
+          <div className="mb-0 text-muted" style={{ fontSize: '0.95rem', whiteSpace: 'pre-line', fontWeight: '500' }}>
+            {message}
           </div>
-        </div>
-      </div>
-    </ModalPortal>
+        </DialogBody>
+        <DialogFooter>
+          <div className="d-flex gap-2 justify-content-center w-100">
+          {onCancel && (
+            <button
+              type="button"
+              className={cancelClass}
+              onClick={onCancel}
+              disabled={isSubmitting}
+              style={{ borderRadius: '6px', minWidth: '100px' }}
+            >
+              {cancelText}
+            </button>
+          )}
+          {onConfirm && (
+            <button
+              type="button"
+              className={confirmClass}
+              onClick={handleConfirmClick}
+              disabled={isSubmitting}
+              style={{ borderRadius: '6px', minWidth: '110px' }}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Processing...
+                </>
+              ) : (
+                confirmText
+              )}
+            </button>
+          )}
+          </div>
+        </DialogFooter>
+      </Dialog>
+    </DialogTrigger>
   );
 }

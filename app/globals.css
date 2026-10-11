@@ -2637,6 +2637,15 @@ textarea,
 }
 
 /* =====================================================================
+   Legacy Bootstrap modals: enforce Inter until Phase-2 migration
+   (shadcn Dialog carries its own enforcement; this covers the rest)
+   ===================================================================== */
+.modal-content,
+.modal-content *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* =====================================================================
    shadcn-style Switch (React Aria)
    ===================================================================== */
 .pcc-switch {
