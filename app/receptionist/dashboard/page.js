@@ -1,20 +1,23 @@
-import { dbQuery, syncRoomStatuses } from "@/lib/db";
+import { dbQuery } from "@/lib/db";
 import { requireSessionRole } from "@/lib/session";
 import ReceptionistDashboardClient from "./ReceptionistDashboardClient";
 
 export default async function ReceptionistDashboard() {
+  const DEV_TIMING = process.env.NODE_ENV !== 'production';
+  if (DEV_TIMING) console.time('[dashboard] total');
+  if (DEV_TIMING) console.time('[dashboard] session');
   const auth = await requireSessionRole("Receptionist");
-  await syncRoomStatuses(false);
+  if (DEV_TIMING) console.timeEnd('[dashboard] session');
+  // NOTE: room-status sweep intentionally NOT awaited here (cron owns it);
+  // awaiting it blocked every dashboard render on sequential maintenance writes.
   const userName = auth.session?.fullName || "Receptionist";
 
   // Fetch initial statistics, check-ins, reservations, confirmed bookings, inquiries, orders in parallel
+  if (DEV_TIMING) console.time('[dashboard] queries');
   const [
-    totalCheckInsRes,
-    totalCheckOutsRes,
-    occupiedRoomsRes,
-    availableRoomsRes,
+    bookingCounts,
+    roomCounts,
     pendingResRes,
-    underMaintenanceRoomsRes,
     checkInsList,
     pendingResList,
     rooms,
@@ -22,10 +25,19 @@ export default async function ReceptionistDashboard() {
     guestInquiriesList,
     guestOrdersList
   ] = await Promise.all([
-    dbQuery("SELECT COUNT(*) as count FROM booking WHERE status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed')"),
-    dbQuery("SELECT COUNT(*) as count FROM booking WHERE checkOutDateTime >= CURDATE() AND checkOutDateTime < DATE_ADD(CURDATE(), INTERVAL 1 DAY) AND status IN ('Checked Out', 'Completed')"),
-    dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Occupied' AND isArchived = 0"),
-    dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Available' AND isArchived = 0"),
+    dbQuery(`
+      SELECT
+        SUM(status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed')) AS activeStays,
+        SUM(checkOutDateTime >= CURDATE() AND checkOutDateTime < DATE_ADD(CURDATE(), INTERVAL 1 DAY) AND status IN ('Checked Out', 'Completed')) AS todayCheckouts
+      FROM booking
+    `),
+    dbQuery(`
+      SELECT
+        SUM(status = 'Occupied') AS occupied,
+        SUM(status = 'Available') AS available,
+        SUM(status = 'Under Maintenance') AS maintenance
+      FROM room WHERE isArchived = 0
+    `),
     dbQuery(`
       SELECT COUNT(*) as count FROM reservation 
       WHERE status IN ('Pending', 'Confirmed', 'Courtesy Hold', 'Overdue Check-In')
@@ -36,7 +48,6 @@ export default async function ReceptionistDashboard() {
           OR (holdExpiryDateTime IS NULL OR NOW() <= DATE_ADD(holdExpiryDateTime, INTERVAL 30 MINUTE))
         )
     `),
-    dbQuery("SELECT COUNT(*) as count FROM room WHERE status = 'Under Maintenance' AND isArchived = 0"),
     dbQuery(`
       SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime, b.status,
              COALESCE(g.firstName, 'Guest') as firstName, COALESCE(g.lastName, '') as lastName, g.contact,
@@ -107,14 +118,15 @@ export default async function ReceptionistDashboard() {
     `).catch(() => [])
   ]);
 
+  if (DEV_TIMING) console.timeEnd('[dashboard] queries');
   const initialData = {
     userName,
-    totalCheckIns: totalCheckInsRes[0]?.count || 0,
-    totalCheckOuts: totalCheckOutsRes[0]?.count || 0,
-    occupiedRooms: occupiedRoomsRes[0]?.count || 0,
-    availableRooms: availableRoomsRes[0]?.count || 0,
+    totalCheckIns: Number(bookingCounts[0]?.activeStays) || 0,
+    totalCheckOuts: Number(bookingCounts[0]?.todayCheckouts) || 0,
+    occupiedRooms: Number(roomCounts[0]?.occupied) || 0,
+    availableRooms: Number(roomCounts[0]?.available) || 0,
     pendingRes: pendingResRes[0]?.count || 0,
-    underMaintenanceRooms: underMaintenanceRoomsRes[0]?.count || 0,
+    underMaintenanceRooms: Number(roomCounts[0]?.maintenance) || 0,
     checkInsList,
     pendingResList,
     rooms,
@@ -122,6 +134,7 @@ export default async function ReceptionistDashboard() {
     guestInquiriesList,
     guestOrdersList
   };
+  if (DEV_TIMING) console.timeEnd('[dashboard] total');
 
   return <ReceptionistDashboardClient initialData={initialData} />;
 }

@@ -1,38 +1,31 @@
-# Implementation Plan — Remove skeleton loading UI (for approval)
+# Implementation Plan — Fix slow receptionist dashboard load (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. User request
-- Remove skeleton loading UI ([Image 1] receptionist dashboard shimmer); “just make pages load fast” — render content directly, no shimmer placeholders.
+## 1. Diagnosis (evidence-backed)
+- `app/receptionist/dashboard/page.js:6-7`: `requireSessionRole` + `await syncRoomStatuses(false)` run serially before 12 parallel `dbQuery` calls (`page.js:24-108`).
+- Session check (`lib/session.js:5-34`) = local JWT verify + 1 indexed `SELECT sessionToken FROM user`; runs twice per navigation (layout `app/receptionist/layout.js:8` + page `page.js:6`). Minor cost, pure waste.
+- `syncRoomStatuses` (`lib/db.js:355-~500+`) = no-show sweeps with per-row UPDATE/INSERT loops + per-receptionist notification fan-out + scheduler import; awaited on dashboard page, dashboard API route (`route.js:12`, hit every 15s per open tab by `ReceptionistDashboardClient.js:55-59`), and ~10 other API routes. Module-level 30s throttle (`lib/db.js:357`) doesn't hold across serverless instances.
+- No `loading.js` (deleted earlier) → navigation gives zero feedback until the server finishes all of the above.
 
-## 2. Evidence / full inventory
-- Route loading files: `app/receptionist/dashboard/loading.js` (→ `ReceptionistDashboardSkeleton`), `app/guest/dashboard/loading.js` (→ `GuestDashboardSkeleton`).
-- Skeleton lib (4 files): `app/components/skeletons/Skeleton.js` (base + Table/Chart/Card/Input/Button/Avatar/Text), `ReceptionistSkeletons.js` (only used by receptionist dashboard loading.js), `GuestSkeletons.js` (used by accounts/bookings, guest/edit-profile, guest dashboard loading.js), `AdminSkeletons.js` (zero consumers — dead code).
-- Inline usages: reservations `page.js:1050` (`loading ? SkeletonTable`) + `2015-2019` (Suspense fallback SkeletonTable); `accounts/bookings/page.js:177` (`loading ? GuestBookingsHistorySkeleton`); `guest/edit-profile/page.js:391` (`loading ? GuestEditProfileSkeleton`); `GuestDashboardClient.js:2393-2406` (`loadingRooms ?` shimmer cards); `GuestOrdersContent.js:1315-1329` (`loading ?` shimmer cards).
-- Raw CSS classes: `.skeleton-box` (guest dashboard), `.pcc-skeleton-box` (orders catalog) — both shimmer-only.
-- Already clean: bookings page renders tables directly (no loading branch); other Suspense fallbacks are `null` except billing-checkout text + auth text.
-- No artificial delays found (no `setTimeout` gating data; cache-first `clientCache` already paints fast). The only live spinner (`spinner-grow` status dot, dashboard:145) is a status indicator, not a skeleton — untouched.
+## 2. Changes
+1. **Instrument (temporary, dev-only):** `console.time/timeEnd` around session-check, `syncRoomStatuses`, and the `Promise.all` query block in `dashboard/page.js`; one real measurement to confirm the split. Remove after (or keep behind `NODE_ENV !== 'production'`).
+2. **Unblock the sweep:** in `dashboard/page.js` and `api/receptionist/dashboard/route.js`, stop awaiting `syncRoomStatuses` (fire-and-forget NOT awaited, or drop the call — sweep already runs via `api/cron/check-expired-reservations`). Bump throttle `30s → 5min` in `lib/db.js:357` as backstop. No other routes touched.
+3. **Dedupe session check:** wrap `getSessionDetails` body with React `cache()` (`lib/session.js`, `import { cache } from 'react'`) so layout + page share one DB lookup per request. Behavior identical (same return shape).
+4. **Batch counts:** merge the 6 `COUNT(*)` dashboard queries into one conditional-aggregation query (`SUM(status=...)`) in both `dashboard/page.js` and the dashboard API route; map results to the same `initialData`/JSON keys. List queries (LIMIT 10/6) unchanged.
+5. **Indexes:** run `EXPLAIN` on the sweep + dashboard queries; add missing indexes only if absent (`booking(status, checkInDateTime)`, `room(status)`, `reservation(status, reservationDateTime)`, `orders(orderDateTime)`). Verify existing schema first — no blind migrations.
+6. **Instant navigation (optional):** add `app/receptionist/dashboard/loading.js` returning `null` so the route transition unblocks immediately with no skeleton flash.
 
-## 3. Proposed changes
-1. Delete `app/receptionist/dashboard/loading.js`, `app/guest/dashboard/loading.js` (Next then paints page content directly, no skeleton flash).
-2. Delete `app/components/skeletons/` (all 4 files).
-3. Consumer edits (render content directly; existing empty-states cover no-data):
-   - reservations: `loading ? SkeletonTable :` → render table block directly; Suspense fallback → `null`; remove `SkeletonTable` import.
-   - accounts/bookings: `loading ? GuestBookingsHistorySkeleton :` → render card directly; remove import.
-   - guest/edit-profile: `loading ? GuestEditProfileSkeleton :` → render form directly; remove import.
-   - GuestDashboardClient rooms: drop `loadingRooms ?` shimmer branch (keep rooms grid + empty state; list persists across refreshes).
-   - GuestOrdersContent catalog: drop `loading ?` shimmer branch (render catalog directly).
-   - billing-checkout page Suspense text fallback → `null` (same “no flash” treatment; auth `Loading...` text left untouched as out of scope).
-4. `globals.css`: remove skeleton tokens (`--skeleton-bg/shimmer` x2 themes), `@keyframes pcc-skeleton-shimmer` + `.pcc-skeleton`, `.skeleton-box` + `@keyframes skeleton-shimmer`, `.pcc-skeleton-box` (+dark variant).
+## 3. Verification
+- Dev timing logs show session <5% and sweep off the critical path; dashboard TTFB drops (target: single-digit roundtrips: 1 session + 1 counts + 5 lists).
+- `eslint` touched files; `npm run build` 97/97.
+- Manual: cold-load dashboard, switch tabs, confirm counts/lists identical; cron route still runs the sweep.
 
-## 4. Verification
-- `grep -r Skeleton app` → zero matches (outside history); `ls app/components/skeletons` → gone; both `loading.js` deleted.
-- `eslint` touched files (pre-existing families only); `npm run build` success.
-- Cold-load each touched page: content paints directly with no shimmer frames.
+## 4. Risks
+- Fire-and-forget sweep: unhandled rejection risk → attach `.catch`; sweep still runs via cron so no data-correctness change.
+- `cache()` on session: per-request memoization only; concurrent-login protection semantics unchanged.
+- Batched counts: same predicates, same keys; verify numbers match before/after.
 
-## 5. Risks / notes
-- First-paint on empty cache shows real empty-states for ~1 fetch round-trip instead of shimmer — intended per request (“just load fast”; cache-first keeps repeat visits instant).
-- No API/fetch logic changes; spinners (payment processing, status dots) untouched.
-
-## 6. Questions for user
-- Q1: Remove everywhere incl. guest portal + dead admin lib (recommended), or receptionist only?
+## 5. Questions
+- Q1: Include step 6 (`loading.js` → null)?
+- Q2: Drop the dashboard-page sweep call entirely (cron owns it, recommended) or keep fire-and-forget?

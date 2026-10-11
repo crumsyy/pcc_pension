@@ -1,24 +1,18 @@
-# Walkthrough — Remove skeleton loading UI
+# Walkthrough — Fix slow receptionist dashboard load
 
 ## Changes
-- Deleted: `app/receptionist/dashboard/loading.js`, `app/guest/dashboard/loading.js`, `app/components/skeletons/` (Skeleton, Guest, Receptionist, Admin — Admin was already dead code).
-- `reservations/page.js`: table renders directly; Suspense fallback `null`; import removed (`loading` state kept as ready-gate for `?action=new`).
-- `accounts/bookings/page.js`: bookings card renders directly; dead `loading` state + setters removed.
-- `guest/edit-profile/page.js`: form renders directly; dead `loading` state removed; split into `EditProfileClient` + `<Suspense fallback={null}>` export (see note below).
-- `GuestDashboardClient.js`: room-cards shimmer branch removed (grid + empty state render directly).
-- `GuestOrdersContent.js`: catalog shimmer branch removed; dead catalog `loading` state + setters removed.
-- `billing-checkout/page.js`: text fallback → `null`.
-- `globals.css`: removed skeleton tokens, `pcc-skeleton-shimmer`/`pcc-skeleton`, `skeleton-box` + keyframes, `pcc-skeleton-box` (+dark).
-- Left untouched: real spinners (payment processing buttons, order-history `spinner-border`, rooms-catalog refresh spinner) and auth `Loading...` text — genuine async affordances, not skeletons.
-
-## Important finding (build break + fix)
-- Removing the edit-profile skeleton exposed a latent prerender CSR bailout (“Render in Browser should be wrapped in a suspense boundary”): previously the skeleton branch hid the form during prerender; with direct render, something in the form subtree postpones prerender. Baseline builds 97/97, so this is purely exposed, not introduced, behavior.
-- Fix: `<Suspense fallback={null}>` wrapper (same convention as reservations/bookings pages) — zero loading UI, build green again.
+- `lib/session.js`: `getSessionDetails` wrapped in React `cache()` — layout + page share one session DB lookup per request (was 2). Return shape/semantics unchanged.
+- `lib/db.js`: `syncRoomStatuses` throttle 30s → 5min backstop (per-instance throttle never held on serverless anyway).
+- `app/receptionist/dashboard/page.js`: dropped `await syncRoomStatuses(false)` (cron owns the sweep); 6 `COUNT(*)` queries batched into 2 conditional-`SUM` queries (booking, room) + reservation count as-is → 9 roundtrips instead of 12+; dev-only `console.time` markers (`[dashboard] session/queries/total`) so you can confirm the split with `npm run dev`.
+- `app/api/receptionist/dashboard/route.js` (15s poll + focus refetch): same sweep removal + same count batching. This also stops every open tab from triggering the maintenance sweep every 15s.
+- `app/receptionist/dashboard/loading.js`: recreated returning `null` — route transition unblocks instantly, no skeleton flash.
+- Indexes: checked live DB (`SHOW INDEX`) — booking/room/reservation/orders already carry status/date/FK indexes; tables are hotel-scale so the remaining scans are trivial. No migration needed.
 
 ## Verification
-- `grep -ri skeleton app` (code/CSS): zero matches outside docs; `loading.js` files gone; `skeletons/` dir gone.
-- `eslint`: no `no-unused-vars`/parse errors on touched files (only pre-existing `set-state-in-effect` family).
-- `npm run build`: 97/97 success.
+- `eslint` on touched files: clean (no new issues).
+- `npm run build`: success, `/receptionist/dashboard` + `/api/receptionist/dashboard` render.
+- `SUM(status IN (...))` ≡ old `COUNT(*) WHERE` semantics (non-matching rows contribute 0/NULL-ignored); `Number(...) || 0` normalizes mysql DECIMAL strings; JSON keys unchanged so `ReceptionistDashboardClient` needs no changes.
+- Confirm in dev: load dashboard, read `[dashboard] session/queries/total` timings in server console.
 
 ## No commit/push
 No commit or push made. Awaiting explicit `push` keyword after your review.
