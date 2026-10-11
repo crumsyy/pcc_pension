@@ -1,11 +1,23 @@
-# Walkthrough — Icon Placeholders, shadcn Tabs, Dashboard Skeleton (no commit/push yet)
+# Walkthrough — Booking parity with Reservation
 
-## Changes
-1. **Icon-only bigger placeholders** (10 spots): receptionist order cards, guest order cards, guest room cards + gallery fallbacks — text spans removed, `bi-image` at 2rem, box sizes/layouts identical.
-2. **shadcn Tabs** on receptionist Reservations + Bookings active/history pairs (labels, counts, reset side-effects kept; tables/filters untouched).
-3. **`app/receptionist/dashboard/loading.js`** (new): instant skeleton paint while the server streams dashboard data.
+## Changes (only `app/receptionist/bookings/page.js`)
+1. **Save gated on schedule conflict (no toast):**
+   - Added derived `createScheduleConflict` / `updateScheduleConflict` / `activeScheduleConflict` + `isSaveDisabledByConflict` (after `selectedRoomObj` ~line 1785), using same effective times as submit handlers; update path excludes own `bookingID`.
+   - Added inline red `Schedule Conflict` alert above Stay Schedule section (parity with Reservation).
+   - `LoadingButton` Save now has `disabled={isSaveDisabledByConflict}` + tooltip title. `LoadingButton` already supports `disabled`.
+   - Submit guards in `handleCreateSubmit` / `handleUpdateBookingSubmit` kept as race safety net but now silent `return` (removed `showAlert` toast for conflict).
 
-## Verification (actually performed)
-- `npx eslint`: 54 problems before = 54 after (pre-existing; new loading.js clean). `npm run build`: 97/97.
+2. **Guest Details locked on selected UID:**
+   - Added `const detailsLocked = Boolean(formData.guestID)`.
+   - Lock banner when `formData.guestID` set: “Details are locked to the selected guest account...”
+   - `disabled={detailsLocked}` + lock title on First/Middle/Last, Contact, Email, Birthdate (`DateInput` supports `disabled`).
+   - `handleUidChange` clear path now resets `guestForm` to blank (was leaving stale autofill), parity with Reservation.
+   - Applies to both New Booking and Update Booking (shared state).
 
-Say `"push"` only when you want commit + push.
+## Verification
+- `grep` confirms 6 locked inputs + conflict gating wired.
+- `eslint app/receptionist/bookings/page.js`: only pre-existing `set-state-in-effect` / `exhaustive-deps` warnings/errors, no new errors referencing new vars.
+- Manual test needed: select UID → locked; clear → editable; pick conflicting room/dates → alert + Save disabled; resolve → enabled.
+
+## No commit/push
+Per workflow: no commit or push made. Awaiting explicit `push` keyword after your review.

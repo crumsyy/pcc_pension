@@ -228,6 +228,15 @@ function BookingsClient() {
     setFormData(prev => ({ ...prev, guestID: val }));
     if (!val) {
       setIsAutoFilled(false);
+      setGuestForm({
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        contact: '',
+        email: '',
+        gender: 'Male',
+        dateOfBirth: ''
+      });
       return;
     }
     const selected = guests.find(g => String(g.guestID) === String(val));
@@ -403,13 +412,6 @@ function BookingsClient() {
       updatingBooking.bookingID
     );
     if (updateConflict) {
-      const roomObj = rooms.find(r => String(r.roomID) === String(targetRoomID));
-      const roomNum = roomObj ? roomObj.roomNumber : '';
-      showAlert(
-        'error',
-        'Schedule Conflict',
-        `Room ${roomNum} is not available for the updated schedule. It has a conflicting ${updateConflict.type} (${updateConflict.id}) scheduled from ${updateConflict.checkIn} to ${updateConflict.checkOut}.`
-      );
       return;
     }
 
@@ -1288,13 +1290,6 @@ function BookingsClient() {
       outTimeEffective
     );
     if (createConflict) {
-      const selectedRoomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
-      const roomNum = selectedRoomObj ? selectedRoomObj.roomNumber : '';
-      showAlert(
-        'error',
-        'Schedule Conflict',
-        `Room ${roomNum} is already booked or reserved during this schedule (${createConflict.type} ${createConflict.id} from ${createConflict.checkIn} to ${createConflict.checkOut}). Please select another room or adjust the dates.`
-      );
       return;
     }
 
@@ -1785,6 +1780,22 @@ function BookingsClient() {
   };
 
   const selectedRoomObj = rooms.find(r => String(r.roomID) === String(formData.roomID));
+
+  // A selected guest account locks the details form to that account (parity with reservations).
+  const detailsLocked = Boolean(formData.guestID);
+
+  // Schedule conflict state for Save-button gating (parity with reservations).
+  // Effective times mirror handleCreateSubmit / handleUpdateBookingSubmit.
+  const effectiveInTimeForConflict = useCurrentTimeIn ? (currentTimeStr || '14:00') : (checkInTime || '14:00');
+  const effectiveOutTimeForConflict = checkOutTime || '12:00';
+  const createScheduleConflict = (activeModal === 'create' && formData.roomID && checkInDate && checkOutDate)
+    ? checkScheduleConflict(formData.roomID, checkInDate, checkOutDate, effectiveInTimeForConflict, effectiveOutTimeForConflict)
+    : null;
+  const updateScheduleConflict = (activeModal === 'update_booking' && (formData.roomID || updatingBooking?.roomID) && checkInDate && checkOutDate)
+    ? checkScheduleConflict(formData.roomID || updatingBooking?.roomID, checkInDate, checkOutDate, checkInTime || '14:00', checkOutTime || '12:00', updatingBooking?.bookingID)
+    : null;
+  const activeScheduleConflict = activeModal === 'create' ? createScheduleConflict : updateScheduleConflict;
+  const isSaveDisabledByConflict = Boolean(activeScheduleConflict);
 
   return (
     <div className={`container-fluid py-3 ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
@@ -2321,6 +2332,12 @@ function BookingsClient() {
                         {formData.guestID ? 'Account Linked' : 'Walk-In Entry'}
                       </span>
                     </div>
+                    {formData.guestID ? (
+                      <div className="alert alert-info py-1.5 px-2.5 small mb-3 d-flex align-items-center gap-2">
+                        <i className="bi bi-lock-fill"></i>
+                        <span>Details are locked to the selected guest account. Clear the account above to enter a walk-in manually.</span>
+                      </div>
+                    ) : null}
 
                     <div className="row g-2 mb-2">
                       <div className="col-md-4">
@@ -2329,6 +2346,8 @@ function BookingsClient() {
                           type="text"
                           className="form-control form-control-sm"
                           required
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.firstName}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[0-9]/g, '');
@@ -2342,6 +2361,8 @@ function BookingsClient() {
                           type="text"
                           className="form-control form-control-sm"
                           placeholder="Optional"
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.middleName || ''}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[0-9]/g, '');
@@ -2355,6 +2376,8 @@ function BookingsClient() {
                           type="text"
                           className="form-control form-control-sm"
                           required
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.lastName}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[0-9]/g, '');
@@ -2371,6 +2394,8 @@ function BookingsClient() {
                           type="text"
                           className="form-control form-control-sm"
                           placeholder="09XXXXXXXXX"
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.contact}
                           onChange={(e) => {
                             const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
@@ -2383,6 +2408,7 @@ function BookingsClient() {
                         <DateInput
                           className="form-control form-control-sm"
                           value={guestForm.dateOfBirth}
+                          disabled={detailsLocked}
                           onChange={(e) => setGuestForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                           max={maxDobStr}
                         />
@@ -2395,6 +2421,8 @@ function BookingsClient() {
                           type="email"
                           className="form-control form-control-sm"
                           placeholder="name@example.com"
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.email}
                           onChange={(e) => setGuestForm(prev => ({ ...prev, email: e.target.value }))}
                         />
@@ -2640,6 +2668,14 @@ function BookingsClient() {
                       )}
                     </div>
                   </div>
+
+                  {/* SCHEDULE CONFLICT ALERT (Parity with Reservations) */}
+                  {activeScheduleConflict && (
+                    <div className="alert alert-danger py-2 px-3 small mb-3" role="alert">
+                      <i className="bi bi-exclamation-triangle-fill me-1.5 fw-bold"></i>
+                      <strong>Schedule Conflict:</strong> Room {selectedRoomObj?.roomNumber} is already booked or reserved during this schedule ({activeScheduleConflict.type} {activeScheduleConflict.id} from {activeScheduleConflict.checkIn} to {activeScheduleConflict.checkOut}). Please select another room or adjust the dates.
+                    </div>
+                  )}
 
                   {/* STAY SCHEDULE & CALENDAR DATES */}
                   <div className="row g-3 mb-3">
@@ -3144,6 +3180,8 @@ function BookingsClient() {
                   <LoadingButton
                     type="submit"
                     isLoading={activeModal === 'create' ? isSubmitting : isUpdatingBooking}
+                    disabled={isSaveDisabledByConflict}
+                    title={isSaveDisabledByConflict ? 'Schedule conflict — select another room or adjust the dates' : ''}
                     loadingText={activeModal === 'create' ? 'Saving Booking...' : 'Saving...'}
                     className="btn btn-pcc-primary text-white fw-bold"
                   >
