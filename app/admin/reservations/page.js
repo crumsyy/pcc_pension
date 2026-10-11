@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import StatusBadge, { getStatusBadgeStyle, RESERVATION_STATUSES } from '@/app/components/StatusBadge';
+import StatusBadge, { RESERVATION_STATUSES } from '@/app/components/StatusBadge';
 import FlatDatePicker from '../../components/FlatDatePicker';
+import AdminPagination from '../../components/AdminPagination';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 
 export default function AdminReservations() {
@@ -22,6 +23,12 @@ export default function AdminReservations() {
   const [loading, setLoading] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(!initialCache);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const RES_PAGE_SIZE = 10;
+  const resTotalPages = Math.max(1, Math.ceil(reservations.length / RES_PAGE_SIZE));
+  const resSafePage = Math.min(page, resTotalPages);
+  const resRows = reservations.slice((resSafePage - 1) * RES_PAGE_SIZE, resSafePage * RES_PAGE_SIZE);
+  const resStart = (resSafePage - 1) * RES_PAGE_SIZE;
   const isFirstMount = useRef(true);
 
   const fetchReservations = async (isBackground = false) => {
@@ -80,7 +87,6 @@ export default function AdminReservations() {
             className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 px-3 py-2 fw-semibold"
             style={{ borderRadius: '7px' }}
           >
-            <i className="bi bi-calendar-check"></i>
             <span>View Bookings</span>
           </Link>
           <button
@@ -89,7 +95,6 @@ export default function AdminReservations() {
             style={{ borderRadius: '7px' }}
             title="Refresh list"
           >
-            <i className={`bi bi-arrow-clockwise ${loading ? 'spin' : ''}`}></i>
             <span className="d-none d-sm-inline">Refresh</span>
           </button>
         </div>
@@ -102,36 +107,6 @@ export default function AdminReservations() {
           <button type="button" className="btn-close" onClick={() => setError('')}></button>
         </div>
       )}
-
-      {/* Status Summary KPI Cards */}
-      <div className="row g-2 mb-4">
-        {RESERVATION_STATUSES.map((status) => {
-          const badgeStyle = getStatusBadgeStyle(status, 'reservation');
-          const isSelected = statusFilter === status;
-          return (
-            <div className="col-6 col-md-3" key={status}>
-              <div
-                className="text-center p-3 rounded"
-                onClick={() => setStatusFilter(isSelected ? '' : status)}
-                style={{
-                  backgroundColor: isSelected ? `${badgeStyle.backgroundColor}25` : `${badgeStyle.backgroundColor}12`,
-                  border: `2px solid ${isSelected ? badgeStyle.backgroundColor : 'transparent'}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
-                }}
-              >
-                <div style={{ fontSize: '1.65rem', fontWeight: '700', color: badgeStyle.backgroundColor }}>
-                  {counts[status] || 0}
-                </div>
-                <div className="mt-1">
-                  <StatusBadge status={status} type="reservation" />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "10px", border: "1px solid var(--pcc-mist)" }}>
@@ -196,7 +171,7 @@ export default function AdminReservations() {
                 </tr>
               </thead>
               <tbody>
-                {reservations.length === 0 ? (
+                {resRows.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="text-center text-muted py-5">
                       <div className="d-flex flex-column align-items-center">
@@ -207,9 +182,9 @@ export default function AdminReservations() {
                     </td>
                   </tr>
                 ) : (
-                  reservations.map((r, i) => (
+                  resRows.map((r, i) => (
                     <tr key={r.reservationID}>
-                      <td className="text-muted fw-semibold" style={{ fontSize: '0.82rem' }}>{i + 1}</td>
+                      <td className="text-muted fw-semibold" style={{ fontSize: '0.82rem' }}>{resStart + i + 1}</td>
                       <td>
                         <div className="fw-bold text-dark">{`${r.firstName || ''} ${r.lastName || ''}`}</div>
                         <div className="small text-muted d-flex flex-column gap-0.5">
@@ -288,6 +263,9 @@ export default function AdminReservations() {
               </tbody>
             </table>
           </div>
+          {reservations.length > RES_PAGE_SIZE && (
+            <AdminPagination page={resSafePage} totalPages={resTotalPages} onPage={setPage} start={resStart + 1} end={Math.min(resStart + RES_PAGE_SIZE, reservations.length)} total={reservations.length} label="reservations" ariaLabel="Reservations pagination" />
+          )}
       </div>
     </div>
   );

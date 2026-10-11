@@ -1,14 +1,16 @@
-# Walkthrough — Reserved Merge + Reservation Lifecycle (no commit/push yet)
+# Walkthrough — Overview Cards Off, 4-State Bookings, Pagination (no commit/push yet)
 
-## Changes (per your chain: Reserved→Booked→Occupied→Completed, plus terminal branches)
-- **Global merge**: `normalizeReservationStatus` maps holds → `Reserved`; `RESERVATION_STATUSES` is now `[Reserved, Booked, Cancelled]`, so the admin overview renders 3 cards with merged counts and filter. Hold-expiry notes key off `rawStatus` (still shown); receptionist hold countdown/convert UI keys off raw values + `isCourtesyHold` (preserved); guest timeline simplified to Reserved→Booked(/Cancelled).
-- **Reserved→Expired**: scheduler writes `Expired` (was `Released`) with matching notification titles; `Expired` added everywhere `Released` was already excluded (guest API CASE + schedule query).
-- **Booked→No-Show**: manual `noshow` + auto booking No-Show cascade the linked `Booked` reservation; receptionist/guest API CASEs now map `No Show`→`Cancelled` for display.
-- **Booked→Cancelled**: guest self-cancel cascades to its linked reservation (mirrors receptionist); room release covers `Booked` rooms.
-- Convert/cancel paths already matched the diagram — untouched. Raw DB values (`On Hold`, `Courtesy Hold`, `Released`) still work everywhere via backstop checks; only display + terminal writes changed.
+## Changes
+**Reservations overview (`app/admin/reservations/page.js`)**
+- Deleted the KPI cards row; filter dropdown unchanged (Reserved/Booked/Cancelled).
+- Table paginated 10/page client-side over server-filtered rows (`AdminPagination`, `start + i` numbering); icons stripped from View Bookings + Refresh (labels stay).
+
+**Bookings overview (`app/admin/bookings/page.js`)**
+- Deleted the KPI cards row; filter is now Booked / Occupied / Completed / Cancelled (booked cancellable via the Cancelled view).
+- Display mapping, stored values untouched: Pending-family→Booked, in-house (Active Stay/Bill Finalized/Paid)→Occupied, Completed→Completed, Cancelled/No-Show→Cancelled; badges in matching colors. Filtering moved client-side (server keeps canonical values); cache key namespaced `v2` so old pre-filtered entries can't linger.
+- Table paginated 10/page; icons stripped from View Reservations + Refresh.
 
 ## Verification (actually performed)
-- Guard harness 23/23 (incl. new merge assertions). `npx eslint`: 26→26 identical. `npm run build`: 97/97.
-- Live flows (holds expiring, no-show cascades) need staging — no test DB here.
+- `npx eslint`: 4 problems before = 4 after (pre-existing effect-rule findings). `npm run build`: 97/97.
 
 Say `"push"` only when you want commit + push.

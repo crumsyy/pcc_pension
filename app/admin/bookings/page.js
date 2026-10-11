@@ -2,9 +2,35 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import StatusBadge, { getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
 import FlatDatePicker from '../../components/FlatDatePicker';
+import AdminPagination from '../../components/AdminPagination';
+import { normalizeBookingStatus } from '@/lib/bookingStatuses';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
+
+// Overview display states: confirmed bookings read as Booked, in-house
+// stays (incl. finalized/paid) as Occupied, finished as Completed,
+// dead arrivals as Cancelled. Stored values are never rewritten here.
+const BOOKING_OVERVIEW_STATES = ['Booked', 'Occupied', 'Completed', 'Cancelled'];
+
+function toOverviewBookingState(rawStatus) {
+  const s = String(rawStatus || '').trim();
+  if (s === 'Cancelled' || s === 'Canceled') return 'Cancelled';
+  if (s === 'No Show') return 'Cancelled';
+  const norm = normalizeBookingStatus(s);
+  if (norm === 'Completed') return 'Completed';
+  if (norm === 'Active Stay' || norm === 'Bill Finalized' || norm === 'Paid') return 'Occupied';
+  return 'Booked';
+}
+
+function overviewBookingBadgeClass(state) {
+  switch (state) {
+    case 'Booked': return 'text-bg-info text-dark';
+    case 'Occupied': return 'text-bg-primary';
+    case 'Completed': return 'text-bg-dark';
+    case 'Cancelled': return 'text-bg-danger';
+    default: return 'text-bg-secondary';
+  }
+}
 
 export default function AdminBookings() {
   const [search, setSearch] = useState('');
@@ -14,15 +40,26 @@ export default function AdminBookings() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
-  const cacheKey = `admin-bookings:${search}_${statusFilter}_${dateFilter}`;
+  const cacheKey = `admin-bookings:v2:${search}_${statusFilter}_${dateFilter}`;
   const initialCache = clientCache.get(cacheKey);
 
   const [bookings, setBookings] = useState(initialCache?.data?.bookings || []);
-  const [counts, setCounts] = useState(initialCache?.data?.counts || {});
   const [loading, setLoading] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(!initialCache);
   const [error, setError] = useState('');
   const isFirstMount = useRef(true);
+  const [page, setPage] = useState(1);
+  const BOOK_PAGE_SIZE = 10;
+
+  // Server filters by search/date; status filtering is client-side so the
+  // overview states (Booked/Occupied/Completed/Cancelled) apply uniformly.
+  const visibleBookings = statusFilter
+    ? bookings.filter((b) => toOverviewBookingState(b.status) === statusFilter)
+    : bookings;
+  const bookTotalPages = Math.max(1, Math.ceil(visibleBookings.length / BOOK_PAGE_SIZE));
+  const bookSafePage = Math.min(page, bookTotalPages);
+  const bookRows = visibleBookings.slice((bookSafePage - 1) * BOOK_PAGE_SIZE, bookSafePage * BOOK_PAGE_SIZE);
+  const bookStart = (bookSafePage - 1) * BOOK_PAGE_SIZE;
 
   const fetchBookings = async (isBackground = false) => {
     if (!isBackground) {
@@ -32,7 +69,6 @@ export default function AdminBookings() {
     try {
       const query = new URLSearchParams({
         search,
-        status: statusFilter,
         date: dateFilter,
       }).toString();
 
@@ -41,10 +77,8 @@ export default function AdminBookings() {
       if (!res.ok) throw new Error(data.error || 'Failed to fetch bookings');
 
       const nextBookings = data.bookings || [];
-      const nextCounts = data.counts || {};
       setBookings(nextBookings);
-      setCounts(nextCounts);
-      clientCache.set(cacheKey, { bookings: nextBookings, counts: nextCounts }, CACHE_TTL.BOOKINGS);
+      clientCache.set(cacheKey, { bookings: nextBookings }, CACHE_TTL.BOOKINGS);
     } catch (err) {
       if (!isBackground) setError(err.message);
     } finally {
@@ -56,7 +90,6 @@ export default function AdminBookings() {
     const entry = clientCache.get(cacheKey);
     if (entry) {
       setBookings(entry.data?.bookings || []);
-      setCounts(entry.data?.counts || {});
       setLoading(false);
       setShouldAnimate(false);
       if (entry.isStale) {
@@ -80,7 +113,6 @@ export default function AdminBookings() {
             className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 px-3 py-2 fw-semibold"
             style={{ borderRadius: '7px' }}
           >
-            <i className="bi bi-bookmark"></i>
             <span>View Reservations</span>
           </Link>
           <button
@@ -89,7 +121,6 @@ export default function AdminBookings() {
             style={{ borderRadius: '7px' }}
             title="Refresh list"
           >
-            <i className={`bi bi-arrow-clockwise ${loading ? 'spin' : ''}`}></i>
             <span className="d-none d-sm-inline">Refresh</span>
           </button>
         </div>
@@ -101,35 +132,6 @@ export default function AdminBookings() {
           <button type="button" className="btn-close" onClick={() => setError('')}></button>
         </div>
       )}
-
-      {/* Status Summary Cards */}
-      <div className="row g-2 mb-4">
-        {BOOKING_STATUSES.map((status) => {
-          const badgeStyle = getStatusBadgeStyle(status);
-          const isSelected = statusFilter === status;
-          return (
-            <div className="col-6 col-md-4 col-lg-2" key={status}>
-              <div
-                className="text-center p-3 rounded"
-                onClick={() => setStatusFilter(isSelected ? '' : status)}
-                style={{
-                  backgroundColor: isSelected ? `${badgeStyle.backgroundColor}22` : `${badgeStyle.backgroundColor}12`,
-                  border: `2px solid ${isSelected ? badgeStyle.backgroundColor : 'transparent'}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-              >
-                <div style={{ fontSize: '1.6rem', fontWeight: '700', color: badgeStyle.backgroundColor }}>
-                  {counts[status] || 0}
-                </div>
-                <div className="mt-1">
-                  <StatusBadge status={status} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -149,8 +151,8 @@ export default function AdminBookings() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="">All Unified Statuses</option>
-              {BOOKING_STATUSES.map((s) => (
+              <option value="">All Booking States</option>
+              {BOOKING_OVERVIEW_STATES.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -183,16 +185,16 @@ export default function AdminBookings() {
                 </tr>
               </thead>
               <tbody>
-                {bookings.length === 0 ? (
+                {bookRows.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="text-center text-muted py-4">
                       No bookings found.
                     </td>
                   </tr>
                 ) : (
-                  bookings.map((b, i) => (
+                  bookRows.map((b, i) => (
                     <tr key={b.bookingID}>
-                      <td>{i + 1}</td>
+                      <td>{bookStart + i + 1}</td>
                       <td>
                         <strong>{`${b.firstName || ''} ${b.lastName || ''}`}</strong>
                       </td>
@@ -218,7 +220,9 @@ export default function AdminBookings() {
                         })}
                       </td>
                       <td>
-                        <StatusBadge status={b.status} />
+                        <span className={`badge ${overviewBookingBadgeClass(toOverviewBookingState(b.status))}`}>
+                          {toOverviewBookingState(b.status)}
+                        </span>
                       </td>
                     </tr>
                   ))
@@ -226,6 +230,9 @@ export default function AdminBookings() {
               </tbody>
             </table>
           </div>
+          {visibleBookings.length > BOOK_PAGE_SIZE && (
+            <AdminPagination page={bookSafePage} totalPages={bookTotalPages} onPage={setPage} start={bookStart + 1} end={Math.min(bookStart + BOOK_PAGE_SIZE, visibleBookings.length)} total={visibleBookings.length} label="bookings" ariaLabel="Bookings pagination" />
+          )}
       </div>
     </div>
   );
