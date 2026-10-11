@@ -1,13 +1,13 @@
-# Implementation Plan — Reservation Guest Search + Details Lock
+# Implementation Plan — Stop the Form Wipe (Real Fix)
 
-## 1. Root causes (verified)
-1. **Typing disappears**: `SearchableSelect`'s sync effect depends on `[value, options]`, but parents build `options` inline (`guests.map(...)`), so every parent re-render (incl. the 5s poll) gives a new array identity, reruns the effect, and overwrites the in-progress `searchTerm` + clears `isTyping`. Fix in the shared component: only resync when `value` actually changed (prev-value ref), ignoring options-identity churn.
-2. **Lock on select**: add `detailsLocked = Boolean(formData.guestID)`; `disabled` on the 6 detail inputs (first/middle/last/contact/birthdate/email) with a "locked to account" hint; clearing the UID resets the form to blanks (currently stale autofill lingers, editable). Validation still passes (values present; disabled skips browser checks).
+## 1. Root cause (verified, and why the first fix couldn't work)
+- Lines 503-543: a form-init effect depends on `[activeModal, guests, minResDate]`. Every background poll replaces the `guests` array → the effect reruns **while the create modal is open** → `setFormData({guestID: ''})` + blank `guestForm` + reset dates. The UID box, the lock, the typed search, and the whole in-progress form are wiped every few seconds. (My SearchableSelect guard was correct but powerless — the parent genuinely clears the value.)
+- `minResDate` is write-once state (never changes); `guests` is the live trigger. The query-prefill effect (line 461) only acts on `?action=new` links — not the culprit.
 
-## 2. Files
-- `app/components/SearchableSelect.js` (effect guard — fixes all 6 usages).
-- `app/receptionist/reservations/page.js` (lock + clear-reset; create + edit share the form).
+## 2. Fix (one effect, `app/receptionist/reservations/page.js`)
+- Transition-guard the init effect with a `prevModalRef`: run the create-init only when the modal OPENS, the clear only when it CLOSES; data churn while open is ignored. Deps stay (lint-quiet), edit-modal path untouched (imperative `openEditModal`).
+- Keep the SearchableSelect guard (still valid protection for all 6 usages).
 
 ## 3. Verify
-- `npx eslint` (stash-compared) + `npm run build`; staging: type mid-poll without loss, select locks, clear unlocks blank.
+- `npx eslint` (stash-compared) + `npm run build`; staging: open create modal, type UID, wait 15s through polls — selection, search text, and dates must all survive.
 - Commit/push only on `"push"`.

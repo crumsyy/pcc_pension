@@ -495,13 +495,26 @@ function ReservationsClient() {
           guestID: '',
           roomID: qRoomID || ''
         });
+        queryPrefillRef.current = true;
         setActiveModal('create');
       }
     }
   }, [loading, searchParams]);
 
+  const prevModalRef = useRef(null);
+  const queryPrefillRef = useRef(false);
   useEffect(() => {
+    // Init/clear only on modal open/close transitions. Background data churn
+    // (guests refetch) must never wipe an in-progress form.
+    if (activeModal === prevModalRef.current) return;
+    prevModalRef.current = activeModal;
     if (activeModal === 'create') {
+      // Deep-link prefill (?action=new) already populated the form — keep it.
+      if (queryPrefillRef.current) {
+        // eslint-disable-next-line react-hooks/immutability -- one-shot consume flag for deep-link prefill
+        queryPrefillRef.current = false;
+        return;
+      }
       const today = new Date();
       const pad = (n) => String(n).padStart(2, '0');
       const minLeadD = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
