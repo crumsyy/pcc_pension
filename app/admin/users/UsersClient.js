@@ -610,7 +610,8 @@ export default function UsersClient() {
                           <span
                             className={`badge ${
                               u.status === 'Active' ? 'text-bg-success' :
-                              u.status === 'Suspended' ? 'text-bg-danger' : 'text-bg-secondary'
+                              u.status === 'Suspended' ? 'text-bg-warning' :
+                              u.status === 'Inactive' ? 'text-bg-danger' : 'text-bg-secondary'
                             }`}
                           >
                             {u.status}
