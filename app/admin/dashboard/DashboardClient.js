@@ -15,24 +15,46 @@ export default function DashboardClient({ userName }) {
   const [resetting, setResetting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetFeedback, setResetFeedback] = useState(null);
+  const [resetAreas, setResetAreas] = useState(['transactions']);
+  const [resetPreview, setResetPreview] = useState(null);
+  const [resetConfirmText, setResetConfirmText] = useState('');
   const [statusPage, setStatusPage] = useState(1);
   const [activeResPage, setActiveResPage] = useState(1);
   const [activeBookPage, setActiveBookPage] = useState(1);
   const fetchInFlight = useRef(false);
 
-  const displayUserName = userName || stats?.userName || clientCache.get('admin-user-name')?.data || 'Admin';
+  const toggleResetArea = (key) => {
+    setResetAreas((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+  };
+
+  const openResetModal = async () => {
+    setResetFeedback(null);
+    setResetConfirmText('');
+    if (!resetAreas.includes('transactions')) setResetAreas(['transactions']);
+    setShowResetModal(true);
+    try {
+      const res = await fetch('/api/admin/reset-transactions?preview=1', { cache: 'no-store' });
+      const data = await res.json();
+      if (res.ok) setResetPreview(data);
+    } catch (e) {
+      console.warn('Reset preview failed:', e.message);
+    }
+  };
 
   const handleExecuteReset = async () => {
+    if (resetAreas.length === 0 || resetConfirmText.trim().toUpperCase() !== 'DELETE') return;
     setResetting(true);
     try {
-      let res = await fetch('/api/admin/reset', {
+      let res = await fetch('/api/admin/reset-transactions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ areas: resetAreas })
       });
       if (res.status === 404) {
-        res = await fetch('/api/admin/reset-transactions', {
+        res = await fetch('/api/admin/reset', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ areas: resetAreas })
         });
       }
       const data = await res.json();
@@ -179,7 +201,7 @@ export default function DashboardClient({ userName }) {
           <button 
             type="button" 
             className="btn btn-outline-danger btn-sm fw-bold d-flex align-items-center gap-1 shadow-xs"
-            onClick={() => { setResetFeedback(null); setShowResetModal(true); }}
+            onClick={openResetModal}
             title="Testing utility: Reset transaction tables to #00001"
           >
             <i className="bi bi-arrow-counterclockwise"></i> Reset Transaction Records (Testing Only)
@@ -641,7 +663,7 @@ export default function DashboardClient({ userName }) {
             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '12px' }}>
               <div className="modal-header bg-danger text-white">
                 <h5 className="modal-title fw-bold d-flex align-items-center flex-wrap gap-2">
-                  <i className="bi bi-exclamation-triangle-fill"></i> Clean Reset — Transaction Records Only
+                  <i className="bi bi-exclamation-triangle-fill"></i> Clean Reset — Select Areas
                   <span className="badge bg-warning text-dark fw-bold" style={{ fontSize: '0.75rem' }}>FOR TESTING ONLY</span>
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowResetModal(false)} disabled={resetting}></button>
@@ -653,8 +675,23 @@ export default function DashboardClient({ userName }) {
                       <i className="bi bi-check-lg"></i>
                     </div>
                     <h4 className="fw-bold text-success mb-2">Reset Completed Successfully!</h4>
-                    <p className="text-muted small mb-4">{resetFeedback.message}</p>
+                    <p className="text-muted small mb-4">{resetFeedback.message || 'Selected areas have been cleared.'}</p>
 
+                    {resetFeedback.master?.cleared && (
+                      <div className="row g-2 text-start p-3 bg-light rounded border mb-3" style={{ fontSize: '0.82rem' }}>
+                        {Object.entries(resetFeedback.master.cleared).map(([key, info]) => (
+                          <div className="col-6" key={key}>
+                            <strong>{info.label}:</strong>{' '}
+                            <span className="text-danger fw-bold">{info.total} row(s) cleared</span>
+                            <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                              {Object.entries(info.tables || {}).map(([t, c]) => `${t} (${c})`).join(', ')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {resetFeedback.nextIDs && (
                     <div className="row g-2 text-start p-3 bg-light rounded border mb-3" style={{ fontSize: '0.82rem' }}>
                       <div className="col-6"><strong>Next Reservation ID:</strong> <span className="text-primary font-monospace">{resetFeedback.nextIDs?.reservationID}</span></div>
                       <div className="col-6"><strong>Next Booking ID:</strong> <span className="text-primary font-monospace">{resetFeedback.nextIDs?.bookingID}</span></div>
@@ -664,6 +701,7 @@ export default function DashboardClient({ userName }) {
                         ✓ {resetFeedback.roomsResetToAvailable} Rooms released back to Available. Master accounts & inventory intact.
                       </div>
                     </div>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -673,44 +711,55 @@ export default function DashboardClient({ userName }) {
                         <span>NOTICE: FOR TESTING & DEMONSTRATION PURPOSES ONLY</span>
                       </div>
                       <div className="text-dark">
-                        This database reset utility is provided strictly for testing, capstone evaluations, and demonstration purposes to purge demo transactions back to <code>#00001</code>. Master administrative logins, room inventory, product/meal catalogs, and pricing configurations will remain intact.
+                        Tick the management areas to purge. IDs restart at <code>#00001</code> for fully-cleared tables, your own login is never deleted, and clearing a master area with live bookings, bills, or payments is refused until Transactions is included. This is irreversible.
                       </div>
                     </div>
 
-                    <div className="row g-3 mb-3">
-                      <div className="col-md-6">
-                        <div className="p-3 bg-danger-subtle rounded border border-danger-subtle h-100" style={{ fontSize: '0.82rem' }}>
-                          <h6 className="fw-bold text-danger mb-2">Tables to Truncate (Reset to 1):</h6>
-                          <ul className="mb-0 ps-3 text-dark">
-                            <li>Reservations (starts at <code>RV00001</code>)</li>
-                            <li>Bookings (starts at <code>BK00001</code>)</li>
-                            <li>Payments (starts at <code>TRA00001</code>)</li>
-                            <li>Orders (starts at <code>ORD00001</code>)</li>
-                            <li>Billing Invoices & Line Items</li>
-                            <li>Borrow Transactions & Inquiries</li>
-                            <li>Occupied/Reserved rooms → <code>Available</code></li>
-                          </ul>
-                        </div>
+                    <div className="mb-1 fw-bold small text-dark">Areas to clear</div>
+                    <div className="row g-2 mb-3">
+                      <div className="col-12">
+                        <label className="d-flex align-items-start gap-2 p-2 rounded border bg-light" style={{ cursor: 'pointer', fontSize: '0.82rem' }}>
+                          <input type="checkbox" className="form-check-input mt-1" checked={resetAreas.includes('transactions')} onChange={() => toggleResetArea('transactions')} disabled={resetting} />
+                          <span>
+                            <strong>Transactions</strong>{' '}
+                            <span className="text-muted">(reservations, bookings, orders, billing, payments, inquiries, notifications; rooms → Available)</span>
+                          </span>
+                        </label>
                       </div>
+                      {(resetPreview ? Object.entries(resetPreview.areas || {}) : []).map(([key, info]) => (
+                        <div className="col-md-6" key={key}>
+                          <label className="d-flex align-items-start gap-2 p-2 rounded border bg-light h-100" style={{ cursor: 'pointer', fontSize: '0.82rem' }}>
+                            <input type="checkbox" className="form-check-input mt-1" checked={resetAreas.includes(key)} onChange={() => toggleResetArea(key)} disabled={resetting} />
+                            <span>
+                              <strong>{info.label}</strong>{' '}
+                              <span className="badge bg-secondary">{info.total} rows</span>
+                              {info.guardTotal > 0 && (
+                                <span className="badge bg-warning text-dark ms-1" title="Live bookings/bills/payments still reference this area">
+                                  {info.guardTotal} linked
+                                </span>
+                              )}
+                              <div className="text-muted" style={{ fontSize: '0.72rem' }}>{info.note}</div>
+                            </span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
 
-                      <div className="col-md-6">
-                        <div className="p-3 bg-success-subtle rounded border border-success-subtle h-100" style={{ fontSize: '0.82rem' }}>
-                          <h6 className="fw-bold text-success mb-2">Master Data Preserved (Unchanged):</h6>
-                          <ul className="mb-0 ps-3 text-dark">
-                            <li>User & Admin Logins</li>
-                            <li>Registered Guest & Staff Profiles</li>
-                            <li>Rooms, Room Types, & Rates</li>
-                            <li>Products & Cooked Meals Catalog</li>
-                            <li>Amenities Inventory & Categories</li>
-                            <li>Discounts & Promotions Settings</li>
-                            <li>Purchase Orders & Batch Records</li>
-                          </ul>
-                        </div>
-                      </div>
+                    <div className="mb-2">
+                      <label className="form-label small fw-bold text-danger mb-1">Type DELETE to confirm</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="DELETE"
+                        value={resetConfirmText}
+                        onChange={(e) => setResetConfirmText(e.target.value)}
+                        disabled={resetting}
+                        autoComplete="off"
+                      />
                     </div>
 
                     <p className="text-muted small mb-0">
-                      Are you sure you want to perform a clean transactional reset? This is irreversible.
+                      At least one area must be ticked. Master clears are audited with per-table counts.
                     </p>
                   </>
                 )}
@@ -728,7 +777,8 @@ export default function DashboardClient({ userName }) {
                     <button 
                       type="button" 
                       className="btn btn-danger text-white fw-bold d-flex align-items-center gap-1"
-                      disabled={resetting}
+                      disabled={resetting || resetAreas.length === 0 || resetConfirmText.trim().toUpperCase() !== 'DELETE'}
+                      title={resetAreas.length === 0 ? 'Tick at least one area' : 'Type DELETE above to enable'}
                       onClick={handleExecuteReset}
                     >
                       {resetting ? (
@@ -738,7 +788,7 @@ export default function DashboardClient({ userName }) {
                         </>
                       ) : (
                         <>
-                          <i className="bi bi-arrow-counterclockwise"></i> Confirm Clean Reset (Testing Only)
+                          <i className="bi bi-arrow-counterclockwise"></i> Confirm Selective Reset (Testing Only)
                         </>
                       )}
                     </button>
