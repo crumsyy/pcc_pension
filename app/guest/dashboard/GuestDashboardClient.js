@@ -2390,21 +2390,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               </div>
             </div>
 
-            {loadingRooms ? (
-              /* SKELETON LOADER FOR ROOM CARDS */
-              <div className="row g-3">
-                {[1, 2, 3, 4].map(n => (
-                  <div key={n} className="col-12 col-md-6 col-lg-3">
-                    <div className="card p-3 shadow-sm border-0" style={{ borderRadius: '12px' }}>
-                      <div className="skeleton-box mb-2" style={{ height: '24px', width: '60%' }}></div>
-                      <div className="skeleton-box mb-3" style={{ height: '16px', width: '40%' }}></div>
-                      <div className="skeleton-box mb-2" style={{ height: '40px', width: '100%' }}></div>
-                      <div className="skeleton-box" style={{ height: '32px', width: '100%' }}></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : allRooms.length === 0 ? (
+            {allRooms.length === 0 ? (
               /* FRIENDLY EMPTY STATE DESIGN */
               <div className="card shadow-sm border-0 p-5 text-center my-4 bg-white" style={{ borderRadius: '16px' }}>
                 <h5 className="fw-bold text-dark mb-1">No Rooms Available At The Moment</h5>

@@ -17,7 +17,6 @@ import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import ConfirmReservationModal from '../ConfirmReservationModal';
 import { normalizeReservationStatus } from '../../components/StatusBadge';
-import { SkeletonTable } from '@/app/components/skeletons/Skeleton';
 
 const calculateAgeFromUiDate = (dateStr) => {
   if (!dateStr) return '';
@@ -1046,9 +1045,7 @@ function ReservationsClient() {
         </div>
 
         {/* Table */}
-        {loading ? (
-          <SkeletonTable columns={6} rows={7} colWidths={['22%', '18%', '22%', '14%', '12%', '12%']} />
-        ) : filteredReservations.length === 0 ? (
+        {filteredReservations.length === 0 ? (
           <div className="p-4 text-center text-muted border rounded bg-light">
             <i className={`bi ${activeTab === 'active' ? 'bi-bookmark-check text-primary' : 'bi-archive text-secondary'} fs-4 d-block mb-1`}></i>
             <p className="mb-0 fw-semibold">
@@ -2012,11 +2009,7 @@ function ReservationsClient() {
 
 export default function ReceptionistReservations() {
   return (
-    <Suspense fallback={
-      <div className="card shadow-sm border-0 p-3 bg-white" style={{ borderRadius: '12px' }}>
-        <SkeletonTable columns={6} rows={7} colWidths={['22%', '18%', '22%', '14%', '12%', '12%']} />
-      </div>
-    }>
+    <Suspense fallback={null}>
       <ReservationsClient />
     </Suspense>
   );

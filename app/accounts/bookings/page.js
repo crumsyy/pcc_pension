@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import StatusBadge, { normalizeBookingStatus, getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
-import { GuestBookingsHistorySkeleton } from '@/app/components/skeletons/GuestSkeletons';
 import ModalPortal from '@/app/components/ModalPortal';
 
 export default function AccountsBookingsPage() {
@@ -11,13 +10,11 @@ export default function AccountsBookingsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [paymentNotice, setPaymentNotice] = useState('');
 
   const fetchBookings = async () => {
-    setLoading(true);
     setError('');
     try {
       const query = new URLSearchParams({
@@ -34,8 +31,6 @@ export default function AccountsBookingsPage() {
       setCounts(data.counts || {});
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -173,10 +168,7 @@ export default function AccountsBookingsPage() {
       </div>
 
       {/* Bookings Table */}
-      {loading ? (
-        <GuestBookingsHistorySkeleton />
-      ) : (
-        <div className="card shadow-xs border-0 p-3 bg-white" style={{ borderRadius: '10px' }}>
+      <div className="card shadow-xs border-0 p-3 bg-white" style={{ borderRadius: '10px' }}>
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
               <thead className="table-light">
@@ -275,7 +267,6 @@ export default function AccountsBookingsPage() {
             </table>
           </div>
         </div>
-      )}
 
       {/* Booking Details Modal */}
       {selectedBooking && (

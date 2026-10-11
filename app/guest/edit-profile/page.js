@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
 import LoadingButton from '../../components/LoadingButton';
-import { GuestEditProfileSkeleton } from '@/app/components/skeletons/GuestSkeletons';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
-export default function EditProfilePage() {
-  const [loading, setLoading] = useState(true);
+function EditProfileClient() {
   const [saving, setSaving] = useState(false);
   const [currentEmail, setCurrentEmail] = useState('');
   const [profileForm, setProfileForm] = useState({
@@ -132,9 +130,6 @@ export default function EditProfilePage() {
   };
 
   const fetchProfile = async (isBackground = false) => {
-    if (!isBackground && !clientCache.has('GUEST_PROFILE')) {
-      setLoading(true);
-    }
     try {
       const res = await fetch('/api/guest/profile');
       const data = await res.json();
@@ -157,8 +152,6 @@ export default function EditProfilePage() {
       }
     } catch (err) {
       if (!isBackground) showAlert('error', 'Error', err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -177,7 +170,6 @@ export default function EditProfilePage() {
       });
       setProfilePicture(cached.guest?.profilePicture || '');
       setCurrentEmail(cached.email || '');
-      setLoading(false);
       fetchProfile(true);
     } else {
       fetchProfile(false);
@@ -387,10 +379,7 @@ export default function EditProfilePage() {
       </nav>
 
       <div className={`container py-4 ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxWidth: '800px' }}>
-        {loading ? (
-          <GuestEditProfileSkeleton />
-        ) : (
-          <div className="d-flex flex-column gap-4">
+        <div className="d-flex flex-column gap-4">
             {/* CARD 0: PROFILE PICTURE UPLOAD */}
             <div className="card shadow-sm border-0 p-4 bg-white" style={{ borderRadius: '16px' }}>
               <div className="d-flex flex-column flex-sm-row align-items-center gap-4">
@@ -598,7 +587,6 @@ export default function EditProfilePage() {
               </LoadingButton>
             </div>
           </div>
-        )}
       </div>
 
       {/* EMAIL CHANGE WORKFLOW MODAL */}
@@ -781,5 +769,13 @@ export default function EditProfilePage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function EditProfilePage() {
+  return (
+    <Suspense fallback={null}>
+      <EditProfileClient />
+    </Suspense>
   );
 }

@@ -561,7 +561,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   const [amenities, setAmenities] = useState(cachedOrdersCatalog?.amenities || []);
   const [orderHistory, setOrderHistory] = useState(cachedOrderHistory || []);
   const [activeBooking, setActiveBooking] = useState(null);
-  const [loading, setLoading] = useState(!cachedOrdersCatalog);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(Boolean(cachedOrderHistory));
   const [submitting, setSubmitting] = useState(false);
@@ -630,9 +629,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   }, []);
 
   const fetchCatalog = async () => {
-    if (!cachedOrdersCatalog) {
-      setLoading(true);
-    }
     try {
       const res = await fetch('/api/guest/orders');
       const data = await res.json();
@@ -655,8 +651,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
       cachedOrdersCatalog = { products: p, cookedMeals: m, amenities: a };
     } catch (err) {
       setFeedback({ type: 'danger', message: err.message });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1312,22 +1306,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
             />
           ) : (
             /* CATALOG ITEMS GRID */
-            loading ? (
-              <div className="row g-2 g-md-3">
-                {[1, 2, 3, 4, 5, 6].map(n => (
-                  <div key={n} className="col-4 col-sm-6 col-xl-4">
-                    <div className="card h-100 shadow-sm border border-secondary-subtle rounded-3 overflow-hidden bg-white">
-                      <div className="pcc-skeleton-box catalog-img-wrap" style={{ width: '100%' }}></div>
-                      <div className="p-2 p-sm-3">
-                        <div className="pcc-skeleton-box mb-1.5" style={{ height: '14px', width: '50%' }}></div>
-                        <div className="pcc-skeleton-box mb-2" style={{ height: '18px', width: '80%' }}></div>
-                        <div className="pcc-skeleton-box" style={{ height: '28px', width: '100%', borderRadius: '6px' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
+            (
               <div className="d-flex flex-column gap-3">
                 {/* COOKED MEALS SECTION */}
                 {(activeCategory === 'all' || activeCategory === 'meals') && filteredMeals.length > 0 && (
