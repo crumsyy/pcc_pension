@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ModalDialog from '../../components/ModalDialog';
@@ -14,9 +14,17 @@ import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
+import {
+  DialogTrigger,
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 // Searchable Combobox Component (defined outside to prevent unmounting/focus issues)
-function Combobox({ options, value, onChange, placeholder, disabled }) {
+function Combobox({ options, value, onChange, placeholder, disabled, stockMap }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value || '');
 
@@ -56,25 +64,31 @@ function Combobox({ options, value, onChange, placeholder, disabled }) {
       </div>
       {isOpen && (
         <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
-          {filtered.map(opt => (
-            <li key={`${opt.type}-${opt.id}`}>
-              <button
-                type="button"
-                className="dropdown-item btn-sm text-start py-1"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setInputValue(opt.name);
-                  setIsOpen(false);
-                  onChange(opt);
-                }}
-              >
-                <div className="d-flex justify-content-between align-items-center">
-                  <span><strong>{opt.name}</strong></span>
-                  <span className="badge text-bg-light border text-muted small">{opt.type}</span>
-                </div>
-              </button>
-            </li>
-          ))}
+          {filtered.map(opt => {
+            const stock = stockMap ? stockMap[`${opt.type}-${opt.id}`] : null;
+            return (
+              <li key={`${opt.type}-${opt.id}`}>
+                <button
+                  type="button"
+                  className="dropdown-item btn-sm text-start py-1"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setInputValue(opt.name);
+                    setIsOpen(false);
+                    onChange(opt);
+                  }}
+                >
+                  <div className="fw-bold" title={opt.name} style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25' }}>{opt.name}</div>
+                  <div className="d-flex justify-content-between align-items-center gap-2 mt-0.5">
+                    <span className="badge text-bg-light border text-muted small">{opt.type}</span>
+                    <span className="text-muted small">
+                      Stock: {stock ? `${stock.qty} ${stock.unit || ''}`.trim() : '—'}
+                    </span>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
           {filtered.length === 0 && (
             <li className="p-2 text-center text-muted small">
               No matching catalog items found.
@@ -111,6 +125,17 @@ export default function AdminPurchaseOrders() {
 
   // Catalog integration states
   const [catalogItems, setCatalogItems] = useState([]); // [{ id, name, type, itemType, basePrice }]
+
+  // Current stock per catalog item (joined from the restock feed for the dropdown)
+  const stockMap = useMemo(() => {
+    const map = {};
+    for (const it of (inventoryItems || [])) {
+      if (it && it.itemID != null && it.sourceTable) {
+        map[`${it.sourceTable}-${it.itemID}`] = { qty: it.availableQty ?? 0, unit: it.unit || '' };
+      }
+    }
+    return map;
+  }, [inventoryItems]);
   const [productCategories, setProductCategories] = useState([]);
   const [amenityCategories, setAmenityCategories] = useState([]);
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
@@ -1072,15 +1097,16 @@ export default function AdminPurchaseOrders() {
         <ModalPortal>
           {/* CREATE PO MODAL */}
           {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', overflowY: 'auto' }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Create Purchase Order</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Create Purchase Order">
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Create Purchase Order</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleCreatePOSubmit}>
-                <div className="modal-body">
+                <DialogBody>
                   <div className="mb-3">
                     <label className="form-label small fw-bold">Expected Delivery Date (Optional)</label>
                     <FlatDatePicker
@@ -1092,11 +1118,11 @@ export default function AdminPurchaseOrders() {
                   </div>
                   <hr />
                   <div className="row g-2 mb-1 small fw-bold text-muted border-bottom pb-1">
-                    <div className="col-md-3">Item Name *</div>
+                    <div className="col-md-3">Item Name <span className="required-asterisk">*</span></div>
                     <div className="col-md-2">Category</div>
                     <div className="col-md-2">Type</div>
                     <div className="col-md-2">Base Price</div>
-                    <div className="col-md-2">Qty Ordered *</div>
+                    <div className="col-md-2">Qty Ordered <span className="required-asterisk">*</span></div>
                     <div className="col-md-1 text-center">Remove</div>
                   </div>
                   <div id="poItemsList" className="mt-2">
@@ -1107,6 +1133,7 @@ export default function AdminPurchaseOrders() {
                             options={catalogItems}
                             value={item.itemName}
                             placeholder="Search catalog..."
+                            stockMap={stockMap}
                             onChange={(selected) => handlePORowChangeSelect(idx, selected)}
                           />
                         </div>
@@ -1162,20 +1189,19 @@ export default function AdminPurchaseOrders() {
                   <button type="button" className="btn btn-sm btn-outline-secondary mt-2" onClick={addPORow}>
                     + Add Item
                   </button>
-                </div>
-                 <div className="modal-footer d-flex justify-content-between align-items-center">
-                   <div className="fw-bold text-pcc-blue" style={{ fontSize: '1.1rem' }}>
-                     Grand Total: ₱{poGrandTotal.toFixed(2)}
-                   </div>
-                   <div className="d-flex gap-2">
-                     <button type="submit" className="btn btn-pcc-primary">Create Purchase Order</button>
-                     <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                   </div>
-                 </div>
+                </DialogBody>
+                <DialogFooter className="d-flex justify-content-between align-items-center">
+                    <div className="fw-bold text-pcc-blue" style={{ fontSize: '1.1rem' }}>
+                      Grand Total: ₱{poGrandTotal.toFixed(2)}
+                    </div>
+                    <div className="d-flex gap-2">
+                      <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                      <button type="submit" className="btn btn-pcc-primary">Create Purchase Order</button>
+                    </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
 
       {/* VIEW PO DETAILS MODAL */}
