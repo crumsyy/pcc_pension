@@ -174,7 +174,7 @@ export default function AdminDiscounts() {
         roomTypes: rt
       }, CACHE_TTL.DISCOUNTS);
     } catch (err) {
-      if (!isSilent) showAlert('error', 'Error', err.message);
+      if (!isSilent) toast.error('Request Failed', err.message);
       else console.warn('Background discounts refresh error:', err.message);
     } finally {
       fetchInFlight.current = false;
@@ -225,6 +225,27 @@ export default function AdminDiscounts() {
   const isOpenEligibility = selectedEligibility === 'Open';
   const isBookingCountEligibility = selectedEligibility === 'Booking Count';
 
+  const eligibilityOptionLabel = (name) => {
+    if (name === 'ID-Based') return 'ID-Based — name + ID required';
+    if (name === 'Booking Count') return 'Booking Count — stay history required';
+    if (name === 'Open') return 'Open — no requirements';
+    return name;
+  };
+
+  const eligibilityExplainer = () => {
+    if (isOpenEligibility) {
+      return { title: 'Open — no requirements', body: 'No ID card and no stay history needed. Applies once per whole booking.' };
+    }
+    if (isBookingCountEligibility) {
+      const req = parseInt(discFormData.requiredBookings || 0, 10) || 0;
+      return { title: 'Booking Count — stay history required', body: `Guest needs ${req > 0 ? req : 'the required number of'} completed stays as primary booker (checked live at checkout). Name required, ID optional. Applies per guest.` };
+    }
+    if (selectedEligibility) {
+      return { title: 'ID-Based — name + ID required', body: 'Guest name plus ID card number at checkout, one use per ID per booking. Applies per guest.' };
+    }
+    return null;
+  };
+
   const validateDiscForm = () => {
     if (!discFormData.name.trim()) {
       return 'Name is required and cannot be empty.';
@@ -253,7 +274,7 @@ export default function AdminDiscounts() {
     e.preventDefault();
     const formError = validateDiscForm();
     if (formError) {
-      showAlert('error', 'Validation Error', formError);
+      toast.error('Validation Error', formError);
       return;
     }
 
@@ -270,11 +291,11 @@ export default function AdminDiscounts() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create discount');
-        showAlert('success', 'Success', data.message || 'Discount created successfully');
+        toast.success('Discount Created', data.message || 'Discount created successfully.');
         setActiveModal(null);
         fetchData();
       } catch (err) {
-        showAlert('error', 'Error', err.message);
+        toast.error('Request Failed', err.message);
       }
     });
   };
@@ -283,7 +304,7 @@ export default function AdminDiscounts() {
     e.preventDefault();
     const formError = validateDiscForm();
     if (formError) {
-      showAlert('error', 'Validation Error', formError);
+      toast.error('Validation Error', formError);
       return;
     }
 
@@ -301,11 +322,11 @@ export default function AdminDiscounts() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update discount');
-        showAlert('success', 'Success', data.message || 'Discount updated successfully');
+        toast.success('Discount Updated', data.message || 'Discount updated successfully.');
         setActiveModal(null);
         fetchData();
       } catch (err) {
-        showAlert('error', 'Error', err.message);
+        toast.error('Request Failed', err.message);
       }
     });
   };
@@ -320,10 +341,10 @@ export default function AdminDiscounts() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to archive');
-        showAlert('success', 'Success', data.message || 'Discount archived successfully');
+        toast.success('Discount Archived', data.message || 'Discount archived successfully.');
         fetchData();
       } catch (err) {
-        showAlert('error', 'Error', err.message);
+        toast.error('Request Failed', err.message);
       }
     });
   };
@@ -338,10 +359,10 @@ export default function AdminDiscounts() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to restore');
-        showAlert('success', 'Success', data.message || 'Discount restored successfully');
+        toast.success('Discount Restored', data.message || 'Discount restored successfully.');
         fetchData();
       } catch (err) {
-        showAlert('error', 'Error', err.message);
+        toast.error('Request Failed', err.message);
       }
     });
   };
@@ -350,24 +371,24 @@ export default function AdminDiscounts() {
   const handleCreatePromoSubmit = async (e) => {
     e.preventDefault();
     if (!promoFormData.name.trim()) {
-      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      toast.error('Validation Error', 'Name is required and cannot be empty.');
       return;
     }
     const pct = parseFloat(promoFormData.percentage);
-    if (isNaN(pct) || pct < 0 || pct > 100) {
-      showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
+    if (isNaN(pct) || pct < 1 || pct > 100) {
+      toast.error('Validation Error', 'Percentage must be a number between 1 and 100.');
       return;
     }
     if (!promoFormData.startDate || !isValidDate(promoFormData.startDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid Start Date (MM/DD/YYYY).');
+      toast.error('Validation Error', 'Please enter a valid Start Date (MM/DD/YYYY).');
       return;
     }
     if (!promoFormData.endDate || !isValidDate(promoFormData.endDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid End Date (MM/DD/YYYY).');
+      toast.error('Validation Error', 'Please enter a valid End Date (MM/DD/YYYY).');
       return;
     }
     if (toDbDate(promoFormData.endDate) < toDbDate(promoFormData.startDate)) {
-      showAlert('error', 'Validation Error', 'End Date cannot be earlier than Start Date.');
+      toast.error('Validation Error', 'End Date cannot be earlier than Start Date.');
       return;
     }
 
@@ -386,11 +407,11 @@ export default function AdminDiscounts() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create promo');
-        showAlert('success', 'Success', data.message || 'Promotion created successfully');
+        toast.success('Promotion Created', data.message || 'Promotion created successfully.');
         setActiveModal(null);
         fetchData();
       } catch (err) {
-        showAlert('error', 'Error', err.message);
+        toast.error('Request Failed', err.message);
       }
     });
   };
@@ -398,24 +419,24 @@ export default function AdminDiscounts() {
   const handleEditPromoSubmit = async (e) => {
     e.preventDefault();
     if (!promoFormData.name.trim()) {
-      showAlert('error', 'Validation Error', 'Name is required and cannot be empty.');
+      toast.error('Validation Error', 'Name is required and cannot be empty.');
       return;
     }
     const pct = parseFloat(promoFormData.percentage);
-    if (isNaN(pct) || pct < 0 || pct > 100) {
-      showAlert('error', 'Validation Error', 'Percentage must be a number between 0 and 100.');
+    if (isNaN(pct) || pct < 1 || pct > 100) {
+      toast.error('Validation Error', 'Percentage must be a number between 1 and 100.');
       return;
     }
     if (!promoFormData.startDate || !isValidDate(promoFormData.startDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid Start Date (MM/DD/YYYY).');
+      toast.error('Validation Error', 'Please enter a valid Start Date (MM/DD/YYYY).');
       return;
     }
     if (!promoFormData.endDate || !isValidDate(promoFormData.endDate)) {
-      showAlert('error', 'Validation Error', 'Please enter a valid End Date (MM/DD/YYYY).');
+      toast.error('Validation Error', 'Please enter a valid End Date (MM/DD/YYYY).');
       return;
     }
     if (toDbDate(promoFormData.endDate) < toDbDate(promoFormData.startDate)) {
-      showAlert('error', 'Validation Error', 'End Date cannot be earlier than Start Date.');
+      toast.error('Validation Error', 'End Date cannot be earlier than Start Date.');
       return;
     }
 
@@ -435,11 +456,11 @@ export default function AdminDiscounts() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update promo');
-        showAlert('success', 'Success', data.message || 'Promotion updated successfully');
+        toast.success('Promotion Updated', data.message || 'Promotion updated successfully.');
         setActiveModal(null);
         fetchData();
       } catch (err) {
-        showAlert('error', 'Error', err.message);
+        toast.error('Request Failed', err.message);
       }
     });
   };
@@ -454,10 +475,10 @@ export default function AdminDiscounts() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to archive');
-        showAlert('success', 'Success', data.message || 'Promotion archived successfully');
+        toast.success('Promotion Archived', data.message || 'Promotion archived successfully.');
         fetchData();
       } catch (err) {
-        showAlert('error', 'Error', err.message);
+        toast.error('Request Failed', err.message);
       }
     });
   };
@@ -472,10 +493,10 @@ export default function AdminDiscounts() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to restore');
-        showAlert('success', 'Success', data.message || 'Promotion restored successfully');
+        toast.success('Promotion Restored', data.message || 'Promotion restored successfully.');
         fetchData();
       } catch (err) {
-        showAlert('error', 'Error', err.message);
+        toast.error('Request Failed', err.message);
       }
     });
   };
@@ -767,6 +788,7 @@ export default function AdminDiscounts() {
               </div>
               <form onSubmit={handleCreateDiscSubmit}>
                 <div className="modal-body">
+                  <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>1 · IDENTITY</div>
                   <div className="mb-3">
                     <label className="form-label">Name <span className="required-asterisk">*</span></label>
                     <input
@@ -788,6 +810,7 @@ export default function AdminDiscounts() {
                       onChange={handleDiscInputChange}
                     ></textarea>
                   </div>
+                  <div className="text-muted fw-bold mb-2 mt-3" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>2 · VALUE</div>
                   <div className="row g-2 mb-3">
                     <div className="col">
                       <label className="form-label">Percentage (1-100) <span className="required-asterisk">*</span></label>
@@ -816,6 +839,7 @@ export default function AdminDiscounts() {
                       />
                     </div>
                   </div>
+                  <div className="text-muted fw-bold mb-2 mt-3" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>3 · RULES & ELIGIBILITY</div>
                   <div className="row g-2">
                     <div className="col">
                       <label className="form-label">Discount Type <span className="required-asterisk">*</span></label>
@@ -843,7 +867,7 @@ export default function AdminDiscounts() {
                       >
                         <option value="" disabled>Select</option>
                         {eligibilityTypes.map(e => (
-                          <option key={e.eligibilityTypeID} value={e.eligibilityTypeID}>{e.eligibility}</option>
+                          <option key={e.eligibilityTypeID} value={e.eligibilityTypeID}>{eligibilityOptionLabel(e.eligibility)}</option>
                         ))}
                       </select>
                       {isOpenEligibility && (
@@ -852,6 +876,16 @@ export default function AdminDiscounts() {
                       {isBookingCountEligibility && (
                         <div className="form-text text-muted">Booking Count: guest needs the required completed stays as primary booker.</div>
                       )}
+                      {(() => {
+                        const info = eligibilityExplainer();
+                        if (!info) return null;
+                        return (
+                          <div className="alert alert-info py-2 px-3 mt-2 mb-0" style={{ fontSize: '0.8rem' }}>
+                            <div className="fw-bold mb-0.5"><i className="bi bi-info-circle me-1"></i>How this works: {info.title}</div>
+                            <div className="text-dark">{info.body}</div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -876,6 +910,7 @@ export default function AdminDiscounts() {
               </div>
               <form onSubmit={handleEditDiscSubmit}>
                 <div className="modal-body">
+                  <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>1 · IDENTITY</div>
                   <div className="mb-3">
                     <label className="form-label">Name <span className="required-asterisk">*</span></label>
                     <input
@@ -897,6 +932,7 @@ export default function AdminDiscounts() {
                       onChange={handleDiscInputChange}
                     ></textarea>
                   </div>
+                  <div className="text-muted fw-bold mb-2 mt-3" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>2 · VALUE</div>
                   <div className="row g-2 mb-3">
                     <div className="col">
                       <label className="form-label">Percentage <span className="required-asterisk">*</span></label>
@@ -925,6 +961,7 @@ export default function AdminDiscounts() {
                       />
                     </div>
                   </div>
+                  <div className="text-muted fw-bold mb-2 mt-3" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>3 · RULES & ELIGIBILITY</div>
                   <div className="row g-2">
                     <div className="col">
                       <label className="form-label">Discount Type <span className="required-asterisk">*</span></label>
@@ -950,7 +987,7 @@ export default function AdminDiscounts() {
                         onChange={handleDiscInputChange}
                       >
                         {eligibilityTypes.map(e => (
-                          <option key={e.eligibilityTypeID} value={e.eligibilityTypeID}>{e.eligibility}</option>
+                          <option key={e.eligibilityTypeID} value={e.eligibilityTypeID}>{eligibilityOptionLabel(e.eligibility)}</option>
                         ))}
                       </select>
                       {isOpenEligibility && (
@@ -959,6 +996,16 @@ export default function AdminDiscounts() {
                       {isBookingCountEligibility && (
                         <div className="form-text text-muted">Booking Count: guest needs the required completed stays as primary booker.</div>
                       )}
+                      {(() => {
+                        const info = eligibilityExplainer();
+                        if (!info) return null;
+                        return (
+                          <div className="alert alert-info py-2 px-3 mt-2 mb-0" style={{ fontSize: '0.8rem' }}>
+                            <div className="fw-bold mb-0.5"><i className="bi bi-info-circle me-1"></i>How this works: {info.title}</div>
+                            <div className="text-dark">{info.body}</div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -987,6 +1034,7 @@ export default function AdminDiscounts() {
               </div>
               <form onSubmit={handleCreatePromoSubmit}>
                 <div className="modal-body p-4">
+                  <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>1 · IDENTITY</div>
                   <div className="row g-3 mb-3">
                     <div className="col-md-8">
                       <label className="form-label small fw-semibold">Promotion Name <span className="required-asterisk">*</span></label>
@@ -1028,6 +1076,7 @@ export default function AdminDiscounts() {
                     ></textarea>
                   </div>
 
+                  <div className="text-muted fw-bold mb-2 mt-3" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>2 · APPLICABILITY</div>
                   <div className="row g-3 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Room Limit (Optional)</label>
@@ -1066,9 +1115,11 @@ export default function AdminDiscounts() {
                           <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
                         ))}
                       </select>
+                      <div className="form-text text-muted">Leave both on “All” for a property-wide promo. Picking one narrows it; picking a room clears the type and vice versa.</div>
                     </div>
                   </div>
 
+                  <div className="text-muted fw-bold mb-2 mt-3" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>3 · VALIDITY</div>
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Start Date <span className="required-asterisk">*</span></label>
@@ -1091,6 +1142,7 @@ export default function AdminDiscounts() {
                         onChange={handlePromoInputChange}
                         dateFormat="m/d/Y"
                       />
+                      <div className="form-text text-muted">Must be the same as or later than the start date.</div>
                     </div>
                   </div>
                 </div>
@@ -1115,6 +1167,7 @@ export default function AdminDiscounts() {
               </div>
               <form onSubmit={handleEditPromoSubmit}>
                 <div className="modal-body p-4">
+                  <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>1 · IDENTITY</div>
                   <div className="row g-3 mb-3">
                     <div className="col-md-8">
                       <label className="form-label small fw-semibold">Promotion Name <span className="required-asterisk">*</span></label>
@@ -1153,6 +1206,7 @@ export default function AdminDiscounts() {
                     ></textarea>
                   </div>
 
+                  <div className="text-muted fw-bold mb-2 mt-3" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>2 · APPLICABILITY</div>
                   <div className="row g-3 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Room Limit (Optional)</label>
@@ -1191,9 +1245,11 @@ export default function AdminDiscounts() {
                           <option key={rt.roomTypeID} value={rt.roomTypeID}>{rt.type}</option>
                         ))}
                       </select>
+                      <div className="form-text text-muted">Leave both on “All” for a property-wide promo. Picking one narrows it; picking a room clears the type and vice versa.</div>
                     </div>
                   </div>
 
+                  <div className="text-muted fw-bold mb-2 mt-3" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>3 · VALIDITY</div>
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Start Date <span className="required-asterisk">*</span></label>
@@ -1216,6 +1272,7 @@ export default function AdminDiscounts() {
                         onChange={handlePromoInputChange}
                         dateFormat="m/d/Y"
                       />
+                      <div className="form-text text-muted">Must be the same as or later than the start date.</div>
                     </div>
                   </div>
                 </div>

@@ -37,6 +37,26 @@ async function validateDiscountPayload({ name, percentage, requiredBookings, dis
   return { percentage: pct, requiredBookings: req };
 }
 
+// Promotions: percentage 1-100, real dates, end on/after start.
+function validatePromoPayload({ name, percentage, startDate, endDate }) {
+  if (!name || !String(name).trim()) {
+    return { error: 'Promotion name is required.' };
+  }
+  const pct = parseInt(percentage, 10);
+  if (isNaN(pct) || pct < 1 || pct > 100) {
+    return { error: 'Percentage must be a number between 1 and 100.' };
+  }
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (!startDate || !endDate || isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return { error: 'Please enter a valid start and end date.' };
+  }
+  if (end < start) {
+    return { error: 'End Date cannot be earlier than Start Date.' };
+  }
+  return { percentage: pct };
+}
+
 export async function GET(request) {
   const auth = await verifyAdmin();
   if (!auth.authorized) return auth.response;
@@ -144,18 +164,26 @@ export async function POST(request) {
     // Promotions
     if (action === 'create_promo') {
       const { name, description, startDate, endDate, percentage, roomID, roomTypeID } = body;
+      const check = validatePromoPayload({ name, percentage, startDate, endDate });
+      if (check.error) {
+        return NextResponse.json({ error: check.error }, { status: 400 });
+      }
       await dbQuery(
         "INSERT INTO promotions(name,description,startDate,endDate,percentage,roomID,roomTypeID) VALUES(?,?,?,?,?,?,?)",
-        [name.trim(), description.trim(), startDate, endDate, parseInt(percentage), roomID ? parseInt(roomID) : null, roomTypeID ? parseInt(roomTypeID) : null]
+        [name.trim(), (description || '').trim(), startDate, endDate, check.percentage, roomID ? parseInt(roomID) : null, roomTypeID ? parseInt(roomTypeID) : null]
       );
       return NextResponse.json({ success: true, message: 'Promotion created successfully.' });
     }
 
     if (action === 'update_promo') {
       const { promotionID, name, description, startDate, endDate, percentage, roomID, roomTypeID } = body;
+      const check = validatePromoPayload({ name, percentage, startDate, endDate });
+      if (check.error) {
+        return NextResponse.json({ error: check.error }, { status: 400 });
+      }
       await dbQuery(
         "UPDATE promotions SET name=?, description=?, startDate=?, endDate=?, percentage=?, roomID=?, roomTypeID=? WHERE promotionID=?",
-        [name.trim(), description.trim(), startDate, endDate, parseInt(percentage), roomID ? parseInt(roomID) : null, roomTypeID ? parseInt(roomTypeID) : null, parseInt(promotionID)]
+        [name.trim(), (description || '').trim(), startDate, endDate, check.percentage, roomID ? parseInt(roomID) : null, roomTypeID ? parseInt(roomTypeID) : null, parseInt(promotionID)]
       );
       return NextResponse.json({ success: true, message: 'Promotion updated successfully.' });
     }
