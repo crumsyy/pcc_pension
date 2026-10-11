@@ -63,7 +63,7 @@ function Combobox({ options, value, onChange, placeholder, disabled, stockMap })
         />
       </div>
       {isOpen && (
-        <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', overflowY: 'auto', zIndex: 1060 }}>
+        <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', minWidth: '280px', overflowY: 'auto', zIndex: 1060 }}>
           {filtered.map(opt => {
             const stock = stockMap ? stockMap[`${opt.type}-${opt.id}`] : null;
             return (
@@ -1098,7 +1098,7 @@ export default function AdminPurchaseOrders() {
           {/* CREATE PO MODAL */}
           {activeModal === 'create' && (
           <DialogTrigger isOpen={true}>
-            <Dialog isDismissable={false} showCloseButton={false} aria-label="Create Purchase Order">
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Create Purchase Order" style={{ maxWidth: '800px' }}>
               <DialogHeader>
                 <div className="d-flex justify-content-between align-items-center w-100">
                   <DialogTitle>Create Purchase Order</DialogTitle>
