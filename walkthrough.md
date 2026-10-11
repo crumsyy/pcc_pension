@@ -1,13 +1,12 @@
-# Walkthrough — Selective Master-Data Reset Checklist (no commit/push yet)
+# Walkthrough — Admin Dashboard Crash Fix (displayUserName)
 
-## Changes
-- **`lib/db.js`**: `MASTER_RESET_AREAS` (users, discounts, rooms, amenities, products, purchase_orders, inventory) + `resetMasterData()` (preflight guard counts, caller spare + identity checks, same txn + TRUNCATE-fallback pattern, per-area counts, `system_audit`) + `getResetPreview()` (read-only counts). `resetGuestTransactions` untouched.
-- **`app/api/admin/reset-transactions/route.js`**: `POST {areas}` (default `['transactions']` = today's exact behavior; transactions run first, then masters) + `GET ?preview=1`. Guard violations return 400 with the reason.
-- **Dashboard reset modal**: 8-area checklist with live row counts + linked-row badges, Transactions pre-ticked, typed `DELETE` gate, per-area result summary. Same theme/styles.
-- Rules enforced: dependents present + Transactions not selected → refused with guidance; your own login never deleted; IDs restart on fully-cleared tables.
+## Cause
+`Uncaught ReferenceError: displayUserName is not defined` on every admin dashboard render (guest/receptionist unaffected). My earlier duplicated-function repair in `DashboardClient.js` swallowed the `displayUserName` declaration while the JSX still used it. Lint/build can't catch this class (syntax stays valid).
+
+## Fix (`app/admin/dashboard/DashboardClient.js`, 1 line)
+- Re-added `const displayUserName = userName || stats?.userName || clientCache.get('admin-user-name')?.data || 'Admin';`.
+- Sanity pass: verified all other component-scope identifiers referenced in the file resolve (states, stats destructure, modal/reset helpers, map/catch params) — no other drops found.
 
 ## Verification (actually performed)
-- `npx eslint`: the single finding is pre-existing HEAD text (`Today's Revenue` apostrophe). `npm run build`: 97/97.
-- Live destructive flows NOT run here (no test DB; this wipes data) — staging only, starting with your Users + Discounts case after a transaction reset.
-
-Say `"push"` only when you want commit + push.
+- `npx eslint`: only the known pre-existing apostrophe finding. `npm run build`: 97/97.
+- Needs your staging check: log in as admin and confirm the dashboard renders.

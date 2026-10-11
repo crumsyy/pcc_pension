@@ -23,6 +23,8 @@ export default function DashboardClient({ userName }) {
   const [activeBookPage, setActiveBookPage] = useState(1);
   const fetchInFlight = useRef(false);
 
+  const displayUserName = userName || stats?.userName || clientCache.get('admin-user-name')?.data || 'Admin';
+
   const toggleResetArea = (key) => {
     setResetAreas((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
   };
