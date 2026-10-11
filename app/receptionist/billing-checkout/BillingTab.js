@@ -669,11 +669,6 @@ export default function ReceptionistBilling() {
     return true; // 'all'
   });
 
-  const allCount = activeBookings.length;
-  const upcomingCount = activeBookings.filter(b => UPCOMING_STATUS_LIST.includes(b.status)).length;
-  const activeCount = activeBookings.filter(b => ACTIVE_STATUS_LIST.includes(b.status)).length;
-  const completedCount = activeBookings.filter(b => b.status === 'Completed' || b.status === 'Checked Out').length;
-
   const appliedDiscountsList = (billDetails?.guestsList || []).filter(g => {
     const dId = g.discountID;
     const pId = g.promotionID;
@@ -707,36 +702,14 @@ export default function ReceptionistBilling() {
                 />
               </div>
               <div className="col-md-6 text-md-end">
-                <div className="btn-group btn-group-sm" role="group">
-                  <button
-                    type="button"
-                    className={`btn fw-semibold ${statusFilter === 'all' ? 'btn-primary text-white' : 'btn-outline-secondary'}`}
-                    onClick={() => setStatusFilter('all')}
-                  >
-                    All Stays ({allCount})
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn fw-semibold ${statusFilter === 'upcoming' ? 'btn-warning text-dark' : 'btn-outline-secondary'}`}
-                    onClick={() => setStatusFilter('upcoming')}
-                  >
-                    Upcoming / Booked ({upcomingCount})
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn fw-semibold ${statusFilter === 'active' ? 'btn-info text-white' : 'btn-outline-secondary'}`}
-                    onClick={() => setStatusFilter('active')}
-                  >
-                    Active Stays ({activeCount})
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn fw-semibold ${statusFilter === 'completed' ? 'btn-success text-white' : 'btn-outline-secondary'}`}
-                    onClick={() => setStatusFilter('completed')}
-                  >
-                    Completed Stays ({completedCount})
-                  </button>
-                </div>
+                <Tabs selectedKey={statusFilter} onSelectionChange={(key) => setStatusFilter(key)}>
+                  <TabList aria-label="Stay filters">
+                    <Tab id="all">All Stays</Tab>
+                    <Tab id="upcoming">Upcoming / Booked</Tab>
+                    <Tab id="active">Active Stays</Tab>
+                    <Tab id="completed">Completed Stays</Tab>
+                  </TabList>
+                </Tabs>
               </div>
             </div>
           </div>
