@@ -1,11 +1,15 @@
-# Walkthrough — Modal Inter + shadcn Confirmations (Phase 0+1, no commit/push yet)
+# Walkthrough — shadcn Dialog for 12 Management Modals (no commit/push yet)
 
-## Changes (2 files)
-- **`app/globals.css`**: Inter enforcement for legacy Bootstrap modal surfaces (same pattern as tables/toasts) — every admin/receptionist/guest modal matches the app font immediately.
-- **`app/components/ModalDialog.js`**: confirm shell rebuilt on shadcn `Dialog` primitives (React Aria). Same props/API/behavior: toast branch byte-identical, PCC-blue header, icon, message, variant buttons, submitting spinner, X button, non-dismissable overlay. All ~50 `showConfirm` calls upgrade with zero call-site changes.
+## Changes (create/update only; fields, validation, submits byte-identical)
+- `app/admin/discounts/page.js`: create_disc, edit_disc, create_promo, edit_promo (800px width kept for promos).
+- `app/admin/users/UsersClient.js`: create, edit (800px kept; view/suspend stay Bootstrap).
+- `app/admin/rooms/RoomsClient.js`: create, edit (680px kept).
+- `app/admin/amenities/page.js`: create, edit (640px kept).
+- `app/admin/products/page.js`: create, edit incl. meal variants (640px kept).
+- Pattern each: shell → `DialogTrigger isOpen` + `Dialog isDismissable={false}` + `DialogHeader/Title` (PCC blue via CSS, existing X button kept) + `DialogBody/DialogFooter` (same buttons). Surrounding gating, `ModalPortal` wrappers, and all logic untouched. Dark mode + Inter + animations come from the existing dialog shell.
 
 ## Verification (actually performed)
-- `npx eslint`: identical counts before/after (pre-existing only). `npm run build`: 97/97. No leftover Bootstrap modal markup in the component.
-- Staging checks needed: open any confirmation (archive/cancel/checkout/payment), X + Cancel + Confirm paths, Escape/backdrop must NOT dismiss, dark-mode confirm, cmd form modals still Bootstrap (Phase 2).
+- `npx eslint` on the 5 files: 19 problems before = 19 after (pre-existing). `npm run build`: 97/97. Grep confirms only out-of-scope modals (view/suspend/purchase-orders/inventory/dashboard) still use Bootstrap markup.
+- Staging checks needed: open/save each of the 12, X + Cancel paths, Escape/backdrop must not dismiss, dark mode.
 
 Say `"push"` only when you want commit + push.

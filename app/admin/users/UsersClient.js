@@ -8,6 +8,14 @@ import AdminPagination from '../../components/AdminPagination';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import ProvinceCityInputs from '../../components/ProvinceCityInputs';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
+import {
+  DialogTrigger,
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { isKnownProvince, isCityInProvince } from '@/lib/phLocations';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
@@ -661,15 +669,16 @@ export default function UsersClient() {
         <ModalPortal>
           {/* CREATE MODAL */}
           {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">{createKind === 'guest' ? 'Create Guest' : 'Create Staff'}</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label={createKind === 'guest' ? 'Create Guest' : 'Create Staff'} style={{ maxWidth: '800px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>{createKind === 'guest' ? 'Create Guest' : 'Create Staff'}</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleCreateSubmit}>
-                <div className="modal-body">
+                <DialogBody>
                   <div className="row g-3">
                     <div className="col-md-4">
                       <label className="form-label">First Name <span className="required-asterisk">*</span></label>
@@ -766,15 +775,14 @@ export default function UsersClient() {
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer">
+                </DialogBody>
+                <DialogFooter>
                   <button type="submit" className="btn btn-pcc-primary text-white">{createKind === 'guest' ? 'Create Guest' : 'Create Staff'}</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
 
       {/* VIEW MODAL */}
@@ -846,15 +854,16 @@ export default function UsersClient() {
 
       {/* EDIT MODAL */}
       {activeModal === 'edit' && selectedUser && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Update User</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Update User" style={{ maxWidth: '800px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Update User</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleEditSubmit}>
-                <div className="modal-body">
+                <DialogBody>
                   <div className="row g-3">
                     <div className="col-md-4">
                       <label className="form-label">First Name <span className="required-asterisk">*</span></label>
@@ -952,15 +961,14 @@ export default function UsersClient() {
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer">
+                </DialogBody>
+                <DialogFooter>
                   <button type="submit" className="btn btn-pcc-primary text-white">Update User</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
 
       {/* SUSPEND MODAL */}

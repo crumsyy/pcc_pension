@@ -6,6 +6,14 @@ import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
+import {
+  DialogTrigger,
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
@@ -674,15 +682,16 @@ export default function RoomsClient() {
         <ModalPortal>
           {/* CREATE MODAL */}
           {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered modal-lg" style={{ maxWidth: '680px' }}>
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Create Room</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Create Room" style={{ maxWidth: '680px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Create Room</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleCreateSubmit}>
-                <div className="modal-body p-3">
+                <DialogBody>
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Room Number <span className="required-asterisk">*</span></label>
@@ -860,28 +869,28 @@ export default function RoomsClient() {
                       placeholder="Enter room details, features, or description..."
                     />
                   </div>
-                </div>
-                <div className="modal-footer">
+                </DialogBody>
+                <DialogFooter>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                   <button type="submit" className="btn btn-pcc-primary text-white">Create Room</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
 
       {/* EDIT MODAL */}
       {activeModal === 'edit' && selectedRoom && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered modal-lg" style={{ maxWidth: '680px' }}>
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Update Room {selectedRoom.roomNumber}</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Update Room" style={{ maxWidth: '680px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Update Room {selectedRoom.roomNumber}</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleEditSubmit}>
-                <div className="modal-body p-3">
+                <DialogBody>
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Room Number <span className="required-asterisk">*</span></label>
@@ -1056,15 +1065,14 @@ export default function RoomsClient() {
                       placeholder="Enter room details, features, or description..."
                     />
                   </div>
-                </div>
-                <div className="modal-footer">
+                </DialogBody>
+                <DialogFooter>
                   <button type="submit" className="btn btn-pcc-primary text-white">Update Room</button>
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
         </ModalPortal>
       )}

@@ -6,6 +6,14 @@ import ModalPortal from '../../components/ModalPortal';
 import ActionButtons from '../../components/ActionButtons';
 import AdminPagination, { ADMIN_PAGE_SIZE, paginate } from '../../components/AdminPagination';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
+import {
+  DialogTrigger,
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
@@ -497,15 +505,16 @@ export default function AdminAmenities() {
         <ModalPortal>
           {/* CREATE MODAL */}
           {activeModal === 'create' && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '640px' }}>
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Create Amenity</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Create Amenity" style={{ maxWidth: '640px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Create Amenity</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleCreateSubmit}>
-                <div className="modal-body p-3">
+                <DialogBody>
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Name <span className="required-asterisk">*</span></label>
@@ -643,28 +652,28 @@ export default function AdminAmenities() {
                       />
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer">
+                </DialogBody>
+                <DialogFooter>
                   <button type="submit" className="btn btn-pcc-primary">Create Amenity</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
 
       {/* EDIT MODAL */}
       {activeModal === 'edit' && selectedItem && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '640px' }}>
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Update Amenity</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Update Amenity" style={{ maxWidth: '640px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Update Amenity</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleEditSubmit}>
-                <div className="modal-body p-3">
+                <DialogBody>
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Name <span className="required-asterisk">*</span></label>
@@ -801,15 +810,14 @@ export default function AdminAmenities() {
                       />
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer">
+                </DialogBody>
+                <DialogFooter>
                   <button type="submit" className="btn btn-pcc-primary">Update Amenity</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
         </ModalPortal>
       )}

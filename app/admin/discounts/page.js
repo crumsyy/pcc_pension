@@ -7,6 +7,14 @@ import ActionButtons from '../../components/ActionButtons';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
+import {
+  DialogTrigger,
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/AdminPagination';
@@ -779,15 +787,16 @@ export default function AdminDiscounts() {
         <ModalPortal>
           {/* CREATE DISCOUNT MODAL */}
           {activeModal === 'create_disc' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Create Discount</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Create Discount">
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Create Discount</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleCreateDiscSubmit}>
-                <div className="modal-body">
+                <DialogBody>
                   <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>1 · IDENTITY</div>
                   <div className="mb-3">
                     <label className="form-label">Name <span className="required-asterisk">*</span></label>
@@ -888,28 +897,28 @@ export default function AdminDiscounts() {
                       })()}
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer">
+                </DialogBody>
+                <DialogFooter>
                   <button type="submit" className="btn btn-pcc-primary">Create Discount</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
 
       {/* EDIT DISCOUNT MODAL */}
       {activeModal === 'edit_disc' && selectedDisc && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
-                <h5 className="modal-title">Update Discount</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Update Discount">
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Update Discount</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleEditDiscSubmit}>
-                <div className="modal-body">
+                <DialogBody>
                   <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>1 · IDENTITY</div>
                   <div className="mb-3">
                     <label className="form-label">Name <span className="required-asterisk">*</span></label>
@@ -1008,15 +1017,14 @@ export default function AdminDiscounts() {
                       })()}
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer">
+                </DialogBody>
+                <DialogFooter>
                   <button type="submit" className="btn btn-pcc-primary">Update Discount</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
 
       {/* ==========================================
@@ -1025,15 +1033,16 @@ export default function AdminDiscounts() {
 
       {/* CREATE PROMO MODAL */}
       {activeModal === 'create_promo' && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-              <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
-                <h5 className="modal-title fw-bold">Create Promotion</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Create Promotion" style={{ maxWidth: '800px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Create Promotion</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleCreatePromoSubmit}>
-                <div className="modal-body p-4">
+                <DialogBody>
                   <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>1 · IDENTITY</div>
                   <div className="row g-3 mb-3">
                     <div className="col-md-8">
@@ -1145,28 +1154,28 @@ export default function AdminDiscounts() {
                       <div className="form-text text-muted">Must be the same as or later than the start date.</div>
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer border-top-0 pt-0 pb-4 px-4">
+                </DialogBody>
+                <DialogFooter className="border-top-0 pt-0 pb-4 px-4">
                   <button type="button" className="btn btn-secondary px-4 fw-bold" onClick={() => setActiveModal(null)}>Cancel</button>
                   <button type="submit" className="btn btn-pcc-primary px-4 fw-bold text-white">Create Promotion</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
 
       {/* EDIT PROMO MODAL */}
       {activeModal === 'edit_promo' && selectedPromo && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-              <div className="modal-header text-white" style={{ background: 'var(--pcc-blue)' }}>
-                <h5 className="modal-title fw-bold">Update Promotion</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
-              </div>
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Update Promotion" style={{ maxWidth: '800px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Update Promotion</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
               <form onSubmit={handleEditPromoSubmit}>
-                <div className="modal-body p-4">
+                <DialogBody>
                   <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.08em' }}>1 · IDENTITY</div>
                   <div className="row g-3 mb-3">
                     <div className="col-md-8">
@@ -1275,15 +1284,14 @@ export default function AdminDiscounts() {
                       <div className="form-text text-muted">Must be the same as or later than the start date.</div>
                     </div>
                   </div>
-                </div>
-                <div className="modal-footer border-top-0 pt-0 pb-4 px-4">
+                </DialogBody>
+                <DialogFooter className="border-top-0 pt-0 pb-4 px-4">
                   <button type="button" className="btn btn-secondary px-4 fw-bold" onClick={() => setActiveModal(null)}>Cancel</button>
                   <button type="submit" className="btn btn-pcc-primary px-4 fw-bold text-white">Update Promotion</button>
-                </div>
+                </DialogFooter>
               </form>
-            </div>
-          </div>
-        </div>
+            </Dialog>
+          </DialogTrigger>
       )}
         </ModalPortal>
       )}
