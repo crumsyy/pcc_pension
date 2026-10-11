@@ -83,7 +83,6 @@ export default function ReceptionistDashboardClient({ initialData }) {
 
   const {
     userName = 'Receptionist',
-    totalCheckIns = 0,
     totalCheckOuts = 0,
     occupiedRooms = 0,
     availableRooms = 0,
@@ -126,11 +125,10 @@ export default function ReceptionistDashboardClient({ initialData }) {
   };
 
   const stats = [
-    ["Active Stays", totalCheckIns, "#2155B5"],
     ["Today's Check-outs", totalCheckOuts, "#2155B5"],
     ["Rooms Occupied", occupiedRooms, "#2155B5"],
     ["Rooms Available", availableRooms, "#2155B5"],
-    ["Active Reserv.", pendingRes, "#2155B5"],
+    ["Rooms Reserved", pendingRes, "#2155B5"],
     ["Under Maintenance", underMaintenanceRooms, "#2155B5"]
   ];
 
@@ -149,7 +147,7 @@ export default function ReceptionistDashboardClient({ initialData }) {
       {/* Quick stats */}
       <div className="row g-3 mb-4">
         {stats.map(([label, value, color], index) => (
-          <div key={index} className="col-6 col-md-4 col-xl-2">
+          <div key={index} className="col-6 col-md-4 col-xl">
             <div 
               className="p-3 bg-white shadow-sm transition-all" 
               style={{ 

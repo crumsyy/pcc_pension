@@ -1,29 +1,27 @@
-# Implementation Plan — Remove Sync Now + Live Real-Time from dashboard header (for approval)
+# Implementation Plan — Dashboard stat cards: rename + dedupe (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. User request
-- Remove the `Sync Now` button and the `Live Real-Time` badge from the receptionist dashboard header ([Image 1]).
+## 1. User requests
+1. Rename `ACTIVE RESERV.` card → `ROOMS RESERVED`.
+2. `ACTIVE STAYS` and `ROOMS OCCUPIED` are redundant (1 booking = 1 room, always the same number) — drop one.
 
 ## 2. Evidence / current state
-- `ReceptionistDashboardClient.js:148-167`: header row renders date + `•` + green `Live Real-Time` badge (151-154) on the left, and the `Sync Now` button (158-167, calls `fetchDashboardData(true)`) on the right.
-- `isRefreshing` state (line 11) exists only for that button (spinner class + `Updating...` label + `disabled`); `setIsRefreshing` is called only inside `fetchDashboardData(showIndicator)` and the button.
-- `pcc-refresh-dashboard` custom event (line ~69: `fetchDashboardData(true)`) also passes `showIndicator=true` — no UI will consume it after removal, but the fetch itself still works.
-- `spin-icon` keyframes (`170-177`) only serve the button icon.
+- `ReceptionistDashboardClient.js:128-135`: 6-entry `stats` array → `Active Stays (totalCheckIns)`, `Today's Check-outs`, `Rooms Occupied (occupiedRooms)`, `Rooms Available`, `Active Reserv. (pendingRes)`, `Under Maintenance`.
+- `totalCheckIns` used only in destructure (86) + stats entry (129); `occupiedRooms` also used at line 191 (kept regardless).
+- Grid is `col-6 col-md-4 col-xl-2` × 6; dropping to 5 cards leaves a 2-col gap on xl unless adjusted.
 
 ## 3. Proposed changes (only `ReceptionistDashboardClient.js`)
-1. Delete the badge block (lines 150-154: `•` separator + badge). Keep `Today — {date}`.
-2. Delete the `Sync Now` button (158-167) and the `spin-icon` `<style>` block (170-177).
-3. Simplify: `fetchDashboardData(showIndicator)` → drop the parameter; remove `isRefreshing` state + `setIsRefreshing` calls (keep `lastUpdated`, `lastFetchAtRef`, polling, focus gate, custom event — auto-refresh keeps working silently).
-4. Update the polling comment (line 58) that references “Sync Now”.
+1. Rename entry: `["Active Reserv.", pendingRes, ...]` → `["Rooms Reserved", pendingRes, ...]` (count semantics unchanged: one reservation holds one room).
+2. Remove the `["Active Stays", totalCheckIns, ...]` entry (keep room-centric `Rooms Occupied`); remove `totalCheckIns = 0` from destructuring (else unused-var lint).
+3. Grid: card wrapper `col-xl-2` → `col-xl` so 5 cards fill the row evenly on xl (`col-6 col-md-4` responsive behavior unchanged).
 
 ## 4. Verification
-- `grep -n "Sync Now\|Live Real-Time\|isRefreshing\|spin-icon" ReceptionistDashboardClient.js` → zero matches.
-- `eslint` (pre-existing families only); `npm run build` 97/97.
-- Visual: header shows title + date only; stats auto-refresh silently every 15s as before.
+- `grep`: `Active Stays`/`Active Reserv.` gone; `Rooms Reserved`/`Rooms Occupied` present; no `totalCheckIns` references.
+- `eslint` clean; `npm run build` 97/97; visual: 5 even cards.
 
-## 5. Risks / notes
-- None behavioral for data: manual sync is gone, but 15s polling + focus-gate + `pcc-refresh-dashboard` event refreshes remain. If other code dispatches `pcc-refresh-dashboard` expecting a visible indicator, it will now refresh silently — acceptable per request.
+## 5. Risks
+- None: label + array entry removal only; counts/keys untouched; server snapshot unchanged.
 
 ## 6. Questions
-- Q1: Proceed as planned?
+- Q1: Remove `Active Stays` (recommended, keeps room-centric row) or `Rooms Occupied`?
