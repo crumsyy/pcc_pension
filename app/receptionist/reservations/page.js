@@ -161,6 +161,16 @@ function ReservationsClient() {
     setFormErrors(prev => ({ ...prev, guestID: '', firstName: '', middleName: '', lastName: '', contact: '', email: '', dateOfBirth: '' }));
     if (!val) {
       setIsAutoFilled(false);
+      // Clearing the account returns to a blank walk-in form (no stale autofill).
+      setGuestForm({
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        contact: '',
+        email: '',
+        gender: 'Male',
+        dateOfBirth: ''
+      });
       return;
     }
     const selected = guests.find(g => String(g.guestID) === String(val));
@@ -177,6 +187,9 @@ function ReservationsClient() {
       setIsAutoFilled(true);
     }
   };
+
+  // A selected guest account locks the details form to that account.
+  const detailsLocked = Boolean(formData.guestID);
 
   const [selectedRoomType, setSelectedRoomType] = useState('');
   const [breakfastOption, setBreakfastOption] = useState('with');
@@ -1462,6 +1475,12 @@ function ReservationsClient() {
                         {formData.guestID ? 'Account Linked' : 'Walk-In Entry'}
                       </span>
                     </div>
+                    {formData.guestID ? (
+                      <div className="alert alert-info py-1.5 px-2.5 small mb-3 d-flex align-items-center gap-2">
+                        <i className="bi bi-lock-fill"></i>
+                        <span>Details are locked to the selected guest account. Clear the account above to enter a walk-in manually.</span>
+                      </div>
+                    ) : null}
 
                     <div className="row g-2 mb-2">
                       <div className="col-md-4">
@@ -1470,6 +1489,8 @@ function ReservationsClient() {
                           type="text"
                           className={`form-control form-control-sm ${formErrors.firstName ? 'is-invalid border-danger' : ''}`}
                           required
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.firstName}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[0-9]/g, '');
@@ -1487,6 +1508,8 @@ function ReservationsClient() {
                           type="text"
                           className={`form-control form-control-sm ${formErrors.middleName ? 'is-invalid border-danger' : ''}`}
                           placeholder="Optional"
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.middleName || ''}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[0-9]/g, '');
@@ -1504,6 +1527,8 @@ function ReservationsClient() {
                           type="text"
                           className={`form-control form-control-sm ${formErrors.lastName ? 'is-invalid border-danger' : ''}`}
                           required
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.lastName}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[0-9]/g, '');
@@ -1525,6 +1550,8 @@ function ReservationsClient() {
                           className={`form-control form-control-sm ${formErrors.contact ? 'is-invalid border-danger' : ''}`}
                           placeholder="09XXXXXXXXX"
                           required
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.contact}
                           onChange={(e) => {
                             const sanitized = e.target.value.replace(/[^0-9]/g, "").slice(0, 11);
@@ -1541,6 +1568,7 @@ function ReservationsClient() {
                         <DateInput
                           className={`form-control form-control-sm ${formErrors.dateOfBirth ? 'is-invalid border-danger' : ''}`}
                           value={guestForm.dateOfBirth}
+                          disabled={detailsLocked}
                           onChange={(e) => {
                             setGuestForm(prev => ({ ...prev, dateOfBirth: e.target.value }));
                             setFormErrors(prev => ({ ...prev, dateOfBirth: '' }));
@@ -1559,6 +1587,8 @@ function ReservationsClient() {
                           type="email"
                           className={`form-control form-control-sm ${formErrors.email ? 'is-invalid border-danger' : ''}`}
                           placeholder="name@example.com"
+                          disabled={detailsLocked}
+                          title={detailsLocked ? 'Locked to the selected guest account' : ''}
                           value={guestForm.email}
                           onChange={(e) => {
                             setGuestForm(prev => ({ ...prev, email: e.target.value }));

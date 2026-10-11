@@ -14,6 +14,9 @@ export default function SearchableSelect({
   const [searchTerm, setSearchTerm] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const containerRef = useRef(null);
+  // Parent re-renders rebuild `options` arrays inline; only resync when the
+  // selected VALUE actually changes, or in-progress typing gets clobbered.
+  const prevValueRef = useRef(value);
 
   const safeOptions = Array.isArray(options) ? options : [];
 
@@ -23,8 +26,10 @@ export default function SearchableSelect({
   // Determine display value
   const displayValue = isTyping ? searchTerm : (selectedOption ? selectedOption.label : '');
 
-  // Keep search term synced with value updates
+  // Keep search term synced with value updates (value changes only)
   useEffect(() => {
+    if (String(prevValueRef.current) === String(value)) return;
+    prevValueRef.current = value;
     const opts = Array.isArray(options) ? options : [];
     const currentOpt = opts.find(opt => String(opt?.value) === String(value));
     if (currentOpt) {
