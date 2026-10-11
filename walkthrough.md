@@ -1,18 +1,18 @@
-# Walkthrough — Fix slow receptionist dashboard load
+# Walkthrough — Production dashboard latency fix
 
 ## Changes
-- `lib/session.js`: `getSessionDetails` wrapped in React `cache()` — layout + page share one session DB lookup per request (was 2). Return shape/semantics unchanged.
-- `lib/db.js`: `syncRoomStatuses` throttle 30s → 5min backstop (per-instance throttle never held on serverless anyway).
-- `app/receptionist/dashboard/page.js`: dropped `await syncRoomStatuses(false)` (cron owns the sweep); 6 `COUNT(*)` queries batched into 2 conditional-`SUM` queries (booking, room) + reservation count as-is → 9 roundtrips instead of 12+; dev-only `console.time` markers (`[dashboard] session/queries/total`) so you can confirm the split with `npm run dev`.
-- `app/api/receptionist/dashboard/route.js` (15s poll + focus refetch): same sweep removal + same count batching. This also stops every open tab from triggering the maintenance sweep every 15s.
-- `app/receptionist/dashboard/loading.js`: recreated returning `null` — route transition unblocks instantly, no skeleton flash.
-- Indexes: checked live DB (`SHOW INDEX`) — booking/room/reservation/orders already carry status/date/FK indexes; tables are hotel-scale so the remaining scans are trivial. No migration needed.
+- `vercel.json`: added `"regions": ["sin1"]` — functions now run next to the TiDB DB (ap-southeast) instead of default US East. Expected: per-roundtrip ~200ms+ → single-digit ms on deploy.
+- `lib/dashboardSnapshot.js` (new): all 9 dashboard reads as ONE multi-statement batch over a dedicated read-only connection (`multipleStatements`, static SQL only, pool limit 3), 15s module-level result cache (matches client poll), parallel-`Promise.all` fallback on any batch error.
+- `dashboard/page.js` + `api/receptionist/dashboard/route.js`: consume `fetchDashboardSnapshot()`; sweep calls removed; same predicates, same response keys, `Number(...) || 0` normalization (verified live: `SUM()` returns DECIMAL strings).
+- `lib/session.js`: `getSessionDetails` wrapped in React `cache()` — layout + page share one lookup per request.
+- `lib/db.js`: sweep throttle 30s → 5min backstop (cron owns the sweep).
+- Pollers calmed: inquiry alerts 10s → 60s (`ReceptionistSidebarNav.js`); dashboard focus/visibility refetch gated on >15s staleness (`lastFetchAtRef`, set on mount + each successful fetch).
 
 ## Verification
-- `eslint` on touched files: clean (no new issues).
-- `npm run build`: success, `/receptionist/dashboard` + `/api/receptionist/dashboard` render.
-- `SUM(status IN (...))` ≡ old `COUNT(*) WHERE` semantics (non-matching rows contribute 0/NULL-ignored); `Number(...) || 0` normalizes mysql DECIMAL strings; JSON keys unchanged so `ReceptionistDashboardClient` needs no changes.
-- Confirm in dev: load dashboard, read `[dashboard] session/queries/total` timings in server console.
+- Live DB probes: batch shape correct (N statements → N row-arrays, one roundtrip); `SUM()` string typing confirmed and handled.
+- `eslint`: clean on all touched files (one new `purity` error I introduced was fixed via mount-effect init).
+- `npm run build`: exit 0, 97/97.
+- After deploy: confirm sin1 in function logs + dashboard TTFB; dev server prints `[dashboard] session/queries/total` timings.
 
 ## No commit/push
 No commit or push made. Awaiting explicit `push` keyword after your review.

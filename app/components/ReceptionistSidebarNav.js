@@ -20,7 +20,7 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick, c
 
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 10000);
+    const interval = setInterval(fetchAlerts, 60000);
     return () => clearInterval(interval);
   }, []);
 

@@ -12,6 +12,7 @@ export default function ReceptionistDashboardClient({ initialData }) {
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const isFetchingRef = useRef(false);
   const fetchAbort = useRef(null);
+  const lastFetchAtRef = useRef(0);
 
   const fetchDashboardData = useCallback(async (showIndicator = false) => {
     if (isFetchingRef.current) return;
@@ -38,6 +39,7 @@ export default function ReceptionistDashboardClient({ initialData }) {
           }));
           clientCache.set('RECEPTIONIST_DASHBOARD', json, CACHE_TTL.RECEPTIONIST_DASHBOARD);
           setLastUpdated(new Date());
+          lastFetchAtRef.current = Date.now();
         }
       }
     } catch (err) {
@@ -50,6 +52,9 @@ export default function ReceptionistDashboardClient({ initialData }) {
   }, []);
 
   useEffect(() => {
+    // Initial data comes from the server render; treat mount as a fresh fetch
+    // so focus/visibility doesn't immediately refetch.
+    lastFetchAtRef.current = Date.now();
     // 15-second polling (was 3s — dashboard data changes slowly; Sync Now,
     // focus, and refresh events still fetch on demand).
     const interval = setInterval(() => {
@@ -58,9 +63,11 @@ export default function ReceptionistDashboardClient({ initialData }) {
       }
     }, 15000);
 
-    const handleFocus = () => fetchDashboardData(false);
+    const isFresh = () => Date.now() - lastFetchAtRef.current < 15000;
+
+    const handleFocus = () => { if (!isFresh()) fetchDashboardData(false); };
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') fetchDashboardData(false);
+      if (document.visibilityState === 'visible' && !isFresh()) fetchDashboardData(false);
     };
     const handleCustomEvent = () => fetchDashboardData(true);
 
