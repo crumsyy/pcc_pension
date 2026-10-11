@@ -970,9 +970,6 @@ function ReservationsClient() {
     return Boolean(r.bookingID) || rNorm === 'Booked' || rNorm === 'Cancelled';
   };
 
-  const activeReservationsCount = reservations.filter(r => !isHistoricalReservation(r)).length;
-  const historyReservationsCount = reservations.filter(r => isHistoricalReservation(r)).length;
-
   const filteredReservations = reservations.filter(r => {
     const resIdStr = (r.reservationID || '').toString();
     const guestSearch = `${r.firstName || ''} ${r.lastName || ''} ${r.roomNumber || ''} ${r.contact || ''} ${resIdStr}`.toLowerCase();
@@ -1009,24 +1006,8 @@ function ReservationsClient() {
           className="mb-3"
         >
           <TabList aria-label="Reservation lists">
-            <Tab id="active">
-              <span className="d-inline-flex align-items-center gap-2">
-                <i className="bi bi-bookmark-check"></i>
-                <span>Active Reservations &amp; Holds</span>
-                <span className="badge bg-secondary text-white rounded-pill ms-1">
-                  {activeReservationsCount}
-                </span>
-              </span>
-            </Tab>
-            <Tab id="history">
-              <span className="d-inline-flex align-items-center gap-2">
-                <i className="bi bi-archive-fill"></i>
-                <span>Historical &amp; Converted Log</span>
-                <span className="badge bg-secondary text-white rounded-pill ms-1">
-                  {historyReservationsCount}
-                </span>
-              </span>
-            </Tab>
+            <Tab id="active">Reservations</Tab>
+            <Tab id="history">History</Tab>
           </TabList>
         </Tabs>
 

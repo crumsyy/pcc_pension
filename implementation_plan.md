@@ -1,57 +1,53 @@
-# Implementation Plan — Booking parity with Reservation (for approval)
+# Implementation Plan — Simplify receptionist tabs (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
 ## 1. User requests
-1. **Booking conflict UX:** Don't rely on toast for schedule conflict. Make `Save Booking & Record Down Payment` not clickable when there is a schedule conflict, just like Reservation (`Place Courtesy Hold` / `Update Reservation` disabled pattern).
-2. **Booking guest lock:** When a guest account (UID) is selected in Booking, Guest Details fields should not be editable — same as Reservation (`detailsLocked`).
+- Reservations tabs → just `Reservations`, no icons, no count badges ([Image 1]).
+- Bookings tabs → just `Bookings`, no icons, no count badges ([Image 2]).
+- “remove the number as well for both just tabs shadcnUI” — plain shadcn `Tabs/TabList/Tab` text labels.
+
+Interpretation: each page keeps its 2-tab structure (active vs history filtering) but labels become single words:
+- `app/receptionist/reservations/page.js`: `Reservations` (id `active`) + `History`? Or both tabs literally “Reservations”? Latter would be duplicate labels. Assume: active → `Reservations`, history → `History`. Needs confirmation (see Q1).
+- `app/receptionist/bookings/page.js`: active → `Bookings`, history → `History`.
+
+If user literally wants both tabs on a page to read the same word, say so — will implement verbatim but it hurts usability.
 
 ## 2. Evidence / current state
-- Booking file: `app/receptionist/bookings/page.js`
-  - Create submit conflict guard `handleCreateSubmit` lines ~1283-1299: calls `checkScheduleConflict(...)` then `showAlert('error','Schedule Conflict',...)` + `return`. This is the toast the user wants to remove/replace.
-  - `checkScheduleConflict(roomId, inDate, outDate, inTime, outTime, currentBookingId)` lines ~1694-1754: returns object or null. Reservation version returns boolean. Both check `roomSchedules` + bookings overlap `sIn < reqOut && sOut > reqIn`.
-  - Save button lines ~3144-3157: `LoadingButton` with only `isLoading`, no `disabled` for conflict. `LoadingButton` (`app/components/LoadingButton.js:10-26`) already supports `disabled` prop (`disabled={disabled || isLoading}`), so parity is trivial.
-  - Guest details inputs lines ~2325-2404: `firstName/middleName/lastName/contact/DateInput/email` are always editable. No `detailsLocked`. `handleUidChange` lines ~227-246: on clear only sets `isAutoFilled(false)`, leaves stale `guestForm` values (Reservation clears to blank).
-  - Room dropdown lines ~2440-2448 filters with `isRoomAvailableForDates(...)` (hides conflicted rooms), but user can still pick dates after room that cause conflict — hence button-disable + inline alert still needed.
-- Reservation reference: `app/receptionist/reservations/page.js`
-  - `detailsLocked = Boolean(formData.guestID)` line 194; inputs use `disabled={detailsLocked}` + `title='Locked...'` lines 1515-1614; lock banner lines 1501-1506; badge `Account Linked / Walk-In Entry` lines 1497-1499.
-  - Conflict UI: inline `alert-danger` lines 1775-1780 + button `disabled={Boolean(formData.roomID && resDate && checkScheduleConflict(...))}` line 1960. Submit guards lines ~747, 852 set `errors.conflict`.
-  - `handleUidChange` lines 161-191 clears `guestForm` on empty UID.
+- Reservations `app/receptionist/reservations/page.js:1006-1031`:
+  - `<Tabs selectedKey={activeTab} onSelectionChange=...>` with `<Tab id="active">` icon `bi-bookmark-check` + `Active Reservations & Holds` + badge `{activeReservationsCount}`, and `<Tab id="history">` icon `bi-archive-fill` + `Historical & Converted Log` + badge `{historyReservationsCount}`.
+- Bookings `app/receptionist/bookings/page.js:1821-1846`:
+  - Same pattern: `bi-clock-history` + `Active Stays & Bookings` + `{activeBookingsCount}`; `bi-archive-fill` + `Historical Log` + `{historyBookingsCount}`.
+- Counts derived: `activeReservationsCount/historyReservationsCount` (~line 973), `activeBookingsCount/historyBookingsCount` (lines 1665-1666). After removal these vars become unused → remove or leave (lint `no-unused-vars` risk; will remove).
+- No other code depends on tab labels; `activeTab` values (`active`/`history`), search placeholders, status filters, tables all keyed off `activeTab`, not labels — safe.
 
-## 3. Proposed changes (only `app/receptionist/bookings/page.js`, no API changes)
-### A. Conflict → disable Save (create + update)
-- Add derived memo/const in render scope (before return, near `selectedRoomObj` line ~1787):
-  - `createConflict` for `activeModal==='create'`: `Boolean(formData.roomID && checkInDate && checkOutDate && checkScheduleConflict(formData.roomID, checkInDate, checkOutDate, useCurrentTimeIn ? currentTimeStr : checkInTime, checkOutTime))`
-  - `updateConflictCheck` for `activeModal==='update_booking'`: same but pass `updatingBooking?.bookingID` as exclusion, using `updateUseCurrentTimeIn` equivalent if applicable (booking update modal currently has no “use current time” checkbox — confirm; else reuse `checkInTime/checkOutTime`).
-- Add inline conflict alert above schedule/calendar section (copy Reservation style):
-  - Condition: same as disabled condition. Message: `Schedule Conflict: Room X is already booked or reserved during this schedule ... Please select another room or adjust the dates.` Reuse conflict object’s `type/id/checkIn/checkOut` if available.
-- `LoadingButton` Save:
-  - `disabled={activeModal==='create' ? Boolean(createConflict) : Boolean(updateConflictCheck)}`
-  - Add `title={conflict ? 'Schedule conflict — select another room or dates' : ''}` for affordance.
-- Keep submit-time `checkScheduleConflict` guard as safety net (race if schedules refresh between render/submit), but **remove `toast`/`showAlert` for this path** per request (silent `return`, inline alert already visible). Alternatively keep `showAlert` only as fallback — needs user decision (see Q1).
-- No changes to `checkScheduleConflict` logic itself.
-
-### B. Guest Details lock on selected UID
-- Add `const detailsLocked = Boolean(formData.guestID);` near `selectedRoomObj` (parity with Reservation line 194).
-- When `detailsLocked`:
-  - Show lock banner under `Guest Details` header (copy Reservation lines 1501-1506): `Details are locked to the selected guest account. Clear the account above to enter a walk-in manually.`
-  - Set `disabled={detailsLocked}` + `title='Locked to the selected guest account'` on: First/ Middle/ Last Name, Contact, Email, and Birthdate `DateInput` (verify `DateInput` forwards `disabled`; if not, wrap with `fieldset disabled` or pass through — check `app/components/DateInput.js` during implementation).
-  - Keep `SearchableSelect` enabled so user can clear to unlock.
-  - Update badge already exists (`Account Linked / Walk-In Entry` lines 2320-2322) — keep.
-- Fix `handleUidChange` clear path to reset `guestForm` to blank defaults (parity with Reservation lines 164-176), not just `isAutoFilled(false)`.
-- Apply to both `create` and `update_booking` modals (shared `guestForm` state). `openUpdateBookingModal` / `handleRebook` set `isAutoFilled(Boolean(b.guestID))` — locked state derives from `formData.guestID` so it will lock automatically.
-- No validation logic changes; locked fields still submit via `guestForm`.
+## 3. Proposed changes
+Only the two `TabList` blocks + unused count vars:
+1. Reservations (`page.js:1011-1030`):
+```jsx
+<TabList aria-label="Reservation lists">
+  <Tab id="active">Reservations</Tab>
+  <Tab id="history">History</Tab>
+</TabList>
+```
+2. Bookings (`page.js:1826-1845`):
+```jsx
+<TabList aria-label="Booking lists">
+  <Tab id="active">Bookings</Tab>
+  <Tab id="history">History</Tab>
+</TabList>
+```
+3. Remove now-unused `activeReservationsCount/historyReservationsCount` and `activeBookingsCount/historyBookingsCount` declarations if no other references (verify via grep before edit).
+4. Keep shadcn `Tabs/TabList/Tab`, `selectedKey`, `onSelectionChange` side-effects (`setExpanded*/setStatusFilter`) unchanged. No icon/badge markup remains in these blocks.
 
 ## 4. Verification
-- Manual UI: (1) select guest UID → fields disabled + lock banner; clear UID → editable + blank. (2) pick room + overlapping dates → red conflict alert appears + Save disabled with tooltip; change room/dates → enabled. (3) update modal with same-room overlapping other booking → disabled; same booking’s own schedule excluded.
-- `npm run lint` (or project eslint cmd) + `npm run build` smoke if cheap; no new deps.
-- No DB/API changes; server-side conflict validation untouched.
+- `grep` Tab blocks to confirm no `<i class="bi` / `badge` remain in tab lists.
+- `npx eslint` on both files (pre-existing errors only, no new `no-unused-vars`).
+- Visual: two plain-text tabs per page; active/history filtering still works; search placeholders still mention active vs historical (out of scope unless requested).
 
 ## 5. Risks / notes
-- `DateInput`/`FlatDatePicker` disabled forwarding must be verified; fallback is `pointer-events:none + opacity` wrapper — will confirm during implementation.
-- Update modal currently lacks `useCurrentTimeIn` toggle (`updateUseCurrentTimeIn` state exists but no checkbox wired in modal?) — conflict check must use the same effective times as submit to avoid disabled/submit mismatch. Will align.
-- Removing toast entirely means screen-reader users rely on inline alert + disabled title; keep `aria-disabled` semantics via native `disabled`.
+- Duplicate-label ambiguity if user wants identical text on both tabs — will follow explicit answer to Q1.
+- Search input placeholders and status filter dropdowns still say “Active/ Historical” — intentionally untouched; say so if you want those simplified too.
 
 ## 6. Questions for user
-- Q1: On conflict submit race (schedules refresh after render), should we fully remove toast/silent-return, or keep a silent fallback `showAlert` only for that race?
-- Q2: Apply Save-disable + lock to **both** New Booking and Update Booking modals, or New Booking only?
+- Q1: Confirm history tab labels: `History` for both pages (recommended), or literally `Reservations`/`Reservations` and `Bookings`/`Bookings`?

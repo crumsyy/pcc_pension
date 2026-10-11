@@ -1662,9 +1662,6 @@ function BookingsClient() {
 
   const isHistoricalBooking = (status) => ['Completed', 'Checked Out', 'Cancelled', 'No Show'].includes(status);
 
-  const activeBookingsCount = bookings.filter(b => !isHistoricalBooking(b.status)).length;
-  const historyBookingsCount = bookings.filter(b => isHistoricalBooking(b.status)).length;
-
   const filteredBookings = bookings.filter(b => {
     const fullName = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
     const contact = (b.contact || '').toLowerCase();
@@ -1824,24 +1821,8 @@ function BookingsClient() {
         className="mb-3"
       >
         <TabList aria-label="Booking lists">
-          <Tab id="active">
-            <span className="d-inline-flex align-items-center gap-2">
-              <i className="bi bi-clock-history"></i>
-              <span>Active Stays &amp; Bookings</span>
-              <span className="badge bg-secondary text-white rounded-pill ms-1">
-                {activeBookingsCount}
-              </span>
-            </span>
-          </Tab>
-          <Tab id="history">
-            <span className="d-inline-flex align-items-center gap-2">
-              <i className="bi bi-archive-fill"></i>
-              <span>Historical Log</span>
-              <span className="badge bg-secondary text-white rounded-pill ms-1">
-                {historyBookingsCount}
-              </span>
-            </span>
-          </Tab>
+          <Tab id="active">Bookings</Tab>
+          <Tab id="history">History</Tab>
         </TabList>
       </Tabs>
 
