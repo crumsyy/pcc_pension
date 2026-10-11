@@ -1,22 +1,18 @@
-# Implementation Plan — Overview Cards Off, Bookings 4-State, Pagination, No Icons
+# Implementation Plan — Archived Tab Stale-Data Flash
 
-## 1. Changes
-**`app/admin/reservations/page.js`**
-- Delete the KPI cards row (lines ~106-134); keep filter dropdown (Reserved/Booked/Cancelled already merged) + table.
-- Table paginated at 10/page client-side (server search/status/date filters stay): `resPage` state, sliced rows, `AdminPagination` under the table, `start + i` numbering.
-- Strip icons from View Bookings + Refresh buttons (labels stay).
+## 1. Root cause (verified in code)
+`app/admin/discounts/page.js`: `discounts`/`promotions` state persists across tab switches. On switching to Archived, the effect fires `fetchData` for `archived=true`, but until it resolves the tables render the previous tab's ACTIVE rows — every discount/promo appears, then "disappears" (replaced by the archived set). Same-tab search typing is fine (results stay relevant); only tab switches cross disjoint datasets.
 
-**`app/admin/bookings/page.js`**
-- Delete the KPI cards row; status filter becomes `Booked / Occupied / Completed / Cancelled`.
-- Display mapping (overview only, stored values untouched): `Cancelled/Canceled`→Cancelled; `No Show`→Cancelled (dead arrival, room freed); normalized `Completed`→Completed; `Active Stay/Bill Finalized/Paid` (+in-house legacy)→Occupied; everything else Pending-family→Booked. Badges: Booked info-cyan, Occupied blue, Completed dark, Cancelled red.
-- Filtering moves client-side by mapped state (API keeps canonical normalized values; `status` no longer sent as server filter). Table paginated 10/page with `AdminPagination`; numbering `start + i`.
-- Strip icons from View Reservations + Refresh buttons. Clean now-unused status imports.
+## 2. Fix (page-local, no API change)
+1. `handleTabChange`: immediately `setDiscounts([])` + `setPromotions([])` and raise a `listLoading` flag.
+2. `fetchData` `finally`: lower `listLoading`.
+3. Both tables: when `listLoading` and rows are empty, render a "Loading archived records…" row instead of the "No … found" empty state (prevents a misleading flash).
+- Untouched: fetch logic, cache keys, pagination, filters, modals, API.
 
-## 2. Verify
-- `npx eslint` (stash-compared) + `npm run build` + guard harness; staging visual check.
+## 3. Verify
+- `npx eslint` (stash-compared) + `npm run build`; staging check: switch Discounts→Archived—no active rows may appear.
 - Commit/push only on `"push"`.
 
-## 3. Questions
-1. No-Show bookings shown as Cancelled (Recommended) vs hidden from the overview?
-2. 10 rows per page for both tables (Recommended) vs another size?
-3. Proceed?
+## 4. Questions
+1. Clear-then-loading-row as above (Recommended) vs skeleton shimmer?
+2. Proceed?

@@ -19,11 +19,18 @@ export default function AdminDiscounts() {
   const [activeTab, setActiveTab] = useState('active_discounts');
   const [discPage, setDiscPage] = useState(1);
   const [promoPage, setPromoPage] = useState(1);
+  // True while a tab switch is loading its dataset; tables show a loading
+  // row instead of the other tab's stale rows or a false empty state.
+  const [listLoading, setListLoading] = useState(false);
 
   const handleTabChange = (tab) => {
+    if (tab === activeTab) return;
     setActiveTab(tab);
     setDiscPage(1);
     setPromoPage(1);
+    setDiscounts([]);
+    setPromotions([]);
+    setListLoading(true);
   };
 
   const handleSearchChange = (v) => {
@@ -171,6 +178,7 @@ export default function AdminDiscounts() {
       else console.warn('Background discounts refresh error:', err.message);
     } finally {
       fetchInFlight.current = false;
+      setListLoading(false);
     }
   };
 
@@ -601,7 +609,11 @@ export default function AdminDiscounts() {
                     {discPaginated.rows.length === 0 ? (
                       <tr>
                         <td colSpan="6" className="text-center text-muted py-3">
-                          No discounts found.
+                          {listLoading ? (
+                            <span><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading records…</span>
+                          ) : (
+                            'No discounts found.'
+                          )}
                         </td>
                       </tr>
                     ) : (
@@ -660,7 +672,11 @@ export default function AdminDiscounts() {
                     {promoPaginated.rows.length === 0 ? (
                       <tr>
                         <td colSpan="7" className="text-center text-muted py-3">
-                          No promotions found.
+                          {listLoading ? (
+                            <span><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading records…</span>
+                          ) : (
+                            'No promotions found.'
+                          )}
                         </td>
                       </tr>
                     ) : (
