@@ -14,6 +14,7 @@ import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import FlatDatePicker from '../../components/FlatDatePicker';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
+import { CommandList, CommandItem } from '@/components/ui/command';
 import {
   DialogTrigger,
   Dialog,
@@ -24,20 +25,48 @@ import {
 } from '@/components/ui/dialog';
 
 // Searchable Combobox Component (defined outside to prevent unmounting/focus issues)
+// Modern shadcn Command list with smart flip: opens upward when crowded.
+
 function Combobox({ options, value, onChange, placeholder, disabled, stockMap }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value || '');
+  const [openUp, setOpenUp] = useState(false);
+  const [menuMaxHeight, setMenuMaxHeight] = useState(220);
+  const wrapRef = useRef(null);
 
   useEffect(() => {
     setInputValue(value || '');
   }, [value]);
 
-  const filtered = options.filter(opt =>
-    opt.name.toLowerCase().includes(inputValue.toLowerCase())
-  );
+  const decideDirection = () => {
+    const el = wrapRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    if (spaceBelow < 180 && spaceAbove > spaceBelow + 40) {
+      setOpenUp(true);
+      setMenuMaxHeight(Math.max(120, Math.min(220, spaceAbove - 16)));
+    } else {
+      setOpenUp(false);
+      setMenuMaxHeight(Math.max(120, Math.min(220, spaceBelow - 16)));
+    }
+  };
+
+  const openMenu = () => {
+    if (disabled) return;
+    decideDirection();
+    setIsOpen(true);
+  };
+
+  const selectOption = (opt) => {
+    setInputValue(opt.name);
+    setIsOpen(false);
+    onChange(opt);
+  };
 
   return (
-    <div className="position-relative w-100">
+    <div className="position-relative w-100" ref={wrapRef}>
       <div className="input-group input-group-sm">
         <input
           type="text"
@@ -47,54 +76,57 @@ function Combobox({ options, value, onChange, placeholder, disabled, stockMap })
           disabled={disabled}
           onChange={(e) => {
             setInputValue(e.target.value);
-            setIsOpen(true);
+            openMenu();
             if (e.target.value === '') {
               onChange(null);
             }
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={openMenu}
           onBlur={() => setIsOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setIsOpen(false);
+          }}
         />
         <button
           className="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split px-2"
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => (isOpen ? setIsOpen(false) : openMenu())}
           disabled={disabled}
         />
       </div>
       {isOpen && (
-        <ul className="dropdown-menu show w-100 position-absolute shadow-sm" style={{ maxHeight: '200px', minWidth: '280px', overflowY: 'auto', zIndex: 1060 }}>
-          {filtered.map(opt => {
-            const stock = stockMap ? stockMap[`${opt.type}-${opt.id}`] : null;
-            return (
-              <li key={`${opt.type}-${opt.id}`}>
-                <button
-                  type="button"
-                  className="dropdown-item btn-sm text-start py-1"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setInputValue(opt.name);
-                    setIsOpen(false);
-                    onChange(opt);
-                  }}
-                >
-                  <div className="fw-bold" title={opt.name} style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25' }}>{opt.name}</div>
-                  <div className="d-flex flex-wrap align-items-center gap-2 mt-0.5">
-                    <span className="badge text-bg-light border text-muted small">{opt.type}</span>
-                    <span className="text-muted small">
-                      Stock: {stock ? `${stock.qty} ${stock.unit || ''}`.trim() : '—'}
-                    </span>
-                  </div>
-                </button>
-              </li>
-            );
-          })}
-          {filtered.length === 0 && (
-            <li className="p-2 text-center text-muted small">
-              No matching catalog items found.
-            </li>
-          )}
-        </ul>
+        <div
+          className="dropdown-menu show w-100 position-absolute shadow-sm p-1"
+          style={openUp
+            ? { top: 'auto', bottom: '100%', marginBottom: '4px', minWidth: '280px', zIndex: 1060 }
+            : { top: '100%', marginTop: '4px', minWidth: '280px', zIndex: 1060 }}
+        >
+          <CommandList query={inputValue} onOpenChange={(open) => { if (!open) setIsOpen(false); }}>
+            <div style={{ maxHeight: `${menuMaxHeight}px`, overflowY: 'auto' }}>
+              {options.map(opt => {
+                const stock = stockMap ? stockMap[`${opt.type}-${opt.id}`] : null;
+                return (
+                  <CommandItem
+                    key={`${opt.type}-${opt.id}`}
+                    keywords={`${opt.name} ${opt.type}`}
+                    onSelect={() => selectOption(opt)}
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
+                    <div className="w-100">
+                      <div className="fw-bold" title={opt.name} style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25' }}>{opt.name}</div>
+                      <div className="d-flex flex-wrap align-items-center gap-2 mt-0.5">
+                        <span className="badge text-bg-light border text-muted small">{opt.type}</span>
+                        <span className="text-muted small">
+                          Stock: {stock ? `${stock.qty} ${stock.unit || ''}`.trim() : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </div>
+          </CommandList>
+        </div>
       )}
     </div>
   );

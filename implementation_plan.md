@@ -1,12 +1,4 @@
-# Implementation Plan — PO Dropdown Clipping Fix
+# Implementation Plan — Modern shadcn Catalog Picker with Smart Flip (user-approved "proceed")
 
-## 1. Root cause
-The option list lives inside the dialog body's scroll container, so it can never paint outside it — widening alone can't fix the cut. The real culprit is the option's second line (`d-flex justify-content-between`): it forces badge + stock onto one rigid row, pushing "Stock: 2 pcs" past the menu edge.
-
-## 2. Change (`app/admin/purchase-orders/page.js`, Combobox only)
-- Option second line becomes wrapping flow (`flex-wrap`, badge + stock inline with gap) so nothing is forced off-screen at any width; name keeps wrapping + tooltip. Menu keeps `min-width: 280px`.
-- Untouched: dialog size, columns, stock figures, submit logic.
-
-## 3. Verify
-- `npx eslint` (stash-compared) + `npm run build`; staging check.
-- Commit/push only on `"push"`.
+1. `app/admin/purchase-orders/page.js` only: rebuild the local `Combobox` list on shadcn `Command` primitives (input/list/empty/item) with the same search + stock rows; add open-direction flip (measure space above/below on open, drop-up when crowded, capped to available space); selection/disabled/placeholder behavior unchanged.
+2. Verify: eslint stash-compared, build 97/97. Commit/push only on "push".
