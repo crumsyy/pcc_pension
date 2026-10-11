@@ -899,8 +899,8 @@ export default function AdminDiscounts() {
                   </div>
                 </DialogBody>
                 <DialogFooter>
-                  <button type="submit" className="btn btn-pcc-primary">Create Discount</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-pcc-primary">Create Discount</button>
                 </DialogFooter>
               </form>
             </Dialog>
@@ -1019,8 +1019,8 @@ export default function AdminDiscounts() {
                   </div>
                 </DialogBody>
                 <DialogFooter>
-                  <button type="submit" className="btn btn-pcc-primary">Update Discount</button>
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-pcc-primary">Update Discount</button>
                 </DialogFooter>
               </form>
             </Dialog>
