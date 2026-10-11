@@ -98,33 +98,31 @@ function Combobox({ options, value, onChange, placeholder, disabled, stockMap })
         <div
           className="dropdown-menu show w-100 position-absolute shadow-sm p-1"
           style={openUp
-            ? { top: 'auto', bottom: '100%', marginBottom: '4px', minWidth: '280px', zIndex: 1060 }
-            : { top: '100%', marginTop: '4px', minWidth: '280px', zIndex: 1060 }}
+            ? { top: 'auto', bottom: '100%', marginBottom: '4px', minWidth: '280px', maxHeight: `${menuMaxHeight}px`, overflowY: 'auto', zIndex: 1060 }
+            : { top: '100%', marginTop: '4px', minWidth: '280px', maxHeight: `${menuMaxHeight}px`, overflowY: 'auto', zIndex: 1060 }}
         >
           <CommandList query={inputValue} onOpenChange={(open) => { if (!open) setIsOpen(false); }}>
-            <div style={{ maxHeight: `${menuMaxHeight}px`, overflowY: 'auto' }}>
-              {options.map(opt => {
-                const stock = stockMap ? stockMap[`${opt.type}-${opt.id}`] : null;
-                return (
-                  <CommandItem
-                    key={`${opt.type}-${opt.id}`}
-                    keywords={`${opt.name} ${opt.type}`}
-                    onSelect={() => selectOption(opt)}
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <div className="w-100">
-                      <div className="fw-bold" title={opt.name} style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25' }}>{opt.name}</div>
-                      <div className="d-flex flex-wrap align-items-center gap-2 mt-0.5">
-                        <span className="badge text-bg-light border text-muted small">{opt.type}</span>
-                        <span className="text-muted small">
-                          Stock: {stock ? `${stock.qty} ${stock.unit || ''}`.trim() : '—'}
-                        </span>
-                      </div>
+            {options.map(opt => {
+              const stock = stockMap ? stockMap[`${opt.type}-${opt.id}`] : null;
+              return (
+                <CommandItem
+                  key={`${opt.type}-${opt.id}`}
+                  keywords={`${opt.name} ${opt.type}`}
+                  onSelect={() => selectOption(opt)}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <div className="w-100">
+                    <div className="fw-bold" title={opt.name} style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.25' }}>{opt.name}</div>
+                    <div className="d-flex flex-wrap align-items-center gap-2 mt-0.5">
+                      <span className="badge text-bg-light border text-muted small">{opt.type}</span>
+                      <span className="text-muted small">
+                        Stock: {stock ? `${stock.qty} ${stock.unit || ''}`.trim() : '—'}
+                      </span>
                     </div>
-                  </CommandItem>
-                );
-              })}
-            </div>
+                  </div>
+                </CommandItem>
+              );
+            })}
           </CommandList>
         </div>
       )}
