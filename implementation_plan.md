@@ -1,27 +1,28 @@
-# Implementation Plan — Dashboard stat cards: rename + dedupe (for approval)
+# Implementation Plan — Remove manual release (lock) button (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. User requests
-1. Rename `ACTIVE RESERV.` card → `ROOMS RESERVED`.
-2. `ACTIVE STAYS` and `ROOMS OCCUPIED` are redundant (1 booking = 1 room, always the same number) — drop one.
+## 1. User request
+- Remove the lock / “Manually Release Courtesy Hold” button from reservation rows — redundant with Cancel ([Image 1]).
 
 ## 2. Evidence / current state
-- `ReceptionistDashboardClient.js:128-135`: 6-entry `stats` array → `Active Stays (totalCheckIns)`, `Today's Check-outs`, `Rooms Occupied (occupiedRooms)`, `Rooms Available`, `Active Reserv. (pendingRes)`, `Under Maintenance`.
-- `totalCheckIns` used only in destructure (86) + stats entry (129); `occupiedRooms` also used at line 191 (kept regardless).
-- Grid is `col-6 col-md-4 col-xl-2` × 6; dropping to 5 cards leaves a 2-col gap on xl unless adjusted.
+- Button: `reservations/page.js:1163-1173` (orange `fa-unlock-keyhole`, in the courtesy-hold actions branch next to Convert/Edit). Only instance in the file.
+- Handler: `handleReleaseHold` (`917-936`), called only from that button (1170). Calls API `release_hold`.
+- Cancel flow stays untouched (separate handler + red X button); holds still auto-release via scheduler/cron.
+- API `release_hold` action remains server-side (harmless; other callers: none found client-side — cron/scheduler use their own paths).
 
-## 3. Proposed changes (only `ReceptionistDashboardClient.js`)
-1. Rename entry: `["Active Reserv.", pendingRes, ...]` → `["Rooms Reserved", pendingRes, ...]` (count semantics unchanged: one reservation holds one room).
-2. Remove the `["Active Stays", totalCheckIns, ...]` entry (keep room-centric `Rooms Occupied`); remove `totalCheckIns = 0` from destructuring (else unused-var lint).
-3. Grid: card wrapper `col-xl-2` → `col-xl` so 5 cards fill the row evenly on xl (`col-6 col-md-4` responsive behavior unchanged).
+## 3. Proposed changes (only `reservations/page.js`)
+1. Delete the lock button block (1163-1173).
+2. Delete the now-dead `handleReleaseHold` (917-936).
+3. No API changes; no changes to Convert/Edit/Cancel buttons.
 
 ## 4. Verification
-- `grep`: `Active Stays`/`Active Reserv.` gone; `Rooms Reserved`/`Rooms Occupied` present; no `totalCheckIns` references.
-- `eslint` clean; `npm run build` 97/97; visual: 5 even cards.
+- `grep "handleReleaseHold\|Manually Release\|fa-unlock-keyhole"` → zero matches.
+- `eslint` (pre-existing families only); `npm run build` 97/97.
+- Visual: hold rows show Convert + Edit + Cancel only.
 
 ## 5. Risks
-- None: label + array entry removal only; counts/keys untouched; server snapshot unchanged.
+- None: pure UI/handler removal; cancel + auto-release cover the use case.
 
 ## 6. Questions
-- Q1: Remove `Active Stays` (recommended, keeps room-centric row) or `Rooms Occupied`?
+- Q1: Proceed as planned?

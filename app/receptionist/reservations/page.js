@@ -914,27 +914,6 @@ function ReservationsClient() {
     });
   };
 
-  const handleReleaseHold = (id) => {
-    showConfirm('Release Courtesy Hold', 'Are you sure you want to release this courtesy hold? The room will immediately become Available for other bookings.', async () => {
-      try {
-        const res = await fetch('/api/receptionist/reservations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'release_hold', reservationID: id })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to release courtesy hold');
-
-        toast.success('Hold Released', data.message || 'Courtesy hold released successfully.');
-        showAlert('success', 'Hold Released', data.message || 'Courtesy hold released successfully.');
-        fetchData();
-      } catch (err) {
-        toast.error('Release Failed', err.message);
-        showAlert('error', 'Error', err.message);
-      }
-    });
-  };
-
   const handleReinstate = (id) => {
     showConfirm('Reinstate Reservation', 'Are you sure you want to reinstate this No Show reservation back to Confirmed?', async () => {
       try {
@@ -1159,17 +1138,6 @@ function ReservationsClient() {
                                 onClick={() => openEditModal(r)}
                               >
                                 <i className="fa-solid fa-pen-to-square"></i>
-                              </button>
-                              <button
-                                type="button"
-                                className="action-btn"
-                                style={{ color: '#d9480f', borderColor: '#fd7e14' }}
-                                data-bs-toggle="tooltip"
-                                title="Manually Release Courtesy Hold"
-                                aria-label="Manually Release Courtesy Hold"
-                                onClick={() => handleReleaseHold(r.reservationID)}
-                              >
-                                <i className="fa-solid fa-unlock-keyhole"></i>
                               </button>
                             </>
                           );

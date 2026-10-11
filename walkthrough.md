@@ -1,14 +1,13 @@
-# Walkthrough — Dashboard stat cards: rename + dedupe
+# Walkthrough — Remove manual release (lock) button
 
-## Changes (`ReceptionistDashboardClient.js` only)
-- `ACTIVE RESERV.` → `ROOMS RESERVED` (count unchanged).
-- Removed redundant `ACTIVE STAYS` card; kept `ROOMS OCCUPIED`. Removed now-unused `totalCheckIns` destructure.
-- Grid `col-xl-2` → `col-xl`: 5 cards fill the row evenly (xs/md behavior unchanged).
-- Server snapshot/API untouched (`totalCheckIns` still sent, ignored by client).
+## Changes (`reservations/page.js` only)
+- Deleted the orange lock / “Manually Release Courtesy Hold” button from hold rows.
+- Deleted the now-dead `handleReleaseHold` handler.
+- Cancel flow, Convert/Edit buttons, auto-release scheduler, and the server `release_hold` action untouched.
 
 ## Verification
-- `grep`: no stat-card `Active Stays`/`Active Reserv.`/`totalCheckIns`/`col-xl-2` remain (section header “Active Reservations & Courtesy Holds” below is a different element, left as-is).
-- `eslint`: clean. `npm run build`: exit 0.
+- `grep`: zero matches for handler/label/icon.
+- `eslint`: no new issues. `npm run build`: exit 0.
 
 ## No commit/push
 No commit or push made. Awaiting explicit `push` keyword after your review.
