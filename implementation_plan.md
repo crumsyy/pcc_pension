@@ -1,48 +1,32 @@
-# Implementation Plan — Billing filter labels + full Inter font (for approval)
+# Implementation Plan — Collapsed receptionist sidebar shows icons only (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. User requests
-1. Billing stay filter tabs → `All`, `Booked`, `Occupied`, `Completed` ([Image 1] shows current `All Stays / Upcoming / Booked / Active Stays / Completed Stays`).
-2. “In receptionist really use full Inter font family, in guest portal as well” — stop mixing the Fraunces serif display font into headings; use Inter everywhere in receptionist + guest portal.
+## 1. User request
+- Collapsed receptionist sidebar is broken: labels are clipped to a single letter ([Image 1]). When collapsed, hide labels, leave icons.
 
-## 2. Evidence / current state
-- Filters: `app/receptionist/billing-checkout/BillingTab.js:630-670` — `statusFilter` (`all/upcoming/active/completed`), `UPCOMING_STATUS_LIST = [Pending, Pending Check-in, Confirmed, Booked]`, `ACTIVE_STATUS_LIST = UPCOMING + [Active Stay, Checked In, Checked-In, Late Checkout, Pending Room Verification, Pending Checkout, Checkout Requested, Room Verified, Bill Finalized, Final Billing Updated, Payment Completed, Paid]`, completed = `Completed/Checked Out`.
-- Tabs UI (just converted): `BillingTab.js` shadcn `TabList` with ids `all/upcoming/active/completed`.
-- Fonts: `app/globals.css:4` imports `Inter:wght@400;500;600;700` (+ Fraunces + Space Mono); `body:439-444` is Inter, but `h1-h4,.display-font:446-454` use Fraunces serif — this is why headings (“Guest Billing”, “Payment Management & POS”) render serif while body/tabs render Inter.
-- Scope hooks: receptionist content wraps in `.pcc-main-wrapper` (`SidebarClient.js:429`); guest `app/guest/layout.js` is a bare passthrough (no wrapper class).
+## 2. Evidence / root cause
+- Desktop sidebar shrinks `240px → 76px` when `collapsed` (`SidebarClient.js:338`); logo, section caption, profile block, and Log Out button all respect `collapsed` (lines 349-423).
+- Admin links hide labels + center icons when collapsed (lines 234-251: `title={collapsed ? label}`, `justifyContent: collapsed ? 'center' : 'flex-start'`, `{!(collapsed) && <span>{label}</span>}`).
+- Receptionist links render through `ReceptionistSidebarNav` (`SidebarClient.js:224-227`), which receives only `pathname` + `icons` and **unconditionally renders `<span>{label}</span>`** (`ReceptionistSidebarNav.js:60`). At 76px width the labels clip to one letter — exactly the screenshot.
+- `renderNavLinksList()` is shared by the mobile offcanvas (always 260px, labels must stay) and the desktop sidebar (collapsible).
 
 ## 3. Proposed changes
-### A. Filter labels + semantics (`BillingTab.js` only)
-- Tab ids/labels: `all`→`All`, `booked`→`Booked`, `occupied`→`Occupied`, `completed`→`Completed`.
-- Lists: `BOOKED_STATUS_LIST = [Pending, Pending Check-in, Confirmed, Booked]` (current UPCOMING, renamed); new `OCCUPIED_STATUS_LIST = [Active Stay, Checked In, Checked-In, Late Checkout, Pending Room Verification, Pending Checkout, Checkout Requested, Room Verified, Bill Finalized, Final Billing Updated, Payment Completed, Paid]` (current ACTIVE minus upcoming — i.e. truly in-house/finalizing stays); completed unchanged.
-- Note: stays with any other/edge status fall under `All` only (same as today).
-- Default tab stays `all`; no URL keys involved (`statusFilter` is local state).
-
-### B. Full Inter in receptionist + guest portal (`globals.css` + `guest/layout.js`)
-- Add override block (near tabs CSS ~line 3300):
-```css
-.pcc-main-wrapper h1, .pcc-main-wrapper h2, .pcc-main-wrapper h3, .pcc-main-wrapper h4,
-.pcc-main-wrapper .display-font,
-.guest-portal h1, .guest-portal h2, .guest-portal h3, .guest-portal h4,
-.guest-portal .display-font {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-}
-```
-- Wrap guest layout children in `<div className="guest-portal">` so the override scopes to guest portal.
-- Admin/auth pages untouched (still Fraunces headings) unless user wants global.
-- Font weights: extend Inter import to `400;500;600;700;800` for bolder headings (headings use 600-800). Optional.
+1. `ReceptionistSidebarNav.js`: accept `collapsed = false` prop.
+   - `title={collapsed ? label : undefined}` on the `Link` (tooltip, mirrors admin).
+   - Link style `justifyContent: collapsed ? 'center' : 'space-between'` (keep `space-between` expanded so the Inquiries alert badge stays right-aligned; `center` when collapsed).
+   - `{!collapsed && <span>{label}</span>}`; hide the Inquiries alert badge when collapsed (`{!collapsed && isInquiries && ...}`) so it can't overflow the 76px rail (badge reappears on expand; count keeps polling).
+   - Inner icon wrapper keeps `width 20px / flexShrink 0`; add `margin: collapsed ? '0 auto' : undefined` if needed for perfect centering (verify visually).
+2. `SidebarClient.js`: `renderNavLinksList(forCollapsed=false)` — pass `collapsed` only for the desktop sidebar call (line 392: `renderNavLinksList(true)` → `<ReceptionistSidebarNav ... collapsed={collapsed} />` and admin branch uses the flag instead of closure state); offcanvas call (line ~304) stays expanded so mobile drawer always shows labels even if desktop is collapsed.
+   - Simplest: change signature to `renderNavLinksList(isDesktopSidebar)` and use `const hideLabels = isDesktopSidebar && collapsed`.
 
 ## 4. Verification
-- `grep`: tab ids `upcoming/active` gone from BillingTab; `Booked/Occupied` present; occupancy filter behavior (booked room ≠ in-house room) per lists.
-- `eslint` on touched JS files (pre-existing families only).
-- Visual: four tabs All/Booked/Occupied/Completed; receptionist + guest headings render Inter (no serif), tabs/body unchanged.
+- `eslint` on both files (pre-existing families only).
+- Visual: expand → full labels + badge; collapse → centered icons only with tooltips; mobile offcanvas unaffected; admin sidebar untouched.
+- No API/state changes; `collapsed` still persisted in `localStorage`.
 
 ## 5. Risks / notes
-- “Occupied” semantics = in-house + finalizing/bill-ready stays (mirrors room Occupied state). If user means strictly physically-checked-in (`Checked In`/`Active Stay` only), the later billing states would vanish from Occupied — confirm via Q1.
-- Global `h1-h4` rule stays Fraunces; overrides win by specificity (0,2,0+element vs 0,0,1). `.display-font` class usages inside receptionist/guest also convert.
+- None behavioral; pure presentational, mirrors the existing admin collapsed pattern.
 
 ## 6. Questions for user
-- Q1: Occupied = all in-house + finalizing/bill-ready/paid-awaiting-checkout states (recommended), or strictly Checked-In/Active-Stay only?
-- Q2: Font scope = receptionist + guest portal only (recommended), or global (admin/auth too)?
-- Q3: Extend Inter import with 800 weight for headings (recommended, tiny payload), or keep 400-700?
+- Q1: When collapsed, hide the Inquiries unread badge too (recommended, avoids overflow), or keep a dot/count on the icon?

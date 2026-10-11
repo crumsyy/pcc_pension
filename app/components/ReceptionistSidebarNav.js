@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick }) {
+export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick, collapsed = false }) {
   const [alertsCount, setAlertsCount] = useState(0);
 
   const fetchAlerts = async () => {
@@ -45,7 +45,8 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick })
             <Link
               href={path}
               onClick={onLinkClick}
-              className={`nav-link text-white d-flex align-items-center justify-content-between mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
+              title={collapsed ? label : undefined}
+              className={`nav-link text-white d-flex align-items-center mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
               style={{
                 borderRadius: '7px',
                 fontSize: '0.88rem',
@@ -53,13 +54,14 @@ export default function ReceptionistSidebarNav({ pathname, icons, onLinkClick })
                 backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
                 borderLeft: isActive ? '3px solid #fff' : '3px solid transparent',
                 transition: 'all 0.15s ease-in-out',
+                justifyContent: collapsed ? 'center' : 'space-between',
               }}
             >
               <div className="d-flex align-items-center gap-3" style={{ gap: '12px' }}>
                 <span className="d-inline-flex align-items-center justify-content-center" style={{ opacity: isActive ? 1 : 0.85, width: '20px', flexShrink: 0 }}>{icon}</span>
-                <span>{label}</span>
+                {!collapsed && <span>{label}</span>}
               </div>
-              {isInquiries && alertsCount > 0 && (
+              {!collapsed && isInquiries && alertsCount > 0 && (
                 <span className="badge rounded-pill bg-danger px-2 py-0.5 fw-bold" style={{ fontSize: '0.72rem', boxShadow: '0 2px 6px rgba(220,53,69,0.4)' }}>
                   {alertsCount}
                 </span>

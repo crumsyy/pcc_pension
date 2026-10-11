@@ -221,9 +221,10 @@ export default function SidebarClient({ session, role, children }) {
   const labelText = role === 'Administrator' ? 'PCC Admin' : 'PCC Front Desk';
   const headingText = role === 'Administrator' ? 'PCC Administration' : 'PCC Front Desk Panel';
 
-  const renderNavLinksList = () => {
+  const renderNavLinksList = (isDesktopSidebar = false) => {
+    const hideLabels = isDesktopSidebar && collapsed;
     if (role === 'Receptionist') {
-      return <ReceptionistSidebarNav pathname={pathname} icons={icons} />;
+      return <ReceptionistSidebarNav pathname={pathname} icons={icons} collapsed={hideLabels} />;
     }
     return (
       <ul className="nav flex-column gap-1" style={{ paddingLeft: '0', listStyle: 'none' }}>
@@ -233,7 +234,7 @@ export default function SidebarClient({ session, role, children }) {
             <li key={index}>
               <Link
                 href={path}
-                title={collapsed ? label : undefined}
+                title={hideLabels ? label : undefined}
                 className={`nav-link text-white d-flex align-items-center gap-3 mb-1 px-3 py-2 ${isActive ? 'active' : ''}`}
                 style={{
                   borderRadius: '7px',
@@ -243,11 +244,11 @@ export default function SidebarClient({ session, role, children }) {
                   borderLeft: isActive ? '3px solid #fff' : '3px solid transparent',
                   transition: 'all 0.15s ease-in-out',
                   gap: '12px',
-                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  justifyContent: hideLabels ? 'center' : 'flex-start',
                 }}
               >
                 <span className="d-inline-flex align-items-center justify-content-center" style={{ opacity: isActive ? 1 : 0.85, width: '20px', flexShrink: 0 }}>{icon}</span>
-                {!(collapsed) && <span>{label}</span>}
+                {!(hideLabels) && <span>{label}</span>}
               </Link>
             </li>
           );
@@ -389,7 +390,7 @@ export default function SidebarClient({ session, role, children }) {
           )}
         </div>
         
-        {renderNavLinksList()}
+        {renderNavLinksList(true)}
 
         <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)' }}>
           <div className="d-flex align-items-center gap-2.5 mb-2.5 p-2 rounded" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)', justifyContent: collapsed ? 'center' : 'flex-start' }}>

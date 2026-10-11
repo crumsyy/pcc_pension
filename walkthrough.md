@@ -1,19 +1,14 @@
-# Walkthrough — Billing filter labels + full Inter font
+# Walkthrough — Collapsed receptionist sidebar icons-only
 
 ## Changes
-- `app/receptionist/billing-checkout/BillingTab.js`
-  - Stay filter tabs now `All` / `Booked` / `Occupied` / `Completed` (ids `all/booked/occupied/completed`).
-  - `BOOKED_STATUS_LIST = [Pending, Pending Check-in, Confirmed, Booked]`; `OCCUPIED_STATUS_LIST` = in-house + finalizing/bill-ready/paid-awaiting-checkout states (Checked In, Active Stay, Late Checkout, verification/checkout-request states, Bill Finalized, Final Billing Updated, Payment Completed, Paid); completed unchanged.
-- `app/globals.css`
-  - Inter import extended with `800` weight for headings.
-  - New override: headings (`h1-h4`, `.display-font`) inside `.pcc-main-wrapper` (receptionist) and `.guest-portal` render Inter. Admin/auth keep Fraunces.
-- `app/guest/layout.js`: wraps children in `<div className="guest-portal">` to scope the override.
+- `app/components/ReceptionistSidebarNav.js`
+  - Accepts `collapsed = false`; when collapsed: label hidden, Inquiries badge hidden, icon centered (`justifyContent: center`), native `title` tooltip with label (mirrors admin pattern).
+- `app/components/SidebarClient.js`
+  - `renderNavLinksList(isDesktopSidebar = false)` with `hideLabels = isDesktopSidebar && collapsed`; desktop sidebar passes `true`, mobile offcanvas omits it so the 260px drawer always shows labels (also fixes admin offcanvas inheriting desktop collapse state).
 
 ## Verification
-- `grep`: old `upcoming/active` filter keys gone from BillingTab; override selectors present in CSS.
-- `eslint`: same 4 pre-existing issues only; no new warnings.
-- `npm run build`: success.
-- Visual to confirm: four short tabs; receptionist + guest headings in Inter (no serif).
+- `eslint`: 1 pre-existing error + 2 pre-existing warnings only; nothing new.
+- Visual to confirm: collapse → 7 centered icons with tooltips, no clipped letters, no badge overflow; expand → labels + badge back; mobile drawer unaffected.
 
 ## No commit/push
 No commit or push made. Awaiting explicit `push` keyword after your review.
