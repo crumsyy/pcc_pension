@@ -1088,29 +1088,24 @@ export async function POST(request) {
 
       // Advance (different-date) check-in is allowed with confirmation.
       // Each early day extends the stay by one night at room rate (billed
-      // automatically via the extended stay dates — no separate incidental),
-      // plus the hourly early fee when arriving before 2:00 PM.
+      // automatically via the extended stay dates — no separate incidental).
+      // No hourly early fee here: the extra night(s) already cover the room.
       if (manilaDateStr < scheduledCheckInDate) {
         const schedMid = new Date(scheduledCheckInDate + 'T00:00:00');
         const todayMid = new Date(manilaDateStr + 'T00:00:00');
         advanceNights = Math.max(1, Math.round((schedMid.getTime() - todayMid.getTime()) / (1000 * 60 * 60 * 24)));
         additionalRoomCharge = advanceNights * roomBaseRate;
-        if (manilaHour < 14) {
-          const exactRemainingMinutes = (14 * 60) - (manilaHour * 60 + manilaMinute);
-          earlyHours = Math.max(1, Math.ceil(exactRemainingMinutes / 60));
-          earlyFee = earlyHours * 50;
-        }
 
         if (!confirmAdvanceCheckIn) {
           return NextResponse.json({
             requiresAdvanceCheckInConfirmation: true,
             advanceNights,
             additionalRoomCharge,
-            earlyHours,
-            earlyFee,
+            earlyHours: 0,
+            earlyFee: 0,
             roomNumber,
-            title: 'Advance & Early Check-In Notice',
-            message: `This guest is checking in ${advanceNights} day(s) ahead of schedule (scheduled for ${scheduledCheckInDate}). The stay will extend by ${advanceNights} night(s) at ₱${roomBaseRate.toFixed(2)}/night (₱${additionalRoomCharge.toFixed(2)})${earlyFee > 0 ? ` plus an early check-in fee of ₱${earlyFee.toFixed(2)} (${earlyHours} hour(s) @ ₱50/hr)` : ''}, billed automatically to the bill. Proceed?`
+            title: 'Advance Check-In Notice',
+            message: `This guest is checking in ${advanceNights} day(s) ahead of schedule (scheduled for ${scheduledCheckInDate}). The stay will extend by ${advanceNights} night(s) at ₱${roomBaseRate.toFixed(2)}/night (₱${additionalRoomCharge.toFixed(2)}), billed automatically to the bill. Proceed?`
           });
         }
 

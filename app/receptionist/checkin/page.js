@@ -262,7 +262,7 @@ function CheckInClient() {
         if (data.requiresAdvanceCheckInConfirmation) {
           showConfirm(
             data.title || 'Advance & Early Check-In Notice',
-            data.message || `This guest is checking in ${data.advanceNights} day(s) ahead of schedule. Room ${data.roomNumber} is available. Checking in today will add ${data.advanceNights} additional night charge(s) (₱${parseFloat(data.additionalRoomCharge || 0).toFixed(2)}) and early check-in fees to the bill.`,
+            data.message || `This guest is checking in ${data.advanceNights} day(s) ahead of schedule. Room ${data.roomNumber} is available. Checking in today will extend the stay by ${data.advanceNights} night(s) (₱${parseFloat(data.additionalRoomCharge || 0).toFixed(2)}), billed automatically to the bill.`,
             async () => {
               await performCheckIn(true);
             },
