@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import ModalPortal from '../../components/ModalPortal';
 import DateInput, { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import FlatDatePicker from '../../components/FlatDatePicker';
@@ -1806,39 +1807,32 @@ function BookingsClient() {
 
 
       {/* TABS: ACTIVE VS HISTORICAL LOG */}
-      <div className="d-flex align-items-center gap-2 mb-3">
-        <button
-          type="button"
-          className={`btn ${activeTab === 'active' ? 'text-white shadow-sm' : 'btn-outline-secondary'} rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-2`}
-          style={{
-            backgroundColor: activeTab === 'active' ? '#2563eb' : undefined,
-            borderColor: activeTab === 'active' ? '#2563eb' : undefined
-          }}
-          onClick={() => { setActiveTab('active'); setExpandedBookingId(null); setStatusFilter(''); }}
-        >
-          <i className="bi bi-clock-history"></i>
-          <span>Active Stays &amp; Bookings</span>
-          <span className={`badge ${activeTab === 'active' ? 'bg-white text-primary' : 'bg-secondary text-white'} rounded-pill ms-1`}>
-            {activeBookingsCount}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className={`btn ${activeTab === 'history' ? 'text-white shadow-sm' : 'btn-outline-secondary'} rounded-3 px-3 py-2 fw-semibold d-flex align-items-center gap-2`}
-          style={{
-            backgroundColor: activeTab === 'history' ? '#0f172a' : undefined,
-            borderColor: activeTab === 'history' ? '#0f172a' : undefined
-          }}
-          onClick={() => { setActiveTab('history'); setExpandedBookingId(null); setStatusFilter(''); }}
-        >
-          <i className="bi bi-archive-fill"></i>
-          <span>Historical Log</span>
-          <span className={`badge ${activeTab === 'history' ? 'bg-white text-dark' : 'bg-secondary text-white'} rounded-pill ms-1`}>
-            {historyBookingsCount}
-          </span>
-        </button>
-      </div>
+      <Tabs
+        selectedKey={activeTab}
+        onSelectionChange={(key) => { setActiveTab(key); setExpandedBookingId(null); setStatusFilter(''); }}
+        className="mb-3"
+      >
+        <TabList aria-label="Booking lists">
+          <Tab id="active">
+            <span className="d-inline-flex align-items-center gap-2">
+              <i className="bi bi-clock-history"></i>
+              <span>Active Stays &amp; Bookings</span>
+              <span className="badge bg-secondary text-white rounded-pill ms-1">
+                {activeBookingsCount}
+              </span>
+            </span>
+          </Tab>
+          <Tab id="history">
+            <span className="d-inline-flex align-items-center gap-2">
+              <i className="bi bi-archive-fill"></i>
+              <span>Historical Log</span>
+              <span className="badge bg-secondary text-white rounded-pill ms-1">
+                {historyBookingsCount}
+              </span>
+            </span>
+          </Tab>
+        </TabList>
+      </Tabs>
 
       <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
         <div className="row g-2">

@@ -93,9 +93,8 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '200px' }) {
 
   if (list.length === 0) {
     return (
-      <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: height, width: '100%', fontSize: '0.82rem', fontWeight: 600 }}>
-        <i className="bi bi-image fs-2 mb-1 opacity-50"></i>
-        <span>Image Unavailable</span>
+      <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: height, width: '100%' }}>
+        <i className="bi bi-image opacity-50" style={{ fontSize: '2rem' }}></i>
       </div>
     );
   }
@@ -113,9 +112,8 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '200px' }) {
             if (fb) fb.style.display = 'flex';
           }}
         />
-        <div className="carousel-err-fb d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: height, width: '100%', fontSize: '0.82rem', fontWeight: 600, display: 'none' }}>
-          <i className="bi bi-image fs-2 mb-1 opacity-50"></i>
-          <span>Image Unavailable</span>
+        <div className="carousel-err-fb d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: height, width: '100%', display: 'none' }}>
+          <i className="bi bi-image opacity-50" style={{ fontSize: '2rem' }}></i>
         </div>
       </div>
     );
@@ -3026,9 +3024,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           const roomPic = imgList.length > 0 ? imgList[0] : null;
                           if (!roomPic) {
                             return (
-                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', fontSize: '0.82rem', fontWeight: 600 }}>
-                                <i className="bi bi-image fs-3 mb-1 opacity-50"></i>
-                                <span>Image Unavailable</span>
+                              <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%' }}>
+                                <i className="bi bi-image opacity-50" style={{ fontSize: '2rem' }}></i>
                               </div>
                             );
                           }
@@ -3046,9 +3043,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   if (fallback) fallback.style.display = 'flex';
                                 }}
                               />
-                              <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', fontSize: '0.82rem', fontWeight: 600, display: 'none' }}>
-                                <i className="bi bi-image fs-3 mb-1 opacity-50"></i>
-                                <span>Image Unavailable</span>
+                              <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', display: 'none' }}>
+                                <i className="bi bi-image opacity-50" style={{ fontSize: '2rem' }}></i>
                               </div>
                             </div>
                           );
@@ -3234,9 +3230,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   const roomPic = imgList.length > 0 ? imgList[0] : null;
                                   if (!roomPic) {
                                     return (
-                                      <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', fontSize: '0.82rem', fontWeight: 600 }}>
-                                        <i className="bi bi-image fs-3 mb-1 opacity-50"></i>
-                                        <span>Image Unavailable</span>
+                                      <div className="image-fallback d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%' }}>
+                                        <i className="bi bi-image opacity-50" style={{ fontSize: '2rem' }}></i>
                                       </div>
                                     );
                                   }
@@ -3254,9 +3249,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                           if (fallback) fallback.style.display = 'flex';
                                         }}
                                       />
-                                      <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', fontSize: '0.82rem', fontWeight: 600, display: 'none' }}>
-                                        <i className="bi bi-image fs-3 mb-1 opacity-50"></i>
-                                        <span>Image Unavailable</span>
+                                      <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', width: '100%', display: 'none' }}>
+                                        <i className="bi bi-image opacity-50" style={{ fontSize: '2rem' }}></i>
                                       </div>
                                     </div>
                                   );

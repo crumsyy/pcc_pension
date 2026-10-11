@@ -87,15 +87,13 @@ const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCook
                 if (fallback) fallback.style.display = 'flex';
               }}
             />
-            <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom w-100 h-100" style={{ fontSize: '0.75rem', fontWeight: 600, display: 'none' }}>
-              <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-              <span>No Image Available</span>
+            <div className="image-fallback image-fallback-err flex-column align-items-center justify-content-center bg-light text-muted border-bottom w-100 h-100" style={{ display: 'none' }}>
+              <i className="bi bi-image opacity-50" style={{ fontSize: '2rem' }}></i>
             </div>
           </div>
         ) : (
-          <div className="image-fallback catalog-img-wrap d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px', fontSize: '0.75rem', fontWeight: 600 }}>
-            <i className="bi bi-image fs-4 mb-1 opacity-50"></i>
-            <span>No Image Available</span>
+          <div className="image-fallback catalog-img-wrap d-flex flex-column align-items-center justify-content-center bg-light text-muted border-bottom" style={{ height: '140px' }}>
+            <i className="bi bi-image opacity-50" style={{ fontSize: '2rem' }}></i>
           </div>
         )}
         <div className="p-3 pb-0 flex-grow-1 d-flex flex-column">
