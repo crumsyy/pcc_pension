@@ -130,7 +130,7 @@ function BookingsClient() {
     roomID: '',
     checkInDateTime: '',
     checkOutDateTime: '',
-    status: 'Checked In'
+    status: 'Occupied'
   });
 
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -337,7 +337,7 @@ function BookingsClient() {
       roomID: String(b.roomID),
       checkInDateTime: inDatePart ? `${inDatePart} ${inTimePart}:00` : '',
       checkOutDateTime: outDatePart ? `${outDatePart} ${outTimePart}:00` : '',
-      status: b.status || 'Checked In'
+      status: b.status || 'Occupied'
     });
 
     // Pre-populate Registered Guests and Discounts
@@ -424,7 +424,7 @@ function BookingsClient() {
       updatingBooking?.isDownPaymentPaid ||
       (parseFloat(updatingBooking?.downPaymentPaid) > 0) ||
       (parseFloat(updatingBooking?.paidTotal) > 0) ||
-      (parseFloat(updatingBooking?.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Confirmed', 'Checked In'].includes(updatingBooking?.status))
+      (parseFloat(updatingBooking?.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Booked', 'Occupied'].includes(updatingBooking?.status))
     );
 
     let dpAmount = 0;
@@ -977,7 +977,7 @@ function BookingsClient() {
     setSelectedRoomType('');
     setBreakfastOption('with');
     setSelectedBreakfastDates([toDbDate(todayUiDate)]);
-    setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
+    setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Booked' });
     setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
     setDiscountedGuests([]);
     setDownPayment('');
@@ -1025,7 +1025,7 @@ function BookingsClient() {
       bDates = [];
     }
     setSelectedBreakfastDates(bDates);
-    setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Pending Check-in' });
+    setFormData({ guestID: String(b.guestID), roomID: String(b.roomID), checkInDateTime: '', checkOutDateTime: '', status: 'Booked' });
     setRoomGuests(b.registeredGuests && b.registeredGuests.length > 0 ? b.registeredGuests.map(g => ({ ...g, discountID: '' })) : [{ fullName: b.firstName + ' ' + b.lastName, age: 30, discountID: '', discountIdNumber: '' }]);
     setNumGuestsCount(1);
     setDiscountedGuests([]);
@@ -1044,7 +1044,7 @@ function BookingsClient() {
       setSelectedRoomType('');
       setBreakfastOption('with');
       setSelectedBreakfastDates([]);
-      setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Checked In' });
+      setFormData({ guestID: '', roomID: '', checkInDateTime: '', checkOutDateTime: '', status: 'Occupied' });
       setRoomGuests([{ fullName: '', age: '', discountID: '', discountIdNumber: '' }]);
       setDiscountedGuests([]);
       setPaymentMethodID('1');
@@ -1411,7 +1411,7 @@ function BookingsClient() {
             roomID: formData.roomID,
             checkInDateTime: finalCheckInDateTime,
             checkOutDateTime: toDbDate(checkOutDate) + ' ' + checkOutTime + ':00',
-            status: useCurrentTimeIn ? 'Checked In' : 'Pending Check-in',
+            status: useCurrentTimeIn ? 'Occupied' : 'Booked',
             useCurrentTime: Boolean(useCurrentTimeIn),
             useCurrentTimeIn: Boolean(useCurrentTimeIn),
             useCurrentTimeOut: false,
@@ -1674,7 +1674,7 @@ function BookingsClient() {
                           roomNum.includes(search.toLowerCase()) ||
                           bookingIdStr.includes(search.toLowerCase());
     
-    // Tab separation: Active Stays vs Historical Log
+    // Tab separation: Bookings vs Historical Log
     if (activeTab === 'active' && isHistoricalBooking(b.status)) return false;
     if (activeTab === 'history' && !isHistoricalBooking(b.status)) return false;
 
@@ -1768,8 +1768,8 @@ function BookingsClient() {
   const getStatusBadge = (status) => {
     const norm = normalizeBookingStatus(status);
     switch (norm) {
-      case 'Pending': return 'bg-secondary text-white';
-      case 'Active Stay': return 'bg-primary text-white';
+      case 'Booked': return 'bg-info text-white';
+      case 'Occupied': return 'bg-primary text-white';
       case 'Bill Finalized': return 'badge-purple text-white';
       case 'Paid': return 'bg-success text-white';
       case 'Completed': return 'bg-dark text-white';
@@ -1844,8 +1844,8 @@ function BookingsClient() {
               {activeTab === 'active' ? (
                 <>
                   <option value="">All Active Statuses</option>
-                  <option value="Pending">Pending Check-in</option>
-                  <option value="Active Stay">Active Stay / Checked In</option>
+                  <option value="Booked">Booked</option>
+                  <option value="Occupied">Occupied</option>
                   <option value="Bill Finalized">Bill Finalized</option>
                   <option value="Paid">Paid / Ready for Checkout</option>
                 </>
@@ -1916,7 +1916,7 @@ function BookingsClient() {
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
-                        {['Pending Check-in', 'Confirmed', 'Pending', 'Booked', 'Overdue Check-In'].includes(b.status) && (
+                        {['Booked', 'Overdue Check-In'].includes(b.status) && (
                           <button
                             type="button"
                             className="btn btn-sm btn-primary text-white fw-bold me-1 d-inline-flex align-items-center justify-content-center"
@@ -1954,7 +1954,7 @@ function BookingsClient() {
                           <i className="fa-solid fa-sync-alt"></i>
                         </button>
 
-                        {['Pending Check-in', 'Confirmed', 'Pending', 'Booked', 'Checked In', 'Active Stay'].includes(b.status) && (
+                        {['Booked', 'Occupied'].includes(b.status) && (
                           <button
                             type="button"
                             className="action-btn action-btn-delete"
@@ -2701,10 +2701,10 @@ function BookingsClient() {
                                 const pad = (n) => String(n).padStart(2, '0');
                                 setCheckInDate(toUiDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`));
                                 setCheckInTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
-                                setFormData(prev => ({ ...prev, status: 'Checked In' }));
+                                setFormData(prev => ({ ...prev, status: 'Occupied' }));
                               } else {
                                 setCheckInTime('14:00');
-                                setFormData(prev => ({ ...prev, status: 'Pending Check-in' }));
+                                setFormData(prev => ({ ...prev, status: 'Booked' }));
                               }
                             }}
                           />
@@ -2998,7 +2998,7 @@ function BookingsClient() {
                             updatingBooking?.isDownPaymentPaid ||
                             (parseFloat(updatingBooking?.downPaymentPaid) > 0) ||
                             (parseFloat(updatingBooking?.paidTotal) > 0) ||
-                            (parseFloat(updatingBooking?.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Confirmed', 'Checked In'].includes(updatingBooking?.status))
+                            (parseFloat(updatingBooking?.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Booked', 'Occupied'].includes(updatingBooking?.status))
                           );
 
                           return isAlreadyPaid ? (
@@ -3370,7 +3370,7 @@ function BookingsClient() {
               </div>
               <form onSubmit={handleCancelSubmit}>
                 <div className="modal-body p-4">
-                  {cancellingBookingObj && cancellingBookingObj.status === 'Checked In' && (
+                  {cancellingBookingObj && cancellingBookingObj.status === 'Occupied' && (
                     <div className="alert alert-warning border-warning d-flex align-items-start gap-3 mb-3 p-3" style={{ borderRadius: '10px' }}>
                       <i className="fa-solid fa-triangle-exclamation text-warning fs-3 mt-1"></i>
                       <div className="small">

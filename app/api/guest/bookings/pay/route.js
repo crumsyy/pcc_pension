@@ -32,8 +32,8 @@ export async function POST(request) {
     }
 
     const normalizedStatus = normalizeBookingStatus(booking.status);
-    const activeUnfinalized = ['Checked In', 'Checked-In', 'Active Stay', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'];
-    if (activeUnfinalized.includes(booking.status) || (normalizedStatus === 'Active Stay' && !['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(booking.status))) {
+    const activeUnfinalized = ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'];
+    if (activeUnfinalized.includes(booking.status) || (normalizedStatus === 'Occupied' && !['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(booking.status))) {
       return NextResponse.json(
         { error: "Check-out must be requested first and receptionist must finalize your bill before payment." },
         { status: 400 }

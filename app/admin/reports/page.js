@@ -614,9 +614,9 @@ export default function AdminReports() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="All">All Statuses</option>
-                <option value="Checked In">Checked In</option>
+                <option value="Occupied">Occupied</option>
                 <option value="Checked Out">Checked Out</option>
-                <option value="Confirmed">Confirmed</option>
+                <option value="Booked">Booked</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>

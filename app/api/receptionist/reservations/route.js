@@ -163,7 +163,7 @@ export async function GET(request) {
     const roomSchedules = [...(activeBookings || []), ...(activeReservations || [])];
 
     const syncedReservations = reservations.map(r => {
-      if (r.bookingStatus && r.bookingStatus !== 'Pending Check-in' && r.bookingStatus !== 'Pending') {
+      if (r.bookingStatus && r.bookingStatus !== 'Booked') {
         return { ...r, status: r.bookingStatus };
       }
       return r;
@@ -576,7 +576,7 @@ export async function POST(request) {
         const nowStr = `${getPart('year')}-${getPart('month')}-${getPart('day')} ${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
 
         const checkInNow = Boolean(body.checkInNow);
-        const bookingStatus = checkInNow ? 'Active Stay' : 'Pending';
+        const bookingStatus = checkInNow ? 'Occupied' : 'Booked';
         const roomStatus = checkInNow ? 'Occupied' : 'Booked';
         const finalCheckInDateTime = checkInNow ? nowStr : checkInDateTime;
 
@@ -833,7 +833,7 @@ export async function POST(request) {
           userID: session?.userID || null,
           userName: session?.fullName || 'Receptionist',
           userRole: session?.role || 'Receptionist',
-          description: `Down payment recorded upon reservation conversion (${checkInNow ? 'Checked In Immediately' : 'Pending Check-in'})`,
+          description: `Down payment recorded upon reservation conversion (${checkInNow ? 'Occupied Immediately' : 'Booked'})`,
           referenceNumber: refNumber
         });
 

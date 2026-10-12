@@ -73,7 +73,7 @@ export async function GET() {
           SELECT b.bookingID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID
           FROM booking b
           JOIN guest g ON g.guestID = b.guestID
-          WHERE b.status IN ('Confirmed', 'Pending Check-in', 'Pending')
+          WHERE b.status IN ('Booked')
             AND b.checkInDateTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 3 HOUR)
         `);
 
@@ -99,7 +99,7 @@ export async function GET() {
           SELECT b.bookingID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID
           FROM booking b
           JOIN guest g ON g.guestID = b.guestID
-          WHERE b.status = 'Checked In'
+          WHERE b.status = 'Occupied'
             AND b.checkOutDateTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
         `);
 
@@ -125,7 +125,7 @@ export async function GET() {
           SELECT b.bookingID, b.guestID, g.firstName, g.lastName, g.userID as guestUserID
           FROM booking b
           JOIN guest g ON g.guestID = b.guestID
-          WHERE b.status = 'Checked In'
+          WHERE b.status = 'Occupied'
             AND NOW() > b.checkOutDateTime
         `);
 

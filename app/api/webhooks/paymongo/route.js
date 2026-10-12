@@ -106,9 +106,10 @@ export async function POST(request) {
       let targetBookingID = bookingIDMatch ? parseInt(bookingIDMatch[1]) : null;
 
       if (targetBookingID) {
-        // Auto-update booking status to Paid / Confirmed
+        // Normalize pending-family bookings to Booked on payment webhook;
+        // in-house and terminal stays are left untouched (no downgrades).
         await dbQuery(
-          "UPDATE booking SET status = CASE WHEN status = 'Pending Check-in' THEN 'Pending Check-in' ELSE 'Confirmed' END WHERE bookingID = ?",
+          "UPDATE booking SET status = CASE WHEN status IN ('Booked', 'Pending', 'Pending Check-in', 'Confirmed') THEN 'Booked' ELSE status END WHERE bookingID = ?",
           [targetBookingID]
         );
       }

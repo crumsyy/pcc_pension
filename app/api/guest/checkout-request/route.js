@@ -44,7 +44,7 @@ export async function POST(request) {
     }
 
     const currentStatus = booking.status;
-    const eligibleStatuses = ['Active Stay', 'Checked In', 'Pending Room Verification', 'Pending Checkout'];
+    const eligibleStatuses = ['Occupied', 'Pending Room Verification', 'Pending Checkout'];
     if (!eligibleStatuses.includes(currentStatus)) {
       if (currentStatus === 'Checkout Requested') {
         return NextResponse.json({

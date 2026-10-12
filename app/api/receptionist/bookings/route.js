@@ -51,8 +51,8 @@ export async function GET(request) {
       dbQuery(`
         SELECT b.bookingID, DATE_FORMAT(b.checkInDateTime, '%Y-%m-%dT%H:%i:%s') as checkInDateTime, DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime,
                CASE
-                 WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND NOW() >= b.checkInDateTime AND DATE(b.checkInDateTime) = CURDATE() THEN 'Overdue Check-In'
-                 WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND DATE(b.checkInDateTime) < CURDATE() THEN 'No Show'
+                 WHEN b.status IN ('Booked') AND NOW() >= b.checkInDateTime AND DATE(b.checkInDateTime) = CURDATE() THEN 'Overdue Check-In'
+                 WHEN b.status IN ('Booked') AND DATE(b.checkInDateTime) < CURDATE() THEN 'No Show'
                  ELSE b.status
                END as status,
                b.reservationID, b.guestID, b.roomID, b.cancelRemarks,
@@ -133,7 +133,7 @@ export async function GET(request) {
       const remainingBalance = balanceDetails ? balanceDetails.balance : await getBookingBalance(b.bookingID);
       const paidTotal = balanceDetails?.paidTotal ?? 0;
       const downPaymentPaid = balanceDetails?.downPaymentPaid ?? balanceDetails?.chargesSummary?.downPaymentPaid ?? (b.downPaymentAmount ? parseFloat(b.downPaymentAmount) : 0);
-      const isDownPaymentPaid = (downPaymentPaid > 0) || (paidTotal > 0) || (parseFloat(b.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Confirmed', 'Checked In'].includes(b.status));
+      const isDownPaymentPaid = (downPaymentPaid > 0) || (paidTotal > 0) || (parseFloat(b.downPaymentAmount || 0) > 0 && ['Payment Completed', 'Booked', 'Occupied'].includes(b.status));
       const incidentals = await dbQuery(
         "SELECT chargeID, description, amount, DATE_FORMAT(createdAt, '%Y-%m-%d %H:%i') as createdAt FROM incidental_charge WHERE bookingID = ? ORDER BY chargeID ASC",
         [b.bookingID]
@@ -279,7 +279,7 @@ export async function POST(request) {
         const roomID = parseInt(body.roomID);
         const checkInDateTime = body.checkInDateTime;
         const checkOutDateTime = body.checkOutDateTime;
-        const status = body.status === 'Active Stay' || body.checkInNow ? 'Active Stay' : (body.status || 'Pending');
+        const status = body.status === 'Active Stay' || body.status === 'Checked In' || body.checkInNow ? 'Occupied' : 'Booked';
         const downPaymentAmount = parseFloat(body.downPaymentAmount || 0);
         const paymentMethodID = parseInt(body.paymentMethodID || 1);
 
@@ -476,7 +476,7 @@ export async function POST(request) {
         // Timestamp resolution based on useCurrentTime
         let finalCheckInDateTime = checkInDateTime;
         let bookingStatus = status;
-        if (body.useCurrentTime === true || body.useCurrentTimeIn === true || status === 'Checked In') {
+        if (body.useCurrentTime === true || body.useCurrentTimeIn === true || status === 'Occupied') {
           if (checkInDateTime && String(checkInDateTime).trim().length >= 16) {
             const cleanTs = String(checkInDateTime).trim().replace('T', ' ');
             finalCheckInDateTime = cleanTs.length === 16 ? `${cleanTs}:00` : cleanTs;
@@ -484,7 +484,7 @@ export async function POST(request) {
             const manila = getManilaNow();
             finalCheckInDateTime = manila.dateTimeStr;
           }
-          bookingStatus = 'Checked In';
+          bookingStatus = 'Occupied';
         }
         let finalCheckOutDateTime = checkOutDateTime;
         if (body.useCurrentTimeOut === true) {
@@ -509,8 +509,8 @@ export async function POST(request) {
           await conn.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [convReservationID]);
         }
 
-        // Update room status upon booking creation (Occupied if Active Stay / Checked In, Booked if Pending)
-        const roomStatus = (bookingStatus === 'Active Stay' || bookingStatus === 'Checked In') ? 'Occupied' : 'Booked';
+        // Update room status upon booking creation (Occupied if checked in now, Booked otherwise)
+        const roomStatus = (bookingStatus === 'Occupied') ? 'Occupied' : 'Booked';
         await conn.execute("UPDATE room SET status = ? WHERE roomID = ?", [roomStatus, roomID]);
 
         if (roomStatus === 'Occupied') {
@@ -520,7 +520,7 @@ export async function POST(request) {
         // If early check-in fee applies, record into incidental_charge
         let earlyFeeToRecord = parseFloat(body.earlyFee) || 0;
         let earlyHoursToRecord = parseInt(body.earlyHours) || 0;
-        if (!earlyFeeToRecord && (body.useCurrentTimeIn || bookingStatus === 'Checked In')) {
+        if (!earlyFeeToRecord && (body.useCurrentTimeIn || bookingStatus === 'Occupied')) {
           let checkInHour = null;
           let checkInMinute = null;
           let checkInDate = inDateStr;
@@ -716,7 +716,7 @@ export async function POST(request) {
       const inD = new Date(checkInDateTime.replace(' ', 'T'));
       const outD = new Date(checkOutDateTime.replace(' ', 'T'));
 
-      if (['Pending Check-in', 'Pending', 'Confirmed', 'Booked'].includes(oldBooking.status) && inD.getTime() < new Date().getTime() - 60000) {
+      if (['Booked'].includes(oldBooking.status) && inD.getTime() < new Date().getTime() - 60000) {
         return NextResponse.json({ error: 'Reservation or booking has already passed.' }, { status: 400 });
       }
 
@@ -1031,12 +1031,12 @@ export async function POST(request) {
       }
       const { roomID, scheduledCheckInDate, status: currentBookingStatus, checkOutDateTime: scheduledCheckOutDateTime } = res[0];
 
-      // Lifecycle guard: only a confirmed (Pending-family) booking may check in.
+      // Lifecycle guard: only a confirmed (Booked) booking may check in.
       // Re-check-in of an in-house booking is rejected (duplicate operation).
       const normalizedCurrent = normalizeBookingStatus(currentBookingStatus);
-      if (currentBookingStatus === 'No Show' || normalizedCurrent !== 'Pending') {
+      if (currentBookingStatus === 'No Show' || normalizedCurrent !== 'Booked') {
         return NextResponse.json({
-          error: normalizedCurrent === 'Active Stay'
+          error: normalizedCurrent === 'Occupied'
             ? 'Guest is already checked in (duplicate check-in blocked).'
             : `Check-in not allowed from booking status '${currentBookingStatus}'. Only confirmed bookings can check in.`
         }, { status: 400 });
@@ -1168,7 +1168,7 @@ export async function POST(request) {
         FROM booking
         WHERE roomID = ?
           AND bookingID != ?
-          AND status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Pending Bill')
+          AND status IN ('Occupied', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Pending Bill')
         LIMIT 1
       `, [roomID, bookingID]);
       if (sameDayOccupant && sameDayOccupant.length > 0) {
@@ -1177,8 +1177,8 @@ export async function POST(request) {
         }, { status: 409 });
       }
 
-      assertBookingTransition(currentBookingStatus, 'Active Stay', 'check-in');
-      await dbQuery("UPDATE booking SET status = 'Active Stay', checkInDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
+      assertBookingTransition(currentBookingStatus, 'Occupied', 'check-in');
+      await dbQuery("UPDATE booking SET status = 'Occupied', checkInDateTime = ? WHERE bookingID = ?", [nowStr, bookingID]);
       await dbQuery("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [roomID]);
       // Note: Reservation lifecycle concluded at 'Booked'. It is not modified here.
       // Auto-transition Pending Delivery orders to active (Preparing)
@@ -1215,7 +1215,7 @@ export async function POST(request) {
 
       // Room verification applies to in-house stays (including fully-paid ones).
       const verifyState = normalizeBookingStatus(res[0].status);
-      if (verifyState !== 'Active Stay' && verifyState !== 'Paid') {
+      if (verifyState !== 'Occupied' && verifyState !== 'Paid') {
         return NextResponse.json({ error: `Room verification not allowed from booking status '${res[0].status}'.` }, { status: 400 });
       }
 
@@ -1260,7 +1260,7 @@ export async function POST(request) {
       }
       // Finalization applies to in-house stays (including fully-paid ones).
       const finalizeState = normalizeBookingStatus(res[0].status);
-      if (!['Active Stay', 'Bill Finalized', 'Paid'].includes(finalizeState)) {
+      if (!['Occupied', 'Bill Finalized', 'Paid'].includes(finalizeState)) {
         return NextResponse.json({ error: `Bill finalization not allowed from booking status '${res[0].status}'.` }, { status: 400 });
       }
       const { guestID, roomNumber } = res[0];
@@ -1352,7 +1352,7 @@ export async function POST(request) {
       // Lifecycle guard: checkout only from an in-house state (Occupied).
       // Pending / Cancelled / already-completed bookings cannot check out.
       const normalizedCheckoutState = normalizeBookingStatus(status);
-      if (!['Active Stay', 'Bill Finalized', 'Paid'].includes(normalizedCheckoutState)) {
+      if (!['Occupied', 'Bill Finalized', 'Paid'].includes(normalizedCheckoutState)) {
         return NextResponse.json({
           error: status === 'Completed' || status === 'Checked Out'
             ? 'Booking is already checked out (duplicate checkout blocked).'
@@ -1429,7 +1429,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Cannot cancel a booking that is already checked out, cancelled, or closed.' }, { status: 400 });
       }
 
-      const wasCheckedIn = normalizeBookingStatus(res[0].status) === 'Active Stay';
+      const wasCheckedIn = normalizeBookingStatus(res[0].status) === 'Occupied';
       if (wasCheckedIn) {
         cancelRemarks += ' [Checked-In Stay Cancelled — Non-Refundable Policy Enforced]';
       }
@@ -1472,7 +1472,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
       }
       // No-show applies only to confirmed bookings that never checked in.
-      if (res[0].status === 'No Show' || normalizeBookingStatus(res[0].status) !== 'Pending') {
+      if (res[0].status === 'No Show' || normalizeBookingStatus(res[0].status) !== 'Booked') {
         return NextResponse.json({ error: `Cannot mark as No Show from booking status '${res[0].status}'.` }, { status: 400 });
       }
       const roomID = res[0].roomID;

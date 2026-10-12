@@ -123,9 +123,9 @@ export default function ActiveStayPanel({
           {/* TOP HEADER */}
           <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
             <span className="badge bg-primary text-white px-3 py-1.5 fs-7 rounded-pill">
-              Active Stay Booking ({formatBookingID ? formatBookingID(activeBookingStay.bookingID) : `#${activeBookingStay.bookingID}`})
+              Occupied Booking ({formatBookingID ? formatBookingID(activeBookingStay.bookingID) : `#${activeBookingStay.bookingID}`})
             </span>
-            <StatusBadge status={activeBookingStay.status || 'Active Stay'} />
+            <StatusBadge status={activeBookingStay.status || 'Occupied'} />
           </div>
 
           <h5 className="fw-bold mb-1 text-dark">

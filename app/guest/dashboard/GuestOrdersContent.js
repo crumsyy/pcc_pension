@@ -839,9 +839,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   const allTodaySlotsPassed = isClientMounted && isSelectedDateToday && evaluatedSlots.every(s => s.isPast);
 
   const activeStayStatuses = [
-    'Checked In',
-    'Active Stay',
-    'Confirmed',
+    'Occupied',
     'Booked',
     'Checkout Requested',
     'Pending Room Verification',
@@ -1195,7 +1193,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           disabled={!isCheckedIn || (hasScheduledItemsInCart && allTodaySlotsPassed && isSelectedDateToday)}
         >
           <i className={`bi ${isCheckedIn ? 'bi-send-fill' : 'bi-lock-fill'} me-1.5`}></i>
-          <span>{isCheckedIn ? 'Submit Room Order' : 'Ordering Locked (Active Stay Required)'}</span>
+          <span>{isCheckedIn ? 'Submit Room Order' : 'Ordering Locked (Occupied Stay Required)'}</span>
         </LoadingButton>
       </form>
     );

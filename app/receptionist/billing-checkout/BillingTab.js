@@ -630,16 +630,11 @@ export default function ReceptionistBilling() {
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'booked' | 'occupied' | 'completed'
 
   const BOOKED_STATUS_LIST = [
-    'Pending',
-    'Pending Check-in',
-    'Confirmed',
     'Booked'
   ];
 
   const OCCUPIED_STATUS_LIST = [
-    'Active Stay',
-    'Checked In',
-    'Checked-In',
+    'Occupied',
     'Late Checkout',
     'Pending Room Verification',
     'Pending Checkout',
@@ -767,9 +762,8 @@ export default function ReceptionistBilling() {
                         <td>
                           <span className={`badge ${
                             b.status === 'Completed' ? 'bg-success text-white' :
-                            (b.status === 'Checked In' || b.status === 'Active Stay') ? 'bg-primary text-white' :
-                            (b.status === 'Confirmed' || b.status === 'Booked') ? 'bg-info text-white' :
-                            (b.status === 'Pending' || b.status === 'Pending Check-in') ? 'bg-warning text-dark' :
+                            (b.status === 'Occupied') ? 'bg-primary text-white' :
+                            (b.status === 'Booked') ? 'bg-info text-white' :
                             'bg-secondary text-white'
                           }`}>
                             {b.status}

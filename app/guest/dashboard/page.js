@@ -135,8 +135,8 @@ export default async function GuestDashboard() {
     ]);
 
     // Calculate live detailed balance only once for the primary active stay booking to ensure instant page load
-    const activeBookingRaw = rawBookings.find(b => ['Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'].includes(b.status)) 
-      || rawBookings.find(b => ['Confirmed', 'Pending', 'Booked', 'Pending Check-in'].includes(b.status));
+    const activeBookingRaw = rawBookings.find(b => ['Occupied', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'].includes(b.status)) 
+      || rawBookings.find(b => ['Booked'].includes(b.status));
     let activeBill = null;
 
     if (activeBookingRaw) {

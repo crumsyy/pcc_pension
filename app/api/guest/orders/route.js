@@ -253,9 +253,7 @@ export async function POST(request) {
     `, [guest.guestID]);
 
     const activeStayStatuses = [
-      'Checked In',
-      'Active Stay',
-      'Confirmed',
+      'Occupied',
       'Booked',
       'Checkout Requested',
       'Pending Room Verification',

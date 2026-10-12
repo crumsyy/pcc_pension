@@ -183,7 +183,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const norm = normalizeReservationStatus(r.status);
     return norm === 'Reserved' && r.status !== 'Cancelled' && r.status !== 'Booked';
   });
-  const activeBookingStay = bookings.find(b => ['Pending', 'Confirmed', 'Overdue Check-In', 'Checked In', 'Active Stay', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Bill Finalized', 'Pending Bill', 'Checkout Requested', 'Payment Completed'].includes(b.status));
+  const activeBookingStay = bookings.find(b => ['Booked', 'Overdue Check-In', 'Occupied', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Bill Finalized', 'Pending Bill', 'Checkout Requested', 'Payment Completed'].includes(b.status));
 
   // Custom Alert / Confirm Modal Dialog State & Handlers
   const [modalConfig, setModalConfig] = useState({
@@ -1851,14 +1851,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case 'Pending':
-      case 'Pending Check-in':
-        return 'bg-info-subtle text-info-emphasis border border-info';
-      case 'Confirmed':
       case 'Booked':
         return 'bg-primary-subtle text-primary border border-primary';
-      case 'Active Stay':
-      case 'Checked In':
+      case 'Occupied':
         return 'bg-primary text-white';
       case 'Checkout Requested':
       case 'Pending Room Verification':
@@ -2143,7 +2138,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     );
   };
 
-  // Interactive Booking Status Timeline Component Helper (Post-payment stage: Pending -> Active Stay -> Bill Finalized -> Paid -> Completed)
+  // Interactive Booking Status Timeline Component Helper (Post-payment stage: Booked -> Occupied -> Bill Finalized -> Paid -> Completed)
   const renderBookingStatusTimeline = (status) => {
     const norm = normalizeBookingStatus(status);
     const isCancelled = norm === 'Cancelled';
@@ -2160,15 +2155,15 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     }
 
     const bookingSteps = [
-      { id: 'Pending', label: 'Pending', icon: 'bi-clock-history' },
-      { id: 'Active Stay', label: 'Active Stay', icon: 'bi-door-open' },
+      { id: 'Booked', label: 'Booked', icon: 'bi-clock-history' },
+      { id: 'Occupied', label: 'Occupied', icon: 'bi-door-open' },
       { id: 'Bill Finalized', label: 'Bill Finalized', icon: 'bi-receipt' },
       { id: 'Paid', label: 'Paid', icon: 'bi-credit-card-2-front' },
       { id: 'Completed', label: 'Completed', icon: 'bi-check2-all' }
     ];
 
     let currentIdx = 0;
-    if (norm === 'Active Stay') currentIdx = 1;
+    if (norm === 'Occupied') currentIdx = 1;
     if (norm === 'Bill Finalized') currentIdx = 2;
     if (norm === 'Paid') currentIdx = 3;
     if (norm === 'Completed') currentIdx = 4;
@@ -2898,7 +2893,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   <i className="bi bi-receipt"></i> View Billing
                                 </button>
 
-                                {['Checked In', 'Checked-In', 'Active Stay'].includes(b.status) && (
+                                {['Occupied'].includes(b.status) && (
                                   <button 
                                     type="button" 
                                     className="btn btn-secondary text-white"
@@ -2942,7 +2937,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {normalizeBookingStatus(b.status) === 'Pending' && (
+                                {normalizeBookingStatus(b.status) === 'Booked' && (
                                   <button 
                                     type="button" 
                                     className="btn btn-danger text-white" 
@@ -3792,7 +3787,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   <i className="bi bi-receipt"></i> View Billing
                                 </button>
 
-                                {['Checked In', 'Checked-In', 'Active Stay'].includes(b.status) && (
+                                {['Occupied'].includes(b.status) && (
                                   <button 
                                     type="button" 
                                     className="btn btn-secondary text-white"
@@ -3836,7 +3831,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                   </button>
                                 )}
 
-                                {normalizeBookingStatus(b.status) === 'Pending' && (
+                                {normalizeBookingStatus(b.status) === 'Booked' && (
                                   <button 
                                     type="button" 
                                     className="btn btn-danger text-white" 

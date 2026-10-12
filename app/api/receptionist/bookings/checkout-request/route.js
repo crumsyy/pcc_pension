@@ -42,7 +42,7 @@ export async function POST(request) {
     }
 
     const currentStatus = booking.status;
-    if (currentStatus !== 'Checked In' && currentStatus !== 'Active Stay') {
+    if (currentStatus !== 'Occupied') {
       return NextResponse.json({
         error: `Cannot request checkout from status '${currentStatus}'. Only active stays can request checkout.`
       }, { status: 400 });

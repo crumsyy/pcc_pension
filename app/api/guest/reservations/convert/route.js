@@ -64,7 +64,7 @@ export async function POST(request) {
       SELECT bookingID, status
       FROM booking
       WHERE roomID = ?
-        AND status IN ('Confirmed', 'Checked In', 'Pending Check-in', 'Late Checkout')
+        AND status IN ('Booked', 'Occupied', 'Late Checkout')
         AND checkInDateTime < ?
         AND checkOutDateTime > ?
       LIMIT 1

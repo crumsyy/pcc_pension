@@ -81,7 +81,7 @@ export async function POST(request) {
           await conn.execute("UPDATE reservation SET status = 'Booked' WHERE reservationID = ?", [reservationID]);
 
           const [bRes] = await conn.execute(
-            "INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES (?, ?, 'Pending', ?, ?, ?)",
+            "INSERT INTO booking (checkInDateTime, checkOutDateTime, status, reservationID, guestID, roomID) VALUES (?, ?, 'Booked', ?, ?, ?)",
             [inDateStr, outDateStr, reservationID, guestID, resObj.roomID]
           );
           targetBookingID = bRes.insertId;
@@ -145,7 +145,7 @@ export async function POST(request) {
           const currentStatus = bDetails[0].status;
           const roomID = bDetails[0].roomID;
 
-          if (currentStatus === 'Checked In' || currentStatus === 'Late Checkout') {
+          if (currentStatus === 'Occupied' || currentStatus === 'Late Checkout') {
             const currentBal = await getBookingBalance(targetBookingID);
             if (currentBal <= 0.05) {
               await conn.execute("UPDATE booking SET status = 'Paid' WHERE bookingID = ?", [targetBookingID]);
@@ -175,10 +175,10 @@ export async function POST(request) {
             const pad = (n) => String(n).padStart(2, '0');
             const inDateOnly = String(bRec.checkInDateTime).split(' ')[0] || String(bRec.checkInDateTime).split('T')[0];
             const todayDateOnly = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-            if (inDate <= now || inDateOnly === todayDateOnly || bRec.status === 'Active Stay' || bRec.status === 'Checked In') {
+            if (inDate <= now || inDateOnly === todayDateOnly || bRec.status === 'Occupied') {
               await conn.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [bRec.roomID]);
-              if (bRec.status !== 'Active Stay' && bRec.status !== 'Checked In' && bRec.status !== 'Paid' && bRec.status !== 'Completed' && bRec.status !== 'Checked Out' && bRec.status !== 'Payment Completed') {
-                await conn.execute("UPDATE booking SET status = 'Active Stay' WHERE bookingID = ?", [targetBookingID]);
+              if (bRec.status !== 'Occupied' && bRec.status !== 'Paid' && bRec.status !== 'Completed' && bRec.status !== 'Checked Out' && bRec.status !== 'Payment Completed') {
+                await conn.execute("UPDATE booking SET status = 'Occupied' WHERE bookingID = ?", [targetBookingID]);
               }
             }
           }

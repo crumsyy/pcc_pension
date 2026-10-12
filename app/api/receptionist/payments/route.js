@@ -23,13 +23,13 @@ export async function GET(request) {
         LEFT JOIN room rm ON rm.roomID = b.roomID
         LEFT JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
         WHERE b.status IN (
-          'Confirmed', 'Pending', 'Pending Check-in', 'Booked',
-          'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification',
+          'Booked',
+          'Occupied', 'Late Checkout', 'Pending Room Verification',
           'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Pending Bill',
           'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid',
           'Checked Out', 'Completed'
         )
-        ORDER BY (CASE WHEN b.status IN ('Confirmed', 'Pending', 'Pending Check-in', 'Booked', 'Checked In', 'Active Stay') THEN 0 ELSE 1 END), b.bookingID DESC
+        ORDER BY (CASE WHEN b.status IN ('Booked', 'Occupied') THEN 0 ELSE 1 END), b.bookingID DESC
       `),
       dbQuery(`SELECT d.discountID, d.name, d.percentage, COALESCE(d.requiredBookings, 0) as requiredBookings,
                COALESCE(et.eligibility, 'ID-Based') as eligibility
@@ -59,11 +59,11 @@ export async function GET(request) {
       `)
     ]);
 
-    // Filter activeBookings: Confirmed, Pending, Pending Check-in, Booked, Active Stay, Checked In and Late Checkout guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
+    // Filter activeBookings: Booked and Occupied-family guests are always selectable; Checked Out guests are only included if they have an unpaid balance > 0
     const filteredActiveBookings = activeBookings.filter(b => {
       if ([
-        'Confirmed', 'Pending', 'Pending Check-in', 'Booked',
-        'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification',
+        'Booked',
+        'Occupied', 'Late Checkout', 'Pending Room Verification',
         'Pending Checkout', 'Checkout Requested', 'Room Verified', 'Pending Bill',
         'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'
       ].includes(b.status)) {
@@ -115,7 +115,7 @@ export async function POST(request) {
     const currentBalance = await getBookingBalance(bookingID);
     const isFullyPaid = (currentBalance - amount) <= 0.05;
     const shouldCheckout = isFullyPaid && Boolean(body.shouldCheckout) && [
-      'Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout',
+      'Occupied', 'Late Checkout', 'Pending Room Verification', 'Pending Checkout',
       'Checkout Requested', 'Room Verified', 'Pending Bill', 'Bill Finalized', 'Final Billing Updated'
     ].includes(bookingStatus);
 

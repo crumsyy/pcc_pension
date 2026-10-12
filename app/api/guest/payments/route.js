@@ -47,8 +47,8 @@ export async function POST(request) {
 
       const normStatus = normalizeBookingStatus(bInfo.status);
       // Allow down payments upon booking creation; restrict when in-house or in checkout verification before bill finalization
-      const activeUnfinalized = ['Checked In', 'Checked-In', 'Active Stay', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'];
-      if (activeUnfinalized.includes(bInfo.status) || (normStatus === 'Active Stay' && !['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(bInfo.status))) {
+      const activeUnfinalized = ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'];
+      if (activeUnfinalized.includes(bInfo.status) || (normStatus === 'Occupied' && !['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(bInfo.status))) {
         return NextResponse.json({
           error: "Check-out must be requested first and receptionist must finalize your bill before payment."
         }, { status: 400 });
@@ -230,7 +230,7 @@ export async function POST(request) {
       // Allow down payments for new bookings; restrict only when Checked-In (active stay) and bill not ready
       if (session.role === 'Guest') {
         const normStatus = normalizeBookingStatus(bookingRows[0].status);
-        if (normStatus === 'Checked-In') {
+        if (normStatus === 'Occupied') {
           await connection.rollback();
           return NextResponse.json({
             error: "Payment is only allowed once the bill is ready."
@@ -387,10 +387,10 @@ export async function POST(request) {
         const now = new Date();
         const inDateOnly = String(bInfo.checkInDateTime).split(' ')[0] || String(bInfo.checkInDateTime).split('T')[0];
         const todayDateOnly = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-        if (inDate <= now || inDateOnly === todayDateOnly || bInfo.status === 'Active Stay' || bInfo.status === 'Checked In') {
+        if (inDate <= now || inDateOnly === todayDateOnly || bInfo.status === 'Occupied') {
           await connection.execute("UPDATE room SET status = 'Occupied' WHERE roomID = ?", [bInfo.roomID]);
-          if (bInfo.status !== 'Active Stay' && bInfo.status !== 'Checked In' && bInfo.status !== 'Paid' && bInfo.status !== 'Completed' && bInfo.status !== 'Checked Out' && bInfo.status !== 'Payment Completed') {
-            await connection.execute("UPDATE booking SET status = 'Active Stay' WHERE bookingID = ?", [parsedBookingID]);
+          if (bInfo.status !== 'Occupied' && bInfo.status !== 'Paid' && bInfo.status !== 'Completed' && bInfo.status !== 'Checked Out' && bInfo.status !== 'Payment Completed') {
+            await connection.execute("UPDATE booking SET status = 'Occupied' WHERE bookingID = ?", [parsedBookingID]);
           }
         }
       }

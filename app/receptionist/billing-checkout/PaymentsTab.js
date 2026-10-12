@@ -105,7 +105,7 @@ function PaymentsClient() {
     const guestTag = b.guestID ? `Guest-${b.guestID}` : '';
     const firstLast = `${b.firstName || ''} ${b.lastName || ''}`.trim();
     const lastFirst = `${b.lastName || ''}, ${b.firstName || ''}`.trim();
-    const statusTag = (b.status && b.status !== 'Checked In' && b.status !== 'Active Stay') ? ` [${b.status}]` : '';
+    const statusTag = (b.status && b.status !== 'Occupied') ? ` [${b.status}]` : '';
     const searchKW = `${firstLast} ${lastFirst} ${userTag} ${b.userID || ''} ${guestTag} ${b.guestID || ''} Room ${b.roomNumber} ${b.roomType || ''} ${b.contact || ''} BK-${b.bookingID} ${b.status || ''}`;
 
     return {

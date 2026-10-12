@@ -24,8 +24,8 @@ export async function GET() {
     const bookings = await dbQuery(`
       SELECT b.bookingID, b.checkInDateTime, b.checkOutDateTime,
              CASE
-               WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND NOW() >= b.checkInDateTime AND NOW() <= DATE_ADD(b.checkInDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
-               WHEN b.status IN ('Pending Check-in', 'Pending', 'Confirmed', 'Booked') AND b.checkInDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 'No Show'
+               WHEN b.status IN ('Booked') AND NOW() >= b.checkInDateTime AND NOW() <= DATE_ADD(b.checkInDateTime, INTERVAL 1 HOUR) THEN 'Overdue Check-In'
+               WHEN b.status IN ('Booked') AND b.checkInDateTime < DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 'No Show'
                ELSE b.status
              END as status,
              b.reservationID, b.roomID, b.roomRate, b.breakfastOption, b.breakfastID, b.cancelRemarks,
@@ -145,11 +145,11 @@ export async function POST(request) {
       }
 
       const currentStatus = booking.status;
-      const eligibleStatuses = ['Active Stay', 'Checked In', 'Checked-In', 'Occupied'];
+      const eligibleStatuses = ['Occupied'];
       const normalizedRequestState = normalizeBookingStatus(currentStatus);
-      // In-house states only: Active Stay family plus Paid (a fully-paid guest
+      // In-house states only: Occupied family plus Paid (a fully-paid guest
       // is still occupying the room and must be able to request checkout).
-      if (!eligibleStatuses.includes(currentStatus) && normalizedRequestState !== 'Active Stay' && normalizedRequestState !== 'Paid') {
+      if (!eligibleStatuses.includes(currentStatus) && normalizedRequestState !== 'Occupied' && normalizedRequestState !== 'Paid') {
         return NextResponse.json({ 
           error: `Cannot request checkout from current status '${currentStatus}'. Only checked-in active stays can request checkout.` 
         }, { status: 400 });
@@ -196,7 +196,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Booking record not found.' }, { status: 404 });
       }
 
-      if (booking.status === 'Checked In' || booking.status === 'Checked Out' || booking.status === 'Completed' || booking.status === 'Active Stay') {
+      if (booking.status === 'Occupied' || booking.status === 'Checked Out' || booking.status === 'Completed') {
         return NextResponse.json({ error: 'Checked-in, in-house, or checked-out bookings cannot be canceled. Please request checkout instead.' }, { status: 400 });
       }
 
@@ -490,7 +490,7 @@ export async function POST(request) {
         }
 
         const isCheckedInNow = !convResID && Boolean(body.useCurrentTime === true || body.useCurrentTimeIn === true);
-        const bookingStatus = isCheckedInNow ? 'Active Stay' : 'Pending';
+        const bookingStatus = isCheckedInNow ? 'Occupied' : 'Booked';
         const roomStatus = isCheckedInNow ? 'Occupied' : 'Booked';
 
         // 3. Insert booking record with appropriate status, breakfastOption, breakfastID, guestCount, breakfastDates, and breakfastFee
@@ -699,7 +699,7 @@ export async function POST(request) {
 
         return NextResponse.json({
           success: true,
-          status: 'Confirmed',
+          status: 'Booked',
           message: 'Booking confirmed successfully.',
           bookingID,
           receipt: receiptData

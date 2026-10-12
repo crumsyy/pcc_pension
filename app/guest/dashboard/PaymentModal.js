@@ -29,7 +29,7 @@ export default function PaymentModal({
   const parsedAmount = parseFloat(amount || booking?.remainingBalance || 0);
   const bookingID = booking?.bookingID;
   const normalizedStatus = normalizeBookingStatus(booking?.status);
-  const isCheckedInWithoutBill = normalizedStatus === 'Checked-In';
+  const isCheckedInWithoutBill = normalizedStatus === 'Occupied';
   const canGenerateQr = !isCheckedInWithoutBill;
 
   // Auto-fetch dynamic QRPh code when opening modal if eligible
@@ -173,7 +173,7 @@ export default function PaymentModal({
               <div className="text-muted small" style={{ fontSize: '0.78rem' }}>Amount to Settle:</div>
               <div className="fw-bold fs-3 text-primary">₱{parsedAmount.toFixed(2)}</div>
               <div className="text-muted small" style={{ fontSize: '0.72rem' }}>
-                Status: <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5">{booking.status || 'Active Stay'}</span>
+                Status: <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5">{booking.status || 'Occupied'}</span>
               </div>
             </div>
 

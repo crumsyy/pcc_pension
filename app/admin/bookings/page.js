@@ -18,7 +18,7 @@ function toOverviewBookingState(rawStatus) {
   if (s === 'No Show') return 'Cancelled';
   const norm = normalizeBookingStatus(s);
   if (norm === 'Completed') return 'Completed';
-  if (norm === 'Active Stay' || norm === 'Bill Finalized' || norm === 'Paid') return 'Occupied';
+  if (norm === 'Occupied' || norm === 'Bill Finalized' || norm === 'Paid') return 'Occupied';
   return 'Booked';
 }
 

@@ -19,7 +19,7 @@ export async function GET(request) {
         JOIN guest g ON g.guestID = o.guestID
         LEFT JOIN booking b_direct ON b_direct.bookingID = o.bookingID
         LEFT JOIN room r_direct ON r_direct.roomID = b_direct.roomID
-        LEFT JOIN booking b ON b.guestID = g.guestID AND b.status IN ('Checked In', 'Active Stay', 'Confirmed', 'Booked', 'Room Verified')
+        LEFT JOIN booking b ON b.guestID = g.guestID AND b.status IN ('Occupied', 'Booked', 'Room Verified')
         LEFT JOIN room r ON r.roomID = b.roomID
         LEFT JOIN (
           SELECT guestID, MAX(bookingID) as maxID FROM booking GROUP BY guestID
@@ -175,7 +175,7 @@ export async function POST(request) {
         }
         const activeBookingID = activeBooking.bookingID;
         const activeRoomID = activeBooking.roomID;
-        const isOccupiedAndCheckedIn = (['Checked In', 'Active Stay', 'Late Checkout'].includes(activeBooking.bookingStatus) && ['Occupied', 'Reserved'].includes(activeBooking.roomStatus));
+        const isOccupiedAndCheckedIn = (['Occupied', 'Late Checkout'].includes(activeBooking.bookingStatus) && ['Occupied', 'Reserved'].includes(activeBooking.roomStatus));
         const activeBorrowedBy = `${activeBooking.firstName} ${activeBooking.lastName}`.trim();
 
         // Prevent duplicate order creation within 10 seconds for the same guest

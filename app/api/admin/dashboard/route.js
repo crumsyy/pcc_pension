@@ -44,13 +44,13 @@ export async function GET() {
         SELECT COUNT(*) as count 
         FROM booking 
         WHERE DATE(checkInDateTime) = CURDATE() 
-          AND status IN ('Confirmed', 'Pending', 'Checked In')
+          AND status IN ('Booked', 'Occupied')
       `),
       dbQuery(`
         SELECT COUNT(*) as count 
         FROM booking 
         WHERE DATE(checkOutDateTime) = CURDATE() 
-          AND status = 'Checked In'
+          AND status = 'Occupied'
       `),
       dbQuery(`
         SELECT COUNT(*) as count FROM (
@@ -88,7 +88,7 @@ export async function GET() {
         JOIN guest g ON g.guestID = b.guestID
         JOIN room rm ON rm.roomID = b.roomID
         JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
-        WHERE b.status IN ('Checked In', 'Active Stay', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Confirmed', 'Pending Check-in', 'Pending', 'Booked', 'Active')
+        WHERE b.status IN ('Occupied', 'Late Checkout', 'Pending Room Verification', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Booked')
           AND b.status NOT IN ('Completed', 'Checked Out', 'Cancelled', 'No Show')
         ORDER BY b.checkInDateTime ASC 
         LIMIT 6

@@ -750,17 +750,17 @@ function ReceptionistOrdersContent() {
           </label>
           <SearchableSelect
             options={activeBookings.map(b => {
-              const isCheckedIn = (b.bookingStatus === 'Checked In' || b.bookingStatus === 'Active Stay');
+              const isCheckedIn = (b.bookingStatus === 'Occupied');
               return {
                 value: String(b.guestID),
-                label: `Room ${b.roomNumber} — ${b.lastName}, ${b.firstName} (${isCheckedIn ? 'Checked In' : 'Pending Check-in'})`
+                label: `Room ${b.roomNumber} — ${b.lastName}, ${b.firstName} (${isCheckedIn ? 'Occupied' : 'Booked'})`
               };
             })}
             value={selectedGuestID}
             onChange={(val) => setSelectedGuestID(val)}
             placeholder="Type to search guest or room..."
           />
-          {selectedBooking && !['Checked In', 'Active Stay'].includes(selectedBooking.bookingStatus) && (
+          {selectedBooking && !['Occupied'].includes(selectedBooking.bookingStatus) && (
             <div className="alert alert-warning py-1.5 px-2.5 mt-2 mb-0 small d-flex align-items-center gap-1.5" style={{ fontSize: '0.75rem' }}>
               <i className="bi bi-info-circle-fill text-warning-emphasis flex-shrink-0"></i>
               <span><strong>Guest not yet checked in:</strong> Order will be recorded as <strong>Pending Delivery</strong> and will automatically activate once checked in.</span>

@@ -42,14 +42,9 @@ function CheckInClient() {
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case 'Pending':
-      case 'Pending Check-in':
-        return 'bg-warning-subtle text-warning-emphasis border border-warning';
-      case 'Confirmed':
       case 'Booked':
         return 'bg-primary-subtle text-primary border border-primary';
-      case 'Checked In':
-      case 'Active Stay':
+      case 'Occupied':
         return 'bg-info-subtle text-info-emphasis border border-info';
       case 'Pending Room Verification':
       case 'Pending Checkout':
@@ -215,9 +210,9 @@ function CheckInClient() {
     if (!loading && targetBookingID && bookings.length > 0) {
       const target = bookings.find(b => b.bookingID === parseInt(targetBookingID));
       if (target) {
-        if (['Pending Check-in', 'Pending', 'Confirmed', 'Booked', 'Overdue Check-In'].includes(target.status)) {
+        if (['Booked', 'Overdue Check-In'].includes(target.status)) {
           handleCheckIn(target.bookingID, target.firstName + ' ' + target.lastName);
-        } else if (target.status === 'Checked In' || target.status === 'Active Stay') {
+        } else if (target.status === 'Occupied') {
           handleCheckOut(target.bookingID, target.firstName + ' ' + target.lastName);
         }
       }
@@ -365,16 +360,12 @@ function CheckInClient() {
   };
 
   const arrivals = bookings.filter(b => [
-    'Pending Check-in',
-    'Pending',
-    'Confirmed',
     'Booked',
     'Overdue Check-In'
   ].includes(b.status));
 
   const departures = bookings.filter(b => [
-    'Checked In',
-    'Active Stay',
+    'Occupied',
     'Checkout Requested',
     'Pending Room Verification',
     'Pending Checkout',
@@ -538,7 +529,7 @@ function CheckInClient() {
                           </button>
                         )}
 
-                        {(b.status === 'Checked In' || b.status === 'Active Stay') && (
+                        {(b.status === 'Occupied') && (
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-danger fw-bold d-inline-flex align-items-center gap-1"

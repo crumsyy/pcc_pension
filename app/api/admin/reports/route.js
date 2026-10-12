@@ -595,7 +595,7 @@ export async function GET(request) {
       const availableNow = availableNowRes[0]?.count || 0;
 
       // Check-ins and Check-outs
-      let bkCheckSql = "SELECT COUNT(*) as count FROM booking b JOIN room r ON r.roomID = b.roomID WHERE b.status IN ('Checked In', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed') AND DATE(b.checkInDateTime) BETWEEN ? AND ?";
+      let bkCheckSql = "SELECT COUNT(*) as count FROM booking b JOIN room r ON r.roomID = b.roomID WHERE b.status IN ('Occupied', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed') AND DATE(b.checkInDateTime) BETWEEN ? AND ?";
       const bkCheckParams = [from, to];
       if (roomID) {
         bkCheckSql += " AND b.roomID = ?";
@@ -621,7 +621,7 @@ export async function GET(request) {
                DATE_FORMAT(b.checkOutDateTime, '%Y-%m-%dT%H:%i:%s') as checkOutDateTime, b.status 
         FROM booking b
         JOIN room r ON r.roomID = b.roomID
-        WHERE b.status IN ('Checked In', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed')
+        WHERE b.status IN ('Occupied', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed')
           AND DATE(b.checkInDateTime) <= ? AND DATE(b.checkOutDateTime) >= ?
       `;
       const activeBkParams = [to, from];
@@ -669,7 +669,7 @@ export async function GET(request) {
         JOIN floor fl ON fl.floorID = rm.floorID
         LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = 1
         LEFT JOIN booking b ON b.roomID = rm.roomID
-          AND b.status IN ('Checked In', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed')
+          AND b.status IN ('Occupied', 'Checked Out', 'Completed', 'Bill Finalized', 'Payment Completed')
           AND DATE(b.checkInDateTime) <= ? AND DATE(b.checkOutDateTime) >= ?
         WHERE rm.isArchived = 0
       `;

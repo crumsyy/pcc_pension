@@ -502,9 +502,9 @@ export default function DashboardClient({ userName }) {
                               </td>
                               <td>
                                 <span className={`badge ${
-                                  ['Checked In', 'Active Stay'].includes(b.status)
+                                  ['Occupied'].includes(b.status)
                                     ? 'text-bg-primary'
-                                    : ['Confirmed', 'Pending Check-in'].includes(b.status)
+                                    : ['Booked'].includes(b.status)
                                     ? 'text-bg-warning text-dark'
                                     : ['Bill Finalized', 'Room Verified', 'Payment Completed', 'Paid'].includes(b.status)
                                     ? 'text-bg-success'
