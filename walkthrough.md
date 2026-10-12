@@ -1,8 +1,9 @@
-# Walkthrough — Tray back on side, search above tabs
+# Walkthrough — Sticky order tray
 
 ## Changes
-- Guest + receptionist order pages: Order Tray restored to the right side column in normal flow (fixed overlay stays deleted, so no overlap); search bar moved above the category tabs; catalog widths restored; history mode still hides the tray; mobile floating bar unchanged.
+- `globals.css`: new `.orders-tray-sticky` (sticky below header, in-flow, self-scrolling).
+- Guest + receptionist tray cards use it; guest column stretch restored so sticky has room to travel.
 
 ## Verification
 - `npm run build` → success.
-- Manual: tray right, search above tabs, no overlap at any width on both pages.
+- Manual: tray follows scroll on long catalogs, never overlaps search/tabs; long carts scroll inside the tray.

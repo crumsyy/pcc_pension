@@ -2247,6 +2247,16 @@ body.dark-theme .image-fallback-sm {
 }
 
 /* =====================================================================
+   Sticky order-tray rail (stays in flow: follows scroll, never overlays)
+   ===================================================================== */
+.orders-tray-sticky {
+  position: sticky;
+  top: 96px;
+  max-height: calc(100vh - 116px);
+  overflow-y: auto;
+}
+
+/* =====================================================================
    Guest-Facing & Dual Monitor QR Payment Display
    ===================================================================== */
 .qr-payment-container {

@@ -1,21 +1,20 @@
-# Implementation Plan — Tray back to side, search bar above tabs (for approval)
+# Implementation Plan — Sticky order tray (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Correction
-- Revert the tray relocation: Order Tray returns to the right side column (in normal flow, **without** the deleted fixed overlay — that rule stays deleted so the original overlap cannot return).
-- Move the **search bar** above the category tabs row instead, on both guest and receptionist order pages. No logic changes.
+## 1. Request (Image 1)
+Tray scrolls away with the page; restore follow-scroll behavior without reintroducing the overlap bug.
 
-## 2. Proposed changes
-1. **Guest**: delete top tray card; restore `row` with catalog (`col-md-7...`, incl. mobile bottom spacer) + tray side column (`col-md-5`, no fixed class); move search input block above the tabs row, full width.
-2. **Receptionist**: same restore (catalog `col-lg-7 col-xl-8` + tray `col-lg-5 col-xl-4`, history mode hides tray as before); search above tabs.
-3. Mobile floating bar + modal unchanged.
+## 2. Approach
+- `position: sticky` (not `fixed`): tray stays in normal flow inside its side column, sticks below the header while scrolling, and can never overlay the search bar or catalog.
+- `globals.css`: new `.orders-tray-sticky { position: sticky; top: 96px; max-height: calc(100vh - 116px); }` (+ dark-theme safe, no color rules).
+- Guest + receptionist tray cards use the class with internal scroll for long carts; guest column drops `align-self-start` (sticky needs the full row height to travel).
 
 ## 3. Verification
-- Tray on right, search above tabs, no overlap at any width; `npm run build` passes.
+- Scroll long catalog: tray follows; no overlap at any width; short carts unaffected; `npm run build` passes.
 
 ## 4. Risks
-- Low: restores prior layout minus the overlay bug.
+- Low: positioning only.
 
 ## 5. Questions
 - Q1: Proceed?

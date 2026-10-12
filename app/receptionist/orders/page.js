@@ -1414,7 +1414,7 @@ function ReceptionistOrdersContent() {
         {/* ORDER TRAY COLUMN (Shown when in catalog mode) */}
         {activeCategory !== 'history' && (
           <div className="col-12 col-lg-5 col-xl-4">
-            <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 d-flex flex-column mt-1 overflow-hidden" style={{ maxHeight: 'calc(100vh - 56px)' }}>
+            <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 d-flex flex-column mt-1 orders-tray-sticky" style={{ maxHeight: 'calc(100vh - 116px)' }}>
               <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
                 <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                   <i className="bi bi-cart3 text-primary"></i>
