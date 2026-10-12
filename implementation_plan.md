@@ -1,21 +1,19 @@
-# Implementation Plan — Order Tray above tabs (guest + receptionist) (for approval)
+# Implementation Plan — Red Cancel + blue confirm on guest destructive dialogs (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Root cause (verified)
-- `.orders-tray-fixed` (`globals.css:2253`, ≥1200px only) rips the tray out of flow into a fixed overlay (`top: 96px; right: 36px`), covering the search bar and catalog beneath it.
+## 1. Request (Image 1)
+Guest Cancel Booking dialog: left **Cancel** button red filled, right **Yes, Cancel** button blue filled.
 
-## 2. Proposed changes
-1. **Guest (`GuestOrdersContent.js`)**: move the tray card above the tabs + search toolbar (full width, normal flow); delete the side-column wrapper and the mobile/desktop split for the tray card (mobile floating bar + modal stay as-is for scrolled use); drop `orders-tray-fixed`.
-2. **Receptionist (`orders/page.js`)**: same — tray card above tabs, full width, catalog full width below; drop `orders-tray-fixed` / `orders-tray-col` usage.
-3. **`globals.css`**: delete the now-unused fixed-rail rule (verified only these two usages).
-4. No cart logic, checkout, modal, or API changes. Tray max-height/scroll kept sensible in-flow.
+## 2. Approach (scoped, no shared-component change)
+- `ModalDialog` already maps `confirmVariant='primary'` → blue confirm and `cancelVariant='danger'` → red cancel. `showConfirm` already forwards both variants.
+- Change only the two destructive guest callers (`handleCancelBooking`, `handleCancelReservation`) to pass `('primary', 'danger', 'Yes, Cancel')`. Checkout-request and all other dialogs keep current colors. No global CSS or shared-component edits.
 
 ## 3. Verification
-- `grep orders-tray-fixed` → zero hits; desktop ≥1200px shows tray above tabs with no overlap; mobile floating bar still opens the modal; `npm run build` passes.
+- Visual: Cancel red left, Yes-Cancel blue right, both themes; other dialogs unchanged; `npm run build` passes.
 
 ## 4. Risks
-- Low-medium: layout-only, but the desktop side-rail disappears — confirm the top-card layout is accepted.
+- Minimal: two call-site arg changes.
 
 ## 5. Questions
-- Q1: Proceed? Q2: Tray always expanded on top, or collapsible (collapsed when empty)?
+- Q1: Proceed scoped to the two cancel dialogs, or apply red-cancel/blue-confirm to all guest dialogs?
