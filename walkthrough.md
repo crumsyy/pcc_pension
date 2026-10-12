@@ -1,10 +1,14 @@
-# Walkthrough — Calendar status cleanup (display only)
+# Walkthrough — 3-stage booking display (Path A, display-only)
 
-## Changes (shared component → guest + receptionist calendars)
-- `ReservationCalendar.js`: all hold variants fold into **Reserved** (mapping branch, priority table, `Hold` label, legend entry removed); **Booked** legend dot → sky blue; doc comment updated.
-- `globals.css`: `.calendar-status-booked` → sky-blue tint (`#cff4fc`/`#0dcaf0`/`#055160`, matching canonical badge); `.calendar-status-courtesy-hold` deleted; palette comment updated.
-- Untouched: hold business logic/APIs/scheduler/terms/emails; Check-In/Out, Stay Range, Conflict, Reserved, Occupied, Maintenance rendering and date logic.
+## Changes (no API/transition/gating edits)
+- `StatusBadge.js`: new `foldBookingFlow` prop — billing mid-flow norms render as blue **Occupied**; reservations untouched.
+- Guest: timeline 5 nodes → 3 (Booked, Occupied, Completed); booking card + ActiveStayPanel badges folded; timeline header neutral.
+- Receptionist: bookings list badges folded (incl. dead local color helper aligned); check-in pill text + class folded.
+- Cancelled / No Show rendering unchanged; all filters/logic match raw statuses as before.
 
 ## Verification
 - `npm run build` → success.
-- Manual: hold dates render Reserved yellow; Booked dates sky blue; legend has no Hold entry — in guest room forms and receptionist bookings/reservations/check-in.
+- Manual: finalized/paid stays show Occupied in both portals; timeline matches screenshot as 3 nodes; balances/checkout behavior identical.
+
+## Notes
+- Full finalize-flow removal stays a separate project (gates in guest/accounts payments, checkout, reports still enforce Bill Ready).

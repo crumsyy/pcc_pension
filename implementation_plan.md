@@ -1,15 +1,15 @@
-# Implementation Plan — Calendar status cleanup (for approval)
+# Implementation Plan — 3-stage booking display (Booked > Occupied > Completed) (for approval)
 
-> RequestFeedback: true — approved ("proceed"). Implementing below.
+> RequestFeedback: true — approved ("proceed A"). Implementing below.
 
-## 1. Scope (calendar display only, both portals via shared component)
-- `ReservationCalendar.js`: on-hold variants (Courtesy Hold / Hold / On Hold, incl. `isCourtesyHold` flag) map to **Reserved**; remove hold branch, priority entry, and `Hold` compact label. Booked mapping unchanged in logic.
-- `globals.css`: `.calendar-status-booked` → sky-blue tint (`#cff4fc` bg / `#0dcaf0` border / `#055160` text, matching canonical badge); delete `.calendar-status-courtesy-hold`; update the palette comment.
-- Legend in `ReservationCalendar.js`: delete the Courtesy Hold entry.
-- No flow/API/status-model changes. Check-In/Out, Stay Range, Conflict, Reserved, Occupied, Maintenance rendering untouched.
+## 1. Scope (display only; backend, transitions, gating untouched)
+- `StatusBadge.js`: new optional prop `foldBookingFlow` — booking norms Bill Finalized / Final Billing Updated / Bill Ready / Paid / Payment Completed render as **Occupied** (text + Occupied color). Reservation behavior unchanged.
+- Guest: booking timeline 5 nodes → 3 (Booked, Occupied, Completed; finalized/paid map to Occupied index); booking card + ActiveStayPanel badges use folded display.
+- Receptionist: bookings list + check-in list badges use folded display; local badge-color helpers map the folded states to Occupied blue; status filter dropdown keeps raw options (filtering logic unchanged).
+- Cancelled / No Show rendering unchanged everywhere.
 
 ## 2. Verification
-- `npm run build` passes; visual: holds render Reserved blue, Booked sky blue, legend has no Hold entry, in guest + receptionist forms.
+- `npm run build` passes; guest timeline shows 3 nodes; paid/finalized stays show blue Occupied in both portals; money paths untouched (no API/transition edits).
 
 ## 3. Risks
-- Minimal: display mapping + CSS in one shared component.
+- Low: presentational only. Staff temporarily lose the green "Paid" badge signal (balance still shown); full removal stays a separate project.

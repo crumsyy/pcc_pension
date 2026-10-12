@@ -41,8 +41,10 @@ function CheckInClient() {
 
 
 
+  // Display-only 3-stage fold: billing mid-flow states render as Occupied.
   const getStatusBadgeClass = (status) => {
-    switch (status) {
+    const folded = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready', 'Paid', 'Payment Completed', 'Pending Bill'].includes(status) ? 'Occupied' : status;
+    switch (folded) {
       case 'Booked':
         return 'bg-primary-subtle text-primary border border-primary';
       case 'Occupied':
@@ -493,7 +495,7 @@ function CheckInClient() {
                             </small>
                           </div>
                           <span className={`booking-status-pill ${getStatusBadgeClass(b.status)}`}>
-                            {b.status === 'Room Verified' ? 'Pending Bill' : b.status}
+                            {b.status === 'Room Verified' ? 'Pending Bill' : (['Bill Finalized', 'Final Billing Updated', 'Bill Ready', 'Paid', 'Payment Completed', 'Pending Bill'].includes(b.status) ? 'Occupied' : b.status)}
                           </span>
                         </div>
 

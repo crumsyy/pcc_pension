@@ -2146,9 +2146,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     );
   };
 
-  // Interactive Booking Status Timeline Component Helper (Post-payment stage: Booked -> Occupied -> Bill Finalized -> Paid -> Completed)
+  // Interactive Booking Status Timeline (display-only 3 stages: Booked -> Occupied -> Completed).
+  // Mid-flow billing states (Bill Finalized, Paid, etc.) render as Occupied.
   const renderBookingStatusTimeline = (status) => {
-    const norm = normalizeBookingStatus(status);
+    const rawNorm = normalizeBookingStatus(status);
+    const norm = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready', 'Paid', 'Payment Completed', 'Pending Bill'].includes(rawNorm)
+      ? 'Occupied'
+      : rawNorm;
     const isCancelled = norm === 'Cancelled';
 
     if (isCancelled) {
@@ -2165,26 +2169,22 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     const bookingSteps = [
       { id: 'Booked', label: 'Booked', icon: 'bi-clock-history' },
       { id: 'Occupied', label: 'Occupied', icon: 'bi-door-open' },
-      { id: 'Bill Finalized', label: 'Bill Finalized', icon: 'bi-receipt' },
-      { id: 'Paid', label: 'Paid', icon: 'bi-credit-card-2-front' },
       { id: 'Completed', label: 'Completed', icon: 'bi-check2-all' }
     ];
 
     let currentIdx = 0;
     if (norm === 'Occupied') currentIdx = 1;
-    if (norm === 'Bill Finalized') currentIdx = 2;
-    if (norm === 'Paid') currentIdx = 3;
-    if (norm === 'Completed') currentIdx = 4;
+    if (norm === 'Completed') currentIdx = 2;
 
-    const trackColor = currentIdx >= 4 ? '#198754' : 'var(--pcc-blue, #0d6efd)';
+    const trackColor = currentIdx >= 2 ? '#198754' : 'var(--pcc-blue, #0d6efd)';
 
     return (
       <div className="w-100 my-2.5 p-2 rounded-3 bg-light-subtle border">
         <div className="d-flex justify-content-between align-items-center mb-1.5 px-1">
           <span className="text-muted fw-bold" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <i className="bi bi-calendar-check-fill me-1 text-primary"></i>Booking Timeline (Post-Payment)
+            <i className="bi bi-calendar-check-fill me-1 text-primary"></i>Booking Timeline
           </span>
-          <StatusBadge status={status} type="booking" />
+          <StatusBadge status={status} type="booking" foldBookingFlow />
         </div>
         <div className="d-flex align-items-center justify-content-between position-relative px-1 pt-1 pb-1">
           {/* Status Connecting Line Track */}
@@ -2215,7 +2215,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             const isCurrent = idx === currentIdx;
             let nodeBg = 'bg-white text-muted border';
             if (isDone) {
-              if (currentIdx >= 4) {
+              if (currentIdx >= 2) {
                 nodeBg = 'bg-success text-white shadow-sm';
               } else {
                 nodeBg = 'bg-primary text-white shadow-sm';
@@ -2230,7 +2230,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 >
                   <i className={`bi ${step.icon}`}></i>
                 </div>
-                <span className={`mt-1 text-center ${isCurrent ? (currentIdx >= 4 ? 'fw-bold text-success' : 'fw-bold text-primary') : (isDone ? 'text-dark fw-semibold' : 'text-muted')}`} style={{ fontSize: '0.64rem', whiteSpace: 'nowrap' }}>
+                <span className={`mt-1 text-center ${isCurrent ? (currentIdx >= 2 ? 'fw-bold text-success' : 'fw-bold text-primary') : (isDone ? 'text-dark fw-semibold' : 'text-muted')}`} style={{ fontSize: '0.64rem', whiteSpace: 'nowrap' }}>
                   {step.label}
                 </span>
               </div>
@@ -2342,7 +2342,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               </div>
             </div>
             <div className="d-flex align-items-center gap-2">
-              <StatusBadge status={b.status} />
+              <StatusBadge status={b.status} foldBookingFlow />
             </div>
           </div>
 

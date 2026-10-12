@@ -126,7 +126,7 @@ export default function ActiveStayPanel({
             <span className="badge bg-primary text-white px-3 py-1.5 fs-7 rounded-pill">
               Occupied Booking ({toPublicBookingCode(activeBookingStay.bookingID)})
             </span>
-            <StatusBadge status={activeBookingStay.status || 'Occupied'} />
+            <StatusBadge status={activeBookingStay.status || 'Occupied'} foldBookingFlow />
           </div>
 
           <h5 className="fw-bold mb-1 text-dark">

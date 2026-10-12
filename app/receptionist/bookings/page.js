@@ -1704,13 +1704,13 @@ function BookingsClient() {
     return !conflict;
   };
 
+  // Display-only 3-stage fold: Bill Finalized / Paid / Final Billing Updated render as Occupied.
   const getStatusBadge = (status) => {
-    const norm = normalizeBookingStatus(status);
+    const rawNorm = normalizeBookingStatus(status);
+    const norm = ['Bill Finalized', 'Final Billing Updated', 'Bill Ready', 'Paid', 'Payment Completed', 'Pending Bill'].includes(rawNorm) ? 'Occupied' : rawNorm;
     switch (norm) {
       case 'Booked': return 'bg-info text-white';
       case 'Occupied': return 'bg-primary text-white';
-      case 'Bill Finalized': return 'badge-purple text-white';
-      case 'Paid': return 'bg-success text-white';
       case 'Completed': return 'bg-dark text-white';
       case 'Cancelled': return 'bg-danger text-white';
       default: return 'bg-primary text-white';
@@ -1851,7 +1851,7 @@ function BookingsClient() {
                       </div>
                     </td>
                     <td>
-                      <StatusBadge status={b.status} />
+                      <StatusBadge status={b.status} foldBookingFlow />
                     </td>
                     <td className="text-end">
                       <div className="actions-wrapper d-flex justify-content-end gap-1">
@@ -1971,7 +1971,7 @@ function BookingsClient() {
                           </small>
                         </td>
                         <td>
-                          <StatusBadge status={b.status} />
+                          <StatusBadge status={b.status} foldBookingFlow />
                         </td>
                         <td className="text-end">
                           <button
@@ -2004,7 +2004,7 @@ function BookingsClient() {
                                   <span className="badge bg-light text-dark border ms-1">Room {b.roomNumber} ({b.roomType})</span>
                                 </h6>
                                 <div className="d-flex align-items-center gap-2">
-                                  <StatusBadge status={b.status} />
+                                  <StatusBadge status={b.status} foldBookingFlow />
                                   <button 
                                     type="button" 
                                     className="btn btn-sm btn-outline-secondary rounded-3"
