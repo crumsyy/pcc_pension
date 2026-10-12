@@ -27,6 +27,12 @@ export default function AdminDiscounts() {
   const [activeTab, setActiveTab] = useState('active_discounts');
   const [discPage, setDiscPage] = useState(1);
   const [promoPage, setPromoPage] = useState(1);
+  // VAT / tax settings (own tab; inclusive rate applied to new computations only)
+  const [taxRateInput, setTaxRateInput] = useState('');
+  const [taxCurrent, setTaxCurrent] = useState(null);
+  const [taxMeta, setTaxMeta] = useState({ updatedBy: null, updatedAt: null });
+  const [taxLoading, setTaxLoading] = useState(false);
+  const [taxSaving, setTaxSaving] = useState(false);
   // True while a tab switch is loading its dataset; tables show a loading
   // row instead of the other tab's stale rows or a false empty state.
   const [listLoading, setListLoading] = useState(false);
@@ -36,9 +42,57 @@ export default function AdminDiscounts() {
     setActiveTab(tab);
     setDiscPage(1);
     setPromoPage(1);
+    if (tab === 'tax_settings') {
+      fetchTaxSettings();
+      return;
+    }
     setDiscounts([]);
     setPromotions([]);
     setListLoading(true);
+  };
+
+  const fetchTaxSettings = async () => {
+    setTaxLoading(true);
+    try {
+      const res = await fetch('/api/admin/tax');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load tax settings');
+      const pct = parseFloat(data.vatPercentage);
+      setTaxCurrent(isNaN(pct) ? 0 : pct);
+      setTaxRateInput(isNaN(pct) ? '' : String(pct));
+      setTaxMeta({ updatedBy: data.updatedBy || null, updatedAt: data.updatedAt || null });
+    } catch (err) {
+      toast.error('Tax Settings', err.message);
+    } finally {
+      setTaxLoading(false);
+    }
+  };
+
+  const handleSaveTaxSettings = async (e) => {
+    if (e) e.preventDefault();
+    const pct = parseFloat(taxRateInput);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      toast.error('Tax Settings', 'VAT percentage must be a number between 0 and 100.');
+      return;
+    }
+    setTaxSaving(true);
+    try {
+      const res = await fetch('/api/admin/tax', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vatPercentage: pct })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save tax settings');
+      setTaxCurrent(data.vatPercentage);
+      setTaxMeta({ updatedBy: data.updatedBy || null, updatedAt: data.updatedAt || null });
+      toast.success('Tax Settings', data.message || `VAT rate updated to ${data.vatPercentage}%.`);
+      await fetchTaxSettings();
+    } catch (err) {
+      toast.error('Tax Settings', err.message);
+    } finally {
+      setTaxSaving(false);
+    }
   };
 
   const handleSearchChange = (v) => {
@@ -138,6 +192,7 @@ export default function AdminDiscounts() {
   };
 
   const fetchData = async (isSilent = false, isInitial = false) => {
+    if (activeTab === 'tax_settings') return; // tax tab has its own loader
     if (isSilent && fetchInFlight.current) return;
     fetchInFlight.current = true;
     if (!isSilent) {
@@ -593,6 +648,7 @@ export default function AdminDiscounts() {
             <Tab id="active_discounts">Discounts</Tab>
             <Tab id="active_promos">Promos</Tab>
             <Tab id="archived">Archived Discounts &amp; Promos</Tab>
+            <Tab id="tax_settings">Tax Settings</Tab>
           </TabList>
         </Tabs>
         <div className="d-flex gap-2 align-items-center">
@@ -609,7 +665,8 @@ export default function AdminDiscounts() {
         </div>
       </div>
 
-      {/* Search Filter */}
+      {/* Search Filter (not needed on Tax tab) */}
+      {activeTab !== 'tax_settings' && (
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
         <div className="row g-2 align-items-end">
           <div className="col-md-9">
@@ -628,6 +685,55 @@ export default function AdminDiscounts() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Tax Settings Section */}
+      {activeTab === 'tax_settings' && (
+        <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1.25rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <h5 className="fw-bold text-dark mb-1">Value-Added Tax (VAT)</h5>
+          <p className="text-muted small mb-3">
+            Inclusive rate applied to new billing computations and shown on sales invoices.
+            Settled bills are never rewritten. Current rate: <strong>{taxLoading ? '…' : `${taxCurrent ?? '—'}%`}</strong>
+            {taxMeta.updatedBy && (
+              <span className="d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                Last updated by {taxMeta.updatedBy}{taxMeta.updatedAt ? ` on ${new Date(taxMeta.updatedAt).toLocaleString()}` : ''}.
+              </span>
+            )}
+          </p>
+          <form onSubmit={handleSaveTaxSettings}>
+            <div className="row g-2 align-items-end">
+              <div className="col-md-4">
+                <label className="form-label small fw-semibold mb-1">VAT Percentage (%) *</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  required
+                  value={taxRateInput}
+                  onChange={(e) => setTaxRateInput(e.target.value)}
+                  placeholder="e.g. 12"
+                />
+              </div>
+              <div className="col-md-4">
+                <button type="submit" className="btn btn-pcc-primary text-white w-100" disabled={taxSaving || taxLoading}>
+                  {taxSaving ? 'Saving…' : 'Save VAT Rate'}
+                </button>
+              </div>
+              <div className="col-md-4">
+                <div className="p-2 bg-light rounded border small text-muted">
+                  Preview: on a ₱1,800.00 stay at {parseFloat(taxRateInput) || 0}%,
+                  VAT = <strong className="text-dark">₱{(() => {
+                    const r = parseFloat(taxRateInput) || 0;
+                    return r > 0 ? ((1800 * (r / (100 + r)))).toFixed(2) : '0.00';
+                  })()}</strong> (inclusive)
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className={shouldAnimate ? 'pcc-content-reveal' : ''}>
         <div className={activeTab === 'archived' ? 'row g-3' : ''} style={activeTab === 'archived' ? { height: 'max(480px, calc(100dvh - 340px))' } : undefined}>

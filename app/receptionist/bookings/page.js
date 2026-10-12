@@ -749,6 +749,7 @@ function BookingsClient() {
               <tr><td>Gross Subtotal:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.grossSubtotal || downPaymentReceipt.totalRoomCharge).toFixed(2)}</td></tr>
               ${downPaymentReceipt.totalDiscount > 0 ? `<tr><td>Applied Discounts:</td><td class="text-right" style="color: #b91c1c;">-₱${parseFloat(downPaymentReceipt.totalDiscount).toFixed(2)}</td></tr>` : ''}
               <tr class="total-row"><td>NET TOTAL AMOUNT DUE:</td><td class="text-right bold">₱${parseFloat(downPaymentReceipt.netTotal || downPaymentReceipt.grandTotal || downPaymentReceipt.totalRoomCharge).toFixed(2)}</td></tr>
+              ${parseFloat(downPaymentReceipt.vatAmount || 0) > 0 ? `<tr><td>Inclusive of VAT (${parseFloat(downPaymentReceipt.vatRate || 0)}%):</td><td class="text-right">₱${parseFloat(downPaymentReceipt.vatAmount).toFixed(2)}</td></tr>` : ''}
               <tr><td>Required Down Payment (${downPaymentReceipt.downPaymentPercentage}%):</td><td class="text-right">₱${parseFloat(downPaymentReceipt.requiredDownpayment || downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
               <tr class="total-row"><td>MONEY RECEIVED:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.cashReceived || downPaymentReceipt.amountPaid).toFixed(2)}</td></tr>
               ${downPaymentReceipt.change > 0 ? `<tr><td>Change Issued:</td><td class="text-right">₱${parseFloat(downPaymentReceipt.change).toFixed(2)}</td></tr>` : ''}
@@ -1461,8 +1462,10 @@ function BookingsClient() {
           grossSubtotal: billing.grossSubtotal,
           totalDiscount: billing.totalPerCapitaDiscount || 0,
           netTotal: netSubtotal,
-          vatRate: 0.00,
-          vatAmount: 0.00,
+          vatRate: parseFloat(vatPercentage) || 0,
+          vatAmount: (parseFloat(vatPercentage) || 0) > 0
+            ? Math.round((netSubtotal * ((parseFloat(vatPercentage) || 0) / (100 + (parseFloat(vatPercentage) || 0)))) * 100) / 100
+            : 0,
           grandTotal: netSubtotal,
           totalRoomCharge: receiptTotalAmount,
           downPaymentPercentage: dpPctNum,
@@ -2192,6 +2195,12 @@ function BookingsClient() {
                                       <span>Net Total Amount Due:</span>
                                       <span className="text-dark">₱{Number(b.netTotal || b.grandTotal || b.chargesSummary?.grandTotal || totalStayCharge).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                                     </div>
+                                    {parseFloat(b.vatAmount || b.chargesSummary?.vatAmount || 0) > 0 && (
+                                      <div className="small d-flex justify-content-between mb-1 text-muted">
+                                        <span className="fst-italic">Inclusive of VAT ({parseFloat(b.vatRate ?? b.chargesSummary?.vatRate ?? 0)}%):</span>
+                                        <span>₱{Number(b.vatAmount || b.chargesSummary?.vatAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                    )}
 
                                     <div className="small d-flex justify-content-between mb-1 text-success">
                                       <span>Total Payments Settled:</span>
@@ -2977,6 +2986,18 @@ function BookingsClient() {
                                 </span>
                                 <span className="fw-bold text-primary fs-6">₱{netSubtotal.toFixed(2)}</span>
                               </div>
+                              {(() => {
+                                const previewVatRate = parseFloat(vatPercentage) || 0;
+                                const previewVatAmount = previewVatRate > 0
+                                  ? Math.round((netSubtotal * (previewVatRate / (100 + previewVatRate))) * 100) / 100
+                                  : 0;
+                                return previewVatAmount > 0 ? (
+                                  <div className="d-flex justify-content-between mb-2 text-muted" style={{ fontSize: '0.82rem' }}>
+                                    <span className="fst-italic">Inclusive of VAT ({previewVatRate}%):</span>
+                                    <span>₱{previewVatAmount.toFixed(2)}</span>
+                                  </div>
+                                ) : null;
+                              })()}
 
                               {/* Required Down Payment */}
                               <div className="d-flex justify-content-between align-items-center mb-1 text-success fw-bold" style={{ fontSize: '0.88rem' }}>
@@ -3220,6 +3241,12 @@ function BookingsClient() {
                     <span className="text-muted">Total Booking Amount:</span>
                     <strong className="text-dark">₱{parseFloat(downPaymentReceipt.totalRoomCharge).toFixed(2)}</strong>
                   </div>
+                  {parseFloat(downPaymentReceipt.vatAmount || 0) > 0 && (
+                    <div className="d-flex justify-content-between mb-1 text-muted small">
+                      <span>Inclusive of VAT ({parseFloat(downPaymentReceipt.vatRate || 0)}%):</span>
+                      <span>₱{parseFloat(downPaymentReceipt.vatAmount).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="d-flex justify-content-between mb-1 text-dark fw-bold">
                     <span>Required Down Payment ({downPaymentReceipt.downPaymentPercentage}%):</span>
                     <span>₱{parseFloat(downPaymentReceipt.requiredDownpayment || downPaymentReceipt.amountPaid).toFixed(2)}</span>

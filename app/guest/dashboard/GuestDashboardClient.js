@@ -1776,6 +1776,9 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         amountPaid: parseFloat(latestPayment?.amount || totalPaid || booking.downPaymentAmount || 0),
         totalPaid: parseFloat(totalPaid),
         remainingBalance: parseFloat(remainingBalance),
+        netTotal: parseFloat(data.balancing?.netSubtotal ?? data.netSubtotal ?? 0),
+        vatRate: parseFloat(data.balancing?.vatRate ?? data.vatRate ?? 0),
+        vatAmount: parseFloat(data.balancing?.vatAmount ?? data.vatAmount ?? 0),
         timestamp: latestPayment?.paymentDate || new Date().toISOString()
       };
       setReceiptData(receipt);
@@ -1973,6 +1976,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             <table class="info-table">
               <tr class="total-row"><td>AMOUNT PAID:</td><td class="text-right">₱${parseFloat(receiptData.amountPaid).toFixed(2)}</td></tr>
               <tr><td>Remaining Balance:</td><td class="text-right">₱${parseFloat(receiptData.remainingBalance).toFixed(2)}</td></tr>
+              ${parseFloat(receiptData.vatAmount || 0) > 0 ? `<tr><td>Inclusive of VAT (${parseFloat(receiptData.vatRate || 0)}%):</td><td class="text-right">₱${parseFloat(receiptData.vatAmount).toFixed(2)}</td></tr>` : ''}
             </table>
 
             <div class="double-divider"></div>

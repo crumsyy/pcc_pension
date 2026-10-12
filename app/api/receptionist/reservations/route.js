@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems, ensureBookingBreakfastSchema } from '@/lib/db';
+import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems, ensureBookingBreakfastSchema, getSystemVatRate } from '@/lib/db';
 import { sendCourtesyHoldCreatedEmail, sendBookingConfirmationEmail } from '@/lib/mailer';
 import { getStayNights } from '@/lib/dateUtils';
 import { validateReservationDate } from '@/lib/validation';
@@ -686,8 +686,11 @@ export async function POST(request) {
         const grossSubtotal = billingCalc.grossSubtotal;
         const discountTotal = 0;
         const netTotal = billingCalc.grossSubtotal;
-        const vatRate = 0;
-        const vatAmount = 0;
+        const convVatPct = await getSystemVatRate();
+        const vatRate = Math.round((convVatPct || 0) * 100) / 100;
+        const vatAmount = netTotal > 0 && vatRate > 0
+          ? Math.round((netTotal * (vatRate / (100 + vatRate))) * 100) / 100
+          : 0;
         const grandTotal = billingCalc.grossSubtotal;
         const finalDownPaymentAmount = downPaymentAmount > 0 ? downPaymentAmount : billingCalc.requiredDownpayment;
         const initialBalance = Math.max(0, Math.round((netTotal - finalDownPaymentAmount) * 100) / 100);

@@ -150,8 +150,8 @@ export async function GET(request) {
         subtotal: balanceDetails?.grossSubtotal ?? balanceDetails?.subtotal ?? (parseFloat(b.subtotal || b.roomCharge || 0)),
         discountTotal: balanceDetails?.discountTotal ?? (parseFloat(b.discountTotal || 0)),
         netTotal: balanceDetails?.netTotal ?? (parseFloat(b.netTotal || 0)),
-        vatRate: 0.00,
-        vatAmount: 0.00,
+        vatRate: balanceDetails?.vatRate ?? 0,
+        vatAmount: balanceDetails?.vatAmount ?? 0,
         grandTotal: balanceDetails?.netTotal ?? (parseFloat(b.netTotal || b.grandTotal || b.totalAmount || 0)),
         totalAmount: balanceDetails?.netTotal ?? (parseFloat(b.netTotal || b.grandTotal || b.totalAmount || 0)),
         requiredDownpayment: balanceDetails?.requiredDownpayment ?? 0,
@@ -160,7 +160,7 @@ export async function GET(request) {
       };
     }));
 
-    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods, roomSchedules, vatPercentage: 0.00 });
+    return NextResponse.json({ bookings: bookingsWithGuests, guests, rooms, discounts, paymentMethods, roomSchedules, vatPercentage: await getSystemVatRate() });
   } catch (error) {
     console.error("Failed to fetch bookings data:", error);
     return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });
@@ -409,8 +409,11 @@ export async function POST(request) {
         const discountTotal = 0;
         const netTotal = billingCalc.netTotal;
         const grandTotal = billingCalc.netTotal;
-        const vatRate = 0.00;
-        const vatAmount = 0.00;
+        const sysVatPct = await getSystemVatRate();
+        const vatRate = Math.round((sysVatPct || 0) * 100) / 100;
+        const vatAmount = netTotal > 0 && vatRate > 0
+          ? Math.round((netTotal * (vatRate / (100 + vatRate))) * 100) / 100
+          : 0;
         const requiredDp = billingCalc.requiredDownpayment;
 
         if (downPaymentAmount < requiredDp - 0.05) {

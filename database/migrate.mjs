@@ -470,7 +470,8 @@ async function run() {
       VALUES ('vat_percentage', '12.00')
     `).catch(() => {});
 
-    console.log("Ensuring discount eligibility types (ID-Based, Booking Count, Open)...");
+    console.log("Ensuring system_settings audit column...");
+    await ensureColumn(connection, 'system_settings', 'updatedBy', 'VARCHAR(150) DEFAULT NULL');
     await connection.execute(`
       INSERT IGNORE INTO \`eligibility_type\` (\`eligibilityTypeID\`, \`eligibility\`)
       VALUES (1, 'ID-Based'), (2, 'Booking Count'), (3, 'Open')

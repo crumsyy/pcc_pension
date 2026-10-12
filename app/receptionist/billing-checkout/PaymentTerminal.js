@@ -120,6 +120,8 @@ export default function PaymentTerminal({
   // Calculations
   const grossSubtotal = billData ? parseFloat(billData.chargesSummary?.grossTotal || billData.chargesSummary?.total || 0) : 0;
   const discountAmount = billData ? parseFloat(billData.chargesSummary?.totalDiscount || 0) : 0;
+  const vatRateShown = billData ? parseFloat(billData.chargesSummary?.vatRate || 0) : 0;
+  const vatAmountShown = billData ? parseFloat(billData.chargesSummary?.vatAmount || 0) : 0;
   const netSubtotal = billData ? parseFloat(billData.chargesSummary?.netSubtotal || Math.max(0, grossSubtotal - discountAmount)) : 0;
   const grandTotal = billData ? parseFloat(billData.chargesSummary?.netTotal || billData.chargesSummary?.grandTotal || netSubtotal) : 0;
   const totalPaid = billData ? parseFloat(billData.chargesSummary?.paid || 0) : 0;
@@ -182,8 +184,8 @@ export default function PaymentTerminal({
           discountName: discountAmount > 0 ? (billData.guestsList?.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
           discountAmount,
           netSubtotal,
-          vatRate: 0.00,
-          vatAmount: 0.00,
+          vatRate: parseFloat(billData.chargesSummary?.vatRate || 0),
+          vatAmount: parseFloat(billData.chargesSummary?.vatAmount || 0),
           grandTotal,
           totalPaid,
           payableAmount,
@@ -233,8 +235,8 @@ export default function PaymentTerminal({
         discountName: discountAmount > 0 ? (billData.guestsList?.filter(g => g.discountName).map(g => `${g.discountName} (${g.discountPercentage}%)`).join(', ') || 'Discount') : null,
         discountAmount,
         netSubtotal,
-        vatRate: 0.00,
-        vatAmount: 0.00,
+        vatRate: parseFloat(billData.chargesSummary?.vatRate || 0),
+        vatAmount: parseFloat(billData.chargesSummary?.vatAmount || 0),
         grandTotal,
         totalPaid: (totalPaid || 0) + settledAmt,
         payableAmount: 0,
@@ -447,6 +449,7 @@ export default function PaymentTerminal({
             ${receipt.discountAmount > 0 ? `<tr><td>Special Discounts (${receipt.discountName || 'Applied'}):</td><td class="text-right">-₱${parseFloat(receipt.discountAmount).toFixed(2)}</td></tr>` : ''}
             <tr class="divider"><td colspan="2"></td></tr>
             <tr class="total-row"><td>NET TOTAL AMOUNT DUE:</td><td class="text-right">₱${parseFloat(receipt.netSubtotal || receipt.grandTotal || (receipt.subtotal - receipt.discountAmount)).toFixed(2)}</td></tr>
+            ${parseFloat(receipt.vatAmount || 0) > 0 ? `<tr><td>Inclusive of VAT (${parseFloat(receipt.vatRate || 0)}%):</td><td class="text-right">₱${parseFloat(receipt.vatAmount).toFixed(2)}</td></tr>` : ''}
             <tr><td>Payment Received (${receipt.paymentMethodName}):</td><td class="text-right">₱${parseFloat(receipt.cashReceived).toFixed(2)}</td></tr>
             ${receipt.change > 0 ? `<tr><td>Change Returned:</td><td class="text-right">₱${parseFloat(receipt.change).toFixed(2)}</td></tr>` : ''}
             <tr><td>Balance After Payment:</td><td class="text-right bold">₱0.00</td></tr>
@@ -704,6 +707,12 @@ export default function PaymentTerminal({
                     <span>Net Total Amount Due:</span>
                     <span className="text-pcc-blue">₱{grandTotal.toFixed(2)}</span>
                   </div>
+                  {vatAmountShown > 0 && (
+                    <div className="d-flex justify-content-between mb-2 text-muted" style={{ fontSize: '0.76rem' }}>
+                      <span className="fst-italic">Inclusive of VAT ({vatRateShown}%):</span>
+                      <span>₱{vatAmountShown.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Total Payments Settled:</span>
                     <span className="fw-semibold text-success">₱{totalPaid.toFixed(2)}</span>
@@ -812,6 +821,12 @@ export default function PaymentTerminal({
                     <span>Net Total Amount Due:</span>
                     <span className="text-pcc-blue">₱{parseFloat(receipt.netSubtotal || receipt.grandTotal || (receipt.subtotal - receipt.discountAmount)).toFixed(2)}</span>
                   </div>
+                  {parseFloat(receipt.vatAmount || 0) > 0 && (
+                    <div className="d-flex justify-content-between mb-1 text-muted" style={{ fontSize: '0.82rem' }}>
+                      <span className="fst-italic">Inclusive of VAT ({parseFloat(receipt.vatRate || 0)}%):</span>
+                      <span>₱{parseFloat(receipt.vatAmount).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="d-flex justify-content-between mb-1 fw-semibold text-success">
                     <span>Amount Paid This Transaction:</span>
                     <span>₱{parseFloat(receipt.payableAmount).toFixed(2)}</span>

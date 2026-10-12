@@ -1453,8 +1453,8 @@ export default function ReceptionistBilling() {
                               : [];
                             const discountTotal = appliedDiscountsSummaryList.length > 0 ? parseFloat(cs.discountTotal ?? cs.totalDiscount ?? 0) : 0;
                             const netTotal = parseFloat(cs.netTotal ?? Math.max(0, grossSubtotal - discountTotal));
-                            const vatRate = 0.00;
-                            const vatAmount = 0.00;
+                            const vatRate = parseFloat(cs.vatRate || 0);
+                            const vatAmount = parseFloat(cs.vatAmount || 0);
                             const grandTotal = netTotal;
                             const paidTotal = parseFloat(cs.paid || 0);
                             const downPaymentPaid = parseFloat(cs.downPaymentPaid || 0);
@@ -1559,6 +1559,13 @@ export default function ReceptionistBilling() {
                                   </span>
                                   <span className="fw-bold text-primary fs-6">₱{netTotal.toFixed(2)}</span>
                                 </div>
+
+                                {vatAmount > 0 && (
+                                  <div className="d-flex justify-content-between mb-2 text-muted" style={{ fontSize: '0.82rem' }}>
+                                    <span className="fst-italic">Inclusive of VAT ({vatRate}%):</span>
+                                    <span>₱{vatAmount.toFixed(2)}</span>
+                                  </div>
+                                )}
 
                                 <div className="d-flex justify-content-between mb-1.5 text-success">
                                   <span className="fw-semibold">Total Payments Settled:</span>

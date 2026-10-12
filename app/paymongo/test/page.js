@@ -113,7 +113,24 @@ export function generateReceiptPNG(receipt) {
   ctx.textAlign = 'right';
   ctx.fillText(`₱${parseFloat(receipt.remainingBalance || 0).toFixed(2)}`, width - 26, currentY);
 
-  currentY += 28;
+  currentY += 20;
+
+  // Inclusive VAT breakout Row (only when the billed VAT is non-zero)
+  if (parseFloat(receipt.vatAmount || 0) > 0) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Incl. VAT (${parseFloat(receipt.vatRate || 0)}%):`, 26, currentY);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 10.5px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`₱${parseFloat(receipt.vatAmount).toFixed(2)}`, width - 26, currentY);
+
+    currentY += 20;
+  }
+
+  currentY += 8;
 
   // Status Stamp Box
   ctx.fillStyle = '#ecfdf5';
