@@ -1,22 +1,26 @@
-# Implementation Plan — Fixed right-rail order tray (for approval)
+# Implementation Plan — Narrower tray, wider catalog (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. What you asked (from screenshots)
-- Full order tray fixed on the right, always fully visible while scrolling — NOT the floating pill (removing that entirely).
+## 1. User requests
+1. Slim the order tray so the catalog gets more room.
+2. Confirm guest portal parity.
 
-## 2. Approach (no sticky, no page redesign)
-- Tray card becomes viewport-fixed on desktop only (`lg+`, new `.orders-tray-fixed` class in a media query; mobile/tablet unchanged static flow).
-- Geometry (computed, not guessed): `top:96px` (clears sticky app header), `bottom:20px`, `right:36px` (exact grid alignment: main 24 + container 24 − row 12 + col 12), `width:inherit` (live-tracks the grid column across viewport/sidebar-collapse changes), `z-index:1010` (under header/modals).
-- Card keeps flex column + internal scroll + pinned footer; tray column keeps grid space (empty, holds layout).
-- Removes: floating pill component + renders + footer/form refs (both files); sticky leftovers on tray columns.
+## 2. Guest parity status (already shipped, no work needed)
+- Guest has everything receptionist has: fixed right rail, pinned footer, blue steppers, draft `QtyInput`, serving-time card pill, no Immediate pill, no FREE row, category pills removed. Same components, same behavior on desktop.
 
-## 3. Verification
-- `eslint`; `npm run build` 97/97.
-- Visual: any catalog scroll position → full tray visible right, internal items scroll, footer always on screen; mobile + history tab + guest modal unchanged.
+## 3. Proposed changes (grid classes only, both files)
+- `xl` breakpoint only (tablets keep current split — `col-xl-3` would be ~250px there, too narrow for item rows):
+  - Catalog `col-xl-8` → `col-xl-9`; tray `col-xl-4` → `col-xl-3`.
+  - At ~1600px content width the tray lands ~370px usable: fits thumbnail + name + stepper + trash; scheduling inputs stack full-width as today.
+- Fixed card needs no CSS change (`width:inherit` tracks the column live, incl. sidebar collapse).
+- `lg` (992–1199px) split unchanged.
 
-## 4. Risks
-- Low-medium: fixed positioning is viewport-absolute (immune to the shell issues that killed sticky); offsets are derived from the actual spacing scale. Sidebar collapse safe (right side unaffected, width inherits live).
+## 4. Verification
+- `eslint`; `npm run build` 97/97; visual at xl: 3 catalog cards breathe, tray fully usable; lg/tablet/mobile unchanged.
 
-## 5. Questions
-- Q1: Proceed?
+## 5. Risks
+- Low: grid class swap only. If ~370px feels tight on smaller xl screens, follow-up is a 320px `min-width` + horizontal scroll — not included.
+
+## 6. Questions
+- Q1: Proceed with xl-only 9/3 split in both files?
