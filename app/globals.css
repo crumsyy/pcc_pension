@@ -2233,14 +2233,24 @@ body.dark-theme .image-fallback-sm {
 /* =====================================================================
    Fixed order-tray rail (desktop only)
    ===================================================================== */
-@media (min-width: 992px) {
+@media (min-width: 1200px) {
   .orders-tray-fixed {
     position: fixed;
     top: 96px;
     bottom: 20px;
     right: 36px;
-    width: inherit;
+    width: 360px;
     z-index: 1010;
+  }
+  .orders-tray-col {
+    flex: 0 0 360px !important;
+    max-width: 360px !important;
+    width: 360px !important;
+  }
+  .orders-catalog-col {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    max-width: none !important;
   }
 }
 
