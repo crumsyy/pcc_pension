@@ -9,6 +9,37 @@ import { toast } from 'sonner';
 let cachedOrdersCatalog = null;
 let cachedOrderHistory = null;
 
+// Free-typing quantity field with draft text: lets users clear/retype values
+// (e.g. 1 -> 6) and commits a valid integer on blur/Enter, reverting otherwise.
+function QtyInput({ value, onCommit }) {
+  const [text, setText] = useState(String(value ?? 1));
+  const commit = () => {
+    const parsed = parseInt(String(text).replace(/\D/g, ''), 10);
+    if (!isNaN(parsed) && parsed >= 1) {
+      onCommit(parsed);
+    } else {
+      setText(String(value ?? 1));
+    }
+  };
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      className="form-control text-center fw-bold bg-white"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => commit()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
 const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCookedMeal, onAdd }) {
   const isAvailable = isCookedMeal || (item.availableQty === undefined || item.availableQty > 0);
   const badgeLabel = isCookedMeal ? 'Cooked Meal (Scheduled)' : type === 'Amenity' ? 'Amenity (Immediate)' : 'Minibar / Store (Immediate)';
@@ -1023,19 +1054,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
                     >
                       -
                     </button>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      className="form-control text-center fw-bold bg-white"
-                      value={item.quantity}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, '');
-                        if (digits === '') return;
-                        const parsed = parseInt(digits, 10);
-                        if (!isNaN(parsed) && parsed >= 1) handleUpdateQty(idx, parsed);
-                      }}
-                    />
+                    <QtyInput key={`${idx}-${item.quantity}`} value={item.quantity} onCommit={(v) => handleUpdateQty(idx, v)} />
                     <button
                       type="button"
                       className="btn btn-primary text-white px-2"
@@ -1397,7 +1416,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
 
         {/* ORDER TRAY / CART COLUMN (DESKTOP) */}
         <div className="col-12 col-md-5 col-lg-5 col-xl-4 d-none d-md-block align-self-start" style={{ position: 'sticky', top: '28px', maxHeight: 'calc(100vh - 56px)' }}>
-          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 pcc-order-tray d-flex flex-column mt-1 h-100 overflow-hidden" style={{ maxHeight: 'calc(100vh - 56px)' }}>
+          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 pcc-order-tray d-flex flex-column mt-1 overflow-hidden" style={{ maxHeight: 'calc(100vh - 56px)' }}>
             <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                 <i className="bi bi-cart3 text-primary"></i>

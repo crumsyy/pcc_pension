@@ -1,24 +1,20 @@
-# Implementation Plan — Bulletproof sticky order tray (for approval)
+# Implementation Plan — Tray cap fix + typeable qty drafts (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Problem
-- Tray still runs past the viewport (scheduling panel pushes totals/Submit below the fold) even with the footer split; steppers render red in prod, so at minimum the deployed bundle predates the fix — but the pin itself needs hardening regardless.
+## 1. Problems (from screenshots)
+1. Tray still exceeds viewport → Submit below fold. Cause: card `h-100` (% of indefinite column height) defeats the `maxHeight` cap chain; flex scroller never engages.
+2. Qty `1` can't become `6` (becomes `16`): controlled input commits every keystroke, empty/backspace is ignored.
 
-## 2. Root cause hypothesis
-- `sticky` currently sits on the tray *card* inside a stretched grid column; depending on ancestor overflow/flex behavior the stick + cap doesn't engage and the whole column scrolls with the page. Textbook-robust pattern is sticky on the *column* with a height-capped card.
+## 2. Proposed changes (both `receptionist/orders/page.js` + `GuestOrdersContent.js`)
+1. Drop `h-100` from tray cards (keep `maxHeight`, `overflow-hidden`, flex column); column keeps `align-self-start` + sticky + cap. Card height = min(content, viewport cap); inner scroller + pinned footer then engage.
+2. New per-file `QtyInput` (draft text state, syncs from props when blurred): free typing incl. backspace-to-empty, commits ≥1 int on blur/Enter (else reverts); steppers unchanged (receptionist stock-cap alert reused on commit overflow).
 
-## 3. Proposed changes (`receptionist/orders/page.js` + `GuestOrdersContent.js`)
-1. Move stickiness to the tray column: `align-self-start`, `position sticky`, `top 28px`, `max-height calc(100vh - 56px)`; card becomes `h-100 d-flex flex-column overflow-hidden` (drop `sticky-top` from card).
-2. Keep: header fixed, single internal scroller (items + scheduling), footer (totals + Submit) pinned via `flex-shrink-0`.
-3. No logic changes (steppers blue / editable qty already in).
+## 3. Verification
+- `eslint`; `npm run build` 97/97; visual: long tray → footer visible, no page scroll needed; type 6 over 1 works; stock cap still alerts.
 
-## 4. Verification
-- `eslint`; `npm run build` 97/97; visual: long tray + breakfast scheduled → footer visible without page scroll; empty tray unchanged; mobile modal unchanged.
-- After deploy: hard refresh (Ctrl+Shift+R) to bypass cached bundle, then retest.
+## 4. Risks
+- Low: CSS cap correction + isolated input component; submit/stock logic untouched.
 
-## 5. Risks
-- Low: CSS positioning only.
-
-## 6. Questions
+## 5. Questions
 - Q1: Proceed?
