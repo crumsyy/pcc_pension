@@ -1111,6 +1111,44 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'All applied discounts removed from billing.' });
     }
 
+    if (action === 'update_guest_count') {
+      const bookingID = parseInt(body.bookingID);
+      const guestCount = parseInt(body.guestCount);
+      if (!bookingID) return NextResponse.json({ error: 'Missing booking ID.' }, { status: 400 });
+      if (!Number.isInteger(guestCount) || guestCount < 1 || guestCount > 20) {
+        return NextResponse.json({ error: 'Guest count must be a whole number from 1 to 20.' }, { status: 400 });
+      }
+      const bRows = await dbQuery("SELECT bookingID, reservationID, guestCount FROM booking WHERE bookingID = ? LIMIT 1", [bookingID]);
+      if (!bRows.length) return NextResponse.json({ error: 'Booking not found.' }, { status: 404 });
+      const oldCount = parseInt(bRows[0].guestCount || 1);
+      const discRows = await dbQuery("SELECT COUNT(*) as c FROM booking_discount WHERE bookingID = ?", [bookingID]);
+      const beneficiaryCount = parseInt(discRows[0]?.c || 0);
+      if (guestCount < beneficiaryCount) {
+        return NextResponse.json({ error: `Cannot set ${guestCount} guest(s): ${beneficiaryCount} discount beneficiar(ies) already applied.` }, { status: 400 });
+      }
+      await dbQuery("UPDATE booking SET guestCount = ? WHERE bookingID = ?", [guestCount, bookingID]);
+      if (bRows[0].reservationID) {
+        await dbQuery("UPDATE reservation SET guestCount = ? WHERE reservationID = ?", [guestCount, bRows[0].reservationID]);
+      }
+      const billingRes = await dbQuery("SELECT billingID FROM billing WHERE bookingID = ? ORDER BY billingID DESC LIMIT 1", [bookingID]);
+      const billingID = billingRes[0]?.billingID || null;
+      try {
+        await logBillingAudit(null, {
+          billingID,
+          bookingID,
+          transactionType: 'Guest Count Updated',
+          amount: 0,
+          balanceBefore: 0,
+          balanceAfter: 0,
+          userID: session.userID,
+          userName: session.email || 'Receptionist',
+          userRole: session.role,
+          description: `Number of guests updated: ${oldCount} → ${guestCount}`
+        });
+      } catch (e) {}
+      return NextResponse.json({ success: true, message: `Number of guests set to ${guestCount}. Bill recalculated.` });
+    }
+
     // Default: Update Guest Discounts
     const bookingID = parseInt(body.bookingID);
     const guests = body.guests;

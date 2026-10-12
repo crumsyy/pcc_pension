@@ -47,6 +47,11 @@ export default function ReceptionistBilling() {
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState([]);
 
+  // Guest count editing state
+  const [isEditingGuestCount, setIsEditingGuestCount] = useState(false);
+  const [guestCountForm, setGuestCountForm] = useState('');
+  const [savingGuestCount, setSavingGuestCount] = useState(false);
+
   // Custom Modal dialog state
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -138,6 +143,44 @@ export default function ReceptionistBilling() {
   };
 
   const [discountBeneficiaries, setDiscountBeneficiaries] = useState([]);
+
+  const openEditGuestCountModal = () => {
+    if (!billDetails) return;
+    setGuestCountForm(String(billDetails.chargesSummary?.totalGuests || 1));
+    setIsEditingGuestCount(true);
+  };
+
+  const handleSaveGuestCountSubmit = async (e) => {
+    e.preventDefault();
+    if (savingGuestCount || !selectedBookingID) return;
+    const newCount = parseInt(guestCountForm, 10);
+    if (!Number.isInteger(newCount) || newCount < 1 || newCount > 20) {
+      showAlert('warning', 'Invalid Headcount', 'Enter a whole number from 1 to 20.');
+      return;
+    }
+    const beneficiaryCount = (billDetails?.discountList?.length || appliedDiscountsList.length || 0);
+    if (newCount < beneficiaryCount) {
+      showAlert('warning', 'Blocked', `Cannot set ${newCount} guest(s): ${beneficiaryCount} discount beneficiar(ies) already applied. Remove discounts first or keep at least ${beneficiaryCount}.`);
+      return;
+    }
+    setSavingGuestCount(true);
+    try {
+      const res = await fetch('/api/receptionist/billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_guest_count', bookingID: selectedBookingID, guestCount: newCount })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update guest count');
+      showAlert('success', 'Headcount Updated', data.message || `Number of guests set to ${newCount}. Bill recalculated.`);
+      setIsEditingGuestCount(false);
+      await fetchBillingDetails(selectedBookingID);
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    } finally {
+      setSavingGuestCount(false);
+    }
+  };
 
   const openEditDiscountsModal = () => {
     if (!billDetails) return;
@@ -400,6 +443,7 @@ export default function ReceptionistBilling() {
   const isBillingModalOpen = Boolean(
     (selectedBookingID && billDetails) ||
     isEditingDiscounts ||
+    isEditingGuestCount ||
     isAddingIncidental ||
     isReportingDamage
   );
@@ -731,6 +775,43 @@ export default function ReceptionistBilling() {
                             </div>
                           </div>
 
+                          {/* A2 Occupancy — headcount (Phase A, directly after A1) */}
+                          <SectionHeader num="A2" title="Occupancy & Capacity" editable={true} hint="Headcount drives per-guest split and extra-guest fees. Use the pen to update." />
+                          <div className="mb-3 bg-light p-3 rounded-3 border animate__animated animate__fadeIn" style={{ fontSize: '0.80rem' }}>
+                            <div className="row g-2 text-dark">
+                              <div className="col-sm-6 col-md-4">
+                                <div className="p-2 bg-white rounded border h-100">
+                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Number of Guests:</span>
+                                  <span className="fw-bold fs-6 text-primary">{billDetails.chargesSummary.totalGuests} Pax</span>
+                                  <span className="text-muted small ms-1">(from booking)</span>
+                                  <button type="button" className="btn btn-sm btn-outline-primary ms-2 py-0 px-2" title="Edit number of guests" aria-label="Edit number of guests" onClick={openEditGuestCountModal} style={{ fontSize: '0.72rem' }}>
+                                    <i className="bi bi-pencil"></i>
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="col-sm-6 col-md-4">
+                                <div className="p-2 bg-white rounded border h-100">
+                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Room Standard Capacity:</span>
+                                  <span className="fw-bold fs-6 text-dark">{billDetails.booking.occupancyLimit || billDetails.booking.roomBasePax || 4} Pax Max</span>
+                                </div>
+                              </div>
+                              <div className="col-sm-12 col-md-4">
+                                <div className="p-2 bg-white rounded border h-100">
+                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Capacity Status:</span>
+                                  {billDetails.chargesSummary.extraGuests > 0 ? (
+                                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning fw-semibold" style={{ fontSize: '0.73rem' }}>
+                                      +{billDetails.chargesSummary.extraGuests} Extra Pax (+₱{parseFloat(billDetails.chargesSummary.extraGuestFee).toFixed(2)})
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-success-subtle text-success border border-success fw-semibold" style={{ fontSize: '0.73rem' }}>
+                                      Within Standard Capacity
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
                           {/* Room rent */}
                           <PhaseLabel phase="B" title="Room & Package" hint="the base charge" />
                           <SectionHeader num="B1" title="Room Rent Charges" editable={false} hint="Auto-computed from rate × nights. Nothing to edit here." />
@@ -878,41 +959,6 @@ export default function ReceptionistBilling() {
                               );
                             })()}
                           </div>
-
-                          {/* Room Occupancy — headcount only (Phase A). Breakfast moved to B2, discounts moved to C1. */}
-                          <SectionHeader num="A2" title="Occupancy & Capacity" editable={false} hint="Headcount from booking. Discounts are edited in Section C1 below." />
-                          <div className="mb-3 bg-light p-3 rounded-3 border animate__animated animate__fadeIn" style={{ fontSize: '0.80rem' }}>
-
-                            <div className="row g-2 text-dark">
-                              <div className="col-sm-6 col-md-4">
-                                <div className="p-2 bg-white rounded border h-100">
-                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Number of Guests:</span>
-                                  <span className="fw-bold fs-6 text-primary">{billDetails.chargesSummary.totalGuests} Pax</span>
-                                  <span className="text-muted small ms-1">(from booking)</span>
-                                </div>
-                              </div>
-                              <div className="col-sm-6 col-md-4">
-                                <div className="p-2 bg-white rounded border h-100">
-                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Room Standard Capacity:</span>
-                                  <span className="fw-bold fs-6 text-dark">{billDetails.booking.occupancyLimit || billDetails.booking.roomBasePax || 4} Pax Max</span>
-                                </div>
-                              </div>
-                              <div className="col-sm-12 col-md-4">
-                                <div className="p-2 bg-white rounded border h-100">
-                                  <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Capacity Status:</span>
-                                  {billDetails.chargesSummary.extraGuests > 0 ? (
-                                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning fw-semibold" style={{ fontSize: '0.73rem' }}>
-                                      +{billDetails.chargesSummary.extraGuests} Extra Pax (+₱{parseFloat(billDetails.chargesSummary.extraGuestFee).toFixed(2)})
-                                    </span>
-                                  ) : (
-                                    <span className="badge bg-success-subtle text-success border border-success fw-semibold" style={{ fontSize: '0.73rem' }}>
-                                      ✓ Within Standard Capacity
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              </div>
-                            </div>
 
                           {/* Phase C — Discounts: single home for split explanation + beneficiaries + editor */}
                           <PhaseLabel phase="C" title="Discounts" hint="the one editable computation" />
@@ -1545,6 +1591,34 @@ export default function ReceptionistBilling() {
                   </div>
                 </TabPanel>
               </Tabs>
+            </div>
+          </div>
+        </div>
+        </ModalPortal>
+      )}
+
+      {/* EDIT GUEST COUNT MODAL */}
+      {isEditingGuestCount && billDetails && (
+        <ModalPortal>
+          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
+          <div className="modal-dialog modal-dialog-centered modal-sm">
+            <div className="modal-content border-0 shadow">
+              <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
+                <h5 className="modal-title">Update Number of Guests — Room {billDetails.booking.roomNumber}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setIsEditingGuestCount(false)}></button>
+              </div>
+              <form onSubmit={handleSaveGuestCountSubmit}>
+                <div className="modal-body p-4">
+                  <div className="text-muted small mb-2">Room capacity max: <strong className="text-dark">{billDetails.booking.occupancyLimit || billDetails.booking.roomBasePax || 4} Pax</strong> • Currently: <strong className="text-dark">{billDetails.chargesSummary?.totalGuests} Pax</strong></div>
+                  <label className="form-label fw-semibold small mb-1">Number of Guests (1–20) *</label>
+                  <input type="number" min="1" max="20" step="1" className="form-control" required value={guestCountForm} onChange={(e) => setGuestCountForm(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+                  <div className="text-muted small mt-2">Extra guests beyond standard capacity auto-add ₱100/night at final billing. Saving recalculates per-guest split, extra-guest fees, and discounts.</div>
+                </div>
+                <div className="modal-footer border-top-0 d-flex justify-content-end gap-2">
+                  <button type="button" className="btn btn-secondary text-white" disabled={savingGuestCount} onClick={() => setIsEditingGuestCount(false)}>Cancel</button>
+                  <LoadingButton type="submit" isLoading={savingGuestCount} loadingText="Saving..." className="btn btn-pcc-primary text-white fw-bold">Save</LoadingButton>
+                </div>
+              </form>
             </div>
           </div>
         </div>
