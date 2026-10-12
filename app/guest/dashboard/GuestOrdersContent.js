@@ -66,7 +66,7 @@ const CatalogItemCard = React.memo(function CatalogItemCard({ item, type, isCook
         {isCookedMeal ? (
           <div className="mb-2 pt-1 border-top">
             <span className="badge bg-warning-subtle text-dark border border-warning-subtle small py-1 px-2 d-inline-block" style={{ fontSize: '0.68rem' }}>
-              <i className="bi bi-clock-history me-1 text-warning-emphasis"></i>⏰ Scheduled Breakfast (6:00 AM – 10:30 AM)
+              <i className="bi bi-clock-history me-1 text-warning-emphasis"></i>6:00 AM – 10:30 AM
             </span>
           </div>
         ) : null}
@@ -1069,9 +1069,11 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
                       Deliver with breakfast (6:00–10:30 AM)
                     </label>
                   </div>
-                  <span className={`badge ${item.deliveryType === 'scheduled' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-success-subtle text-success border border-success-subtle'} py-0.5 px-2`} style={{ fontSize: '0.68rem' }}>
-                    {item.deliveryType === 'scheduled' ? '⏰ With Breakfast' : '⚡ Immediate'}
+                  {item.deliveryType === 'scheduled' && (
+                  <span className="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-2" style={{ fontSize: '0.68rem' }}>
+                    ⏰ With Breakfast
                   </span>
+                  )}
                 </div>
               )}
             </div>

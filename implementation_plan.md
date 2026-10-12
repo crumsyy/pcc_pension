@@ -1,22 +1,27 @@
-# Implementation Plan — Remove category pill prefixes (for approval)
+# Implementation Plan — Tray Immediate badge + meal serving-time label (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. User request
-- In each catalog category header, remove the pill prefix — `Breakfast`, `Minibar & Store`, `Guest Service` — keeping the main titles (`Cooked Meals (Scheduled Delivery)`, `Beverages & Snacks (Immediate Delivery)`, `Hotel Amenities`).
+## 1. User requests (scope already agreed in discussion)
+1. Order tray: remove the green `Immediate` pill below each non-meal item; when bundled, keep the blue `With Breakfast` pill; when immediate, show nothing.
+2. Catalog meal cards: `Scheduled Breakfast (6:00 AM – 10:30 AM)` pill → serving window only (`6:00 AM – 10:30 AM`, clock icon kept, same pill styling).
+3. Mirror in both guest (`GuestOrdersContent.js`) and receptionist (`orders/page.js`) catalogs.
 
 ## 2. Evidence
-- Guest catalog (`GuestOrdersContent.js:1314-1316, 1341-1343, 1368-1370`): `<span pill><i icon/> Label</span>` + `<span>Title</span>` inside each section `h5`.
-- Identical mirrored headers in receptionist orders (`orders/page.js:1312, 1339, 1366`).
+- Guest tray badge: `GuestOrdersContent.js:1072-1074` (`With Breakfast` vs `Immediate` ternary).
+- Guest card pill: `GuestOrdersContent.js:68-70`; tray cooked-meal row pill: `1054-1056` (out of scope, unchanged).
+- Receptionist mirrors: `orders/page.js:~119` (card pill), `:~853` (tray meal row, unchanged), `:~871` (tray badge ternary — verify exact block on implementation).
+- Untouched: top `Cooked Meal (Scheduled)` pill, `Cooked to Order` pill, descriptions, Add buttons, mobile mini-badges, tray checkboxes, scheduling picker section.
 
 ## 3. Proposed changes
-- Delete the three pill `<span>` blocks; keep title spans, slot notes, and grids untouched. No logic changes.
+1. Tray ternary → render badge only when `deliveryType === 'scheduled'` (blue pill), else render nothing.
+2. Card pill text → `6:00 AM – 10:30 AM` (keep icon + pill classes), both files.
 
 ## 4. Verification
-- `grep` pill labels/icons → zero matches in touched files; `eslint`; `npm run build` 97/97; visual headers show titles only.
+- `grep` removed strings → zero in touched files; `eslint`; `npm run build` 97/97; visual tray + catalog in both portals.
 
 ## 5. Risks
-- None (presentational deletion).
+- None (presentational text/conditional only).
 
 ## 6. Questions
-- Q1: Guest catalog only, or also the mirrored receptionist orders headers (recommended: both, for consistency)?
+- Q1: Proceed as planned?
