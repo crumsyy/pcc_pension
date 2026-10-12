@@ -1,20 +1,14 @@
-# Implementation Plan — shadcnUI tabs for Conversations filter (for approval)
+# Implementation Plan — Guest Bookings nav tab (for approval)
 
-> RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
+> RequestFeedback: true — approved ("yes proceed with bookings"). Implementing below.
 
-## 1. Request (Image 1)
-Replace the custom segmented buttons (All / Pending / Responded / Closed) in the Conversations panel header with shadcnUI tabs, matching the tab style already used elsewhere (e.g. Billing status filters).
+## 1. Agreed scope
+- New guest-dashboard nav item **Bookings** (icon `bi-journal-bookmark-fill`) between Rooms and Orders.
+- Move reservation history + booking history sections out of Home/Account into the new tab as **Upcoming** (holds + upcoming stays) and **Past** groups, keeping hold badges; card components reused, element IDs (`bookings-history-section`, `reservations-history-section`, per-item anchors) preserved so notification deep-links keep working.
+- No API/logic changes.
 
-## 2. Proposed changes (only `app/receptionist/inquiries/page.js`)
-1. Import `Tabs, TabList, Tab` from `@/components/ui/tabs`.
-2. Replace the `btn-group` block (lines ~362–375) with `<Tabs selectedKey={statusFilter} onSelectionChange={setStatusFilter}><TabList aria-label="Conversation status"><Tab id="All">…` etc. — same four values, same filtering behavior, no logic change.
-3. Keep the per-status colors where they live now (list badges, detail header) — only the filter control changes.
+## 2. Verification
+- `npm run build` passes; tab shows both histories; home/account tabs unchanged apart from relocation; deep-links scroll correctly.
 
-## 3. Verification
-- `npm run build` passes; visual: filter matches shadcn tab style; All/Pending/Responded/Closed filtering unchanged.
-
-## 4. Risks
-- Minimal: presentational swap on one control, state values unchanged.
-
-## 5. Questions
-- Q1: Proceed?
+## 3. Risks
+- Low-medium: JSX relocation in a large file; duplicated sections (if any) consolidated carefully.

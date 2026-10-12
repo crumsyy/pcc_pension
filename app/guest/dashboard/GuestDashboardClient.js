@@ -321,7 +321,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
-      const validTabs = ['home', 'rooms', 'orders', 'chat', 'notifications', 'account'];
+      const validTabs = ['home', 'rooms', 'bookings', 'orders', 'chat', 'notifications', 'account'];
       const initialTab = (tabParam && validTabs.includes(tabParam)) ? tabParam : 'home';
       _setActiveTab(initialTab);
       if (typeof window !== 'undefined') {
@@ -344,7 +344,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
       // 3. Tab navigation back
       const state = event.state;
-      const validTabs = ['home', 'rooms', 'orders', 'chat', 'notifications', 'account'];
+      const validTabs = ['home', 'rooms', 'bookings', 'orders', 'chat', 'notifications', 'account'];
       if (state && state.tab && validTabs.includes(state.tab)) {
         _setActiveTab(state.tab);
       } else {
@@ -713,13 +713,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     } else if (highlightBookingID) {
       const bId = Number(highlightBookingID);
       if (activeBookingStay?.bookingID === bId) {
-        setActiveTab('home');
+        setActiveTab('bookings');
         setTimeout(() => {
           const el = document.getElementById('active-booking-card') || document.getElementById(`booking-card-${bId}`);
           if (el) highlightElement(el);
         }, 350);
       } else {
-        setActiveTab('account');
+        setActiveTab('bookings');
         setTimeout(() => {
           const el = document.getElementById(`booking-card-${bId}`) || document.getElementById('bookings-history-section');
           if (el) highlightElement(el);
@@ -727,7 +727,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       }
     } else if (highlightResID) {
       const rId = Number(highlightResID);
-      setActiveTab('account');
+      setActiveTab('bookings');
       setTimeout(() => {
         const el = document.getElementById(`reservation-item-${rId}`) || document.getElementById('reservations-history-section');
         if (el) highlightElement(el);
@@ -895,7 +895,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           if (el) {
             highlightElement(el);
           } else {
-            setActiveTab('account');
+            setActiveTab('bookings');
             setTimeout(() => {
               const histEl = (targetResID ? document.getElementById(`reservation-item-${targetResID}`) : null) || document.getElementById('reservations-history-section');
               highlightElement(histEl);
@@ -903,7 +903,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           }
         }, 120);
       } else {
-        setActiveTab('account');
+        setActiveTab('bookings');
         setTimeout(() => {
           const histEl = (targetResID ? document.getElementById(`reservation-item-${targetResID}`) : null) || document.getElementById('reservations-history-section');
           highlightElement(histEl);
@@ -922,7 +922,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
           if (el) highlightElement(el);
         }, 120);
       } else {
-        setActiveTab('account');
+        setActiveTab('bookings');
         setTimeout(() => {
           const el = (targetBookingID ? document.getElementById(`booking-card-${targetBookingID}`) : null) || document.getElementById('bookings-history-section');
           if (el) highlightElement(el);
@@ -950,14 +950,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       const targetBooking = bookings.find(b => b.bookingID === targetBookingID) || activeBookingStay;
       if (targetBooking) {
         handleOpenBillingModal(targetBooking);
-      } else if (activeBookingStay) {
-        setActiveTab('home');
-        setTimeout(() => {
-          const el = document.getElementById('stay-billing-breakdown');
-          if (el) highlightElement(el);
-        }, 120);
       } else {
-        setActiveTab('account');
+        setActiveTab('bookings');
       }
       return;
     }
@@ -2231,6 +2225,230 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     );
   };
 
+  // ---- Bookings tab grouping: Upcoming (actionable) vs Past (terminal) ----
+  const ACTIVE_BOOKING_STATUSES = ['Booked', 'Overdue Check-In', 'Occupied', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Final Billing Updated', 'Bill Finalized', 'Pending Bill', 'Checkout Requested', 'Payment Completed', 'Paid', 'Bill Ready'];
+  const PAST_RESERVATION_STATUSES = ['Cancelled', 'Canceled', 'Released', 'Expired', 'No Show', 'Completed', 'Booked'];
+  const upcomingBookings = bookings.filter((b) => ACTIVE_BOOKING_STATUSES.includes(b.status));
+  const pastBookings = bookings.filter((b) => !ACTIVE_BOOKING_STATUSES.includes(b.status));
+  const upcomingReservations = reservations.filter((r) => !PAST_RESERVATION_STATUSES.includes(r.status));
+  const pastReservations = reservations.filter((r) => PAST_RESERVATION_STATUSES.includes(r.status));
+
+  const renderReservationHistoryCard = (r) => {
+    const isHold = r.status === 'Courtesy Hold';
+    const holdInfo = isHold ? getCourtesyHoldTimeInfo(r.holdExpiryDateTime) : null;
+    return (
+      <div key={r.reservationID} id={`reservation-item-${r.reservationID}`} className="p-3 border rounded bg-light">
+        <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
+          <div>
+            <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+              <h6 className="fw-bold mb-0 text-dark">
+                {toPublicReservationCode(r.reservationID)} — Room {r.roomNumber} ({r.roomType || 'Room'})
+              </h6>
+              {isHold ? (
+                <span className="badge" style={{ backgroundColor: '#fd7e14', color: '#fff' }} aria-label="Courtesy Hold Status">
+                  Courtesy Hold
+                </span>
+              ) : r.status === 'Released' ? (
+                <span className="badge bg-secondary text-white" aria-label="Hold Released Status">
+                  Hold Released
+                </span>
+              ) : null}
+            </div>
+            <span className="small text-muted d-block">
+              Check-in Date: <strong>{formatDate(r.reservationDateTime)}</strong>
+            </span>
+            {isHold && holdInfo && !holdInfo.inGrace && !holdInfo.expired && (
+              <p className="text-warning-emphasis small mb-1 fw-bold d-flex align-items-center gap-1.5 mt-1" role="timer" aria-label="Courtesy Hold Expiration">
+                <i className="bi bi-hourglass-split text-warning"></i>
+                Courtesy Hold expires in {holdInfo.text}
+              </p>
+            )}
+            {isHold && holdInfo && holdInfo.inGrace && (
+              <div className="alert alert-warning py-1.5 px-3 small mb-2 mt-1.5 fw-bold d-flex align-items-center gap-2 border border-warning" role="alert" aria-label="Courtesy Hold Grace Period Active">
+                <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
+                <span>
+                  Final 30-Minute Grace Window: Your hold expired, but is temporarily held for {holdInfo.graceMins} more minute{holdInfo.graceMins !== 1 ? 's' : ''}. Complete payment now before auto-release!
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+        {renderReservationStatusTimeline(r.status)}
+        {(() => {
+          const normR = normalizeReservationStatus(r.status);
+          const canProceed = !['Booked', 'Cancelled'].includes(normR);
+          if (!canProceed) return null;
+          return (
+            <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top gap-2">
+              <button
+                className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
+                onClick={() => handleCancelReservation(r.reservationID)}
+                title={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
+                aria-label={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
+              >
+                {isHold ? "Cancel Hold" : "Cancel"}
+              </button>
+              <button
+                className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
+                onClick={() => handleProceedToBooking(r)}
+                title="Proceed to Booking with Down Payment"
+                aria-label="Proceed to Booking"
+              >
+                <i className="bi bi-calendar-check me-1"></i>
+                Proceed to Booking
+              </button>
+            </div>
+          );
+        })()}
+      </div>
+    );
+  };
+
+  const renderBookingHistoryCard = (b) => {
+    const isCheckedOut = b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled';
+    const remBal = isCheckedOut ? 0 : parseFloat(b.remainingBalance || 0);
+    return (
+      <div
+        key={b.bookingID}
+        id={b.bookingID === activeBookingStay?.bookingID ? 'active-booking-card' : `booking-card-${b.bookingID}`}
+        data-booking-id={b.bookingID}
+        className="card shadow-sm border mb-3 bg-white"
+        style={{ borderRadius: '12px' }}
+      >
+        <div className="card-body p-3">
+          <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
+            <div>
+              <h5 className="card-title fw-bold text-dark mb-0">
+                Room {b.roomNumber} — {b.roomType || 'Standard Room'}
+              </h5>
+              <div className="text-secondary font-monospace small" style={{ fontSize: '0.78rem' }}>
+                {toPublicBookingCode(b.bookingID)} • {guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)}
+              </div>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <StatusBadge status={b.status} />
+            </div>
+          </div>
+
+          <p className="card-text text-muted small mb-2">
+            <i className="bi bi-calendar-event me-1"></i> Check-in: <strong>{formatDate(b.checkInDateTime)}</strong> • Check-out: <strong>{formatDate(b.checkOutDateTime)}</strong>
+          </p>
+
+          <div className="d-flex justify-content-between align-items-center py-2 px-3 bg-light rounded mb-2">
+            <span className="small text-muted fw-semibold">Billing Balance:</span>
+            <span className={`fw-bold fs-6 ${remBal > 0 ? 'text-danger' : 'text-success'}`}>
+              ₱{remBal.toFixed(2)}
+            </span>
+          </div>
+
+          {renderBookingStatusTimeline(b.status)}
+
+          {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) && (
+            <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
+              <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
+              <div>
+                <strong>Room Inspection in Progress:</strong> Front desk and housekeeping staff are currently verifying your room condition and checking for incidental charges. Your final billing will be updated here shortly.
+              </div>
+            </div>
+          )}
+
+          {b.status === 'Room Verified' && (
+            <div className="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-info-subtle text-info-emphasis rounded-3">
+              <i className="bi bi-clock-history fs-6 flex-shrink-0"></i>
+              <div>
+                <strong>Room Inspection Completed:</strong> Room verified. Settle any balance below — checkout completes at ₱0.00.
+              </div>
+            </div>
+          )}
+
+          {(b.isBillFinalized === 1 || ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) || (b.bookingID === detailedBill?.bookingID && (detailedBill?.isBillFinalized === 1 || detailedBill?.chargesSummary?.isBillFinalized === 1))) && remBal > 0.05 && (
+            <div className="alert alert-primary py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-primary-subtle text-primary-emphasis rounded-3">
+              <i className="bi bi-receipt fs-6 flex-shrink-0"></i>
+              <div>
+                <strong>Bill Finalized:</strong> Your final balance of <strong>₱{remBal.toFixed(2)}</strong> is ready to settle.
+              </div>
+            </div>
+          )}
+
+          {remBal <= 0.05 && ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'].includes(b.status) && (
+            <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-success-subtle text-success-emphasis rounded-3">
+              <i className="bi bi-check-circle-fill fs-6 flex-shrink-0"></i>
+              <div>
+                <strong>Bill Fully Settled:</strong> Balance is ₱0.00. Please proceed to front desk to return your keycard.
+              </div>
+            </div>
+          )}
+
+          <div className="booking-card-actions">
+            <button
+              type="button"
+              className="btn btn-primary text-white"
+              onClick={() => handleOpenBillingModal(b)}
+              aria-label="View Billing Breakdown"
+            >
+              <i className="bi bi-receipt"></i> View Billing
+            </button>
+
+            {['Occupied'].includes(b.status) && (
+              <button
+                type="button"
+                className="btn btn-secondary text-white"
+                onClick={() => handleRequestCheckout(b)}
+                aria-label="Request Check-Out"
+              >
+                <i className="bi bi-box-arrow-right"></i> Request Check-Out
+              </button>
+            )}
+
+            {b.status === 'Room Verified' ? (
+              <button type="button" className="btn btn-info text-white fw-bold" disabled aria-label="Room Verified" title="Room verified by front desk. Settle any balance below; checkout completes at ₱0.00.">
+                <i className="bi bi-check-circle me-1"></i> Room Verified
+              </button>
+            ) : ['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) ? (
+              <button type="button" className="btn btn-secondary text-white" disabled aria-label="Checkout Requested" title="Checkout requested. Awaiting room inspection.">
+                <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checkout Requested
+              </button>
+            ) : null}
+
+            {remBal > 0.05 && !['Completed', 'Checked Out', 'Checked-Out', 'Cancelled', 'Canceled', 'No Show'].includes(b.status) && (
+              <button
+                type="button"
+                className="btn btn-primary fw-bold text-white shadow-sm"
+                onClick={() => handleInitiatePay(b)}
+                aria-label="Proceed to Payment"
+              >
+                <i className="bi bi-credit-card-2-front me-1"></i> Pay Balance (₱{remBal.toFixed(2)})
+              </button>
+            )}
+
+            {remBal <= 0.05 && ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed'].includes(b.status) && (
+              <button type="button" className="btn btn-success text-white" disabled aria-label="Paid">
+                <i className="bi bi-check2-all me-1"></i> Paid
+              </button>
+            )}
+
+            {['Completed', 'Checked Out', 'Checked-Out'].includes(b.status) && (
+              <button type="button" className="btn btn-secondary text-white" disabled aria-label="Completed">
+                <i className="bi bi-check-circle me-1"></i> Completed
+              </button>
+            )}
+
+            {normalizeBookingStatus(b.status) === 'Booked' && (
+              <button
+                type="button"
+                className="btn btn-danger text-white"
+                onClick={() => handleCancelBooking(b.bookingID)}
+                aria-label="Cancel Booking"
+              >
+                <i className="bi bi-x-circle"></i> Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Group rooms by Floor safely
   const groundFloorRooms = allRooms.filter(r => String(r.floorID) === '1' || r.floorName?.toLowerCase().includes('ground') || String(r.roomNumber).startsWith('1'));
   const secondFloorRooms = allRooms.filter(r => String(r.floorID) === '2' || r.floorName?.toLowerCase().includes('second') || r.floorName?.toLowerCase().includes('upper') || String(r.roomNumber).startsWith('2'));
@@ -2752,208 +2970,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 )}
 
-                {/* MY BOOKINGS HISTORY & STATUS TIMELINE ON DASHBOARD */}
-                <div id="dashboard-bookings-history-section" className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <i className="bi bi-clock-history text-primary"></i>
-                      <span>My Bookings History &amp; Status Timeline</span>
-                    </h6>
-                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1" style={{ fontSize: '0.74rem' }}>
-                      {bookings.length} Stay{bookings.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-
-                  {bookings.length === 0 ? (
-                    !resetBannerDismissed ? (
-                      <div className="alert alert-info py-3 px-3 border-0 bg-info-subtle rounded-3 mb-0">
-                        <div className="d-flex justify-content-between align-items-start gap-2">
-                          <div className="d-flex align-items-start gap-2">
-                            <i className="bi bi-info-circle-fill text-info mt-0.5 fs-5"></i>
-                            <div>
-                              <div className="fw-bold text-dark mb-0.5">Your booking history has been cleared for testing purposes.</div>
-                              <div className="small text-secondary">
-                                You can now test new reservations or bookings with fresh ID sequences.
-                              </div>
-                            </div>
-                          </div>
-                          <button 
-                            type="button" 
-                            className="btn btn-sm btn-secondary text-white py-0.5 px-2.5 small"
-                            style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
-                            onClick={() => {
-                              try { sessionStorage.setItem('pcc_guest_reset_banner_dismissed', '1'); } catch (e) {}
-                              setResetBannerDismissed(true);
-                            }}
-                          >
-                            Dismiss Notice &times;
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-4 text-muted small">
-                        <i className="bi bi-calendar-x fs-3 d-block mb-1 text-secondary opacity-50"></i>
-                        <span>No booking records found. You can reserve or book a room using the quick actions below!</span>
-                      </div>
-                    )
-                  ) : (
-                    <div className="d-flex flex-column gap-3">
-                      {bookings.map((b) => {
-                        const isCheckedOut = b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled';
-                        const remBal = isCheckedOut ? 0 : parseFloat(b.remainingBalance || 0);
-                        return (
-                          <div
-                            key={b.bookingID}
-                            id={b.bookingID === activeBookingStay?.bookingID ? 'active-booking-card' : `booking-card-${b.bookingID}`}
-                            data-booking-id={b.bookingID}
-                            className="card shadow-sm border mb-1 bg-white"
-                            style={{ borderRadius: '12px' }}
-                          >
-                            <div className="card-body p-3">
-                              <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
-                                <div>
-                                  <h5 className="card-title fw-bold text-dark mb-0">
-                                    Room {b.roomNumber} — {b.roomType || 'Standard Room'}
-                                  </h5>
-                                  <div className="text-secondary font-monospace small" style={{ fontSize: '0.78rem' }}>
-                                    {toPublicBookingCode(b.bookingID)} • {guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)}
-                                  </div>
-                                </div>
-                                <div className="d-flex align-items-center gap-2">
-                                  <StatusBadge status={b.status} />
-                                </div>
-                              </div>
-
-                              <p className="card-text text-muted small mb-2">
-                                <i className="bi bi-calendar-event me-1"></i> Check-in: <strong>{formatDate(b.checkInDateTime)}</strong> • Check-out: <strong>{formatDate(b.checkOutDateTime)}</strong>
-                                {b.breakfastOption && (
-                                  <span className="ms-2 badge bg-light text-dark border">
-                                    {b.breakfastOption === 'without' ? 'No Breakfast' : 'With Breakfast'}
-                                  </span>
-                                )}
-                              </p>
-
-                              <div className="d-flex justify-content-between align-items-center py-2 px-3 bg-light rounded mb-2">
-                                <span className="small text-muted fw-semibold">Billing Balance:</span>
-                                <span className={`fw-bold fs-6 ${remBal > 0 ? 'text-danger' : 'text-success'}`}>
-                                  ₱{remBal.toFixed(2)}
-                                </span>
-                              </div>
-
-                              {/* TIMELINE */}
-                              {renderBookingStatusTimeline(b.status)}
-
-                              {/* INSPECTION / BILL FINALIZED STATUS BANNER */}
-                              {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) && (
-                                <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
-                                  <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
-                                  <div>
-                                    <strong>Room Inspection in Progress:</strong> Front desk and housekeeping staff are currently verifying your room condition and checking for incidental charges. Your final billing will be updated here shortly.
-                                  </div>
-                                </div>
-                              )}
-
-                              {b.status === 'Room Verified' && (
-                                <div className="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-info-subtle text-info-emphasis rounded-3">
-                                  <i className="bi bi-clock-history fs-6 flex-shrink-0"></i>
-                                  <div>
-                                    <strong>Room Inspection Completed:</strong> Room verified. Settle any balance below — checkout completes at ₱0.00.
-                                  </div>
-                                </div>
-                              )}
-
-                              {(b.isBillFinalized === 1 || ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) || (b.bookingID === detailedBill?.bookingID && (detailedBill?.isBillFinalized === 1 || detailedBill?.chargesSummary?.isBillFinalized === 1))) && remBal > 0.05 && (
-                                <div className="alert alert-primary py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-primary-subtle text-primary-emphasis rounded-3">
-                                  <i className="bi bi-receipt fs-6 flex-shrink-0"></i>
-                                  <div>
-                                    <strong>Bill Finalized:</strong> Your final balance of <strong>₱{remBal.toFixed(2)}</strong> is ready to settle.
-                                  </div>
-                                </div>
-                              )}
-
-                              {remBal <= 0.05 && ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'].includes(b.status) && (
-                                <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-success-subtle text-success-emphasis rounded-3">
-                                  <i className="bi bi-check-circle-fill fs-6 flex-shrink-0"></i>
-                                  <div>
-                                    <strong>Bill Fully Settled:</strong> Balance is ₱0.00. Please proceed to front desk to return your keycard.
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* ACTION BUTTONS */}
-                              <div className="booking-card-actions mt-2">
-                                <button 
-                                  type="button" 
-                                  className="btn btn-primary text-white"
-                                  onClick={() => handleOpenBillingModal(b)}
-                                  aria-label="View Billing Breakdown"
-                                >
-                                  <i className="bi bi-receipt"></i> View Billing
-                                </button>
-
-                                {['Occupied'].includes(b.status) && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-secondary text-white"
-                                    onClick={() => handleRequestCheckout(b)}
-                                    aria-label="Request Check-Out"
-                                  >
-                                    <i className="bi bi-box-arrow-right"></i> Request Check-Out
-                                  </button>
-                                )}
-
-                                {b.status === 'Room Verified' ? (
-                                   <button type="button" className="btn btn-info text-white fw-bold" disabled aria-label="Room Verified" title="Room verified by front desk. Settle any balance below; checkout completes at ₱0.00.">
-                                     <i className="bi bi-check-circle me-1"></i> Room Verified
-                                   </button>
-                                 ) : ['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) ? (
-                                   <button type="button" className="btn btn-secondary text-white" disabled aria-label="Checkout Requested" title="Checkout requested. Awaiting room inspection.">
-                                     <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checkout Requested
-                                   </button>
-                                 ) : null}
-
-                                {remBal > 0.05 && !['Completed', 'Checked Out', 'Checked-Out', 'Cancelled', 'Canceled', 'No Show'].includes(b.status) && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-primary fw-bold text-white shadow-sm"
-                                    onClick={() => handleInitiatePay(b)}
-                                    aria-label="Proceed to Payment"
-                                  >
-                                    <i className="bi bi-credit-card-2-front me-1"></i> Pay Balance (₱{remBal.toFixed(2)})
-                                  </button>
-                                )}
-
-                                {remBal <= 0.05 && ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed'].includes(b.status) && (
-                                  <button type="button" className="btn btn-success text-white" disabled aria-label="Paid">
-                                    <i className="bi bi-check2-all me-1"></i> Paid
-                                  </button>
-                                )}
-
-                                {['Completed', 'Checked Out', 'Checked-Out'].includes(b.status) && (
-                                  <button type="button" className="btn btn-secondary text-white" disabled aria-label="Completed">
-                                    <i className="bi bi-check-circle me-1"></i> Completed
-                                  </button>
-                                )}
-
-                                {normalizeBookingStatus(b.status) === 'Booked' && (
-                                  <button 
-                                    type="button" 
-                                    className="btn btn-danger text-white" 
-                                    onClick={() => handleCancelBooking(b.bookingID)}
-                                    aria-label="Cancel Booking"
-                                  >
-                                    <i className="bi bi-x-circle"></i> Cancel
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
                 {/* QUICK ACTION BUTTONS */}
                 <h6 className="fw-bold text-dark mb-2.5">Quick Actions</h6>
                 <div className="row g-2 mb-4">
@@ -2985,7 +3001,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="col-6 col-md-3">
                     <button
                       className="btn btn-secondary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
-                      onClick={() => setActiveTab('account')}
+                      onClick={() => setActiveTab('bookings')}
                     >
                       My Bookings
                     </button>
@@ -3341,6 +3357,78 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             )}
 
             {/* TAB: ORDERS TAB */}
+            {activeTab === 'bookings' && (
+              <div className="animate__animated animate__fadeIn">
+                <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                  <h5 className="fw-bold mb-1 text-dark">My Bookings</h5>
+                  <p className="text-muted mb-0 small">Your reservation holds and stays — upcoming first, past records below.</p>
+                </div>
+
+                <h6 className="fw-bold text-dark mb-2">Upcoming</h6>
+                <div id="reservations-history-section">
+                  {upcomingReservations.length === 0 && upcomingBookings.length === 0 ? (
+                    <div className="text-center py-4 text-muted small">
+                      <i className="bi bi-calendar-x fs-3 d-block mb-1 text-secondary opacity-50"></i>
+                      <span>No upcoming reservations or stays. Reserve or book a room to get started!</span>
+                    </div>
+                  ) : (
+                    <>
+                      {upcomingReservations.length > 0 && (
+                        <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                          <h6 className="fw-bold text-dark mb-3">Reservation Holds</h6>
+                          <div className="d-flex flex-column gap-3">
+                            {upcomingReservations.map((r) => renderReservationHistoryCard(r))}
+                          </div>
+                        </div>
+                      )}
+                      {upcomingBookings.length > 0 && (
+                        <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="fw-bold text-dark mb-0">Upcoming &amp; Ongoing Stays</h6>
+                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1" style={{ fontSize: '0.74rem' }}>
+                              {upcomingBookings.length} Stay{upcomingBookings.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className="d-flex flex-column gap-3">
+                            {upcomingBookings.map((b) => renderBookingHistoryCard(b))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {(pastReservations.length > 0 || pastBookings.length > 0) && (
+                  <>
+                    <h6 className="fw-bold text-dark mb-2 mt-4">Past</h6>
+                    <div id="bookings-history-section">
+                      {pastReservations.length > 0 && (
+                        <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                          <h6 className="fw-bold text-dark mb-3">Past Reservations</h6>
+                          <div className="d-flex flex-column gap-3">
+                            {pastReservations.map((r) => renderReservationHistoryCard(r))}
+                          </div>
+                        </div>
+                      )}
+                      {pastBookings.length > 0 && (
+                        <div className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="fw-bold text-dark mb-0">Past Stays</h6>
+                            <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1" style={{ fontSize: '0.74rem' }}>
+                              {pastBookings.length} Stay{pastBookings.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className="d-flex flex-column gap-3">
+                            {pastBookings.map((b) => renderBookingHistoryCard(b))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {activeTab === 'orders' && (
               <GuestOrdersContent guest={guest} activeBookingStay={activeBookingStay} initialCategory="all" showAlert={showAlert} />
             )}
@@ -3574,278 +3662,6 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <ThemeToggle />
                     </div>
                   </div>
-                </div>
-
-                {/* MY RESERVATIONS HISTORY */}
-                <div id="reservations-history-section" className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                  <h6 className="fw-bold text-dark mb-3">My Reservations History &amp; Status Timeline</h6>
-                  {reservations.length === 0 ? (
-                    <p className="text-muted small mb-0">No reservation records found.</p>
-                  ) : (
-                    <div className="d-flex flex-column gap-3">
-                      {reservations.map((r) => {
-                        const isHold = r.status === 'Courtesy Hold';
-                        const holdInfo = isHold ? getCourtesyHoldTimeInfo(r.holdExpiryDateTime) : null;
-
-                        return (
-                          <div key={r.reservationID} id={`reservation-item-${r.reservationID}`} className="p-3 border rounded bg-light">
-                            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
-                              <div>
-                                <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                                  <h6 className="fw-bold mb-0 text-dark">
-                                    {toPublicReservationCode(r.reservationID)} — Room {r.roomNumber} ({r.roomType || 'Room'})
-                                  </h6>
-                                  {isHold ? (
-                                    <span className="badge" style={{ backgroundColor: '#fd7e14', color: '#fff' }} aria-label="Courtesy Hold Status">
-                                      Courtesy Hold
-                                    </span>
-                                  ) : r.status === 'Released' ? (
-                                    <span className="badge bg-secondary text-white" aria-label="Hold Released Status">
-                                      Hold Released
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <span className="small text-muted d-block">
-                                  Check-in Date: <strong>{formatDate(r.reservationDateTime)}</strong>
-                                </span>
-
-                                {/* Countdown Timer */}
-                                {isHold && holdInfo && !holdInfo.inGrace && !holdInfo.expired && (
-                                  <p className="text-warning-emphasis small mb-1 fw-bold d-flex align-items-center gap-1.5 mt-1" role="timer" aria-label="Courtesy Hold Expiration">
-                                    <i className="bi bi-hourglass-split text-warning"></i>
-                                    Courtesy Hold expires in {holdInfo.text}
-                                  </p>
-                                )}
-
-                                {/* Explicit 30-Minute Grace Window Alert Banner */}
-                                {isHold && holdInfo && holdInfo.inGrace && (
-                                  <div className="alert alert-warning py-1.5 px-3 small mb-2 mt-1.5 fw-bold d-flex align-items-center gap-2 border border-warning" role="alert" aria-label="Courtesy Hold Grace Period Active">
-                                    <i className="bi bi-exclamation-triangle-fill text-danger fs-6"></i>
-                                    <span>
-                                      Final 30-Minute Grace Window: Your hold expired, but is temporarily held for {holdInfo.graceMins} more minute{holdInfo.graceMins !== 1 ? 's' : ''}. Complete payment now before auto-release!
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            {renderReservationStatusTimeline(r.status)}
-                            {/* Action buttons directly below statuses: Cancel on left, Proceed to Booking on right */}
-                            {(() => {
-                              const normR = normalizeReservationStatus(r.status);
-                              const canProceed = !['Booked', 'Cancelled'].includes(normR);
-                              if (!canProceed) return null;
-                              return (
-                                <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top gap-2">
-                                  <button
-                                    className="btn btn-sm btn-danger text-white fw-bold px-3 py-2 shadow-sm"
-                                    onClick={() => handleCancelReservation(r.reservationID)}
-                                    title={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
-                                    aria-label={isHold ? "Cancel Courtesy Hold" : "Cancel Reservation"}
-                                  >
-                                    {isHold ? "Cancel Hold" : "Cancel"}
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-success text-white fw-bold px-3 py-2 shadow-sm"
-                                    onClick={() => handleProceedToBooking(r)}
-                                    title="Proceed to Booking with Down Payment"
-                                    aria-label="Proceed to Booking"
-                                  >
-                                    <i className="bi bi-calendar-check me-1"></i>
-                                    Proceed to Booking
-                                  </button>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* MY BOOKINGS HISTORY */}
-                <div id="bookings-history-section" className="card shadow-sm border-0 p-3 mb-4 bg-white" style={{ borderRadius: '12px' }}>
-                  <h6 className="fw-bold text-dark mb-3">My Bookings History &amp; Status Timeline</h6>
-                  {bookings.length === 0 ? (
-                    !resetBannerDismissed ? (
-                      <div className="alert alert-info py-3 px-3 border-0 bg-info-subtle rounded-3 mb-0">
-                        <div className="d-flex justify-content-between align-items-start gap-2">
-                          <div className="d-flex align-items-start gap-2">
-                            <i className="bi bi-info-circle-fill text-info mt-0.5 fs-5"></i>
-                            <div>
-                              <div className="fw-bold text-dark mb-0.5">Your booking history has been cleared for testing purposes.</div>
-                              <div className="small text-secondary">
-                                You can now test new reservations or bookings with fresh ID sequences.
-                              </div>
-                            </div>
-                          </div>
-                          <button 
-                            type="button" 
-                            className="btn btn-sm btn-secondary text-white py-0.5 px-2.5 small"
-                            style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}
-                            onClick={() => {
-                              try { sessionStorage.setItem('pcc_guest_reset_banner_dismissed', '1'); } catch (e) {}
-                              setResetBannerDismissed(true);
-                            }}
-                          >
-                            Dismiss Notice &times;
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-muted small mb-0">No booking records found.</p>
-                    )
-                  ) : (
-                    <div className="d-flex flex-column gap-3">
-                      {bookings.map((b) => {
-                        const isCheckedOut = b.status === 'Checked Out' || b.status === 'Completed' || b.status === 'Cancelled';
-                        const remBal = isCheckedOut ? 0 : parseFloat(b.remainingBalance || 0);
-                        return (
-                          <div
-                            key={b.bookingID}
-                            id={`booking-card-${b.bookingID}`}
-                            data-booking-id={b.bookingID}
-                            className="card shadow-sm border mb-3 bg-white"
-                            style={{ borderRadius: '12px' }}
-                          >
-                            <div className="card-body p-3">
-                              <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start gap-2 mb-2">
-                                <div>
-                                  <h5 className="card-title fw-bold text-dark mb-0">
-                                    Room {b.roomNumber} — {b.roomType || 'Standard Room'}
-                                  </h5>
-                                  <div className="text-secondary font-monospace small" style={{ fontSize: '0.78rem' }}>
-                                    {toPublicBookingCode(b.bookingID)} • {guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)}
-                                  </div>
-                                </div>
-                                <div className="d-flex align-items-center gap-2">
-                                  <StatusBadge status={b.status} />
-                                </div>
-                              </div>
-
-                              <p className="card-text text-muted small mb-2">
-                                <i className="bi bi-calendar-event me-1"></i> Check-in: <strong>{formatDate(b.checkInDateTime)}</strong> • Check-out: <strong>{formatDate(b.checkOutDateTime)}</strong>
-                              </p>
-
-                              <div className="d-flex justify-content-between align-items-center py-2 px-3 bg-light rounded mb-2">
-                                <span className="small text-muted fw-semibold">Billing Balance:</span>
-                                <span className={`fw-bold fs-6 ${remBal > 0 ? 'text-danger' : 'text-success'}`}>
-                                  ₱{remBal.toFixed(2)}
-                                </span>
-                              </div>
-
-                              {/* TIMELINE */}
-                              {renderBookingStatusTimeline(b.status)}
-
-                              {/* INSPECTION / BILL FINALIZED STATUS BANNER */}
-                              {['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) && (
-                                <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-warning-subtle text-warning-emphasis rounded-3">
-                                  <span className="spinner-border spinner-border-sm flex-shrink-0" role="status"></span>
-                                  <div>
-                                    <strong>Room Inspection in Progress:</strong> Front desk and housekeeping staff are currently verifying your room condition and checking for incidental charges. Your final billing will be updated here shortly.
-                                  </div>
-                                </div>
-                              )}
-
-                              {b.status === 'Room Verified' && (
-                                <div className="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-info-subtle text-info-emphasis rounded-3">
-                                  <i className="bi bi-clock-history fs-6 flex-shrink-0"></i>
-                                  <div>
-                                    <strong>Room Inspection Completed:</strong> Room verified. Settle any balance below — checkout completes at ₱0.00.
-                                  </div>
-                                </div>
-                              )}
-
-                              {(b.isBillFinalized === 1 || ['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(b.status) || (b.bookingID === detailedBill?.bookingID && (detailedBill?.isBillFinalized === 1 || detailedBill?.chargesSummary?.isBillFinalized === 1))) && remBal > 0.05 && (
-                                <div className="alert alert-primary py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-primary-subtle text-primary-emphasis rounded-3">
-                                  <i className="bi bi-receipt fs-6 flex-shrink-0"></i>
-                                  <div>
-                                    <strong>Bill Finalized:</strong> Your final balance of <strong>₱{remBal.toFixed(2)}</strong> is ready to settle.
-                                  </div>
-                                </div>
-                              )}
-
-                              {remBal <= 0.05 && ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Payment Completed', 'Paid'].includes(b.status) && (
-                                <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 my-2 border-0 bg-success-subtle text-success-emphasis rounded-3">
-                                  <i className="bi bi-check-circle-fill fs-6 flex-shrink-0"></i>
-                                  <div>
-                                    <strong>Bill Fully Settled:</strong> Balance is ₱0.00. Please proceed to front desk to return your keycard.
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* ACTION BUTTONS */}
-                              <div className="booking-card-actions">
-                                <button 
-                                  type="button" 
-                                  className="btn btn-primary text-white"
-                                  onClick={() => handleOpenBillingModal(b)}
-                                  aria-label="View Billing Breakdown"
-                                >
-                                  <i className="bi bi-receipt"></i> View Billing
-                                </button>
-
-                                {['Occupied'].includes(b.status) && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-secondary text-white"
-                                    onClick={() => handleRequestCheckout(b)}
-                                    aria-label="Request Check-Out"
-                                  >
-                                    <i className="bi bi-box-arrow-right"></i> Request Check-Out
-                                  </button>
-                                )}
-
-                                {b.status === 'Room Verified' ? (
-                                   <button type="button" className="btn btn-info text-white fw-bold" disabled aria-label="Room Verified" title="Room verified by front desk. Settle any balance below; checkout completes at ₱0.00.">
-                                     <i className="bi bi-check-circle me-1"></i> Room Verified
-                                   </button>
-                                 ) : ['Checkout Requested', 'Pending Room Verification', 'Pending Checkout'].includes(b.status) ? (
-                                   <button type="button" className="btn btn-secondary text-white" disabled aria-label="Checkout Requested" title="Checkout requested. Awaiting room inspection.">
-                                     <span className="spinner-border spinner-border-sm me-1" role="status"></span> Checkout Requested
-                                   </button>
-                                 ) : null}
-
-                                {remBal > 0.05 && !['Completed', 'Checked Out', 'Checked-Out', 'Cancelled', 'Canceled', 'No Show'].includes(b.status) && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-primary fw-bold text-white shadow-sm"
-                                    onClick={() => handleInitiatePay(b)}
-                                    aria-label="Proceed to Payment"
-                                  >
-                                    <i className="bi bi-credit-card-2-front me-1"></i> Pay Balance (₱{remBal.toFixed(2)})
-                                  </button>
-                                )}
-
-                                {remBal <= 0.05 && ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified', 'Bill Finalized', 'Final Billing Updated', 'Paid', 'Payment Completed'].includes(b.status) && (
-                                  <button type="button" className="btn btn-success text-white" disabled aria-label="Paid">
-                                    <i className="bi bi-check2-all me-1"></i> Paid
-                                  </button>
-                                )}
-
-                                {['Completed', 'Checked Out', 'Checked-Out'].includes(b.status) && (
-                                  <button type="button" className="btn btn-secondary text-white" disabled aria-label="Completed">
-                                    <i className="bi bi-check-circle me-1"></i> Completed
-                                  </button>
-                                )}
-
-                                {normalizeBookingStatus(b.status) === 'Booked' && (
-                                  <button 
-                                    type="button" 
-                                    className="btn btn-danger text-white" 
-                                    onClick={() => handleCancelBooking(b.bookingID)}
-                                    aria-label="Cancel Booking"
-                                  >
-                                    <i className="bi bi-x-circle"></i> Cancel
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
 
                 {/* ACCOUNT ACTION BUTTONS */}
