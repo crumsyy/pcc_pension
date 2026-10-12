@@ -7,6 +7,7 @@ import GuestChatBubble from '../../components/GuestChatBubble';
 import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import GuestBottomNav from './GuestBottomNav';
+import GuestHeader from './GuestHeader';
 import GuestSidebarNav from './GuestSidebarNav';
 import ThemeToggle from '../../components/ThemeToggle';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
@@ -2554,6 +2555,18 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
         )}
 
         {/* MAIN WORKSPACE CONTENT */}
+        <div className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0 }}>
+        {isDesktop && (
+          <GuestHeader
+            activeTab={activeTab}
+            onNavigate={(tab) => {
+              setActiveTab(tab);
+              setViewMode('default');
+            }}
+            unreadCount={unreadCount}
+            guest={guest}
+          />
+        )}
         <main className={`flex-grow-1 p-3 p-lg-4 pcc-content-reveal ${!isDesktop ? 'pb-5 mb-4' : ''}`} style={{ minWidth: 0, paddingBottom: !isDesktop ? '95px' : undefined }}>
           {viewMode === 'select_room' ? (
             /* VISUAL ROOM LAYOUT SELECTION WORKSPACE */
@@ -3676,6 +3689,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             </>
           )}
         </main>
+        </div>
       </div>
 
       {/* MOBILE BOTTOM NAVIGATION BAR (Mobile/Tablet Only) */}
