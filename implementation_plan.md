@@ -1,38 +1,64 @@
-# Implementation Plan — Remove finalize gates + billing UX batch (for approval)
+# Implementation Plan — Button-free Billing tab + titled Statement of Account (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Agreed rules (all recommendations accepted)
-- No new `Bill Finalized` rows; old ones stay readable (no migration).
-- Pay anytime (guest + counter), no request-final-bill step.
-- Checkout completes only at ₱0.00 AND room-verified (inspection stays as the guard).
-- Statement/discount UI fixes as specced.
+## 1. User request (Image 1)
 
-## 2. Changes
-### A. Guest portal (`GuestDashboardClient.js`)
-1. `handleInitiatePay`: drop finalized gate (keep declined + settled-zero notes) → pay whenever balance > 0.05.
-2. `handleRequestCheckout`: rename UI copy to Request Check-Out / inspection language (API unchanged).
-3. Action buttons (both desktop + mobile blocks): Pay Balance button whenever balance > 0.05 and status not terminal; Request Check-Out on Occupied; settled banner at zero regardless of finalized flag; reword Room-Verified/Pending-Bill notes (no finalize language); drop finalized-only banners for new rows (keep conditions harmless for legacy).
-4. Guest pay APIs (`guest/bookings/pay`, `guest/payments`): remove unfinalized blocks.
+1. **No action buttons in Billing:** Billing tab = view + modify billing only. All paying (Record Walk-in / counter payment) and Complete Booking (checkout) live in the Payments tab.
+2. **Clear per-section titles in Statement of Account:** each block gets an explicit title so users know "this section is guest and booking details, etc."
 
-### B. Receptionist
-5. `bookings/page.js`: delete finalize modal + state + handlers + trigger (incidental-adding lives in BillingTab).
-6. `BillingTab.js`: drop “Bill Not Yet Finalized” alert (added last round); legacy finalized alerts stay.
-7. Completion gates (`completeBookingAndFreeRoom` + billing `checkout` action): require verified room (`roomVerifiedAt` set OR status in Room Verified/Pending Bill/Bill Finalized family) AND zero balance; error message states which is missing.
+## 2. Current state (verified in `app/receptionist/billing-checkout/BillingTab.js`)
 
-### C. Labels + statement/discount UX (`BillingTab.js`, `PaymentTerminal.js` totals TBD)
-8. `Orders & Room Service` → `Orders` (payment summary + statement headers).
-9. Discount card: red/danger → blue family, title `Applied Discounts`; per-guest pills restyled to match.
-10. Applied-discount badges → stacked rows (name+ID left, amount right, wrapped, `mb-2` gap) — overlap structurally impossible.
-11. Statement money-line reorder: all additive charges (room, extra pax, breakfast, orders, incidentals) → subtotal/discounts/net → payments → balance LAST; dedupe Net Room Stay Charges line.
+- Visible Billing-tab Payment Summary panel (lines ~1550–1606) already shows **info alerts only** (checked-out info, overpaid warning, "Switch to the Payments tab to settle", "Complete checkout in the Payments tab") — no visible pay/complete buttons. Matches the screenshot's intent, screenshot is from an older build.
+- **Dead/broken code still present** that must be removed:
+  - `openRecordPaymentModal` / `openSettleBillModal` (lines 120–132), `handleSettleBillSubmit` (134–179) reference `setSettleForm`, `setIsSettlingBill`, `isSettlingBillPayment` — none of these states are defined → runtime crash if invoked.
+  - `handleCompleteBooking` / `handleCheckOutGuest` (355–392) references undefined `setCheckingOut`.
+  - `isBillingModalOpen` (499–506) references `isSettlingBill`.
+  - Full `SETTLE BILL MODAL` JSX (lines 2013–2164, "Record Walk-in Counter Payment") references `isSettlingBill`, `settleForm`, `isSettlingBillPayment` — all undefined.
+  - `paymentMethods` state is still needed (passed to `PaymentTerminal` in Payments tab) — keep it.
+- `PaymentTerminal.js` (used in Payments `TabPanel`) already owns paying + Complete Booking (Zero Balance) flows — no changes needed there.
+- Statement sections lack consistent titles:
+  - Guest/stay grid (lines 785–807) has **no title**.
+  - `Room Rent Charges` (line 810) — titled, keep.
+  - Discount apportionment row (833–851) — inline "Discount Apportionment:" only, no section header.
+  - `Stay Occupancy & Capacity` (937) — titled but booking-jargon; clarify.
+  - Scheduled breakfast mornings block (1013–1027) — emoji label `🍳 Scheduled Breakfast Mornings`, style mismatched.
+  - Applied Discounts breakdown (1033–1051) — small label, not `h6`-matched.
+  - `Orders` (1055), `Room Check-Out Inspection` (1167), `Incidental & Damage Charges` (1270), `Borrowed Room Items & Amenities` (1330) — already titled, keep wording consistent.
+  - Right panel header `Payment Summary` (1379) — misleading in a button-free Billing tab (implies paying here).
 
-## 3. Verification
-- `eslint`; `npm run build` 97/97.
-- Manual: guest pays unfinalized bill to zero; checkout blocked until verified AND zero (each missing piece errors clearly); legacy finalized rows display unchanged; statement reads top-down; discounts readable at any name length.
+## 3. Proposed changes (only `BillingTab.js`, subtractive + titles)
 
-## 4. Risks
-- Checkout now has TWO gates (verified + zero) — receptionist hitting Complete on unverified zero-balance stays gets a clear error, not silent success. Intended.
-- Guest pay-anytime increases pre-inspection payments; inspection still gates completion, and damage incidentals post as charges due (balance reopens) — same as today’s walk-in payment behavior.
+### A. Billing = modify-only (delete ~150 lines, fix crash)
+1. Delete `openRecordPaymentModal` / `openSettleBillModal`, `handleSettleBillSubmit`.
+2. Delete `handleCompleteBooking` / `handleCheckOutGuest` (Payments tab owns checkout).
+3. Delete entire `SETTLE BILL MODAL` JSX block.
+4. Fix `isBillingModalOpen` to drop `isSettlingBill` reference.
+5. Keep `paymentMethods` state + pass-through to Payments tab.
+6. Reword balance-due alert to settle-in-Payments only (already correct at line 1590: "Switch to the Payments tab to settle this bill." — keep).
+7. **Kept modify controls (these are NOT action buttons):** `Apply / Edit Discounts` (occupancy header + Payment Summary discount card), `+ Add Incidental Charge`, incidental delete, amenity inspection checkbox + lost-qty input, `Report Lost/Damaged`, discount modal Add/Remove/Apply & Recalculate.
 
-## 5. Questions
-- Q1: Proceed with the full batch as specced?
+### B. Statement of Account — add style-matched `h6` titles (same `fw-bold text-dark mb-1 border-bottom pb-1`, `fontSize 0.82rem`)
+1. Guest/stay grid → `Guest & Booking Details`.
+2. Keep `Room Rent Charges`.
+3. Discount apportionment row → retitle inline label to `Applied Discounts — Per-Guest Apportionment` (keeps existing breakdown list).
+4. `Stay Occupancy & Capacity` → `Occupancy & Capacity` (clearer, keeps icon + Apply/Edit button).
+5. Breakfast mornings block → `Breakfast Schedule` (replace 🍳 emoji header, keep date badges).
+6. Discount beneficiaries block → `Applied Discounts` (promote existing label to full `h6`).
+7. Keep `Orders` → expand to `Orders & Room Service` (matches empty-state copy "No room service or product orders…").
+8. Keep `Room Check-Out Inspection — Ordered Non-Consumable Amenities`, `Incidental & Damage Charges`, `Borrowed Room Items & Amenities` (verify consistent title-case).
+9. Right panel header `Payment Summary` → `Bill Totals Summary (Read-Only)` + sub-caption `Pay or complete checkout in the Payments tab` so users don't look for buttons here.
+
+No logic, calculation, or API changes. Pure JSX text + deletion.
+
+## 4. Verification
+- `grep -n "isSettlingBill\|settleForm\|handleSettleBill\|openRecordPaymentModal\|handleCompleteBooking\|Record Walk-in\|Complete Booking (Balance" app/receptionist/billing-checkout/BillingTab.js` → zero hits (except Payments-tab pointer strings).
+- `npm run lint` / `eslint`; `npm run build` passes.
+- Visual: Billing tab shows zero pay/complete buttons; every statement block has a titled header; Payments tab still settles + completes unchanged.
+
+## 5. Risks
+- Low-medium: sizable deletion but purely subtractive; pay/complete paths already proven in Payments tab. Rollback = revert commit.
+
+## 6. Questions
+- Q1: Proceed exactly as above?
+- Q2: Accept right-panel rename to `Bill Totals Summary (Read-Only)`?
