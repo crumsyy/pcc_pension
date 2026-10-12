@@ -1,21 +1,26 @@
-# Implementation Plan — Stop billing auto-refresh jump (for approval)
+# Implementation Plan — Remove Finalize + Open Terminal buttons (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Problem
-- Bill dialog re-renders every ~6s (poll) + on focus; each cycle flashes the loading placeholder, destroying modal scroll position.
+## 1. User request
+- Remove `Finalize Bill` and `Open Payment Terminal` buttons from the bill dialog ([Image 1]); paying happens in the Payments tab.
 
-## 2. Proposed changes (billing workspace only)
-1. `BillingTab.js`: gate the 6s interval + focus/visibility/custom-event background refetches so they skip while the bill dialog or any sub-modal (discounts, incidental, damage, settle) is open. Explicit refetches stay: on dialog open, after every mutation, manual refresh.
-2. Silent background refetch: poll-driven `fetchBillingDetails` no longer sets `loadingBill` (no placeholder flash); loading state only for user-initiated opens.
-3. `PaymentTerminal.js` (dialog-embedded use): same silent treatment for its bill refetch; GCash pending-payment poll untouched.
+## 2. Evidence
+- `BillingTab.js` Step 1 (`!isSettled`, `!isFinalized`): green Finalize + disabled terminal button.
+- Step 2 (finalized): amber “Ready for Settlement” alert + blue Open Payment Terminal link + Record Walk-in Payment + disabled Complete.
+- Finalize stays reachable elsewhere (bookings page finalize flow + API), so online-payment unlocking isn't orphaned.
 
-## 3. Verification
-- `eslint`; `npm run build` 97/97.
-- Manual: open bill, scroll mid-statement, wait 30s + switch windows — no jump, no flash; add discount/incidental → numbers update once via mutation refetch.
+## 3. Proposed changes (only `BillingTab.js`)
+1. Step 1: replace both buttons with a muted hint: “Review the statement here, then switch to the Payments tab to settle.”
+2. Step 2: remove the Open Payment Terminal link; reword alert to point at the Payments tab; keep Record Walk-in Payment + disabled Complete (not asked to remove).
+3. Remove now-dead `handleFinalizeBill` + `finalizingBill` state if unreferenced elsewhere in the file (verify via grep; keep if used).
 
-## 4. Risks
-- Low: refresh triggers narrowed, never removed; worst case is data up to one poll older while a dialog is open, refreshed on close/action.
+## 4. Verification
+- `grep Finalize Bill|Open Payment Terminal` in BillingTab → zero (except alert copy); `eslint`; `npm run build` 97/97.
+- Visual: no dead buttons; Payments tab settles normally.
 
-## 5. Questions
-- Q1: Proceed billing-only as specced?
+## 5. Risks
+- Low: button/handler removal; finalize path preserved via bookings page. Note: staff flow becomes review → Payments tab; guest online payment still requires finalize elsewhere.
+
+## 6. Questions
+- Q1: Proceed as specced (keep Record Walk-in Payment)?

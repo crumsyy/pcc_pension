@@ -46,7 +46,6 @@ export default function ReceptionistBilling() {
   // Settle Bill / Record Payment State
   const [isSettlingBill, setIsSettlingBill] = useState(false);
   const [isSettlingBillPayment, setIsSettlingBillPayment] = useState(false);
-  const [finalizingBill, setFinalizingBill] = useState(false);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [settleForm, setSettleForm] = useState({
@@ -141,46 +140,6 @@ export default function ReceptionistBilling() {
     setIsSettlingBill(true);
   };
   const openSettleBillModal = openRecordPaymentModal;
-
-  const handleFinalizeBill = () => {
-    if (!billDetails || !selectedBookingID) return;
-    showConfirm(
-      'Finalize Folio',
-      'Finalize folio and allow guest payment? This will lock the itemized charges and allow the guest to pay their remaining balance online via the guest portal.',
-      async () => {
-        setFinalizingBill(true);
-        try {
-          const res = await fetch('/api/receptionist/billing', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'finalize_bill',
-              bookingID: selectedBookingID
-            })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to finalize bill');
-
-          showAlert(
-            'success',
-            'Bill Finalized',
-            'The bill has been successfully finalized. Payment is now unlocked and available on both the Guest Portal and Front Desk Counter.',
-            () => {
-              fetchActiveBookings();
-              fetchBillingDetails(selectedBookingID);
-            }
-          );
-        } catch (err) {
-          showAlert('error', 'Error', err.message);
-        } finally {
-          setFinalizingBill(false);
-        }
-      },
-      'Finalize & Unlock Payment',
-      'Cancel',
-      'warning'
-    );
-  };
 
   const handleSettleBillSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -1660,38 +1619,18 @@ export default function ReceptionistBilling() {
                             // If remaining balance is not exactly ₱0.00
                             if (!isSettled) {
                               if (!isFinalized) {
-                                // Step 1: Finalize Bill & Allow Payment
+                                // Unfinalized: review here, settle in the Payments tab.
                                 return (
                                   <div className="d-flex flex-column gap-2">
-                                    <button
-                                      type="button"
-                                      className="btn btn-success fw-bold text-white shadow-sm w-100 py-2.5 d-flex align-items-center justify-content-center gap-2"
-                                      disabled={finalizingBill}
-                                      onClick={handleFinalizeBill}
-                                    >
-                                      {finalizingBill ? (
-                                        <>
-                                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-                                          Finalizing Bill...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <i className="fa-solid fa-file-invoice-dollar me-1"></i> Finalize Bill
-                                        </>
-                                      )}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn btn-primary text-white fw-bold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                                      style={{ opacity: 0.65, cursor: 'not-allowed' }}
-                                      disabled={true}
-                                      title="Please finalize the bill first by clicking Finalize Bill"
-                                      onClick={() => {
-                                        showAlert('warning', 'Bill Not Finalized', 'Please finalize the bill first by clicking "Finalize Bill" before opening the payment terminal.');
-                                      }}
-                                    >
-                                      <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
-                                    </button>
+                                    <div className="alert alert-info py-2.5 px-3 small d-flex align-items-center gap-2 mb-0 border-0 rounded-3">
+                                      <i className="bi bi-info-circle-fill fs-5 flex-shrink-0"></i>
+                                      <div>
+                                        <div className="fw-bold">Bill Not Yet Finalized</div>
+                                        <div className="small fw-normal text-muted" style={{ fontSize: '0.74rem' }}>
+                                          Review the statement here, then switch to the Payments tab to settle this bill.
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 );
                               } else {
@@ -1703,17 +1642,10 @@ export default function ReceptionistBilling() {
                                       <div>
                                         <div className="fw-bold">Bill Finalized — Ready for Settlement</div>
                                         <div className="small fw-normal text-muted" style={{ fontSize: '0.74rem' }}>
-                                          Bill has been finalized. Proceed to the payment terminal or record a counter payment.
+                                          Switch to the Payments tab to settle, or record a counter payment below.
                                         </div>
                                       </div>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => setBillDialogTab('payments')}
-                                      className="btn btn-primary text-white fw-bold w-100 py-2.5 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                                    >
-                                      <i className="fa-solid fa-credit-card"></i> Open Payment Terminal
-                                    </button>
                                     <button
                                       type="button"
                                       className="btn btn-outline-secondary fw-semibold w-100 py-2 d-flex align-items-center justify-content-center gap-2 shadow-sm"
