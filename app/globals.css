@@ -2231,34 +2231,6 @@ body.dark-theme .image-fallback-sm {
 }
 
 /* =====================================================================
-   Orders workspace app-shell (desktop only): page never scrolls — the
-   catalog column scrolls internally and the tray column stays put with
-   its own capped card + pinned footer. No position:sticky involved.
-   ===================================================================== */
-@media (min-width: 992px) {
-  .orders-workspace-shell {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-  }
-  .orders-workspace-row {
-    flex: 1 1 auto;
-    min-height: 0;
-    align-items: flex-start;
-  }
-  .orders-catalog-col {
-    height: 100%;
-    min-height: 0;
-    overflow-y: auto;
-  }
-  .orders-tray-col {
-    height: fit-content;
-    max-height: calc(100vh - 56px);
-  }
-}
-
-/* =====================================================================
    Guest-Facing & Dual Monitor QR Payment Display
    ===================================================================== */
 .qr-payment-container {
