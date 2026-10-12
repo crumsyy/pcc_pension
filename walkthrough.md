@@ -1,12 +1,11 @@
-# Walkthrough — Nights-only advance check-in charges
+# Walkthrough — Single toast per booking flow
 
-## Changes
-- `api/receptionist/bookings/route.js`: advance branch no longer computes/charges the hourly early fee — dialog shows extra night(s) × room rate only; title simplified to `Advance Check-In Notice`. Same-day-before-2PM hourly flow untouched.
-- `checkin/page.js`: fallback dialog text updated to match (nights extend, auto-billed).
+## Changes (`bookings/page.js` only)
+- Removed redundant direct `toast.success`/`toast.error` in create, update, check-in, check-out, and cancel flows (success + catch paths, 10 lines); each path now fires exactly one `showAlert`.
 
 ## Verification
+- `grep toast.` → only the shared `toast.add` inside `showAlert` remains.
 - `eslint`: no new issues. `npm run build`: exit 0.
-- Manual to confirm: 2-days-early arrival → dialog shows only `2 night(s) at ₱2100 (₱4200)`; confirm → no early-fee incidental, billing nights +2.
 
 ## No commit/push
 No commit or push made. Awaiting explicit `push` keyword after your review.
