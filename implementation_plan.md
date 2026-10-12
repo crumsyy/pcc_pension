@@ -1,14 +1,19 @@
-# Implementation Plan — Guest Bookings nav tab (for approval)
+# Implementation Plan — Vercel "Git information retrieval failed" (for approval)
 
-> RequestFeedback: true — approved ("yes proceed with bookings"). Implementing below.
+> RequestFeedback: true — approved ("proceed fix"). Implementing below.
 
-## 1. Agreed scope
-- New guest-dashboard nav item **Bookings** (icon `bi-journal-bookmark-fill`) between Rooms and Orders.
-- Move reservation history + booking history sections out of Home/Account into the new tab as **Upcoming** (holds + upcoming stays) and **Past** groups, keeping hold badges; card components reused, element IDs (`bookings-history-section`, `reservations-history-section`, per-item anchors) preserved so notification deep-links keep working.
-- No API/logic changes.
+## 1. Diagnosis (verified)
+- Local `npm run build` passes; `git fsck` clean; `main` on GitHub = `65e86df`.
+- Repo is 3.64 MB, no submodules, no large blobs — nothing repo-side explains a git-fetch failure.
+- Conclusion: Vercel failed fetching commit metadata (transient or integration auth). Not fixable by code.
 
-## 2. Verification
-- `npm run build` passes; tab shows both histories; home/account tabs unchanged apart from relocation; deep-links scroll correctly.
+## 2. Changes (local, this turn)
+- Delete stray untracked file `-` in repo root (likely mistyped-command artifact). No code changes.
 
-## 3. Risks
-- Low-medium: JSX relocation in a large file; duplicated sections (if any) consolidated carefully.
+## 3. User-side (Vercel dashboard, cannot be done from here)
+1. Click **Redeploy** on the failed deployment.
+2. If it repeats: Project Settings → Git → verify/reconnect GitHub integration.
+3. Rotate the PAT currently embedded in the local git remote URL (prints in plain text); switch remote to credential-helper auth.
+
+## 4. Verification
+- `git status` clean of stray file; redeploy triggered by user.
