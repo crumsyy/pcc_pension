@@ -39,50 +39,6 @@ function QtyInput({ value, onCommit }) {
   );
 }
 
-// Floating submit shortcut: appears only while the in-tray Submit button
-// is scrolled out of view (viewport-observed), so checkout is always one
-// tap away no matter how long the tray gets.
-function TraySubmitPill({ targetRef, total, disabled, submitting, onSubmit }) {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const el = targetRef.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === 'undefined') {
-      setShow(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => setShow(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [targetRef]);
-  if (!show) return null;
-  return (
-    <button
-      type="button"
-      onClick={onSubmit}
-      disabled={disabled}
-      className="btn btn-primary fw-bold shadow-lg d-none d-lg-inline-flex align-items-center gap-2"
-      style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1040, borderRadius: '999px', padding: '12px 22px', backgroundColor: 'var(--pcc-blue, #2155B5)', borderColor: 'var(--pcc-blue, #2155B5)' }}
-      title="Submit room order"
-    >
-      {submitting ? (
-        <>
-          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-          <span>Placing...</span>
-        </>
-      ) : (
-        <>
-          <i className="bi bi-send-fill"></i>
-          <span>Submit Room Order (₱{Number(total || 0).toFixed(2)})</span>
-        </>
-      )}
-    </button>
-  );
-}
-
 const getTodayManila = () => {
   try {
     return new Intl.DateTimeFormat('en-CA', {
@@ -408,7 +364,6 @@ function ReceptionistOrdersContent() {
 
   const [shouldAnimate, setShouldAnimate] = useState(true);
   const isFirstMount = useRef(true);
-  const trayFooterRef = useRef(null);
 
   const fetchData = async (isBackground = false) => {
     if (!isBackground && !clientCache.has('RECEPTIONIST_ORDERS')) {
@@ -1013,7 +968,7 @@ function ReceptionistOrdersContent() {
   const renderTrayFooter = () => {
     if (cart.length === 0) return null;
     return (
-      <div ref={trayFooterRef} className="flex-shrink-0 border-top pt-3 mt-1 bg-white">
+      <div className="flex-shrink-0 border-top pt-3 mt-1 bg-white">
             {/* TOTAL SUMMARY */}
             <div className="p-3 bg-light rounded-2 border mb-3">
               <div className="d-flex justify-content-between mb-1 small text-muted">
@@ -1457,7 +1412,7 @@ function ReceptionistOrdersContent() {
         {/* ORDER TRAY COLUMN (Shown when in catalog mode) */}
         {activeCategory !== 'history' && (
           <div className="col-12 col-lg-5 col-xl-4 align-self-start">
-            <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 d-flex flex-column mt-1 overflow-hidden" style={{ maxHeight: 'calc(100vh - 56px)' }}>
+            <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 d-flex flex-column mt-1 overflow-hidden orders-tray-fixed" style={{ maxHeight: 'calc(100vh - 56px)' }}>
               <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
                 <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                   <i className="bi bi-cart3 text-primary"></i>
@@ -1475,17 +1430,6 @@ function ReceptionistOrdersContent() {
           </div>
         )}
       </div>
-
-      {/* FLOATING SUBMIT (shows only while tray Submit is off-screen) */}
-      {cart.length > 0 && activeCategory !== 'history' && (
-        <TraySubmitPill
-          targetRef={trayFooterRef}
-          total={cartTotal}
-          submitting={submittingOrder}
-          disabled={submittingOrder || cart.length === 0 || !selectedGuestID || (hasScheduledItemsInCart && allTodaySlotsPassed && isSelectedDateToday)}
-          onSubmit={handleSubmitOrder}
-        />
-      )}
 
       {/* VIEW ORDER DETAILS MODAL */}
       {viewingOrder && (

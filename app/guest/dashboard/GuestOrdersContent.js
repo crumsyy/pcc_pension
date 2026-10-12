@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import LoadingButton from '@/app/components/LoadingButton';
 import ViewOrdersModal from './ViewOrdersModal';
 import { toast } from 'sonner';
@@ -37,50 +37,6 @@ function QtyInput({ value, onCommit }) {
         }
       }}
     />
-  );
-}
-
-// Floating submit shortcut: appears only while the in-tray Submit button
-// is scrolled out of view (viewport-observed). Desktop only — mobile uses
-// the floating order bar + full-screen drawer instead.
-function TraySubmitPill({ targetRef, total, disabled, submitting, onSubmit }) {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const el = targetRef.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === 'undefined') {
-      setShow(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => setShow(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [targetRef]);
-  if (!show) return null;
-  return (
-    <button
-      type="button"
-      onClick={onSubmit}
-      disabled={disabled}
-      className="btn btn-primary fw-bold shadow-lg d-none d-md-inline-flex align-items-center gap-2"
-      style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1040, borderRadius: '999px', padding: '12px 22px', backgroundColor: 'var(--pcc-blue, #2155B5)', borderColor: 'var(--pcc-blue, #2155B5)' }}
-      title="Submit room order"
-    >
-      {submitting ? (
-        <>
-          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
-          <span>Placing...</span>
-        </>
-      ) : (
-        <>
-          <i className="bi bi-send-fill"></i>
-          <span>Submit Room Order (₱{Number(total || 0).toFixed(2)})</span>
-        </>
-      )}
-    </button>
   );
 }
 
@@ -654,8 +610,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   const [cart, setCart] = useState([]);
   const [showMobileOrderModal, setShowMobileOrderModal] = useState(false);
   const [selectedOrderForModal, setSelectedOrderForModal] = useState(null);
-  const orderFormRef = useRef(null);
-  const trayFooterRef = useRef(null);
 
   // Delivery Scheduling State for Cooked Meals
   const [todayStr, setTodayStr] = useState('');
@@ -1049,7 +1003,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
     }
 
     return (
-      <form ref={orderFormRef} onSubmit={handleSubmitOrder} className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
+      <form onSubmit={handleSubmitOrder} className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
         {/* CHECK-IN RESTRICTION BANNER */}
         {!isCheckedIn && (
           <div className="alert alert-warning py-2.5 px-3 rounded-3 mb-3 d-flex align-items-center gap-2 border-warning shadow-xs" style={{ fontSize: '0.82rem' }}>
@@ -1228,7 +1182,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           </div>
         )}
         </div>
-        <div ref={trayFooterRef} className="flex-shrink-0 border-top pt-2 mt-1 bg-white">
+        <div className="flex-shrink-0 border-top pt-2 mt-1 bg-white">
 
         {/* TOTAL SUMMARY */}
         <div className="p-3 bg-light rounded-2 border mb-3">
@@ -1458,7 +1412,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
 
         {/* ORDER TRAY / CART COLUMN (DESKTOP) */}
         <div className="col-12 col-md-5 col-lg-5 col-xl-4 d-none d-md-block align-self-start">
-          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 pcc-order-tray d-flex flex-column mt-1 overflow-hidden" style={{ maxHeight: 'calc(100vh - 56px)' }}>
+          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 pcc-order-tray d-flex flex-column mt-1 overflow-hidden orders-tray-fixed" style={{ maxHeight: 'calc(100vh - 56px)' }}>
             <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                 <i className="bi bi-cart3 text-primary"></i>
@@ -1474,17 +1428,6 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           </div>
         </div>
       </div>
-
-      {/* FLOATING SUBMIT (shows only while tray Submit is off-screen) */}
-      {cart.length > 0 && (
-        <TraySubmitPill
-          targetRef={trayFooterRef}
-          total={cartTotal}
-          submitting={submitting}
-          disabled={!isCheckedIn || submitting || (hasScheduledItemsInCart && allTodaySlotsPassed && isSelectedDateToday)}
-          onSubmit={() => orderFormRef.current?.requestSubmit()}
-        />
-      )}
 
       {/* MOBILE FLOATING "VIEW YOUR ORDER" BAR (Foodpanda Style) */}
       {cart.length > 0 && (

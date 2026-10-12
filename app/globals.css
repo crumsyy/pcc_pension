@@ -2231,6 +2231,20 @@ body.dark-theme .image-fallback-sm {
 }
 
 /* =====================================================================
+   Fixed order-tray rail (desktop only)
+   ===================================================================== */
+@media (min-width: 992px) {
+  .orders-tray-fixed {
+    position: fixed;
+    top: 96px;
+    bottom: 20px;
+    right: 36px;
+    width: inherit;
+    z-index: 1010;
+  }
+}
+
+/* =====================================================================
    Guest-Facing & Dual Monitor QR Payment Display
    ===================================================================== */
 .qr-payment-container {
