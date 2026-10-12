@@ -1631,7 +1631,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
-    }, 'primary', 'danger', 'Yes, Cancel');
+    }, 'primary', 'danger', 'Confirm');
   };
 
   const handleProceedToBooking = (reservation) => {
@@ -1701,7 +1701,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
-    }, 'primary', 'danger', 'Yes, Cancel');
+    }, 'primary', 'danger', 'Confirm');
   };
 
   const handleRequestCheckout = (booking) => {

@@ -1,8 +1,7 @@
-# Walkthrough — Red Cancel + blue confirm on guest cancel dialogs
+# Walkthrough — Confirm button label
 
-## Changes (only `GuestDashboardClient.js`, 2 call sites)
-- Cancel Booking + Cancel Reservation confirms now pass `('primary', 'danger', 'Yes, Cancel')`: left Cancel red filled, right Yes-Cancel blue filled. Checkout and all other dialogs unchanged.
+## Changes (only `GuestDashboardClient.js`)
+- Cancel Booking + Cancel Reservation dialogs: right button now reads **Confirm** (blue, right); red Cancel (left) unchanged.
 
 ## Verification
 - `npm run build` → success.
-- Manual: both cancel dialogs match the requested button colors and order.
