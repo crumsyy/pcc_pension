@@ -1,40 +1,30 @@
-# Implementation Plan — User-friendly SOA: clear editable vs view-only sections (for approval)
+# Implementation Plan — Discount apportionment move, breakfast regroup, Orders rename, icon removal (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Goal
-Make the Statement of Account instantly scannable so the receptionist knows **what section this is** and **what they can modify here** — without mistaking read-only totals for editable areas.
+## 1. User feedback (Images 1–6)
+1. **Discount split box misplaced (Image 1):** yellow "How the discount was split per guest" box sits under Room Rent Charges — should live in the discount part (Section 5 Applied Discounts). Notes Apply button correctly stays in Occupancy (Section 3).
+2. **Breakfast info misplaced (Image 2):** complimentary package line + Breakfast Schedule dates currently render inside Occupancy & Capacity — should belong to Room Rent Charges (Section 2), since breakfast is part of room package/fee.
+3. **Rename:** `Orders & Room Service` → `Orders` only.
+4. **Remove emoji/icons on labels generally in Billing (Images 3–6):** section headers show cart/clipboard/receipt/person/house icons; body labels show coffee-cup icon + other glyphs. Strip them for a clean text-only look.
 
-## 2. Changes (only `app/receptionist/billing-checkout/BillingTab.js`, UI text/structure only)
-
-### A. Right card truly read-only (fixes Image 1 complaint)
-- Remove `Edit / Adjust Guest Discounts` button from `Bill Totals Summary (Read-Only)` Applied Discounts mini-card.
-- Replace with hint text: `To modify discounts, use Apply / Edit Discounts in the Billing statement.` No button.
-
-### B. Shared SOA section header component (left card)
-Add one consistent header pattern for all 9 sections: `number badge + icon + title + Editable/View-only badge + one-line "what you can do here" hint`:
-1. Guest & Booking Details — View only — "Booking record, cannot edit here."
-2. Room Rent Charges — View only — "Auto-computed from rate × nights."
-3. Occupancy & Capacity — **Editable** — "Adjust guest discounts here." Keeps the ONE `Apply / Edit Discounts` button.
-4. Breakfast Schedule — View only — "From booking package."
-5. Applied Discounts — Editable (via #3) — "Shows beneficiaries; edit in Occupancy."
-6. Orders & Room Service — View only — "Managed in Orders tab."
-7. Room Check-Out Inspection — Editable — "Tick returned items; untick to bill."
-8. Incidental & Damage Charges — Editable — "Add/remove charges."
-9. Borrowed Room Items — Editable — "Return or report lost/damaged."
-
-### C. Structural clarity
-- Wrap each section in separated spacing so headers never crowd content (fixes Image 2).
-- Move discount apportionment out of the Room Rent `<table>` into its own `Applied Discounts` section block so it stops reading as a line item.
-- Empty states keep headers visible (`None recorded`) so no mystery sections.
+## 2. Proposed changes (only `app/receptionist/billing-checkout/BillingTab.js`, structure/text only)
+1. **Move apportionment box:** cut yellow per-guest split box from below Room Rent table → paste as first block inside Section 5 Applied Discounts (above beneficiary badges). Room Rent keeps only charge rows.
+2. **Move breakfast blocks:** cut complimentary-breakfast line + Breakfast Schedule dates block out of Section 3 Occupancy → paste directly under Room Rent table (after Net/fee rows, before apportionment's old spot), labeled as part of Section 2 content. Occupancy keeps headcount cards + capacity status + Apply/Edit button only.
+3. **Rename:** Section 6 title `Orders & Room Service` → `Orders`; hint kept ("Charged from the Orders tab — view only here."). Leave empty-state copy unchanged unless trivial.
+4. **Icon removal (Billing tab statement + read-only totals card):**
+   - `SectionHeader`: drop icon rendering (keep number badge + title + Editable/View-only badge + hint). Remove `icon` prop usage at all 9 call sites.
+   - Body labels: remove decorative glyphs — coffee-cup `bi-cup-hot-fill` in complimentary line, `bi-calendar-check` in breakfast date badges, `bi-people-fill`, `fa-percent` kept only inside the Apply/Edit button itself (functional button icon stays), `fa-tags`/`fa-user-check` in totals discount mini-card, `fa-calculator` in Net Total row. Replace with plain text; no layout change.
+   - No changes to Payments tab, modals, or logic.
 
 ## 3. Verification
-- Billing tab: right card zero buttons; left card modify buttons only in Editable sections.
-- `npm run build` passes; visual check both screenshots.
-- `grep "Edit / Adjust" BillingTab.js` → one hit (Occupancy only).
+- Visual: apportionment yellow box inside Applied Discounts; breakfast lines under Room Rent; Section 6 reads "Orders"; no icons/emoji in Billing statement or totals card (buttons' own small glyphs excepted).
+- `grep -n "bi-.*\|fa-solid\|🍳\|☕" BillingTab.js` → zero hits in statement/totals JSX (excluding Apply/Edit button + unrelated modal icons if kept).
+- `npm run build` passes.
 
 ## 4. Risks
-- Low: presentational only. Single discount entry point — confirm accepted.
+- Low: moves + text only. Breakfast relocation changes familiar layout — confirm receptionists accept breakfast under Room Rent.
 
 ## 5. Questions
-- Q1: Proceed as above?
+- Q1: Proceed exactly as above?
+- Q2: Should the Apply/Edit button keep its `%` glyph, or go fully text-only too?

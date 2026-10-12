@@ -512,19 +512,27 @@ export default function ReceptionistBilling() {
     return hasValidDiscount || hasValidPromo;
   });
 
-  const SectionHeader = ({ num, icon, title, editable, hint, action }) => (
+  const SectionHeader = ({ num, title, editable, hint, action }) => (
     <div className="d-flex justify-content-between align-items-start gap-2 mb-2 pb-2 border-bottom">
       <div className="d-flex align-items-start gap-2" style={{ minWidth: 0 }}>
-        <span className="badge text-white rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)', width: '22px', height: '22px', fontSize: '0.70rem' }}>{num}</span>
+        <span className="badge text-white rounded d-inline-flex align-items-center justify-content-center flex-shrink-0" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)', minWidth: '34px', height: '22px', fontSize: '0.70rem' }}>{num}</span>
         <div style={{ minWidth: 0 }}>
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            <span className="fw-bold text-dark" style={{ fontSize: '0.84rem' }}><i className={`${icon} me-1 text-primary`}></i>{title}</span>
+            <span className="fw-bold text-dark" style={{ fontSize: '0.84rem' }}>{title}</span>
             <span className={`badge border fw-semibold ${editable ? 'bg-success-subtle text-success border-success-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'}`} style={{ fontSize: '0.65rem' }}>{editable ? 'Editable — you can change this' : 'View only'}</span>
           </div>
           {hint && <div className="text-muted" style={{ fontSize: '0.70rem' }}>{hint}</div>}
         </div>
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
+    </div>
+  );
+
+  const PhaseLabel = ({ phase, title, hint }) => (
+    <div className="d-flex align-items-center gap-2 mt-4 mb-2">
+      <span className="badge text-white fw-bold" style={{ backgroundColor: '#334155', fontSize: '0.70rem' }}>{phase}</span>
+      <span className="fw-bold text-secondary text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.04em' }}>{title}</span>
+      {hint && <span className="text-muted" style={{ fontSize: '0.70rem' }}>— {hint}</span>}
     </div>
   );
 
@@ -696,8 +704,9 @@ export default function ReceptionistBilling() {
                           </span>
                         </div>
                         <div className="card-body p-4">
+                          <PhaseLabel phase="A" title="Stay Context" hint="read first — who is staying" />
                           {/* Guest and stay details */}
-                          <SectionHeader num="1" icon="bi bi-person-badge" title="Guest & Booking Details" editable={false} hint="Booking record — cannot edit here. To correct guest info, update the booking." />
+                          <SectionHeader num="A1" title="Guest & Booking Details" editable={false} hint="Booking record — cannot edit here. To correct guest info, update the booking." />
                           <div className="row mb-3 bg-light p-2 rounded g-2 border" style={{ fontSize: '0.78rem' }}>
                             <div className="col-md-6">
                               <div className="text-muted">Guest Name</div>
@@ -723,7 +732,8 @@ export default function ReceptionistBilling() {
                           </div>
 
                           {/* Room rent */}
-                          <SectionHeader num="2" icon="bi bi-house-door" title="Room Rent Charges" editable={false} hint="Auto-computed from rate × nights. Nothing to edit here." />
+                          <PhaseLabel phase="B" title="Room & Package" hint="the base charge" />
+                          <SectionHeader num="B1" title="Room Rent Charges" editable={false} hint="Auto-computed from rate × nights. Nothing to edit here." />
                           <div className="table-responsive mb-2">
                             <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
                               <thead>
@@ -827,21 +837,50 @@ export default function ReceptionistBilling() {
                             </table>
                           </div>
 
-                          {/* Discount apportionment — standalone section, no longer a table row */}
-                          {appliedDiscountsList.length > 0 && billDetails.chargesSummary.totalDiscount > 0 && (
-                            <div className="mb-3 p-2.5 rounded border bg-warning-subtle border-warning-subtle" style={{ fontSize: '0.78rem' }}>
-                              <div className="fw-bold text-dark mb-1">How the discount was split per guest:</div>
-                              <ul className="mb-1 ps-3" style={{ listStyleType: 'square' }}>
-                                <li>Total Registered Guests: <strong>{billDetails.chargesSummary.totalGuests} Pax</strong></li>
-                                <li>Individual Guest Share: <strong>₱{parseFloat(billDetails.chargesSummary.sharePerGuest).toFixed(2)}</strong></li>
-                                <li>Applied Discounts/Promotions: <strong>{appliedDiscountsList.length} Guest(s)</strong> (configured discount percentage applied to their individual share)</li>
-                              </ul>
-                              <div className="text-end fw-bold text-success">-₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}</div>
-                            </div>
-                          )}
+                          {/* B2 Breakfast Package — moved out of Occupancy, belongs to Room & Package */}
+                          <SectionHeader num="B2" title="Breakfast Package" editable={false} hint="Part of the room package — view only here." />
+                          <div className="mb-3 bg-light p-3 rounded-3 border" style={{ fontSize: '0.80rem' }}>
+                            {billDetails.chargesSummary.breakfastOption === 'with' && (() => {
+                              const complimentaryBreakfastUsed = billDetails?.chargesBreakdown?.breakfastSummary?.complimentaryBreakfastUsed ?? billDetails?.chargesSummary?.complimentaryBreakfastUsed ?? billDetails?.complimentaryBreakfastUsed ?? 0;
+                              const stayComplimentaryAllowance = billDetails?.chargesBreakdown?.breakfastSummary?.stayComplimentaryAllowance ?? billDetails?.chargesSummary?.stayComplimentaryAllowance ?? (2 * (billDetails?.booking?.nights || 1));
+                              return (
+                                <div className="p-2 bg-white rounded border d-flex justify-content-between align-items-center mb-2">
+                                  <div>
+                                    <span className="fw-bold text-success" style={{ fontSize: '0.74rem' }}>Complimentary Breakfast Package:</span>
+                                    <span className="text-muted ms-1" style={{ fontSize: '0.70rem' }}>Up to 2 complimentary meals/day (Stay allowance: {stayComplimentaryAllowance} meals)</span>
+                                  </div>
+                                  <span className="badge bg-success text-white font-monospace" style={{ fontSize: '0.72rem' }}>
+                                    {complimentaryBreakfastUsed} / {stayComplimentaryAllowance} Claimed
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                            {(() => {
+                              let dates = [];
+                              try {
+                                const raw = billDetails?.booking?.breakfastDates || billDetails?.chargesSummary?.breakfastDates || billDetails?.chargesBreakdown?.breakfastSummary?.breakfastDates;
+                                dates = typeof raw === 'string' ? JSON.parse(raw || '[]') : (Array.isArray(raw) ? raw : []);
+                              } catch (e) {
+                                dates = [];
+                              }
+                              if (!dates.length) return (<div className="text-muted small">No scheduled breakfast mornings for this stay.</div>);
+                              return (
+                                <div>
+                                  <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.78rem' }}>Breakfast Schedule ({dates.length} Day{dates.length > 1 ? 's' : ''})</div>
+                                  <div className="d-flex flex-wrap gap-1.5">
+                                    {dates.map((d) => (
+                                      <span key={d} className="badge bg-white text-dark border px-2 py-1 fw-medium small" style={{ fontSize: '0.73rem' }}>
+                                        Morning of {new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
 
-                          {/* Room Occupancy & Capacity Summary (Replaces legacy registered guests list) */}
-                          <SectionHeader num="3" icon="bi bi-people-fill" title="Occupancy & Capacity" editable={true} hint="Check headcount here. To change discounts, click Apply / Edit Discounts." action={(<button type="button" className="btn btn-sm btn-pcc-primary text-white" style={{ fontSize: '0.74rem', padding: '4px 12px', borderRadius: '15px' }} onClick={openEditDiscountsModal}><i className="fa-solid fa-percent me-1"></i> Apply / Edit Discounts</button>)} />
+                          {/* Room Occupancy — headcount only (Phase A). Breakfast moved to B2, discounts moved to C1. */}
+                          <SectionHeader num="A2" title="Occupancy & Capacity" editable={false} hint="Headcount from booking. Discounts are edited in Section C1 below." />
                           <div className="mb-3 bg-light p-3 rounded-3 border animate__animated animate__fadeIn" style={{ fontSize: '0.80rem' }}>
 
                             <div className="row g-2 text-dark">
@@ -872,66 +911,28 @@ export default function ReceptionistBilling() {
                                   )}
                                 </div>
                               </div>
-                              {billDetails.chargesSummary.breakfastOption === 'with' && (() => {
-                                const complimentaryBreakfastUsed = billDetails?.chargesBreakdown?.breakfastSummary?.complimentaryBreakfastUsed ?? billDetails?.chargesSummary?.complimentaryBreakfastUsed ?? billDetails?.complimentaryBreakfastUsed ?? 0;
-                                const stayComplimentaryAllowance = billDetails?.chargesBreakdown?.breakfastSummary?.stayComplimentaryAllowance ?? billDetails?.chargesSummary?.stayComplimentaryAllowance ?? (2 * (billDetails?.booking?.nights || 1));
-                                return (
-                                  <div className="col-12 mt-1">
-                                    <div className="p-2 bg-white rounded border d-flex justify-content-between align-items-center">
-                                      <div className="d-flex align-items-center gap-2">
-                                        <i className="bi bi-cup-hot-fill text-success fs-6"></i>
-                                        <div>
-                                          <span className="fw-bold text-success" style={{ fontSize: '0.74rem' }}>Complimentary Breakfast Package:</span>
-                                          <span className="text-muted ms-1" style={{ fontSize: '0.70rem' }}>Up to 2 complimentary meals/day (Stay allowance: {stayComplimentaryAllowance} meals)</span>
-                                        </div>
-                                      </div>
-                                      <span className="badge bg-success text-white font-monospace" style={{ fontSize: '0.72rem' }}>
-                                        {complimentaryBreakfastUsed} / {stayComplimentaryAllowance} Claimed
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
-
-                              {/* Scheduled Breakfast Add-ons (Night-by-Night Selection) */}
-                              {(() => {
-                                let dates = [];
-                                try {
-                                  const raw = billDetails?.booking?.breakfastDates || billDetails?.chargesSummary?.breakfastDates || billDetails?.chargesBreakdown?.breakfastSummary?.breakfastDates;
-                                  dates = typeof raw === 'string'
-                                    ? JSON.parse(raw || '[]')
-                                    : (Array.isArray(raw) ? raw : []);
-                                } catch (e) {
-                                  dates = [];
-                                }
-
-                                if (!dates.length) return null;
-
-                                return (
-                                  <div className="col-12 mt-2">
-                                    <div className="p-2.5 bg-light rounded-3 border">
-                                      <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.80rem' }}>4 · Breakfast Schedule ({dates.length} Day{dates.length > 1 ? 's' : ''}) <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1" style={{ fontSize: '0.65rem' }}>View only</span></div>
-                                      <div className="text-muted mb-2" style={{ fontSize: '0.70rem' }}>From booking package — nothing to edit here.</div>
-                                      <div className="d-flex flex-wrap gap-1.5">
-                                        {dates.map((d) => (
-                                          <span key={d} className="badge bg-white text-dark border px-2 py-1 fw-medium small d-flex align-items-center gap-1 shadow-2xs" style={{ fontSize: '0.73rem' }}>
-                                            <i className="bi bi-calendar-check text-success"></i>
-                                            Morning of {new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
+                              </div>
                             </div>
 
-                            {/* Applied Discounts breakdown if any */}
-                            <SectionHeader num="5" icon="bi bi-tag-fill" title="Applied Discounts" editable={true} hint="Who gets a discount. To add or change, use Apply / Edit Discounts in Section 3." />
+                          {/* Phase C — Discounts: single home for split explanation + beneficiaries + editor */}
+                          <PhaseLabel phase="C" title="Discounts" hint="the one editable computation" />
+                          <SectionHeader num="C1" title="Applied Discounts" editable={true} hint="Who gets a discount and how the split was computed." action={(<button type="button" className="btn btn-sm btn-pcc-primary text-white" style={{ fontSize: '0.74rem', padding: '4px 12px', borderRadius: '15px' }} onClick={openEditDiscountsModal}>Apply / Edit Discounts</button>)} />
+                          <div className="mb-3 bg-light p-3 rounded-3 border" style={{ fontSize: '0.80rem' }}>
+                            {appliedDiscountsList.length > 0 && billDetails.chargesSummary.totalDiscount > 0 && (
+                              <div className="mb-2 p-2.5 rounded border bg-warning-subtle border-warning-subtle" style={{ fontSize: '0.78rem' }}>
+                                <div className="fw-bold text-dark mb-1">How the discount was split per guest:</div>
+                                <ul className="mb-1 ps-3" style={{ listStyleType: 'square' }}>
+                                  <li>Total Registered Guests: <strong>{billDetails.chargesSummary.totalGuests} Pax</strong></li>
+                                  <li>Individual Guest Share: <strong>₱{parseFloat(billDetails.chargesSummary.sharePerGuest).toFixed(2)}</strong></li>
+                                  <li>Applied Discounts/Promotions: <strong>{appliedDiscountsList.length} Guest(s)</strong> (configured discount percentage applied to their individual share)</li>
+                                </ul>
+                                <div className="text-end fw-bold text-success">-₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}</div>
+                              </div>
+                            )}
                             {appliedDiscountsList.length > 0 && billDetails.chargesSummary.totalDiscount > 0 ? (
                               <div className="mt-2.5 pt-2 border-top">
                                 <div className="fw-semibold text-success mb-1" style={{ fontSize: '0.76rem' }}>
-                                  <i className="bi bi-tag-fill me-1"></i>{appliedDiscountsList.length} Beneficiar{appliedDiscountsList.length > 1 ? 'ies' : 'y'} — Total Savings: -₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}:
+                                  {appliedDiscountsList.length} Beneficiar{appliedDiscountsList.length > 1 ? 'ies' : 'y'} — Total Savings: -₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}:
                                 </div>
                                 <div className="d-flex flex-wrap gap-2">
                                   {appliedDiscountsList.map((b, idx) => (
@@ -949,8 +950,9 @@ export default function ReceptionistBilling() {
                             )}
                           </div>
 
-                          {/* Consolidated Orders & Room Service */}
-                          <SectionHeader num="6" icon="bi bi-cart-check-fill" title="Orders & Room Service" editable={false} hint="Charged from the Orders tab — view only here." />
+                          {/* Phase D — Extras & Condition: add-on fees checked at checkout */}
+                          <PhaseLabel phase="D" title="Extras & Condition" hint="checked at checkout" />
+                          <SectionHeader num="D1" title="Orders" editable={false} hint="Charged from the Orders tab — view only here." />
                           <div className="d-flex justify-content-end mb-2">
                             <span className="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold" style={{ fontSize: '0.74rem' }}>
                               Total: ₱{parseFloat(billDetails.ordersSummary?.totalAmount ?? billDetails.chargesSummary?.orders ?? 0).toFixed(2)}
@@ -1059,7 +1061,7 @@ export default function ReceptionistBilling() {
                           )}
 
                           {/* Non-Consumable Amenities Checkout Inspection */}
-                          <SectionHeader num="7" icon="bi bi-clipboard-check" title="Room Check-Out Inspection" editable={true} hint="Tick returned items. Untick missing/damaged to auto-bill replacement." />
+                          <SectionHeader num="D2" title="Room Check-Out Inspection" editable={true} hint="Tick returned items. Untick missing/damaged to auto-bill replacement." />
                           <div className="p-3 border rounded bg-white mb-3">
                             {(!billDetails.nonConsumableAmenities || billDetails.nonConsumableAmenities.length === 0) ? (
                               <div className="text-muted small text-center py-2">No ordered non-consumable amenities recorded for this stay.</div>
@@ -1156,7 +1158,7 @@ export default function ReceptionistBilling() {
                           </div>
 
                           {/* Incidental Charges */}
-                          <SectionHeader num="8" icon="bi bi-receipt" title="Incidental & Damage Charges" editable={true} hint="Add or remove extra charges here." action={(<button type="button" className="btn btn-sm btn-danger text-white" style={{ fontSize: '0.72rem', padding: '3px 10px' }} onClick={() => { setIncidentalForm({ description: '', amount: '' }); setIsAddingIncidental(true); }}>+ Add Incidental Charge</button>)} />
+                          <SectionHeader num="D3" title="Incidental & Damage Charges" editable={true} hint="Add or remove extra charges here." action={(<button type="button" className="btn btn-sm btn-danger text-white" style={{ fontSize: '0.72rem', padding: '3px 10px' }} onClick={() => { setIncidentalForm({ description: '', amount: '' }); setIsAddingIncidental(true); }}>+ Add Incidental Charge</button>)} />
                           <div className="table-responsive mb-2">
                             <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
                               <thead>
@@ -1204,7 +1206,7 @@ export default function ReceptionistBilling() {
                           {/* Borrowed Amenities & Room Items check */}
                           {billDetails.borrowedItems && billDetails.borrowedItems.length > 0 && (
                             <div className="mt-3">
-                              <SectionHeader num="9" icon="bi bi-bag" title="Borrowed Room Items & Amenities" editable={true} hint="Mark returned or report lost/damaged here." />
+                              <SectionHeader num="D4" title="Borrowed Room Items & Amenities" editable={true} hint="Mark returned or report lost/damaged here." />
                               <div className="table-responsive">
                                 <table className="table table-hover table-sm align-middle mb-0" style={{ fontSize: '0.78rem' }}>
                                   <thead className="table-light">
@@ -1343,18 +1345,14 @@ export default function ReceptionistBilling() {
                                 {/* Applied Discounts Card */}
                                 <div className="mb-3 p-2.5 rounded bg-primary-subtle border border-primary-subtle">
                                   <div className="d-flex justify-content-between align-items-center mb-1 text-primary fw-bold" style={{ fontSize: '0.84rem' }}>
-                                    <span className="d-flex align-items-center gap-1">
-                                      <i className="fa-solid fa-tags"></i>
-                                      <span>Applied Discounts:</span>
-                                    </span>
+                                    <span>Applied Discounts:</span>
                                     <span className="fs-6">{discountTotal > 0 ? `-₱${discountTotal.toFixed(2)}` : '₱0.00'}</span>
                                   </div>
                                   {appliedDiscountsSummaryList.length > 0 ? (
                                     <div className="d-flex flex-column gap-1.5 mt-1.5 mb-2">
                                       {appliedDiscountsSummaryList.map((disc, idx) => (
                                         <div key={idx} className="d-flex justify-content-between align-items-start gap-2 px-2.5 py-1.5 rounded bg-white border" style={{ fontSize: '0.74rem', lineHeight: '1.4' }}>
-                                          <div className="d-flex align-items-start gap-1.5 text-start" style={{ minWidth: 0 }}>
-                                            <i className="fa-solid fa-user-check text-primary mt-0.5"></i>
+                                          <div className="text-start" style={{ minWidth: 0 }}>
                                             <div>
                                               <strong className="text-dark">{disc.guestName || disc.fullName}</strong>
                                               <div className="text-muted">{disc.discountName || 'Discount'} {disc.discountPercentage || disc.percentage || 20}% • ID: {disc.discountIdNumber || 'N/A'}</div>
@@ -1367,13 +1365,13 @@ export default function ReceptionistBilling() {
                                   ) : (
                                     <div className="small text-muted fst-italic mb-0">No discounts applied.</div>
                                   )}
-                                  <div className="small text-muted mt-2" style={{ fontSize: '0.70rem' }}>To modify discounts, use Apply / Edit Discounts in the Billing statement (Section 3).</div>
+                                  <div className="small text-muted mt-2" style={{ fontSize: '0.70rem' }}>To modify discounts, use Apply / Edit Discounts in the Billing statement (Section C1).</div>
                                 </div>
 
                                 {/* Net Total Amount Due */}
                                 <div className="d-flex justify-content-between align-items-center p-2.5 mb-3 rounded" style={{ background: '#e0f2fe', border: '1px solid #bae6fd' }}>
                                   <span className="fw-bold text-primary" style={{ fontSize: '0.90rem' }}>
-                                    <i className="fa-solid fa-calculator me-1"></i>Net Total Amount Due:
+                                    Net Total Amount Due:
                                   </span>
                                   <span className="fw-bold text-primary fs-6">₱{netTotal.toFixed(2)}</span>
                                 </div>
