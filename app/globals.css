@@ -2242,16 +2242,6 @@ body.dark-theme .image-fallback-sm {
     width: 360px;
     z-index: 1010;
   }
-  .orders-tray-col {
-    flex: 0 0 360px !important;
-    max-width: 360px !important;
-    width: 360px !important;
-  }
-  .orders-catalog-col {
-    flex: 1 1 auto !important;
-    width: auto !important;
-    max-width: none !important;
-  }
 }
 
 /* =====================================================================

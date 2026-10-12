@@ -781,10 +781,9 @@ function ReceptionistOrdersContent() {
           </label>
           <SearchableSelect
             options={activeBookings.map(b => {
-              const isCheckedIn = (b.bookingStatus === 'Occupied');
               return {
                 value: String(b.guestID),
-                label: `Room ${b.roomNumber} — ${b.lastName}, ${b.firstName} (${isCheckedIn ? 'Occupied' : 'Booked'})`
+                label: `Room ${b.roomNumber} — ${b.lastName}, ${b.firstName}`
               };
             })}
             value={selectedGuestID}
@@ -1080,7 +1079,7 @@ function ReceptionistOrdersContent() {
       {/* MAIN CONTENT AREA */}
       <div className="row g-4">
         {/* CATALOG COLUMN (or HISTORY VIEW) */}
-        <div className={activeCategory === 'history' ? 'col-12' : 'col-12 col-lg-7 col-xl-9 orders-catalog-col'}>
+        <div className={activeCategory === 'history' ? 'col-12' : 'col-12 col-lg-7 col-xl-8'}>
           {activeCategory === 'history' ? (
             /* ORDER HISTORY / MANAGEMENT TABLE */
             <div className="card border-0 shadow-sm rounded-3 bg-white p-4">
@@ -1411,7 +1410,7 @@ function ReceptionistOrdersContent() {
 
         {/* ORDER TRAY COLUMN (Shown when in catalog mode) */}
         {activeCategory !== 'history' && (
-          <div className="col-12 col-lg-5 col-xl-3 orders-tray-col">
+          <div className="col-12 col-lg-5 col-xl-4 orders-tray-col">
             <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 d-flex flex-column mt-1 overflow-hidden orders-tray-fixed" style={{ maxHeight: 'calc(100vh - 56px)' }}>
               <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
                 <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">

@@ -139,7 +139,7 @@ export default function SearchableSelect({
       {isOpen && (
         <ul 
           className="dropdown-menu show w-100 position-absolute shadow-sm mt-1" 
-          style={{ maxHeight: '220px', overflowY: 'auto', zIndex: 1080 }}
+          style={{ maxHeight: '220px', overflowY: 'auto', overflowX: 'hidden', zIndex: 1080 }}
         >
           {filtered.map(opt => (
             <li key={opt.value}>
@@ -155,7 +155,7 @@ export default function SearchableSelect({
                 }}
               >
                 <div className="d-flex align-items-center justify-content-between">
-                  <span>{opt.label}</span>
+                  <span className="text-truncate" style={{ minWidth: 0 }}>{opt.label}</span>
                   {String(opt.value) === String(value) && (
                     <i className="bi bi-check2 ms-2"></i>
                   )}
