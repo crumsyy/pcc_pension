@@ -1,20 +1,22 @@
-# Implementation Plan — Tray cap fix + typeable qty drafts (for approval)
+# Implementation Plan — Tray stick hardening + deploy verification (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Problems (from screenshots)
-1. Tray still exceeds viewport → Submit below fold. Cause: card `h-100` (% of indefinite column height) defeats the `maxHeight` cap chain; flex scroller never engages.
-2. Qty `1` can't become `6` (becomes `16`): controlled input commits every keystroke, empty/backspace is ignored.
+## 1. What the screenshot proves
+- Blue steppers + no Immediate pill = bundle has `1146fc9`, but the still-broken pin matches either a missing `4d21f7c`/`3d369df` or a genuinely defeated sticky. Both get handled.
 
-## 2. Proposed changes (both `receptionist/orders/page.js` + `GuestOrdersContent.js`)
-1. Drop `h-100` from tray cards (keep `maxHeight`, `overflow-hidden`, flex column); column keeps `align-self-start` + sticky + cap. Card height = min(content, viewport cap); inner scroller + pinned footer then engage.
-2. New per-file `QtyInput` (draft text state, syncs from props when blurred): free typing incl. backspace-to-empty, commits ≥1 int on blur/Enter (else reverts); steppers unchanged (receptionist stock-cap alert reused on commit overflow).
+## 2. Proposed changes (both order files)
+1. Row: add explicit `align-items-start` (stops any stretch interference with the sticky column).
+2. Tray column: `height: fit-content` + keep sticky/top/cap — deterministic capped box.
+3. Card/scroll/footer chain as-is (verified: header fixed, single internal scroller, footer `flex-shrink-0`).
+4. No logic changes.
 
 ## 3. Verification
-- `eslint`; `npm run build` 97/97; visual: long tray → footer visible, no page scroll needed; type 6 over 1 works; stock cap still alerts.
+- `eslint`; `npm run build` 97/97.
+- Post-deploy proof protocol (do this before reporting back): hard refresh, then (a) backspace qty to empty — must clear (proves latest bundle), (b) breakfast in tray → Submit visible without page scroll.
 
 ## 4. Risks
-- Low: CSS cap correction + isolated input component; submit/stock logic untouched.
+- None (CSS positioning only).
 
 ## 5. Questions
 - Q1: Proceed?
