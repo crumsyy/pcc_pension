@@ -1,9 +1,10 @@
-# Walkthrough — Distinct dialog Cancel button
+# Walkthrough — Order Tray above tabs (guest + receptionist)
 
 ## Changes
-- `globals.css`: new `btn-dialog-cancel` (neutral grey, wins over the app-wide red-secondary rule).
-- `ModalDialog.js`: default safe Cancel uses the neutral class; explicit danger cancels stay red. Destructive confirms unchanged red.
+- Guest (`GuestOrdersContent.js`): tray card moved above tabs + search toolbar, full width in normal flow; side-column tray deleted; mobile floating bar + modal kept; mobile bottom spacer added so the floating bar never covers catalog items.
+- Receptionist (`orders/page.js`): same relocation (hidden in history mode as before); catalog full width.
+- `globals.css`: deleted the fixed-rail rule that overlayed the tray on content (zero remaining usages).
 
 ## Verification
-- `npm run build` → success.
-- Manual: Cancel grey + Yes-Cancel red in light and dark themes, guest and receptionist dialogs.
+- `grep orders-tray-fixed/orders-tray-col` → zero code hits; `npm run build` → success.
+- Manual: no overlap at any width; tray visible above tabs; history mode unchanged; cart/checkout logic untouched.

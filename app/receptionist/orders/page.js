@@ -1015,6 +1015,25 @@ function ReceptionistOrdersContent() {
 
   return (
     <div className={`container-fluid py-3 px-3 px-md-4 ${shouldAnimate ? 'pcc-content-reveal' : ''}`}>
+      {/* ORDER TRAY (above tabs — full width, normal flow; hidden in history mode) */}
+      {activeCategory !== 'history' && (
+        <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 mb-4">
+          <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+            <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+              <i className="bi bi-cart3 text-primary"></i>
+              <span>Order Tray</span>
+            </h5>
+            <span className="badge bg-primary rounded-pill text-white px-2.5 py-1">
+              {cart.reduce((s, it) => s + it.quantity, 0)} Items
+            </span>
+          </div>
+          <div style={{ minHeight: 0 }}>
+            {renderOrderTrayContent()}
+          </div>
+          {renderTrayFooter()}
+        </div>
+      )}
+
       {/* NAVIGATION TABS & SEARCH BAR */}
       <div className="d-flex flex-wrap flex-xl-nowrap align-items-center justify-content-between gap-3 mb-4">
         <div
@@ -1080,7 +1099,7 @@ function ReceptionistOrdersContent() {
       {/* MAIN CONTENT AREA */}
       <div className="row g-4">
         {/* CATALOG COLUMN (or HISTORY VIEW) */}
-        <div className={activeCategory === 'history' ? 'col-12' : 'col-12 col-lg-7 col-xl-8'}>
+        <div className="col-12">
           {activeCategory === 'history' ? (
             /* ORDER HISTORY / MANAGEMENT TABLE */
             <div className="card border-0 shadow-sm rounded-3 bg-white p-4">
@@ -1409,26 +1428,6 @@ function ReceptionistOrdersContent() {
           )}
         </div>
 
-        {/* ORDER TRAY COLUMN (Shown when in catalog mode) */}
-        {activeCategory !== 'history' && (
-          <div className="col-12 col-lg-5 col-xl-4 orders-tray-col">
-            <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 d-flex flex-column mt-1 overflow-hidden orders-tray-fixed" style={{ maxHeight: 'calc(100vh - 56px)' }}>
-              <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
-                <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                  <i className="bi bi-cart3 text-primary"></i>
-                  <span>Order Tray</span>
-                </h5>
-                <span className="badge bg-primary rounded-pill text-white px-2.5 py-1">
-                  {cart.reduce((s, it) => s + it.quantity, 0)} Items
-                </span>
-              </div>
-              <div className="flex-grow-1 overflow-auto pe-1" style={{ minHeight: 0 }}>
-                {renderOrderTrayContent()}
-              </div>
-              {renderTrayFooter()}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* VIEW ORDER DETAILS MODAL */}
