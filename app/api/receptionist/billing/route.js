@@ -364,6 +364,19 @@ export async function POST(request) {
         const guestUserID = bookingData[0].guestUserID;
         const guestName = `${bookingData[0].firstName} ${bookingData[0].lastName}`;
 
+        // Inspection gate: room must be verified before checkout completes so
+        // damage charges can still be posted. Legacy finalized rows count as verified.
+        const [verifyRows] = await conn.execute(
+          "SELECT roomVerifiedAt, status FROM booking WHERE bookingID = ?",
+          [bookingID]
+        );
+        const isRoomVerified = Boolean(verifyRows[0]?.roomVerifiedAt) ||
+          ['Room Verified', 'Pending Bill', 'Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(verifyRows[0]?.status);
+        if (!isRoomVerified) {
+          await conn.rollback();
+          return NextResponse.json({ error: 'Checkout blocked: room inspection is required before completing this booking.' }, { status: 400 });
+        }
+
         await conn.execute(
           "UPDATE booking SET status = 'Completed', actualCheckOut = CURRENT_TIMESTAMP, checkOutDateTime = ? WHERE bookingID = ?",
           [nowStr, bookingID]

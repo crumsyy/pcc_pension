@@ -188,29 +188,6 @@ export default function ReceptionistBilling() {
     }
   };
 
-  const handleFinalizeBillOnly = async () => {
-    if (!billDetails || !selectedBookingID) return;
-    try {
-      const res = await fetch('/api/receptionist/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'finalize_bill',
-          bookingID: selectedBookingID,
-          incidentals: []
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to finalize bill');
-
-      showAlert('success', 'Bill Finalized', 'Bill has been finalized. Guest has been notified.');
-      fetchActiveBookings();
-      fetchBillingDetails(selectedBookingID);
-    } catch (err) {
-      showAlert('error', 'Error', err.message);
-    }
-  };
-
   const fetchBillingDetails = async (bookingID, silent = true) => {
     if (!bookingID) {
       setBillDetails(null);
@@ -886,24 +863,6 @@ export default function ReceptionistBilling() {
                                   <td colSpan="3" className="fw-semibold">Net Room Stay Charges</td>
                                   <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</td>
                                 </tr>
-                                {billDetails.chargesSummary.downPaymentPaid > 0 && (
-                                  <tr>
-                                    <td colSpan="3" className="text-success fw-semibold">
-                                      Down Payment Paid ({billDetails.chargesSummary.downPaymentPercentage}% of Room Charges)
-                                    </td>
-                                    <td className="text-end fw-bold text-success">
-                                      -₱{parseFloat(billDetails.chargesSummary.downPaymentPaid).toFixed(2)}
-                                    </td>
-                                  </tr>
-                                )}
-                                <tr>
-                                  <td colSpan="3" className="fw-bold text-pcc-blue">
-                                    Remaining Room Balance
-                                  </td>
-                                  <td className="text-end fw-bold text-pcc-blue">
-                                    ₱{parseFloat(billDetails.chargesSummary.roomBalance || 0).toFixed(2)}
-                                  </td>
-                                </tr>
                                 {billDetails.chargesSummary.extraGuestFee > 0 && (
                                   <tr className="table-secondary-subtle">
                                     <td colSpan="3">
@@ -958,6 +917,24 @@ export default function ReceptionistBilling() {
                                     <td className="text-end fw-semibold text-danger">₱{parseFloat(billDetails.chargesSummary.lateCheckOut).toFixed(2)}</td>
                                   </tr>
                                 )}
+                                {billDetails.chargesSummary.downPaymentPaid > 0 && (
+                                  <tr>
+                                    <td colSpan="3" className="text-success fw-semibold">
+                                      Down Payment Paid ({billDetails.chargesSummary.downPaymentPercentage}% of Room Charges)
+                                    </td>
+                                    <td className="text-end fw-bold text-success">
+                                      -₱{parseFloat(billDetails.chargesSummary.downPaymentPaid).toFixed(2)}
+                                    </td>
+                                  </tr>
+                                )}
+                                <tr>
+                                  <td colSpan="3" className="fw-bold text-pcc-blue">
+                                    Remaining Room Balance
+                                  </td>
+                                  <td className="text-end fw-bold text-pcc-blue">
+                                    ₱{parseFloat(billDetails.chargesSummary.roomBalance || 0).toFixed(2)}
+                                  </td>
+                                </tr>
                               </tbody>
                             </table>
                           </div>
@@ -1088,7 +1065,7 @@ export default function ReceptionistBilling() {
                           <div className="d-flex justify-content-between align-items-center mb-2 border-bottom pb-1">
                             <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5" style={{ fontSize: '0.84rem' }}>
                               <i className="bi bi-cart-check-fill text-pcc-primary"></i>
-                              <span>Orders &amp; Room Service</span>
+                              <span>Orders</span>
                             </h6>
                             <span className="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold" style={{ fontSize: '0.74rem' }}>
                               Total: ₱{parseFloat(billDetails.ordersSummary?.totalAmount ?? billDetails.chargesSummary?.orders ?? 0).toFixed(2)}
@@ -1475,7 +1452,7 @@ export default function ReceptionistBilling() {
                                 )}
 
                                 <div className="d-flex justify-content-between mb-2">
-                                  <span className="text-muted">Orders &amp; Room Service:</span>
+                                  <span className="text-muted">Orders:</span>
                                   <span className="fw-semibold text-dark">
                                     ₱{ordersTotal.toFixed(2)}
                                   </span>
@@ -1495,30 +1472,36 @@ export default function ReceptionistBilling() {
                                   </span>
                                 </div>
 
-                                {/* Applied Discounts Pill Badges Card */}
-                                <div className="mb-3 p-2.5 rounded bg-danger-subtle border border-danger-subtle">
-                                  <div className="d-flex justify-content-between align-items-center mb-1 text-danger fw-bold" style={{ fontSize: '0.84rem' }}>
+                                {/* Applied Discounts Card */}
+                                <div className="mb-3 p-2.5 rounded bg-primary-subtle border border-primary-subtle">
+                                  <div className="d-flex justify-content-between align-items-center mb-1 text-primary fw-bold" style={{ fontSize: '0.84rem' }}>
                                     <span className="d-flex align-items-center gap-1">
                                       <i className="fa-solid fa-tags"></i>
-                                      <span>Applied Special Discounts:</span>
+                                      <span>Applied Discounts:</span>
                                     </span>
                                     <span className="fs-6">{discountTotal > 0 ? `-₱${discountTotal.toFixed(2)}` : '₱0.00'}</span>
                                   </div>
                                   {appliedDiscountsSummaryList.length > 0 ? (
-                                    <div className="d-flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
+                                    <div className="d-flex flex-column gap-1.5 mt-1.5 mb-2">
                                       {appliedDiscountsSummaryList.map((disc, idx) => (
-                                        <span key={idx} className="badge bg-danger text-white fw-normal px-2.5 py-1 text-start" style={{ fontSize: '0.74rem', lineHeight: '1.3' }}>
-                                          <i className="fa-solid fa-user-check me-1"></i>
-                                          <strong>{disc.guestName || disc.fullName}</strong> ({disc.discountName || 'Special Discount'} {disc.discountPercentage || disc.percentage || 20}% - ID: {disc.discountIdNumber || 'N/A'}): -₱{parseFloat(disc.discountAmount || disc.discount || 0).toFixed(2)}
-                                        </span>
+                                        <div key={idx} className="d-flex justify-content-between align-items-start gap-2 px-2.5 py-1.5 rounded bg-white border" style={{ fontSize: '0.74rem', lineHeight: '1.4' }}>
+                                          <div className="d-flex align-items-start gap-1.5 text-start" style={{ minWidth: 0 }}>
+                                            <i className="fa-solid fa-user-check text-primary mt-0.5"></i>
+                                            <div>
+                                              <strong className="text-dark">{disc.guestName || disc.fullName}</strong>
+                                              <div className="text-muted">{disc.discountName || 'Discount'} {disc.discountPercentage || disc.percentage || 20}% • ID: {disc.discountIdNumber || 'N/A'}</div>
+                                            </div>
+                                          </div>
+                                          <span className="fw-bold text-success text-nowrap">-₱{parseFloat(disc.discountAmount || disc.discount || 0).toFixed(2)}</span>
+                                        </div>
                                       ))}
                                     </div>
                                   ) : (
-                                    <div className="small text-muted fst-italic mb-1">No special discounts applied.</div>
+                                    <div className="small text-muted fst-italic mb-2">No discounts applied.</div>
                                   )}
                                   <button
                                     type="button"
-                                    className="btn btn-sm btn-outline-danger w-100 py-1 fw-semibold d-flex align-items-center justify-content-center gap-1"
+                                    className="btn btn-sm btn-outline-primary w-100 py-1 fw-semibold d-flex align-items-center justify-content-center gap-1"
                                     onClick={openEditDiscountsModal}
                                     style={{ fontSize: '0.75rem' }}
                                   >
@@ -1579,10 +1562,6 @@ export default function ReceptionistBilling() {
                             const rawBalance = parseFloat(billDetails.chargesSummary?.rawBalance ?? balance);
                             const isSettled = Math.round(rawBalance * 100) === 0;
                             const isOverpaid = rawBalance < 0;
-                            const isFinalized = billDetails.chargesBreakdown?.isBillFinalized ||
-                                                billDetails.chargesSummary?.isBillFinalized === 1 ||
-                                                billDetails.isBillFinalized === 1 ||
-                                                billDetails.booking?.status === 'Bill Finalized';
                             const isCheckedOut = ['Checked Out', 'Completed'].includes(billDetails.booking?.status);
 
                             if (isCheckedOut) {
@@ -1616,36 +1595,20 @@ export default function ReceptionistBilling() {
                               );
                             }
 
-                            // If remaining balance is not exactly ₱0.00
+                            // If remaining balance is not exactly ₱0.00, point at
+                            // the Payments tab; walk-in recording stays below.
                             if (!isSettled) {
-                              if (!isFinalized) {
-                                // Unfinalized: review here, settle in the Payments tab.
-                                return (
-                                  <div className="d-flex flex-column gap-2">
-                                    <div className="alert alert-info py-2.5 px-3 small d-flex align-items-center gap-2 mb-0 border-0 rounded-3">
-                                      <i className="bi bi-info-circle-fill fs-5 flex-shrink-0"></i>
-                                      <div>
-                                        <div className="fw-bold">Bill Not Yet Finalized</div>
-                                        <div className="small fw-normal text-muted" style={{ fontSize: '0.74rem' }}>
-                                          Review the statement here, then switch to the Payments tab to settle this bill.
-                                        </div>
+                              return (
+                                <div className="d-flex flex-column gap-2">
+                                  <div className="alert alert-warning py-2.5 px-3 small d-flex align-items-center gap-2 mb-0 border-0 bg-warning-subtle text-warning-emphasis rounded-3 fw-semibold">
+                                    <i className="bi bi-clock-history fs-5 flex-shrink-0"></i>
+                                    <div>
+                                      <div className="fw-bold">Balance Due — Ready for Settlement</div>
+                                      <div className="small fw-normal text-muted" style={{ fontSize: '0.74rem' }}>
+                                        Switch to the Payments tab to settle, or record a counter payment below.
                                       </div>
                                     </div>
                                   </div>
-                                );
-                              } else {
-                                // Step 2: Bill Finalized — Awaiting Guest Settlement OR Counter Walk-in Payment
-                                return (
-                                  <div className="d-flex flex-column gap-2">
-                                    <div className="alert alert-warning py-2.5 px-3 small d-flex align-items-center gap-2 mb-0 border-0 bg-warning-subtle text-warning-emphasis rounded-3 fw-semibold">
-                                      <i className="bi bi-clock-history fs-5 flex-shrink-0"></i>
-                                      <div>
-                                        <div className="fw-bold">Bill Finalized — Ready for Settlement</div>
-                                        <div className="small fw-normal text-muted" style={{ fontSize: '0.74rem' }}>
-                                          Switch to the Payments tab to settle, or record a counter payment below.
-                                        </div>
-                                      </div>
-                                    </div>
                                     <button
                                       type="button"
                                       className="btn btn-outline-secondary fw-semibold w-100 py-2 d-flex align-items-center justify-content-center gap-2 shadow-sm"
@@ -1663,7 +1626,6 @@ export default function ReceptionistBilling() {
                                     </button>
                                   </div>
                                 );
-                              }
                             }
 
                             // Balance is exactly ₱0.00: Bill fully settled!

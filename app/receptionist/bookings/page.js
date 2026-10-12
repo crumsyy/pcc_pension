@@ -86,13 +86,6 @@ function BookingsClient() {
   const [activeModal, setActiveModal] = useState(null); // 'create' | 'cancel_reason' | 'manage_guests' | null
   const [cancellingBookingID, setCancellingBookingID] = useState(null);
   const [cancelRemarks, setCancelRemarks] = useState('');
-  const [finalizeBillModal, setFinalizeBillModal] = useState({
-    isOpen: false,
-    booking: null,
-    singleDesc: '',
-    singleAmount: '',
-    processing: false
-  });
   const [minDateTime, setMinDateTime] = useState('');
   const [maxDobStr, setMaxDobStr] = useState('');
 
@@ -564,64 +557,6 @@ function BookingsClient() {
       showConfirm('Confirm Booking Update', confirmMessage, executeUpdate);
     } else {
       executeUpdate();
-    }
-  };
-
-  const handleOpenFinalizeBillModal = (b) => {
-    setFinalizeBillModal({
-      isOpen: true,
-      booking: b,
-      singleDesc: '',
-      singleAmount: '',
-      processing: false
-    });
-  };
-
-  const handleSaveFinalBill = async (e) => {
-    if (e) e.preventDefault();
-    if (!finalizeBillModal.booking) return;
-
-    setFinalizeBillModal(prev => ({ ...prev, processing: true }));
-    try {
-      const payload = {
-        action: 'update_final_billing',
-        bookingID: finalizeBillModal.booking.bookingID,
-        incidentals: []
-      };
-      if (finalizeBillModal.singleDesc.trim() && parseFloat(finalizeBillModal.singleAmount) > 0) {
-        payload.incidentals.push({
-          description: finalizeBillModal.singleDesc.trim(),
-          amount: parseFloat(finalizeBillModal.singleAmount)
-        });
-      }
-      const res = await fetch('/api/receptionist/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to finalize bill');
-
-      showAlert('success', 'Bill Ready', data.message || 'Billing has been finalized to Bill Ready and guest notified.');
-      const finalizedBooking = finalizeBillModal.booking;
-      setFinalizeBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '', processing: false });
-      await fetchData();
-
-      const bal = parseFloat(data.finalBalance || finalizedBooking.remainingBalance || 0);
-      if (bal > 0) {
-        showConfirm(
-          'Balance Remaining',
-          `Room ${finalizedBooking.roomNumber} has an outstanding balance of ₱${bal.toFixed(2)}. Would you like to proceed to the Payment Terminal now?`,
-          () => {
-            window.location.href = `/receptionist/bookings/checkout`;
-          },
-          'Proceed to Pay',
-          'Dismiss'
-        );
-      }
-    } catch (err) {
-      showAlert('error', 'Error', err.message);
-      setFinalizeBillModal(prev => ({ ...prev, processing: false }));
     }
   };
 
@@ -3439,95 +3374,6 @@ function BookingsClient() {
         </ModalPortal>
       )}
 
-      {/* FINALIZE BILL MODAL */}
-      {finalizeBillModal.isOpen && finalizeBillModal.booking && (
-        <ModalPortal>
-          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content border-0 shadow-lg">
-              <div className="modal-header text-white" style={{ backgroundColor: '#6f42c1' }}>
-                <h5 className="modal-title fw-bold">
-                  <i className="fa-solid fa-receipt me-2"></i>
-                  Finalize Bill — Room {finalizeBillModal.booking.roomNumber}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  onClick={() => setFinalizeBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '', processing: false })}
-                ></button>
-              </div>
-              <form onSubmit={handleSaveFinalBill}>
-                <div className="modal-body">
-                  <div className="p-3 bg-light rounded border mb-3">
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">Guest:</span>
-                      <strong className="text-dark">{finalizeBillModal.booking.firstName} {finalizeBillModal.booking.lastName}</strong>
-                    </div>
-                    <div className="d-flex justify-content-between mb-1">
-                      <span className="text-muted">Current Balance:</span>
-                      <strong className="text-danger">₱{parseFloat(finalizeBillModal.booking.remainingBalance || finalizeBillModal.booking.finalBalance || 0).toFixed(2)}</strong>
-                    </div>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted">Current Status:</span>
-                      <StatusBadge status={finalizeBillModal.booking.status} />
-                    </div>
-                  </div>
-
-                  <h6 className="fw-bold text-dark mb-2" style={{ fontSize: '0.88rem' }}>
-                    Add Incidental Fee / Damage Charge (Optional)
-                  </h6>
-                  <div className="mb-2">
-                    <label className="form-label small fw-semibold mb-1">Description</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      placeholder="e.g. Minibar consumption, stained towel, key replacement"
-                      value={finalizeBillModal.singleDesc}
-                      onChange={(e) => setFinalizeBillModal(prev => ({ ...prev, singleDesc: e.target.value }))}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label small fw-semibold mb-1">Amount (₱)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="form-control form-control-sm"
-                      placeholder="0.00"
-                      value={finalizeBillModal.singleAmount}
-                      onChange={(e) => setFinalizeBillModal(prev => ({ ...prev, singleAmount: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="alert alert-info py-2 px-3 small mb-0 d-flex align-items-center gap-2">
-                    <i className="fa-solid fa-circle-info"></i>
-                    <span>Finalizing the bill will update the booking status to <strong>Bill Ready</strong> and notify the guest.</span>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => setFinalizeBillModal({ isOpen: false, booking: null, singleDesc: '', singleAmount: '', processing: false })}
-                  >
-                    Cancel
-                  </button>
-                  <LoadingButton
-                    type="submit"
-                    className="btn btn-sm text-white fw-bold"
-                    style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1' }}
-                    isLoading={finalizeBillModal.processing}
-                    loadingText="Finalizing..."
-                  >
-                    Confirm &amp; Finalize Bill
-                  </LoadingButton>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-        </ModalPortal>
-      )}
     </div>
   );
 }

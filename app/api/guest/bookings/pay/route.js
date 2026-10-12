@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { dbQuery, normalizeBookingStatus, getBookingBalance } from '@/lib/db';
+import { dbQuery, getBookingBalance } from '@/lib/db';
 
 export async function POST(request) {
   const session = await getSession();
@@ -31,14 +31,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Booking record not found or access denied.' }, { status: 404 });
     }
 
-    const normalizedStatus = normalizeBookingStatus(booking.status);
-    const activeUnfinalized = ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'];
-    if (activeUnfinalized.includes(booking.status) || (normalizedStatus === 'Occupied' && !['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(booking.status))) {
-      return NextResponse.json(
-        { error: "Check-out must be requested first and receptionist must finalize your bill before payment." },
-        { status: 400 }
-      );
-    }
 
     const remainingBalance = await getBookingBalance(bookingID);
 

@@ -45,14 +45,7 @@ export async function POST(request) {
         }
       }
 
-      const normStatus = normalizeBookingStatus(bInfo.status);
-      // Allow down payments upon booking creation; restrict when in-house or in checkout verification before bill finalization
-      const activeUnfinalized = ['Occupied', 'Checkout Requested', 'Pending Room Verification', 'Pending Checkout', 'Room Verified'];
-      if (activeUnfinalized.includes(bInfo.status) || (normStatus === 'Occupied' && !['Bill Finalized', 'Final Billing Updated', 'Bill Ready'].includes(bInfo.status))) {
-        return NextResponse.json({
-          error: "Check-out must be requested first and receptionist must finalize your bill before payment."
-        }, { status: 400 });
-      }
+      // Pay-anytime: no finalization gate.
 
       const bal = await getBookingBalance(parsedBookingID);
       const parseAmt = Math.round((parseFloat(body.amount) || bal || parseFloat(bInfo.remainingBalance) || 0) * 100) / 100;
