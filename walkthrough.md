@@ -1,12 +1,9 @@
-# Walkthrough — Guest confirms are real Yes/No dialogs
+# Walkthrough — Distinct dialog Cancel button
 
-## Changes (only `GuestDashboardClient.js`)
-- `showConfirm` now uses `type: 'confirm'` so the shared dialog renders a blocking Yes/No modal instead of a fire-and-forget toast. This also fixes the silent auto-execution: Cancel truly does nothing now.
-- Cancel Booking + Cancel Reservation confirm buttons read **Yes, Cancel** (new optional label param; checkout request keeps Confirm).
+## Changes
+- `globals.css`: new `btn-dialog-cancel` (neutral grey, wins over the app-wide red-secondary rule).
+- `ModalDialog.js`: default safe Cancel uses the neutral class; explicit danger cancels stay red. Destructive confirms unchanged red.
 
 ## Verification
 - `npm run build` → success.
-- Manual: cancel flows open a blocking dialog; Cancel/X closes with no API call; Yes, Cancel runs once with spinner; result toasts unchanged.
-
-## Notes
-- Receptionist portals may share the same toast-instead-of-dialog pattern — flagged, untouched in this change.
+- Manual: Cancel grey + Yes-Cancel red in light and dark themes, guest and receptionist dialogs.

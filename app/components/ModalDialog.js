@@ -108,7 +108,7 @@ export default function ModalDialog({
     : "btn btn-pcc-primary px-4 py-2 text-white d-inline-flex align-items-center justify-content-center";
   const cancelClass = cancelVariant === 'danger'
     ? "btn btn-danger px-4 py-2 text-white"
-    : "btn btn-secondary px-4 py-2 text-white";
+    : "btn btn-dialog-cancel px-4 py-2 text-white";
 
   return (
     <DialogTrigger isOpen={isOpen}>

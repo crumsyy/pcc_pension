@@ -247,6 +247,22 @@ button.btn-secondary:hover {
   color: #ffffff !important;
 }
 
+/* Neutral safe-action button for confirm dialogs: stays grey even though
+   plain .btn-secondary is forced red app-wide. Must come after that rule. */
+.btn-dialog-cancel,
+button.btn-dialog-cancel {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: #ffffff !important;
+}
+
+.btn-dialog-cancel:hover,
+button.btn-dialog-cancel:hover {
+  background-color: #5c636a !important;
+  border-color: #565e64 !important;
+  color: #ffffff !important;
+}
+
 /* =====================================================================
    Modern Segmented Pill Active Tabs (Inventory / Orders Header Style)
    ===================================================================== */
