@@ -7,6 +7,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toPublicUserCode, toPublicGuestCode } from '@/lib/publicCodes';
 import { toast } from '@/components/ui/toast';
+import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 
 export default function ReceptionistInquiries() {
   const initialInquiriesCache = typeof window !== 'undefined' ? clientCache.get('RECEPTIONIST_INQUIRIES') : null;
@@ -359,20 +360,15 @@ export default function ReceptionistInquiries() {
                   style={{ borderRadius: '20px', paddingLeft: '14px' }}
                 />
 
-                {/* Status Filter Buttons */}
-                <div className="btn-group w-100" role="group">
-                  {['All', 'Pending', 'Responded', 'Closed'].map(st => (
-                    <button
-                      key={st}
-                      type="button"
-                      className={`btn btn-xs ${statusFilter === st ? (st === 'Pending' ? 'btn-warning text-dark' : st === 'Responded' ? 'btn-success text-white' : st === 'Closed' ? 'btn-secondary text-white' : 'btn-pcc-primary text-white') : 'btn-outline-secondary'}`}
-                      onClick={() => setStatusFilter(st)}
-                      style={{ fontSize: '0.72rem', padding: '3px 6px', fontWeight: '600' }}
-                    >
-                      {st}
-                    </button>
-                  ))}
-                </div>
+                {/* Status Filter Tabs */}
+                <Tabs selectedKey={statusFilter} onSelectionChange={(key) => setStatusFilter(key)}>
+                  <TabList aria-label="Conversation status">
+                    <Tab id="All">All</Tab>
+                    <Tab id="Pending">Pending</Tab>
+                    <Tab id="Responded">Responded</Tab>
+                    <Tab id="Closed">Closed</Tab>
+                  </TabList>
+                </Tabs>
               </div>
 
               {/* Conversation List Body */}
