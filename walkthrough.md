@@ -1,9 +1,9 @@
-# Walkthrough — Hard reset to 2ae4116
+# Walkthrough — Save QR Image (guest portal)
 
-## Action taken (user-confirmed)
-- `git reset --hard 2ae4116` — local tree now exactly at "Cancel dialogs confirm button labeled Confirm". Build passes.
-- Dropped from history: per-room rates + revert, guest header, profile dropdown, calendar cleanup, 3-stage statuses, guest confirms fix, dialog button colors, order tray move, Vercel notes.
+## Changes (only `GuestDashboardClient.js`, settle QR card)
+- New **Save QR Image** button under the QR; downloads `PCC-QRPh-{amount}.png` via fetch→blob→object URL.
+- CORS-blocked fallback opens the image in a new tab with long-press-save guidance; success/failure toasts.
 
-## NOT yet done — publishing requires a force-push
-- `origin/main` is ahead (at `5fd7851`). Publishing this reset needs `git push --force origin main`, which rewrites shared history. Awaiting explicit `push` confirmation before doing that.
-- Untracked files untouched: `FUNCTIONAL_REQUIREMENTS.md.backup`, `FUNCTIONAL_REQUIREMENTS_original.md`, `output_dfd/`.
+## Verification
+- `npm run build` → success.
+- Manual: all three QR sources (PayMongo, qrserver fallback, data-URL) save a scannable PNG; blocked path falls back cleanly.

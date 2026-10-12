@@ -1755,6 +1755,28 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     window.location.href = `/paymongo/test?bookingID=${booking.bookingID}&amount=${parseFloat(rem).toFixed(2)}`;
   };
 
+  const handleSaveQrImage = async () => {
+    if (!paymongoQrUrl) return;
+    const fileName = `PCC-QRPh-${parseFloat(amountToPayNow || 0).toFixed(2)}.png`;
+    try {
+      const res = await fetch(paymongoQrUrl, { mode: 'cors' });
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+      showAlert('success', 'QR Saved', 'QR code image downloaded. Upload it in GCash via Scan QR > gallery icon.');
+    } catch (err) {
+      window.open(paymongoQrUrl, '_blank', 'noopener');
+      showAlert('info', 'Save Manually', 'Download was blocked — the QR opened in a new tab. Long-press the image and choose Save/Download.');
+    }
+  };
+
   const handleViewReceiptForBooking = async (booking) => {
     if (!booking) return;
     try {
@@ -4677,6 +4699,14 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           <i className="bi bi-info-circle-fill me-1.5 text-primary"></i>
                           <span>Scan with GCash or any QRPh-compliant app. Amount is pre-set.</span>
                         </div>
+
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary btn-sm fw-bold d-inline-flex align-items-center gap-1.5 mt-1"
+                          onClick={handleSaveQrImage}
+                        >
+                          <i className="bi bi-download"></i> Save QR Image
+                        </button>
 
                         <div className="text-muted small mt-1 d-flex flex-column gap-1 text-start w-100 px-2" style={{ fontSize: '0.74rem' }}>
                           <div><strong>Step 1:</strong> Open GCash, Maya, or any QRPh-compliant banking app.</div>
