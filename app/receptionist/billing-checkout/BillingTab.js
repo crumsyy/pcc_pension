@@ -512,6 +512,22 @@ export default function ReceptionistBilling() {
     return hasValidDiscount || hasValidPromo;
   });
 
+  const SectionHeader = ({ num, icon, title, editable, hint, action }) => (
+    <div className="d-flex justify-content-between align-items-start gap-2 mb-2 pb-2 border-bottom">
+      <div className="d-flex align-items-start gap-2" style={{ minWidth: 0 }}>
+        <span className="badge text-white rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)', width: '22px', height: '22px', fontSize: '0.70rem' }}>{num}</span>
+        <div style={{ minWidth: 0 }}>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <span className="fw-bold text-dark" style={{ fontSize: '0.84rem' }}><i className={`${icon} me-1 text-primary`}></i>{title}</span>
+            <span className={`badge border fw-semibold ${editable ? 'bg-success-subtle text-success border-success-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'}`} style={{ fontSize: '0.65rem' }}>{editable ? 'Editable — you can change this' : 'View only'}</span>
+          </div>
+          {hint && <div className="text-muted" style={{ fontSize: '0.70rem' }}>{hint}</div>}
+        </div>
+      </div>
+      {action && <div className="flex-shrink-0">{action}</div>}
+    </div>
+  );
+
   return (
     <>
       <div className={`container-fluid py-3 d-flex flex-column ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ backgroundColor: '#f8f9fa', height: 'calc(100vh - 150px)', overflow: 'hidden' }}>
@@ -681,8 +697,8 @@ export default function ReceptionistBilling() {
                         </div>
                         <div className="card-body p-4">
                           {/* Guest and stay details */}
-                          <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Guest &amp; Booking Details</h6>
-                          <div className="row mb-2 bg-light p-2 rounded g-2" style={{ fontSize: '0.78rem' }}>
+                          <SectionHeader num="1" icon="bi bi-person-badge" title="Guest & Booking Details" editable={false} hint="Booking record — cannot edit here. To correct guest info, update the booking." />
+                          <div className="row mb-3 bg-light p-2 rounded g-2 border" style={{ fontSize: '0.78rem' }}>
                             <div className="col-md-6">
                               <div className="text-muted">Guest Name</div>
                               <div className="fw-bold text-dark">{billDetails.booking.firstName} {billDetails.booking.lastName}</div>
@@ -707,8 +723,8 @@ export default function ReceptionistBilling() {
                           </div>
 
                           {/* Room rent */}
-                          <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Room Rent Charges</h6>
-                          <div className="table-responsive mb-3">
+                          <SectionHeader num="2" icon="bi bi-house-door" title="Room Rent Charges" editable={false} hint="Auto-computed from rate × nights. Nothing to edit here." />
+                          <div className="table-responsive mb-2">
                             <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
                               <thead>
                                 <tr className="table-light">
@@ -730,25 +746,7 @@ export default function ReceptionistBilling() {
                                   <td>{billDetails.booking.nights}</td>
                                   <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.originalRoomCharge || billDetails.booking.originalRoomCharge || billDetails.booking.roomCharge).toFixed(2)}</td>
                                 </tr>
-                                {appliedDiscountsList.length > 0 && billDetails.chargesSummary.totalDiscount > 0 && (
-                                  <tr className="table-warning small">
-                                    <td colSpan="3" className="ps-3 text-warning-dark">
-                                      <div>
-                                        <strong>Applied Discounts — Per-Guest Apportionment:</strong>
-                                        <ul className="mb-0 mt-1" style={{ listStyleType: 'square' }}>
-                                          <li>Total Registered Guests: <strong>{billDetails.chargesSummary.totalGuests} Pax</strong></li>
-                                          <li>Individual Guest Share: <strong>₱{parseFloat(billDetails.chargesSummary.sharePerGuest).toFixed(2)}</strong></li>
-                                          <li>
-                                          Applied Discounts/Promotions: <strong>{appliedDiscountsList.length} Guest(s)</strong> (configured discount percentage applied to their individual share)
-                                          </li>
-                                        </ul>
-                                      </div>
-                                    </td>
-                                    <td className="text-end fw-bold text-success align-bottom">
-                                      -₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}
-                                    </td>
-                                  </tr>
-                                )}
+                                {/* Discount apportionment moved to its own Section 5 below — no longer a table row. */}
                                 <tr className="table-light">
                                   <td colSpan="3" className="fw-semibold">Net Room Stay Charges</td>
                                   <td className="text-end fw-bold text-dark">₱{parseFloat(billDetails.chargesSummary.room).toFixed(2)}</td>
@@ -829,23 +827,22 @@ export default function ReceptionistBilling() {
                             </table>
                           </div>
 
-                          {/* Room Occupancy & Capacity Summary (Replaces legacy registered guests list) */}
-                          <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Occupancy &amp; Capacity</h6>
-                          <div className="mb-3 bg-light p-3 rounded-3 border animate__animated animate__fadeIn" style={{ fontSize: '0.80rem' }}>
-                            <div className="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-                              <div className="d-flex align-items-center gap-2">
-                                <i className="bi bi-people-fill text-primary fs-6"></i>
-                                <span className="fw-bold text-dark">Occupancy Details</span>
-                              </div>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-pcc-primary text-white"
-                                style={{ fontSize: '0.74rem', padding: '4px 12px', borderRadius: '15px' }}
-                                onClick={openEditDiscountsModal}
-                              >
-                                <i className="fa-solid fa-percent me-1"></i> Apply / Edit Discounts
-                              </button>
+                          {/* Discount apportionment — standalone section, no longer a table row */}
+                          {appliedDiscountsList.length > 0 && billDetails.chargesSummary.totalDiscount > 0 && (
+                            <div className="mb-3 p-2.5 rounded border bg-warning-subtle border-warning-subtle" style={{ fontSize: '0.78rem' }}>
+                              <div className="fw-bold text-dark mb-1">How the discount was split per guest:</div>
+                              <ul className="mb-1 ps-3" style={{ listStyleType: 'square' }}>
+                                <li>Total Registered Guests: <strong>{billDetails.chargesSummary.totalGuests} Pax</strong></li>
+                                <li>Individual Guest Share: <strong>₱{parseFloat(billDetails.chargesSummary.sharePerGuest).toFixed(2)}</strong></li>
+                                <li>Applied Discounts/Promotions: <strong>{appliedDiscountsList.length} Guest(s)</strong> (configured discount percentage applied to their individual share)</li>
+                              </ul>
+                              <div className="text-end fw-bold text-success">-₱{parseFloat(billDetails.chargesSummary.totalDiscount).toFixed(2)}</div>
                             </div>
+                          )}
+
+                          {/* Room Occupancy & Capacity Summary (Replaces legacy registered guests list) */}
+                          <SectionHeader num="3" icon="bi bi-people-fill" title="Occupancy & Capacity" editable={true} hint="Check headcount here. To change discounts, click Apply / Edit Discounts." action={(<button type="button" className="btn btn-sm btn-pcc-primary text-white" style={{ fontSize: '0.74rem', padding: '4px 12px', borderRadius: '15px' }} onClick={openEditDiscountsModal}><i className="fa-solid fa-percent me-1"></i> Apply / Edit Discounts</button>)} />
+                          <div className="mb-3 bg-light p-3 rounded-3 border animate__animated animate__fadeIn" style={{ fontSize: '0.80rem' }}>
 
                             <div className="row g-2 text-dark">
                               <div className="col-sm-6 col-md-4">
@@ -913,7 +910,8 @@ export default function ReceptionistBilling() {
                                 return (
                                   <div className="col-12 mt-2">
                                     <div className="p-2.5 bg-light rounded-3 border">
-                                      <h6 className="fw-bold text-dark mb-2" style={{ fontSize: '0.82rem' }}>Breakfast Schedule ({dates.length} Day{dates.length > 1 ? 's' : ''})</h6>
+                                      <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.80rem' }}>4 · Breakfast Schedule ({dates.length} Day{dates.length > 1 ? 's' : ''}) <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1" style={{ fontSize: '0.65rem' }}>View only</span></div>
+                                      <div className="text-muted mb-2" style={{ fontSize: '0.70rem' }}>From booking package — nothing to edit here.</div>
                                       <div className="d-flex flex-wrap gap-1.5">
                                         {dates.map((d) => (
                                           <span key={d} className="badge bg-white text-dark border px-2 py-1 fw-medium small d-flex align-items-center gap-1 shadow-2xs" style={{ fontSize: '0.73rem' }}>
@@ -929,7 +927,7 @@ export default function ReceptionistBilling() {
                             </div>
 
                             {/* Applied Discounts breakdown if any */}
-                            <h6 className="fw-bold text-dark mb-1 border-bottom pb-1 mt-2" style={{ fontSize: '0.82rem' }}>Applied Discounts</h6>
+                            <SectionHeader num="5" icon="bi bi-tag-fill" title="Applied Discounts" editable={true} hint="Who gets a discount. To add or change, use Apply / Edit Discounts in Section 3." />
                             {appliedDiscountsList.length > 0 && billDetails.chargesSummary.totalDiscount > 0 ? (
                               <div className="mt-2.5 pt-2 border-top">
                                 <div className="fw-semibold text-success mb-1" style={{ fontSize: '0.76rem' }}>
@@ -952,11 +950,8 @@ export default function ReceptionistBilling() {
                           </div>
 
                           {/* Consolidated Orders & Room Service */}
-                          <div className="d-flex justify-content-between align-items-center mb-2 border-bottom pb-1">
-                            <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5" style={{ fontSize: '0.84rem' }}>
-                              <i className="bi bi-cart-check-fill text-pcc-primary"></i>
-                              <span>Orders &amp; Room Service</span>
-                            </h6>
+                          <SectionHeader num="6" icon="bi bi-cart-check-fill" title="Orders & Room Service" editable={false} hint="Charged from the Orders tab — view only here." />
+                          <div className="d-flex justify-content-end mb-2">
                             <span className="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold" style={{ fontSize: '0.74rem' }}>
                               Total: ₱{parseFloat(billDetails.ordersSummary?.totalAmount ?? billDetails.chargesSummary?.orders ?? 0).toFixed(2)}
                             </span>
@@ -1064,12 +1059,7 @@ export default function ReceptionistBilling() {
                           )}
 
                           {/* Non-Consumable Amenities Checkout Inspection */}
-                          <h6 className="fw-bold text-dark mb-1 border-bottom pb-1 mt-3" style={{ fontSize: '0.82rem' }}>
-                            Room Check-Out Inspection — Ordered Non-Consumable Amenities
-                          </h6>
-                          <p className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>
-                            Check items returned in good condition. Uncheck any item that is missing or damaged to automatically add replacement charges to the bill.
-                          </p>
+                          <SectionHeader num="7" icon="bi bi-clipboard-check" title="Room Check-Out Inspection" editable={true} hint="Tick returned items. Untick missing/damaged to auto-bill replacement." />
                           <div className="p-3 border rounded bg-white mb-3">
                             {(!billDetails.nonConsumableAmenities || billDetails.nonConsumableAmenities.length === 0) ? (
                               <div className="text-muted small text-center py-2">No ordered non-consumable amenities recorded for this stay.</div>
@@ -1166,20 +1156,7 @@ export default function ReceptionistBilling() {
                           </div>
 
                           {/* Incidental Charges */}
-                          <div className="d-flex justify-content-between align-items-center mb-1 mt-3 border-bottom pb-1">
-                            <h6 className="fw-bold text-dark mb-0" style={{ fontSize: '0.82rem' }}>Incidental & Damage Charges</h6>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-danger text-white"
-                              style={{ fontSize: '0.72rem', padding: '3px 10px' }}
-                              onClick={() => {
-                                setIncidentalForm({ description: '', amount: '' });
-                                setIsAddingIncidental(true);
-                              }}
-                            >
-                              + Add Incidental Charge
-                            </button>
-                          </div>
+                          <SectionHeader num="8" icon="bi bi-receipt" title="Incidental & Damage Charges" editable={true} hint="Add or remove extra charges here." action={(<button type="button" className="btn btn-sm btn-danger text-white" style={{ fontSize: '0.72rem', padding: '3px 10px' }} onClick={() => { setIncidentalForm({ description: '', amount: '' }); setIsAddingIncidental(true); }}>+ Add Incidental Charge</button>)} />
                           <div className="table-responsive mb-2">
                             <table className="table table-hover table-sm mb-0" style={{ fontSize: '0.78rem' }}>
                               <thead>
@@ -1227,7 +1204,7 @@ export default function ReceptionistBilling() {
                           {/* Borrowed Amenities & Room Items check */}
                           {billDetails.borrowedItems && billDetails.borrowedItems.length > 0 && (
                             <div className="mt-3">
-                              <h6 className="fw-bold text-dark mb-1 border-bottom pb-1" style={{ fontSize: '0.82rem' }}>Borrowed Room Items &amp; Amenities</h6>
+                              <SectionHeader num="9" icon="bi bi-bag" title="Borrowed Room Items & Amenities" editable={true} hint="Mark returned or report lost/damaged here." />
                               <div className="table-responsive">
                                 <table className="table table-hover table-sm align-middle mb-0" style={{ fontSize: '0.78rem' }}>
                                   <thead className="table-light">
@@ -1388,17 +1365,9 @@ export default function ReceptionistBilling() {
                                       ))}
                                     </div>
                                   ) : (
-                                    <div className="small text-muted fst-italic mb-2">No discounts applied.</div>
+                                    <div className="small text-muted fst-italic mb-0">No discounts applied.</div>
                                   )}
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm btn-outline-primary w-100 py-1 fw-semibold d-flex align-items-center justify-content-center gap-1"
-                                    onClick={openEditDiscountsModal}
-                                    style={{ fontSize: '0.75rem' }}
-                                  >
-                                    <i className="fa-solid fa-pen-to-square"></i>
-                                    <span>{appliedDiscountsSummaryList.length > 0 ? 'Edit / Adjust Guest Discounts' : 'Apply Senior Citizen / PWD Discount'}</span>
-                                  </button>
+                                  <div className="small text-muted mt-2" style={{ fontSize: '0.70rem' }}>To modify discounts, use Apply / Edit Discounts in the Billing statement (Section 3).</div>
                                 </div>
 
                                 {/* Net Total Amount Due */}
