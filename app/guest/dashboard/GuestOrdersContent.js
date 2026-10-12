@@ -1258,18 +1258,18 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
         </div>
       )}
 
-      {/* ORDER TRAY (above tabs — full width, normal flow) */}
-      <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-3 p-md-4 pcc-order-tray mb-4">
-        <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-          <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-            <i className="bi bi-cart3 text-primary"></i>
-            <span>Order Tray</span>
-          </h5>
-          <span className="badge bg-primary rounded-pill text-white px-2.5 py-1">
-            {cart.reduce((s, it) => s + it.quantity, 0)} Items
-          </span>
+      {/* SEARCH BAR (above tabs) */}
+      <div className="mb-3" style={{ maxWidth: '480px', width: '100%' }}>
+        <div className="input-group input-group-sm">
+          <span className="input-group-text bg-white border-end-0"><i className="bi bi-search"></i></span>
+          <input
+            type="text"
+            className="form-control border-start-0"
+            placeholder="Search items by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-        {renderOrderTrayContent(false)}
       </div>
 
       {/* NAVIGATION TABS & SEARCH BAR */}
@@ -1320,24 +1320,12 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
             My Orders ({orderHistory.length})
           </button>
         </div>
-        <div className="ms-auto" style={{ minWidth: '220px', maxWidth: '320px', width: '100%' }}>
-          <div className="input-group input-group-sm">
-            <span className="input-group-text bg-white border-end-0"><i className="bi bi-search"></i></span>
-            <input
-              type="text"
-              className="form-control border-start-0"
-              placeholder="Search items by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
       </div>
 
-      {/* MAIN CONTENT AREA: CATALOG (full width — tray lives above the tabs) */}
+      {/* MAIN CONTENT AREA: CATALOG + CART */}
       <div className="row g-4">
         {/* CATALOG COLUMN */}
-        <div className="col-12">
+        <div className={`col-12 col-md-7 col-lg-7 col-xl-8 ${cart.length > 0 ? 'pb-5 mb-4' : ''}`}>
           {activeCategory === 'history' ? (
             <OrderHistoryTable
               orders={orderHistory}
@@ -1425,8 +1413,24 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           )}
         </div>
 
+        {/* ORDER TRAY / CART COLUMN (DESKTOP) */}
+        <div className="col-12 col-md-5 col-lg-5 col-xl-4 d-none d-md-block align-self-start">
+          <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 pcc-order-tray d-flex flex-column mt-1 overflow-hidden" style={{ maxHeight: 'calc(100vh - 56px)' }}>
+            <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
+              <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                <i className="bi bi-cart3 text-primary"></i>
+                <span>Order Tray</span>
+              </h5>
+              <span className="badge bg-primary rounded-pill text-white px-2.5 py-1">
+                {cart.reduce((s, it) => s + it.quantity, 0)} Items
+              </span>
+            </div>
+            <div className="d-flex flex-column flex-grow-1 overflow-hidden pe-1" style={{ minHeight: 0 }}>
+              {renderOrderTrayContent(false)}
+            </div>
+          </div>
+        </div>
       </div>
-      {cart.length > 0 && <div className="d-md-none" style={{ height: '70px' }} />}
 
       {/* MOBILE FLOATING "VIEW YOUR ORDER" BAR (Foodpanda Style) */}
       {cart.length > 0 && (

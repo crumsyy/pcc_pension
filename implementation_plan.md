@@ -1,20 +1,21 @@
-# Implementation Plan — Save QR code image (guest portal) (for approval)
+# Implementation Plan — Tray back to side, search bar above tabs (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Request
-Guest QRPh payment card: add Save QR button downloading the QR as an image for use in GCash.
+## 1. Correction
+- Revert the tray relocation: Order Tray returns to the right side column (in normal flow, **without** the deleted fixed overlay — that rule stays deleted so the original overlap cannot return).
+- Move the **search bar** above the category tabs row instead, on both guest and receptionist order pages. No logic changes.
 
-## 2. Proposed changes (only `GuestDashboardClient.js`, settle QR card ~4653)
-1. Add **Save QR Image** button under the QR (next to the instruction banner), filename `PCC-QRPh-{amount}.png`.
-2. Download via `fetch(url) → blob → object URL → a[download]` (works for remote + `data:` URLs); revoke object URL after click.
-3. CORS fallback: if fetch is blocked, open the image in a new tab + toast guiding mobile users to long-press-save. Result toasts for success/failure.
+## 2. Proposed changes
+1. **Guest**: delete top tray card; restore `row` with catalog (`col-md-7...`, incl. mobile bottom spacer) + tray side column (`col-md-5`, no fixed class); move search input block above the tabs row, full width.
+2. **Receptionist**: same restore (catalog `col-lg-7 col-xl-8` + tray `col-lg-5 col-xl-4`, history mode hides tray as before); search above tabs.
+3. Mobile floating bar + modal unchanged.
 
 ## 3. Verification
-- Click saves a scannable PNG (PayMongo, qrserver fallback, and data-URL variants); blocked-fetch path opens new tab; `npm run build` passes.
+- Tray on right, search above tabs, no overlap at any width; `npm run build` passes.
 
 ## 4. Risks
-- Low: additive UI + client-side download; QR payload/verification untouched.
+- Low: restores prior layout minus the overlay bug.
 
 ## 5. Questions
 - Q1: Proceed?

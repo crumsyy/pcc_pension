@@ -1,9 +1,8 @@
-# Walkthrough — Save QR Image (guest portal)
+# Walkthrough — Tray back on side, search above tabs
 
-## Changes (only `GuestDashboardClient.js`, settle QR card)
-- New **Save QR Image** button under the QR; downloads `PCC-QRPh-{amount}.png` via fetch→blob→object URL.
-- CORS-blocked fallback opens the image in a new tab with long-press-save guidance; success/failure toasts.
+## Changes
+- Guest + receptionist order pages: Order Tray restored to the right side column in normal flow (fixed overlay stays deleted, so no overlap); search bar moved above the category tabs; catalog widths restored; history mode still hides the tray; mobile floating bar unchanged.
 
 ## Verification
 - `npm run build` → success.
-- Manual: all three QR sources (PayMongo, qrserver fallback, data-URL) save a scannable PNG; blocked path falls back cleanly.
+- Manual: tray right, search above tabs, no overlap at any width on both pages.
