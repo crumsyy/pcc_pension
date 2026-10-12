@@ -1,14 +1,12 @@
-# Walkthrough — 3-stage booking display (Path A, display-only)
+# Walkthrough — Guest confirms are real Yes/No dialogs
 
-## Changes (no API/transition/gating edits)
-- `StatusBadge.js`: new `foldBookingFlow` prop — billing mid-flow norms render as blue **Occupied**; reservations untouched.
-- Guest: timeline 5 nodes → 3 (Booked, Occupied, Completed); booking card + ActiveStayPanel badges folded; timeline header neutral.
-- Receptionist: bookings list badges folded (incl. dead local color helper aligned); check-in pill text + class folded.
-- Cancelled / No Show rendering unchanged; all filters/logic match raw statuses as before.
+## Changes (only `GuestDashboardClient.js`)
+- `showConfirm` now uses `type: 'confirm'` so the shared dialog renders a blocking Yes/No modal instead of a fire-and-forget toast. This also fixes the silent auto-execution: Cancel truly does nothing now.
+- Cancel Booking + Cancel Reservation confirm buttons read **Yes, Cancel** (new optional label param; checkout request keeps Confirm).
 
 ## Verification
 - `npm run build` → success.
-- Manual: finalized/paid stays show Occupied in both portals; timeline matches screenshot as 3 nodes; balances/checkout behavior identical.
+- Manual: cancel flows open a blocking dialog; Cancel/X closes with no API call; Yes, Cancel runs once with spinner; result toasts unchanged.
 
 ## Notes
-- Full finalize-flow removal stays a separate project (gates in guest/accounts payments, checkout, reports still enforce Bill Ready).
+- Receptionist portals may share the same toast-instead-of-dialog pattern — flagged, untouched in this change.

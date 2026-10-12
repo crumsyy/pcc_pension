@@ -209,13 +209,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
     });
   };
 
-  const showConfirm = (title, message, onConfirm, confirmVariant = 'danger', cancelVariant = 'secondary') => {
+  const showConfirm = (title, message, onConfirm, confirmVariant = 'danger', cancelVariant = 'secondary', confirmText = 'Confirm') => {
     setModalConfig({
       isOpen: true,
-      type: 'warning',
+      type: 'confirm',
       title,
       message,
-      confirmText: 'Confirm',
+      confirmText,
       cancelText: 'Cancel',
       confirmVariant,
       cancelVariant,
@@ -1631,7 +1631,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
-    });
+    }, 'danger', 'secondary', 'Yes, Cancel');
   };
 
   const handleProceedToBooking = (reservation) => {
@@ -1701,7 +1701,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       } catch (err) {
         showAlert('error', 'Error', err.message);
       }
-    });
+    }, 'danger', 'secondary', 'Yes, Cancel');
   };
 
   const handleRequestCheckout = (booking) => {
