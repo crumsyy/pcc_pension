@@ -220,7 +220,9 @@ export async function POST(request) {
       qrCodeUrl: finalQrCodeUrl,
       sourceID: finalSourceID,
       amount: parseAmt,
-      status: 'awaiting_payment'
+      status: 'awaiting_payment',
+      isTestMode: !secretKey.startsWith('sk_live_'),
+      qrLiveReady: (process.env.QRPH_MERCHANT_ACCOUNT || '').replace(/\D/g, '').length >= 10
     });
 
   } catch (error) {

@@ -419,6 +419,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [paymongoLoading, setPaymongoLoading] = useState(false);
   const [paymongoError, setPaymongoError] = useState('');
   const [paymongoStatus, setPaymongoStatus] = useState('idle'); // 'idle' | 'awaiting_payment' | 'paid' | 'failed'
+  const [paymongoTestMode, setPaymongoTestMode] = useState(true);
   const pollingIntervalRef = useRef(null);
 
   // Courtesy Hold States
@@ -1389,6 +1390,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       setPaymongoSourceID(data.sourceID);
       setPaymongoCheckoutUrl(data.checkoutUrl);
       setPaymongoQrUrl(data.qrCodeUrl);
+      setPaymongoTestMode(data.isTestMode !== false);
       setPaymongoStatus('awaiting_payment');
       return data;
     } catch (err) {
@@ -4699,6 +4701,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                           <i className="bi bi-info-circle-fill me-1.5 text-primary"></i>
                           <span>Scan with GCash or any QRPh-compliant app. Amount is pre-set.</span>
                         </div>
+
+                        {paymongoTestMode && (
+                          <div className="alert alert-warning py-2 px-3 small mt-1 mb-2 text-center fw-bold" style={{ fontSize: '0.78rem' }}>
+                            TEST MODE — simulated payment only. Do not pay with real GCash.
+                          </div>
+                        )}
 
                         <button
                           type="button"

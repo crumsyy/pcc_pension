@@ -172,7 +172,13 @@ export async function POST(request) {
       paymongoQrRaw,
       paymentIntentID,
       amount: parseAmt,
-      isTestMode: process.env.PAYMONGO_TEST_MODE !== 'false'
+      isTestMode: process.env.PAYMONGO_TEST_MODE !== 'false',
+      qrFallbackUrl: getQRPhImageURL({
+        amount: parseAmt,
+        reference: fallbackRef,
+        merchantName: 'PCC HOME SUITE HOME'
+      }),
+      qrLiveReady: (process.env.QRPH_MERCHANT_ACCOUNT || '').replace(/\D/g, '').length >= 10
     });
 
   } catch (error) {

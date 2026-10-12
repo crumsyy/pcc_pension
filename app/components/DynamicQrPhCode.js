@@ -52,18 +52,17 @@ export default function DynamicQrPhCode({
           if (data.success && data.paymongoQrUrl) {
             setPaymongoQrUrl(data.paymongoQrUrl);
             setPaymentIntentID(data.paymentIntentID || `pi_${Date.now()}`);
+          } else if (data.success && data.qrFallbackUrl) {
+            // Server-built fallback (correct EMV lengths + CRC) — never hand-build payloads client-side
+            setPaymongoQrUrl(data.qrFallbackUrl);
+            setPaymentIntentID(data.paymentIntentID || `pi_${Date.now()}`);
           } else {
-            // Fallback QR code so payment QR is never unavailable
-            const fallbackQr = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=00020101021228240010ph.ppmi.qr0109090000000520459995303608540${parsedAmount.toFixed(2).length}${parsedAmount.toFixed(2)}5802PH5918PCC+HOME+SUITE+HOME6009KORONADAL62140510${cleanRef.slice(0, 10)}6304`;
-            setPaymongoQrUrl(fallbackQr);
-            setPaymentIntentID(`pi_local_${Date.now()}`);
+            setQrError(data.error || 'Unable to generate payment QR. Please try again.');
           }
         })
         .catch(err => {
           if (isMounted) {
-            const fallbackQr = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=00020101021228240010ph.ppmi.qr0109090000000520459995303608540${parsedAmount.toFixed(2).length}${parsedAmount.toFixed(2)}5802PH5918PCC+HOME+SUITE+HOME6009KORONADAL62140510${cleanRef.slice(0, 10)}6304`;
-            setPaymongoQrUrl(fallbackQr);
-            setPaymentIntentID(`pi_local_${Date.now()}`);
+            setQrError('Network error while generating payment QR. Please try again.');
           }
         })
         .finally(() => {
