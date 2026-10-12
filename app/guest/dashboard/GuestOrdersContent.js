@@ -972,7 +972,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
     }
 
     return (
-      <form onSubmit={handleSubmitOrder}>
+      <form onSubmit={handleSubmitOrder} className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
         {/* CHECK-IN RESTRICTION BANNER */}
         {!isCheckedIn && (
           <div className="alert alert-warning py-2.5 px-3 rounded-3 mb-3 d-flex align-items-center gap-2 border-warning shadow-xs" style={{ fontSize: '0.82rem' }}>
@@ -984,7 +984,8 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
         )}
 
         {/* ITEMS LIST */}
-        <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: isMobileModal ? '350px' : '280px', overflowY: 'auto' }}>
+        <div className="flex-grow-1 overflow-auto pe-1" style={{ minHeight: 0 }}>
+        <div className="d-flex flex-column gap-2 mb-3">
           {cart.map((item, idx) => (
             <div key={idx} className="p-2.5 bg-light rounded-2 border d-flex flex-column gap-2" style={{ fontSize: '0.84rem' }}>
               <div className="d-flex align-items-center justify-content-between">
@@ -1017,20 +1018,27 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
                   <div className="input-group input-group-sm" style={{ width: '90px' }}>
                     <button
                       type="button"
-                      className="btn btn-secondary text-white px-2"
+                      className="btn btn-primary text-white px-2"
                       onClick={() => handleUpdateQty(idx, item.quantity - 1)}
                     >
                       -
                     </button>
                     <input
                       type="text"
-                      readOnly
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       className="form-control text-center fw-bold bg-white"
                       value={item.quantity}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '');
+                        if (digits === '') return;
+                        const parsed = parseInt(digits, 10);
+                        if (!isNaN(parsed) && parsed >= 1) handleUpdateQty(idx, parsed);
+                      }}
                     />
                     <button
                       type="button"
-                      className="btn btn-secondary text-white px-2"
+                      className="btn btn-primary text-white px-2"
                       onClick={() => handleUpdateQty(idx, item.quantity + 1)}
                     >
                       +
@@ -1154,6 +1162,8 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
             </div>
           </div>
         )}
+        </div>
+        <div className="flex-shrink-0 border-top pt-2 mt-1 bg-white">
 
         {/* TOTAL SUMMARY */}
         <div className="p-3 bg-light rounded-2 border mb-3">
@@ -1197,6 +1207,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
           <i className={`bi ${isCheckedIn ? 'bi-send-fill' : 'bi-lock-fill'} me-1.5`}></i>
           <span>{isCheckedIn ? 'Submit Room Order' : 'Ordering Locked (Occupied Stay Required)'}</span>
         </LoadingButton>
+        </div>
       </form>
     );
   };
@@ -1396,7 +1407,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
                 {cart.reduce((s, it) => s + it.quantity, 0)} Items
               </span>
             </div>
-            <div className="flex-grow-1 overflow-auto pe-1" style={{ minHeight: 0 }}>
+            <div className="d-flex flex-column flex-grow-1 overflow-hidden pe-1" style={{ minHeight: 0 }}>
               {renderOrderTrayContent(false)}
             </div>
           </div>

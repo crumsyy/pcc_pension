@@ -777,7 +777,7 @@ function ReceptionistOrdersContent() {
         ) : (
           <div>
             {/* ITEMS LIST */}
-            <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+            <div className="d-flex flex-column gap-2 mb-3">
               {cart.map((item, idx) => (
                 <div key={idx} className="p-2.5 bg-light rounded-2 border d-flex flex-column gap-2" style={{ fontSize: '0.84rem' }}>
                   <div className="d-flex align-items-center justify-content-between">
@@ -812,23 +812,30 @@ function ReceptionistOrdersContent() {
                       </div>
                     </div>
                     <div className="d-flex align-items-center gap-2">
-                      <div className="input-group input-group-sm" style={{ width: '90px' }}>
+                      <div className="input-group input-group-sm" style={{ width: '104px' }}>
                         <button
                           type="button"
-                          className="btn btn-secondary text-white px-2"
+                          className="btn btn-primary text-white px-2"
                           onClick={() => handleUpdateQty(idx, item.quantity - 1)}
                         >
                           -
                         </button>
                         <input
                           type="text"
-                          readOnly
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           className="form-control text-center fw-bold bg-white"
                           value={item.quantity}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, '');
+                            if (digits === '') return;
+                            const parsed = parseInt(digits, 10);
+                            if (!isNaN(parsed) && parsed >= 1) handleUpdateQty(idx, parsed);
+                          }}
                         />
                         <button
                           type="button"
-                          className="btn btn-secondary text-white px-2"
+                          className="btn btn-primary text-white px-2"
                           onClick={() => handleUpdateQty(idx, item.quantity + 1)}
                         >
                           +
@@ -933,7 +940,16 @@ function ReceptionistOrdersContent() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
+  const renderTrayFooter = () => {
+    if (cart.length === 0) return null;
+    return (
+      <div className="flex-shrink-0 border-top pt-3 mt-1 bg-white">
             {/* TOTAL SUMMARY */}
             <div className="p-3 bg-light rounded-2 border mb-3">
               <div className="d-flex justify-content-between mb-1 small text-muted">
@@ -978,8 +994,6 @@ function ReceptionistOrdersContent() {
                 </>
               )}
             </button>
-          </div>
-        )}
       </div>
     );
   };
@@ -1396,6 +1410,7 @@ function ReceptionistOrdersContent() {
               <div className="flex-grow-1 overflow-auto pe-1" style={{ minHeight: 0 }}>
                 {renderOrderTrayContent()}
               </div>
+              {renderTrayFooter()}
             </div>
           </div>
         )}

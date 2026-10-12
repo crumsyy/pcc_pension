@@ -1,12 +1,12 @@
-# Walkthrough — Tray Immediate badge + serving-time meal label
+# Walkthrough — Sticky tray footer, blue steppers, typeable qty
 
-## Changes
-- `GuestOrdersContent.js` + `receptionist/orders/page.js`:
-  - Tray rows: `Immediate` pill removed; `With Breakfast` pill shows only when bundled, nothing when immediate.
-  - Catalog meal cards: pill now shows serving window only (`6:00 AM – 10:30 AM`, clock icon kept).
+## Changes (both `receptionist/orders/page.js` + `GuestOrdersContent.js`)
+1. Pinned footer: totals + Submit moved out of the scroll flow into a fixed footer (totals + submit always visible; items list + scheduling panel scroll above). Single scroller per tray (removed nested 280px caps). Guest keeps everything inside its `<form>`; mobile modal unchanged (scrolls natively).
+2. Qty steppers `btn-secondary` → `btn-primary` (trash stays red).
+3. Qty input editable (`inputMode numeric`): digits-only, empty/NaN ignored, ≥1 committed via existing `handleUpdateQty` (receptionist stock cap + alerts reused).
 
 ## Verification
-- `eslint`: no new issues. `npm run build`: exit 0.
+- `eslint`: no new issues. `npm run build`: exit 0. Nesting order verified (items → footer → submit).
 
 ## No commit/push
 No commit or push made. Awaiting explicit `push` keyword after your review.
