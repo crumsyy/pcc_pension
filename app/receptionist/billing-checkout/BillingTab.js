@@ -252,12 +252,14 @@ export default function ReceptionistBilling() {
     }
   };
 
-  const fetchBillingDetails = async (bookingID) => {
+  const fetchBillingDetails = async (bookingID, silent = true) => {
     if (!bookingID) {
       setBillDetails(null);
       return;
     }
-    setLoadingBill(true);
+    // Silent background refreshes must not flash the loading placeholder —
+    // that unmount/remount is what throws the modal scroll back to the top.
+    if (!silent) setLoadingBill(true);
     try {
       const res = await fetch(`/api/receptionist/billing?bookingID=${bookingID}`);
       const data = await res.json();
@@ -568,6 +570,15 @@ export default function ReceptionistBilling() {
     }
   };
 
+  // Any open bill surface suspends background refresh (see polling effect).
+  const isBillingModalOpen = Boolean(
+    (selectedBookingID && billDetails) ||
+    isEditingDiscounts ||
+    isAddingIncidental ||
+    isReportingDamage ||
+    isSettlingBill
+  );
+
   useEffect(() => {
     const entry = clientCache.get('RECEPTIONIST_BILLING');
     if (entry) {
@@ -588,11 +599,14 @@ export default function ReceptionistBilling() {
     if (bID) {
       setSelectedBookingID(bID);
       setBillDialogTab('billing');
-      fetchBillingDetails(bID);
+      fetchBillingDetails(bID, false);
     }
 
-    // Real-time background sync polling every 6 seconds
+    // Real-time background sync polling every 6 seconds.
+    // Suspended while any bill dialog is open so background refreshes can't
+    // steal modal scroll position mid-edit; mutations refetch explicitly.
     const interval = setInterval(() => {
+      if (isBillingModalOpen) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         fetchActiveBookings(true);
         if (selectedBookingIDRef.current) {
@@ -602,6 +616,7 @@ export default function ReceptionistBilling() {
     }, 6000);
 
     const handleFocus = () => {
+      if (isBillingModalOpen) return;
       fetchActiveBookings(true);
       if (selectedBookingIDRef.current) fetchBillingDetails(selectedBookingIDRef.current);
     };
@@ -618,7 +633,8 @@ export default function ReceptionistBilling() {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('pcc-refresh-billing', handleCustomRefresh);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBillingModalOpen]);
 
   const handleBookingChange = (e) => {
     const bID = e.target.value;
@@ -782,7 +798,7 @@ export default function ReceptionistBilling() {
                                 setSelectedBookingID(b.bookingID);
                                 setBillDialogTab('billing');
                                 syncBookingToUrl(b.bookingID);
-                                fetchBillingDetails(b.bookingID);
+                                fetchBillingDetails(b.bookingID, false);
                               }}
                             >
                               <i className="fa-solid fa-eye"></i>

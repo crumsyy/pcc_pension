@@ -27,6 +27,7 @@ export default function PaymentTerminal({
   const [loadingBill, setLoadingBill] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const paymentSuccessHandledRef = useRef(false);
+  const billedIdRef = useRef('');
 
   const [paymentForm, setPaymentForm] = useState({
     paymentMethodID: '1', // Default Cash
@@ -74,17 +75,19 @@ export default function PaymentTerminal({
     });
   };
 
-  const fetchBillingDetails = async (bID) => {
+  const fetchBillingDetails = async (bID, silent = true) => {
     if (!bID) {
       setBillData(null);
+      billedIdRef.current = '';
       return;
     }
-    setLoadingBill(true);
+    if (!silent) setLoadingBill(true);
     try {
       const res = await fetch(`/api/receptionist/billing?bookingID=${bID}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch billing calculations');
       setBillData(data);
+      billedIdRef.current = bID;
     } catch (err) {
       showAlert('error', 'Billing Notice', err.message);
     } finally {
@@ -96,7 +99,8 @@ export default function PaymentTerminal({
     paymentSuccessHandledRef.current = false;
     setPaymentForm(prev => ({ ...prev, cashReceived: '' }));
     if (bookingID) {
-      fetchBillingDetails(bookingID);
+      // Skeleton only when switching to a bill we have nothing for yet.
+      fetchBillingDetails(bookingID, billedIdRef.current === bookingID);
     } else {
       setBillData(null);
     }
