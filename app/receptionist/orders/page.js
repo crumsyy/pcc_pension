@@ -1308,9 +1308,6 @@ function ReceptionistOrdersContent() {
                   <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
                     <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <span className="p-1.5 px-2.5 rounded bg-warning-subtle text-warning-emphasis small fw-bold d-flex align-items-center gap-1.5">
-                          <i className="bi bi-egg-fried"></i> Breakfast
-                        </span>
                         <span>Cooked Meals (Scheduled Delivery)</span>
                       </h5>
                       <small className="text-muted d-none d-sm-inline">Serving Window: 6:00 AM – 10:30 AM</small>
@@ -1335,9 +1332,6 @@ function ReceptionistOrdersContent() {
                   <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
                     <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <span className="p-1.5 px-2.5 rounded bg-info-subtle text-info-emphasis small fw-bold d-flex align-items-center gap-1.5">
-                          <i className="bi bi-cup-straw"></i> Minibar &amp; Store
-                        </span>
                         <span>Beverages &amp; Snacks (Immediate Delivery)</span>
                       </h5>
                       <small className="text-muted d-none d-sm-inline">Immediate room service</small>
@@ -1362,9 +1356,6 @@ function ReceptionistOrdersContent() {
                   <div className="card shadow-sm border border-secondary-subtle rounded-3 p-3 p-md-4 bg-white mb-2">
                     <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                       <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                        <span className="p-1.5 px-2.5 rounded bg-primary-subtle text-primary small fw-bold d-flex align-items-center gap-1.5">
-                          <i className="bi bi-box2-heart"></i> Guest Service
-                        </span>
                         <span>Hotel Amenities</span>
                       </h5>
                       <small className="text-muted d-none d-sm-inline">Towels, toiletries &amp; extra accessories</small>
