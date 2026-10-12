@@ -2426,23 +2426,17 @@ body.dark-theme .qr-payment-container h4 {
   margin-bottom: 0;
 }
 
-/* Updated Calendar Status Colors: Reserved (Yellow), Courtesy Hold (Orange), Booked (Green), Occupied (Blue), Under Maintenance (Red) */
+/* Calendar Status Colors: Booked (Sky Blue), Reserved incl. holds (Yellow), Occupied (Blue), Under Maintenance (Red) */
 .calendar-status-reserved {
   background-color: #fff3cd !important;
   border: 1px solid #ffc107 !important;
   color: #664d03 !important;
 }
 
-.calendar-status-courtesy-hold {
-  background-color: #ffe8cc !important;
-  border: 1px solid #fd7e14 !important;
-  color: #d9480f !important;
-}
-
 .calendar-status-booked {
-  background-color: #d1e7dd !important;
-  border: 1px solid #198754 !important;
-  color: #0f5132 !important;
+  background-color: #cff4fc !important;
+  border: 1px solid #0dcaf0 !important;
+  color: #055160 !important;
 }
 
 .calendar-status-occupied {

@@ -7,9 +7,8 @@ import React, { useState, useEffect, useMemo } from 'react';
  * Read-only visual overview of room availability and schedules.
  * - Non-interactive day grid (pointer-events: none) to prevent accidental clicks
  * - Highlights room statuses:
- *   - Booked → Green highlight (#198754)
- *   - Courtesy Hold → Orange highlight (#fd7e14)
- *   - Reserved → Yellow highlight (#ffc107)
+ *   - Booked → Sky blue highlight (#0dcaf0)
+ *   - Reserved (incl. all hold variants) → Yellow highlight (#ffc107)
  *   - Occupied → Blue highlight (#0d6efd)
  *   - Under Maintenance → Red highlight (#dc3545)
  * - Dual Date Highlighting:
@@ -142,10 +141,9 @@ export default function ReservationCalendar({
       const schedType = (sched.type || '').toLowerCase();
 
       const statusPriority = {
-        'Occupied': 5,
-        'Booked': 4,
-        'Reserved': 3,
-        'Courtesy Hold': 2,
+        'Occupied': 4,
+        'Booked': 3,
+        'Reserved': 2,
         'Under Maintenance': 1
       };
 
@@ -161,11 +159,7 @@ export default function ReservationCalendar({
         mappedStatus = 'Occupied';
         label = 'Occupied';
         statusClass = 'calendar-status-occupied';
-      } else if (rawStatus.includes('courtesy') || rawStatus === 'courtesy hold' || (sched.isCourtesyHold && rawStatus !== 'cancelled' && rawStatus !== 'released')) {
-        mappedStatus = 'Courtesy Hold';
-        label = 'Hold';
-        statusClass = 'calendar-status-courtesy-hold';
-      } else if (schedType === 'reservation' || rawStatus.includes('reserv') || rawStatus.includes('pending') || rawStatus.includes('confirmed')) {
+      } else if (schedType === 'reservation' || rawStatus.includes('reserv') || rawStatus.includes('pending') || rawStatus.includes('confirmed') || rawStatus.includes('hold') || rawStatus.includes('courtesy') || (sched.isCourtesyHold && rawStatus !== 'cancelled' && rawStatus !== 'released')) {
         mappedStatus = 'Reserved';
         label = 'Reserved';
         statusClass = 'calendar-status-reserved';
@@ -313,7 +307,6 @@ export default function ReservationCalendar({
             const statusInfo = dateStatusMap[dateStr];
             const hasStatus = !isPastDate && !!statusInfo;
             const compactLabel = statusInfo ? (
-              statusInfo.label === 'Courtesy Hold' ? 'Hold' :
               statusInfo.label === 'Under Maintenance' ? 'Maint' :
               statusInfo.label
             ) : '';
@@ -467,12 +460,8 @@ export default function ReservationCalendar({
           <span className="text-danger fw-bold">Conflict</span>
         </div>
         <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#198754', border: '1px solid #0f5132' }}></span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0dcaf0', border: '1px solid #0e94b8' }}></span>
           <span className="text-muted fw-semibold">Booked</span>
-        </div>
-        <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fd7e14', border: '1px solid #d9480f' }}></span>
-          <span className="text-muted fw-semibold">Courtesy Hold</span>
         </div>
         <div className="d-inline-flex align-items-center gap-1.5 px-2 py-1 rounded bg-light border">
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffc107', border: '1px solid #d39e00' }}></span>
