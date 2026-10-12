@@ -1,17 +1,19 @@
-# Walkthrough — Deterministic sticky tray box
+# Walkthrough — Sticky-free orders shell
 
-## Changes (both order files)
-- Content row: explicit `align-items-start`.
-- Tray column: `height: fit-content` + sticky/top/cap (deterministic capped box for the card + internal scroll + pinned footer to work against).
+## Changes
+- `globals.css`: new desktop-only (`≥992px`) shell classes — page flex column `height:100%`, row `flex:1/min-height:0`, catalog column internal scroll, tray column fit-content + cap. Mobile unchanged.
+- Both order pages: shell classes attached; tray sticky kept as harmless fallback; no logic changes.
+
+## Why this round is different
+- Three sticky variants failed inside this app shell, so sticky is no longer load-bearing: the page itself can't scroll past the viewport on desktop — catalog scrolls left, tray sits right with its pinned footer.
 
 ## Verification
 - `eslint`: no new issues. `npm run build`: exit 0.
 
-## Deploy proof protocol (important)
-1. Deploy, then hard refresh (Ctrl+Shift+R).
-2. Backspace a qty to empty — must clear (proves latest bundle; stale bundles ignore backspace).
-3. Add breakfast → Submit must stay visible without page scroll.
-4. If it still fails after confirmed-latest bundle, screenshot again — then it's environmental and I'll switch strategy (fixed-height app-shell row).
+## Deploy protocol
+1. Deploy, hard refresh (Ctrl+Shift+R).
+2. Bundle proof: backspace a qty to empty (must clear).
+3. Breakfast in tray → no page scroll; catalog scrolls independently; Submit always visible.
 
 ## No commit/push
 No commit or push made. Awaiting explicit `push` keyword after your review.

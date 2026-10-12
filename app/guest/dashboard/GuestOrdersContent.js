@@ -1232,7 +1232,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
   };
 
   return (
-    <div className="animate__animated animate__fadeIn">
+    <div className="animate__animated animate__fadeIn orders-workspace-shell">
       {/* TOP HEADER */}
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2 border-bottom pb-3">
         <div>
@@ -1324,9 +1324,9 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
       </div>
 
       {/* MAIN CONTENT AREA: CATALOG + CART */}
-      <div className="row g-4 align-items-start">
+      <div className="row g-4 align-items-start orders-workspace-row">
         {/* CATALOG COLUMN */}
-        <div className={`col-12 col-md-7 col-lg-7 col-xl-8 ${cart.length > 0 ? 'pb-5 mb-4' : ''}`}>
+        <div className={`col-12 col-md-7 col-lg-7 col-xl-8 orders-catalog-col ${cart.length > 0 ? 'pb-5 mb-4' : ''}`}>
           {activeCategory === 'history' ? (
             <OrderHistoryTable
               orders={orderHistory}
@@ -1415,7 +1415,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
         </div>
 
         {/* ORDER TRAY / CART COLUMN (DESKTOP) */}
-        <div className="col-12 col-md-5 col-lg-5 col-xl-4 d-none d-md-block align-self-start" style={{ position: 'sticky', top: '28px', height: 'fit-content', maxHeight: 'calc(100vh - 56px)' }}>
+        <div className="col-12 col-md-5 col-lg-5 col-xl-4 d-none d-md-block align-self-start orders-tray-col" style={{ position: 'sticky', top: '28px', height: 'fit-content', maxHeight: 'calc(100vh - 56px)' }}>
           <div className="card border border-secondary-subtle shadow-sm rounded-3 bg-white p-4 pcc-order-tray d-flex flex-column mt-1 overflow-hidden" style={{ maxHeight: 'calc(100vh - 56px)' }}>
             <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 flex-shrink-0">
               <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
