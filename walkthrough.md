@@ -1,10 +1,10 @@
-# Walkthrough — Guest desktop header bar
+# Walkthrough — Guest profile dropdown (mobile + desktop)
 
 ## Changes
-- New `app/guest/dashboard/GuestHeader.js` (desktop only, `d-none d-lg-flex`): sticky pcc-blue bar with eyebrow + per-tab title, tab search with Ctrl+K, bell with unread badge → notifications tab, `ThemeToggle`, `HeaderProfile`.
-- `GuestDashboardClient.js`: desktop right side wrapped in flex column with `GuestHeader` above `main`. Mobile layout untouched.
-- Notes: staff `NotificationBell` not reused (hardcodes staff URLs); search covers tabs only, no room-record search.
+- New `GuestProfileMenu.js`: pill button (avatar + ellipsis-capped name + chevron) with Profile / Log Out dropdown; closes on outside click / Escape.
+- `GuestDashboardClient.js`: mobile bar uses menu (name capped at 110px, logout icon button removed); extracted `openEditProfile()` reused by Account tab button; unused `HeaderProfile` import removed.
+- `GuestHeader.js`: desktop header uses same menu (140px cap) with `onProfile`/`onLogout` wired to the same modals.
 
 ## Verification
 - `npm run build` → success.
-- Manual: desktop header visible on all tabs with correct titles; search jumps tabs; bell badge mirrors sidebar; mobile unchanged.
+- Manual: mobile name fits; both menus open Profile modal and logout confirm correctly.

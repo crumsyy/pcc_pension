@@ -1,25 +1,21 @@
-# Implementation Plan — Guest desktop header bar (for approval)
+# Implementation Plan — Guest profile dropdown (mobile + desktop) (for approval)
 
 > RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
 ## 1. Request (Image 1)
-Desktop guest portal has sidebar + content but no top header bar, unlike receptionist/admin. Add a matching sticky header on desktop only; mobile keeps its existing top nav.
+Mobile header profile name truncates awkwardly; make it fit and make the profile chip clickable with a Profile + Log Out dropdown — same behavior on desktop header.
 
-## 2. Findings
-- Staff header (`SidebarClient.js:438`): sticky pcc-blue bar with eyebrow+title, Ctrl+K command palette (pages + rooms), `NotificationBell`, `ThemeToggle`, profile dropdown.
-- Staff `NotificationBell` routes to staff URLs (`/receptionist/...`, `/admin/...`, `/guest/inquiries` which doesn't exist) — **not reusable** for guests. Guest header gets its own bell button (unread badge from existing `unreadCount`, click → notifications tab).
-- `ThemeToggle` and `HeaderProfile` are already imported in `GuestDashboardClient.js` — reusable as-is.
-
-## 3. Proposed changes
-1. **New `app/guest/dashboard/GuestHeader.js`**: `d-none d-lg-flex` sticky pcc-blue bar — left: eyebrow `Hotel Guest Portal` + per-tab title (Home/Rooms/Bookings/Orders/Notifications/Account); center: search field (Ctrl+K to focus) filtering `NAV_ITEMS`, Enter navigates via `setActiveTab`; right: bell with unread badge → notifications tab, `ThemeToggle`, `HeaderProfile`.
-2. **`GuestDashboardClient.js`**: wrap desktop right side in a flex column (`sidebar + (header + main)`); render `GuestHeader` above `main` on desktop only. No mobile changes, no API changes.
+## 2. Proposed changes
+1. **New `app/guest/dashboard/GuestProfileMenu.js`**: pill button (avatar + name with `max-width`/ellipsis, smaller capped width on mobile, chevron) toggling a dropdown with **Profile** (opens existing in-dashboard Edit Profile modal, prefilled exactly like the Account tab button) and **Log Out** (existing logout confirm modal). Closes on outside click / Escape; shared by both headers.
+2. **`GuestDashboardClient.js` (mobile nav)**: replace static `HeaderProfile` + standalone logout icon button with `GuestProfileMenu`.
+3. **`GuestHeader.js` (desktop)**: replace static `HeaderProfile` with `GuestProfileMenu` (wider cap, same menu). Add an `openEditProfile()` helper in the client (extract prefill logic) reused by Account tab button + both menus.
 
 ## 3. Verification
-- Desktop shows header matching staff portals; search jumps tabs; bell badge mirrors sidebar count; theme toggle works from header; `npm run build` passes.
-- Mobile layout untouched.
+- Mobile: name fits without pushing logout off-screen; tap opens Profile/Log Out menu; both actions work.
+- Desktop header menu identical; `npm run build` passes.
 
 ## 4. Risks
-- Low: new presentational component + layout wrapper; tab search only (no room-record search — proposed follow-up).
+- Low: new component + two swaps; modal flows reused unchanged.
 
 ## 5. Questions
-- Q1: Proceed? Q2: Tab-only search OK, or include room-number search too?
+- Q1: Proceed?

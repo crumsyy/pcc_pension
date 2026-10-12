@@ -8,6 +8,7 @@ import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import GuestBottomNav from './GuestBottomNav';
 import GuestHeader from './GuestHeader';
+import GuestProfileMenu from './GuestProfileMenu';
 import GuestSidebarNav from './GuestSidebarNav';
 import ThemeToggle from '../../components/ThemeToggle';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
@@ -23,7 +24,6 @@ import ActiveStayPanel from './ActiveStayPanel';
 import PaymentModal from './PaymentModal';
 import StatusBadge, { normalizeBookingStatus, normalizeReservationStatus } from '../../components/StatusBadge';
 import './styles.css';
-import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
 import { generateReceiptPNG } from '@/app/paymongo/test/page';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber, formatTo12Hour, formatDateTime12H, formatCurrency } from '@/lib/formatters';
@@ -607,6 +607,21 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
   const handleModalRemoveProfilePic = () => {
     setEditProfileForm(prev => ({ ...prev, profilePicture: '' }));
+  };
+
+  const openEditProfile = () => {
+    setEditProfileForm({
+      firstName: guest.firstName || '',
+      middleName: guest.middleName || '',
+      lastName: guest.lastName || '',
+      contact: guest.contact || '',
+      gender: guest.gender || 'Other',
+      dateOfBirth: guest.dateOfBirth ? String(guest.dateOfBirth).substring(0, 10) : '',
+      city: guest.city || '',
+      province: guest.province || '',
+      profilePicture: guest.profilePicture || ''
+    });
+    setShowEditProfileModal(true);
   };
 
   const router = useRouter();
@@ -2540,15 +2555,12 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <span className="fw-bold display-font d-none d-sm-inline" style={{ fontSize: '1.05rem', color: '#ffffff' }}>PCC Home Suite</span>
               </Link>
               <div className="d-flex align-items-center gap-2 gap-sm-3">
-                <HeaderProfile user={guest} />
-                <button
-                  className="btn btn-sm text-white border-0 px-2 py-1"
-                  title="Log Out"
-                  aria-label="Log Out"
-                  onClick={() => setShowLogoutModal(true)}
-                >
-                  <i className="bi bi-power fs-5"></i>
-                </button>
+                <GuestProfileMenu
+                  guest={guest}
+                  maxNameWidth={110}
+                  onProfile={openEditProfile}
+                  onLogout={() => setShowLogoutModal(true)}
+                />
               </div>
             </div>
           </nav>
@@ -2565,6 +2577,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             }}
             unreadCount={unreadCount}
             guest={guest}
+            onProfile={openEditProfile}
+            onLogout={() => setShowLogoutModal(true)}
           />
         )}
         <main className={`flex-grow-1 p-3 p-lg-4 pcc-content-reveal ${!isDesktop ? 'pb-5 mb-4' : ''}`} style={{ minWidth: 0, paddingBottom: !isDesktop ? '95px' : undefined }}>
@@ -3619,20 +3633,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <div className="col-12 col-md-6">
                     <button
                       type="button"
-                      onClick={() => {
-                        setEditProfileForm({
-                          firstName: guest.firstName || '',
-                          middleName: guest.middleName || '',
-                          lastName: guest.lastName || '',
-                          contact: guest.contact || '',
-                          gender: guest.gender || 'Other',
-                          dateOfBirth: guest.dateOfBirth ? String(guest.dateOfBirth).substring(0, 10) : '',
-                          city: guest.city || '',
-                          province: guest.province || '',
-                          profilePicture: guest.profilePicture || ''
-                        });
-                        setShowEditProfileModal(true);
-                      }}
+                      onClick={openEditProfile}
                       className="btn btn-pcc-primary text-white w-100 text-start p-3 fw-bold d-flex justify-content-between align-items-center shadow-sm h-100"
                       style={{ borderRadius: '12px' }}
                     >

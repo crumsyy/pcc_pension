@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import ThemeToggle from '../../components/ThemeToggle';
-import HeaderProfile from '../../components/HeaderProfile';
+import GuestProfileMenu from './GuestProfileMenu';
 import { NAV_ITEMS } from './navConfig';
 
 const TAB_TITLES = {
@@ -15,7 +15,7 @@ const TAB_TITLES = {
   account: 'My Account'
 };
 
-export default function GuestHeader({ activeTab, onNavigate, unreadCount = 0, guest }) {
+export default function GuestHeader({ activeTab, onNavigate, unreadCount = 0, guest, onProfile, onLogout }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -145,7 +145,7 @@ export default function GuestHeader({ activeTab, onNavigate, unreadCount = 0, gu
         </button>
         <ThemeToggle />
         <span style={{ borderLeft: '1px solid rgba(255,255,255,0.25)', paddingLeft: '15px' }}>
-          <HeaderProfile user={guest} />
+          <GuestProfileMenu guest={guest} maxNameWidth={140} onProfile={onProfile} onLogout={onLogout} />
         </span>
       </div>
     </header>
