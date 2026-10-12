@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { clientCache, CACHE_TTL } from '@/lib/clientCache';
+import { toPublicUserCode, toPublicGuestCode, toPublicBookingCode, toPublicReservationCode } from '@/lib/publicCodes';
 import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
@@ -1217,7 +1218,7 @@ function ReservationsClient() {
                     <>
                       <tr key={r.reservationID} className={isExpanded ? 'table-light' : ''}>
                         <td className="fw-bold">
-                          <span className="text-dark">#{r.reservationID}</span>
+                          <span className="text-dark">{toPublicReservationCode(r.reservationID)}</span>
                           {r.isCourtesyHold ? <small className="badge bg-warning-subtle text-dark border ms-1" style={{ fontSize: '0.68rem' }}>Hold</small> : null}
                         </td>
                         <td>
@@ -1241,7 +1242,7 @@ function ReservationsClient() {
                         <td>
                           {r.bookingID ? (
                             <span className="badge bg-success text-white">
-                              <i className="fa-solid fa-check me-1"></i> Booked (#{r.bookingID})
+                              <i className="fa-solid fa-check me-1"></i> Booked ({toPublicBookingCode(r.bookingID)})
                             </span>
                           ) : (
                             <span className={`badge ${getStatusBadge(r.status)}`}>{r.status}</span>
@@ -1274,7 +1275,7 @@ function ReservationsClient() {
                               <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                                 <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                                   <i className="bi bi-bookmark-fill text-primary"></i>
-                                  <span>Historical Reservation Record: #{r.reservationID}</span>
+                                  <span>Historical Reservation Record: {toPublicReservationCode(r.reservationID)}</span>
                                   <span className="badge bg-light text-dark border ms-1">Room {r.roomNumber} ({r.roomType})</span>
                                 </h6>
                                 <div className="d-flex align-items-center gap-2">
@@ -1398,12 +1399,12 @@ function ReservationsClient() {
                     If not confirmed with payment, it will be automatically released after a 30-minute grace period.
                   </div>
 
-                  {/* TOP: SELECT GUEST ACCOUNT (UID) */}
+                  {/* TOP: SELECT GUEST ACCOUNT */}
                   <div className="p-3 mb-3 border rounded bg-light">
                     <div className="d-flex align-items-center justify-content-between mb-1">
                       <label className="form-label fw-bold text-dark mb-0">
                         <i className="bi bi-person-badge text-pcc-primary me-1.5"></i>
-                        Select Guest Account (UID)
+                        Select Guest Account
                       </label>
                       {isAutoFilled && formData.guestID && (
                         <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
@@ -1414,11 +1415,11 @@ function ReservationsClient() {
                     <SearchableSelect
                       options={guests.map(g => ({
                         value: String(g.guestID),
-                        label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
+                        label: `${g.userID ? toPublicUserCode(g.userID, 'Guest') : toPublicGuestCode(g.guestID)} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
                       }))}
                       value={formData.guestID}
                       onChange={handleUidChange}
-                      placeholder="Type UID, guest name or contact to search..."
+                      placeholder="Type guest ID, name or contact to search..."
                     />
                     <div className="form-text text-muted small mt-1">
                       <i className="bi bi-info-circle me-1"></i>

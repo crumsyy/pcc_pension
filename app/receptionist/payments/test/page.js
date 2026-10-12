@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 import Link from 'next/link';
 
 export default function ReceptionistTestPaymentPage() {
@@ -183,7 +184,7 @@ export default function ReceptionistTestPaymentPage() {
                   <option value="">-- Standalone Simulation (No Booking Linked) --</option>
                   {activeBookings.map(b => (
                     <option key={b.bookingID} value={b.bookingID}>
-                      Room {b.roomNumber} • {b.lastName}, {b.firstName} (Booking #{b.bookingID})
+                      Room {b.roomNumber} • {b.lastName}, {b.firstName} ({toPublicBookingCode(b.bookingID)})
                     </option>
                   ))}
                 </select>
@@ -307,7 +308,7 @@ export default function ReceptionistTestPaymentPage() {
                 {receipt.bookingID && (
                   <div className="d-flex justify-content-between mb-1.5">
                     <span className="text-muted">Target Booking:</span>
-                    <strong className="text-dark">Booking #{receipt.bookingID}</strong>
+                    <strong className="text-dark">{toPublicBookingCode(receipt.bookingID)}</strong>
                   </div>
                 )}
                 {receipt.balanceAfter !== undefined && (

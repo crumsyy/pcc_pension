@@ -6,7 +6,7 @@ export default function SearchableSelect({
   options = [], 
   value, 
   onChange, 
-  placeholder = "Type UID, guest name or contact to search...", 
+  placeholder = "Type guest ID, name or contact to search...",
   disabled, 
   emptyLabel = "No registered guest account found" 
 }) {
@@ -94,12 +94,16 @@ export default function SearchableSelect({
             const trimmed = rawVal.trim().toLowerCase();
             if (trimmed.length > 0) {
               setIsOpen(true);
-              // Check for exact UID or account match
+              // Check for exact public-code (GST-/STF-/BKG-/RSV-/TXN-/ORD-) or legacy UID match
               const cleanQuery = trimmed.replace(/^uid[-:\s]*/i, '');
+              const codePattern = /^(gst|stf|bkg|rsv|txn|ord)-[a-z0-9]{1,6}$/i;
               const exactMatch = safeOptions.find(opt => {
                 const optVal = String(opt?.value || '').toLowerCase();
                 const optLabel = (opt?.label || '').toLowerCase();
                 const optKeywords = (opt?.searchKeywords || '').toLowerCase();
+                if (codePattern.test(trimmed) && (optLabel.includes(trimmed) || optKeywords.includes(trimmed))) {
+                  return true;
+                }
                 return optVal === trimmed || 
                        optLabel.startsWith(`uid${trimmed} `) || 
                        optLabel.startsWith(`uid${trimmed}–`) ||

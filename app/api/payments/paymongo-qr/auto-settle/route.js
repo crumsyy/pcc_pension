@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, getBookingBalance, syncInventoryStock, ensureTestModeSchema, logBillingAudit } from '@/lib/db';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 export async function POST(request) {
   try {
@@ -209,7 +210,7 @@ export async function POST(request) {
         for (const s of staffUsers) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'GCash Payment Received', ?)",
-            [s.userID, `GCash payment of ₱${amount.toFixed(2)} automatically received${targetBookingID ? ` for Booking #${targetBookingID}` : ''}.`]
+            [s.userID, `GCash payment of ₱${amount.toFixed(2)} automatically received${targetBookingID ? ` for ${toPublicBookingCode(targetBookingID)}` : ''}.`]
           );
         }
       } catch (e) {

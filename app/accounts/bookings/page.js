@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import StatusBadge, { normalizeBookingStatus, getStatusBadgeStyle, BOOKING_STATUSES } from '@/app/components/StatusBadge';
 import ModalPortal from '@/app/components/ModalPortal';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 export default function AccountsBookingsPage() {
   const [bookings, setBookings] = useState([]);
@@ -54,7 +55,7 @@ export default function AccountsBookingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to process payment');
 
-      setPaymentNotice(`Payment authorized for Booking #${booking.bookingID}. Status: Bill Ready.`);
+      setPaymentNotice(`Payment authorized for ${toPublicBookingCode(booking.bookingID)}. Status: Bill Ready.`);
       fetchBookings();
     } catch (err) {
       alert(err.message);
@@ -198,7 +199,7 @@ export default function AccountsBookingsPage() {
                     return (
                       <tr key={b.bookingID}>
                         <td>
-                          <span className="badge bg-light text-dark border">#{b.bookingID}</span>
+                          <span className="badge bg-light text-dark border">{toPublicBookingCode(b.bookingID)}</span>
                         </td>
                         <td>
                           <div className="fw-bold text-dark">{b.firstName} {b.lastName}</div>
@@ -276,7 +277,7 @@ export default function AccountsBookingsPage() {
             <div className="modal-content border-0 shadow">
               <div className="modal-header border-bottom">
                 <h5 className="modal-title fw-bold text-dark">
-                  Booking #{selectedBooking.bookingID} Details
+                  {toPublicBookingCode(selectedBooking.bookingID)} Details
                 </h5>
                 <button type="button" className="btn-close" onClick={() => setSelectedBooking(null)}></button>
               </div>

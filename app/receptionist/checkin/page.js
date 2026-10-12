@@ -6,6 +6,7 @@ import { clientCache, CACHE_TTL } from '@/lib/clientCache';
 import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import ReservationCalendar from '../../components/ReservationCalendar';
+import { toPublicUserCode, toPublicGuestCode, toPublicBookingCode } from '@/lib/publicCodes';
 
 function CheckInClient() {
   const searchParams = useSearchParams();
@@ -418,7 +419,7 @@ function CheckInClient() {
                     <div key={b.bookingID} id={`arrival-booking-${b.bookingID}`} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3 mb-2 border rounded">
                       <div>
                         <div className="fw-bold text-dark">
-                          {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>User ID: #{b.userID || b.guestID}</span>
+                          {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>{b.userID ? toPublicUserCode(b.userID, 'Guest') : toPublicGuestCode(b.guestID)}</span>
                         </div>
                         <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType})</small>
                         <small className="text-muted d-block">
@@ -483,9 +484,9 @@ function CheckInClient() {
                         <div className="d-flex justify-content-between align-items-start mb-2">
                           <div>
                             <div className="fw-bold text-dark">
-                              {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>User ID: #{b.userID || b.guestID}</span>
+                              {b.firstName} {b.lastName} <span className="badge bg-secondary font-monospace text-white ms-1" style={{ fontSize: '0.7rem' }}>{b.userID ? toPublicUserCode(b.userID, 'Guest') : toPublicGuestCode(b.guestID)}</span>
                             </div>
-                            <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType}) • Stay #{b.bookingID}</small>
+                            <small className="text-muted d-block">Room: <strong>{b.roomNumber}</strong> ({b.roomType}) • Stay {toPublicBookingCode(b.bookingID)}</small>
                             <small className="text-muted d-block">Check-out Schedule: {new Date(b.checkOutDateTime).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</small>
                             <small className="d-block mt-1">
                               Remaining Balance: <strong className={b.remainingBalance > 0 ? "text-danger" : "text-success"}>₱{parseFloat(b.remainingBalance || 0).toFixed(2)}</strong>
@@ -584,7 +585,7 @@ function CheckInClient() {
                         <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.92rem' }}>
                           <i className="fa-solid fa-user me-1 text-primary"></i>
                           {updateModal.booking.firstName} {updateModal.booking.lastName}
-                          <span className="text-muted ms-1 fw-normal">(User ID: #{updateModal.booking.userID || updateModal.booking.guestID})</span>
+                          <span className="text-muted ms-1 fw-normal">({updateModal.booking.userID ? toPublicUserCode(updateModal.booking.userID, 'Guest') : toPublicGuestCode(updateModal.booking.guestID)})</span>
                         </div>
                         <div className="d-flex align-items-center gap-2 text-muted">
                           <span><i className="fa-solid fa-door-closed me-1"></i>Room <strong>{updateModal.booking.roomNumber}</strong> ({updateModal.booking.roomType})</span>

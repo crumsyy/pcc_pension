@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 function ReceptionistCheckoutContent() {
   const [bookings, setBookings] = useState([]);
@@ -98,7 +99,7 @@ function ReceptionistCheckoutContent() {
                           {b.firstName} {b.lastName}
                         </h6>
                         <span className="text-secondary small font-monospace">
-                          Room {b.roomNumber} ({b.roomType}) • Stay #{b.bookingID}
+                          Room {b.roomNumber} ({b.roomType}) • Stay {toPublicBookingCode(b.bookingID)}
                         </span>
                       </div>
                       <span className={`badge ${

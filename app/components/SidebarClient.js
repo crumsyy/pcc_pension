@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { CommandGroup, CommandItem } from '@/components/ui/command';
 import { ADMIN_NAV, RECEPTIONIST_NAV, pageTitleFor } from '@/lib/portalMeta';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 import {
   Dialog,
   DialogTrigger,
@@ -94,9 +95,9 @@ export default function SidebarClient({ session, role, children }) {
           setRoomResults(all.filter((b) =>
             `${b.roomNumber || ''} ${b.firstName || ''} ${b.lastName || ''} ${b.bookingID || ''} ${b.status || ''}`.toLowerCase().includes(ql)
           ).slice(0, 6).map((b) => ({
-            label: `BK-${b.bookingID} · Room ${b.roomNumber} (${b.status || ''})`,
+            label: `${toPublicBookingCode(b.bookingID)} · Room ${b.roomNumber} (${b.status || ''})`,
             hint: `${b.firstName || ''} ${b.lastName || ''}`.trim(),
-            keywords: `booking ${b.bookingID} room ${b.roomNumber} ${b.firstName || ''} ${b.lastName || ''}`,
+            keywords: `booking ${b.bookingID} ${toPublicBookingCode(b.bookingID)} room ${b.roomNumber} ${b.firstName || ''} ${b.lastName || ''}`,
             path: `/receptionist/bookings?search=${encodeURIComponent(query)}`,
           })));
         }

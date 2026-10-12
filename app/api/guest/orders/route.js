@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, logBillingAudit, ensureOrdersSchema, ensureProfilePictureSchema, syncNormalizedBillingLineItems } from '@/lib/db';
+import { toPublicOrderCode } from '@/lib/publicCodes';
 
 // In-memory catalog cache with 60s TTL
 let catalogCache = null;
@@ -600,7 +601,7 @@ export async function POST(request) {
         }
 
         grandTotalOrderAmount += groupTotal;
-        allOrderSummaries.push(`Order #${orderID} (${group.deliveryType === 'scheduled' ? `Scheduled • ${group.deliveryTime}` : 'Immediate'}): ${groupSummaryList.join(', ')}`);
+        allOrderSummaries.push(`${toPublicOrderCode(orderID)} (${group.deliveryType === 'scheduled' ? `Scheduled • ${group.deliveryTime}` : 'Immediate'}): ${groupSummaryList.join(', ')}`);
       }
 
       const balanceAfter = Math.round((balanceBefore + grandTotalOrderAmount) * 100) / 100;
@@ -644,7 +645,7 @@ export async function POST(request) {
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'New Guest Room Order', ?)",
-          [r.userID, `Guest ${guest.firstName} ${guest.lastName} placed Order #${primaryOrderID}: ${summaryText} (₱${grandTotalOrderAmount.toFixed(2)}).`]
+          [r.userID, `Guest ${guest.firstName} ${guest.lastName} placed ${toPublicOrderCode(primaryOrderID)}: ${summaryText} (₱${grandTotalOrderAmount.toFixed(2)}).`]
         );
       }
 
@@ -653,7 +654,7 @@ export async function POST(request) {
 
       return NextResponse.json({
         success: true,
-        message: `Order #${primaryOrderID} placed successfully! Total: ₱${grandTotalOrderAmount.toFixed(2)}`,
+        message: `${toPublicOrderCode(primaryOrderID)} placed successfully! Total: ₱${grandTotalOrderAmount.toFixed(2)}`,
         orderID: primaryOrderID,
         orderIDs: createdOrderIDs,
         totalAmount: grandTotalOrderAmount,
@@ -713,7 +714,7 @@ export async function PATCH(request) {
     const nonModifiable = ['preparing', 'served', 'completed', 'delivered', 'canceled', 'cancelled'];
     if (nonModifiable.some(s => currentStatus.includes(s))) {
       return NextResponse.json({
-        error: `Order #${orderID} is already ${currentOrder.orderStatus} and can no longer be modified.`
+        error: `${toPublicOrderCode(orderID)} is already ${currentOrder.orderStatus} and can no longer be modified.`
       }, { status: 400 });
     }
 
@@ -859,7 +860,7 @@ export async function PATCH(request) {
         for (const r of staffToNotify) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Order Delivery Mode Updated', ?)",
-            [r.userID, `Guest ${guest.firstName} ${guest.lastName} updated delivery mode for Order #${orderID} to ${finalDeliveryType.toUpperCase()}${finalDeliveryType === 'scheduled' ? ` (${finalDeliveryTime})` : ''}.`]
+            [r.userID, `Guest ${guest.firstName} ${guest.lastName} updated delivery mode for ${toPublicOrderCode(orderID)} to ${finalDeliveryType.toUpperCase()}${finalDeliveryType === 'scheduled' ? ` (${finalDeliveryTime})` : ''}.`]
           );
         }
       } catch (ne) {
@@ -932,7 +933,7 @@ export async function DELETE(request) {
     const nonCancellable = ['preparing', 'served', 'completed', 'delivered'];
     if (nonCancellable.some(s => currentStatus.includes(s))) {
       return NextResponse.json({
-        error: `Order #${orderID} is already ${currentOrder.orderStatus} and can no longer be canceled.`
+        error: `${toPublicOrderCode(orderID)} is already ${currentOrder.orderStatus} and can no longer be canceled.`
       }, { status: 400 });
     }
 
@@ -991,7 +992,7 @@ export async function DELETE(request) {
         for (const r of staffToNotify) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Scheduled Order Canceled', ?)",
-            [r.userID, `Guest ${guest.firstName} ${guest.lastName} canceled scheduled Order #${orderID} (Delivery: ${currentOrder.deliveryDate} ${currentOrder.deliveryTime || ''}).`]
+            [r.userID, `Guest ${guest.firstName} ${guest.lastName} canceled scheduled ${toPublicOrderCode(orderID)} (Delivery: ${currentOrder.deliveryDate} ${currentOrder.deliveryTime || ''}).`]
           );
         }
       } catch (ne) {
@@ -1000,7 +1001,7 @@ export async function DELETE(request) {
 
       return NextResponse.json({
         success: true,
-        message: `Order #${orderID} has been successfully canceled.`
+        message: `${toPublicOrderCode(orderID)} has been successfully canceled.`
       });
     } catch (err) {
       await connection.rollback();

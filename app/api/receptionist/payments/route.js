@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncInventoryStock, getBookingBalance, completeBookingAndFreeRoom, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema, syncNormalizedBillingLineItems } from '@/lib/db';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 export async function GET(request) {
   const session = await getSession();
@@ -270,7 +271,7 @@ export async function POST(request) {
         for (const admin of adminUsers) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Payment Received Alert', ?)",
-            [admin.userID, `Payment of ₱${amount.toFixed(2)} received for Booking #${bookingID} (Billing #${billingID}).`]
+            [admin.userID, `Payment of ₱${amount.toFixed(2)} received for ${toPublicBookingCode(bookingID)} (Billing #${billingID}).`]
           );
         }
       } catch (notifyErr) {

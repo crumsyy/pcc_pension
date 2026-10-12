@@ -10,6 +10,7 @@ import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import LoadingButton from '../../components/LoadingButton';
 import { formatCurrency } from '@/lib/formatters';
+import { toPublicBookingCode, toPublicTransactionCode } from '@/lib/publicCodes';
 
 export default function ReceptionistBilling() {
   const [activeBookings, setActiveBookings] = useState([]);
@@ -573,11 +574,15 @@ export default function ReceptionistBilling() {
     const guestName = `${item.firstName || ''} ${item.lastName || ''}`.toLowerCase();
     const trxID = `trx-${item.paymentID}`.toLowerCase();
     const rawID = String(item.paymentID).toLowerCase();
+    const publicTxn = toPublicTransactionCode(item.paymentID).toLowerCase();
+    const publicBkg = item.bookingID ? toPublicBookingCode(item.bookingID).toLowerCase() : '';
 
     const matchesQuery =
       guestName.includes(query) ||
       trxID.includes(query) ||
       rawID.includes(query) ||
+      publicTxn.includes(query) ||
+      publicBkg.includes(query) ||
       (item.contact || '').toLowerCase().includes(query) ||
       (item.roomNumber || '').toLowerCase().includes(query) ||
       String(item.bookingID || '').includes(query);
@@ -2020,7 +2025,7 @@ export default function ReceptionistBilling() {
                     <input
                       type="text"
                       className="form-control form-control-sm"
-                      placeholder="e.g. TRX-1, Guest Name, Room #..."
+                      placeholder="e.g. TXN-AB12CD, Guest Name, Room #..."
                       value={historySearch}
                       onChange={(e) => setHistorySearch(e.target.value)}
                       style={{ width: '260px', borderRadius: '6px' }}
@@ -2097,7 +2102,7 @@ export default function ReceptionistBilling() {
                       <tbody>
                         {filteredHistory.map((h) => (
                           <tr key={h.paymentID}>
-                            <td className="fw-bold text-pcc-blue font-monospace">#TRX-{String(h.paymentID).padStart(5, '0')}</td>
+                            <td className="fw-bold text-pcc-blue font-monospace">{toPublicTransactionCode(h.paymentID)}</td>
                             <td className="small text-muted">{new Date(h.paymentDateTime).toLocaleString()}</td>
                             <td>
                               <div className="fw-bold text-dark">{h.firstName} {h.lastName}</div>
@@ -2107,7 +2112,7 @@ export default function ReceptionistBilling() {
                               <span className="fw-semibold text-dark">
                                 {h.roomNumber ? `Room ${h.roomNumber}` : 'Direct SOA'}
                               </span>
-                              {h.bookingID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Booking #{h.bookingID}</small>}
+                              {h.bookingID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>{toPublicBookingCode(h.bookingID)}</small>}
                             </td>
                             <td>
                               <span className={`badge ${h.paymentMethod === 'GCash' ? 'bg-primary text-white' : 'bg-success text-white'} px-2 py-1 me-1`} style={{ fontSize: '0.72rem' }}>

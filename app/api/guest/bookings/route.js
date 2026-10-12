@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, getBookingBalance, getBookingBalanceDetails, ensureBookingBillingSchema, ensureBookingBreakfastSchema, ensurePaymentSchema, normalizeBookingStatus, syncNormalizedBillingLineItems } from '@/lib/db';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 import { getStayNights, getManilaNow } from '@/lib/dateUtils';
+import { toPublicBookingCode, toPublicReservationCode } from '@/lib/publicCodes';
 
 export async function GET() {
   const session = await getSession();
@@ -166,7 +167,7 @@ export async function POST(request) {
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checkout Requested', ?)",
-          [r.userID, `Guest ${guest.firstName} ${guest.lastName} in Room ${booking.roomNumber} (Booking #${bookingID}) has requested checkout. Room inspection and incidental fee verification required.`]
+          [r.userID, `Guest ${guest.firstName} ${guest.lastName} in Room ${booking.roomNumber} (${toPublicBookingCode(bookingID)}) has requested checkout. Room inspection and incidental fee verification required.`]
         );
       }
 
@@ -219,7 +220,7 @@ export async function POST(request) {
       for (const r of staffToNotify) {
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Booking Canceled by Guest', ?)",
-          [r.userID, `Booking #${bookingID} for ${guest.firstName} ${guest.lastName} was canceled by the guest.`]
+          [r.userID, `${toPublicBookingCode(bookingID)} for ${guest.firstName} ${guest.lastName} was canceled by the guest.`]
         );
       }
 
@@ -636,16 +637,16 @@ export async function POST(request) {
             const notifValues = [];
 
             for (const r of receptionistStaff) {
-              notifValues.push([r.userID, 'New Guest Booking Request', `Guest ${guest.firstName} ${guest.lastName} created Booking #${bookingID} for ${checkInDate}.`]);
+              notifValues.push([r.userID, 'New Guest Booking Request', `Guest ${guest.firstName} ${guest.lastName} created ${toPublicBookingCode(bookingID)} for ${checkInDate}.`]);
               if (receiptData) {
-                notifValues.push([r.userID, 'New GCash Online Payment', `GCash down payment of ₱${downPaymentAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${bookingID} (Ref #${body.referenceNumber}).`]);
+                notifValues.push([r.userID, 'New GCash Online Payment', `GCash down payment of ₱${downPaymentAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for ${toPublicBookingCode(bookingID)} (Ref #${body.referenceNumber}).`]);
               }
             }
 
             // Admin receives the payment notification if payment was made, but NOT the booking notification
             if (receiptData) {
               for (const a of adminStaff) {
-                notifValues.push([a.userID, 'New GCash Online Payment', `GCash down payment of ₱${downPaymentAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${bookingID} (Ref #${body.referenceNumber}).`]);
+                notifValues.push([a.userID, 'New GCash Online Payment', `GCash down payment of ₱${downPaymentAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for ${toPublicBookingCode(bookingID)} (Ref #${body.referenceNumber}).`]);
               }
             }
 
@@ -654,11 +655,11 @@ export async function POST(request) {
                 notifValues.push([compRes.userID, 'Reservation Cancelled Due to Conflict', `Your reservation request for Room ${compRes.roomNumber} on ${String(compRes.reservationDateTime).substring(0, 10)} was automatically cancelled because the room was booked for those dates.`]);
               }
               for (const r of staffToNotify) {
-                notifValues.push([r.userID, 'Reservation Auto-Cancelled (Booking Conflict)', `Reservation #${compRes.reservationID} for Room ${compRes.roomNumber} (${compRes.firstName} ${compRes.lastName}) was automatically cancelled due to a confirmed booking conflict.`]);
+                notifValues.push([r.userID, 'Reservation Auto-Cancelled (Booking Conflict)', `${toPublicReservationCode(compRes.reservationID)} for Room ${compRes.roomNumber} (${compRes.firstName} ${compRes.lastName}) was automatically cancelled due to a confirmed booking conflict.`]);
               }
             }
 
-            notifValues.push([session.userID, 'Booking Confirmed', `Your online booking #${bookingID} has been created and confirmed!`]);
+            notifValues.push([session.userID, 'Booking Confirmed', `Your online booking ${toPublicBookingCode(bookingID)} has been created and confirmed!`]);
 
             if (notifValues.length > 0) {
               const placeholders = notifValues.map(() => '(?, ?, ?)').join(', ');

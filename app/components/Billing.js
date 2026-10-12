@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 /**
  * Calculate down payment rate, amount and remaining balance
@@ -132,7 +133,7 @@ export default function Billing({ detailedBill, selectedOption, onOpenPaymentHis
           <span>Stay Billing Breakdown</span>
         </h6>
         <span className="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style={{ fontSize: '0.72rem' }}>
-          #{detailedBill.bookingID || detailedBill.booking?.bookingID}
+          {toPublicBookingCode(detailedBill.bookingID || detailedBill.booking?.bookingID)}
         </span>
       </div>
 

@@ -5,6 +5,7 @@ import Button from '@/app/components/Button';
 import StatusBadge, { normalizeBookingStatus } from '@/app/components/StatusBadge';
 import PaymentModal from './PaymentModal';
 import { generateReceiptPNG } from '@/app/paymongo/test/page';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 import './styles.css';
 
 export default function ActiveStayPanel({
@@ -123,7 +124,7 @@ export default function ActiveStayPanel({
           {/* TOP HEADER */}
           <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
             <span className="badge bg-primary text-white px-3 py-1.5 fs-7 rounded-pill">
-              Occupied Booking ({formatBookingID ? formatBookingID(activeBookingStay.bookingID) : `#${activeBookingStay.bookingID}`})
+              Occupied Booking ({toPublicBookingCode(activeBookingStay.bookingID)})
             </span>
             <StatusBadge status={activeBookingStay.status || 'Occupied'} />
           </div>

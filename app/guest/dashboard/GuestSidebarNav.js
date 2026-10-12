@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { NAV_ITEMS } from './navConfig';
+import { toPublicUserCode, toPublicGuestCode } from '@/lib/publicCodes';
 
 export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotificationsCount = 0, guest, onRequestLogout }) {
   return (
@@ -134,7 +135,7 @@ export default function GuestSidebarNav({ activeTab, setActiveTab, unreadNotific
               {guest?.firstName} {guest?.lastName}
             </div>
             <div className="text-white-50 font-monospace" style={{ fontSize: '0.72rem' }}>
-              User ID: #{guest?.userID || guest?.guestID}
+              Guest ID: {guest?.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest?.guestID)}
             </div>
           </div>
         </div>

@@ -26,6 +26,7 @@ import HeaderProfile from '../../components/HeaderProfile';
 import LoadingButton from '../../components/LoadingButton';
 import { generateReceiptPNG } from '@/app/paymongo/test/page';
 import { formatReservationID, formatBookingID, formatTransactionID, formatOrderID, formatRoomNumber, formatTo12Hour, formatDateTime12H, formatCurrency } from '@/lib/formatters';
+import { toPublicUserCode, toPublicGuestCode, toPublicBookingCode, toPublicReservationCode, toPublicOrderCode, toPublicTransactionCode } from '@/lib/publicCodes';
 import clientCache from '@/lib/clientCache';
 
 function getCourtesyHoldTimeInfo(expiryStr) {
@@ -1956,8 +1957,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
 
             <table class="info-table">
               <tr><td>Date/Time:</td><td class="text-right">${new Date(receiptData.timestamp).toLocaleString()}</td></tr>
-              <tr><td>Receipt No:</td><td class="text-right">#REC-${receiptData.paymentID}</td></tr>
-              <tr><td>Booking Ref:</td><td class="text-right">#${receiptData.bookingID}</td></tr>
+              <tr><td>Receipt No:</td><td class="text-right">${toPublicTransactionCode(receiptData.paymentID)}</td></tr>
+              <tr><td>Booking Ref:</td><td class="text-right">${toPublicBookingCode(receiptData.bookingID)}</td></tr>
               <tr><td>Guest Name:</td><td class="text-right bold">${receiptData.guestName}</td></tr>
               <tr><td>Payment Method:</td><td class="text-right">${receiptData.paymentMethod}</td></tr>
               <tr><td>GCash Ref No:</td><td class="text-right">${receiptData.referenceNumber}</td></tr>
@@ -2676,10 +2677,10 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       <div className="welcome-header mb-1">
                         <div className="welcome-header-mobile d-md-none">
                           <div className="fw-bold fs-5">Welcome, {guest.firstName} {guest.lastName || ''}!</div>
-                          <div className="opacity-75 font-monospace small">(UserID: #{guest.userID || guest.guestID})</div>
+                          <div className="opacity-75 font-monospace small">(Guest ID: {guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)})</div>
                         </div>
                         <h3 className="fw-bold mb-0 d-none d-md-block">
-                          Welcome, {guest.firstName} {guest.lastName || ''}! <span className="fs-6 font-monospace opacity-75 fw-normal">(UserID: #{guest.userID || guest.guestID})</span>
+                          Welcome, {guest.firstName} {guest.lastName || ''}! <span className="fs-6 font-monospace opacity-75 fw-normal">(Guest ID: {guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)})</span>
                         </h3>
                       </div>
                       <p className="mb-0 text-white-50 small">Experience comfort and convenience at PCC Home Suite Home.</p>
@@ -2815,7 +2816,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     Room {b.roomNumber} — {b.roomType || 'Standard Room'}
                                   </h5>
                                   <div className="text-secondary font-monospace small" style={{ fontSize: '0.78rem' }}>
-                                    Booking ID: #{formatBookingID(b.bookingID)} • User ID: #{guest.userID || guest.guestID}
+                                    {toPublicBookingCode(b.bookingID)} • {guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)}
                                   </div>
                                 </div>
                                 <div className="d-flex align-items-center gap-2">
@@ -3476,7 +3477,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                       )}
                       <div>
                         <h5 className="fw-bold mb-1 text-dark">{guest.firstName} {guest.lastName}</h5>
-                        <p className="text-muted mb-0">UserID: #{guest.userID || guest.guestID}</p>
+                        <p className="text-muted mb-0">Guest ID: {guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)}</p>
                       </div>
                     </div>
                     <span className="badge bg-success text-white px-3 py-1.5 rounded-pill">Active Guest</span>
@@ -3485,8 +3486,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   <table className="table table-borderless table-sm small mb-0">
                     <tbody>
                       <tr>
-                        <td className="text-muted" style={{ width: '120px' }}>User ID:</td>
-                        <td className="fw-bold text-pcc-blue font-monospace">#{guest.userID || guest.guestID}</td>
+                        <td className="text-muted" style={{ width: '120px' }}>Guest ID:</td>
+                        <td className="fw-bold text-pcc-blue font-monospace">{guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)}</td>
                       </tr>
                       <tr>
                         <td className="text-muted" style={{ width: '120px' }}>Contact:</td>
@@ -3592,7 +3593,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               <div>
                                 <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
                                   <h6 className="fw-bold mb-0 text-dark">
-                                    Reservation #{formatReservationID(r.reservationID)} — Room {r.roomNumber} ({r.roomType || 'Room'})
+                                    {toPublicReservationCode(r.reservationID)} — Room {r.roomNumber} ({r.roomType || 'Room'})
                                   </h6>
                                   {isHold ? (
                                     <span className="badge" style={{ backgroundColor: '#fd7e14', color: '#fff' }} aria-label="Courtesy Hold Status">
@@ -3714,7 +3715,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                                     Room {b.roomNumber} — {b.roomType || 'Standard Room'}
                                   </h5>
                                   <div className="text-secondary font-monospace small" style={{ fontSize: '0.78rem' }}>
-                                    Booking ID: #{formatBookingID(b.bookingID)} • User ID: #{guest.userID || guest.guestID}
+                                    {toPublicBookingCode(b.bookingID)} • {guest.userID ? toPublicUserCode(guest.userID, 'Guest') : toPublicGuestCode(guest.guestID)}
                                   </div>
                                 </div>
                                 <div className="d-flex align-items-center gap-2">
@@ -3920,7 +3921,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="modal-header text-white" style={{ backgroundColor: 'var(--pcc-blue, #0d6efd)' }}>
                   <div>
                     <h5 className="modal-title fw-bold mb-0">Billing Breakdown &mdash; Room {viewBillingBooking.roomNumber}</h5>
-                    <div className="small opacity-75 font-monospace">Stay #{viewBillingBooking.bookingID} &bull; {viewBillingBooking.roomType || 'Room'}</div>
+                    <div className="small opacity-75 font-monospace">{toPublicBookingCode(viewBillingBooking.bookingID)} &bull; {viewBillingBooking.roomType || 'Room'}</div>
                   </div>
                   <button type="button" className="btn-close btn-close-white" onClick={() => setViewBillingBooking(null)}></button>
                 </div>
@@ -4060,7 +4061,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                             <div key={ord.orderID} className="border rounded bg-white overflow-hidden shadow-xs">
                               <div className="bg-light px-3 py-1.5 border-bottom d-flex justify-content-between align-items-center small">
                                 <div className="d-flex align-items-center gap-2 flex-wrap">
-                                  <span className="fw-bold text-dark">Order #{ord.orderID}</span>
+                                  <span className="fw-bold text-dark">{toPublicOrderCode(ord.orderID)}</span>
                                   {ord.deliveryType === 'scheduled' || ord.deliveryTime ? (
                                     <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: '0.68rem' }}>
                                       Scheduled: {ord.deliveryDate} ({ord.deliveryTime || 'Breakfast'})
@@ -4464,7 +4465,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 <div className="p-3 bg-light rounded text-start border mb-3" style={{ fontSize: '0.85rem' }}>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Reservation Ref:</span>
-                    <span className="fw-bold text-success">#{formatReservationID(reservationSummaryData.reservationID)}</span>
+                    <span className="fw-bold text-success">{toPublicReservationCode(reservationSummaryData.reservationID)}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Reservation Type:</span>
@@ -4952,11 +4953,11 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Receipt No:</span>
-                    <span className="fw-bold text-dark">#REC-{receiptData.paymentID}</span>
+                    <span className="fw-bold text-dark">{toPublicTransactionCode(receiptData.paymentID)}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Booking Ref:</span>
-                    <span className="fw-bold text-primary">#{receiptData.bookingID}</span>
+                    <span className="fw-bold text-primary">{toPublicBookingCode(receiptData.bookingID)}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Guest:</span>
@@ -5316,7 +5317,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <i className="bi bi-receipt-cutoff me-2"></i>Live Bill Breakdown
                   </h5>
                   <div className="small text-white text-opacity-75">
-                    Booking #{detailedBill.bookingID || detailedBill.booking?.bookingID} • Room {detailedBill.booking?.roomNumber} ({detailedBill.booking?.roomType})
+                    {toPublicBookingCode(detailedBill.bookingID || detailedBill.booking?.bookingID)} • Room {detailedBill.booking?.roomNumber} ({detailedBill.booking?.roomType})
                   </div>
                 </div>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowBillModal(false)}></button>
@@ -5570,7 +5571,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                     <i className="bi bi-clock-history me-2"></i>Financial Audit Trail
                   </h5>
                   <div className="small text-white text-opacity-75">
-                    Real-time transaction history for Booking #{detailedBill.bookingID || detailedBill.booking?.bookingID}
+                    Real-time transaction history for {toPublicBookingCode(detailedBill.bookingID || detailedBill.booking?.bookingID)}
                   </div>
                 </div>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowAuditTrailModal(false)}></button>

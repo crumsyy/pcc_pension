@@ -6,6 +6,7 @@ import CalendarDatePicker from './CalendarDatePicker';
 import ReservationCalendar from './ReservationCalendar';
 import BookingBreakfastSelector from '@/app/guest/rooms/BookingBreakfastSelector';
 import { getStayNights } from '@/lib/dateUtils';
+import { toPublicUserCode, toPublicGuestCode } from '@/lib/publicCodes';
 
 /**
  * ReceptionistReservationForm Component
@@ -119,12 +120,12 @@ export default function ReceptionistReservationForm({
         If not confirmed with payment, it will be automatically released after a 30-minute grace period.
       </div>
 
-      {/* TOP: SELECT GUEST ACCOUNT (UID) */}
+      {/* TOP: SELECT GUEST ACCOUNT */}
       <div className="p-3 mb-3 border rounded bg-light">
         <div className="d-flex align-items-center justify-content-between mb-1">
           <label className="form-label fw-bold text-dark mb-0">
             <i className="bi bi-person-badge text-primary me-1.5"></i>
-            Select Guest Account (UID)
+            Select Guest Account
           </label>
           {formData.guestID && (
             <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
@@ -135,7 +136,7 @@ export default function ReceptionistReservationForm({
         <SearchableSelect
           options={guests.map(g => ({
             value: String(g.guestID),
-            label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
+            label: `${g.userID ? toPublicUserCode(g.userID, 'Guest') : toPublicGuestCode(g.guestID)} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
           }))}
           value={formData.guestID || ''}
           onChange={(val) => {
@@ -158,7 +159,7 @@ export default function ReceptionistReservationForm({
               }
             }
           }}
-          placeholder="Type UID, guest name or contact to search..."
+          placeholder="Type guest ID, name or contact to search..."
         />
         <div className="form-text text-muted small mt-1">
           <i className="bi bi-info-circle me-1"></i>

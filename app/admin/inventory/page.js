@@ -10,6 +10,7 @@ import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
+import { toPublicBorrowCode } from '@/lib/publicCodes';
 import AdminPagination, { paginate, ADMIN_PAGE_SIZE } from '../../components/AdminPagination';
 import { DataTable } from '@/components/ui/data-table';
 import { Switch } from '@/components/ui/switch';
@@ -1215,7 +1216,7 @@ export default function AdminInventory() {
               <tbody>
                 {borrowPaginated.rows.map((log) => (
                   <tr key={log.borrowID}>
-                    <td><code>BOR-{log.borrowID}</code></td>
+                    <td><code>{toPublicBorrowCode(log.borrowID)}</code></td>
                     <td><strong>{log.itemName}</strong></td>
                     <td>{log.quantity}</td>
                     <td>{log.borrowedBy}</td>

@@ -6,6 +6,7 @@ import StatusBadge, { RESERVATION_STATUSES } from '@/app/components/StatusBadge'
 import FlatDatePicker from '../../components/FlatDatePicker';
 import AdminPagination from '../../components/AdminPagination';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
+import { toPublicBookingCode, toPublicReservationCode } from '@/lib/publicCodes';
 
 export default function AdminReservations() {
   const [search, setSearch] = useState('');
@@ -251,10 +252,10 @@ export default function AdminReservations() {
                             style={{ fontSize: '0.75rem', borderRadius: '5px' }}
                             title="View converted booking"
                           >
-                            <i className="bi bi-box-arrow-up-right"></i> Booking #{r.bookingID}
+                            <i className="bi bi-box-arrow-up-right"></i> {toPublicBookingCode(r.bookingID)}
                           </Link>
                         ) : (
-                          <span className="text-muted small" style={{ fontSize: '0.78rem' }}>Res #{r.reservationID}</span>
+                          <span className="text-muted small" style={{ fontSize: '0.78rem' }}>{toPublicReservationCode(r.reservationID)}</span>
                         )}
                       </td>
                     </tr>

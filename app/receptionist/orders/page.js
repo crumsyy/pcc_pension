@@ -7,6 +7,7 @@ import ModalDialog from '../../components/ModalDialog';
 import { toast } from '@/components/ui/toast';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
+import { toPublicOrderCode } from '@/lib/publicCodes';
 
 // Free-typing quantity field with draft text: lets users clear/retype values
 // (e.g. 1 -> 6) and commits a valid integer on blur/Enter, reverting otherwise.
@@ -702,7 +703,7 @@ function ReceptionistOrdersContent() {
       }
     }
 
-    showConfirm('Update Order Status', `Mark order #${orderID} as ${status}?`, async () => {
+    showConfirm('Update Order Status', `Mark ${toPublicOrderCode(orderID)} as ${status}?`, async () => {
       setUpdatingOrderId(orderID);
       try {
         const res = await fetch('/api/receptionist/orders', {
@@ -717,8 +718,8 @@ function ReceptionistOrdersContent() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update order status');
 
-        toast.success('Status Updated', `Order #${orderID} updated to ${status}.`);
-        showAlert('success', 'Status Updated', `Order #${orderID} updated to ${status}.`);
+        toast.success('Status Updated', `${toPublicOrderCode(orderID)} updated to ${status}.`);
+        showAlert('success', 'Status Updated', `${toPublicOrderCode(orderID)} updated to ${status}.`);
         fetchData();
       } catch (err) {
         toast.error('Update Failed', err.message);
@@ -1146,7 +1147,7 @@ function ReceptionistOrdersContent() {
                       <div key={o.orderID} id={`order-card-${o.orderID}`} className="card order-card border shadow-xs rounded-3 overflow-hidden">
                         <div className="card-header bg-white py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
                           <div className="d-flex align-items-center gap-2">
-                            <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>Order #{o.orderID}</span>
+                            <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>{toPublicOrderCode(o.orderID)}</span>
                             <span className="text-muted small">
                               • Room <strong>{o.roomNumber || 'N/A'}</strong> ({o.firstName} {o.lastName})
                             </span>
@@ -1437,7 +1438,7 @@ function ReceptionistOrdersContent() {
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content shadow-lg border-0" style={{ borderRadius: '14px' }}>
               <div className="modal-header text-white" style={{ background: 'var(--pcc-blue, #2155B5)' }}>
-                <h5 className="modal-title fw-bold">Order Details — #{viewingOrder.orderID}</h5>
+                <h5 className="modal-title fw-bold">Order Details — {toPublicOrderCode(viewingOrder.orderID)}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setViewingOrder(null)}></button>
               </div>
               <div className="modal-body p-4">
@@ -1445,7 +1446,7 @@ function ReceptionistOrdersContent() {
                   <div className="row g-2">
                     <div className="col-sm-6">
                       <span className="text-muted small d-block">Order Number:</span>
-                      <strong className="text-dark">#{viewingOrder.orderID}</strong>
+                      <strong className="text-dark">{toPublicOrderCode(viewingOrder.orderID)}</strong>
                     </div>
                     <div className="col-sm-6">
                       <span className="text-muted small d-block">Guest &amp; Target Room:</span>

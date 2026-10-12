@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { clientCache, CACHE_TTL } from '@/lib/clientCache';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 export default function ReceptionistDashboardClient({ initialData }) {
   const [data, setData] = useState(() => {
@@ -338,7 +339,7 @@ export default function ReceptionistDashboardClient({ initialData }) {
                   <tbody>
                     {confirmedBookingsList.map((b) => (
                       <tr key={b.bookingID}>
-                        <td><strong>#{b.bookingID}</strong></td>
+                        <td><strong>{toPublicBookingCode(b.bookingID)}</strong></td>
                         <td>{b.firstName} {b.lastName}</td>
                         <td><strong>Room {b.roomNumber}</strong> ({b.roomType})</td>
                         <td>{formatDateShort(b.checkInDateTime)}</td>

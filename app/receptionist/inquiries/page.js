@@ -5,6 +5,7 @@ import ModalDialog from '../../components/ModalDialog';
 import ModalPortal from '../../components/ModalPortal';
 import SearchableSelect from '../../components/SearchableSelect';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
+import { toPublicUserCode, toPublicGuestCode } from '@/lib/publicCodes';
 import { toast } from '@/components/ui/toast';
 
 export default function ReceptionistInquiries() {
@@ -629,7 +630,7 @@ export default function ReceptionistInquiries() {
                     <SearchableSelect
                       options={registeredGuests.map(g => ({
                         value: String(g.guestID),
-                        label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || g.email || 'No contact'})`
+                        label: `${g.userID ? toPublicUserCode(g.userID, 'Guest') : toPublicGuestCode(g.guestID)} – ${g.firstName} ${g.lastName} (${g.contact || g.email || 'No contact'})`
                       }))}
                       value={reachOutForm.guestID}
                       onChange={(val) => {
@@ -642,7 +643,7 @@ export default function ReceptionistInquiries() {
                           contactNumber: g?.contact || prev.contactNumber
                         }));
                       }}
-                      placeholder="Type UID, guest name or contact to search..."
+                      placeholder="Type guest ID, name or contact to search..."
                     />
                     <div className="form-text text-muted small mt-1">
                       <i className="bi bi-info-circle me-1"></i>

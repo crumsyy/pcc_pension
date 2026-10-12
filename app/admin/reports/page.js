@@ -9,6 +9,7 @@ import { Tabs, TabList, Tab } from '@/components/ui/tabs';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { showToast } from '@/lib/toast';
+import { toPublicBookingCode, toPublicOrderCode, toPublicTransactionCode } from '@/lib/publicCodes';
 
 export default function AdminReports() {
   // 4 Core Pillar Reports
@@ -979,11 +980,11 @@ export default function AdminReports() {
                               </>
                             ) : subTab === 'orders' ? (
                               <>
-                                <td><code>#ORD-{row.orderID}</code></td>
+                                <td><code>{toPublicOrderCode(row.orderID)}</code></td>
                                 <td className="small text-muted">{row.date}</td>
                                 <td>
                                   <strong>{row.guestName}</strong>
-                                  <div className="small text-muted">{row.roomNumber} ({row.bookingID === 'Walk-in' ? 'Walk-in' : `Booking #${row.bookingID}`})</div>
+                                  <div className="small text-muted">{row.roomNumber} ({row.bookingID === 'Walk-in' ? 'Walk-in' : toPublicBookingCode(row.bookingID)})</div>
                                 </td>
                                 <td>
                                   <span className={`badge ${row.itemType === 'Cooked Meal' ? 'text-bg-warning text-dark' : row.itemType === 'Amenity' ? 'text-bg-info text-white' : 'text-bg-primary'}`}>
@@ -1026,7 +1027,7 @@ export default function AdminReports() {
                               </>
                             ) : (
                               <>
-                                <td><code>#TRX-{row.transactionID}</code></td>
+                                <td><code>{toPublicTransactionCode(row.transactionID)}</code></td>
                                 <td className="small text-muted">{row.date}</td>
                                 <td><strong>{row.guestName}</strong></td>
                                 <td>{row.roomNumber}</td>

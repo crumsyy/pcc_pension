@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { getDbConnection, dbQuery, logBillingAudit, syncNormalizedBillingLineItems } from '@/lib/db';
+import { toPublicBookingCode, toPublicReservationCode } from '@/lib/publicCodes';
 
 export async function POST(request) {
   const session = await getSession();
@@ -250,7 +251,7 @@ export async function POST(request) {
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Reservation Converted to Booking', ?)",
           [
             staff.userID,
-            `Guest ${primaryGuestName} converted Reservation #${reservationID} into Booking #${bookingID} for Room ${reservation.roomNumber}.`
+            `Guest ${primaryGuestName} converted ${toPublicReservationCode(reservationID)} into ${toPublicBookingCode(bookingID)} for Room ${reservation.roomNumber}.`
           ]
         );
       }
@@ -267,7 +268,7 @@ export async function POST(request) {
         userID: session.userID,
         userName: primaryGuestName,
         userRole: 'Guest',
-        description: `Guest converted Reservation #${reservationID} to Booking #${bookingID} for Room ${reservation.roomNumber}.`
+        description: `Guest converted ${toPublicReservationCode(reservationID)} to ${toPublicBookingCode(bookingID)} for Room ${reservation.roomNumber}.`
       });
 
       await conn.commit();
@@ -275,7 +276,7 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         bookingID,
-        message: `Reservation successfully converted into Booking #${bookingID}!`
+        message: `Reservation successfully converted into ${toPublicBookingCode(bookingID)}!`
       });
     } catch (txnError) {
       await conn.rollback();

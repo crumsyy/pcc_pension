@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 export function generateReceiptPNG(receipt) {
   if (!receipt || typeof document === 'undefined') return;
@@ -56,7 +57,7 @@ export function generateReceiptPNG(receipt) {
   const items = [
     ['Receipt No:', receipt.receiptNumber || `REC-${receipt.paymentID || 'N/A'}`],
     ['Date & Time:', new Date(receipt.timestamp || Date.now()).toLocaleString()],
-    ['Booking Ref:', `#${receipt.bookingID}`],
+    ['Booking Ref:', toPublicBookingCode(receipt.bookingID)],
     ['Guest Name:', receipt.guestName || 'Guest'],
     ['Room Number:', receipt.roomNumber ? `Room ${receipt.roomNumber}` : 'N/A'],
     ['Payment Method:', receipt.paymentMethod || 'GCash Online'],
@@ -323,7 +324,7 @@ function PayMongoTestContent() {
               <div className="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
                 <span className="text-muted small">Booking Reference:</span>
                 <span className="badge bg-primary text-white px-2.5 py-1">
-                  {bookingID ? `#${bookingID}` : 'N/A'}
+                  {bookingID ? toPublicBookingCode(bookingID) : 'N/A'}
                 </span>
               </div>
               {bookingDetails?.booking?.roomNumber && (
@@ -564,7 +565,7 @@ function PayMongoTestContent() {
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Booking Reference:</span>
-                    <span className="fw-bold text-dark">#{receiptData.bookingID}</span>
+                    <span className="fw-bold text-dark">{toPublicBookingCode(receiptData.bookingID)}</span>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
                     <span className="text-muted">Guest Name:</span>

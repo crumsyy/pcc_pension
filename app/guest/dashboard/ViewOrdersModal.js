@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import ModalDialog from '@/app/components/ModalDialog';
 import ModalPortal from '@/app/components/ModalPortal';
+import { toPublicOrderCode } from '@/lib/publicCodes';
 
 const ALLOWED_BREAKFAST_SLOTS = [
   '06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM',
@@ -214,7 +215,7 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
               <i className="bi bi-receipt-cutoff fs-5"></i>
               <div>
                 <h5 className="modal-title fw-bold mb-0" style={{ fontSize: '1.05rem' }}>
-                  View / Modify Order #{order.orderID}
+                  View / Modify {toPublicOrderCode(order.orderID)}
                 </h5>
                 <small className="opacity-75">
                   Placed on {new Date(order.orderDateTime || Date.now()).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
@@ -534,7 +535,7 @@ export default function ViewOrdersModal({ isOpen, order, onClose, onOrderUpdated
         isOpen={showCancelConfirm}
         type="error"
         title="Cancel Scheduled Order"
-        message={`Are you sure you want to cancel scheduled Order #${order.orderID}? Any free breakfast entitlement or charges will be restored.`}
+        message={`Are you sure you want to cancel scheduled ${toPublicOrderCode(order.orderID)}? Any free breakfast entitlement or charges will be restored.`}
         confirmText="Yes, Cancel Order"
         cancelText="Keep Order"
         confirmVariant="danger"

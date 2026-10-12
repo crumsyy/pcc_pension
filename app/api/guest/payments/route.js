@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, getBookingBalance, logBillingAudit, ensurePaymentSchema, ensureBookingBillingSchema, normalizeBookingStatus, syncNormalizedBillingLineItems } from '@/lib/db';
 import { getQRPhImageURL } from '@/lib/qrph';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 export async function POST(request) {
   const session = await getSession();
@@ -415,7 +416,7 @@ export async function POST(request) {
             const placeholders = staffToNotify.map(() => '(?, ?, ?)').join(', ');
             const values = [];
             for (const r of staffToNotify) {
-              values.push(r.userID, 'New GCash Online Payment', `GCash payment of ₱${parsedAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for Booking #${parsedBookingID} (Ref #${effectiveRef}).`);
+              values.push(r.userID, 'New GCash Online Payment', `GCash payment of ₱${parsedAmount.toFixed(2)} received from ${guest.firstName} ${guest.lastName} for ${toPublicBookingCode(parsedBookingID)} (Ref #${effectiveRef}).`);
             }
             await dbQuery(`INSERT INTO notification (userID, title, message) VALUES ${placeholders}`, values);
           }

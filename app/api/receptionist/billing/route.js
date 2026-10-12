@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, getBookingBalanceDetails, getBookingBalance, getBookingRawBalance, isSettledBalance, syncInventoryStock, logBillingAudit, ensureBookingBillingSchema, syncNormalizedBillingLineItems, assertBookingTransition } from '@/lib/db';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
 
 export async function GET(request) {
@@ -294,7 +295,7 @@ export async function POST(request) {
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Bill Finalized', ?)",
             [
               booking.guestUserID,
-              `Your final bill for Booking #${bookingID} has been reviewed and finalized by the front desk. You can now pay your remaining balance through your portal.`
+              `Your final bill for ${toPublicBookingCode(bookingID)} has been reviewed and finalized by the front desk. You can now pay your remaining balance through your portal.`
             ]
           ).catch(() => {});
         }
@@ -446,7 +447,7 @@ export async function POST(request) {
         if (guestUserID) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Checkout Completed', ?)",
-            [guestUserID, `Your stay for Booking #${bookingID} has been successfully checked out. Thank you for staying with PCC Pension House!`]
+            [guestUserID, `Your stay for ${toPublicBookingCode(bookingID)} has been successfully checked out. Thank you for staying with PCC Pension House!`]
           );
         }
 
@@ -454,7 +455,7 @@ export async function POST(request) {
         for (const s of staffList) {
           await dbQuery(
             "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checked Out', ?)",
-            [s.userID, `Booking #${bookingID} for ${guestName} has been checked out and Room has been marked Available.`]
+            [s.userID, `${toPublicBookingCode(bookingID)} for ${guestName} has been checked out and Room has been marked Available.`]
           );
         }
 

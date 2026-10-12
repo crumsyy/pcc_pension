@@ -7,6 +7,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import LoadingButton from '../../components/LoadingButton';
 import { toast } from '@/components/ui/toast';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 /**
  * Shared payment terminal (Cash/GCash) + checkout calculations for one booking.
@@ -486,7 +487,7 @@ export default function PaymentTerminal({
                 {billData.booking.firstName} {billData.booking.lastName}
               </div>
               <small className="text-muted">
-                Room {billData.booking.roomNumber} ({billData.booking.roomType}) • Booking #{bIDSafe()}
+                Room {billData.booking.roomNumber} ({billData.booking.roomType}) • {toPublicBookingCode(bIDSafe())}
               </small>
             </div>
           </div>
@@ -517,7 +518,7 @@ export default function PaymentTerminal({
                         options={bookingOptions}
                         value={bIDSafe()}
                         onChange={handleBookingChange}
-                        placeholder="Type guest name, room number, or User ID (UID)..."
+                        placeholder="Type guest name, room number, or guest ID..."
                       />
                     )}
                   </div>

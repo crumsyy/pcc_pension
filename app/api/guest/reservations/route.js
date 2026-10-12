@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session';
 import { dbQuery, getDbConnection, syncRoomStatuses, logBillingAudit, syncNormalizedBillingLineItems, ensureBookingBreakfastSchema } from '@/lib/db';
 import { validateReservationDate } from '@/lib/validation';
 import { getStayNights } from '@/lib/dateUtils';
+import { toPublicBookingCode, toPublicReservationCode } from '@/lib/publicCodes';
 
 export async function GET(request) {
   const session = await getSession();
@@ -614,7 +615,7 @@ export async function PATCH(request) {
       return NextResponse.json({
         success: true,
         bookingID,
-        message: `Reservation #${reservationID} successfully converted into Booking #${bookingID}!`
+        message: `${toPublicReservationCode(reservationID)} successfully converted into ${toPublicBookingCode(bookingID)}!`
       });
     } catch (txnError) {
       await conn.rollback();

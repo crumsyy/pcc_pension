@@ -5,6 +5,7 @@ import { normalizeBookingStatus } from '@/lib/bookingStatuses';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
 import { sendBookingConfirmationEmail } from '@/lib/mailer';
 import { getStayNights, getManilaNow } from '@/lib/dateUtils';
+import { toPublicBookingCode, toPublicUserCode } from '@/lib/publicCodes';
 
 export async function GET(request) {
   const session = await getSession();
@@ -633,7 +634,7 @@ export async function POST(request) {
             `INSERT INTO notification (userID, title, message)
              SELECT userID, 'Down Payment Received Alert', ?
              FROM user WHERE roleID = 1 AND status = 'Active'`,
-            [`Down payment of ₱${parseFloat(downPaymentAmount).toFixed(2)} received for Booking #${bookingID}.`]
+            [`Down payment of ₱${parseFloat(downPaymentAmount).toFixed(2)} received for ${toPublicBookingCode(bookingID)}.`]
           );
         } catch (adminNotifyErr) {
           console.error("Failed to notify admin of down payment:", adminNotifyErr);
@@ -925,7 +926,7 @@ export async function POST(request) {
         // Record Audit Log in notification table
         const staffID = session.userID || 'Staff';
         const nowFormatted = new Date().toISOString().replace('T', ' ').substring(0, 19);
-        const auditMsg = `Booking #BK${String(bookingID).padStart(5, '0')} updated by Staff ID #${staffID} at ${nowFormatted}. Status: ${oldBooking.status}. Schedule: [${oldBooking.checkInDateTime} -> ${checkInDateTime}], [${oldBooking.checkOutDateTime} -> ${checkOutDateTime}]. Guest Count: ${numGuestsCount}.`;
+        const auditMsg = `${toPublicBookingCode(bookingID)} updated by ${toPublicUserCode(staffID, 'Staff')} at ${nowFormatted}. Status: ${oldBooking.status}. Schedule: [${oldBooking.checkInDateTime} -> ${checkInDateTime}], [${oldBooking.checkOutDateTime} -> ${checkOutDateTime}]. Guest Count: ${numGuestsCount}.`;
 
         await conn.execute(
           "INSERT INTO notification (userID, title, message, isRead) VALUES (?, 'Booking Rebooked / Updated', ?, 0)",
@@ -1452,8 +1453,8 @@ export async function POST(request) {
       const guestRes = await dbQuery("SELECT userID FROM guest WHERE guestID = ?", [res[0].guestID]);
       if (guestRes.length > 0 && guestRes[0].userID) {
         const notifyMsg = wasCheckedIn 
-          ? `⚠️ Stay Cancelled: Your checked-in stay (Booking #${bookingID}) has been cancelled. As per hotel policy, payments made are non-refundable.`
-          : `Notice: Booking #${bookingID} has been cancelled by front desk staff.`;
+          ? `Stay Cancelled: Your checked-in stay (${toPublicBookingCode(bookingID)}) has been cancelled. As per hotel policy, payments made are non-refundable.`
+          : `Notice: ${toPublicBookingCode(bookingID)} has been cancelled by front desk staff.`;
         await dbQuery(
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Booking Cancellation Notice', ?)",
           [guestRes[0].userID, notifyMsg]

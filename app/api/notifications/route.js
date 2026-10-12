@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery } from '@/lib/db';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 let lastBackgroundReminderCheck = 0;
 
@@ -85,7 +86,7 @@ export async function GET() {
               await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-In Alert', ?)", [b.guestUserID, guestMsg]);
             }
           }
-          const staffMsg = `Upcoming Check-in: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) check-in time is approaching within 3 hours.`;
+          const staffMsg = `Upcoming Check-in: ${toPublicBookingCode(b.bookingID)} (${b.firstName} ${b.lastName}) check-in time is approaching within 3 hours.`;
           for (const sID of staffUserIDs) {
             const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
             if (alreadyNotified.length === 0) {
@@ -111,7 +112,7 @@ export async function GET() {
               await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Pre-Check-Out Alert', ?)", [b.guestUserID, guestMsg]);
             }
           }
-          const staffMsg = `Upcoming Check-out: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) is approaching scheduled check-out within 2 hours.`;
+          const staffMsg = `Upcoming Check-out: ${toPublicBookingCode(b.bookingID)} (${b.firstName} ${b.lastName}) is approaching scheduled check-out within 2 hours.`;
           for (const sID of staffUserIDs) {
             const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
             if (alreadyNotified.length === 0) {
@@ -137,7 +138,7 @@ export async function GET() {
               await dbQuery("INSERT INTO notification (userID, title, message) VALUES (?, 'Exceeded Check-Out Alert', ?)", [b.guestUserID, guestMsg]);
             }
           }
-          const staffMsg = `Exceeded Check-out: Booking #${b.bookingID} (${b.firstName} ${b.lastName}) has exceeded checkout time. ₱100/hr late fee applies.`;
+          const staffMsg = `Exceeded Check-out: ${toPublicBookingCode(b.bookingID)} (${b.firstName} ${b.lastName}) has exceeded checkout time. ₱100/hr late fee applies.`;
           for (const sID of staffUserIDs) {
             const alreadyNotified = await dbQuery("SELECT notificationID FROM notification WHERE userID = ? AND message = ?", [sID, staffMsg]);
             if (alreadyNotified.length === 0) {

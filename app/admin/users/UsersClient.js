@@ -21,14 +21,7 @@ import { isKnownProvince, isCityInProvince } from '@/lib/phLocations';
 import { isValidDate, toDbDate, toUiDate } from '../../components/DateInput';
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
-
-function toPublicUserCode(userID, role) {
-  const id = parseInt(userID, 10);
-  const prefix = role === 'Guest' ? 'GST' : 'STF';
-  if (isNaN(id)) return `${prefix}-XXXXXX`;
-  const hashed = ((id * 2654435761) >>> 0).toString(36).toUpperCase().padStart(6, '0').slice(-6);
-  return `${prefix}-${hashed}`;
-}
+import { toPublicUserCode } from '@/lib/publicCodes';
 
 function roleBadgeClass(role) {
   if (role === 'Administrator') return 'text-bg-primary';

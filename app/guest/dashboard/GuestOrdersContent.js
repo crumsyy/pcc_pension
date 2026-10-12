@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import LoadingButton from '@/app/components/LoadingButton';
 import ViewOrdersModal from './ViewOrdersModal';
 import { toast } from 'sonner';
+import { toPublicOrderCode } from '@/lib/publicCodes';
 
 // Fast client-side module cache so switching tabs preserves catalog and renders at 0ms
 let cachedOrdersCatalog = null;
@@ -312,7 +313,7 @@ const OrderHistoryTable = React.memo(function OrderHistoryTable({ orders, loadin
       <div key={o.orderID} id={`order-item-${o.orderID}`} className="card order-card border shadow-xs rounded-3 mb-3 overflow-hidden">
         <div className="card-header bg-white py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
           <div className="d-flex align-items-center gap-2">
-            <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>Order #{o.orderID}</span>
+            <span className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>{toPublicOrderCode(o.orderID)}</span>
             <span className="text-muted small">
               {new Date(o.orderDateTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
             </span>
@@ -953,7 +954,7 @@ export default function GuestOrdersContent({ guest, activeBookingStay, initialCa
       }
 
       // Show non-blocking rich Sonner toast for Order Submitted
-      toast.success(`Order #${placedOrderID} Placed Successfully!`, {
+      toast.success(`${toPublicOrderCode(placedOrderID)} Placed Successfully!`, {
         description: `Total: ₱${placedTotal.toFixed(2)} charged to stay billing. Front Desk notified.`,
         duration: 5000
       });

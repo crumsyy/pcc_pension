@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Button from '@/app/components/Button';
 import LoadingButton from '@/app/components/LoadingButton';
 import { normalizeBookingStatus } from '@/lib/bookingStatuses';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 /**
  * PaymentModal Component for Guest Portal
@@ -156,7 +157,7 @@ export default function PaymentModal({
                 </span>
               </div>
               <div className="small text-white text-opacity-75 mt-0.5" style={{ fontSize: '0.78rem' }}>
-                Booking #{booking.bookingID} • Room {booking.roomNumber} ({booking.roomType || 'Room'})
+                {toPublicBookingCode(booking.bookingID)} • Room {booking.roomNumber} ({booking.roomType || 'Room'})
               </div>
             </div>
             <button

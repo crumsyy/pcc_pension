@@ -17,6 +17,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import DynamicQrPhCode from '../../components/DynamicQrPhCode';
 import StatusBadge, { normalizeBookingStatus } from '../../components/StatusBadge';
 import { calculateBillingTotals } from '@/lib/billingCalculator';
+import { toPublicUserCode, toPublicGuestCode, toPublicBookingCode, toPublicReservationCode } from '@/lib/publicCodes';
 import BookingBreakfastSelector from '@/app/guest/rooms/BookingBreakfastSelector';
 import { getStayNights } from '@/lib/dateUtils';
 
@@ -564,7 +565,7 @@ function BookingsClient() {
     if (!b) return;
     showConfirm(
       'Complete Checkout',
-      `Are you sure you want to mark Booking #${b.bookingID} (Room ${b.roomNumber}) as Completed? This will release the room and mark the stay as departed.`,
+      `Are you sure you want to mark ${toPublicBookingCode(b.bookingID)} (Room ${b.roomNumber}) as Completed? This will release the room and mark the stay as departed.`,
       async () => {
         try {
           const res = await fetch('/api/receptionist/bookings', {
@@ -579,7 +580,7 @@ function BookingsClient() {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed to complete checkout');
 
-          showAlert('success', 'Stay Completed', `Booking #${b.bookingID} has been completed and Room ${b.roomNumber} is now freed.`);
+          showAlert('success', 'Stay Completed', `${toPublicBookingCode(b.bookingID)} has been completed and Room ${b.roomNumber} is now freed.`);
           fetchData();
         } catch (err) {
           showAlert('error', 'Error', err.message);
@@ -672,7 +673,7 @@ function BookingsClient() {
             <table class="info-table">
               <tr><td>Date/Time:</td><td class="text-right">${downPaymentReceipt.date}</td></tr>
               <tr><td>Sales Invoice No:</td><td class="text-right">#INV-${downPaymentReceipt.receiptNo}</td></tr>
-              <tr><td>Booking Ref:</td><td class="text-right">#${downPaymentReceipt.bookingID}</td></tr>
+              <tr><td>Booking Ref:</td><td class="text-right">${toPublicBookingCode(downPaymentReceipt.bookingID)}</td></tr>
               <tr><td>Payment Method:</td><td class="text-right">${downPaymentReceipt.paymentMethodName}</td></tr>
               <tr><td>Guest Name:</td><td class="text-right bold">${downPaymentReceipt.guestName}</td></tr>
               <tr><td>Room:</td><td class="text-right">Room ${downPaymentReceipt.roomNumber} (${downPaymentReceipt.roomType})</td></tr>
@@ -1412,7 +1413,7 @@ function BookingsClient() {
           paymentMethodName: pmObj?.paymentMethod || 'Cash'
         });
 
-        showAlert('success', 'Booking Created', `Booking #${data.bookingID || ''} created successfully with down payment.`);
+        showAlert('success', 'Booking Created', `${toPublicBookingCode(data.bookingID)} created successfully with down payment.`);
         setActiveModal('downpayment_receipt');
         clientCache.delete('RECEPTIONIST_BOOKINGS');
         clientCache.delete('RECEPTIONIST_RESERVATIONS');
@@ -1647,7 +1648,7 @@ function BookingsClient() {
       if (conflictSched) {
         const isRes = conflictSched.type === 'reservation' || conflictSched.reservationID;
         const typeLabel = isRes ? (conflictSched.isCourtesyHold || conflictSched.status === 'Courtesy Hold' ? 'Courtesy Hold' : 'Reservation') : 'Booking';
-        const idLabel = isRes ? `#${conflictSched.reservationID}` : `#${conflictSched.bookingID}`;
+        const idLabel = isRes ? toPublicReservationCode(conflictSched.reservationID) : toPublicBookingCode(conflictSched.bookingID);
         return {
           conflict: true,
           type: typeLabel,
@@ -1674,7 +1675,7 @@ function BookingsClient() {
         return {
           conflict: true,
           type: 'Booking',
-          id: `#${conflictBooking.bookingID}`,
+          id: toPublicBookingCode(conflictBooking.bookingID),
           checkIn: conflictBooking.checkInDateTime,
           checkOut: conflictBooking.checkOutDateTime,
           status: conflictBooking.status
@@ -1829,7 +1830,7 @@ function BookingsClient() {
               <tbody>
                 {filteredBookings.map(b => (
                   <tr key={b.bookingID}>
-                    <td className="fw-bold">#{b.bookingID}</td>
+                    <td className="fw-bold">{toPublicBookingCode(b.bookingID)}</td>
                     <td>
                       <div className="fw-bold text-dark">{b.firstName} {b.lastName}</div>
                       <small className="text-muted">{b.contact || 'No Contact'}</small>
@@ -1940,8 +1941,8 @@ function BookingsClient() {
                     <>
                       <tr key={b.bookingID} className={isExpanded ? 'table-light' : ''}>
                         <td className="fw-bold">
-                          <span className="text-dark">#{b.bookingID}</span>
-                          {b.reservationID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Res #{b.reservationID}</small>}
+                          <span className="text-dark">{toPublicBookingCode(b.bookingID)}</span>
+                          {b.reservationID && <small className="text-muted d-block" style={{ fontSize: '0.72rem' }}>{toPublicReservationCode(b.reservationID)}</small>}
                         </td>
                         <td>
                           <div className="fw-bold text-dark">{b.firstName} {b.lastName}</div>
@@ -1999,7 +2000,7 @@ function BookingsClient() {
                               <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                                 <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                                   <i className="bi bi-file-text-fill text-primary"></i>
-                                  <span>Historical Stay Details &amp; Folio Summary: #{b.bookingID}</span>
+                                  <span>Historical Stay Details &amp; Folio Summary: {toPublicBookingCode(b.bookingID)}</span>
                                   <span className="badge bg-light text-dark border ms-1">Room {b.roomNumber} ({b.roomType})</span>
                                 </h6>
                                 <div className="d-flex align-items-center gap-2">
@@ -2026,7 +2027,7 @@ function BookingsClient() {
                                     <div className="small text-muted mb-1"><i className="bi bi-telephone me-1"></i>{b.contact || 'No Contact'}</div>
                                     <div className="small text-muted mb-1"><i className="bi bi-envelope me-1"></i>{b.email || 'No Email'}</div>
                                     <div className="small text-muted mb-2">
-                                      <i className="bi bi-person-badge me-1"></i>Account: <strong>{b.userID ? `UID#${b.userID}` : 'Walk-in Guest'}</strong>
+                                      <i className="bi bi-person-badge me-1"></i>Account: <strong>{b.userID ? toPublicUserCode(b.userID, 'Guest') : 'Walk-in Guest'}</strong>
                                     </div>
                                     
                                     {b.registeredGuests && b.registeredGuests.length > 0 && (
@@ -2214,18 +2215,18 @@ function BookingsClient() {
                 <h5 className="modal-title fw-bold">
                   {activeModal === 'create'
                     ? 'New Lodging Booking Workspace'
-                    : `Update Booking #${updatingBooking ? `BK${String(updatingBooking.bookingID).padStart(5, '0')}` : ''}`}
+                    : `Update ${updatingBooking ? toPublicBookingCode(updatingBooking.bookingID) : ''}`}
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={activeModal === 'create' ? handleCreateSubmit : handleUpdateBookingSubmit}>
                 <div className="modal-body">
-                  {/* TOP: SELECT GUEST ACCOUNT (UID) */}
+                  {/* TOP: SELECT GUEST ACCOUNT */}
                   <div className="p-3 mb-3 border rounded bg-light">
                     <div className="d-flex align-items-center justify-content-between mb-1">
                       <label className="form-label fw-bold text-dark mb-0">
                         <i className="bi bi-person-badge text-pcc-primary me-1.5"></i>
-                        Select Guest Account (UID)
+                        Select Guest Account
                       </label>
                       {isAutoFilled && formData.guestID && (
                         <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
@@ -2236,11 +2237,11 @@ function BookingsClient() {
                     <SearchableSelect
                       options={guests.map(g => ({
                         value: String(g.guestID),
-                        label: `UID${g.userID || g.guestID} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
+                        label: `${g.userID ? toPublicUserCode(g.userID, 'Guest') : toPublicGuestCode(g.guestID)} – ${g.firstName} ${g.lastName} (${g.contact || 'No contact'})`
                       }))}
                       value={formData.guestID}
                       onChange={handleUidChange}
-                      placeholder="Type UID, guest name or contact to search..."
+                      placeholder="Type guest ID, name or contact to search..."
                     />
                     <div className="form-text text-muted small mt-1">
                       <i className="bi bi-info-circle me-1"></i>
@@ -3156,7 +3157,7 @@ function BookingsClient() {
                     <span className="fs-2 text-success">✓</span>
                   </div>
                   <h5 className="fw-bold text-dark mb-1">Down Payment Recorded Successfully!</h5>
-                  <p className="text-muted small">Receipt #{downPaymentReceipt.receiptNo} generated for Booking #{downPaymentReceipt.bookingID}</p>
+                  <p className="text-muted small">Receipt #{downPaymentReceipt.receiptNo} generated for {toPublicBookingCode(downPaymentReceipt.bookingID)}</p>
                 </div>
 
                 <div className="p-3 bg-light rounded border text-start mb-3" style={{ fontSize: '0.9rem' }}>
@@ -3221,7 +3222,7 @@ function BookingsClient() {
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content shadow-lg border-0">
               <div className="modal-header text-white" style={{ background: '#2155B5' }}>
-                <h5 className="modal-title fw-bold">Manage Room Guests — Stay #{managingBooking.bookingID}</h5>
+                <h5 className="modal-title fw-bold">Manage Room Guests — Stay {toPublicBookingCode(managingBooking.bookingID)}</h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>
               <form onSubmit={handleSaveGuestsSubmit}>
@@ -3326,7 +3327,7 @@ function BookingsClient() {
             <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px' }}>
               <div className="modal-header text-white" style={{ background: '#dc3545' }}>
                 <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
-                  <i className="fa-solid fa-ban"></i> Cancel Booking #{cancellingBookingID}
+                  <i className="fa-solid fa-ban"></i> Cancel {toPublicBookingCode(cancellingBookingID)}
                 </h5>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)}></button>
               </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 function QrPaymentContent() {
   const searchParams = useSearchParams();
@@ -324,7 +325,7 @@ function QrPaymentContent() {
           </div>
           <div className="d-flex justify-content-between mb-1 small">
             <span className="text-muted">Stay Reference:</span>
-            <span className="font-monospace text-secondary">#{booking.bookingID}</span>
+            <span className="font-monospace text-secondary">{toPublicBookingCode(booking.bookingID)}</span>
           </div>
           <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
             <span className="fw-bold text-dark">Amount Due:</span>

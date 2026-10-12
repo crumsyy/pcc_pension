@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import { dbQuery, ensureBookingBillingSchema } from '@/lib/db';
+import { toPublicBookingCode } from '@/lib/publicCodes';
 
 export async function POST(request) {
   const session = await getSession();
@@ -63,7 +64,7 @@ export async function POST(request) {
           "INSERT INTO notification (userID, title, message) VALUES (?, 'Guest Checkout Requested', ?)",
           [
             r.userID,
-            `Guest ${booking.firstName} ${booking.lastName} in Room ${booking.roomNumber} (Booking #${bookingID}) has requested checkout. Room inspection and incidental fee verification required.`
+            `Guest ${booking.firstName} ${booking.lastName} in Room ${booking.roomNumber} (${toPublicBookingCode(bookingID)}) has requested checkout. Room inspection and incidental fee verification required.`
           ]
         );
       }
