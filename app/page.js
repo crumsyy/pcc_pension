@@ -7,24 +7,44 @@ import { isValidDate, toDbDate } from "./components/DateInput";
 import FlatDatePicker from "./components/FlatDatePicker";
 import ThemeToggle from "./components/ThemeToggle";
 import ModalPortal from "./components/ModalPortal";
+import {
+  Calendar,
+  Users,
+  Coffee,
+  Bed,
+  ArrowRight,
+  Sparkles,
+  MapPin,
+  Phone,
+  Mail,
+  Clock,
+  ChevronRight,
+  ChevronLeft,
+  ShieldCheck,
+  Wifi,
+  Building,
+  Check,
+  Tag,
+  Hotel
+} from "lucide-react";
 
 function parseRoomImages(imgVal) {
   if (!imgVal) return [];
   if (Array.isArray(imgVal)) return imgVal;
-  if (typeof imgVal === 'string') {
+  if (typeof imgVal === "string") {
     const trimmed = imgVal.trim();
-    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) return parsed.filter(Boolean);
-      } catch (e) { }
+      } catch (e) {}
     }
-    return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+    return trimmed.split(",").map((s) => s.trim()).filter(Boolean);
   }
   return [];
 }
 
-function RoomImageCarousel({ images, fallbackImg, alt, height = '210px' }) {
+function RoomImageCarousel({ images, fallbackImg, alt, height = "230px" }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [hasError, setHasError] = useState(false);
 
@@ -32,20 +52,20 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '210px' }) {
     if (!images || images.length <= 1) return;
     const timer = setInterval(() => {
       setActiveIdx((prev) => (prev + 1) % images.length);
-    }, 3500);
+    }, 4000);
     return () => clearInterval(timer);
   }, [images]);
 
-  const list = images && images.length > 0 ? images : (fallbackImg ? [fallbackImg] : []);
+  const list = images && images.length > 0 ? images : fallbackImg ? [fallbackImg] : [];
 
   if (list.length === 0 || hasError) {
     return (
       <div
         className="d-flex flex-column align-items-center justify-content-center bg-light text-muted w-100"
-        style={{ height: height, border: '1px dashed #cbd5e1' }}
+        style={{ height: height, border: "1px dashed #cbd5e1" }}
       >
-        <i className="bi bi-image" style={{ fontSize: '2rem', color: '#94a3b8' }}></i>
-        <span className="small fw-semibold mt-1" style={{ color: '#64748b' }}>Image Unavailable</span>
+        <Hotel className="text-secondary mb-2" size={32} />
+        <span className="small fw-semibold text-secondary">Image Unavailable</span>
       </div>
     );
   }
@@ -56,7 +76,8 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '210px' }) {
         src={list[0]}
         alt={alt}
         onError={() => setHasError(true)}
-        style={{ width: '100%', height: height, objectFit: 'cover' }}
+        className="w-100 object-fit-cover"
+        style={{ height: height }}
       />
     );
   }
@@ -68,35 +89,82 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = '210px' }) {
           key={idx}
           src={img}
           alt={`${alt} slide ${idx + 1}`}
-          onError={() => { if (idx === 0 && list.length === 1) setHasError(true); }}
-          className={`position-absolute top-0 start-0 w-100 h-100 ${idx === activeIdx ? 'opacity-100' : 'opacity-0'}`}
-          style={{ objectFit: 'cover', transition: 'opacity 0.6s ease-in-out' }}
+          onError={() => {
+            if (idx === 0 && list.length === 1) setHasError(true);
+          }}
+          className={`position-absolute top-0 start-0 w-100 h-100 object-fit-cover transition-opacity ${
+            idx === activeIdx ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          style={{ transitionDuration: "600ms" }}
         />
       ))}
+
+      {/* Modern Frosted Navigation Buttons */}
       <button
         type="button"
-        className="btn btn-dark btn-xs position-absolute top-50 start-0 translate-middle-y ms-2 bg-dark bg-opacity-50 border-0 rounded-circle text-white p-1"
-        style={{ width: '28px', height: '28px', zIndex: 5, fontSize: '0.85rem' }}
-        onClick={(e) => { e.stopPropagation(); setActiveIdx(prev => (prev - 1 + list.length) % list.length); }}
+        aria-label="Previous slide"
+        className="position-absolute top-50 start-0 translate-middle-y ms-2 border-0 rounded-circle text-white d-flex align-items-center justify-content-center shadow-sm"
+        style={{
+          width: "32px",
+          height: "32px",
+          zIndex: 5,
+          backgroundColor: "rgba(15, 23, 42, 0.55)",
+          backdropFilter: "blur(6px)",
+          cursor: "pointer"
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setActiveIdx((prev) => (prev - 1 + list.length) % list.length);
+        }}
       >
-        ‹
+        <ChevronLeft size={16} />
       </button>
+
       <button
         type="button"
-        className="btn btn-dark btn-xs position-absolute top-50 end-0 translate-middle-y me-2 bg-dark bg-opacity-50 border-0 rounded-circle text-white p-1"
-        style={{ width: '28px', height: '28px', zIndex: 5, fontSize: '0.85rem' }}
-        onClick={(e) => { e.stopPropagation(); setActiveIdx(prev => (prev + 1) % list.length); }}
+        aria-label="Next slide"
+        className="position-absolute top-50 end-0 translate-middle-y me-2 border-0 rounded-circle text-white d-flex align-items-center justify-content-center shadow-sm"
+        style={{
+          width: "32px",
+          height: "32px",
+          zIndex: 5,
+          backgroundColor: "rgba(15, 23, 42, 0.55)",
+          backdropFilter: "blur(6px)",
+          cursor: "pointer"
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setActiveIdx((prev) => (prev + 1) % list.length);
+        }}
       >
-        ›
+        <ChevronRight size={16} />
       </button>
-      <div className="position-absolute bottom-0 start-50 translate-middle-x mb-2 d-flex gap-1" style={{ zIndex: 5 }}>
+
+      {/* Indicator Pills */}
+      <div
+        className="position-absolute bottom-0 start-50 translate-middle-x mb-2 d-flex gap-1.5 px-2 py-1 rounded-pill"
+        style={{
+          zIndex: 5,
+          backgroundColor: "rgba(15, 23, 42, 0.45)",
+          backdropFilter: "blur(4px)"
+        }}
+      >
         {list.map((_, idx) => (
           <span
             key={idx}
-            className={`rounded-circle ${idx === activeIdx ? 'bg-white' : 'bg-white bg-opacity-50'}`}
-            style={{ width: '6px', height: '6px', cursor: 'pointer' }}
-            onClick={(e) => { e.stopPropagation(); setActiveIdx(idx); }}
-          ></span>
+            className="rounded-pill transition-all"
+            style={{
+              width: idx === activeIdx ? "16px" : "6px",
+              height: "6px",
+              backgroundColor: idx === activeIdx ? "#ffffff" : "rgba(255, 255, 255, 0.5)",
+              cursor: "pointer",
+              transition: "all 0.3s ease"
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveIdx(idx);
+            }}
+          />
         ))}
       </div>
     </div>
@@ -134,7 +202,7 @@ export default function Home() {
 
     async function checkSession() {
       try {
-        const res = await fetch('/api/auth/session-check');
+        const res = await fetch("/api/auth/session-check");
         const data = await res.json();
         if (res.ok && data.valid) {
           setCurrentUser(data.session);
@@ -146,7 +214,7 @@ export default function Home() {
 
     async function fetchLandingData() {
       try {
-        const res = await fetch('/api/landing');
+        const res = await fetch("/api/landing");
         const data = await res.json();
         if (res.ok) {
           setLandingData({
@@ -164,13 +232,13 @@ export default function Home() {
     fetchLandingData();
 
     const today = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
+    const pad = (n) => String(n).padStart(2, "0");
     const todayStr = `${pad(today.getMonth() + 1)}/${pad(today.getDate())}/${today.getFullYear()}`;
 
-    const tomorrow = new Date(today.getTime() + (24 * 60 * 60 * 1000));
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
     const tomorrowStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
 
-    const maxLead = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
+    const maxLead = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
     const maxLeadStr = `${pad(maxLead.getMonth() + 1)}/${pad(maxLead.getDate())}/${maxLead.getFullYear()}`;
 
     setMinCheckIn(todayStr);
@@ -194,7 +262,7 @@ export default function Home() {
     // Reservation Rule: Today up to 2 days ahead max
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const selectedCheckIn = new Date(toDbDate(checkIn) + 'T00:00:00');
+    const selectedCheckIn = new Date(toDbDate(checkIn) + "T00:00:00");
     selectedCheckIn.setHours(0, 0, 0, 0);
 
     const diffDays = Math.round((selectedCheckIn.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -206,9 +274,13 @@ export default function Home() {
     setSearching(true);
     setSearchTriggered(true);
     try {
-      const res = await fetch(`/api/rooms/availability?checkIn=${toDbDate(checkIn)}&checkOut=${toDbDate(checkOut)}&roomType=${encodeURIComponent(roomType)}&breakfast=${encodeURIComponent(breakfast)}`);
+      const res = await fetch(
+        `/api/rooms/availability?checkIn=${toDbDate(checkIn)}&checkOut=${toDbDate(checkOut)}&roomType=${encodeURIComponent(
+          roomType
+        )}&breakfast=${encodeURIComponent(breakfast)}`
+      );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch room availability');
+      if (!res.ok) throw new Error(data.error || "Failed to fetch room availability");
       setAvailableRooms(data.rooms || []);
       setShowResultsModal(true);
     } catch (err) {
@@ -219,21 +291,21 @@ export default function Home() {
   };
 
   const handleBookNow = async (roomID) => {
-    if (!currentUser || currentUser.role !== 'Guest') {
+    if (!currentUser || currentUser.role !== "Guest") {
       window.location.href = `/auth/register?check_in=${toDbDate(checkIn)}&check_out=${toDbDate(checkOut)}&room_id=${roomID}&breakfast=${breakfast}`;
       return;
     }
 
     setBookingInProgress(true);
     try {
-      const res = await fetch('/api/guest/reservations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/guest/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomID, checkInDate: toDbDate(checkIn) })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to submit reservation request');
-      alert(data.message || 'Reservation request submitted successfully!');
+      if (!res.ok) throw new Error(data.error || "Failed to submit reservation request");
+      alert(data.message || "Reservation request submitted successfully!");
       setShowResultsModal(false);
     } catch (err) {
       alert(err.message);
@@ -243,9 +315,9 @@ export default function Home() {
   };
 
   const defaultRoomImages = {
-    'Standard Matrimonial': 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80',
-    'Twin Matrimonial': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80',
-    'Deluxe Matrimonial': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+    "Standard Matrimonial": "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80",
+    "Twin Matrimonial": "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80",
+    "Deluxe Matrimonial": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80"
   };
 
   const allPromos = landingData.promotions || [];
@@ -254,64 +326,197 @@ export default function Home() {
   const visibleRooms = showAllRooms ? allRooms : allRooms.slice(0, VISIBLE_COUNT);
 
   return (
-    <>
-      {/* NAVBAR */}
-      <nav className="navbar navbar-expand-lg navbar-pcc sticky-top">
+    <div className="min-vh-100 d-flex flex-column">
+      {/* MODERN FROSTED NAVBAR */}
+      <nav
+        className="navbar navbar-expand-lg sticky-top py-3"
+        style={{
+          backgroundColor: "rgba(255, 255, 255, 0.88)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderBottom: "1px solid rgba(226, 232, 240, 0.85)",
+          zIndex: 1030
+        }}
+      >
         <div className="container">
-          <Link href="/" className="navbar-brand d-flex align-items-center gap-2">
-            <img src="/assets/images/logo.jpg" alt="PCC Home Suite Home logo" height="42" style={{ borderRadius: "4px" }} />
+          <Link href="/" className="navbar-brand d-flex align-items-center gap-2.5 text-decoration-none">
+            <img
+              src="/assets/images/logo.jpg"
+              alt="PCC Home Suite Home logo"
+              height="44"
+              className="rounded-2 shadow-sm"
+              style={{ objectFit: "contain" }}
+            />
+            <div className="d-none d-sm-block">
+              <span className="fw-bold fs-5 text-dark tracking-tight d-block lh-1">PCC Home Suite Home</span>
+              <span className="text-muted small" style={{ fontSize: "0.75rem" }}>Pension House · Koronadal City</span>
+            </div>
           </Link>
-          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+
+          <button
+            className="navbar-toggler border-0 shadow-none px-2"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#mainNav"
+            aria-controls="mainNav"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+          >
             <span className="navbar-toggler-icon"></span>
           </button>
+
           <div className="collapse navbar-collapse" id="mainNav">
-            <ul className="navbar-nav ms-auto align-items-lg-center gap-lg-2">
-              <li className="nav-item"><a className="nav-link" href="#home">Home</a></li>
-              <li className="nav-item"><a className="nav-link" href="#about">About Us</a></li>
-              <li className="nav-item"><a className="nav-link" href="#promotions">Promotions</a></li>
-              <li className="nav-item"><a className="nav-link" href="#rooms">Rooms &amp; Rates</a></li>
-              <li className="nav-item"><a className="nav-link" href="#amenities">Amenities</a></li>
-              <li className="nav-item"><a className="nav-link" href="#contact">Contact</a></li>
-              <li className="nav-item mt-2 mt-lg-0">
-                <Link href="/auth/login" className="btn btn-pcc-primary btn-sm me-2">Log In</Link>
+            <ul className="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+              <li className="nav-item">
+                <a className="nav-link px-3 py-2 fw-medium text-secondary hover:text-dark rounded-pill" href="#home">
+                  Home
+                </a>
               </li>
-              <li className="nav-item mt-2 mt-lg-0 me-2">
-                <Link href="/auth/register" className="btn btn-pcc-primary btn-sm">Book Now</Link>
+              <li className="nav-item">
+                <a className="nav-link px-3 py-2 fw-medium text-secondary hover:text-dark rounded-pill" href="#about">
+                  About Us
+                </a>
               </li>
-              <li className="nav-item mt-2 mt-lg-0">
-                <ThemeToggle />
+              <li className="nav-item">
+                <a className="nav-link px-3 py-2 fw-medium text-secondary hover:text-dark rounded-pill" href="#promotions">
+                  Promotions
+                </a>
+              </li>
+              <li className="nav-item">
+                <a className="nav-link px-3 py-2 fw-medium text-secondary hover:text-dark rounded-pill" href="#rooms">
+                  Rooms &amp; Rates
+                </a>
+              </li>
+              <li className="nav-item">
+                <a className="nav-link px-3 py-2 fw-medium text-secondary hover:text-dark rounded-pill" href="#amenities">
+                  Amenities
+                </a>
+              </li>
+              <li className="nav-item">
+                <a className="nav-link px-3 py-2 fw-medium text-secondary hover:text-dark rounded-pill" href="#contact">
+                  Contact
+                </a>
+              </li>
+
+              <li className="nav-item ms-lg-2 mt-2 mt-lg-0 d-flex align-items-center gap-2">
+                <Link
+                  href="/auth/login"
+                  className="btn btn-outline-secondary btn-sm px-3.5 py-1.5 fw-semibold rounded-pill"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="btn btn-primary btn-sm px-4 py-1.5 fw-semibold rounded-pill shadow-sm"
+                  style={{ backgroundColor: "var(--pcc-blue)", borderColor: "var(--pcc-blue)" }}
+                >
+                  Book Now
+                </Link>
+                <div className="ms-1">
+                  <ThemeToggle />
+                </div>
               </li>
             </ul>
           </div>
         </div>
       </nav>
 
-      {/* HERO + AVAILABILITY SEARCH */}
-      <section className="hero" id="home">
-        <div className="container">
+      {/* HERO SECTION WITH DYNAMIC SEARCH CONSOLE */}
+      <section
+        className="hero position-relative py-5 py-lg-6"
+        id="home"
+        style={{
+          background: "radial-gradient(circle at 85% 15%, rgba(63, 163, 77, 0.08) 0%, rgba(33, 85, 181, 0.05) 50%, #ffffff 100%)"
+        }}
+      >
+        <div className="container py-lg-4">
           <div className="row align-items-center g-5">
+            {/* Left Content */}
             <div className="col-lg-6">
-              <div className="eyebrow mb-3">Osmeña Street, Zone 1 · Koronadal City</div>
-              <h1 className="mb-3">Your <em>home</em> away<br />from home.</h1>
-              <p className="lead mb-4">
-                PCC Home Suite Home offers comfortable, affordable, and well-kept rooms
-                for travelers, families, and long-staying guests in the heart of Koronadal City —
-                with friendly service and everything you need to feel at home.
+              {/* Location pill */}
+              <div
+                className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill mb-3.5 shadow-xs"
+                style={{
+                  backgroundColor: "rgba(33, 85, 181, 0.08)",
+                  border: "1px solid rgba(33, 85, 181, 0.15)",
+                  color: "var(--pcc-blue)"
+                }}
+              >
+                <MapPin size={14} className="text-primary" />
+                <span className="small fw-semibold" style={{ fontSize: "0.8rem", letterSpacing: "0.03em" }}>
+                  Osmeña Street, Zone 1 · Koronadal City
+                </span>
+              </div>
+
+              <h1 className="display-4 fw-bold text-dark tracking-tight mb-3.5 lh-sm">
+                Your <span style={{ color: "var(--pcc-green)", fontStyle: "italic", fontFamily: "var(--font-display)" }}>home</span> away
+                <br className="d-none d-sm-inline" /> from home.
+              </h1>
+
+              <p className="lead text-secondary mb-4 fs-6" style={{ maxWidth: "520px", lineHeight: "1.65" }}>
+                PCC Home Suite Home provides comfortable, clean, and budget-friendly accommodations
+                for travelers, families, and long-staying guests right in the vibrant heart of Koronadal City.
               </p>
-              <div className="d-flex gap-3">
-                <a href="#rooms" className="btn btn-pcc-primary">View Rooms &amp; Rates</a>
-                <Link href="/auth/register" className="btn btn-pcc-outline">Create an Account</Link>
+
+              <div className="d-flex flex-wrap align-items-center gap-3">
+                <a
+                  href="#rooms"
+                  className="btn btn-primary px-4 py-2.5 fw-semibold rounded-pill d-inline-flex align-items-center gap-2 shadow-sm"
+                  style={{ backgroundColor: "var(--pcc-blue)", borderColor: "var(--pcc-blue)" }}
+                >
+                  <Bed size={18} />
+                  <span>View Rooms &amp; Rates</span>
+                </a>
+                <Link
+                  href="/auth/register"
+                  className="btn btn-outline-secondary px-4 py-2.5 fw-semibold rounded-pill d-inline-flex align-items-center gap-2"
+                >
+                  <span>Create Account</span>
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+
+              {/* Trust Badges */}
+              <div className="d-flex align-items-center gap-4 mt-4 pt-3 border-top border-slate-200">
+                <div className="d-flex align-items-center gap-2 text-muted small">
+                  <ShieldCheck size={18} className="text-success" />
+                  <span>Secure Direct Booking</span>
+                </div>
+                <div className="d-flex align-items-center gap-2 text-muted small">
+                  <Clock size={18} className="text-primary" />
+                  <span>24/7 Front Desk</span>
+                </div>
               </div>
             </div>
+
+            {/* Right Booking Console */}
             <div className="col-lg-6">
-              <div className="availability-bar">
-                <form onSubmit={handleSearchSubmit} className="row g-3">
-                  <div className="col-12 mb-1">
-                    <span className="section-eyebrow d-block">Check Availability</span>
-                    <h4 className="text-blue mb-0">Plan your stay</h4>
+              <div
+                className="card border-0 shadow-lg p-4 p-md-4.5 rounded-4"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.95)",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 20px 45px -15px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.85)"
+                }}
+              >
+                <div className="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-slate-100">
+                  <div>
+                    <span className="badge bg-primary-subtle text-primary fw-semibold px-2.5 py-1 rounded-pill small mb-1">
+                      Real-time Search
+                    </span>
+                    <h4 className="fw-bold text-dark mb-0 fs-5">Check Availability</h4>
                   </div>
+                  <div className="text-end">
+                    <span className="text-muted small d-block">Max 2-day lead</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSearchSubmit} className="row g-3">
                   <div className="col-md-6">
-                    <label className="form-label d-block mb-1.5 fw-semibold small">Check-in *</label>
+                    <label className="form-label d-flex align-items-center gap-1.5 fw-semibold text-secondary small mb-1.5">
+                      <Calendar size={14} className="text-primary" />
+                      <span>Check-in Date *</span>
+                    </label>
                     <FlatDatePicker
                       value={checkIn}
                       onChange={setCheckIn}
@@ -320,8 +525,12 @@ export default function Home() {
                       max={maxCheckIn}
                     />
                   </div>
+
                   <div className="col-md-6">
-                    <label className="form-label d-block mb-1.5 fw-semibold small">Check-out *</label>
+                    <label className="form-label d-flex align-items-center gap-1.5 fw-semibold text-secondary small mb-1.5">
+                      <Calendar size={14} className="text-primary" />
+                      <span>Check-out Date *</span>
+                    </label>
                     <FlatDatePicker
                       value={checkOut}
                       onChange={setCheckOut}
@@ -329,10 +538,14 @@ export default function Home() {
                       min={checkIn || minCheckIn}
                     />
                   </div>
+
                   <div className="col-md-6">
-                    <label className="form-label d-block mb-1.5 fw-semibold small">Room Type</label>
+                    <label className="form-label d-flex align-items-center gap-1.5 fw-semibold text-secondary small mb-1.5">
+                      <Bed size={14} className="text-primary" />
+                      <span>Room Type</span>
+                    </label>
                     <select
-                      className="form-select"
+                      className="form-select rounded-3 py-2 text-dark bg-white border-slate-200"
                       value={roomType}
                       onChange={(e) => setRoomType(e.target.value)}
                     >
@@ -342,10 +555,14 @@ export default function Home() {
                       <option>Deluxe Matrimonial</option>
                     </select>
                   </div>
+
                   <div className="col-md-6">
-                    <label className="form-label d-block mb-1.5 fw-semibold small">Breakfast</label>
+                    <label className="form-label d-flex align-items-center gap-1.5 fw-semibold text-secondary small mb-1.5">
+                      <Coffee size={14} className="text-primary" />
+                      <span>Breakfast Option</span>
+                    </label>
                     <select
-                      className="form-select"
+                      className="form-select rounded-3 py-2 text-dark bg-white border-slate-200"
                       value={breakfast}
                       onChange={(e) => setBreakfast(e.target.value)}
                     >
@@ -353,9 +570,25 @@ export default function Home() {
                       <option>Without Breakfast</option>
                     </select>
                   </div>
-                  <div className="col-12 mt-3">
-                    <button type="submit" className="btn btn-pcc-primary w-100 py-2.5 fw-bold" disabled={searching}>
-                      {searching ? "Checking..." : "Check Availability"}
+
+                  <div className="col-12 mt-4">
+                    <button
+                      type="submit"
+                      className="btn btn-primary w-100 py-2.5 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2"
+                      style={{ backgroundColor: "var(--pcc-blue)", borderColor: "var(--pcc-blue)" }}
+                      disabled={searching}
+                    >
+                      {searching ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                          <span>Searching Vacancies...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Check Room Availability</span>
+                          <ArrowRight size={18} />
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -365,44 +598,70 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ABOUT US */}
-      <section className="section" id="about">
+      {/* ABOUT US & STATS SECTION */}
+      <section className="section py-5 py-lg-6" id="about" style={{ backgroundColor: "#fafbfc" }}>
         <div className="container">
           <div className="row g-5 align-items-center">
-            <div className="col-lg-6">
-              <div className="about-figure">
-                <div className="tag-line">
-                  &quot;Make yourself<br />at home —<br />that&apos;s the<br />PCC promise.&quot;
+            <div className="col-lg-5">
+              <div
+                className="p-4 p-md-5 rounded-4 shadow-sm text-white position-relative overflow-hidden"
+                style={{
+                  background: "linear-gradient(135deg, var(--pcc-blue) 0%, #173874 100%)"
+                }}
+              >
+                <Sparkles size={36} className="text-warning opacity-75 mb-3" />
+                <blockquote className="fs-4 fw-medium mb-4 lh-base" style={{ fontFamily: "var(--font-display)" }}>
+                  &ldquo;Make yourself at home &mdash; that&rsquo;s the PCC promise.&rdquo;
+                </blockquote>
+                <div className="d-flex align-items-center gap-2 small opacity-75">
+                  <div className="rounded-circle bg-white opacity-50" style={{ width: "8px", height: "8px" }} />
+                  <span>PCC Home Suite Home Hospitality</span>
                 </div>
               </div>
             </div>
-            <div className="col-lg-6">
-              <div className="section-eyebrow">About Us</div>
-              <h2 className="section-title mb-3">A pension house that feels like home</h2>
-              <p className="text-muted">
-                Located along Osmeña Street, Zone 1, Koronadal City, PCC Home Suite Home
+
+            <div className="col-lg-7">
+              <div className="section-eyebrow text-uppercase fw-bold small text-success mb-2" style={{ letterSpacing: "0.15em" }}>
+                About Our Pension House
+              </div>
+              <h2 className="section-title fw-bold text-dark mb-3.5 lh-sm">
+                A warm, peaceful retreat in the heart of Koronadal
+              </h2>
+              <p className="text-secondary mb-4 leading-relaxed">
+                Located conveniently along Osmeña Street, Zone 1, Koronadal City, PCC Home Suite Home
                 provides clean, secure, and budget-friendly accommodations for guests
-                visiting the city for work, leisure, or family matters. Our two-floor
+                visiting the city for work, leisure, or family gatherings. Our two-floor
                 property offers Standard, Twin, and Deluxe Matrimonial rooms, each
-                available with or without breakfast — so you can choose what fits
-                your stay best.
+                available with or without breakfast &mdash; designed to deliver comfort without compromise.
               </p>
-              <div className="stat-row d-flex flex-wrap gap-4 mt-4">
-                <div>
-                  <div className="stat-number">2</div>
-                  <div className="stat-label">Floors</div>
+
+              {/* Enhanced Stat Cards */}
+              <div className="row g-3 mt-2">
+                <div className="col-6 col-sm-3">
+                  <div className="p-3 bg-white rounded-3 shadow-2xs border border-slate-100 text-center h-100">
+                    <div className="fw-bold fs-3" style={{ color: "var(--pcc-blue)" }}>2</div>
+                    <div className="small text-muted fw-medium mt-1">Floors</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="stat-number">3</div>
-                  <div className="stat-label">Room Types</div>
+                <div className="col-6 col-sm-3">
+                  <div className="p-3 bg-white rounded-3 shadow-2xs border border-slate-100 text-center h-100">
+                    <div className="fw-bold fs-3" style={{ color: "var(--pcc-blue)" }}>3</div>
+                    <div className="small text-muted fw-medium mt-1">Room Types</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="stat-number text-pcc-blue fw-bold">{landingData.totalRooms > 0 ? landingData.totalRooms : 6}</div>
-                  <div className="stat-label">Total Rooms</div>
+                <div className="col-6 col-sm-3">
+                  <div className="p-3 bg-white rounded-3 shadow-2xs border border-slate-100 text-center h-100">
+                    <div className="fw-bold fs-3" style={{ color: "var(--pcc-green)" }}>
+                      {landingData.totalRooms > 0 ? landingData.totalRooms : 6}
+                    </div>
+                    <div className="small text-muted fw-medium mt-1">Total Rooms</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="stat-number">24/7</div>
-                  <div className="stat-label">Front Desk</div>
+                <div className="col-6 col-sm-3">
+                  <div className="p-3 bg-white rounded-3 shadow-2xs border border-slate-100 text-center h-100">
+                    <div className="fw-bold fs-3" style={{ color: "var(--pcc-blue)" }}>24/7</div>
+                    <div className="small text-muted fw-medium mt-1">Front Desk</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -412,41 +671,81 @@ export default function Home() {
 
       {/* PROMOTIONS DISPLAY */}
       {landingData.promotions && landingData.promotions.length > 0 && (
-        <section className="section bg-light py-5" id="promotions">
+        <section className="section py-5 py-lg-6" id="promotions" style={{ backgroundColor: "#ffffff" }}>
           <div className="container">
-            <div className="text-center mb-4">
-              <div className="section-eyebrow">Special Offers</div>
-              <h2 className="section-title">Active Discounts &amp; Promotions</h2>
-              <p className="text-muted">Enjoy exclusive savings when you book during our active promotion periods.</p>
+            <div className="text-center mb-5">
+              <span className="badge bg-danger-subtle text-danger px-3 py-1.5 rounded-pill fw-semibold small mb-2">
+                Special Offers
+              </span>
+              <h2 className="section-title fw-bold text-dark mb-2">Active Discounts &amp; Promotions</h2>
+              <p className="text-secondary small" style={{ maxWidth: "540px", margin: "0 auto" }}>
+                Enjoy exclusive seasonal savings when you book directly with PCC Home Suite Home.
+              </p>
             </div>
+
             <div className="row g-4 justify-content-center">
               {visiblePromos.map((promo) => (
                 <div key={promo.promotionID} className="col-md-6 col-lg-4">
-                  <div className="card h-100 border-0 shadow-sm p-4 bg-white" style={{ borderRadius: '12px', borderLeft: '5px solid var(--pcc-blue)' }}>
-                    <div className="d-flex justify-content-between align-items-start mb-2">
-                      <h5 className="fw-bold text-dark mb-0">{promo.name}</h5>
-                      <span className="badge bg-danger text-white px-3 py-1 fs-6">{promo.percentage}% OFF</span>
+                  <div
+                    className="card h-100 border-0 rounded-4 shadow-sm p-4 bg-white d-flex flex-column justify-content-between transition-all"
+                    style={{
+                      borderTop: "4px solid var(--pcc-blue)",
+                      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)"
+                    }}
+                  >
+                    <div>
+                      <div className="d-flex justify-content-between align-items-start mb-2.5">
+                        <h5 className="fw-bold text-dark mb-0 fs-5">{promo.name}</h5>
+                        <span className="badge bg-danger text-white px-2.5 py-1 rounded-pill fw-bold">
+                          {promo.percentage}% OFF
+                        </span>
+                      </div>
+                      <p className="text-secondary small mb-3">
+                        {promo.description || "Exclusive promotional discount for lodging stays."}
+                      </p>
                     </div>
-                    <p className="text-muted small mb-3 flex-grow-1">{promo.description || 'Exclusive promotional discount for lodging stays.'}</p>
-                    <div className="p-2 bg-light rounded small mb-3" style={{ fontSize: '0.78rem' }}>
-                      <div><strong>Valid:</strong> {new Date(promo.startDate).toLocaleDateString()} – {new Date(promo.endDate).toLocaleDateString()}</div>
-                      {promo.roomTypeName && <div><strong>Applicable Room:</strong> {promo.roomTypeName}</div>}
+
+                    <div>
+                      <div className="p-2.5 bg-light rounded-3 small mb-3.5 text-muted" style={{ fontSize: "0.8rem" }}>
+                        <div className="d-flex align-items-center gap-1.5 mb-1">
+                          <Calendar size={13} className="text-primary" />
+                          <span>
+                            <strong>Valid:</strong> {new Date(promo.startDate).toLocaleDateString()} &ndash;{" "}
+                            {new Date(promo.endDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {promo.roomTypeName && (
+                          <div className="d-flex align-items-center gap-1.5">
+                            <Bed size={13} className="text-success" />
+                            <span>
+                              <strong>Applies to:</strong> {promo.roomTypeName}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <Link
+                        href="/auth/register"
+                        className="btn btn-primary btn-sm text-white w-100 py-2 fw-semibold rounded-pill text-center shadow-xs d-flex align-items-center justify-content-center gap-1.5"
+                        style={{ backgroundColor: "var(--pcc-blue)", borderColor: "var(--pcc-blue)" }}
+                      >
+                        <Tag size={14} />
+                        <span>Claim Promo &amp; Book</span>
+                      </Link>
                     </div>
-                    <Link href="/auth/register" className="btn btn-pcc-primary btn-sm text-white w-100 text-center fw-bold">
-                      Claim Promo &amp; Book Now
-                    </Link>
                   </div>
                 </div>
               ))}
             </div>
+
             {allPromos.length > VISIBLE_COUNT && (
-              <div className="text-center mt-4">
+              <div className="text-center mt-4 pt-2">
                 <button
                   type="button"
-                  className="btn btn-pcc-outline px-4 fw-bold"
+                  className="btn btn-outline-secondary px-4 py-2 rounded-pill fw-semibold"
                   onClick={() => setShowAllPromos((v) => !v)}
                 >
-                  {showAllPromos ? 'Show Less' : `See More (${allPromos.length - VISIBLE_COUNT} more)`}
+                  {showAllPromos ? "Show Less" : `See More (${allPromos.length - VISIBLE_COUNT} more)`}
                 </button>
               </div>
             )}
@@ -455,34 +754,53 @@ export default function Home() {
       )}
 
       {/* ROOMS & RATES WITH IMAGES */}
-      <section className="section bg-mist" id="rooms">
+      <section className="section py-5 py-lg-6" id="rooms" style={{ backgroundColor: "#f8fafc" }}>
         <div className="container">
           <div className="text-center mb-5">
-            <div className="section-eyebrow">Rooms &amp; Rates</div>
-            <h2 className="section-title">Find your room</h2>
-            <p className="text-muted">All rates are per night and listed without &amp; with breakfast.</p>
+            <span className="badge bg-primary-subtle text-primary px-3 py-1.5 rounded-pill fw-semibold small mb-2">
+              Accommodation Catalog
+            </span>
+            <h2 className="section-title fw-bold text-dark mb-2">Rooms &amp; Rates</h2>
+            <p className="text-secondary small" style={{ maxWidth: "520px", margin: "0 auto" }}>
+              Explore our comfortable lodging choices. All rates are listed per night with optional hearty breakfast.
+            </p>
           </div>
 
           {allRooms.length > 0 ? (
             <>
               {(() => {
                 const roomsByFloor = visibleRooms.reduce((acc, rm) => {
-                  const floorKey = rm.floorName || (rm.floorID === 2 ? 'Second Floor' : 'Ground Floor');
+                  const floorKey = rm.floorName || (rm.floorID === 2 ? "Second Floor" : "Ground Floor");
                   if (!acc[floorKey]) acc[floorKey] = [];
                   acc[floorKey].push(rm);
                   return acc;
                 }, {});
 
                 return Object.entries(roomsByFloor).map(([floorName, floorRooms], fIdx) => (
-                  <div key={floorName} className={`floor-block ${fIdx === Object.keys(roomsByFloor).length - 1 ? 'mb-0' : 'mb-5'}`}>
-                    <div className="floor-label mb-3">
-                      <div className="floor-number">{String(fIdx + 1).padStart(2, '0')}</div>
-                      <div>
-                        <div className="display-font text-blue" style={{ fontSize: "1.2rem", fontWeight: "bold" }}>{floorName}</div>
-                        <div className="floor-name text-muted small">{floorRooms.length} room{floorRooms.length > 1 ? 's' : ''} available on this floor</div>
+                  <div key={floorName} className={`mb-5 ${fIdx === Object.keys(roomsByFloor).length - 1 ? "mb-0" : ""}`}>
+                    {/* Floor Header Bar */}
+                    <div className="d-flex align-items-center justify-content-between mb-3.5 pb-2 border-bottom border-slate-200">
+                      <div className="d-flex align-items-center gap-2.5">
+                        <span
+                          className="badge rounded-circle p-2 d-flex align-items-center justify-content-center text-white fw-bold"
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            backgroundColor: "var(--pcc-blue)",
+                            fontSize: "0.9rem"
+                          }}
+                        >
+                          {String(fIdx + 1).padStart(2, "0")}
+                        </span>
+                        <div>
+                          <h4 className="fw-bold text-dark mb-0 fs-5">{floorName}</h4>
+                          <span className="text-muted small">
+                            {floorRooms.length} room{floorRooms.length > 1 ? "s" : ""} on this floor
+                          </span>
+                        </div>
                       </div>
-                      <hr />
                     </div>
+
                     <div className="row g-4">
                       {floorRooms.map((rm) => {
                         const parsedImages = parseRoomImages(rm.image);
@@ -491,65 +809,124 @@ export default function Home() {
                         const isBreakfastFree = hasCustomBreakfast && parseFloat(rm.breakfastRate) === 0;
                         const breakfastDiff = hasCustomBreakfast
                           ? parseFloat(rm.breakfastRate)
-                          : (parseFloat(rm.rateWithBreakfast || 0) - parseFloat(rm.rateWithoutBreakfast || 0));
+                          : parseFloat(rm.rateWithBreakfast || 0) - parseFloat(rm.rateWithoutBreakfast || 0);
 
                         return (
                           <div key={rm.roomID} className="col-md-6 col-lg-4">
-                            <div className="card h-100 border-0 shadow-sm overflow-hidden room-card-hover" style={{ borderRadius: '12px', backgroundColor: '#fff' }}>
-                              <div style={{ height: '210px', overflow: 'hidden', position: 'relative' }}>
-                                <RoomImageCarousel
-                                  images={parsedImages}
-                                  fallbackImg={defaultImg}
-                                  alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
-                                />
-                                <span className="badge bg-dark text-white position-absolute top-0 start-0 m-3 px-3 py-1 shadow-sm" style={{ fontSize: '0.82rem', zIndex: 6 }}>
-                                  {rm.floorName || floorName}
-                                </span>
-                                <span className={`badge ${rm.status === 'Available' ? 'bg-success' : 'bg-warning text-dark'} position-absolute top-0 end-0 m-3 px-3 py-1 shadow-sm`} style={{ fontSize: '0.82rem', zIndex: 6 }}>
-                                  Room {rm.roomNumber} • {rm.status}
-                                </span>
-                              </div>
-                              <div className="card-body p-4 d-flex flex-column justify-content-between">
-                                <div>
-                                  <h5 className="fw-bold text-pcc-blue mb-1">{rm.roomType} (Room {rm.roomNumber})</h5>
-                                  <small className="text-muted d-block mb-2">Max Occupancy: {rm.occupancyLimit || 4} Guests</small>
-                                  <p className="text-muted small mb-3">{rm.description || rm.typeDescription || 'Comfortable stay with essential amenities and daily housekeeping.'}</p>
+                            <div
+                              className="card h-100 border-0 rounded-4 shadow-sm overflow-hidden bg-white d-flex flex-column justify-content-between transition-all"
+                              style={{
+                                boxShadow: "0 6px 24px rgba(15, 23, 42, 0.05)"
+                              }}
+                            >
+                              <div>
+                                {/* Carousel Container with Top Badges */}
+                                <div className="position-relative overflow-hidden" style={{ height: "220px" }}>
+                                  <RoomImageCarousel
+                                    images={parsedImages}
+                                    fallbackImg={defaultImg}
+                                    alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
+                                    height="220px"
+                                  />
+                                  <span
+                                    className="badge position-absolute top-0 start-0 m-3 px-2.5 py-1 rounded-pill text-white shadow-sm"
+                                    style={{
+                                      backgroundColor: "rgba(15, 23, 42, 0.65)",
+                                      backdropFilter: "blur(4px)",
+                                      fontSize: "0.75rem",
+                                      zIndex: 6
+                                    }}
+                                  >
+                                    {rm.floorName || floorName}
+                                  </span>
+                                  <span
+                                    className={`badge position-absolute top-0 end-0 m-3 px-2.5 py-1 rounded-pill shadow-sm d-flex align-items-center gap-1.5 ${
+                                      rm.status === "Available"
+                                        ? "bg-success text-white"
+                                        : "bg-warning text-dark"
+                                    }`}
+                                    style={{ fontSize: "0.75rem", zIndex: 6 }}
+                                  >
+                                    <span
+                                      className="rounded-circle bg-white"
+                                      style={{ width: "6px", height: "6px" }}
+                                    />
+                                    <span>Room {rm.roomNumber} &bull; {rm.status}</span>
+                                  </span>
                                 </div>
-                                <div>
-                                  <div className="p-2.5 bg-light rounded mb-3" style={{ fontSize: '0.82rem' }}>
-                                    <div className="d-flex justify-content-between mb-1">
+
+                                {/* Card Body */}
+                                <div className="p-4">
+                                  <h5 className="fw-bold text-dark mb-1 fs-5">
+                                    {rm.roomType}{" "}
+                                    <span className="text-muted fw-normal" style={{ fontSize: "0.9rem" }}>
+                                      (Room {rm.roomNumber})
+                                    </span>
+                                  </h5>
+
+                                  <div className="d-flex align-items-center gap-1.5 text-muted small mb-2.5">
+                                    <Users size={14} className="text-secondary" />
+                                    <span>Max Occupancy: {rm.occupancyLimit || 4} Guests</span>
+                                  </div>
+
+                                  <p className="text-secondary small mb-3" style={{ minHeight: "38px" }}>
+                                    {rm.description ||
+                                      rm.typeDescription ||
+                                      "Comfortable stay with essential amenities and daily housekeeping."}
+                                  </p>
+
+                                  {/* Pricing Breakdown Card */}
+                                  <div className="p-3 bg-light rounded-3 mb-3" style={{ fontSize: "0.825rem" }}>
+                                    <div className="d-flex justify-content-between align-items-center mb-1.5">
                                       <span className="text-muted">Without Breakfast:</span>
-                                      <span className="fw-bold text-dark">₱{parseFloat(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                      <span className="fw-semibold text-dark">
+                                        ₱
+                                        {parseFloat(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, {
+                                          minimumFractionDigits: 2
+                                        })}
+                                      </span>
                                     </div>
-                                    <div className="d-flex justify-content-between mb-1">
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
                                       <span className="text-muted">With Breakfast:</span>
-                                      <span className="fw-bold text-pcc-blue">₱{parseFloat(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                      <span className="fw-bold" style={{ color: "var(--pcc-blue)" }}>
+                                        ₱
+                                        {parseFloat(rm.rateWithBreakfast || 0).toLocaleString(undefined, {
+                                          minimumFractionDigits: 2
+                                        })}
+                                      </span>
                                     </div>
-                                    <div className="d-flex justify-content-between pt-1 border-top mt-1" style={{ fontSize: '0.78rem' }}>
-                                      <span className="text-muted">Breakfast Option:</span>
+                                    <div className="d-flex justify-content-between align-items-center pt-2 border-top border-slate-200">
+                                      <span className="text-muted">Breakfast Inclusions:</span>
                                       {isBreakfastFree ? (
-                                        <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5">
-                                          <i className="bi bi-cup-hot me-1"></i>Free / Included
+                                        <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill d-flex align-items-center gap-1">
+                                          <Coffee size={12} />
+                                          <span>Included Free</span>
                                         </span>
                                       ) : (
-                                        <span className="text-success fw-bold">
+                                        <span className="text-success fw-bold small">
                                           ₱{breakfastDiff.toFixed(2)} add-on
                                         </span>
                                       )}
                                     </div>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setRoomType(rm.roomType);
-                                      setCheckIn(minCheckIn);
-                                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                                    }}
-                                    className="btn btn-pcc-primary btn-sm text-white w-100 fw-bold"
-                                  >
-                                    Check Availability &amp; Reserve
-                                  </button>
                                 </div>
+                              </div>
+
+                              {/* Card Action Footer */}
+                              <div className="p-4 pt-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRoomType(rm.roomType);
+                                    setCheckIn(minCheckIn);
+                                    window.scrollTo({ top: 0, behavior: "smooth" });
+                                  }}
+                                  className="btn btn-primary w-100 py-2.5 fw-semibold rounded-pill d-flex align-items-center justify-content-center gap-2 shadow-xs"
+                                  style={{ backgroundColor: "var(--pcc-blue)", borderColor: "var(--pcc-blue)" }}
+                                >
+                                  <span>Check &amp; Reserve</span>
+                                  <ArrowRight size={15} />
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -559,154 +936,129 @@ export default function Home() {
                   </div>
                 ));
               })()}
+
               {allRooms.length > VISIBLE_COUNT && (
                 <div className="text-center mt-4">
                   <button
                     type="button"
-                    className="btn btn-pcc-outline px-4 fw-bold"
+                    className="btn btn-outline-secondary px-4 py-2 rounded-pill fw-semibold"
                     onClick={() => setShowAllRooms((v) => !v)}
                   >
-                    {showAllRooms ? 'Show Less' : `See More (${allRooms.length - VISIBLE_COUNT} more)`}
+                    {showAllRooms ? "Show Less" : `See More (${allRooms.length - VISIBLE_COUNT} more rooms)`}
                   </button>
                 </div>
               )}
             </>
           ) : (
-            <>
-              {/* Ground Floor Fallback */}
-              <div className="floor-block">
-                <div className="floor-label">
-                  <div className="floor-number">01</div>
-                  <div>
-                    <div className="display-font text-blue" style={{ fontSize: "1.15rem" }}>Ground Floor</div>
-                    <div className="floor-name">Standard · Twin · Deluxe Matrimonial</div>
-                  </div>
-                  <hr />
-                </div>
-                <div className="row g-4">
-                  <div className="col-md-4">
-                    <div className="key-tag d-flex flex-column">
-                      <img src={defaultRoomImages['Standard Matrimonial']} alt="Standard Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
-                      <div className="room-type">Standard Matrimonial</div>
-                      <div className="room-meta">Sleeps 2&ndash;4 · 2 extra foam</div>
-                      <p className="room-desc">A cozy room with the essentials for a comfortable short or long stay.</p>
-                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱1,200</span></div>
-                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱1,500</span></div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="key-tag d-flex flex-column">
-                      <img src={defaultRoomImages['Twin Matrimonial']} alt="Twin Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
-                      <div className="room-type">Twin Matrimonial</div>
-                      <div className="room-meta">Sleeps 4&ndash;5 · 1 extra foam</div>
-                      <p className="room-desc">Twin bed setup, perfect for families or groups traveling together.</p>
-                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱1,300</span></div>
-                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱1,800</span></div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="key-tag d-flex flex-column">
-                      <img src={defaultRoomImages['Deluxe Matrimonial']} alt="Deluxe Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
-                      <div className="room-type">Deluxe Matrimonial</div>
-                      <div className="room-meta">Sleeps 5&ndash;7 · 2 extra foam</div>
-                      <p className="room-desc">Our most spacious option, ideal for bigger groups and extended stays.</p>
-                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱2,100</span></div>
-                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱2,500</span></div>
-                    </div>
-                  </div>
+            /* Fallback Static Cards when database is initializing */
+            <div className="row g-4 justify-content-center">
+              <div className="col-md-4">
+                <div className="card h-100 border-0 rounded-4 shadow-sm p-4 bg-white text-center">
+                  <img
+                    src={defaultRoomImages["Standard Matrimonial"]}
+                    alt="Standard Matrimonial"
+                    className="rounded-3 mb-3 w-100 object-fit-cover"
+                    style={{ height: "180px" }}
+                  />
+                  <h5 className="fw-bold text-dark">Standard Matrimonial</h5>
+                  <p className="text-muted small">Sleeps 2–4 · Daily housekeeping</p>
+                  <div className="fw-bold fs-5 text-primary">₱1,200 / night</div>
                 </div>
               </div>
-
-              {/* Second Floor Fallback */}
-              <div className="floor-block mb-0">
-                <div className="floor-label">
-                  <div className="floor-number">02</div>
-                  <div>
-                    <div className="display-font text-blue" style={{ fontSize: "1.15rem" }}>Second Floor</div>
-                    <div className="floor-name">Standard · Twin · Deluxe Matrimonial</div>
-                  </div>
-                  <hr />
-                </div>
-                <div className="row g-4">
-                  <div className="col-md-4">
-                    <div className="key-tag d-flex flex-column">
-                      <img src={defaultRoomImages['Standard Matrimonial']} alt="Standard Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
-                      <div className="room-type">Standard Matrimonial</div>
-                      <div className="room-meta">Sleeps 2&ndash;4 · 2 extra foam</div>
-                      <p className="room-desc">A quiet upper-floor room with the same comfort as our ground floor standard.</p>
-                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱1,500</span></div>
-                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱1,800</span></div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="key-tag d-flex flex-column">
-                      <img src={defaultRoomImages['Twin Matrimonial']} alt="Twin Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
-                      <div className="room-type">Twin Matrimonial</div>
-                      <div className="room-meta">Sleeps 4&ndash;5 · 1 extra foam</div>
-                      <p className="room-desc">Second floor twin room, great for groups who prefer a higher vantage.</p>
-                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱1,800</span></div>
-                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱2,200</span></div>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="key-tag d-flex flex-column">
-                      <img src={defaultRoomImages['Deluxe Matrimonial']} alt="Deluxe Matrimonial" className="rounded mb-3" style={{ height: '160px', objectFit: 'cover' }} />
-                      <div className="room-type">Deluxe Matrimonial</div>
-                      <div className="room-meta">Sleeps 5&ndash;7 · 2 extra foam</div>
-                      <p className="room-desc">Top-floor deluxe room — our largest and most premium accommodation.</p>
-                      <div className="rate-row"><span className="rate-label">Without breakfast</span><span className="rate-value">₱2,200</span></div>
-                      <div className="rate-row"><span className="rate-label">With breakfast</span><span className="rate-value">₱2,500</span></div>
-                    </div>
-                  </div>
+              <div className="col-md-4">
+                <div className="card h-100 border-0 rounded-4 shadow-sm p-4 bg-white text-center">
+                  <img
+                    src={defaultRoomImages["Twin Matrimonial"]}
+                    alt="Twin Matrimonial"
+                    className="rounded-3 mb-3 w-100 object-fit-cover"
+                    style={{ height: "180px" }}
+                  />
+                  <h5 className="fw-bold text-dark">Twin Matrimonial</h5>
+                  <p className="text-muted small">Sleeps 4–5 · Ideal for families</p>
+                  <div className="fw-bold fs-5 text-primary">₱1,300 / night</div>
                 </div>
               </div>
-            </>
+              <div className="col-md-4">
+                <div className="card h-100 border-0 rounded-4 shadow-sm p-4 bg-white text-center">
+                  <img
+                    src={defaultRoomImages["Deluxe Matrimonial"]}
+                    alt="Deluxe Matrimonial"
+                    className="rounded-3 mb-3 w-100 object-fit-cover"
+                    style={{ height: "180px" }}
+                  />
+                  <h5 className="fw-bold text-dark">Deluxe Matrimonial</h5>
+                  <p className="text-muted small">Sleeps 5–7 · Spacious &amp; premium</p>
+                  <div className="fw-bold fs-5 text-primary">₱2,100 / night</div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </section>
 
-      {/* AMENITIES */}
-      <section className="section" id="amenities">
+      {/* AMENITIES SECTION */}
+      <section className="section py-5 py-lg-6" id="amenities" style={{ backgroundColor: "#ffffff" }}>
         <div className="container">
           <div className="text-center mb-5">
-            <div className="section-eyebrow">What We Offer</div>
-            <h2 className="section-title">Amenities &amp; Services</h2>
+            <span className="badge bg-success-subtle text-success px-3 py-1.5 rounded-pill fw-semibold small mb-2">
+              Guest Comforts
+            </span>
+            <h2 className="section-title fw-bold text-dark mb-2">Amenities &amp; Services</h2>
+            <p className="text-secondary small" style={{ maxWidth: "480px", margin: "0 auto" }}>
+              Thoughtful services and daily conveniences to ensure your stay in Koronadal is smooth and relaxing.
+            </p>
           </div>
+
           <div className="row g-4">
             <div className="col-md-3 col-6">
-              <div className="amenity-card">
-                <div className="amenity-icon">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16" /><path d="M2 8h18a2 2 0 0 1 2 2v10" /><path d="M2 17h20" /><path d="M6 8v9" /></svg>
+              <div className="p-4 rounded-4 bg-light text-center h-100 border border-slate-100 transition-all hover:shadow-sm">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                  style={{ width: "54px", height: "54px", backgroundColor: "rgba(33, 85, 181, 0.1)", color: "var(--pcc-blue)" }}
+                >
+                  <Bed size={24} />
                 </div>
-                <h3>Clean Linens</h3>
-                <p>Fresh bedding and towels provided for every stay.</p>
+                <h5 className="fw-bold text-dark fs-6 mb-1.5">Clean Linens</h5>
+                <p className="text-secondary small mb-0">Fresh bedding and sanitized towels provided for every guest.</p>
               </div>
             </div>
+
             <div className="col-md-3 col-6">
-              <div className="amenity-card">
-                <div className="amenity-icon">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12" y2="20" /></svg>
+              <div className="p-4 rounded-4 bg-light text-center h-100 border border-slate-100 transition-all hover:shadow-sm">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                  style={{ width: "54px", height: "54px", backgroundColor: "rgba(63, 163, 77, 0.1)", color: "var(--pcc-green)" }}
+                >
+                  <Wifi size={24} />
                 </div>
-                <h3>Free Wi-Fi</h3>
-                <p>Stay connected throughout your stay at no extra cost.</p>
+                <h5 className="fw-bold text-dark fs-6 mb-1.5">Free Wi-Fi</h5>
+                <p className="text-secondary small mb-0">Stay connected throughout the property at no extra cost.</p>
               </div>
             </div>
+
             <div className="col-md-3 col-6">
-              <div className="amenity-card">
-                <div className="amenity-icon">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1" /><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" /><line x1="6" y1="2" x2="6" y2="4" /><line x1="10" y1="2" x2="10" y2="4" /><line x1="14" y1="2" x2="14" y2="4" /></svg>
+              <div className="p-4 rounded-4 bg-light text-center h-100 border border-slate-100 transition-all hover:shadow-sm">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                  style={{ width: "54px", height: "54px", backgroundColor: "rgba(234, 88, 12, 0.1)", color: "#ea580c" }}
+                >
+                  <Coffee size={24} />
                 </div>
-                <h3>Breakfast Option</h3>
-                <p>Add a hearty breakfast to any room booking.</p>
+                <h5 className="fw-bold text-dark fs-6 mb-1.5">Breakfast Option</h5>
+                <p className="text-secondary small mb-0">Hearty morning meals cooked fresh and ready when you wake up.</p>
               </div>
             </div>
+
             <div className="col-md-3 col-6">
-              <div className="amenity-card">
-                <div className="amenity-icon">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+              <div className="p-4 rounded-4 bg-light text-center h-100 border border-slate-100 transition-all hover:shadow-sm">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                  style={{ width: "54px", height: "54px", backgroundColor: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}
+                >
+                  <Clock size={24} />
                 </div>
-                <h3>24/7 Front Desk</h3>
-                <p>Our staff is on hand any time you need assistance.</p>
+                <h5 className="fw-bold text-dark fs-6 mb-1.5">24/7 Front Desk</h5>
+                <p className="text-secondary small mb-0">Friendly reception staff available around the clock to assist you.</p>
               </div>
             </div>
           </div>
@@ -714,39 +1066,69 @@ export default function Home() {
       </section>
 
       {/* FOOTER */}
-      <footer className="footer-pcc" id="contact">
+      <footer className="py-5 mt-auto" id="contact" style={{ backgroundColor: "#0f172a", color: "#e2e8f0" }}>
         <div className="container">
-          <div className="row g-4">
+          <div className="row g-4 pb-4">
             <div className="col-lg-4">
-              <h5>PCC Home Suite Home</h5>
-              <p className="mb-1">Osmeña Street, Zone 1</p>
-              <p>Koronadal City, South Cotabato</p>
+              <div className="d-flex align-items-center gap-2 mb-3">
+                <img
+                  src="/assets/images/logo.jpg"
+                  alt="PCC Logo"
+                  height="36"
+                  className="rounded-2"
+                />
+                <span className="fw-bold text-white fs-5">PCC Home Suite Home</span>
+              </div>
+              <p className="text-slate-400 small mb-2 lh-base" style={{ maxWidth: "340px", color: "#94a3b8" }}>
+                Comfortable, budget-friendly pension lodging located along Osmeña Street, Zone 1,
+                Koronadal City, South Cotabato.
+              </p>
             </div>
+
             <div className="col-lg-4">
-              <h5>Quick Links</h5>
-              <ul className="list-unstyled" style={{ paddingLeft: "0", listStyle: "none" }}>
-                <li className="mb-2"><a href="#rooms">Rooms &amp; Rates</a></li>
-                <li className="mb-2"><a href="#promotions">Promotions</a></li>
-                <li className="mb-2"><a href="#amenities">Amenities</a></li>
-                <li className="mb-2"><Link href="/auth/register">Create an Account</Link></li>
-                <li className="mb-2"><Link href="/auth/login">Staff / Guest Login</Link></li>
-                <li className="mb-2"><Link href="/terms">Terms &amp; Conditions</Link></li>
-                <li className="mb-2"><Link href="/privacy">Privacy Policy</Link></li>
+              <h6 className="text-white fw-bold mb-3">Quick Navigation</h6>
+              <ul className="list-unstyled d-flex flex-column gap-2 small" style={{ color: "#94a3b8" }}>
+                <li><a href="#rooms" className="text-decoration-none" style={{ color: "#94a3b8" }}>Rooms &amp; Rates</a></li>
+                <li><a href="#promotions" className="text-decoration-none" style={{ color: "#94a3b8" }}>Active Promotions</a></li>
+                <li><a href="#amenities" className="text-decoration-none" style={{ color: "#94a3b8" }}>Guest Amenities</a></li>
+                <li><Link href="/auth/register" className="text-decoration-none" style={{ color: "#94a3b8" }}>Create Guest Account</Link></li>
+                <li><Link href="/auth/login" className="text-decoration-none" style={{ color: "#94a3b8" }}>Staff &amp; Guest Login</Link></li>
               </ul>
             </div>
+
             <div className="col-lg-4">
-              <h5>Get in Touch</h5>
-              <p className="mb-1">Email: info@pccsuite.com</p>
-              <p>Phone: 09000000000</p>
+              <h6 className="text-white fw-bold mb-3">Contact &amp; Assistance</h6>
+              <div className="d-flex flex-column gap-2 small" style={{ color: "#94a3b8" }}>
+                <div className="d-flex align-items-center gap-2">
+                  <MapPin size={16} className="text-primary flex-shrink-0" />
+                  <span>Osmeña Street, Zone 1, Koronadal City</span>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                  <Mail size={16} className="text-primary flex-shrink-0" />
+                  <span>info@pccsuite.com</span>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                  <Phone size={16} className="text-primary flex-shrink-0" />
+                  <span>09000000000</span>
+                </div>
+              </div>
             </div>
           </div>
-          <hr />
-          <div className="footer-bottom text-center d-flex flex-wrap justify-content-center align-items-center gap-2 small">
+
+          <div
+            className="pt-4 border-top d-flex flex-wrap justify-content-between align-items-center gap-2 small"
+            style={{ borderColor: "#1e293b", color: "#64748b" }}
+          >
             <span>&copy; {year} PCC Home Suite Home. All rights reserved.</span>
-            <span className="text-muted d-none d-sm-inline">|</span>
-            <Link href="/terms" className="text-muted text-decoration-none">Terms &amp; Conditions</Link>
-            <span className="text-muted">·</span>
-            <Link href="/privacy" className="text-muted text-decoration-none">Privacy Policy</Link>
+            <div className="d-flex align-items-center gap-3">
+              <Link href="/terms" className="text-decoration-none" style={{ color: "#64748b" }}>
+                Terms &amp; Conditions
+              </Link>
+              <span>&bull;</span>
+              <Link href="/privacy" className="text-decoration-none" style={{ color: "#64748b" }}>
+                Privacy Policy
+              </Link>
+            </div>
           </div>
         </div>
       </footer>
@@ -757,55 +1139,111 @@ export default function Home() {
       {/* AVAILABILITY RESULTS MODAL */}
       {showResultsModal && (
         <ModalPortal>
-          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
+          <div
+            className="modal show d-block"
+            tabIndex="-1"
+            style={{
+              backgroundColor: "rgba(15, 23, 42, 0.45)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              zIndex: 99999
+            }}
+          >
             <div className="modal-dialog modal-dialog-centered modal-lg">
-              <div className="modal-content border-0" style={{ borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
-                <div className="modal-header px-4 py-3" style={{ background: 'var(--pcc-blue)', color: '#fff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
-                  <h5 className="modal-title fw-bold">Available Rooms</h5>
-                  <button type="button" className="btn-close btn-close-white" onClick={() => setShowResultsModal(false)}></button>
+              <div className="modal-content border-0 rounded-4 shadow-2xl overflow-hidden">
+                {/* Header */}
+                <div
+                  className="modal-header px-4 py-3.5 border-0 text-white"
+                  style={{
+                    backgroundColor: "var(--pcc-blue)"
+                  }}
+                >
+                  <div className="d-flex align-items-center gap-2">
+                    <Hotel size={20} />
+                    <h5 className="modal-title fw-bold mb-0 fs-5">Available Rooms Found</h5>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowResultsModal(false)}
+                    aria-label="Close"
+                  />
                 </div>
-                <div className="modal-body p-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                  <div className="mb-3 p-3 bg-light rounded" style={{ fontSize: '0.9rem' }}>
-                    Dates: <strong>{new Date(checkIn).toLocaleDateString()}</strong> to <strong>{new Date(checkOut).toLocaleDateString()}</strong>
-                    <span className="mx-2">|</span> Option: <strong>{breakfast}</strong>
+
+                {/* Body */}
+                <div className="modal-body p-4" style={{ maxHeight: "70vh", overflowY: "auto" }}>
+                  <div
+                    className="mb-3.5 p-3 rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-2"
+                    style={{ backgroundColor: "#f1f5f9", fontSize: "0.85rem" }}
+                  >
+                    <div className="d-flex align-items-center gap-2">
+                      <Calendar size={15} className="text-primary" />
+                      <span>
+                        Stay: <strong>{new Date(checkIn).toLocaleDateString()}</strong> &mdash;{" "}
+                        <strong>{new Date(checkOut).toLocaleDateString()}</strong>
+                      </span>
+                    </div>
+                    <div className="d-flex align-items-center gap-1.5">
+                      <Coffee size={15} className="text-success" />
+                      <span>
+                        Meal: <strong>{breakfast}</strong>
+                      </span>
+                    </div>
                   </div>
 
                   {availableRooms.length === 0 ? (
                     <div className="text-center py-5 text-muted">
-                      <h5 className="mt-3 fw-bold">No Rooms Available</h5>
-                      <p className="small mb-0">Sorry, there are no rooms of this type vacant for the selected stay dates. Please try other dates.</p>
+                      <Hotel size={42} className="text-secondary opacity-50 mb-2" />
+                      <h5 className="fw-bold text-dark mt-2">No Vacancies for Selected Dates</h5>
+                      <p className="small text-secondary mb-0" style={{ maxWidth: "420px", margin: "0 auto" }}>
+                        Sorry, there are no available rooms of this type for your chosen dates. Please try
+                        adjusting your dates or room type selection.
+                      </p>
                     </div>
                   ) : (
                     <div className="d-flex flex-column gap-3">
                       {availableRooms.map((rm) => (
-                        <div key={rm.roomID} className="p-3 border rounded d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white shadow-sm" style={{ transition: 'all 0.2s' }}>
+                        <div
+                          key={rm.roomID}
+                          className="p-3.5 border border-slate-200 rounded-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white shadow-2xs gap-3"
+                        >
                           <div>
                             <div className="d-flex align-items-center gap-2 mb-1">
-                              <span className="fw-bold text-dark" style={{ fontSize: '1.1rem' }}>Room {rm.roomNumber}</span>
-                              <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill" style={{ fontSize: '0.75rem' }}>Available</span>
+                              <span className="fw-bold text-dark fs-5">Room {rm.roomNumber}</span>
+                              <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill small">
+                                Available
+                              </span>
                             </div>
-                            <h6 className="text-pcc-primary fw-semibold mb-1">{rm.roomType} · {rm.floor}</h6>
-                            <p className="text-muted small mb-0" style={{ maxWidth: '480px' }}>{rm.description}</p>
+                            <h6 className="fw-semibold text-primary mb-1">
+                              {rm.roomType} &bull; {rm.floor}
+                            </h6>
+                            <p className="text-muted small mb-0" style={{ maxWidth: "480px" }}>
+                              {rm.description}
+                            </p>
                           </div>
-                          <div className="text-md-end mt-3 mt-md-0 d-flex flex-row flex-md-column justify-content-between align-items-center align-items-md-end gap-2">
+
+                          <div className="text-md-end d-flex flex-row flex-md-column justify-content-between align-items-center align-items-md-end gap-2.5">
                             <div>
-                              <div className="text-muted small">Price per night</div>
-                              <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.35rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</span>
+                              <div className="text-muted small">Rate per night</div>
+                              <span className="fw-bold fs-4" style={{ color: "var(--pcc-blue)" }}>
+                                ₱{parseFloat(rm.rate).toFixed(2)}
+                              </span>
                             </div>
-                            {currentUser && currentUser.role === 'Guest' ? (
+
+                            {currentUser && currentUser.role === "Guest" ? (
                               <button
                                 onClick={() => handleBookNow(rm.roomID)}
-                                className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
-                                style={{ borderRadius: '6px' }}
+                                className="btn btn-primary btn-sm px-4 py-2 fw-semibold rounded-pill shadow-xs"
+                                style={{ backgroundColor: "var(--pcc-blue)", borderColor: "var(--pcc-blue)" }}
                                 disabled={bookingInProgress}
                               >
-                                {bookingInProgress ? "Booking..." : "Book Now"}
+                                {bookingInProgress ? "Submitting..." : "Reserve Now"}
                               </button>
                             ) : (
                               <Link
                                 href={`/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${rm.roomID}&breakfast=${breakfast}`}
-                                className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
-                                style={{ borderRadius: '6px' }}
+                                className="btn btn-primary btn-sm px-4 py-2 fw-semibold rounded-pill shadow-xs"
+                                style={{ backgroundColor: "var(--pcc-blue)", borderColor: "var(--pcc-blue)" }}
                               >
                                 Book Now
                               </Link>
@@ -816,14 +1254,22 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <div className="modal-footer border-0 px-4 py-3">
-                  <button type="button" className="btn btn-secondary text-white px-4" onClick={() => setShowResultsModal(false)}>Close</button>
+
+                {/* Footer */}
+                <div className="modal-footer border-0 px-4 py-3 bg-light">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm px-4 py-1.5 rounded-pill"
+                    onClick={() => setShowResultsModal(false)}
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </ModalPortal>
       )}
-    </>
+    </div>
   );
 }
