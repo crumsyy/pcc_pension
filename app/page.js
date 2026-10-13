@@ -13,6 +13,7 @@ import {
   Coffee,
   Bed,
   ArrowRight,
+  Sparkles,
   MapPin,
   Phone,
   Mail,
@@ -21,10 +22,12 @@ import {
   ChevronLeft,
   ShieldCheck,
   Wifi,
-  Building,
-  Tag,
   Hotel,
-  CheckCircle2
+  Star,
+  Quote,
+  CheckCircle2,
+  Compass,
+  Award
 } from "lucide-react";
 
 function parseRoomImages(imgVal) {
@@ -43,7 +46,7 @@ function parseRoomImages(imgVal) {
   return [];
 }
 
-function RoomImageCarousel({ images, fallbackImg, alt, height = "220px" }) {
+function RoomImageCarousel({ images, fallbackImg, alt, height = "230px" }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [hasError, setHasError] = useState(false);
 
@@ -61,9 +64,9 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = "220px" }) {
     return (
       <div
         className="d-flex flex-column align-items-center justify-content-center bg-light text-secondary w-100"
-        style={{ height: height, borderBottom: "1px solid #e2e8f0" }}
+        style={{ height: height, borderBottom: "1px solid rgba(226, 232, 240, 0.8)" }}
       >
-        <Hotel className="text-secondary mb-1" size={28} />
+        <Hotel className="text-secondary opacity-50 mb-1" size={32} />
         <span className="small fw-semibold text-secondary">Image Unavailable</span>
       </div>
     );
@@ -76,13 +79,13 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = "220px" }) {
         alt={alt}
         onError={() => setHasError(true)}
         className="w-100 object-fit-cover"
-        style={{ height: height, borderBottom: "1px solid #e2e8f0" }}
+        style={{ height: height }}
       />
     );
   }
 
   return (
-    <div className="position-relative overflow-hidden w-100" style={{ height: height, borderBottom: "1px solid #e2e8f0" }}>
+    <div className="position-relative overflow-hidden w-100" style={{ height: height }}>
       {list.map((img, idx) => (
         <img
           key={idx}
@@ -91,24 +94,27 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = "220px" }) {
           onError={() => {
             if (idx === 0 && list.length === 1) setHasError(true);
           }}
-          className={`position-absolute top-0 start-0 w-100 h-100 object-fit-cover ${
-            idx === activeIdx ? "d-block" : "d-none"
+          className={`position-absolute top-0 start-0 w-100 h-100 object-fit-cover transition-opacity ${
+            idx === activeIdx ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
+          style={{ transitionDuration: "700ms" }}
         />
       ))}
 
-      {/* Flat Navigation Arrows */}
+      {/* Frosted Aurora Carousel Buttons */}
       <button
         type="button"
-        aria-label="Previous image"
-        className="position-absolute top-50 start-0 translate-middle-y ms-2 border border-secondary text-white d-flex align-items-center justify-content-center rounded"
+        aria-label="Previous slide"
+        className="position-absolute top-50 start-0 translate-middle-y ms-2.5 border-0 rounded-circle text-white d-flex align-items-center justify-content-center"
         style={{
-          width: "28px",
-          height: "28px",
+          width: "32px",
+          height: "32px",
           zIndex: 5,
-          backgroundColor: "#0f172a",
-          opacity: 0.85,
-          cursor: "pointer"
+          backgroundColor: "rgba(15, 23, 42, 0.5)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          cursor: "pointer",
+          transition: "background-color 0.2s"
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -120,15 +126,17 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = "220px" }) {
 
       <button
         type="button"
-        aria-label="Next image"
-        className="position-absolute top-50 end-0 translate-middle-y me-2 border border-secondary text-white d-flex align-items-center justify-content-center rounded"
+        aria-label="Next slide"
+        className="position-absolute top-50 end-0 translate-middle-y me-2.5 border-0 rounded-circle text-white d-flex align-items-center justify-content-center"
         style={{
-          width: "28px",
-          height: "28px",
+          width: "32px",
+          height: "32px",
           zIndex: 5,
-          backgroundColor: "#0f172a",
-          opacity: 0.85,
-          cursor: "pointer"
+          backgroundColor: "rgba(15, 23, 42, 0.5)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          cursor: "pointer",
+          transition: "background-color 0.2s"
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -138,23 +146,25 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = "220px" }) {
         <ChevronRight size={16} />
       </button>
 
-      {/* Flat Indicator Pills */}
+      {/* Indicator Pills */}
       <div
-        className="position-absolute bottom-0 start-50 translate-middle-x mb-2 d-flex gap-1 px-2 py-1 rounded"
+        className="position-absolute bottom-0 start-50 translate-middle-x mb-2.5 d-flex gap-1.5 px-2 py-1 rounded-pill"
         style={{
           zIndex: 5,
-          backgroundColor: "rgba(15, 23, 42, 0.8)"
+          backgroundColor: "rgba(15, 23, 42, 0.5)",
+          backdropFilter: "blur(6px)"
         }}
       >
         {list.map((_, idx) => (
           <span
             key={idx}
-            className="rounded"
+            className="rounded-pill"
             style={{
-              width: idx === activeIdx ? "14px" : "6px",
-              height: "4px",
-              backgroundColor: idx === activeIdx ? "#ffffff" : "#64748b",
-              cursor: "pointer"
+              width: idx === activeIdx ? "16px" : "6px",
+              height: "5px",
+              backgroundColor: idx === activeIdx ? "#ffffff" : "rgba(255, 255, 255, 0.45)",
+              cursor: "pointer",
+              transition: "all 0.3s ease"
             }}
             onClick={(e) => {
               e.stopPropagation();
@@ -322,31 +332,45 @@ export default function Home() {
   const visibleRooms = showAllRooms ? allRooms : allRooms.slice(0, VISIBLE_COUNT);
 
   return (
-    <div className="min-vh-100 d-flex flex-column bg-white text-dark">
-      {/* 1. FLAT DESIGN NAVBAR (Sharp, solid, zero drop-shadow) */}
+    <div className="min-vh-100 d-flex flex-column text-dark" style={{ backgroundColor: "#F6FAF7" }}>
+      {/* 1. AURORA FROSTED NAVBAR */}
       <nav
-        className="navbar navbar-expand-lg sticky-top py-2.5 bg-white border-bottom border-2 border-slate-200"
-        style={{ zIndex: 1030 }}
+        className="navbar navbar-expand-lg sticky-top py-3"
+        style={{
+          backgroundColor: "rgba(246, 250, 247, 0.82)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          borderBottom: "1px solid rgba(205, 235, 207, 0.6)",
+          zIndex: 1030
+        }}
       >
         <div className="container">
           <Link href="/" className="navbar-brand d-flex align-items-center gap-2.5 text-decoration-none">
-            <img
-              src="/assets/images/logo.jpg"
-              alt="PCC Home Suite Home logo"
-              height="40"
-              className="border border-slate-300 rounded"
-              style={{ objectFit: "contain" }}
-            />
+            <div
+              className="p-1 rounded-3"
+              style={{
+                background: "linear-gradient(135deg, rgba(33, 85, 181, 0.15) 0%, rgba(63, 163, 77, 0.2) 100%)",
+                border: "1px solid rgba(63, 163, 77, 0.3)"
+              }}
+            >
+              <img
+                src="/assets/images/logo.jpg"
+                alt="PCC Home Suite Home logo"
+                height="40"
+                className="rounded-2"
+                style={{ objectFit: "contain" }}
+              />
+            </div>
             <div className="d-none d-sm-block">
-              <span className="fw-bold fs-5 text-dark tracking-tight d-block lh-1">PCC Home Suite Home</span>
-              <span className="text-secondary small font-monospace" style={{ fontSize: "0.75rem" }}>
-                Zone 1, Koronadal City
+              <span className="fw-bold fs-5 tracking-tight d-block lh-1 text-dark">PCC Home Suite Home</span>
+              <span className="small text-muted" style={{ fontSize: "0.75rem" }}>
+                Koronadal City &bull; Pension House
               </span>
             </div>
           </Link>
 
           <button
-            className="navbar-toggler border border-secondary px-2 py-1 rounded"
+            className="navbar-toggler border-0 shadow-none px-2"
             type="button"
             data-bs-toggle="collapse"
             data-bs-target="#mainNav"
@@ -360,47 +384,55 @@ export default function Home() {
           <div className="collapse navbar-collapse" id="mainNav">
             <ul className="navbar-nav ms-auto align-items-lg-center gap-lg-1">
               <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-dark rounded hover:bg-slate-100" href="#home">
+                <a className="nav-link px-3 py-1.5 fw-semibold text-dark rounded-pill" href="#home">
                   Home
                 </a>
               </li>
               <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded hover:bg-slate-100" href="#about">
-                  About
+                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#about">
+                  About Us
                 </a>
               </li>
               <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded hover:bg-slate-100" href="#promotions">
+                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#promotions">
                   Promotions
                 </a>
               </li>
               <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded hover:bg-slate-100" href="#rooms">
+                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#rooms">
                   Rooms &amp; Rates
                 </a>
               </li>
               <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded hover:bg-slate-100" href="#amenities">
+                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#amenities">
                   Amenities
                 </a>
               </li>
               <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded hover:bg-slate-100" href="#contact">
-                  Contact
+                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#testimonials">
+                  Reviews
                 </a>
               </li>
 
               <li className="nav-item ms-lg-3 mt-2 mt-lg-0 d-flex align-items-center gap-2">
                 <Link
                   href="/auth/login"
-                  className="btn btn-sm px-3.5 py-1.5 fw-bold text-dark bg-light border border-secondary rounded"
+                  className="btn btn-sm px-3.5 py-1.5 fw-bold rounded-pill text-dark"
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.8)",
+                    border: "1px solid rgba(33, 85, 181, 0.25)"
+                  }}
                 >
                   Log In
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="btn btn-sm px-4 py-1.5 fw-bold text-white rounded border-0"
-                  style={{ backgroundColor: "#1d4ed8" }}
+                  className="btn btn-sm px-4 py-1.5 fw-bold text-white rounded-pill shadow-sm"
+                  style={{
+                    background: "linear-gradient(135deg, #2155B5 0%, #163E82 100%)",
+                    border: "none",
+                    boxShadow: "0 4px 15px rgba(33, 85, 181, 0.3)"
+                  }}
                 >
                   Book Now
                 </Link>
@@ -413,83 +445,155 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 2. FLAT HERO & FRAMED BOOKING CONSOLE */}
-      <section className="py-5 py-lg-6 border-bottom border-slate-200" id="home" style={{ backgroundColor: "#f8fafc" }}>
-        <div className="container">
+      {/* 2. AURORA HERO SECTION (PCC Royal Blue to Emerald Green Mesh) */}
+      <section
+        className="hero position-relative py-5 py-lg-6 overflow-hidden"
+        id="home"
+        style={{
+          background: `
+            radial-gradient(circle at 15% 25%, rgba(33, 85, 181, 0.16) 0%, transparent 45%),
+            radial-gradient(circle at 85% 15%, rgba(63, 163, 77, 0.20) 0%, transparent 45%),
+            radial-gradient(circle at 50% 90%, rgba(205, 235, 207, 0.45) 0%, transparent 50%),
+            linear-gradient(180deg, #F6FAF7 0%, #E5EFE6 100%)
+          `
+        }}
+      >
+        {/* Soft Aurora Light Swirl Effect */}
+        <div
+          className="position-absolute rounded-circle pointer-events-none"
+          style={{
+            top: "-120px",
+            right: "-80px",
+            width: "480px",
+            height: "480px",
+            background: "radial-gradient(circle, rgba(63, 163, 77, 0.15) 0%, rgba(33, 85, 181, 0.08) 50%, transparent 70%)",
+            filter: "blur(60px)",
+            zIndex: 1
+          }}
+        />
+
+        <div className="container position-relative py-lg-4" style={{ zIndex: 2 }}>
           <div className="row align-items-center g-5">
-            {/* Left Content */}
+            {/* Left Narrative */}
             <div className="col-lg-6">
-              {/* Location Tag */}
-              <div className="d-inline-flex align-items-center gap-2 px-2.5 py-1 rounded bg-blue-50 border border-primary text-primary mb-3">
-                <MapPin size={14} />
-                <span className="small fw-bold font-monospace" style={{ fontSize: "0.78rem" }}>
-                  OSMEÑA STREET, ZONE 1 &bull; KORONADAL CITY
+              {/* Pill Badge */}
+              <div
+                className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill mb-3 shadow-xs"
+                style={{
+                  background: "linear-gradient(90deg, rgba(33, 85, 181, 0.1) 0%, rgba(63, 163, 77, 0.12) 100%)",
+                  border: "1px solid rgba(63, 163, 77, 0.25)",
+                  color: "#163E82"
+                }}
+              >
+                <Sparkles size={14} style={{ color: "#3FA34D" }} />
+                <span className="small fw-bold font-monospace" style={{ fontSize: "0.8rem", letterSpacing: "0.03em" }}>
+                  ZONE 1, OSMEÑA STREET &bull; KORONADAL CITY
                 </span>
               </div>
 
-              <h1 className="display-4 fw-black text-dark tracking-tight mb-3 lh-sm">
-                Clean, comfortable lodging in Koronadal.
+              <h1 className="display-4 fw-bold tracking-tight mb-3.5 lh-sm text-dark">
+                Your{" "}
+                <span
+                  style={{
+                    background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    fontStyle: "italic",
+                    fontFamily: "var(--font-display)"
+                  }}
+                >
+                  sanctuary
+                </span>{" "}
+                away from home.
               </h1>
 
               <p className="lead text-secondary mb-4 fs-6" style={{ lineHeight: "1.7", maxWidth: "520px" }}>
-                PCC Home Suite Home provides straightforward, budget-friendly accommodations
-                for travelers, families, and long-stay guests. Enjoy clean rooms, direct booking, and attentive 24/7 front desk service.
+                PCC Home Suite Home combines the warmth of home with serene, comfortable lodging
+                in the heart of Koronadal City. Enjoy restful sleep, friendly service, and effortless direct booking.
               </p>
 
+              {/* Action Buttons with Aurora Glow */}
               <div className="d-flex flex-wrap align-items-center gap-3">
                 <a
                   href="#rooms"
-                  className="btn px-4 py-2.5 fw-bold text-white rounded border-0 d-inline-flex align-items-center gap-2"
-                  style={{ backgroundColor: "#1d4ed8" }}
+                  className="btn px-4 py-2.5 fw-bold text-white rounded-pill d-inline-flex align-items-center gap-2"
+                  style={{
+                    background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                    boxShadow: "0 8px 24px -6px rgba(33, 85, 181, 0.4)",
+                    border: "none"
+                  }}
                 >
                   <Bed size={18} />
-                  <span>View Rooms &amp; Rates</span>
+                  <span>Explore Rooms &amp; Rates</span>
                 </a>
                 <Link
                   href="/auth/register"
-                  className="btn px-4 py-2.5 fw-bold text-dark bg-white border border-secondary rounded d-inline-flex align-items-center gap-2"
+                  className="btn px-4 py-2.5 fw-bold text-dark rounded-pill d-inline-flex align-items-center gap-2"
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.9)",
+                    border: "1px solid rgba(33, 85, 181, 0.25)",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.04)"
+                  }}
                 >
                   <span>Create Account</span>
                   <ArrowRight size={16} />
                 </Link>
               </div>
 
-              {/* Trust Strip */}
+              {/* Trust Badges */}
               <div className="d-flex align-items-center gap-4 mt-4 pt-3 border-top border-slate-200">
                 <div className="d-flex align-items-center gap-1.5 text-secondary small fw-medium">
-                  <ShieldCheck size={18} className="text-success" />
-                  <span>Direct Booking Guaranteed</span>
+                  <ShieldCheck size={18} style={{ color: "#3FA34D" }} />
+                  <span>Instant Confirmation</span>
                 </div>
                 <div className="d-flex align-items-center gap-1.5 text-secondary small fw-medium">
-                  <Clock size={18} className="text-primary" />
-                  <span>24/7 Front Desk Reception</span>
+                  <Clock size={18} style={{ color: "#2155B5" }} />
+                  <span>24/7 Front Desk</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Booking Engine Console */}
+            {/* Right Booking Engine Console with Frosted Aurora Card */}
             <div className="col-lg-6">
               <div
-                className="bg-white border-2 border-primary rounded p-4 p-md-4.5"
-                style={{ border: "2px solid #1d4ed8" }}
+                className="p-4 p-md-4.5 rounded-4 position-relative"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.88)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255, 255, 255, 0.9)",
+                  boxShadow: "0 20px 45px -12px rgba(33, 85, 181, 0.15), 0 0 0 1px rgba(63, 163, 77, 0.18)"
+                }}
               >
                 {/* Header Strip */}
-                <div className="d-flex align-items-center justify-content-between mb-3 pb-2.5 border-bottom border-slate-200">
-                  <div className="d-flex align-items-center gap-2">
-                    <span className="badge bg-primary text-white font-monospace text-uppercase px-2 py-1 rounded">
-                      Fast Search
+                <div className="d-flex align-items-center justify-content-between mb-3.5 pb-2 border-bottom border-slate-200">
+                  <div>
+                    <span
+                      className="badge px-2.5 py-1 rounded-pill small fw-bold font-monospace"
+                      style={{
+                        backgroundColor: "rgba(33, 85, 181, 0.12)",
+                        color: "#2155B5"
+                      }}
+                    >
+                      Real-time Search
                     </span>
-                    <h3 className="fw-bold text-dark mb-0 fs-5">Check Availability</h3>
+                    <h3 className="fw-bold text-dark mb-0 fs-5 mt-1">Check Room Availability</h3>
                   </div>
-                  <span className="badge bg-light text-secondary border border-secondary font-monospace">
+                  <span
+                    className="badge rounded-pill small font-monospace"
+                    style={{
+                      backgroundColor: "rgba(63, 163, 77, 0.12)",
+                      color: "#3FA34D"
+                    }}
+                  >
                     Max 2-day lead
                   </span>
                 </div>
 
                 <form onSubmit={handleSearchSubmit} className="row g-3">
                   <div className="col-md-6">
-                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1">
-                      <Calendar size={14} className="text-primary" />
+                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
+                      <Calendar size={14} style={{ color: "#2155B5" }} />
                       <span>Check-in Date *</span>
                     </label>
                     <FlatDatePicker
@@ -502,8 +606,8 @@ export default function Home() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1">
-                      <Calendar size={14} className="text-primary" />
+                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
+                      <Calendar size={14} style={{ color: "#2155B5" }} />
                       <span>Check-out Date *</span>
                     </label>
                     <FlatDatePicker
@@ -515,12 +619,13 @@ export default function Home() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1">
-                      <Bed size={14} className="text-primary" />
+                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
+                      <Bed size={14} style={{ color: "#3FA34D" }} />
                       <span>Room Type</span>
                     </label>
                     <select
-                      className="form-select rounded text-dark bg-white border-secondary"
+                      className="form-select rounded-3 text-dark bg-white"
+                      style={{ border: "1px solid rgba(205, 235, 207, 0.9)" }}
                       value={roomType}
                       onChange={(e) => setRoomType(e.target.value)}
                     >
@@ -532,12 +637,13 @@ export default function Home() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1">
-                      <Coffee size={14} className="text-primary" />
+                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
+                      <Coffee size={14} style={{ color: "#3FA34D" }} />
                       <span>Breakfast Option</span>
                     </label>
                     <select
-                      className="form-select rounded text-dark bg-white border-secondary"
+                      className="form-select rounded-3 text-dark bg-white"
+                      style={{ border: "1px solid rgba(205, 235, 207, 0.9)" }}
                       value={breakfast}
                       onChange={(e) => setBreakfast(e.target.value)}
                     >
@@ -546,21 +652,25 @@ export default function Home() {
                     </select>
                   </div>
 
-                  <div className="col-12 mt-3.5">
+                  <div className="col-12 mt-4">
                     <button
                       type="submit"
-                      className="btn w-100 py-2.5 fw-bold text-white rounded border-0 d-flex align-items-center justify-content-center gap-2"
-                      style={{ backgroundColor: "#1d4ed8" }}
+                      className="btn w-100 py-2.5 fw-bold text-white rounded-pill d-flex align-items-center justify-content-center gap-2"
+                      style={{
+                        background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                        boxShadow: "0 8px 24px -4px rgba(33, 85, 181, 0.35)",
+                        border: "none"
+                      }}
                       disabled={searching}
                     >
                       {searching ? (
                         <>
                           <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-                          <span>Checking Room Records...</span>
+                          <span>Searching Vacancies...</span>
                         </>
                       ) : (
                         <>
-                          <span>Search Vacancies</span>
+                          <span>Check Room Availability</span>
                           <ArrowRight size={18} />
                         </>
                       )}
@@ -573,79 +683,121 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3. FLAT ABOUT US & METRIC TILES */}
-      <section className="py-5 py-lg-6 border-bottom border-slate-200" id="about" style={{ backgroundColor: "#ffffff" }}>
+      {/* 3. ABOUT US & AURORA STAT TILES */}
+      <section
+        className="py-5 py-lg-6"
+        id="about"
+        style={{
+          background: "linear-gradient(180deg, #E5EFE6 0%, #F6FAF7 100%)"
+        }}
+      >
         <div className="container">
           <div className="row g-5 align-items-center">
-            {/* Left Statement Block */}
+            {/* Left Quote Card with Aurora Luminous Border */}
             <div className="col-lg-5">
               <div
-                className="p-4 p-md-4.5 rounded text-white"
+                className="p-4 p-md-5 rounded-4 text-white position-relative overflow-hidden"
                 style={{
-                  backgroundColor: "#0f172a",
-                  borderLeft: "6px solid #059669"
+                  background: "linear-gradient(135deg, #163E82 0%, #2155B5 60%, #3FA34D 100%)",
+                  boxShadow: "0 20px 40px -15px rgba(22, 62, 130, 0.4)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)"
                 }}
               >
-                <div className="font-monospace text-uppercase text-success small fw-bold mb-2">
-                  THE PCC PROMISE
-                </div>
-                <blockquote className="fs-4 fw-bold mb-3 lh-sm">
-                  &ldquo;Make yourself at home &mdash; clean, secure, and genuine Koronadal hospitality.&rdquo;
+                <Quote size={40} className="opacity-40 mb-3" />
+                <blockquote
+                  className="fs-4 fw-medium mb-3 lh-base"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  &ldquo;Make yourself at home &mdash; that&rsquo;s the PCC promise.&rdquo;
                 </blockquote>
-                <p className="text-secondary small mb-0 font-monospace">
-                  PCC Home Suite Home &bull; Zone 1, Koronadal City
-                </p>
+                <div className="d-flex align-items-center gap-2 small opacity-80 font-monospace">
+                  <div className="rounded-circle bg-white" style={{ width: "8px", height: "8px" }} />
+                  <span>Zone 1, Koronadal City &bull; Authentic Hospitality</span>
+                </div>
               </div>
             </div>
 
-            {/* Right Information & Flat Metric Tiles */}
+            {/* Right Information & 4 Metric Tiles */}
             <div className="col-lg-7">
-              <span className="badge bg-light text-primary border border-primary font-monospace text-uppercase px-2.5 py-1 mb-2">
-                Property Overview
-              </span>
-              <h2 className="fw-black text-dark mb-3">
-                Simple, reliable accommodations in the city center
+              <div
+                className="d-inline-flex align-items-center gap-1.5 px-3 py-1 rounded-pill small fw-bold font-monospace mb-2"
+                style={{
+                  backgroundColor: "rgba(63, 163, 77, 0.12)",
+                  color: "#3FA34D"
+                }}
+              >
+                <Compass size={14} />
+                <span>ABOUT OUR PENSION HOUSE</span>
+              </div>
+              <h2 className="display-6 fw-bold text-dark mb-3">
+                A warm, peaceful retreat in Koronadal City
               </h2>
               <p className="text-secondary mb-4" style={{ lineHeight: "1.7" }}>
-                Situated along Osmeña Street, Zone 1, Koronadal City, PCC Home Suite Home
-                provides clean, secure, and affordable lodging for business travelers, vacationers, and visiting families.
-                Our two floors house Standard, Twin, and Deluxe Matrimonial rooms, each available with or without breakfast.
+                Located along Osmeña Street, Zone 1, Koronadal City, PCC Home Suite Home
+                provides clean, secure, and budget-friendly accommodations for guests
+                visiting South Cotabato for business, family occasions, or relaxing holidays.
+                Our two-floor residence offers Standard, Twin, and Deluxe Matrimonial rooms,
+                available with or without freshly cooked breakfast.
               </p>
 
-              {/* 4 Flat Metric Blocks */}
+              {/* 4 Frosted Aurora Metric Cards */}
               <div className="row g-3">
                 <div className="col-6 col-sm-3">
-                  <div className="p-3 bg-light border border-slate-300 rounded text-center">
-                    <div className="fw-black fs-2 text-primary">2</div>
-                    <div className="small fw-bold text-secondary text-uppercase mt-1" style={{ fontSize: "0.75rem" }}>
-                      Floors
-                    </div>
+                  <div
+                    className="p-3.5 rounded-3 text-center"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.8)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(205, 235, 207, 0.7)",
+                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
+                    }}
+                  >
+                    <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>2</div>
+                    <div className="small fw-semibold text-secondary mt-1">Floors</div>
                   </div>
                 </div>
                 <div className="col-6 col-sm-3">
-                  <div className="p-3 bg-light border border-slate-300 rounded text-center">
-                    <div className="fw-black fs-2 text-primary">3</div>
-                    <div className="small fw-bold text-secondary text-uppercase mt-1" style={{ fontSize: "0.75rem" }}>
-                      Room Types
-                    </div>
+                  <div
+                    className="p-3.5 rounded-3 text-center"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.8)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(205, 235, 207, 0.7)",
+                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
+                    }}
+                  >
+                    <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>3</div>
+                    <div className="small fw-semibold text-secondary mt-1">Room Types</div>
                   </div>
                 </div>
                 <div className="col-6 col-sm-3">
-                  <div className="p-3 bg-light border border-slate-300 rounded text-center">
-                    <div className="fw-black fs-2 text-success">
+                  <div
+                    className="p-3.5 rounded-3 text-center"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.8)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(205, 235, 207, 0.7)",
+                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
+                    }}
+                  >
+                    <div className="fw-bold fs-2" style={{ color: "#3FA34D" }}>
                       {landingData.totalRooms > 0 ? landingData.totalRooms : 6}
                     </div>
-                    <div className="small fw-bold text-secondary text-uppercase mt-1" style={{ fontSize: "0.75rem" }}>
-                      Total Rooms
-                    </div>
+                    <div className="small fw-semibold text-secondary mt-1">Total Rooms</div>
                   </div>
                 </div>
                 <div className="col-6 col-sm-3">
-                  <div className="p-3 bg-light border border-slate-300 rounded text-center">
-                    <div className="fw-black fs-2 text-primary">24/7</div>
-                    <div className="small fw-bold text-secondary text-uppercase mt-1" style={{ fontSize: "0.75rem" }}>
-                      Front Desk
-                    </div>
+                  <div
+                    className="p-3.5 rounded-3 text-center"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.8)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(205, 235, 207, 0.7)",
+                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
+                    }}
+                  >
+                    <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>24/7</div>
+                    <div className="small fw-semibold text-secondary mt-1">Front Desk</div>
                   </div>
                 </div>
               </div>
@@ -654,17 +806,23 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4. FLAT PROMOTIONS (Ticket Style) */}
+      {/* 4. ACTIVE PROMOTIONS (Voucher Cards with Aurora Accents) */}
       {landingData.promotions && landingData.promotions.length > 0 && (
-        <section className="py-5 py-lg-6 border-bottom border-slate-200" id="promotions" style={{ backgroundColor: "#f1f5f9" }}>
+        <section className="py-5 py-lg-6" id="promotions" style={{ backgroundColor: "#F6FAF7" }}>
           <div className="container">
-            <div className="text-center mb-4 pb-2">
-              <span className="badge bg-danger text-white font-monospace text-uppercase px-2.5 py-1 mb-2">
-                Special Offers
+            <div className="text-center mb-5">
+              <span
+                className="badge px-3 py-1.5 rounded-pill small fw-bold font-monospace mb-2"
+                style={{
+                  backgroundColor: "rgba(225, 29, 72, 0.12)",
+                  color: "#e11d48"
+                }}
+              >
+                EXCLUSIVE SPECIALS
               </span>
-              <h2 className="fw-black text-dark mb-2">Active Discounts &amp; Deals</h2>
-              <p className="text-secondary small" style={{ maxWidth: "500px", margin: "0 auto" }}>
-                Take advantage of verified lodging discounts when booking directly through our platform.
+              <h2 className="display-6 fw-bold text-dark mb-2">Active Discounts &amp; Deals</h2>
+              <p className="text-secondary small" style={{ maxWidth: "520px", margin: "0 auto" }}>
+                Book directly on our system to unlock verified seasonal offers and room discounts.
               </p>
             </div>
 
@@ -672,31 +830,57 @@ export default function Home() {
               {visiblePromos.map((promo) => (
                 <div key={promo.promotionID} className="col-md-6 col-lg-4">
                   <div
-                    className="bg-white border-2 border-slate-300 rounded overflow-hidden d-flex flex-column justify-content-between h-100"
-                    style={{ borderTop: "5px solid #dc2626" }}
+                    className="rounded-4 p-4 d-flex flex-column justify-content-between h-100 position-relative overflow-hidden"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      backdropFilter: "blur(14px)",
+                      border: "1px solid rgba(205, 235, 207, 0.8)",
+                      boxShadow: "0 10px 30px -10px rgba(33, 85, 181, 0.12)"
+                    }}
                   >
-                    <div className="p-4">
+                    {/* Top Aurora Line */}
+                    <div
+                      className="position-absolute top-0 start-0 w-100"
+                      style={{
+                        height: "4px",
+                        background: "linear-gradient(90deg, #2155B5 0%, #3FA34D 100%)"
+                      }}
+                    />
+
+                    <div>
                       <div className="d-flex justify-content-between align-items-start mb-2.5">
                         <h4 className="fw-bold text-dark mb-0 fs-5">{promo.name}</h4>
-                        <span className="badge bg-danger text-white font-bold px-2 py-1 rounded">
+                        <span
+                          className="badge text-white px-2.5 py-1 rounded-pill fw-bold"
+                          style={{
+                            background: "linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)",
+                            boxShadow: "0 2px 8px rgba(225, 29, 72, 0.3)"
+                          }}
+                        >
                           {promo.percentage}% OFF
                         </span>
                       </div>
                       <p className="text-secondary small mb-3">
-                        {promo.description || "Exclusive promotional discount for lodging stays."}
+                        {promo.description || "Special promotional rate for lodging bookings."}
                       </p>
 
-                      <div className="p-2.5 bg-light border border-slate-200 rounded small mb-2 text-secondary">
-                        <div className="d-flex align-items-center gap-1.5 mb-1">
-                          <Calendar size={13} className="text-primary" />
+                      <div
+                        className="p-2.5 rounded-3 small mb-3.5"
+                        style={{
+                          backgroundColor: "rgba(246, 250, 247, 0.8)",
+                          border: "1px solid rgba(205, 235, 207, 0.6)"
+                        }}
+                      >
+                        <div className="d-flex align-items-center gap-1.5 mb-1 text-secondary">
+                          <Calendar size={13} style={{ color: "#2155B5" }} />
                           <span>
                             <strong>Valid:</strong> {new Date(promo.startDate).toLocaleDateString()} &ndash;{" "}
                             {new Date(promo.endDate).toLocaleDateString()}
                           </span>
                         </div>
                         {promo.roomTypeName && (
-                          <div className="d-flex align-items-center gap-1.5">
-                            <Bed size={13} className="text-success" />
+                          <div className="d-flex align-items-center gap-1.5 text-secondary">
+                            <Bed size={13} style={{ color: "#3FA34D" }} />
                             <span>
                               <strong>Applicable:</strong> {promo.roomTypeName}
                             </span>
@@ -705,14 +889,18 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="p-4 pt-0">
+                    <div>
                       <Link
                         href="/auth/register"
-                        className="btn w-100 py-2 fw-bold text-white rounded border-0 text-center d-flex align-items-center justify-content-center gap-1.5"
-                        style={{ backgroundColor: "#0f172a" }}
+                        className="btn w-100 py-2.5 fw-bold text-white rounded-pill d-flex align-items-center justify-content-center gap-2"
+                        style={{
+                          background: "linear-gradient(135deg, #2155B5 0%, #163E82 100%)",
+                          border: "none",
+                          boxShadow: "0 4px 15px rgba(33, 85, 181, 0.25)"
+                        }}
                       >
-                        <Tag size={14} />
                         <span>Claim Promo &amp; Book</span>
+                        <ArrowRight size={14} />
                       </Link>
                     </div>
                   </div>
@@ -724,7 +912,12 @@ export default function Home() {
               <div className="text-center mt-4 pt-2">
                 <button
                   type="button"
-                  className="btn btn-outline-secondary px-4 py-2 rounded fw-bold"
+                  className="btn px-4 py-2 rounded-pill fw-bold"
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.9)",
+                    border: "1px solid rgba(33, 85, 181, 0.3)",
+                    color: "#2155B5"
+                  }}
                   onClick={() => setShowAllPromos((v) => !v)}
                 >
                   {showAllPromos ? "Show Less" : `See More (${allPromos.length - VISIBLE_COUNT} more)`}
@@ -735,16 +928,32 @@ export default function Home() {
         </section>
       )}
 
-      {/* 5. FLAT ROOMS & RATES CATALOG */}
-      <section className="py-5 py-lg-6 border-bottom border-slate-200" id="rooms" style={{ backgroundColor: "#ffffff" }}>
+      {/* 5. ROOMS & RATES (Aurora Accommodation Showcase) */}
+      <section
+        className="py-5 py-lg-6 position-relative"
+        id="rooms"
+        style={{
+          background: `
+            radial-gradient(circle at 90% 20%, rgba(33, 85, 181, 0.1) 0%, transparent 40%),
+            radial-gradient(circle at 10% 80%, rgba(63, 163, 77, 0.12) 0%, transparent 40%),
+            #E5EFE6
+          `
+        }}
+      >
         <div className="container">
           <div className="text-center mb-5">
-            <span className="badge bg-primary text-white font-monospace text-uppercase px-2.5 py-1 mb-2">
-              Rooms &amp; Rates
+            <span
+              className="badge px-3 py-1.5 rounded-pill small fw-bold font-monospace mb-2"
+              style={{
+                backgroundColor: "rgba(33, 85, 181, 0.12)",
+                color: "#2155B5"
+              }}
+            >
+              ACCOMMODATION SHOWCASE
             </span>
-            <h2 className="fw-black text-dark mb-2">Lodging Choices</h2>
+            <h2 className="display-6 fw-bold text-dark mb-2">Rooms &amp; Rates</h2>
             <p className="text-secondary small" style={{ maxWidth: "520px", margin: "0 auto" }}>
-              Standard, Twin, and Deluxe Matrimonial rooms. Listed per night with flexible breakfast options.
+              Choose your ideal space. All rooms include clean linens, toiletries, and optional fresh breakfast.
             </p>
           </div>
 
@@ -761,18 +970,21 @@ export default function Home() {
                 return Object.entries(roomsByFloor).map(([floorName, floorRooms], fIdx) => (
                   <div key={floorName} className={`mb-5 ${fIdx === Object.keys(roomsByFloor).length - 1 ? "mb-0" : ""}`}>
                     {/* Floor Header Bar */}
-                    <div className="d-flex align-items-center justify-content-between mb-3.5 pb-2 border-bottom border-2 border-slate-200">
+                    <div className="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom border-slate-300">
                       <div className="d-flex align-items-center gap-2.5">
                         <span
-                          className="badge text-white font-monospace fw-bold px-2.5 py-1.5 rounded"
-                          style={{ backgroundColor: "#1d4ed8" }}
+                          className="badge text-white font-monospace fw-bold px-3 py-1.5 rounded-pill"
+                          style={{
+                            background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                            boxShadow: "0 2px 10px rgba(33, 85, 181, 0.25)"
+                          }}
                         >
                           FLOOR {String(fIdx + 1).padStart(2, "0")}
                         </span>
                         <div>
                           <h4 className="fw-bold text-dark mb-0 fs-5">{floorName}</h4>
                           <span className="text-secondary small font-monospace">
-                            {floorRooms.length} room{floorRooms.length > 1 ? "s" : ""} in inventory
+                            {floorRooms.length} room{floorRooms.length > 1 ? "s" : ""} available on this floor
                           </span>
                         </div>
                       </div>
@@ -790,40 +1002,54 @@ export default function Home() {
 
                         return (
                           <div key={rm.roomID} className="col-md-6 col-lg-4">
-                            <div className="bg-white border-2 border-slate-300 rounded overflow-hidden h-100 d-flex flex-column justify-content-between">
+                            <div
+                              className="rounded-4 overflow-hidden h-100 d-flex flex-column justify-content-between position-relative"
+                              style={{
+                                backgroundColor: "rgba(255, 255, 255, 0.92)",
+                                backdropFilter: "blur(16px)",
+                                border: "1px solid rgba(255, 255, 255, 0.8)",
+                                boxShadow: "0 12px 32px -8px rgba(33, 85, 181, 0.12)"
+                              }}
+                            >
                               <div>
-                                {/* Carousel Box with Flat Badges */}
-                                <div className="position-relative overflow-hidden" style={{ height: "220px" }}>
+                                {/* Carousel Box with Frosted Badges */}
+                                <div className="position-relative overflow-hidden" style={{ height: "230px" }}>
                                   <RoomImageCarousel
                                     images={parsedImages}
                                     fallbackImg={defaultImg}
                                     alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
-                                    height="220px"
+                                    height="230px"
                                   />
                                   <span
-                                    className="badge position-absolute top-0 start-0 m-2.5 px-2 py-1 rounded text-white font-monospace"
+                                    className="badge position-absolute top-0 start-0 m-2.5 px-2.5 py-1 rounded-pill text-white font-monospace small"
                                     style={{
-                                      backgroundColor: "#0f172a",
-                                      fontSize: "0.75rem",
+                                      backgroundColor: "rgba(15, 23, 42, 0.65)",
+                                      backdropFilter: "blur(8px)",
                                       zIndex: 6
                                     }}
                                   >
                                     {rm.floorName || floorName}
                                   </span>
                                   <span
-                                    className={`badge position-absolute top-0 end-0 m-2.5 px-2 py-1 rounded font-monospace ${
+                                    className={`badge position-absolute top-0 end-0 m-2.5 px-2.5 py-1 rounded-pill font-monospace small d-flex align-items-center gap-1.5 ${
                                       rm.status === "Available"
                                         ? "bg-success text-white"
                                         : "bg-warning text-dark"
                                     }`}
-                                    style={{ fontSize: "0.75rem", zIndex: 6 }}
+                                    style={{ zIndex: 6 }}
                                   >
-                                    Room {rm.roomNumber} &bull; {rm.status}
+                                    {rm.status === "Available" && (
+                                      <span
+                                        className="rounded-circle bg-white"
+                                        style={{ width: "6px", height: "6px" }}
+                                      />
+                                    )}
+                                    <span>Room {rm.roomNumber} &bull; {rm.status}</span>
                                   </span>
                                 </div>
 
                                 {/* Body */}
-                                <div className="p-3.5">
+                                <div className="p-4">
                                   <h4 className="fw-bold text-dark mb-1 fs-5">
                                     {rm.roomType}{" "}
                                     <span className="text-secondary fw-normal font-monospace" style={{ fontSize: "0.85rem" }}>
@@ -831,20 +1057,26 @@ export default function Home() {
                                     </span>
                                   </h4>
 
-                                  <div className="d-flex align-items-center gap-1.5 text-secondary small mb-2">
-                                    <Users size={14} />
+                                  <div className="d-flex align-items-center gap-1.5 text-secondary small mb-2.5">
+                                    <Users size={14} style={{ color: "#3FA34D" }} />
                                     <span>Max Occupancy: {rm.occupancyLimit || 4} Guests</span>
                                   </div>
 
                                   <p className="text-secondary small mb-3" style={{ minHeight: "38px", lineHeight: "1.5" }}>
                                     {rm.description ||
                                       rm.typeDescription ||
-                                      "Comfortable stay with essential amenities and daily housekeeping."}
+                                      "Comfortable stay with essential amenities, fresh linens, and daily housekeeping."}
                                   </p>
 
-                                  {/* Flat Rate Comparison Box */}
-                                  <div className="p-2.5 bg-light border border-slate-200 rounded mb-3 small">
-                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                  {/* Pricing Breakdown Box */}
+                                  <div
+                                    className="p-3 rounded-3 mb-3 small"
+                                    style={{
+                                      backgroundColor: "rgba(246, 250, 247, 0.8)",
+                                      border: "1px solid rgba(205, 235, 207, 0.8)"
+                                    }}
+                                  >
+                                    <div className="d-flex justify-content-between align-items-center mb-1.5">
                                       <span className="text-secondary">Without Breakfast:</span>
                                       <span className="fw-bold text-dark font-monospace">
                                         ₱
@@ -853,24 +1085,30 @@ export default function Home() {
                                         })}
                                       </span>
                                     </div>
-                                    <div className="d-flex justify-content-between align-items-center mb-1.5">
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
                                       <span className="text-secondary">With Breakfast:</span>
-                                      <span className="fw-bold text-primary font-monospace">
+                                      <span className="fw-bold font-monospace" style={{ color: "#2155B5" }}>
                                         ₱
                                         {parseFloat(rm.rateWithBreakfast || 0).toLocaleString(undefined, {
                                           minimumFractionDigits: 2
                                         })}
                                       </span>
                                     </div>
-                                    <div className="d-flex justify-content-between align-items-center pt-1.5 border-top border-slate-300">
-                                      <span className="text-secondary">Breakfast Status:</span>
+                                    <div className="d-flex justify-content-between align-items-center pt-2 border-top border-slate-200">
+                                      <span className="text-secondary">Breakfast Option:</span>
                                       {isBreakfastFree ? (
-                                        <span className="badge bg-success text-white px-2 py-0.5 rounded font-monospace">
+                                        <span
+                                          className="badge px-2 py-0.5 rounded-pill font-monospace"
+                                          style={{
+                                            backgroundColor: "rgba(63, 163, 77, 0.15)",
+                                            color: "#3FA34D"
+                                          }}
+                                        >
                                           FREE / INCLUDED
                                         </span>
                                       ) : (
-                                        <span className="text-success fw-bold font-monospace">
-                                          +₱{breakfastDiff.toFixed(2)} meal
+                                        <span className="fw-bold font-monospace" style={{ color: "#3FA34D" }}>
+                                          +₱{breakfastDiff.toFixed(2)} meal add-on
                                         </span>
                                       )}
                                     </div>
@@ -879,7 +1117,7 @@ export default function Home() {
                               </div>
 
                               {/* Card Action */}
-                              <div className="p-3.5 pt-0">
+                              <div className="p-4 pt-0">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -887,8 +1125,12 @@ export default function Home() {
                                     setCheckIn(minCheckIn);
                                     window.scrollTo({ top: 0, behavior: "smooth" });
                                   }}
-                                  className="btn w-100 py-2 fw-bold text-white rounded border-0 d-flex align-items-center justify-content-center gap-2"
-                                  style={{ backgroundColor: "#1d4ed8" }}
+                                  className="btn w-100 py-2.5 fw-bold text-white rounded-pill d-flex align-items-center justify-content-center gap-2"
+                                  style={{
+                                    background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                                    border: "none",
+                                    boxShadow: "0 4px 15px rgba(33, 85, 181, 0.25)"
+                                  }}
                                 >
                                   <span>Check &amp; Reserve</span>
                                   <ArrowRight size={15} />
@@ -904,10 +1146,15 @@ export default function Home() {
               })()}
 
               {allRooms.length > VISIBLE_COUNT && (
-                <div className="text-center mt-4">
+                <div className="text-center mt-4 pt-2">
                   <button
                     type="button"
-                    className="btn btn-outline-secondary px-4 py-2 rounded fw-bold"
+                    className="btn px-4 py-2 rounded-pill fw-bold"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      border: "1px solid rgba(33, 85, 181, 0.3)",
+                      color: "#2155B5"
+                    }}
                     onClick={() => setShowAllRooms((v) => !v)}
                   >
                     {showAllRooms ? "Show Less" : `See More (${allRooms.length - VISIBLE_COUNT} more rooms)`}
@@ -916,45 +1163,45 @@ export default function Home() {
               )}
             </>
           ) : (
-            /* Fallback Flat Cards when database is initializing */
+            /* Fallback Cards */
             <div className="row g-4 justify-content-center">
               <div className="col-md-4">
-                <div className="bg-white border-2 border-slate-300 rounded p-4 text-center">
+                <div className="rounded-4 p-4 text-center bg-white shadow-sm border border-slate-200">
                   <img
                     src={defaultRoomImages["Standard Matrimonial"]}
                     alt="Standard Matrimonial"
-                    className="rounded mb-3 w-100 object-fit-cover border border-slate-200"
+                    className="rounded-3 mb-3 w-100 object-fit-cover"
                     style={{ height: "170px" }}
                   />
                   <h4 className="fw-bold text-dark fs-5">Standard Matrimonial</h4>
                   <p className="text-secondary small mb-2">Sleeps 2–4 · Daily housekeeping</p>
-                  <div className="fw-bold fs-5 text-primary font-monospace">₱1,200 / night</div>
+                  <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱1,200 / night</div>
                 </div>
               </div>
               <div className="col-md-4">
-                <div className="bg-white border-2 border-slate-300 rounded p-4 text-center">
+                <div className="rounded-4 p-4 text-center bg-white shadow-sm border border-slate-200">
                   <img
                     src={defaultRoomImages["Twin Matrimonial"]}
                     alt="Twin Matrimonial"
-                    className="rounded mb-3 w-100 object-fit-cover border border-slate-200"
+                    className="rounded-3 mb-3 w-100 object-fit-cover"
                     style={{ height: "170px" }}
                   />
                   <h4 className="fw-bold text-dark fs-5">Twin Matrimonial</h4>
                   <p className="text-secondary small mb-2">Sleeps 4–5 · Ideal for families</p>
-                  <div className="fw-bold fs-5 text-primary font-monospace">₱1,300 / night</div>
+                  <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱1,300 / night</div>
                 </div>
               </div>
               <div className="col-md-4">
-                <div className="bg-white border-2 border-slate-300 rounded p-4 text-center">
+                <div className="rounded-4 p-4 text-center bg-white shadow-sm border border-slate-200">
                   <img
                     src={defaultRoomImages["Deluxe Matrimonial"]}
                     alt="Deluxe Matrimonial"
-                    className="rounded mb-3 w-100 object-fit-cover border border-slate-200"
+                    className="rounded-3 mb-3 w-100 object-fit-cover"
                     style={{ height: "170px" }}
                   />
                   <h4 className="fw-bold text-dark fs-5">Deluxe Matrimonial</h4>
                   <p className="text-secondary small mb-2">Sleeps 5–7 · Spacious &amp; premium</p>
-                  <div className="fw-bold fs-5 text-primary font-monospace">₱2,100 / night</div>
+                  <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱2,100 / night</div>
                 </div>
               </div>
             </div>
@@ -962,72 +1209,330 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6. FLAT AMENITIES TILES */}
-      <section className="py-5 py-lg-6 border-bottom border-slate-200" id="amenities" style={{ backgroundColor: "#f8fafc" }}>
+      {/* 6. AMENITIES SECTION */}
+      <section className="py-5 py-lg-6" id="amenities" style={{ backgroundColor: "#F6FAF7" }}>
         <div className="container">
-          <div className="text-center mb-4 pb-2">
-            <span className="badge bg-success text-white font-monospace text-uppercase px-2.5 py-1 mb-2">
-              Guest Services
+          <div className="text-center mb-5">
+            <span
+              className="badge px-3 py-1.5 rounded-pill small fw-bold font-monospace mb-2"
+              style={{
+                backgroundColor: "rgba(63, 163, 77, 0.12)",
+                color: "#3FA34D"
+              }}
+            >
+              GUEST COMFORTS
             </span>
-            <h2 className="fw-black text-dark mb-2">Amenities &amp; Facilities</h2>
-            <p className="text-secondary small" style={{ maxWidth: "460px", margin: "0 auto" }}>
-              Essential conveniences included with every stay for a smooth, pleasant visit.
+            <h2 className="display-6 fw-bold text-dark mb-2">Amenities &amp; Facilities</h2>
+            <p className="text-secondary small" style={{ maxWidth: "480px", margin: "0 auto" }}>
+              Everything provided to ensure a seamless, restful lodging experience in Koronadal.
             </p>
           </div>
 
           <div className="row g-4">
             <div className="col-md-3 col-6">
-              <div className="p-3.5 bg-white border border-slate-300 rounded text-center h-100">
+              <div
+                className="p-4 rounded-4 text-center h-100"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(205, 235, 207, 0.8)",
+                  boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.04)"
+                }}
+              >
                 <div
-                  className="rounded d-inline-flex align-items-center justify-content-center p-2.5 mb-2.5 bg-blue-50 text-primary border border-primary"
+                  className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(33, 85, 181, 0.12) 0%, rgba(63, 163, 77, 0.12) 100%)",
+                    color: "#2155B5"
+                  }}
                 >
                   <Bed size={24} />
                 </div>
-                <h4 className="fw-bold text-dark fs-6 mb-1">Clean Linens</h4>
-                <p className="text-secondary small mb-0">Fresh bedding and sanitized towels for every guest.</p>
+                <h4 className="fw-bold text-dark fs-6 mb-1.5">Clean Linens</h4>
+                <p className="text-secondary small mb-0">Sanitized bedding and crisp towels for each guest.</p>
               </div>
             </div>
 
             <div className="col-md-3 col-6">
-              <div className="p-3.5 bg-white border border-slate-300 rounded text-center h-100">
+              <div
+                className="p-4 rounded-4 text-center h-100"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(205, 235, 207, 0.8)",
+                  boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.04)"
+                }}
+              >
                 <div
-                  className="rounded d-inline-flex align-items-center justify-content-center p-2.5 mb-2.5 bg-green-50 text-success border border-success"
+                  className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(63, 163, 77, 0.12) 0%, rgba(205, 235, 207, 0.4) 100%)",
+                    color: "#3FA34D"
+                  }}
                 >
                   <Wifi size={24} />
                 </div>
-                <h4 className="fw-bold text-dark fs-6 mb-1">Free Wi-Fi</h4>
-                <p className="text-secondary small mb-0">High-speed wireless connectivity in all rooms.</p>
+                <h4 className="fw-bold text-dark fs-6 mb-1.5">Free Wi-Fi</h4>
+                <p className="text-secondary small mb-0">Fast internet connection available on all floors.</p>
               </div>
             </div>
 
             <div className="col-md-3 col-6">
-              <div className="p-3.5 bg-white border border-slate-300 rounded text-center h-100">
+              <div
+                className="p-4 rounded-4 text-center h-100"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(205, 235, 207, 0.8)",
+                  boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.04)"
+                }}
+              >
                 <div
-                  className="rounded d-inline-flex align-items-center justify-content-center p-2.5 mb-2.5 bg-amber-50 text-warning border border-warning"
+                  className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(234, 88, 12, 0.12) 0%, rgba(245, 158, 11, 0.15) 100%)",
+                    color: "#ea580c"
+                  }}
                 >
                   <Coffee size={24} />
                 </div>
-                <h4 className="fw-bold text-dark fs-6 mb-1">Breakfast Option</h4>
-                <p className="text-secondary small mb-0">Hearty morning meals prepared fresh daily.</p>
+                <h4 className="fw-bold text-dark fs-6 mb-1.5">Breakfast Option</h4>
+                <p className="text-secondary small mb-0">Freshly prepared morning meals cooked upon request.</p>
               </div>
             </div>
 
             <div className="col-md-3 col-6">
-              <div className="p-3.5 bg-white border border-slate-300 rounded text-center h-100">
+              <div
+                className="p-4 rounded-4 text-center h-100"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(205, 235, 207, 0.8)",
+                  boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.04)"
+                }}
+              >
                 <div
-                  className="rounded d-inline-flex align-items-center justify-content-center p-2.5 mb-2.5 bg-indigo-50 text-primary border border-primary"
+                  className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(33, 85, 181, 0.12) 0%, rgba(22, 62, 130, 0.15) 100%)",
+                    color: "#163E82"
+                  }}
                 >
                   <Clock size={24} />
                 </div>
-                <h4 className="fw-bold text-dark fs-6 mb-1">24/7 Front Desk</h4>
-                <p className="text-secondary small mb-0">Friendly reception staff on duty day and night.</p>
+                <h4 className="fw-bold text-dark fs-6 mb-1.5">24/7 Front Desk</h4>
+                <p className="text-secondary small mb-0">Friendly staff ready to assist at any hour of the day.</p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 7. FLAT FOOTER */}
+      {/* 7. GUEST REVIEWS & TRAVELER TESTIMONIALS */}
+      <section
+        className="py-5 py-lg-6"
+        id="testimonials"
+        style={{
+          background: `
+            radial-gradient(circle at 10% 20%, rgba(33, 85, 181, 0.08) 0%, transparent 40%),
+            radial-gradient(circle at 90% 80%, rgba(63, 163, 77, 0.1) 0%, transparent 40%),
+            #E5EFE6
+          `
+        }}
+      >
+        <div className="container">
+          <div className="text-center mb-5">
+            <span
+              className="badge px-3 py-1.5 rounded-pill small fw-bold font-monospace mb-2"
+              style={{
+                backgroundColor: "rgba(33, 85, 181, 0.12)",
+                color: "#2155B5"
+              }}
+            >
+              TRAVELER STORIES
+            </span>
+            <h2 className="display-6 fw-bold text-dark mb-2">Guest Experiences</h2>
+            <p className="text-secondary small" style={{ maxWidth: "480px", margin: "0 auto" }}>
+              See what travelers, professionals, and families say about their stay at PCC Home Suite Home.
+            </p>
+          </div>
+
+          <div className="row g-4">
+            <div className="col-md-4">
+              <div
+                className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.9)",
+                  backdropFilter: "blur(14px)",
+                  border: "1px solid rgba(255, 255, 255, 0.8)",
+                  boxShadow: "0 10px 30px -10px rgba(33, 85, 181, 0.1)"
+                }}
+              >
+                <div>
+                  <div className="d-flex align-items-center gap-1 mb-3 text-warning">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} size={16} fill="currentColor" />
+                    ))}
+                  </div>
+                  <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
+                    &ldquo;Super clean rooms and very convenient location along Osmeña Street.
+                    The front desk staff were accommodating even with our late 10 PM check-in.&rdquo;
+                  </p>
+                </div>
+                <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-200">
+                  <div
+                    className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center"
+                    style={{
+                      width: "38px",
+                      height: "38px",
+                      background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                      fontSize: "0.85rem"
+                    }}
+                  >
+                    MR
+                  </div>
+                  <div>
+                    <h6 className="fw-bold text-dark mb-0 fs-6">Maria R.</h6>
+                    <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
+                      Family Trip &bull; Deluxe Matrimonial
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-4">
+              <div
+                className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.9)",
+                  backdropFilter: "blur(14px)",
+                  border: "1px solid rgba(255, 255, 255, 0.8)",
+                  boxShadow: "0 10px 30px -10px rgba(33, 85, 181, 0.1)"
+                }}
+              >
+                <div>
+                  <div className="d-flex align-items-center gap-1 mb-3 text-warning">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} size={16} fill="currentColor" />
+                    ))}
+                  </div>
+                  <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
+                    &ldquo;Budget-friendly rates without sacrificing bed comfort. Having the breakfast
+                    option made our early morning meetings so much easier.&rdquo;
+                  </p>
+                </div>
+                <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-200">
+                  <div
+                    className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center"
+                    style={{
+                      width: "38px",
+                      height: "38px",
+                      background: "linear-gradient(135deg, #3FA34D 0%, #163E82 100%)",
+                      fontSize: "0.85rem"
+                    }}
+                  >
+                    JD
+                  </div>
+                  <div>
+                    <h6 className="fw-bold text-dark mb-0 fs-6">Jonathan D.</h6>
+                    <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
+                      Business Stay &bull; Standard Matrimonial
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-4">
+              <div
+                className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.9)",
+                  backdropFilter: "blur(14px)",
+                  border: "1px solid rgba(255, 255, 255, 0.8)",
+                  boxShadow: "0 10px 30px -10px rgba(33, 85, 181, 0.1)"
+                }}
+              >
+                <div>
+                  <div className="d-flex align-items-center gap-1 mb-3 text-warning">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} size={16} fill="currentColor" />
+                    ))}
+                  </div>
+                  <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
+                    &ldquo;Quiet and safe atmosphere. We stayed on the second floor twin room and had
+                    a wonderful restful weekend. Highly recommended in Koronadal!&rdquo;
+                  </p>
+                </div>
+                <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-200">
+                  <div
+                    className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center"
+                    style={{
+                      width: "38px",
+                      height: "38px",
+                      background: "linear-gradient(135deg, #163E82 0%, #2155B5 100%)",
+                      fontSize: "0.85rem"
+                    }}
+                  >
+                    ES
+                  </div>
+                  <div>
+                    <h6 className="fw-bold text-dark mb-0 fs-6">Elena S.</h6>
+                    <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
+                      Weekend Vacation &bull; Twin Matrimonial
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 8. STAY PLANNER / CONCIERGE CTA BANNER */}
+      <section className="py-5" style={{ backgroundColor: "#F6FAF7" }}>
+        <div className="container">
+          <div
+            className="p-4 p-md-5 rounded-4 text-white position-relative overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, #163E82 0%, #2155B5 50%, #3FA34D 100%)",
+              boxShadow: "0 20px 45px -12px rgba(33, 85, 181, 0.35)",
+              border: "1px solid rgba(255, 255, 255, 0.25)"
+            }}
+          >
+            <div className="row align-items-center g-4 position-relative" style={{ zIndex: 2 }}>
+              <div className="col-lg-8">
+                <div className="d-flex align-items-center gap-2 mb-2 font-monospace small">
+                  <Award size={18} className="text-warning" />
+                  <span>PLANNING A GROUP STAY OR EXTENDED VISIT?</span>
+                </div>
+                <h3 className="display-6 fw-bold mb-2">We tailor reservations to your schedule.</h3>
+                <p className="opacity-90 mb-0" style={{ maxWidth: "580px", lineHeight: "1.6" }}>
+                  Whether organizing family reunions, corporate trips, or extended lodging in Koronadal City,
+                  our concierge team ensures seamless accommodations.
+                </p>
+              </div>
+              <div className="col-lg-4 text-lg-end">
+                <Link
+                  href="/auth/register"
+                  className="btn px-4 py-3 fw-bold text-dark rounded-pill d-inline-flex align-items-center gap-2"
+                  style={{
+                    backgroundColor: "#ffffff",
+                    boxShadow: "0 8px 20px rgba(0, 0, 0, 0.15)",
+                    border: "none"
+                  }}
+                >
+                  <span>Book Your Stay Today</span>
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 9. FOOTER */}
       <footer className="py-5 mt-auto" id="contact" style={{ backgroundColor: "#0f172a", color: "#cbd5e1" }}>
         <div className="container">
           <div className="row g-4 pb-4">
@@ -1036,8 +1541,8 @@ export default function Home() {
                 <img
                   src="/assets/images/logo.jpg"
                   alt="PCC Logo"
-                  height="34"
-                  className="border border-secondary rounded"
+                  height="36"
+                  className="rounded-2"
                 />
                 <span className="fw-bold text-white fs-5">PCC Home Suite Home</span>
               </div>
@@ -1050,27 +1555,28 @@ export default function Home() {
             <div className="col-lg-4">
               <h6 className="text-white fw-bold font-monospace text-uppercase mb-3">Navigation</h6>
               <ul className="list-unstyled d-flex flex-column gap-2 small text-secondary">
-                <li><a href="#rooms" className="text-secondary text-decoration-none hover:text-white">Rooms &amp; Rates</a></li>
+                <li><a href="#home" className="text-secondary text-decoration-none hover:text-white">Home</a></li>
+                <li><a href="#about" className="text-secondary text-decoration-none hover:text-white">About Us</a></li>
                 <li><a href="#promotions" className="text-secondary text-decoration-none hover:text-white">Active Promotions</a></li>
-                <li><a href="#amenities" className="text-secondary text-decoration-none hover:text-white">Guest Amenities</a></li>
-                <li><Link href="/auth/register" className="text-secondary text-decoration-none hover:text-white">Create Guest Account</Link></li>
-                <li><Link href="/auth/login" className="text-secondary text-decoration-none hover:text-white">Staff &amp; Guest Login</Link></li>
+                <li><a href="#rooms" className="text-secondary text-decoration-none hover:text-white">Rooms &amp; Rates</a></li>
+                <li><a href="#amenities" className="text-secondary text-decoration-none hover:text-white">Amenities</a></li>
+                <li><a href="#testimonials" className="text-secondary text-decoration-none hover:text-white">Guest Reviews</a></li>
               </ul>
             </div>
 
             <div className="col-lg-4">
-              <h6 className="text-white fw-bold font-monospace text-uppercase mb-3">Contact Details</h6>
+              <h6 className="text-white fw-bold font-monospace text-uppercase mb-3">Contact &amp; Assistance</h6>
               <div className="d-flex flex-column gap-2 small text-secondary">
                 <div className="d-flex align-items-center gap-2">
-                  <MapPin size={16} className="text-primary flex-shrink-0" />
+                  <MapPin size={16} style={{ color: "#3FA34D" }} className="flex-shrink-0" />
                   <span>Osmeña Street, Zone 1, Koronadal City</span>
                 </div>
                 <div className="d-flex align-items-center gap-2">
-                  <Mail size={16} className="text-primary flex-shrink-0" />
+                  <Mail size={16} style={{ color: "#2155B5" }} className="flex-shrink-0" />
                   <span>info@pccsuite.com</span>
                 </div>
                 <div className="d-flex align-items-center gap-2">
-                  <Phone size={16} className="text-primary flex-shrink-0" />
+                  <Phone size={16} style={{ color: "#3FA34D" }} className="flex-shrink-0" />
                   <span>09000000000</span>
                 </div>
               </div>
@@ -1098,27 +1604,38 @@ export default function Home() {
       {/* CHATBOT WIDGET */}
       <GuestChatBubble />
 
-      {/* 8. FLAT AVAILABILITY RESULTS MODAL */}
+      {/* 10. FROSTED AURORA AVAILABILITY RESULTS MODAL */}
       {showResultsModal && (
         <ModalPortal>
           <div
             className="modal show d-block"
             tabIndex="-1"
             style={{
-              backgroundColor: "rgba(15, 23, 42, 0.7)",
+              backgroundColor: "rgba(15, 23, 42, 0.65)",
+              backdropFilter: "blur(14px)",
+              WebkitBackdropFilter: "blur(14px)",
               zIndex: 99999
             }}
           >
             <div className="modal-dialog modal-dialog-centered modal-lg">
-              <div className="modal-content border-2 border-slate-300 rounded overflow-hidden">
-                {/* Header */}
+              <div
+                className="modal-content border-0 rounded-4 overflow-hidden"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.96)",
+                  boxShadow: "0 25px 60px -15px rgba(33, 85, 181, 0.35)",
+                  border: "1px solid rgba(255, 255, 255, 0.8)"
+                }}
+              >
+                {/* Header with Aurora Gradient */}
                 <div
-                  className="modal-header px-4 py-3 border-0 text-white rounded-0"
-                  style={{ backgroundColor: "#1d4ed8" }}
+                  className="modal-header px-4 py-3.5 border-0 text-white"
+                  style={{
+                    background: "linear-gradient(135deg, #2155B5 0%, #163E82 60%, #3FA34D 100%)"
+                  }}
                 >
                   <div className="d-flex align-items-center gap-2">
                     <Hotel size={20} />
-                    <h5 className="modal-title fw-bold mb-0 fs-5">Available Room Results</h5>
+                    <h5 className="modal-title fw-bold mb-0 fs-5">Available Rooms Found</h5>
                   </div>
                   <button
                     type="button"
@@ -1131,18 +1648,22 @@ export default function Home() {
                 {/* Body */}
                 <div className="modal-body p-4" style={{ maxHeight: "70vh", overflowY: "auto" }}>
                   <div
-                    className="mb-3 p-3 bg-light border border-slate-300 rounded d-flex flex-wrap align-items-center justify-content-between gap-2"
-                    style={{ fontSize: "0.85rem" }}
+                    className="mb-3.5 p-3 rounded-3 d-flex flex-wrap align-items-center justify-content-between gap-2"
+                    style={{
+                      backgroundColor: "rgba(230, 239, 230, 0.6)",
+                      border: "1px solid rgba(205, 235, 207, 0.9)",
+                      fontSize: "0.85rem"
+                    }}
                   >
                     <div className="d-flex align-items-center gap-2">
-                      <Calendar size={15} className="text-primary" />
+                      <Calendar size={15} style={{ color: "#2155B5" }} />
                       <span>
                         Stay: <strong>{new Date(checkIn).toLocaleDateString()}</strong> &mdash;{" "}
                         <strong>{new Date(checkOut).toLocaleDateString()}</strong>
                       </span>
                     </div>
                     <div className="d-flex align-items-center gap-1.5">
-                      <Coffee size={15} className="text-success" />
+                      <Coffee size={15} style={{ color: "#3FA34D" }} />
                       <span>
                         Option: <strong>{breakfast}</strong>
                       </span>
@@ -1151,7 +1672,7 @@ export default function Home() {
 
                   {availableRooms.length === 0 ? (
                     <div className="text-center py-5 text-secondary">
-                      <Hotel size={40} className="text-secondary opacity-50 mb-2" />
+                      <Hotel size={42} className="opacity-40 mb-2" style={{ color: "#163E82" }} />
                       <h4 className="fw-bold text-dark mt-2 fs-5">No Vacancies for Selected Dates</h4>
                       <p className="small text-secondary mb-0" style={{ maxWidth: "420px", margin: "0 auto" }}>
                         Sorry, there are no available rooms of this type for your chosen dates. Please try
@@ -1163,16 +1684,26 @@ export default function Home() {
                       {availableRooms.map((rm) => (
                         <div
                           key={rm.roomID}
-                          className="p-3 border-2 border-slate-200 rounded d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white gap-3"
+                          className="p-3.5 rounded-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white gap-3"
+                          style={{
+                            border: "1px solid rgba(205, 235, 207, 0.9)",
+                            boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
+                          }}
                         >
                           <div>
                             <div className="d-flex align-items-center gap-2 mb-1">
                               <span className="fw-bold text-dark fs-5">Room {rm.roomNumber}</span>
-                              <span className="badge bg-success text-white font-monospace small">
+                              <span
+                                className="badge px-2 py-0.5 rounded-pill font-monospace small"
+                                style={{
+                                  backgroundColor: "rgba(63, 163, 77, 0.15)",
+                                  color: "#3FA34D"
+                                }}
+                              >
                                 Available
                               </span>
                             </div>
-                            <h6 className="fw-bold text-primary mb-1">
+                            <h6 className="fw-bold mb-1" style={{ color: "#2155B5" }}>
                               {rm.roomType} &bull; {rm.floor}
                             </h6>
                             <p className="text-secondary small mb-0" style={{ maxWidth: "480px" }}>
@@ -1183,7 +1714,10 @@ export default function Home() {
                           <div className="text-md-end d-flex flex-row flex-md-column justify-content-between align-items-center align-items-md-end gap-2.5">
                             <div>
                               <div className="text-secondary small">Rate per night</div>
-                              <span className="fw-bold fs-4 text-primary font-monospace">
+                              <span
+                                className="fw-bold fs-4 font-monospace"
+                                style={{ color: "#2155B5" }}
+                              >
                                 ₱{parseFloat(rm.rate).toFixed(2)}
                               </span>
                             </div>
@@ -1191,8 +1725,12 @@ export default function Home() {
                             {currentUser && currentUser.role === "Guest" ? (
                               <button
                                 onClick={() => handleBookNow(rm.roomID)}
-                                className="btn btn-sm px-4 py-2 fw-bold text-white rounded border-0"
-                                style={{ backgroundColor: "#1d4ed8" }}
+                                className="btn btn-sm px-4 py-2 fw-bold text-white rounded-pill"
+                                style={{
+                                  background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                                  border: "none",
+                                  boxShadow: "0 4px 12px rgba(33, 85, 181, 0.25)"
+                                }}
                                 disabled={bookingInProgress}
                               >
                                 {bookingInProgress ? "Submitting..." : "Reserve Now"}
@@ -1200,8 +1738,12 @@ export default function Home() {
                             ) : (
                               <Link
                                 href={`/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${rm.roomID}&breakfast=${breakfast}`}
-                                className="btn btn-sm px-4 py-2 fw-bold text-white rounded border-0"
-                                style={{ backgroundColor: "#1d4ed8" }}
+                                className="btn btn-sm px-4 py-2 fw-bold text-white rounded-pill"
+                                style={{
+                                  background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                                  border: "none",
+                                  boxShadow: "0 4px 12px rgba(33, 85, 181, 0.25)"
+                                }}
                               >
                                 Book Now
                               </Link>
@@ -1217,7 +1759,7 @@ export default function Home() {
                 <div className="modal-footer border-top border-slate-200 px-4 py-2.5 bg-light">
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm px-4 py-1.5 rounded fw-bold"
+                    className="btn btn-secondary btn-sm px-4 py-1.5 rounded-pill fw-bold"
                     onClick={() => setShowResultsModal(false)}
                   >
                     Close

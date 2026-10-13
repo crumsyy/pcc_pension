@@ -1,51 +1,47 @@
-# Implementation Plan — Redesign Landing Page with Modern FLAT Design UI
+# Implementation Plan — Aurora UI Redesign for PCC Pension Landing Page
 
 > **RequestFeedback: true** — STOP here. No code changes made. Proceed only on explicit user approval.
 
 ## 1. Goal
-Overhaul the landing page ([`app/page.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/page.js)) to strictly implement **Modern Flat Design UI** (Style ID: `flat-design` from the UI/UX Pro Max architecture), replacing soft blurred gradients, mushy drop-shadows, and bubbly contours with crisp lines, bold color blocking, precise geometric cards, and high-contrast typography.
+Transform the **PCC Home Suite Home Landing Page** ([`app/page.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/page.js)) into an inspiring, modern **Aurora UI** experience while strictly staying within the **official PCC brand color family**:
+- **PCC Royal Blue**: `#2155B5` & `#163E82`
+- **PCC Emerald / Leaf Green**: `#3FA34D` & `#10B981`
+- **PCC Mint & Light Glow**: `#CDEBCF` & `#A7F3D0`
+- **PCC Cream & Mist**: `#F6FAF7` & `#E5EFE6`
+- **Charcoal Text**: `#0f172a` & `#1F2A24`
 
 ---
 
-## 2. Flat Design UI Principles Applied
-1. **Zero Gradients & Zero Heavy Drop Shadows**:
-   - Remove fuzzy box-shadows (`box-shadow: none`), backdrop-blur gradients, and radial lighting.
-   - Use crisp solid background fills (`#ffffff`, `#f8fafc`, `#f1f5f9`, `#0f172a`).
-2. **Crisp 1px & 2px Geometric Borders**:
-   - Clean, well-defined border strokes (`border: 1px solid #e2e8f0` or `2px solid #2563eb`) with uniform, crisp geometry (`rounded-md` / `rounded-lg` 4–8px radius instead of oversized bubbly pills).
-3. **Bold Solid Color Blocking (4–5 Curated Palette Tokens)**:
-   - **Primary Action**: Solid Cobalt/PCC Blue (`#1e40af` / `#2563eb`)
-   - **Success / Available**: Solid Emerald (`#059669` / `#10b981`)
-   - **Discount / Alert**: Solid Crimson/Rose (`#e11d48`)
-   - **Surfaces**: Crisp White (`#ffffff`) & Light Slate (`#f8fafc`)
-   - **Text Hierarchy**: Jet Slate (`#0f172a`) & Crisp Muted (`#475569`)
-4. **Structured Geometric Layout**:
-   - **Navigation**: Clean solid bar with sharp borders, bold active states, and crisp rectangular/pill action buttons.
-   - **Hero & Booking Engine**: Clean side-by-side block layout with solid contrast; booking engine as a framed console with crisp input borders and bold solid submit button.
-   - **About & Metric Blocks**: Flat solid metric tiles with high-contrast numbers and crisp dividers.
-   - **Promotions**: Flat ticket-style cards with solid color header stripes, crisp percentage badges, and direct solid buttons.
-   - **Rooms & Rates**: Clean grid of bordered cards with flat carousel buttons, solid status chips (no fuzzy glow), and clear tabular rate comparison.
-   - **Amenities**: Clean geometric feature tiles with solid monoline SVG/Lucide icons and clear borders.
-   - **Modal**: Clean high-contrast dialog with solid borders and crisp buttons.
-5. **Immediate, Crisp Micro-Interactions**:
-   - Instant or snappy (150ms) border/color shifts on hover instead of floaty multi-layer blur animations.
+## 2. Aurora UI Concepts Adapted for PCC Pension
+1. **Luminous PCC Aurora Mesh Gradients**:
+   - Multi-stop atmospheric mesh gradients blending deep PCC Royal Blue into Emerald Green and soft Mint glow.
+   - Smooth iridescent border glows (`border: 1px solid rgba(33, 85, 181, 0.18)` or `rgba(255, 255, 255, 0.6)`).
+2. **Frosted Glassmorphism Surfaces**:
+   - Translucent card containers (`backdrop-filter: blur(16px)`, `background: rgba(255, 255, 255, 0.88)` in light mode, `rgba(15, 23, 42, 0.8)` in dark mode).
+3. **Hero Experience ("Your sanctuary away from home")**:
+   - Ambient aurora backdrop with radial illumination.
+   - Gradient-clipped headline and floating feature badges (*"✨ Zone 1 Center &bull; 🌿 Restful Stay &bull; 🛡️ Verified Direct Booking"*).
+   - Elevated glassmorphic Booking Console with date pickers, room selectors, and glowing aurora search button.
+4. **Room & Stay Showcase**:
+   - Polished room cards with frosted glass carousel controls, glowing availability pills (live pulsing green dot for `Available`), occupancy badges, and side-by-side breakfast pricing comparison.
+   - Floor directory with luminous floor tags.
+5. **Special Offers & Voucher Cards**:
+   - Elegant promotional cards with emerald & blue aurora accent lines, discount pill badges, and validity dates.
+6. **Guest Testimonials & Trust Experience**:
+   - Social proof cards featuring guest experiences in Koronadal City, star ratings, and hospitality highlights.
+7. **Stay Planner / Concierge CTA**:
+   - Luminous trip & stay planner banner inviting guests to inquire about group bookings, extended stays, or family packages.
+8. **100% Business Logic Integrity**:
+   - All booking rules (0–2 day lead limit), API requests (`/api/landing`, `/api/rooms/availability`, `/api/guest/reservations`, `/api/auth/session-check`), date validations, and guest/staff redirection remain 100% intact.
 
 ---
 
-## 3. Preserved Business Logic (100% Intact)
-- All booking lead constraints (today up to 2 days ahead max).
-- Date validation logic (`isValidDate`, `toDbDate`).
-- Real-time endpoints: `/api/landing`, `/api/rooms/availability`, `/api/guest/reservations`, `/api/auth/session-check`.
-- Guest vs Staff redirection and reservation workflows.
+## 3. Verification Plan
+- **Build Verification**: Run `npm run build` to ensure zero compilation or syntax errors with Turbopack.
+- **Visual & Contrast Verification**: Ensure text contrast meets WCAG AA standards (minimum 4.5:1) across all frosted cards and aurora backgrounds.
+- **Workflow Verification**: Test date picking, search availability modal trigger, and booking redirection flows.
 
 ---
 
-## 4. Verification Plan
-- Verify clean Turbopack build with `npm run build`.
-- Verify responsive layout on mobile, tablet, and desktop viewports.
-- Confirm complete absence of muddy shadows or radial blurs, replaced with sharp flat aesthetics.
-
----
-
-## 5. Questions / Confirmation
-- Ready to proceed with redesigning the landing page into a sharp, modern Flat Design UI? Click **Proceed** to execute.
+## 4. Questions / Confirmation
+- Ready to proceed with transforming [`app/page.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/page.js) into the Aurora UI style with PCC's color family? Click **Proceed** to execute.

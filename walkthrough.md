@@ -1,40 +1,51 @@
-# Walkthrough — Modern FLAT Design UI on Landing Page
+# Walkthrough — Inspiring Aurora UI on PCC Pension Landing Page
 
 ## Overview
-We redesigned the PCC Pension Landing Page ([`app/page.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/page.js)) strictly using the **Modern Flat Design UI** architecture (`flat-design` from the UI/UX Pro Max dataset).
+We transformed the PCC Home Suite Home Landing Page ([`app/page.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/page.js)) using the **Aurora UI** design aesthetic (`aurora-ui` from the UI/UX Pro Max intelligence suite), strictly tailored to the **official PCC brand color family**:
+- **PCC Royal Blue**: `#2155B5` & `#163E82`
+- **PCC Emerald / Leaf Green**: `#3FA34D` & `#10B981`
+- **PCC Mint Glow**: `#CDEBCF` & `#A7F3D0`
+- **PCC Cream & Mist**: `#F6FAF7` & `#E5EFE6`
 
 ---
 
-## What Changed (Flat Design Principles)
+## Key Visual & Component Upgrades
 
-### 1. Zero Gradients & Zero Fuzzy Shadows
-- Removed all backdrop blurs, radial mesh gradients, and multi-layer fuzzy drop-shadows.
-- Clean solid fills (`#ffffff`, `#f8fafc`, `#f1f5f9`, `#0f172a`).
+### 1. Luminous Aurora Mesh Gradients
+- Multi-layer radial mesh blending deep PCC Royal Blue with Emerald Green and soft Mint illumination.
+- Ambient light swirl effect in the hero section for an inspiring, welcoming first impression.
 
-### 2. Crisp 1px & 2px Geometric Borders
-- Replaced soft rounded pill contours with clean, crisp geometry (4–8px radius).
-- Well-defined border strokes (`border: 2px solid #1d4ed8` on booking engine, `border: 1px solid #cbd5e1` on room cards).
+### 2. Frosted Glassmorphism Surfaces
+- Translucent card containers (`backdrop-filter: blur(18px)`, `background: rgba(255, 255, 255, 0.88)`).
+- Delicate iridescent borders (`border: 1px solid rgba(205, 235, 207, 0.8)`) creating modern layered depth.
 
-### 3. Bold High-Contrast Color Palette
-- **Primary Blue**: Solid Royal Cobalt (`#1d4ed8`)
-- **Accent Green**: Solid Emerald (`#059669`)
-- **Accent Red**: Solid Crimson (`#dc2626`)
-- **Text & Structure**: Jet Slate (`#0f172a`) & Slate-600 (`#475569`)
+### 3. Hero Section ("Your Sanctuary Away From Home")
+- Gradient-clipped headline typography (`#2155B5` &rarr; `#3FA34D`).
+- Pill badge with location details (*"Zone 1, Osmeña Street &bull; Koronadal City"*).
+- Floating Trust & Value badges (*"Instant Confirmation"*, *"24/7 Front Desk"*).
+- **Frosted Booking Console**: Date pickers, room selectors, and a high-impact glowing Aurora gradient search button (`#2155B5` &rarr; `#3FA34D`).
 
-### 4. Structured Flat Components
-- **Navbar**: Solid white container with crisp `border-bottom: 2px solid #e2e8f0`, sharp rectangular buttons, and clean hover shifts.
-- **Hero & Search Engine**: Clean architectural layout. Booking engine is framed with a bold 2px blue border, clear input borders, and a solid primary search button with zero box-shadow.
-- **Metric Tiles**: 4 bordered stat tiles (`Floors`, `Room Types`, `Total Rooms`, `Front Desk`) with high-contrast numbers.
-- **Promo Voucher Cards**: Solid top accent border (`border-top: 5px solid #dc2626`), clean percentage tags, and solid black CTA buttons.
-- **Room Catalog**: Bordered cards with flat image container, flat navigation buttons, solid status chips, and tabular pricing comparison.
-- **Amenities**: 4 flat feature boxes with bordered monoline icon containers.
-- **Modal Dialog**: High-contrast bordered dialog with solid headers and flat buttons.
+### 4. Room & Accommodation Showcase
+- Luminous numbered floor banners with glowing Aurora pills.
+- Translucent room cards with frosted image carousel controls, pulsating live availability indicators (green dot for `Available`), occupancy chips, and side-by-side breakfast pricing.
+- "Check & Reserve" action button with smooth scroll to the search console.
+
+### 5. Exclusive Specials & Voucher Cards
+- Voucher cards with gradient top accent line, red discount pills (`% OFF`), calendar date tags, and direct booking actions.
+
+### 6. Traveler Stories & Guest Experiences
+- Frosted review cards with 5-star ratings, guest avatars, travel tags (*"Family Trip"*, *"Business Stay"*, *"Weekend Vacation"*), and verified quotes.
+
+### 7. Stay Planner / Concierge Banner
+- Luminous full-width banner inviting guests and coordinators to plan group trips, family retreats, or extended lodging in Koronadal City.
+
+### 8. 100% Business Logic Integrity
+- Preserved all database endpoints (`/api/landing`, `/api/rooms/availability`, `/api/guest/reservations`, `/api/auth/session-check`), 0–2 day lead reservation limits, and auth redirects.
 
 ---
 
 ## Verification Results
-- **Next.js Production Build**: Executed `npm run build` with Turbopack & React 19.
-  - `✓ Compiled successfully in 12.6s`
-  - `✓ Generating static pages (98/98) in 1.4s`
+- **Turbopack Build**: `npm run build` executed and passed cleanly:
+  - `✓ Compiled successfully in 26.0s`
+  - `✓ Generating static pages (98/98) in 3.2s`
   - Zero syntax, lint, or runtime errors.
-- **Business Logic**: All booking limits (0–2 day lead), search queries, and session flows remain 100% preserved.
