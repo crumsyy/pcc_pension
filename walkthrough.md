@@ -1,60 +1,40 @@
-# Walkthrough — Modernized Landing Page UI with UI/UX Pro Max
+# Walkthrough — Modern FLAT Design UI on Landing Page
 
 ## Overview
-We overhauled the PCC Pension Landing Page ([`app/page.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/page.js)) leveraging the installed **UI/UX Pro Max** design standards (Hospitality & Accommodation Directory pattern #22).
+We redesigned the PCC Pension Landing Page ([`app/page.js`](file:///c:/Users/Nitro/Downloads/From%20Old%20Laptop/Capstone%20file/pcc_pension/app/page.js)) strictly using the **Modern Flat Design UI** architecture (`flat-design` from the UI/UX Pro Max dataset).
 
 ---
 
-## Key Visual & UX Upgrades
+## What Changed (Flat Design Principles)
 
-### 1. Frosted-Glass Sticky Navigation Bar
-- **Backdrop Blur & Translucency**: `backdrop-filter: blur(14px)` with delicate border line and shadow depth.
-- **Brand Typography**: Paired brand title with subtitle (*"Pension House · Koronadal City"*).
-- **Refined CTAs**: Pill-shaped action buttons (`Log In` in subtle secondary outline, `Book Now` in solid PCC Blue with hover lift).
+### 1. Zero Gradients & Zero Fuzzy Shadows
+- Removed all backdrop blurs, radial mesh gradients, and multi-layer fuzzy drop-shadows.
+- Clean solid fills (`#ffffff`, `#f8fafc`, `#f1f5f9`, `#0f172a`).
 
-### 2. Hero & Availability Search Engine
-- **Warm Hospitality Lighting**: Radial mesh gradient combining emerald tint and cobalt accents.
-- **Location Badge**: Clean badge tag with `MapPin` icon (*"Osmeña Street, Zone 1 · Koronadal City"*).
-- **Floating Search Console**:
-  - Elevated card with soft 16px rounded corners and ambient shadow.
-  - Check-in & Check-out date pickers with calendar icons and clear labels.
-  - Clean selects with comfortable touch targets.
-  - High-impact search button with loading spinner state during query processing.
-- **Trust Strip**: Quick badges for *"Secure Direct Booking"* and *"24/7 Front Desk"*.
+### 2. Crisp 1px & 2px Geometric Borders
+- Replaced soft rounded pill contours with clean, crisp geometry (4–8px radius).
+- Well-defined border strokes (`border: 2px solid #1d4ed8` on booking engine, `border: 1px solid #cbd5e1` on room cards).
 
-### 3. About Us & Interactive Metric Cards
-- **Hospitality Quote Banner**: Gradient blue card featuring *"Make yourself at home — that's the PCC promise"*.
-- **4 Metric Tiles**: Clean stat cards with bold numbers and labels for **Floors (2)**, **Room Types (3)**, **Total Rooms (6)**, and **Front Desk (24/7)**.
+### 3. Bold High-Contrast Color Palette
+- **Primary Blue**: Solid Royal Cobalt (`#1d4ed8`)
+- **Accent Green**: Solid Emerald (`#059669`)
+- **Accent Red**: Solid Crimson (`#dc2626`)
+- **Text & Structure**: Jet Slate (`#0f172a`) & Slate-600 (`#475569`)
 
-### 4. Voucher-Style Promotional Cards
-- Soft card elevation with colored top-border accent.
-- Red discount pill badge (`% OFF`).
-- Validity date tags with calendar micro-icon.
-- "Claim Promo & Book" button with tag icon.
-
-### 5. Rooms & Rates Catalog
-- **Floor Navigation**: Distinct floor headers with circular numbered badges (`01`, `02`).
-- **Interactive Carousel**: Frosted glass previous/next arrows (`backdrop-blur`) and indicator dot pills.
-- **Live Room Badges**: Status pill with active green dot for `Available` vs `Occupied`.
-- **Pricing Card Comparison**:
-  - "Without Breakfast" vs "With Breakfast" comparison.
-  - Breakfast option chip (Free/Included with coffee icon vs add-on rate).
-- Quick action CTA button: *"Check & Reserve"* with smooth auto-scroll to the search console.
-
-### 6. Modernized Amenities & Footer
-- **Amenities**: 4-column feature tiles with soft pastel icon circles (Clean Linens, Free Wi-Fi, Breakfast Option, 24/7 Front Desk).
-- **Footer**: Refined dark slate footer with categorized quick links, contact info, and copyright bar with links to Terms & Conditions and Privacy Policy.
-
-### 7. Availability Results Dialog
-- Frosted dark backdrop blur (`rgba(15, 23, 42, 0.45)` with `blur(12px)`).
-- Clear stay date and breakfast option banner.
-- Available room cards with night rate badge and direct booking flow.
+### 4. Structured Flat Components
+- **Navbar**: Solid white container with crisp `border-bottom: 2px solid #e2e8f0`, sharp rectangular buttons, and clean hover shifts.
+- **Hero & Search Engine**: Clean architectural layout. Booking engine is framed with a bold 2px blue border, clear input borders, and a solid primary search button with zero box-shadow.
+- **Metric Tiles**: 4 bordered stat tiles (`Floors`, `Room Types`, `Total Rooms`, `Front Desk`) with high-contrast numbers.
+- **Promo Voucher Cards**: Solid top accent border (`border-top: 5px solid #dc2626`), clean percentage tags, and solid black CTA buttons.
+- **Room Catalog**: Bordered cards with flat image container, flat navigation buttons, solid status chips, and tabular pricing comparison.
+- **Amenities**: 4 flat feature boxes with bordered monoline icon containers.
+- **Modal Dialog**: High-contrast bordered dialog with solid headers and flat buttons.
 
 ---
 
 ## Verification Results
 - **Next.js Production Build**: Executed `npm run build` with Turbopack & React 19.
-  - `✓ Compiled successfully in 15.7s`
-  - `✓ Generating static pages (98/98) in 4.4s`
-  - Zero syntax, lint, or styling errors.
-- **Logic Integrity**: All dates, 0-2 day booking lead limits, search queries, session checks, and booking redirects remain 100% intact.
+  - `✓ Compiled successfully in 12.6s`
+  - `✓ Generating static pages (98/98) in 1.4s`
+  - Zero syntax, lint, or runtime errors.
+- **Business Logic**: All booking limits (0–2 day lead), search queries, and session flows remain 100% preserved.
