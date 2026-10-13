@@ -1,17 +1,22 @@
-# Implementation Plan — Payable QRPh + env keys + test banner (for approval)
+# Implementation Plan — Manage room types & floors in Room Management (for approval)
 
-> RequestFeedback: true — approved ("proceed"). Implementing below. Merchant account number still pending — code ships env-driven with safe fallback behavior documented.
+> RequestFeedback: true — STOP here. No code changes made. Proceed only on explicit approval.
 
-## 1. Changes
-1. **`lib/qrph.js`**: default `accountNo` from `process.env.QRPH_MERCHANT_ACCOUNT` (fallback keeps legacy dummy only until env is set — documented); add `isQrLiveReady()` (true when env present); add `getTestModeBanner()` text helper or inline constant. Delete nothing else.
-2. **`DynamicQrPhCode.js`**: delete hand-built fallback payload strings; all fallbacks via `generateDynamicQRPh` (correct EMV lengths + CRC).
-3. **PayMongo routes** (`api/payments/paymongo-qr`, guest `api/guest/payments`): read secret/public keys from `PAYMONGO_SECRET_KEY` / `PAYMONGO_PUBLIC_KEY` env (no hardcoded keys in repo); derive live-vs-test from key prefix (`sk_live_`); refuse live-amount processing without keys.
-4. **Guest QR card**: visible TEST MODE banner on test QRs ("simulated only — do not pay with real GCash").
-5. **No keys committed.** User installs fresh live keys + merchant number via Vercel env panel.
+## 1. Request
+Room Management must create room types and floors; room create/edit then uses them from dropdowns (already dropdown-driven — no change needed there beyond refreshing lists).
 
-## 2. Verification
-- `npm run build` passes; grep for hardcoded `sk_`/`pk_` keys → zero hits; payload unit-check (length fields 2-digit, CRC valid).
-- Live end-to-end still requires user-side: fresh keys, merchant number, small real-payment test.
+## 2. Proposed changes
+1. **API (`api/admin/rooms/route.js`, new actions, admin-authenticated):**
+   - `create_room_type` (type unique, description, min/max occupancy, extraFoam) / `update_room_type` / `delete_room_type` (blocked while rooms reference it).
+   - `create_floor` (name unique) / `update_floor` (rename) / `delete_floor` (blocked while rooms reference it).
+2. **UI (`RoomsClient.js`):** "Manage Types & Floors" section (modal or inline cards): type list with add/edit/delete; floor list with add/rename/delete; validation + guards surfaced as toasts; room form dropdowns refresh from the same fetch so new entries appear immediately.
+3. New types get no rates until set — room creation with a new type+floor requires rates (form already requires them; shared fallback covers display until per-room rows exist).
 
-## 3. Risks
-- Low-medium: key plumbing touches payment routes; test flows must keep working with test keys.
+## 3. Verification
+- Create type + floor → usable in room create immediately; duplicate names rejected; in-use delete blocked; `npm run build` passes.
+
+## 4. Risks
+- Low-medium: new write paths on lookup tables; guarded deletes; no existing-data changes.
+
+## 5. Questions
+- Q1: Proceed? Q2: Allow deleting floors/types with history (bookings referencing them), or block on any reference including past stays?

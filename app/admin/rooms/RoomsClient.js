@@ -185,8 +185,80 @@ export default function RoomsClient() {
   };
 
   // Modals state
-  const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'lookups' | null
   const [selectedRoom, setSelectedRoom] = useState(null);
+
+  // Room type / floor lookup management
+  const [typeForm, setTypeForm] = useState({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' });
+  const [floorForm, setFloorForm] = useState({ floorID: '', name: '' });
+  const [savingLookup, setSavingLookup] = useState(false);
+
+  const postLookup = async (action, payload, okMsg) => {
+    setSavingLookup(true);
+    try {
+      const res = await fetch('/api/admin/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Operation failed');
+      showAlert('success', 'Success', data.message || okMsg);
+      clientCache.invalidate('admin-rooms');
+      await fetchRooms();
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    } finally {
+      setSavingLookup(false);
+    }
+  };
+
+  const openLookupsModal = () => {
+    setTypeForm({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' });
+    setFloorForm({ floorID: '', name: '' });
+    setActiveModal('lookups');
+  };
+
+  const startEditType = (rt) => setTypeForm({
+    roomTypeID: rt.roomTypeID,
+    type: rt.type || '',
+    description: rt.description || '',
+    minOccupancy: String(rt.minOccupancy ?? 1),
+    maxOccupancy: String(rt.maxOccupancy ?? rt.minOccupancy ?? 2),
+    extraFoam: String(rt.extraFoam ?? 0)
+  });
+
+  const handleSaveType = (e) => {
+    e.preventDefault();
+    if (typeForm.roomTypeID) {
+      postLookup('update_room_type', { ...typeForm }, 'Room type updated.');
+    } else {
+      postLookup('create_room_type', { ...typeForm }, 'Room type created.');
+    }
+  };
+
+  const handleDeleteType = (rt) => {
+    showConfirm('Delete Room Type', `Delete room type "${rt.type}"? Blocked while any room uses it.`, async () => {
+      await postLookup('delete_room_type', { roomTypeID: rt.roomTypeID }, 'Room type deleted.');
+    });
+  };
+
+  const startEditFloor = (f) => setFloorForm({ floorID: f.floorID, name: f.name || '' });
+
+  const handleSaveFloor = (e) => {
+    e.preventDefault();
+    if (floorForm.floorID) {
+      postLookup('update_floor', { ...floorForm }, 'Floor updated.');
+    } else {
+      postLookup('create_floor', { ...floorForm }, 'Floor created.');
+    }
+  };
+
+  const handleDeleteFloor = (f) => {
+    showConfirm('Delete Floor', `Delete floor "${f.name}"? Blocked while any room uses it.`, async () => {
+      await postLookup('delete_floor', { floorID: f.floorID }, 'Floor deleted.');
+    });
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -548,9 +620,14 @@ export default function RoomsClient() {
             <Tab id="archived">Archived Rooms</Tab>
           </TabList>
         </Tabs>
-        <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
-          + Create Room
-        </button>
+        <div className="d-flex gap-2">
+          <button className="btn btn-outline-primary" onClick={openLookupsModal}>
+            Manage Types &amp; Floors
+          </button>
+          <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
+            + Create Room
+          </button>
+        </div>
       </div>
 
       {/* Search & Filters */}
@@ -1071,6 +1148,99 @@ export default function RoomsClient() {
                   <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Cancel</button>
                 </DialogFooter>
               </form>
+            </Dialog>
+          </DialogTrigger>
+      )}
+          {/* MANAGE TYPES & FLOORS MODAL */}
+          {activeModal === 'lookups' && (
+          <DialogTrigger isOpen={true}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Manage Types and Floors" style={{ maxWidth: '860px' }}>
+              <DialogHeader>
+                <div className="d-flex justify-content-between align-items-center w-100">
+                  <DialogTitle>Manage Room Types &amp; Floors</DialogTitle>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                </div>
+              </DialogHeader>
+              <DialogBody>
+                <div className="row g-3">
+                  <div className="col-md-7">
+                    <h6 className="fw-bold text-dark mb-2">Room Types ({roomTypes.length})</h6>
+                    <div className="list-group mb-3" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                      {roomTypes.length === 0 && <div className="list-group-item text-muted small">No room types yet.</div>}
+                      {roomTypes.map((rt) => (
+                        <div key={rt.roomTypeID} className="list-group-item d-flex justify-content-between align-items-center gap-2">
+                          <div className="small">
+                            <div className="fw-bold text-dark">{rt.type}</div>
+                            <div className="text-muted">Pax {rt.minOccupancy ?? 1}–{rt.maxOccupancy ?? 2}{rt.extraFoam ? ` • +${rt.extraFoam} foam` : ''}</div>
+                          </div>
+                          <div className="d-flex gap-1 flex-shrink-0">
+                            <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEditType(rt)}>Edit</button>
+                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteType(rt)}>Delete</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <form onSubmit={handleSaveType} className="border rounded p-2.5 bg-light">
+                      <div className="fw-bold small text-dark mb-2">{typeForm.roomTypeID ? 'Edit Room Type' : 'New Room Type'}</div>
+                      <div className="row g-2">
+                        <div className="col-12">
+                          <input type="text" className="form-control form-control-sm" required placeholder="Type name (e.g. Family Suite)" value={typeForm.type} onChange={(e) => setTypeForm(prev => ({ ...prev, type: e.target.value }))} />
+                        </div>
+                        <div className="col-12">
+                          <input type="text" className="form-control form-control-sm" placeholder="Description (optional)" value={typeForm.description} onChange={(e) => setTypeForm(prev => ({ ...prev, description: e.target.value }))} />
+                        </div>
+                        <div className="col-4">
+                          <label className="form-label small text-muted mb-0">Min Pax</label>
+                          <input type="number" min="1" className="form-control form-control-sm" value={typeForm.minOccupancy} onChange={(e) => setTypeForm(prev => ({ ...prev, minOccupancy: e.target.value }))} />
+                        </div>
+                        <div className="col-4">
+                          <label className="form-label small text-muted mb-0">Max Pax</label>
+                          <input type="number" min="1" className="form-control form-control-sm" value={typeForm.maxOccupancy} onChange={(e) => setTypeForm(prev => ({ ...prev, maxOccupancy: e.target.value }))} />
+                        </div>
+                        <div className="col-4">
+                          <label className="form-label small text-muted mb-0">Foam</label>
+                          <input type="number" min="0" className="form-control form-control-sm" value={typeForm.extraFoam} onChange={(e) => setTypeForm(prev => ({ ...prev, extraFoam: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="d-flex gap-2 mt-2">
+                        <button type="submit" className="btn btn-sm btn-pcc-primary text-white" disabled={savingLookup}>{typeForm.roomTypeID ? 'Save' : 'Add Type'}</button>
+                        {typeForm.roomTypeID && (
+                          <button type="button" className="btn btn-sm btn-secondary text-white" onClick={() => setTypeForm({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' })}>New</button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+                  <div className="col-md-5">
+                    <h6 className="fw-bold text-dark mb-2">Floors ({floors.length})</h6>
+                    <div className="list-group mb-3" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                      {floors.length === 0 && <div className="list-group-item text-muted small">No floors yet.</div>}
+                      {floors.map((f) => (
+                        <div key={f.floorID} className="list-group-item d-flex justify-content-between align-items-center gap-2">
+                          <span className="fw-semibold text-dark small">{f.name}</span>
+                          <div className="d-flex gap-1 flex-shrink-0">
+                            <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEditFloor(f)}>Edit</button>
+                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteFloor(f)}>Delete</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <form onSubmit={handleSaveFloor} className="border rounded p-2.5 bg-light">
+                      <div className="fw-bold small text-dark mb-2">{floorForm.floorID ? 'Rename Floor' : 'New Floor'}</div>
+                      <input type="text" className="form-control form-control-sm mb-2" required placeholder="Floor name (e.g. Third Floor)" value={floorForm.name} onChange={(e) => setFloorForm(prev => ({ ...prev, name: e.target.value }))} />
+                      <div className="d-flex gap-2">
+                        <button type="submit" className="btn btn-sm btn-pcc-primary text-white" disabled={savingLookup}>{floorForm.floorID ? 'Save' : 'Add Floor'}</button>
+                        {floorForm.floorID && (
+                          <button type="button" className="btn btn-sm btn-secondary text-white" onClick={() => setFloorForm({ floorID: '', name: '' })}>New</button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+                </div>
+                <div className="form-text text-muted small mt-2">Deletes are blocked while any room uses the type or floor. New entries appear in the room form dropdowns immediately.</div>
+              </DialogBody>
+              <DialogFooter>
+                <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Close</button>
+              </DialogFooter>
             </Dialog>
           </DialogTrigger>
       )}

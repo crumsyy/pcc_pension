@@ -209,6 +209,76 @@ export async function POST(request) {
       return NextResponse.json({ success: true, message: 'Room restored successfully.' });
     }
 
+    if (action === 'create_room_type') {
+      const type = (body.type || '').trim();
+      const description = (body.description || '').trim() || null;
+      const minOccupancy = Math.max(1, parseInt(body.minOccupancy) || 1);
+      const maxOccupancy = Math.max(minOccupancy, parseInt(body.maxOccupancy) || minOccupancy);
+      const extraFoam = Math.max(0, parseInt(body.extraFoam) || 0);
+      if (!type) return NextResponse.json({ error: 'Room type name is required.' }, { status: 400 });
+      const dup = await dbQuery("SELECT roomTypeID FROM room_type WHERE LOWER(TRIM(type)) = LOWER(TRIM(?))", [type]);
+      if (dup.length > 0) return NextResponse.json({ error: 'A room type with this name already exists.' }, { status: 400 });
+      await dbQuery(
+        "INSERT INTO room_type(type, description, minOccupancy, maxOccupancy, extraFoam) VALUES(?,?,?,?,?)",
+        [type, description, minOccupancy, maxOccupancy, extraFoam]
+      );
+      return NextResponse.json({ success: true, message: `Room type "${type}" created successfully.` });
+    }
+
+    if (action === 'update_room_type') {
+      const roomTypeID = parseInt(body.roomTypeID);
+      const type = (body.type || '').trim();
+      const description = (body.description || '').trim() || null;
+      const minOccupancy = Math.max(1, parseInt(body.minOccupancy) || 1);
+      const maxOccupancy = Math.max(minOccupancy, parseInt(body.maxOccupancy) || minOccupancy);
+      const extraFoam = Math.max(0, parseInt(body.extraFoam) || 0);
+      if (!roomTypeID || !type) return NextResponse.json({ error: 'Room type ID and name are required.' }, { status: 400 });
+      const dup = await dbQuery("SELECT roomTypeID FROM room_type WHERE LOWER(TRIM(type)) = LOWER(TRIM(?)) AND roomTypeID != ?", [type, roomTypeID]);
+      if (dup.length > 0) return NextResponse.json({ error: 'A room type with this name already exists.' }, { status: 400 });
+      await dbQuery(
+        "UPDATE room_type SET type=?, description=?, minOccupancy=?, maxOccupancy=?, extraFoam=? WHERE roomTypeID=?",
+        [type, description, minOccupancy, maxOccupancy, extraFoam, roomTypeID]
+      );
+      return NextResponse.json({ success: true, message: `Room type "${type}" updated successfully.` });
+    }
+
+    if (action === 'delete_room_type') {
+      const roomTypeID = parseInt(body.roomTypeID);
+      if (!roomTypeID) return NextResponse.json({ error: 'Room type ID is required.' }, { status: 400 });
+      const used = await dbQuery("SELECT roomID FROM room WHERE roomTypeID = ? LIMIT 1", [roomTypeID]);
+      if (used.length > 0) return NextResponse.json({ error: 'Cannot delete: rooms (including history) still use this room type.' }, { status: 400 });
+      await dbQuery("DELETE FROM room_type WHERE roomTypeID = ?", [roomTypeID]);
+      return NextResponse.json({ success: true, message: 'Room type deleted successfully.' });
+    }
+
+    if (action === 'create_floor') {
+      const name = (body.name || '').trim();
+      if (!name) return NextResponse.json({ error: 'Floor name is required.' }, { status: 400 });
+      const dup = await dbQuery("SELECT floorID FROM floor WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))", [name]);
+      if (dup.length > 0) return NextResponse.json({ error: 'A floor with this name already exists.' }, { status: 400 });
+      await dbQuery("INSERT INTO floor(name) VALUES(?)", [name]);
+      return NextResponse.json({ success: true, message: `Floor "${name}" created successfully.` });
+    }
+
+    if (action === 'update_floor') {
+      const floorID = parseInt(body.floorID);
+      const name = (body.name || '').trim();
+      if (!floorID || !name) return NextResponse.json({ error: 'Floor ID and name are required.' }, { status: 400 });
+      const dup = await dbQuery("SELECT floorID FROM floor WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND floorID != ?", [name, floorID]);
+      if (dup.length > 0) return NextResponse.json({ error: 'A floor with this name already exists.' }, { status: 400 });
+      await dbQuery("UPDATE floor SET name=? WHERE floorID=?", [name, floorID]);
+      return NextResponse.json({ success: true, message: `Floor renamed to "${name}" successfully.` });
+    }
+
+    if (action === 'delete_floor') {
+      const floorID = parseInt(body.floorID);
+      if (!floorID) return NextResponse.json({ error: 'Floor ID is required.' }, { status: 400 });
+      const used = await dbQuery("SELECT roomID FROM room WHERE floorID = ? LIMIT 1", [floorID]);
+      if (used.length > 0) return NextResponse.json({ error: 'Cannot delete: rooms (including history) still use this floor.' }, { status: 400 });
+      await dbQuery("DELETE FROM floor WHERE floorID = ?", [floorID]);
+      return NextResponse.json({ success: true, message: 'Floor deleted successfully.' });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error("Failed to process room action:", error);
