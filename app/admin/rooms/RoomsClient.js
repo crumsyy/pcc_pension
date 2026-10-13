@@ -1154,7 +1154,7 @@ export default function RoomsClient() {
           {/* MANAGE TYPES & FLOORS MODAL */}
           {activeModal === 'lookups' && (
           <DialogTrigger isOpen={true}>
-            <Dialog isDismissable={false} showCloseButton={false} aria-label="Manage Types and Floors" style={{ maxWidth: '860px' }}>
+            <Dialog isDismissable={false} showCloseButton={false} aria-label="Manage Types and Floors" style={{ maxWidth: '880px' }}>
               <DialogHeader>
                 <div className="d-flex justify-content-between align-items-center w-100">
                   <DialogTitle>Manage Room Types &amp; Floors</DialogTitle>
@@ -1164,82 +1164,119 @@ export default function RoomsClient() {
               <DialogBody>
                 <div className="row g-3">
                   <div className="col-md-7">
-                    <h6 className="fw-bold text-dark mb-2">Room Types ({roomTypes.length})</h6>
-                    <div className="list-group mb-3" style={{ maxHeight: '220px', overflowY: 'auto' }}>
-                      {roomTypes.length === 0 && <div className="list-group-item text-muted small">No room types yet.</div>}
+                    <div className="d-flex align-items-center gap-2 mb-2.5">
+                      <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style={{ width: '30px', height: '30px' }}>
+                        <i className="bi bi-door-open-fill"></i>
+                      </span>
+                      <h6 className="fw-bold text-dark mb-0">Room Types</h6>
+                      <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">{roomTypes.length}</span>
+                    </div>
+                    <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                      {roomTypes.length === 0 && <div className="text-muted small text-center py-3 border rounded-3 bg-light">No room types yet.</div>}
                       {roomTypes.map((rt) => (
-                        <div key={rt.roomTypeID} className="list-group-item d-flex justify-content-between align-items-center gap-2">
-                          <div className="small">
-                            <div className="fw-bold text-dark">{rt.type}</div>
-                            <div className="text-muted">Pax {rt.minOccupancy ?? 1}–{rt.maxOccupancy ?? 2}{rt.extraFoam ? ` • +${rt.extraFoam} foam` : ''}</div>
+                        <div key={rt.roomTypeID} className="d-flex justify-content-between align-items-center gap-2 p-2.5 bg-white border rounded-3 shadow-xs">
+                          <div className="d-flex align-items-center gap-2.5" style={{ minWidth: 0 }}>
+                            <span className="d-inline-flex align-items-center justify-content-center rounded-3 bg-light border flex-shrink-0" style={{ width: '38px', height: '38px' }}>
+                              <i className="bi bi-bed text-primary fs-6"></i>
+                            </span>
+                            <div className="small" style={{ minWidth: 0 }}>
+                              <div className="fw-bold text-dark text-truncate">{rt.type}</div>
+                              <div className="d-flex gap-1 mt-0.5 flex-wrap">
+                                <span className="badge bg-light text-dark border fw-normal" style={{ fontSize: '0.68rem' }}>Pax {rt.minOccupancy ?? 1}–{rt.maxOccupancy ?? 2}</span>
+                                {(rt.extraFoam > 0) && <span className="badge bg-light text-dark border fw-normal" style={{ fontSize: '0.68rem' }}>+{rt.extraFoam} foam</span>}
+                              </div>
+                            </div>
                           </div>
-                          <div className="d-flex gap-1 flex-shrink-0">
-                            <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEditType(rt)}>Edit</button>
-                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteType(rt)}>Delete</button>
+                          <div className="d-flex gap-1.5 flex-shrink-0">
+                            <button type="button" className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px', borderRadius: '8px' }} title={`Edit ${rt.type}`} aria-label={`Edit ${rt.type}`} onClick={() => startEditType(rt)}>
+                              <i className="bi bi-pencil-fill text-primary"></i>
+                            </button>
+                            <button type="button" className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px', borderRadius: '8px' }} title={`Delete ${rt.type}`} aria-label={`Delete ${rt.type}`} onClick={() => handleDeleteType(rt)}>
+                              <i className="bi bi-trash3-fill text-danger"></i>
+                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <form onSubmit={handleSaveType} className="border rounded p-2.5 bg-light">
-                      <div className="fw-bold small text-dark mb-2">{typeForm.roomTypeID ? 'Edit Room Type' : 'New Room Type'}</div>
+                    <form onSubmit={handleSaveType} className="border-0 rounded-3 p-3 shadow-xs" style={{ background: 'var(--bs-light, #f8f9fa)' }}>
+                      <div className="fw-bold small text-dark mb-2 d-flex align-items-center gap-1.5">
+                        <i className="bi bi-plus-circle-fill text-primary"></i>
+                        {typeForm.roomTypeID ? 'Edit Room Type' : 'New Room Type'}
+                      </div>
                       <div className="row g-2">
                         <div className="col-12">
-                          <input type="text" className="form-control form-control-sm" required placeholder="Type name (e.g. Family Suite)" value={typeForm.type} onChange={(e) => setTypeForm(prev => ({ ...prev, type: e.target.value }))} />
+                          <input type="text" className="form-control" required placeholder="Type name (e.g. Family Suite)" value={typeForm.type} onChange={(e) => setTypeForm(prev => ({ ...prev, type: e.target.value }))} style={{ borderRadius: '8px' }} />
                         </div>
                         <div className="col-12">
-                          <input type="text" className="form-control form-control-sm" placeholder="Description (optional)" value={typeForm.description} onChange={(e) => setTypeForm(prev => ({ ...prev, description: e.target.value }))} />
+                          <input type="text" className="form-control" placeholder="Description (optional)" value={typeForm.description} onChange={(e) => setTypeForm(prev => ({ ...prev, description: e.target.value }))} style={{ borderRadius: '8px' }} />
                         </div>
                         <div className="col-4">
-                          <label className="form-label small text-muted mb-0">Min Pax</label>
-                          <input type="number" min="1" className="form-control form-control-sm" value={typeForm.minOccupancy} onChange={(e) => setTypeForm(prev => ({ ...prev, minOccupancy: e.target.value }))} />
+                          <label className="form-label small text-muted mb-1">Min Pax</label>
+                          <input type="number" min="1" className="form-control" value={typeForm.minOccupancy} onChange={(e) => setTypeForm(prev => ({ ...prev, minOccupancy: e.target.value }))} style={{ borderRadius: '8px' }} />
                         </div>
                         <div className="col-4">
-                          <label className="form-label small text-muted mb-0">Max Pax</label>
-                          <input type="number" min="1" className="form-control form-control-sm" value={typeForm.maxOccupancy} onChange={(e) => setTypeForm(prev => ({ ...prev, maxOccupancy: e.target.value }))} />
+                          <label className="form-label small text-muted mb-1">Max Pax</label>
+                          <input type="number" min="1" className="form-control" value={typeForm.maxOccupancy} onChange={(e) => setTypeForm(prev => ({ ...prev, maxOccupancy: e.target.value }))} style={{ borderRadius: '8px' }} />
                         </div>
                         <div className="col-4">
-                          <label className="form-label small text-muted mb-0">Foam</label>
-                          <input type="number" min="0" className="form-control form-control-sm" value={typeForm.extraFoam} onChange={(e) => setTypeForm(prev => ({ ...prev, extraFoam: e.target.value }))} />
+                          <label className="form-label small text-muted mb-1">Foam</label>
+                          <input type="number" min="0" className="form-control" value={typeForm.extraFoam} onChange={(e) => setTypeForm(prev => ({ ...prev, extraFoam: e.target.value }))} style={{ borderRadius: '8px' }} />
                         </div>
                       </div>
-                      <div className="d-flex gap-2 mt-2">
-                        <button type="submit" className="btn btn-sm btn-pcc-primary text-white" disabled={savingLookup}>{typeForm.roomTypeID ? 'Save' : 'Add Type'}</button>
+                      <div className="d-flex gap-2 mt-2.5">
+                        <button type="submit" className="btn btn-pcc-primary text-white fw-bold flex-grow-1" disabled={savingLookup} style={{ borderRadius: '10px' }}>{typeForm.roomTypeID ? 'Save Changes' : 'Add Type'}</button>
                         {typeForm.roomTypeID && (
-                          <button type="button" className="btn btn-sm btn-secondary text-white" onClick={() => setTypeForm({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' })}>New</button>
+                          <button type="button" className="btn btn-light border fw-semibold" onClick={() => setTypeForm({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' })}>Cancel</button>
                         )}
                       </div>
                     </form>
                   </div>
                   <div className="col-md-5">
-                    <h6 className="fw-bold text-dark mb-2">Floors ({floors.length})</h6>
-                    <div className="list-group mb-3" style={{ maxHeight: '220px', overflowY: 'auto' }}>
-                      {floors.length === 0 && <div className="list-group-item text-muted small">No floors yet.</div>}
+                    <div className="d-flex align-items-center gap-2 mb-2.5">
+                      <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success" style={{ width: '30px', height: '30px' }}>
+                        <i className="bi bi-layers-fill"></i>
+                      </span>
+                      <h6 className="fw-bold text-dark mb-0">Floors</h6>
+                      <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill">{floors.length}</span>
+                    </div>
+                    <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                      {floors.length === 0 && <div className="text-muted small text-center py-3 border rounded-3 bg-light">No floors yet.</div>}
                       {floors.map((f) => (
-                        <div key={f.floorID} className="list-group-item d-flex justify-content-between align-items-center gap-2">
-                          <span className="fw-semibold text-dark small">{f.name}</span>
-                          <div className="d-flex gap-1 flex-shrink-0">
-                            <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEditFloor(f)}>Edit</button>
-                            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteFloor(f)}>Delete</button>
+                        <div key={f.floorID} className="d-flex justify-content-between align-items-center gap-2 p-2.5 bg-white border rounded-3 shadow-xs">
+                          <span className="fw-semibold text-dark small text-truncate">{f.name}</span>
+                          <div className="d-flex gap-1.5 flex-shrink-0">
+                            <button type="button" className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px', borderRadius: '8px' }} title={`Edit ${f.name}`} aria-label={`Edit ${f.name}`} onClick={() => startEditFloor(f)}>
+                              <i className="bi bi-pencil-fill text-primary"></i>
+                            </button>
+                            <button type="button" className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px', borderRadius: '8px' }} title={`Delete ${f.name}`} aria-label={`Delete ${f.name}`} onClick={() => handleDeleteFloor(f)}>
+                              <i className="bi bi-trash3-fill text-danger"></i>
+                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <form onSubmit={handleSaveFloor} className="border rounded p-2.5 bg-light">
-                      <div className="fw-bold small text-dark mb-2">{floorForm.floorID ? 'Rename Floor' : 'New Floor'}</div>
-                      <input type="text" className="form-control form-control-sm mb-2" required placeholder="Floor name (e.g. Third Floor)" value={floorForm.name} onChange={(e) => setFloorForm(prev => ({ ...prev, name: e.target.value }))} />
+                    <form onSubmit={handleSaveFloor} className="border-0 rounded-3 p-3 shadow-xs" style={{ background: 'var(--bs-light, #f8f9fa)' }}>
+                      <div className="fw-bold small text-dark mb-2 d-flex align-items-center gap-1.5">
+                        <i className="bi bi-plus-circle-fill text-success"></i>
+                        {floorForm.floorID ? 'Rename Floor' : 'New Floor'}
+                      </div>
+                      <input type="text" className="form-control mb-2" required placeholder="Floor name (e.g. Third Floor)" value={floorForm.name} onChange={(e) => setFloorForm(prev => ({ ...prev, name: e.target.value }))} style={{ borderRadius: '8px' }} />
                       <div className="d-flex gap-2">
-                        <button type="submit" className="btn btn-sm btn-pcc-primary text-white" disabled={savingLookup}>{floorForm.floorID ? 'Save' : 'Add Floor'}</button>
+                        <button type="submit" className="btn btn-pcc-primary text-white fw-bold flex-grow-1" disabled={savingLookup} style={{ borderRadius: '10px' }}>{floorForm.floorID ? 'Save Changes' : 'Add Floor'}</button>
                         {floorForm.floorID && (
-                          <button type="button" className="btn btn-sm btn-secondary text-white" onClick={() => setFloorForm({ floorID: '', name: '' })}>New</button>
+                          <button type="button" className="btn btn-light border fw-semibold" onClick={() => setFloorForm({ floorID: '', name: '' })}>Cancel</button>
                         )}
                       </div>
                     </form>
                   </div>
                 </div>
-                <div className="form-text text-muted small mt-2">Deletes are blocked while any room uses the type or floor. New entries appear in the room form dropdowns immediately.</div>
+                <div className="d-flex align-items-start gap-1.5 text-muted small mt-2.5">
+                  <i className="bi bi-info-circle-fill text-primary mt-0.5"></i>
+                  <span>Deletes are blocked while any room uses the type or floor. New entries appear in the room form dropdowns immediately.</span>
+                </div>
               </DialogBody>
               <DialogFooter>
-                <button type="button" className="btn btn-secondary text-white" onClick={() => setActiveModal(null)}>Close</button>
+                <button type="button" className="btn btn-light border fw-semibold px-4" onClick={() => setActiveModal(null)}>Close</button>
               </DialogFooter>
             </Dialog>
           </DialogTrigger>
