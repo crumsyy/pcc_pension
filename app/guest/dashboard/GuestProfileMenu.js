@@ -36,7 +36,7 @@ export default function GuestProfileMenu({ guest, onProfile, onLogout, maxNameWi
     <div ref={containerRef} className="position-relative">
       <button
         type="button"
-        className="btn btn-sm d-inline-flex align-items-center gap-2 text-white border-0 px-2 py-1"
+        className="btn btn-sm d-inline-flex align-items-center gap-2 text-white border-0 px-3 py-2"
         style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: '20px', maxWidth: '100%' }}
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"

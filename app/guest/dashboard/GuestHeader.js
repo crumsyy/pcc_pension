@@ -131,7 +131,8 @@ export default function GuestHeader({ activeTab, onNavigate, unreadCount = 0, gu
       <div className="d-flex align-items-center gap-3">
         <button
           type="button"
-          className="btn btn-sm text-white border-0 position-relative p-2"
+          className="btn btn-sm text-white border-0 position-relative p-2 d-inline-flex align-items-center justify-content-center"
+          style={{ minWidth: '44px', minHeight: '44px' }}
           title="Notifications"
           aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
           onClick={() => onNavigate('notifications')}

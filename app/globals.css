@@ -2342,6 +2342,16 @@ body.dark-theme .image-fallback-sm {
   overflow-y: auto;
 }
 
+/* Enlarge small control hit areas to 44px without changing visuals */
+.theme-toggle-switch {
+  position: relative;
+}
+.theme-toggle-switch::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+
 /* =====================================================================
    Guest-Facing & Dual Monitor QR Payment Display
    ===================================================================== */

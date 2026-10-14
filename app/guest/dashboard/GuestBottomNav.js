@@ -6,8 +6,8 @@ import { NAV_ITEMS } from './navConfig';
 export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotificationsCount = 0 }) {
   return (
     <div
-      className="guest-bottom-nav shadow-lg border-top border-white-50 text-white d-flex justify-content-around align-items-center py-2 px-1"
-      style={{ background: 'var(--pcc-blue)', position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1040 }}
+      className="guest-bottom-nav shadow-lg border-top border-white-50 text-white d-flex justify-content-around align-items-stretch py-1 px-1"
+      style={{ background: 'var(--pcc-blue)', position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1040, paddingBottom: 'max(0.4rem, env(safe-area-inset-bottom))' }}
     >
       {NAV_ITEMS.map((tab) => {
         const isActive = activeTab === tab.id;
@@ -19,7 +19,7 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
               key={tab.id}
               href={tab.href}
               prefetch={false}
-              className={`btn border-0 d-flex flex-column align-items-center justify-content-center p-1 nav-tab-item text-decoration-none ${isActive ? 'active' : ''}`}
+              className={`btn border-0 d-flex flex-column align-items-center justify-content-center px-1 py-2 nav-tab-item text-decoration-none ${isActive ? 'active' : ''}`}
               style={{
                 flex: 1,
                 color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.85)',
@@ -32,7 +32,7 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
               <div>
                 <i className={`bi ${tab.icon}`} style={{ fontSize: '1.2rem' }}></i>
               </div>
-              <span style={{ fontSize: '0.72rem', fontWeight: isActive ? '700' : '500', marginTop: '2px' }}>
+              <span style={{ fontSize: '0.66rem', fontWeight: isActive ? '700' : '500', marginTop: '2px', lineHeight: 1.1 }}>
                 {tab.label}
               </span>
             </Link>
@@ -44,7 +44,7 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`btn border-0 d-flex flex-column align-items-center justify-content-center p-1 nav-tab-item ${isActive ? 'active' : ''}`}
+              className={`btn border-0 d-flex flex-column align-items-center justify-content-center px-1 py-2 nav-tab-item ${isActive ? 'active' : ''}`}
               style={{
                 flex: 1,
                 color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.75)',
@@ -65,7 +65,7 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
                   </span>
                 )}
               </div>
-              <span style={{ fontSize: '0.72rem', fontWeight: isActive ? '700' : '500', marginTop: '2px' }}>
+              <span style={{ fontSize: '0.66rem', fontWeight: isActive ? '700' : '500', marginTop: '2px', lineHeight: 1.1 }}>
                 {tab.label}
               </span>
             </button>
@@ -77,7 +77,7 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
             key={tab.id}
             href={tab.id === 'home' ? '/guest/dashboard' : `/guest/dashboard?tab=${tab.id}`}
             prefetch={false}
-            className={`btn border-0 d-flex flex-column align-items-center justify-content-center p-1 nav-tab-item text-decoration-none ${isActive ? 'active' : ''}`}
+            className={`btn border-0 d-flex flex-column align-items-center justify-content-center px-1 py-2 nav-tab-item text-decoration-none ${isActive ? 'active' : ''}`}
             style={{
               flex: 1,
               color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.75)',
@@ -98,7 +98,7 @@ export default function GuestBottomNav({ activeTab, setActiveTab, unreadNotifica
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '0.72rem', fontWeight: isActive ? '700' : '500', marginTop: '2px' }}>
+            <span style={{ fontSize: '0.66rem', fontWeight: isActive ? '700' : '500', marginTop: '2px', lineHeight: 1.1 }}>
               {tab.label}
             </span>
           </Link>

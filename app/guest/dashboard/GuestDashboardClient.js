@@ -170,6 +170,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
   const [allRooms, setAllRooms] = useState(initialAllRooms || []);
   const [roomSchedules, setRoomSchedules] = useState(initialRoomSchedules || []);
   const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [discounts, setDiscounts] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
@@ -833,6 +834,8 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
       }
     } catch (err) {
       // silent
+    } finally {
+      setLoadingNotifications(false);
     }
   };
 
@@ -3150,6 +3153,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="animate__animated animate__fadeIn">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <div>
+                    <div className="pcc-eyebrow mb-0.5">Find your room</div>
                     <h4 className="fw-bold text-dark mb-0">Rooms</h4>
                     <span className="text-muted small">Select any available room panel below to Reserve or Book your stay.</span>
                   </div>
@@ -3438,6 +3442,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
             {activeTab === 'bookings' && (
               <div className="animate__animated animate__fadeIn">
                 <div className="card shadow-sm border-0 p-3 mb-3 bg-white" style={{ borderRadius: '12px' }}>
+                  <div className="pcc-eyebrow mb-0.5">Reservations &amp; stays</div>
                   <h5 className="fw-bold mb-1 text-dark">My Bookings</h5>
                   <p className="text-muted mb-0 small">Your reservation holds and stays — upcoming first, past records below.</p>
                 </div>
@@ -3530,6 +3535,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
               <div className="animate__animated animate__fadeIn">
                 <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
                   <div>
+                    <div className="pcc-eyebrow mb-0.5">Stay updated</div>
                     <h4 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
                       <i className="bi bi-bell-fill text-primary"></i> Notifications
                     </h4>
@@ -3551,7 +3557,17 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                   </div>
                 </div>
 
-                {notifications.length === 0 ? (
+                {loadingNotifications ? (
+                  <div className="d-flex flex-column gap-3" aria-label="Loading notifications">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="card shadow-sm border-0 p-3 bg-white placeholder-glow" style={{ borderRadius: '16px' }}>
+                        <span className="placeholder col-6 mb-2"></span>
+                        <span className="placeholder col-11"></span>
+                        <span className="placeholder col-8"></span>
+                      </div>
+                    ))}
+                  </div>
+                ) : notifications.length === 0 ? (
                   <div className="card shadow-sm border-0 p-5 text-center text-muted bg-white" style={{ borderRadius: '16px' }}>
                     <i className="bi bi-bell-slash text-secondary display-3 mb-2 opacity-50"></i>
                     <h6 className="fw-bold text-dark mb-1">No notifications yet</h6>

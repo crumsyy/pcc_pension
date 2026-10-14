@@ -1,9 +1,15 @@
-# Walkthrough — Guest Home reskin (pilot)
+# Walkthrough — HCI pass, guest portal (both phases)
 
-## Changes (presentational only, no logic/API)
-- `globals.css`: shape/elevation/status-tint tokens; hero glow + Fraunces headline; eyebrow, metric-tile, quick-action-tile, room-card, price-pill classes with dark-mode pairs.
-- `GuestDashboardClient.js` (Home only + one shared Details button): icon-led metric tiles (balance red/green by state), eyebrow section headers, icon quick-action tiles (My Bookings/Details no longer render red from the global secondary rule), price pills, 16px room cards.
+## Phase 1 — Mobile foundation
+- Bottom nav: safe-area inset, taller 44px-friendly targets, compact labels for 6 items.
+- Header bell + profile menu: 44px hit areas (bell via min size, menu via padding, theme toggle via invisible expansion — visuals unchanged).
+- Notifications tab: skeleton placeholders instead of false-empty flash.
+- Verified sticky/fixed coexistence: bottom nav, chat bubble offsets, floating order bar + spacer, modal z-index — no overlaps.
+
+## Phase 2 — Consistency / cognitive load
+- Eyebrow headers on Rooms, Bookings, Notifications tabs (Home pattern extended).
+- No logic, API, copy-meaning, or status changes.
 
 ## Verification
 - `npm run build` → success.
-- Manual: light + dark, 375px + desktop; all Home actions identical behavior.
+- Manual: 375px + desktop, light + dark; tab through all screens checking targets, overlaps, loading states.
