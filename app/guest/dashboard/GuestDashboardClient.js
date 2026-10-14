@@ -2900,7 +2900,7 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               <div className="mt-auto pt-2.5 d-flex justify-content-between align-items-center gap-2">
                                 <button
                                   type="button"
-                                  className="btn btn-xs btn-secondary text-white py-1.5 px-2.5 shadow-xs"
+                                  className="btn btn-xs btn-light border text-dark py-1.5 px-2.5 shadow-xs"
                                   onClick={(e) => { e.stopPropagation(); handleOpenRoomDetails(rm); }}
                                   style={{ fontSize: '0.76rem', borderRadius: '6px' }}
                                   aria-label={`View details for Room ${rm.roomNumber}`}
@@ -2960,23 +2960,44 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 {/* STAY & LOYALTY METRICS WIDGETS */}
                 <div className="row g-2 g-md-3 mb-4">
                   <div className="col-4">
-                    <div className="card shadow-sm border-0 p-2.5 p-md-3 text-center bg-white" style={{ borderRadius: '12px' }}>
-                      <div className="text-pcc-blue fw-bold fs-4 fs-md-3 mb-0 text-nowrap">{totalStaysCount}</div>
-                      <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Total Stays</div>
-                    </div>
-                  </div>
-                  <div className="col-4">
-                    <div className="card shadow-sm border-0 p-2.5 p-md-3 text-center bg-white" style={{ borderRadius: '12px' }}>
-                      <div className="text-pcc-blue fw-bold fs-4 fs-md-3 mb-0 text-nowrap">{totalNightsCount}</div>
-                      <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Nights Booked</div>
-                    </div>
-                  </div>
-                  <div className="col-4">
-                    <div className="card shadow-sm border-0 p-2.5 p-md-3 text-center bg-white" style={{ borderRadius: '12px' }}>
-                      <div className="text-pcc-blue fw-bold fs-5 fs-md-3 mb-0 text-nowrap text-truncate" style={{ whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
-                        ₱{totalActiveBalanceDue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    <div className="card shadow-sm border-0 p-2.5 p-md-3 bg-white pcc-metric-tile">
+                      <div className="d-flex align-items-center gap-2 justify-content-center">
+                        <span className="pcc-metric-chip bg-primary-subtle text-primary d-none d-sm-inline-flex">
+                          <i className="bi bi-house-door-fill"></i>
+                        </span>
+                        <div className="text-center text-sm-start">
+                          <div className="text-pcc-blue fw-bold fs-4 fs-md-3 mb-0 text-nowrap">{totalStaysCount}</div>
+                          <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Total Stays</div>
+                        </div>
                       </div>
-                      <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Balance Due</div>
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="card shadow-sm border-0 p-2.5 p-md-3 bg-white pcc-metric-tile">
+                      <div className="d-flex align-items-center gap-2 justify-content-center">
+                        <span className="pcc-metric-chip bg-info-subtle text-info d-none d-sm-inline-flex">
+                          <i className="bi bi-moon-stars-fill"></i>
+                        </span>
+                        <div className="text-center text-sm-start">
+                          <div className="text-pcc-blue fw-bold fs-4 fs-md-3 mb-0 text-nowrap">{totalNightsCount}</div>
+                          <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Nights Booked</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="card shadow-sm border-0 p-2.5 p-md-3 bg-white pcc-metric-tile">
+                      <div className="d-flex align-items-center gap-2 justify-content-center">
+                        <span className={`pcc-metric-chip d-none d-sm-inline-flex ${totalActiveBalanceDue > 0 ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'}`}>
+                          <i className="bi bi-wallet2"></i>
+                        </span>
+                        <div className="text-center text-sm-start">
+                          <div className={`fw-bold fs-5 fs-md-3 mb-0 text-nowrap text-truncate ${totalActiveBalanceDue > 0 ? 'text-danger' : 'text-success'}`} style={{ whiteSpace: 'nowrap', wordBreak: 'keep-all' }}>
+                            ₱{totalActiveBalanceDue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </div>
+                          <div className="text-muted small fw-semibold" style={{ fontSize: '0.74rem' }}>Balance Due</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3022,49 +3043,55 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                 )}
 
                 {/* QUICK ACTION BUTTONS */}
+                <div className="pcc-eyebrow mb-1">Shortcuts</div>
                 <h6 className="fw-bold text-dark mb-2.5">Quick Actions</h6>
                 <div className="row g-2 mb-4">
                   <div className="col-6 col-md-3">
                     <button
-                      className="btn btn-outline-primary fw-bold w-100 touch-action-btn shadow-sm py-2.5"
+                      className="btn btn-light border fw-bold w-100 touch-action-btn shadow-sm py-2.5 d-flex align-items-center justify-content-center gap-2 pcc-qa-tile text-dark"
                       onClick={handleStartReserveFlow}
                     >
+                      <i className="bi bi-calendar-plus text-primary fs-5"></i>
                       Reserve Room
                     </button>
                   </div>
                   <div className="col-6 col-md-3">
                     <button
-                      className="btn btn-primary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
+                      className="btn btn-primary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5 d-flex align-items-center justify-content-center gap-2 pcc-qa-tile"
                       onClick={handleStartBookFlow}
                     >
+                      <i className="bi bi-calendar-check fs-5"></i>
                       Book Room
                     </button>
                   </div>
                   <div className="col-6 col-md-3">
                     <button
                       type="button"
-                      className="btn btn-warning text-dark fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center"
+                      className="btn btn-light border fw-bold w-100 touch-action-btn shadow-sm py-2.5 text-decoration-none d-flex align-items-center justify-content-center gap-2 pcc-qa-tile text-dark"
                       onClick={() => setActiveTab('orders')}
                     >
+                      <i className="bi bi-cup-hot-fill text-warning-emphasis fs-5"></i>
                       <span>Order Food</span>
                     </button>
                   </div>
                   <div className="col-6 col-md-3">
                     <button
-                      className="btn btn-secondary text-white fw-bold w-100 touch-action-btn shadow-sm py-2.5"
+                      className="btn btn-light border fw-bold w-100 touch-action-btn shadow-sm py-2.5 d-flex align-items-center justify-content-center gap-2 pcc-qa-tile text-dark"
                       onClick={() => setActiveTab('bookings')}
                     >
+                      <i className="bi bi-journal-bookmark-fill text-primary fs-5"></i>
                       My Bookings
                     </button>
                   </div>
                 </div>
 
                 {/* ACTIVE PROMOTIONS & RECOMMENDED ROOMS */}
+                <div className="pcc-eyebrow mb-1">Featured</div>
                 <h6 className="fw-bold text-dark mb-2.5">Featured Rooms & Offers</h6>
                 <div className="row g-3 mb-4">
                   {allRooms.slice(0, 4).map((rm) => (
                     <div key={rm.roomID} className="col-12 col-md-6 col-lg-3">
-                      <div className="card shadow-sm border-0 h-100 room-card-hover overflow-hidden" style={{ borderRadius: '12px' }}>
+                      <div className="card shadow-sm border-0 h-100 room-card-hover overflow-hidden pcc-room-card">
                         {(() => {
                           const imgList = parseRoomImages(rm.image);
                           const roomPic = imgList.length > 0 ? imgList[0] : null;
@@ -3101,13 +3128,13 @@ export default function GuestDashboardClient({ initialGuest, initialReservations
                               <h6 className="fw-bold mb-0 text-dark">Room {rm.roomNumber}</h6>
                               <span className="small text-muted">{rm.floorName}</span>
                             </div>
-                            <span className="fw-bold text-pcc-blue" style={{ fontSize: '1rem' }}>₱{parseFloat(rm.rate).toFixed(2)}/night</span>
+                            <span className="pcc-price-pill">₱{parseFloat(rm.rate).toFixed(2)}/night</span>
                           </div>
                           <p className="small text-muted mb-3 text-truncate" title={rm.description || `${rm.roomType} • Max Occupancy: ${rm.occupancyLimit || 2} Pax`}>
                             {rm.description || `${rm.roomType} • Max Occupancy: ${rm.occupancyLimit || 2} Pax`}
                           </p>
                           <div className="d-flex gap-2">
-                            <button className="btn btn-sm btn-secondary text-white fw-bold w-50" onClick={() => handleOpenRoomDetails(rm)}>Details</button>
+                            <button className="btn btn-sm btn-light border fw-bold w-50 text-dark" onClick={() => handleOpenRoomDetails(rm)}>Details</button>
                             <button className="btn btn-sm btn-primary text-white w-50" onClick={() => handleOpenBookingModal(rm)}>Book Now</button>
                           </div>
                         </div>
