@@ -313,7 +313,8 @@ export default function AdminPurchaseOrders() {
           name: p.name,
           type: 'Product',
           itemType: p.itemType,
-          basePrice: parseFloat(p.basePrice || 0)
+          basePrice: parseFloat(p.basePrice || 0),
+          sellingPrice: parseFloat(p.sellingPrice || p.price || 0)
         }));
 
       const formattedAmenities = (amenData.items || []).map(a => ({
@@ -321,7 +322,8 @@ export default function AdminPurchaseOrders() {
         name: a.name,
         type: 'Amenity',
         itemType: a.itemType,
-        basePrice: parseFloat(a.basePrice || 0)
+        basePrice: parseFloat(a.basePrice || 0),
+        sellingPrice: parseFloat(a.sellingPrice || a.price || 0)
       }));
 
       setCatalogItems([...formattedProducts, ...formattedAmenities]);
@@ -732,7 +734,9 @@ export default function AdminPurchaseOrders() {
       receivedFormatted[itemID] = {
         qty: parseInt(val.qty || 0),
         unitCost: parseFloat(val.unitCost || 0),
-        expirationDate: (isConsumable && val.expirationDate) ? toDbDate(val.expirationDate) : null
+        expirationDate: (isConsumable && val.expirationDate) ? toDbDate(val.expirationDate) : null,
+        updateCatalogPrice: !!val.updateCatalogPrice,
+        newSellingPrice: parseFloat(val.newSellingPrice || 0)
       };
     }
 
@@ -757,8 +761,11 @@ export default function AdminPurchaseOrders() {
         setActiveModal(null);
         clientCache.invalidate('admin-purchase-orders');
         clientCache.invalidate('admin-inventory');
+        clientCache.invalidate('admin-products');
+        clientCache.invalidate('admin-amenities');
         clientCache.invalidate('admin-dashboard');
         fetchOrders();
+        fetchCatalog();
 
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('pcc-inventory-sync'));
@@ -848,12 +855,22 @@ export default function AdminPurchaseOrders() {
     const initialQtys = {};
     po.items.forEach(item => {
       const remaining = item.quantity - (item.quantityReceived || 0);
+      const match = catalogItems.find(c => c.name === item.itemName && c.type === item.itemType);
+      const catalogBase = match ? parseFloat(match.basePrice || 0) : parseFloat(item.unitPrice || 0);
+      const catalogSelling = match ? parseFloat(match.sellingPrice || 0) : 0;
+      const initialUnitCost = item.unitPrice !== undefined ? parseFloat(item.unitPrice) : catalogBase;
+      const isPriceDiff = Math.abs(initialUnitCost - catalogBase) > 0.001;
+
       initialQtys[item.orderItemID] = {
         qty: remaining > 0 ? remaining : 0,
         expirationDate: '',
         manufacturingDate: '',
         supplierReference: '',
-        unitCost: item.unitPrice || 0
+        unitCost: initialUnitCost,
+        catalogBasePrice: catalogBase,
+        catalogSellingPrice: catalogSelling,
+        updateCatalogPrice: isPriceDiff,
+        newSellingPrice: catalogSelling > 0 ? catalogSelling : initialUnitCost
       };
     });
     setReceivedQtys(initialQtys);
@@ -1326,7 +1343,7 @@ export default function AdminPurchaseOrders() {
       {/* RECORD STOCK-IN MODAL */}
       {activeModal === 'stock_in' && selectedOrder && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.28)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-dialog modal-xl modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header" style={{ background: 'var(--pcc-blue)', color: '#fff' }}>
                 <h5 className="modal-title">Record Stock-In — PO-{String(selectedOrder.purchaseOrderID).padStart(4, '0')}</h5>
@@ -1347,20 +1364,32 @@ export default function AdminPurchaseOrders() {
                           <th>Category</th>
                           <th>Item Type</th>
                           <th>Ordered / Remaining</th>
-                          <th style={{ width: '100px' }}>Received</th>
-                          <th>Exp. Date</th>
+                          <th style={{ width: '90px' }}>Received</th>
+                          <th style={{ width: '130px' }}>Exp. Date</th>
                           <th style={{ width: '110px' }}>Unit Cost *</th>
+                          <th style={{ minWidth: '190px' }}>Catalog Price Sync</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedOrder.items.map((item) => {
-                          const val = receivedQtys[item.orderItemID] || { qty: 0, expirationDate: '', unitCost: item.unitPrice };
+                          const val = receivedQtys[item.orderItemID] || { qty: 0, expirationDate: '', unitCost: item.unitPrice, catalogBasePrice: 0, catalogSellingPrice: 0, updateCatalogPrice: false, newSellingPrice: 0 };
                           const remaining = item.quantity - (item.quantityReceived || 0);
                           const matchItem = catalogItems.find(c => c.name === item.itemName && c.type === item.itemType);
                           const itemClassType = matchItem ? matchItem.itemType : 'Consumable';
+                          const catalogBase = val.catalogBasePrice !== undefined ? val.catalogBasePrice : (matchItem ? parseFloat(matchItem.basePrice || 0) : parseFloat(item.unitPrice || 0));
+                          const currentCost = parseFloat(val.unitCost || 0);
+                          const isCostChanged = Math.abs(currentCost - catalogBase) > 0.001;
+
                           return (
                             <tr key={item.orderItemID}>
-                              <td><strong>{item.itemName}</strong></td>
+                              <td>
+                                <div><strong>{item.itemName}</strong></div>
+                                {isCostChanged && (
+                                  <span className="badge text-bg-warning text-dark border" style={{ fontSize: '0.68rem', fontWeight: 600 }}>
+                                    ⚠️ Cost Changed
+                                  </span>
+                                )}
+                              </td>
                               <td><span className="badge text-bg-light border text-muted">{item.itemType}</span></td>
                               <td>
                                 <span className={`badge ${itemClassType === 'Consumable' ? 'text-bg-info' : 'text-bg-secondary'}`}>
@@ -1405,8 +1434,56 @@ export default function AdminPurchaseOrders() {
                                   className="form-control form-control-sm"
                                   required
                                   value={val.unitCost}
-                                  onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'unitCost', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                                  onChange={(e) => {
+                                    const newCost = e.target.value === '' ? '' : (parseFloat(e.target.value) || 0);
+                                    handleReceivedQtyChange(item.orderItemID, 'unitCost', newCost);
+                                    if (newCost !== '' && Math.abs(newCost - catalogBase) > 0.001) {
+                                      handleReceivedQtyChange(item.orderItemID, 'updateCatalogPrice', true);
+                                    }
+                                  }}
                                 />
+                                <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                  Cat: ₱{catalogBase.toFixed(2)}
+                                </div>
+                              </td>
+                              <td>
+                                <div className="p-1 rounded" style={{ backgroundColor: isCostChanged ? '#fff8e1' : '#f8f9fa', border: isCostChanged ? '1px solid #ffe082' : '1px solid #e9ecef' }}>
+                                  <div className="form-check form-switch m-0" style={{ minHeight: 'auto' }}>
+                                    <input
+                                      type="checkbox"
+                                      className="form-check-input"
+                                      role="switch"
+                                      id={`update-price-${item.orderItemID}`}
+                                      checked={!!val.updateCatalogPrice}
+                                      onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'updateCatalogPrice', e.target.checked)}
+                                    />
+                                    <label className="form-check-label small fw-semibold" htmlFor={`update-price-${item.orderItemID}`} style={{ fontSize: '0.75rem', cursor: 'pointer' }}>
+                                      Update Catalog
+                                    </label>
+                                  </div>
+                                  {val.updateCatalogPrice && (
+                                    <div className="mt-1">
+                                      <div className="d-flex align-items-center gap-1">
+                                        <span className="text-muted" style={{ fontSize: '0.7rem' }}>Selling ₱</span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          className="form-control form-control-sm py-0 px-1"
+                                          style={{ fontSize: '0.78rem', height: '24px', width: '85px' }}
+                                          placeholder="0.00"
+                                          value={val.newSellingPrice !== undefined ? val.newSellingPrice : ''}
+                                          onChange={(e) => handleReceivedQtyChange(item.orderItemID, 'newSellingPrice', e.target.value)}
+                                        />
+                                      </div>
+                                      {parseFloat(val.newSellingPrice || 0) > currentCost && (
+                                        <div className="text-success fw-semibold" style={{ fontSize: '0.68rem', marginTop: '2px' }}>
+                                          Margin: +₱{(parseFloat(val.newSellingPrice || 0) - currentCost).toFixed(2)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );

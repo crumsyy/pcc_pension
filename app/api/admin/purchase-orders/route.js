@@ -233,6 +233,7 @@ export async function POST(request) {
         ]);
         const amenityMap = new Map(allAmenityItems.map(a => [a.name, a]));
         const productMap = new Map(allProductItems.map(p => [p.name, p]));
+        let pricesUpdatedCount = 0;
 
         for (const item of poItems) {
           const itemData = received[item.orderItemID];
@@ -319,6 +320,40 @@ export async function POST(request) {
           } else {
             await conn.execute("UPDATE products SET quantity = quantity + ? WHERE productID = ?", [newQty, itemID]);
           }
+
+          // Update catalog Base Price and Selling Price if requested by admin
+          if (itemData.updateCatalogPrice) {
+            const newBase = unitCost;
+            const newSelling = parseFloat(itemData.newSellingPrice || 0);
+
+            if (item.itemType === 'Amenity') {
+              if (newSelling > 0) {
+                await conn.execute(
+                  "UPDATE amenities SET basePrice = ?, sellingPrice = ?, price = ? WHERE amenityID = ?",
+                  [newBase, newSelling, newSelling, itemID]
+                );
+              } else {
+                await conn.execute(
+                  "UPDATE amenities SET basePrice = ? WHERE amenityID = ?",
+                  [newBase, itemID]
+                );
+              }
+              pricesUpdatedCount++;
+            } else {
+              if (newSelling > 0) {
+                await conn.execute(
+                  "UPDATE products SET basePrice = ?, sellingPrice = ?, price = ? WHERE productID = ?",
+                  [newBase, newSelling, newSelling, itemID]
+                );
+              } else {
+                await conn.execute(
+                  "UPDATE products SET basePrice = ? WHERE productID = ?",
+                  [newBase, itemID]
+                );
+              }
+              pricesUpdatedCount++;
+            }
+          }
         }
 
         // Check if PO is now fully completed or partially received
@@ -338,7 +373,11 @@ export async function POST(request) {
 
         await conn.commit();
         await syncInventoryStock();
-        return NextResponse.json({ success: true, message: isCompleted ? 'Purchase order fully received and completed!' : 'Partial delivery received successfully.' });
+        const priceNote = pricesUpdatedCount > 0 ? ` Catalog prices updated for ${pricesUpdatedCount} item(s).` : '';
+        return NextResponse.json({ 
+          success: true, 
+          message: (isCompleted ? 'Purchase order fully received and completed!' : 'Partial delivery received successfully.') + priceNote 
+        });
       } catch (e) {
         await conn.rollback();
         throw e;
