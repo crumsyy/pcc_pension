@@ -342,7 +342,6 @@ export default function RoomsClient() {
     status: 'Available',
     rate: '',
     description: '',
-    occupancyLimit: '4',
     image: '',
   });
 
@@ -617,7 +616,6 @@ export default function RoomsClient() {
       status: 'Available',
       rate: rates ? rates.rate : '',
       description: '',
-      occupancyLimit: '4',
       image: '',
     });
     setActiveModal('create');
@@ -637,7 +635,6 @@ export default function RoomsClient() {
       status: room.status,
       rate: rates ? rates.rate : (room.rate || room.rateWithoutBreakfast || ''),
       description: room.description || '',
-      occupancyLimit: room.occupancyLimit ? room.occupancyLimit.toString() : '4',
       image: room.image || '',
     });
     setActiveModal('edit');
@@ -823,7 +820,7 @@ export default function RoomsClient() {
                   <TableHead>Room No.</TableHead>
                   <TableHead>Floor</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Occupancy Limit</TableHead>
+                  <TableHead>Occupancy Range</TableHead>
                   <TableHead>Price (₱)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -863,7 +860,11 @@ export default function RoomsClient() {
                         </TableCell>
                         <TableCell>{rm.floorName}</TableCell>
                         <TableCell>{rm.typeName}</TableCell>
-                        <TableCell>{rm.occupancyLimit || 4} Pax</TableCell>
+                        <TableCell>
+                          <span className="badge bg-light text-dark border">
+                            {rm.minOccupancy ?? 1} – {rm.maxOccupancy ?? rm.occupancyLimit ?? 4} Pax
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <strong>₱{Number(rm.rate || rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                         </TableCell>
@@ -1133,17 +1134,25 @@ export default function RoomsClient() {
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Occupancy Limit (Pax) <span className="required-asterisk">*</span></label>
-                      <input
-                        type="number"
-                        name="occupancyLimit"
-                        className="form-control"
-                        required
-                        min="1"
-                        placeholder="e.g. 4"
-                        value={formData.occupancyLimit}
-                        onChange={handleInputChange}
-                      />
+                      <label className="form-label small fw-semibold mb-1">Occupancy Capacity</label>
+                      {(() => {
+                        const selType = roomTypes.find(rt => String(rt.roomTypeID) === String(formData.roomTypeID));
+                        return (
+                          <div className="form-control bg-light d-flex align-items-center justify-content-between" style={{ minHeight: '38px' }}>
+                            <span className="text-dark fw-semibold">
+                              {selType ? `${selType.minOccupancy ?? 1} – ${selType.maxOccupancy ?? selType.minOccupancy ?? 2} Pax` : 'Select room type'}
+                            </span>
+                            {selType && Number(selType.extraFoam || 0) > 0 && (
+                              <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: '0.72rem' }}>
+                                +{selType.extraFoam} foam
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                        Set by room type (base capacity before extra guest fees apply).
+                      </small>
                     </div>
                   </div>
 
@@ -1317,17 +1326,25 @@ export default function RoomsClient() {
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Occupancy Limit (Pax) <span className="required-asterisk">*</span></label>
-                      <input
-                        type="number"
-                        name="occupancyLimit"
-                        className="form-control"
-                        required
-                        min="1"
-                        placeholder="e.g. 4"
-                        value={formData.occupancyLimit}
-                        onChange={handleInputChange}
-                      />
+                      <label className="form-label small fw-semibold mb-1">Occupancy Capacity</label>
+                      {(() => {
+                        const selType = roomTypes.find(rt => String(rt.roomTypeID) === String(formData.roomTypeID));
+                        return (
+                          <div className="form-control bg-light d-flex align-items-center justify-content-between" style={{ minHeight: '38px' }}>
+                            <span className="text-dark fw-semibold">
+                              {selType ? `${selType.minOccupancy ?? 1} – ${selType.maxOccupancy ?? selType.minOccupancy ?? 2} Pax` : 'Select room type'}
+                            </span>
+                            {selType && Number(selType.extraFoam || 0) > 0 && (
+                              <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: '0.72rem' }}>
+                                +{selType.extraFoam} foam
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                        Inherited from room type.
+                      </small>
                     </div>
                   </div>
 

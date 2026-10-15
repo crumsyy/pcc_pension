@@ -16,6 +16,7 @@ export async function GET(request) {
 
   let sql = `
     SELECT rm.*, rt.type as typeName, fl.name as floorName,
+           rt.minOccupancy, rt.maxOccupancy, rt.extraFoam,
            COALESCE(rr1.rate, rr2.rate, 0) as rate,
            COALESCE(rr1.rate, 0) as rateWithoutBreakfast,
            COALESCE(rr2.rate, 0) as rateWithBreakfast
@@ -89,7 +90,8 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Room rate must be a valid non-negative number.' }, { status: 400 });
       }
       const description = (body.description || '').trim();
-      const occupancyLimit = parseInt(body.occupancyLimit) || 4;
+      const rtInfo = await dbQuery("SELECT minOccupancy, maxOccupancy FROM room_type WHERE roomTypeID=?", [roomTypeID]);
+      const occupancyLimit = rtInfo.length > 0 ? parseInt(rtInfo[0].minOccupancy || 2, 10) : 4;
       const image = (body.image || '').trim() || null;
       const breakfastRate = 0;
 
@@ -144,7 +146,8 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Room rate must be a valid non-negative number.' }, { status: 400 });
       }
       const description = (body.description || '').trim();
-      const occupancyLimit = parseInt(body.occupancyLimit) || 4;
+      const rtInfo = await dbQuery("SELECT minOccupancy, maxOccupancy FROM room_type WHERE roomTypeID=?", [roomTypeID]);
+      const occupancyLimit = rtInfo.length > 0 ? parseInt(rtInfo[0].minOccupancy || 2, 10) : 4;
       const image = (body.image || '').trim() || null;
       const breakfastRate = 0;
 
