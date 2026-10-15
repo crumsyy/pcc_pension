@@ -263,44 +263,56 @@ export default function RoomsClient() {
     });
   };
 
-  const getNextFloorName = (existingFloors = []) => {
-    const regex = /(\d+)(?:st|nd|rd|th)?\s*floor/i;
-    const wordMap = {
-      ground: 1,
-      first: 1,
-      second: 2,
-      third: 3,
-      fourth: 4,
-      fifth: 5,
-      sixth: 6,
-      seventh: 7,
-      eighth: 8,
-      ninth: 9,
-      tenth: 10
-    };
-    
-    let maxNum = 0;
-    for (const f of existingFloors) {
-      const name = (f.name || '').trim().toLowerCase();
-      const match = name.match(regex);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num > maxNum) maxNum = num;
-      } else {
-        for (const [word, val] of Object.entries(wordMap)) {
-          if (name.includes(word)) {
-            if (val > maxNum) maxNum = val;
-            break;
-          }
-        }
-      }
-    }
-
-    const nextNum = Math.max(maxNum + 1, existingFloors.length + 1);
+  const getFloorNameByIndex = (idx) => {
+    if (idx === 1) return 'Ground Floor';
+    if (idx === 2) return '2nd Floor';
+    if (idx === 3) return '3rd Floor';
     const s = ['th', 'st', 'nd', 'rd'];
-    const v = nextNum % 100;
-    const ordinal = nextNum + (s[(v - 20) % 10] || s[v] || s[0]);
+    const v = idx % 100;
+    const ordinal = idx + (s[(v - 20) % 10] || s[v] || s[0]);
     return `${ordinal} Floor`;
+  };
+
+  const parseFloorIndex = (name) => {
+    const fn = (name || '').trim().toLowerCase();
+    if (fn.includes('ground')) return 1;
+    const match = fn.match(/(\d+)/);
+    if (match) return parseInt(match[1], 10);
+    const wordMap = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10 };
+    for (const [w, val] of Object.entries(wordMap)) {
+      if (fn.includes(w)) return val;
+    }
+    return 1;
+  };
+
+  const getNextFloorName = (existingFloors = []) => {
+    if (!existingFloors || existingFloors.length === 0) return 'Ground Floor';
+    let maxIdx = 0;
+    for (const f of existingFloors) {
+      const idx = parseFloorIndex(f.name);
+      if (idx > maxIdx) maxIdx = idx;
+    }
+    const nextIdx = Math.max(maxIdx + 1, existingFloors.length + 1);
+    return getFloorNameByIndex(nextIdx);
+  };
+
+  const getNextRoomNumber = (floorID, currentRooms = [], currentFloors = []) => {
+    const fl = (currentFloors || []).find(f => String(f.floorID) === String(floorID));
+    const floorRank = parseFloorIndex(fl?.name);
+    const baseNum = floorRank * 100;
+
+    const takenNums = new Set(
+      (currentRooms || [])
+        .filter(r => !r.isArchived)
+        .map(r => parseInt(r.roomNumber, 10))
+        .filter(n => !isNaN(n))
+    );
+
+    let nextNum = baseNum + 1;
+    while (takenNums.has(nextNum)) {
+      nextNum++;
+    }
+    return String(nextNum);
   };
 
   const openCreateFloorModal = () => {
@@ -452,7 +464,15 @@ export default function RoomsClient() {
     }
     setFormData(prev => {
       const next = { ...prev, [name]: value };
-      if (name === 'floorID' || name === 'roomTypeID') {
+      if (name === 'floorID') {
+        next.roomNumber = getNextRoomNumber(value, rooms, floors);
+        const rates = getSelectedRates(next.floorID, next.roomTypeID);
+        if (rates) {
+          next.rate = rates.rate;
+        } else {
+          next.rate = '';
+        }
+      } else if (name === 'roomTypeID') {
         const rates = getSelectedRates(next.floorID, next.roomTypeID);
         if (rates) {
           next.rate = rates.rate;
@@ -610,7 +630,7 @@ export default function RoomsClient() {
     const roomTypeID = roomTypes[0]?.roomTypeID || '';
     const rates = getSelectedRates(floorID, roomTypeID);
     setFormData({
-      roomNumber: '',
+      roomNumber: getNextRoomNumber(floorID, rooms, floors),
       floorID,
       roomTypeID,
       status: 'Available',
@@ -1089,16 +1109,25 @@ export default function RoomsClient() {
                 <DialogBody>
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Room Number <span className="required-asterisk">*</span></label>
-                      <input
-                        type="text"
-                        name="roomNumber"
-                        className="form-control"
-                        required
-                        placeholder="e.g. 101"
-                        value={formData.roomNumber}
-                        onChange={handleInputChange}
-                      />
+                      <label className="form-label small fw-semibold mb-1">Room Number</label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-light text-muted">
+                          <i className="bi bi-door-closed"></i>
+                        </span>
+                        <input
+                          type="text"
+                          name="roomNumber"
+                          className="form-control bg-light fw-bold text-dark"
+                          readOnly
+                          value={formData.roomNumber}
+                        />
+                        <span className="input-group-text bg-light text-success small fw-semibold">
+                          <i className="bi bi-check-circle me-1"></i> Auto
+                        </span>
+                      </div>
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                        Auto-assigned for {floors.find(f => String(f.floorID) === String(formData.floorID))?.name || 'selected floor'}.
+                      </small>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Floor <span className="required-asterisk">*</span></label>
@@ -1284,15 +1313,17 @@ export default function RoomsClient() {
                 <DialogBody>
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Room Number <span className="required-asterisk">*</span></label>
+                      <label className="form-label small fw-semibold mb-1">Room Number</label>
                       <input
                         type="text"
                         name="roomNumber"
-                        className="form-control"
-                        required
+                        className="form-control bg-light fw-bold text-dark"
+                        readOnly
                         value={formData.roomNumber}
-                        onChange={handleInputChange}
                       />
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                        Room number identifier.
+                      </small>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Floor <span className="required-asterisk">*</span></label>

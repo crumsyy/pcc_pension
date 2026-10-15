@@ -2,12 +2,35 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { dbQuery, getDbConnection, ensureBreakfastRateSchema, syncRoomStatuses } from '@/lib/db';
 
+function getFloorNameByIndex(index) {
+  if (index === 1) return 'Ground Floor';
+  if (index === 2) return '2nd Floor';
+  if (index === 3) return '3rd Floor';
+  const s = ['th', 'st', 'nd', 'rd'];
+  const val = index % 100;
+  const ordinal = index + (s[(val - 20) % 10] || s[val] || s[0]);
+  return `${ordinal} Floor`;
+}
+
+function parseFloorIndex(name) {
+  const fn = (name || '').trim().toLowerCase();
+  if (fn.includes('ground')) return 1;
+  const match = fn.match(/(\d+)/);
+  if (match) return parseInt(match[1], 10);
+  const wordMap = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10 };
+  for (const [w, val] of Object.entries(wordMap)) {
+    if (fn.includes(w)) return val;
+  }
+  return 1;
+}
+
 export async function GET(request) {
   const auth = await verifyAdmin();
   if (!auth.authorized) return auth.response;
 
   await syncRoomStatuses();
   await ensureBreakfastRateSchema();
+  await dbQuery("UPDATE floor SET name = 'Ground Floor' WHERE LOWER(TRIM(name)) = '1st floor'").catch(() => {});
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
@@ -77,13 +100,24 @@ export async function POST(request) {
     const { action } = body;
 
     if (action === 'create') {
-      const roomNumber = body.roomNumber.trim();
+      const floorID = parseInt(body.floorID);
+      const floorRows = await dbQuery("SELECT name FROM floor WHERE floorID = ?", [floorID]);
+      const floorName = floorRows.length > 0 ? floorRows[0].name : '';
+      const floorRank = parseFloorIndex(floorName);
+      const baseRoomNum = floorRank * 100;
 
-      if (!/^\d+$/.test(roomNumber)) {
-        return NextResponse.json({ error: 'Room Number must contain numbers only (no letters).' }, { status: 400 });
+      let roomNumber = (body.roomNumber || '').trim();
+      const existingRooms = await dbQuery("SELECT roomNumber FROM room WHERE isArchived = 0");
+      const existingNumSet = new Set(existingRooms.map(r => String(r.roomNumber).trim()));
+
+      if (!roomNumber || !/^\d+$/.test(roomNumber) || existingNumSet.has(roomNumber)) {
+        let candidate = baseRoomNum + 1;
+        while (existingNumSet.has(String(candidate))) {
+          candidate++;
+        }
+        roomNumber = String(candidate);
       }
       const status = body.status || 'Available';
-      const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);
       const rate = parseFloat(body.rate ?? body.price ?? body.rateWithoutBreakfast);
       if (isNaN(rate) || rate < 0) {
@@ -267,30 +301,14 @@ export async function POST(request) {
     if (action === 'create_floor') {
       let name = (body.name || '').trim();
       if (!name) {
-        const existingFloors = await dbQuery("SELECT name FROM floor ORDER BY floorID");
-        const regex = /(\d+)(?:st|nd|rd|th)?\s*floor/i;
-        const wordMap = { ground: 1, first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10 };
+        const existingFloors = await dbQuery("SELECT floorID, name FROM floor ORDER BY floorID");
         let maxNum = 0;
         for (const f of existingFloors) {
-          const fn = (f.name || '').trim().toLowerCase();
-          const match = fn.match(regex);
-          if (match) {
-            const num = parseInt(match[1], 10);
-            if (num > maxNum) maxNum = num;
-          } else {
-            for (const [w, val] of Object.entries(wordMap)) {
-              if (fn.includes(w)) {
-                if (val > maxNum) maxNum = val;
-                break;
-              }
-            }
-          }
+          const idx = parseFloorIndex(f.name);
+          if (idx > maxNum) maxNum = idx;
         }
         const nextNum = Math.max(maxNum + 1, existingFloors.length + 1);
-        const s = ['th', 'st', 'nd', 'rd'];
-        const val = nextNum % 100;
-        const ordinal = nextNum + (s[(val - 20) % 10] || s[val] || s[0]);
-        name = `${ordinal} Floor`;
+        name = getFloorNameByIndex(nextNum);
       }
       const dup = await dbQuery("SELECT floorID FROM floor WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))", [name]);
       if (dup.length > 0) return NextResponse.json({ error: 'A floor with this name already exists.' }, { status: 400 });
@@ -315,7 +333,23 @@ export async function POST(request) {
       if (used.length > 0) return NextResponse.json({ error: 'Cannot delete: rooms (including history) still use this floor.' }, { status: 400 });
       await dbQuery("DELETE FROM room_rate WHERE floorID = ?", [floorID]);
       await dbQuery("DELETE FROM floor WHERE floorID = ?", [floorID]);
-      return NextResponse.json({ success: true, message: 'Floor deleted successfully.' });
+
+      // Re-sequence remaining floors consecutively: Ground Floor, 2nd Floor, 3rd Floor...
+      const remainingFloors = await dbQuery("SELECT floorID, name FROM floor");
+      if (remainingFloors.length > 0) {
+        remainingFloors.sort((a, b) => parseFloorIndex(a.name) - parseFloorIndex(b.name));
+        // Step 1: Assign temp names to avoid duplicate collisions
+        for (const f of remainingFloors) {
+          await dbQuery("UPDATE floor SET name=? WHERE floorID=?", [`__temp_${f.floorID}_${Date.now()}`, f.floorID]);
+        }
+        // Step 2: Assign normalized sequential names
+        for (let i = 0; i < remainingFloors.length; i++) {
+          const newName = getFloorNameByIndex(i + 1);
+          await dbQuery("UPDATE floor SET name=? WHERE floorID=?", [newName, remainingFloors[i].floorID]);
+        }
+      }
+
+      return NextResponse.json({ success: true, message: 'Floor deleted and remaining floors re-sequenced successfully.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
