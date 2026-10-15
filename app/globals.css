@@ -544,25 +544,45 @@ h4,
 }
 
 /* ---------------------------------------------------------------
+/* ---------------------------------------------------------------
    Hero
    --------------------------------------------------------------- */
 .hero {
-  background: linear-gradient(180deg, var(--pcc-mist) 0%, var(--pcc-cream) 100%);
-  padding: 5rem 0 3rem;
   position: relative;
+  padding: 5.5rem 0 4rem;
   overflow: hidden;
+  background-color: var(--pcc-cream);
+  background-image: 
+    linear-gradient(
+      90deg,
+      rgba(246, 250, 247, 0.95) 0%,
+      rgba(246, 250, 247, 0.90) 38%,
+      rgba(246, 250, 247, 0.72) 65%,
+      rgba(246, 250, 247, 0.42) 100%
+    ),
+    url('/assets/images/pcc-landing-bg.jpg');
+  background-size: cover;
+  background-position: center 32%;
+  background-repeat: no-repeat;
+}
+
+[data-bs-theme="dark"] .hero,
+body.dark-theme .hero,
+.dark .hero {
+  background-color: #0f172a;
+  background-image: 
+    linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.96) 0%,
+      rgba(15, 23, 42, 0.90) 40%,
+      rgba(15, 23, 42, 0.75) 70%,
+      rgba(15, 23, 42, 0.50) 100%
+    ),
+    url('/assets/images/pcc-landing-bg.jpg');
 }
 
 .hero::after {
-  content: "";
-  position: absolute;
-  right: -120px;
-  top: -120px;
-  width: 360px;
-  height: 360px;
-  border-radius: 50%;
-  background: var(--pcc-green-light);
-  opacity: 0.35;
+  display: none !important;
 }
 
 .hero .eyebrow {
@@ -578,11 +598,25 @@ h4,
   font-size: 3.4rem;
   color: var(--pcc-blue);
   line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+[data-bs-theme="dark"] .hero h1,
+body.dark-theme .hero h1,
+.dark .hero h1 {
+  color: #60a5fa;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .hero h1 em {
   font-style: italic;
   color: var(--pcc-green);
+}
+
+[data-bs-theme="dark"] .hero h1 em,
+body.dark-theme .hero h1 em,
+.dark .hero h1 em {
+  color: #4ade80;
 }
 
 .hero p.lead {
@@ -591,15 +625,37 @@ h4,
   max-width: 480px;
 }
 
+[data-bs-theme="dark"] .hero p.lead,
+body.dark-theme .hero p.lead,
+.dark .hero p.lead {
+  color: #94a3b8;
+}
+
 /* Availability search bar */
 .availability-bar {
-  background-color: #fff;
-  border: 1px solid var(--pcc-mist);
-  border-radius: 8px;
-  padding: 1.25rem;
-  box-shadow: 0 10px 30px -15px rgba(27, 75, 67, 0.25);
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 1.4rem;
+  box-shadow: 
+    0 20px 45px -12px rgba(27, 75, 67, 0.16),
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   position: relative;
   z-index: 2;
+  transition: all 0.3s ease;
+}
+
+[data-bs-theme="dark"] .availability-bar,
+body.dark-theme .availability-bar,
+.dark .availability-bar {
+  background: rgba(30, 41, 59, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 20px 45px -12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .availability-bar label {
@@ -609,6 +665,12 @@ h4,
   letter-spacing: 0.12em;
   color: var(--pcc-muted);
   font-weight: 700;
+}
+
+[data-bs-theme="dark"] .availability-bar label,
+body.dark-theme .availability-bar label,
+.dark .availability-bar label {
+  color: #94a3b8;
 }
 
 .availability-bar .form-control,
@@ -622,6 +684,37 @@ h4,
 .availability-bar .form-select:focus {
   border-color: var(--pcc-blue);
   box-shadow: 0 0 0 0.2rem rgba(27, 75, 67, 0.12);
+}
+
+@media (max-width: 767.98px) {
+  .hero {
+    padding: 3.5rem 0 2.5rem;
+    background-image: 
+      linear-gradient(
+        180deg,
+        rgba(246, 250, 247, 0.96) 0%,
+        rgba(246, 250, 247, 0.92) 50%,
+        rgba(246, 250, 247, 0.75) 100%
+      ),
+      url('/assets/images/pcc-landing-bg.jpg');
+  }
+
+  [data-bs-theme="dark"] .hero,
+  body.dark-theme .hero,
+  .dark .hero {
+    background-image: 
+      linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0.97) 0%,
+        rgba(15, 23, 42, 0.93) 50%,
+        rgba(15, 23, 42, 0.80) 100%
+      ),
+      url('/assets/images/pcc-landing-bg.jpg');
+  }
+
+  .hero h1 {
+    font-size: 2.4rem;
+  }
 }
 
 /* ---------------------------------------------------------------
