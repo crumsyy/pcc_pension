@@ -53,10 +53,10 @@ export async function GET(request) {
 
   let sql = `
     SELECT rm.*, rt.type as typeName, fl.name as floorName,
-           rt.minOccupancy, rt.maxOccupancy, rt.extraFoam,
-           COALESCE(rr1.rate, rr2.rate, 0) as rate,
-           COALESCE(rr1.rate, 0) as rateWithoutBreakfast,
-           COALESCE(rr2.rate, 0) as rateWithBreakfast
+           rt.minOccupancy, rt.maxOccupancy, rt.extraFoam, rt.price,
+           COALESCE(rt.price, rr1.rate, rr2.rate, 0) as rate,
+           COALESCE(rt.price, rr1.rate, 0) as rateWithoutBreakfast,
+           COALESCE(rt.price, rr2.rate, 0) as rateWithBreakfast
     FROM room rm
     JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
     JOIN floor fl ON fl.floorID = rm.floorID
@@ -89,10 +89,10 @@ export async function GET(request) {
         ORDER BY fl.floorID
       `),
       dbQuery(`
-        SELECT rt.roomTypeID, rt.type, rt.description, rt.minOccupancy, rt.maxOccupancy, rt.extraFoam, COUNT(rm.roomID) as roomCount
+        SELECT rt.roomTypeID, rt.type, rt.description, rt.minOccupancy, rt.maxOccupancy, rt.extraFoam, rt.price, COUNT(rm.roomID) as roomCount
         FROM room_type rt
         LEFT JOIN room rm ON rm.roomTypeID = rt.roomTypeID AND rm.isArchived = 0
-        GROUP BY rt.roomTypeID, rt.type, rt.description, rt.minOccupancy, rt.maxOccupancy, rt.extraFoam
+        GROUP BY rt.roomTypeID, rt.type, rt.description, rt.minOccupancy, rt.maxOccupancy, rt.extraFoam, rt.price
         ORDER BY rt.type
       `),
       dbQuery("SELECT * FROM room_rate")
@@ -133,12 +133,9 @@ export async function POST(request) {
       }
       const status = body.status || 'Available';
       const roomTypeID = parseInt(body.roomTypeID);
-      const rate = parseFloat(body.rate ?? body.price ?? body.rateWithoutBreakfast);
-      if (isNaN(rate) || rate < 0) {
-        return NextResponse.json({ error: 'Room rate must be a valid non-negative number.' }, { status: 400 });
-      }
+      const rtInfo = await dbQuery("SELECT minOccupancy, maxOccupancy, price FROM room_type WHERE roomTypeID=?", [roomTypeID]);
+      const rate = rtInfo.length > 0 ? parseFloat(rtInfo[0].price || 0) : parseFloat(body.rate ?? body.price ?? 0);
       const description = (body.description || '').trim();
-      const rtInfo = await dbQuery("SELECT minOccupancy, maxOccupancy FROM room_type WHERE roomTypeID=?", [roomTypeID]);
       const occupancyLimit = rtInfo.length > 0 ? parseInt(rtInfo[0].minOccupancy || 2, 10) : 4;
       const image = (body.image || '').trim() || null;
       const breakfastRate = 0;
@@ -189,12 +186,9 @@ export async function POST(request) {
       const status = body.status;
       const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);
-      const rate = parseFloat(body.rate ?? body.price ?? body.rateWithoutBreakfast);
-      if (isNaN(rate) || rate < 0) {
-        return NextResponse.json({ error: 'Room rate must be a valid non-negative number.' }, { status: 400 });
-      }
+      const rtInfo = await dbQuery("SELECT minOccupancy, maxOccupancy, price FROM room_type WHERE roomTypeID=?", [roomTypeID]);
+      const rate = rtInfo.length > 0 ? parseFloat(rtInfo[0].price || 0) : parseFloat(body.rate ?? body.price ?? 0);
       const description = (body.description || '').trim();
-      const rtInfo = await dbQuery("SELECT minOccupancy, maxOccupancy FROM room_type WHERE roomTypeID=?", [roomTypeID]);
       const occupancyLimit = rtInfo.length > 0 ? parseInt(rtInfo[0].minOccupancy || 2, 10) : 4;
       const image = (body.image || '').trim() || null;
       const breakfastRate = 0;
@@ -275,13 +269,24 @@ export async function POST(request) {
       const minOccupancy = Math.max(1, parseInt(body.minOccupancy) || 1);
       const maxOccupancy = Math.max(minOccupancy, parseInt(body.maxOccupancy) || minOccupancy);
       const extraFoam = Math.max(0, parseInt(body.extraFoam) || 0);
+      const price = Math.max(0, parseFloat(body.price) || 0);
       if (!type) return NextResponse.json({ error: 'Room type name is required.' }, { status: 400 });
       const dup = await dbQuery("SELECT roomTypeID FROM room_type WHERE LOWER(TRIM(type)) = LOWER(TRIM(?))", [type]);
       if (dup.length > 0) return NextResponse.json({ error: 'A room type with this name already exists.' }, { status: 400 });
-      await dbQuery(
-        "INSERT INTO room_type(type, description, minOccupancy, maxOccupancy, extraFoam) VALUES(?,?,?,?,?)",
-        [type, description, minOccupancy, maxOccupancy, extraFoam]
+      const res = await dbQuery(
+        "INSERT INTO room_type(type, description, minOccupancy, maxOccupancy, extraFoam, price) VALUES(?,?,?,?,?,?)",
+        [type, description, minOccupancy, maxOccupancy, extraFoam, price]
       );
+      const newRoomTypeID = res.insertId;
+
+      // Sync room_rate across all floors
+      const allFloors = await dbQuery("SELECT floorID FROM floor");
+      for (const f of allFloors) {
+        for (const b of [1, 2]) {
+          await dbQuery("INSERT INTO room_rate(rate, roomTypeID, floorID, breakfastID) VALUES(?,?,?,?)", [price, newRoomTypeID, f.floorID, b]);
+        }
+      }
+
       return NextResponse.json({ success: true, message: `Room type "${type}" created successfully.` });
     }
 
@@ -292,13 +297,28 @@ export async function POST(request) {
       const minOccupancy = Math.max(1, parseInt(body.minOccupancy) || 1);
       const maxOccupancy = Math.max(minOccupancy, parseInt(body.maxOccupancy) || minOccupancy);
       const extraFoam = Math.max(0, parseInt(body.extraFoam) || 0);
+      const price = Math.max(0, parseFloat(body.price) || 0);
       if (!roomTypeID || !type) return NextResponse.json({ error: 'Room type ID and name are required.' }, { status: 400 });
       const dup = await dbQuery("SELECT roomTypeID FROM room_type WHERE LOWER(TRIM(type)) = LOWER(TRIM(?)) AND roomTypeID != ?", [type, roomTypeID]);
       if (dup.length > 0) return NextResponse.json({ error: 'A room type with this name already exists.' }, { status: 400 });
       await dbQuery(
-        "UPDATE room_type SET type=?, description=?, minOccupancy=?, maxOccupancy=?, extraFoam=? WHERE roomTypeID=?",
-        [type, description, minOccupancy, maxOccupancy, extraFoam, roomTypeID]
+        "UPDATE room_type SET type=?, description=?, minOccupancy=?, maxOccupancy=?, extraFoam=?, price=? WHERE roomTypeID=?",
+        [type, description, minOccupancy, maxOccupancy, extraFoam, price, roomTypeID]
       );
+
+      // Sync room_rate across all floors
+      const allFloors = await dbQuery("SELECT floorID FROM floor");
+      for (const f of allFloors) {
+        for (const b of [1, 2]) {
+          const existing = await dbQuery("SELECT roomRateID FROM room_rate WHERE roomTypeID=? AND floorID=? AND breakfastID=?", [roomTypeID, f.floorID, b]);
+          if (existing.length > 0) {
+            await dbQuery("UPDATE room_rate SET rate=? WHERE roomRateID=?", [price, existing[0].roomRateID]);
+          } else {
+            await dbQuery("INSERT INTO room_rate(rate, roomTypeID, floorID, breakfastID) VALUES(?,?,?,?)", [price, roomTypeID, f.floorID, b]);
+          }
+        }
+      }
+
       return NextResponse.json({ success: true, message: `Room type "${type}" updated successfully.` });
     }
 

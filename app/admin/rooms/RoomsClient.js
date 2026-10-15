@@ -202,7 +202,7 @@ export default function RoomsClient() {
   const [selectedRoom, setSelectedRoom] = useState(null);
 
   // Room type / floor lookup management
-  const [typeForm, setTypeForm] = useState({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' });
+  const [typeForm, setTypeForm] = useState({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0', price: '' });
   const [floorForm, setFloorForm] = useState({ floorID: '', name: '' });
   const [savingLookup, setSavingLookup] = useState(false);
 
@@ -228,7 +228,7 @@ export default function RoomsClient() {
   };
 
   const openCreateTypeModal = () => {
-    setTypeForm({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' });
+    setTypeForm({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0', price: '' });
     setActiveModal('createType');
   };
 
@@ -239,7 +239,8 @@ export default function RoomsClient() {
       description: rt.description || '',
       minOccupancy: String(rt.minOccupancy ?? 1),
       maxOccupancy: String(rt.maxOccupancy ?? rt.minOccupancy ?? 2),
-      extraFoam: String(rt.extraFoam ?? 0)
+      extraFoam: String(rt.extraFoam ?? 0),
+      price: rt.price ? String(rt.price) : ''
     });
     setActiveModal('editType');
   };
@@ -248,6 +249,10 @@ export default function RoomsClient() {
     e.preventDefault();
     if (!typeForm.type.trim()) {
       showAlert('error', 'Validation Error', 'Room type name is required.');
+      return;
+    }
+    if (isNaN(parseFloat(typeForm.price)) || parseFloat(typeForm.price) < 0) {
+      showAlert('error', 'Validation Error', 'Room type price must be a valid non-negative number.');
       return;
     }
     if (typeForm.roomTypeID) {
@@ -494,12 +499,8 @@ export default function RoomsClient() {
       showAlert('error', 'Validation Error', 'Room Number must contain numbers only (no letters).');
       return;
     }
-    if (isNaN(parseFloat(formData.rate)) || parseFloat(formData.rate) < 0) {
-      showAlert('error', 'Validation Error', 'Room rate must be a valid non-negative number.');
-      return;
-    }
 
-    showConfirm('Create Room', 'Are you sure you want to create this room and set this rate?', async () => {
+    showConfirm('Create Room', 'Are you sure you want to create this room?', async () => {
       try {
         const res = await fetch('/api/admin/rooms', {
           method: 'POST',
@@ -514,7 +515,7 @@ export default function RoomsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to create room');
 
-        showAlert('success', 'Success', data.message || 'Room and rates created successfully');
+        showAlert('success', 'Success', data.message || 'Room created successfully');
         setActiveModal(null);
         clientCache.invalidate('admin-rooms');
         fetchRooms();
@@ -534,12 +535,8 @@ export default function RoomsClient() {
       showAlert('error', 'Validation Error', 'Room Number must contain numbers only (no letters).');
       return;
     }
-    if (isNaN(parseFloat(formData.rate)) || parseFloat(formData.rate) < 0) {
-      showAlert('error', 'Validation Error', 'Room rate must be a valid non-negative number.');
-      return;
-    }
 
-    showConfirm('Update Room', `Save changes to Room ${selectedRoom.roomNumber} and update rate?`, async () => {
+    showConfirm('Update Room', `Save changes to Room ${selectedRoom.roomNumber}?`, async () => {
       try {
         const res = await fetch('/api/admin/rooms', {
           method: 'POST',
@@ -555,7 +552,7 @@ export default function RoomsClient() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to update room');
 
-        showAlert('success', 'Success', data.message || 'Room and rates updated successfully');
+        showAlert('success', 'Success', data.message || 'Room updated successfully');
         setActiveModal(null);
         clientCache.invalidate('admin-rooms');
         fetchRooms();
@@ -931,7 +928,8 @@ export default function RoomsClient() {
                   <TableHead>Room Type</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Occupancy Range</TableHead>
-                  <TableHead>Extra Foam (₱)</TableHead>
+                  <TableHead>Price (₱)</TableHead>
+                  <TableHead>Extra Foam</TableHead>
                   <TableHead>Active Rooms</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -939,7 +937,7 @@ export default function RoomsClient() {
               <TableBody>
                 {filteredRoomTypes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan="6" className="text-center py-5">
+                    <TableCell colSpan="7" className="text-center py-5">
                       <div className="d-flex flex-column align-items-center justify-content-center text-muted">
                         <div className="rounded-circle bg-light d-flex align-items-center justify-content-center mb-3" style={{ width: '56px', height: '56px' }}>
                           <i className="bi bi-tag text-secondary fs-3"></i>
@@ -986,9 +984,14 @@ export default function RoomsClient() {
                           </span>
                         </TableCell>
                         <TableCell>
+                          <strong className="text-dark">
+                            ₱{Number(rt.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </strong>
+                        </TableCell>
+                        <TableCell>
                           {Number(rt.extraFoam || 0) > 0 ? (
-                            <span className="fw-semibold text-dark">
-                              ₱{Number(rt.extraFoam).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <span className="badge bg-light text-dark border">
+                              +{rt.extraFoam} foam
                             </span>
                           ) : (
                             <span className="text-muted">—</span>
@@ -1187,18 +1190,27 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Standard Rate (₱) <span className="required-asterisk">*</span></label>
-                      <input
-                        type="number"
-                        name="rate"
-                        className="form-control"
-                        required
-                        step="0.01"
-                        min="0"
-                        placeholder="e.g. 1500.00"
-                        value={formData.rate}
-                        onChange={handleInputChange}
-                      />
+                      <label className="form-label small fw-semibold mb-1">Standard Price (₱)</label>
+                      {(() => {
+                        const selType = roomTypes.find(rt => String(rt.roomTypeID) === String(formData.roomTypeID));
+                        return (
+                          <div className="input-group">
+                            <span className="input-group-text bg-light text-muted">₱</span>
+                            <input
+                              type="text"
+                              className="form-control bg-light fw-bold text-dark"
+                              readOnly
+                              value={Number(selType?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            />
+                            <span className="input-group-text bg-light text-success small fw-semibold">
+                              <i className="bi bi-tag me-1"></i> Inherited
+                            </span>
+                          </div>
+                        );
+                      })()}
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                        Inherited from selected room type.
+                      </small>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Status</label>
@@ -1381,18 +1393,27 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Standard Rate (₱) <span className="required-asterisk">*</span></label>
-                      <input
-                        type="number"
-                        name="rate"
-                        className="form-control"
-                        required
-                        step="0.01"
-                        min="0"
-                        placeholder="e.g. 1500.00"
-                        value={formData.rate}
-                        onChange={handleInputChange}
-                      />
+                      <label className="form-label small fw-semibold mb-1">Standard Price (₱)</label>
+                      {(() => {
+                        const selType = roomTypes.find(rt => String(rt.roomTypeID) === String(formData.roomTypeID));
+                        return (
+                          <div className="input-group">
+                            <span className="input-group-text bg-light text-muted">₱</span>
+                            <input
+                              type="text"
+                              className="form-control bg-light fw-bold text-dark"
+                              readOnly
+                              value={Number(selType?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            />
+                            <span className="input-group-text bg-light text-success small fw-semibold">
+                              <i className="bi bi-tag me-1"></i> Inherited
+                            </span>
+                          </div>
+                        );
+                      })()}
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                        Inherited from selected room type.
+                      </small>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Status</label>
@@ -1524,6 +1545,25 @@ export default function RoomsClient() {
                         value={typeForm.description}
                         onChange={(e) => setTypeForm(prev => ({ ...prev, description: e.target.value }))}
                       />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label small fw-semibold mb-1">Standard Nightly Price (₱) <span className="required-asterisk">*</span></label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-light text-muted">₱</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="form-control"
+                          required
+                          placeholder="e.g. 1500.00"
+                          value={typeForm.price}
+                          onChange={(e) => setTypeForm(prev => ({ ...prev, price: e.target.value }))}
+                        />
+                      </div>
+                      <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                        All rooms under this room type will automatically inherit this base nightly rate.
+                      </small>
                     </div>
                     <div className="row g-2 mb-2">
                       <div className="col-4">
