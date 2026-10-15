@@ -175,7 +175,7 @@ export function Combobox({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className={selectedOption ? 'text-truncate' : 'placeholder text-truncate'}>
+        <span className={selectedOption ? 'text-truncate' : 'pcc-combobox-placeholder text-muted text-truncate'}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <div className="d-flex align-items-center gap-1 ms-2 flex-shrink-0">
