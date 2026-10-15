@@ -425,7 +425,7 @@ export default function RegisterPage() {
                     )}
                   </div>
 
-                  {/* Province + City (province first, suggest dropdowns) */}
+                  {/* Province + City (shadcn Combobox dropdowns) */}
                   <ProvinceCityInputs
                     idPrefix="reg-loc"
                     province={province}
@@ -434,17 +434,9 @@ export default function RegisterPage() {
                     required
                     columnClassName="col-12 col-md-6"
                     labelClassName="form-label small fw-bold"
+                    errorProvince={fieldErrors.province ? "Please select a valid province." : null}
+                    errorCity={fieldErrors.city ? "Please select a valid city or municipality." : null}
                   />
-                  {fieldErrors.province && (
-                    <div className="col-12 col-md-6">
-                      <div className="text-danger small mt-1 fw-semibold d-block">Please select a valid province from the suggestions.</div>
-                    </div>
-                  )}
-                  {fieldErrors.city && (
-                    <div className="col-12 col-md-6">
-                      <div className="text-danger small mt-1 fw-semibold d-block">Please select a valid city or municipality for the chosen province.</div>
-                    </div>
-                  )}
 
                   {/* Contact Number */}
                   <div className="col-12 col-md-6">

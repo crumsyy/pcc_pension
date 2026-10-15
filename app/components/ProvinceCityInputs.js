@@ -2,12 +2,13 @@
 
 import React, { useMemo } from 'react';
 import { getProvinceNames, findProvinceByName, getCityNamesForProvince, isCityInProvince } from '@/lib/phLocations';
+import { Combobox } from '@/components/ui/combobox';
 
 /**
  * ProvinceCityInputs Component
- * Province-first address inputs with type-to-suggest dropdowns (native datalists).
- * City suggestions depend on the selected (exact-matched) province.
- * Emits DateInput-style events: onChange({ target: { name, value } }).
+ * Province-first address inputs with shadcn/ui Combobox dropdowns.
+ * City options depend on the selected (exact-matched) province.
+ * Emits standard change events: onChange({ target: { name, value } }).
  */
 export default function ProvinceCityInputs({
   idPrefix = 'loc',
@@ -18,6 +19,8 @@ export default function ProvinceCityInputs({
   disabled = false,
   columnClassName = 'col-md-6',
   labelClassName = 'form-label',
+  errorProvince = null,
+  errorCity = null,
 }) {
   const provinceNames = useMemo(() => getProvinceNames(), []);
 
@@ -34,13 +37,16 @@ export default function ProvinceCityInputs({
     }
   };
 
-  const handleProvinceChange = (e) => {
-    const val = e.target.value;
+  const handleProvinceSelect = (val) => {
     emit('province', val);
     const match = findProvinceByName(val);
-    if (match && city && !isCityInProvince(city, val)) {
+    if ((match && city && !isCityInProvince(city, val)) || !val) {
       emit('city', '');
     }
+  };
+
+  const handleCitySelect = (val) => {
+    emit('city', val);
   };
 
   return (
@@ -49,47 +55,45 @@ export default function ProvinceCityInputs({
         <label className={labelClassName} htmlFor={`${idPrefix}-province`}>
           Province <span className="required-asterisk">*</span>
         </label>
-        <input
-          type="text"
+        <Combobox
           id={`${idPrefix}-province`}
           name="province"
-          className="form-control"
-          required={required}
-          disabled={disabled}
           value={province}
-          onChange={handleProvinceChange}
-          placeholder="Type to search provinces..."
-          list={`${idPrefix}-province-list`}
-          autoComplete="off"
+          onChange={handleProvinceSelect}
+          options={provinceNames}
+          placeholder="Select province..."
+          searchPlaceholder="Search province..."
+          emptyText="No province found."
+          disabled={disabled}
+          required={required}
         />
-        <datalist id={`${idPrefix}-province-list`}>
-          {provinceNames.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
+        {errorProvince && (
+          <div className="text-danger small mt-1 fw-semibold d-block">
+            {errorProvince}
+          </div>
+        )}
       </div>
       <div className={columnClassName}>
         <label className={labelClassName} htmlFor={`${idPrefix}-city`}>
           City / Municipality <span className="required-asterisk">*</span>
         </label>
-        <input
-          type="text"
+        <Combobox
           id={`${idPrefix}-city`}
           name="city"
-          className="form-control"
-          required={required}
-          disabled={disabled || !matchedKey}
           value={city}
-          onChange={(e) => emit('city', e.target.value)}
-          placeholder={matchedKey ? 'Type to search cities...' : 'Select a province first'}
-          list={`${idPrefix}-city-list`}
-          autoComplete="off"
+          onChange={handleCitySelect}
+          options={cityNames}
+          placeholder={matchedKey ? 'Select city or municipality...' : 'Select a province first'}
+          searchPlaceholder="Search city or municipality..."
+          emptyText="No city or municipality found."
+          disabled={disabled || !matchedKey}
+          required={required}
         />
-        <datalist id={`${idPrefix}-city-list`}>
-          {cityNames.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
+        {errorCity && (
+          <div className="text-danger small mt-1 fw-semibold d-block">
+            {errorCity}
+          </div>
+        )}
       </div>
     </>
   );
