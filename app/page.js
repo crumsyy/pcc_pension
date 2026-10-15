@@ -247,16 +247,37 @@ export default function Home() {
     }
   };
 
-  const defaultRoomImages = {
-    'Standard Matrimonial': 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80',
-    'Twin Matrimonial': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80',
-    'Twin Matriomonial': 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80',
-    'Deluxe Matrimonial': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
-    'Deluxe Twin Matrimonial': 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
-    'Function Hall': 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800&q=80'
-  };
+  const defaultPromotions = [
+    {
+      promotionID: 'p-1',
+      name: 'Early Bird Special',
+      description: 'Book your stay in advance and enjoy exclusive discounted room rates.',
+      percentage: 10,
+      startDate: '2026-10-01',
+      endDate: '2026-12-31',
+      roomTypeName: 'All Room Types'
+    },
+    {
+      promotionID: 'p-2',
+      name: 'Extended Stay Privilege',
+      description: 'Stay 3 consecutive nights or more to unlock special prolonged accommodation savings.',
+      percentage: 15,
+      startDate: '2026-10-01',
+      endDate: '2026-12-31',
+      roomTypeName: 'Standard & Twin Matrimonial'
+    },
+    {
+      promotionID: 'p-3',
+      name: 'Weekend Getaway',
+      description: 'Treat yourself to relaxing weekend comfort with complimentary privileges and discounts.',
+      percentage: 12,
+      startDate: '2026-10-01',
+      endDate: '2026-12-31',
+      roomTypeName: 'Deluxe Twin Matrimonial'
+    }
+  ];
 
-  const allPromos = landingData.promotions || [];
+  const allPromos = (landingData.promotions && landingData.promotions.length > 0) ? landingData.promotions : defaultPromotions;
   const visiblePromos = showAllPromos ? allPromos : allPromos.slice(0, VISIBLE_COUNT);
   const allRooms = landingData.rooms || [];
   const visibleRooms = showAllRooms ? allRooms : allRooms.slice(0, VISIBLE_COUNT);
@@ -418,7 +439,7 @@ export default function Home() {
       </section>
 
       {/* PROMOTIONS DISPLAY */}
-      {landingData.promotions && landingData.promotions.length > 0 && (
+      {allPromos.length > 0 && (
         <section className="section bg-light py-5" id="promotions">
           <div className="container">
             <div className="text-center mb-4">
@@ -518,23 +539,21 @@ export default function Home() {
               }
             ]).map((rt) => {
               const parsedImages = parseRoomImages(rt.roomImage);
-              const roomImg = parsedImages[0] || defaultRoomImages[rt.name] || defaultRoomImages['Standard Matrimonial'] || '/assets/images/pcc-landing-bg.jpg';
+              const roomImg = parsedImages[0] || null;
               const priceVal = parseFloat(rt.price || 0);
 
               return (
                 <div key={rt.roomTypeID} className="col-12 col-md-6 col-lg-3">
                   <div className="hotel-room-card">
-                    <div className="hotel-room-img-wrap">
-                      <img
-                        src={roomImg}
-                        alt={rt.name}
-                        className="hotel-room-img"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = '/assets/images/pcc-landing-bg.jpg';
-                        }}
-                      />
-                    </div>
+                    {roomImg && (
+                      <div className="hotel-room-img-wrap">
+                        <img
+                          src={roomImg}
+                          alt={rt.name}
+                          className="hotel-room-img"
+                        />
+                      </div>
+                    )}
                     <div className="hotel-room-body">
                       <h3 className="hotel-room-name">{rt.name}</h3>
                       <p className="hotel-room-desc">

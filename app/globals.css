@@ -864,6 +864,98 @@ body.dark-theme .availability-bar label,
 }
 
 /* ---------------------------------------------------------------
+   Dark theme overrides for Hotel Rooms & Promotions
+   --------------------------------------------------------------- */
+[data-bs-theme="dark"] .hotel-rooms-section,
+body.dark-theme .hotel-rooms-section {
+  background-color: #0b1524;
+}
+
+[data-bs-theme="dark"] .hotel-rooms-header,
+body.dark-theme .hotel-rooms-header {
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+[data-bs-theme="dark"] .hotel-rooms-header .display-font,
+body.dark-theme .hotel-rooms-header .display-font {
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .hotel-rooms-avail-pill,
+body.dark-theme .hotel-rooms-avail-pill {
+  background-color: #1a2942;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .hotel-room-card,
+body.dark-theme .hotel-room-card {
+  background-color: #132238;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .hotel-room-card:hover,
+body.dark-theme .hotel-room-card:hover {
+  border-color: rgba(96, 165, 250, 0.35);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+[data-bs-theme="dark"] .hotel-room-img-wrap,
+body.dark-theme .hotel-room-img-wrap {
+  background-color: #0f1c30;
+}
+
+[data-bs-theme="dark"] .hotel-room-name,
+body.dark-theme .hotel-room-name {
+  color: #ffffff;
+}
+
+[data-bs-theme="dark"] .hotel-room-desc,
+body.dark-theme .hotel-room-desc {
+  color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .hotel-room-meta,
+body.dark-theme .hotel-room-meta {
+  color: #cbd5e1;
+}
+
+[data-bs-theme="dark"] .hotel-room-footer,
+body.dark-theme .hotel-room-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-bs-theme="dark"] .hotel-room-price,
+body.dark-theme .hotel-room-price {
+  color: #60a5fa;
+}
+
+/* Dark theme for Promotions section */
+[data-bs-theme="dark"] #promotions,
+body.dark-theme #promotions {
+  background-color: #0f1c30 !important;
+}
+
+[data-bs-theme="dark"] #promotions .card,
+body.dark-theme #promotions .card {
+  background-color: #132238 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] #promotions .card h5,
+body.dark-theme #promotions .card h5 {
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] #promotions .card .bg-light,
+body.dark-theme #promotions .card .bg-light {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+/* ---------------------------------------------------------------
    Floor directory / Room key-tag cards (signature element)
    --------------------------------------------------------------- */
 .floor-block {
