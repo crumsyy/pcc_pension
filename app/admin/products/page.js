@@ -18,6 +18,92 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import clientCache, { CACHE_TTL } from '@/lib/clientCache';
 import { toast } from '@/components/ui/toast';
 
+const PRODUCT_UNIT_GROUPS = [
+  {
+    group: 'Count & Packaging',
+    units: [
+      { value: 'pcs', label: 'pcs (Pieces)' },
+      { value: 'pack', label: 'pack (Pack)' },
+      { value: 'box', label: 'box (Box)' },
+      { value: 'set', label: 'set (Set)' },
+      { value: 'pair', label: 'pair (Pair)' },
+      { value: 'bundle', label: 'bundle (Bundle)' },
+      { value: 'dozen', label: 'dozen (Dozen)' },
+      { value: 'roll', label: 'roll (Roll)' },
+    ],
+  },
+  {
+    group: 'Beverages & Containers',
+    units: [
+      { value: 'bottle', label: 'bottle (Bottle)' },
+      { value: 'can', label: 'can (Can)' },
+      { value: 'cup', label: 'cup (Cup)' },
+      { value: 'glass', label: 'glass (Glass)' },
+      { value: 'pitcher', label: 'pitcher (Pitcher)' },
+      { value: 'liter', label: 'liter (L)' },
+      { value: 'ml', label: 'ml (Milliliter)' },
+      { value: 'tin', label: 'tin (Tin)' },
+    ],
+  },
+  {
+    group: 'Food & Meal Servings',
+    units: [
+      { value: 'serving', label: 'serving (Serving)' },
+      { value: 'plate', label: 'plate (Plate)' },
+      { value: 'order', label: 'order (Order)' },
+      { value: 'bowl', label: 'bowl (Bowl)' },
+      { value: 'platter', label: 'platter (Platter)' },
+      { value: 'portion', label: 'portion (Portion)' },
+      { value: 'slice', label: 'slice (Slice)' },
+      { value: 'bucket', label: 'bucket (Bucket)' },
+      { value: 'pot', label: 'pot (Pot)' },
+    ],
+  },
+  {
+    group: 'Snacks & Sachets',
+    units: [
+      { value: 'sachet', label: 'sachet (Sachet)' },
+      { value: 'pouch', label: 'pouch (Pouch)' },
+      { value: 'bar', label: 'bar (Bar)' },
+      { value: 'tube', label: 'tube (Tube)' },
+      { value: 'jar', label: 'jar (Jar)' },
+    ],
+  },
+  {
+    group: 'Weight & Measures',
+    units: [
+      { value: 'kg', label: 'kg (Kilogram)' },
+      { value: 'g', label: 'g (Gram)' },
+    ],
+  },
+];
+
+const ALL_PREDEFINED_UNITS = PRODUCT_UNIT_GROUPS.flatMap((g) => g.units.map((u) => u.value));
+
+function renderUnitOptions(selectedUnit) {
+  return (
+    <>
+      <option value="" disabled>Select unit</option>
+      {PRODUCT_UNIT_GROUPS.map((g) => (
+        <optgroup key={g.group} label={g.group}>
+          {g.units.map((u) => (
+            <option key={u.value} value={u.value}>
+              {u.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+      {selectedUnit && !ALL_PREDEFINED_UNITS.includes(selectedUnit) && (
+        <optgroup label="Custom / Existing">
+          <option key={selectedUnit} value={selectedUnit}>
+            {selectedUnit}
+          </option>
+        </optgroup>
+      )}
+    </>
+  );
+}
+
 export default function AdminProducts() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -649,15 +735,15 @@ export default function AdminProducts() {
                         </div>
                         <div className="col-md-6">
                           <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
-                          <input
-                            type="text"
+                          <select
                             name="unit"
-                            className="form-control"
-                            placeholder="e.g. pcs, pairs, bottles"
+                            className="form-select"
                             required
                             value={formData.unit}
                             onChange={handleInputChange}
-                          />
+                          >
+                            {renderUnitOptions(formData.unit)}
+                          </select>
                         </div>
                       </div>
                     </>
@@ -676,15 +762,15 @@ export default function AdminProducts() {
                       </div>
                       <div className="col-md-4">
                         <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
-                        <input
-                          type="text"
+                        <select
                           name="unit"
-                          className="form-control"
-                          placeholder="e.g. serving, plate"
+                          className="form-select"
                           required
                           value={formData.unit}
                           onChange={handleInputChange}
-                        />
+                        >
+                          {renderUnitOptions(formData.unit)}
+                        </select>
                       </div>
                     </div>
                   )}
@@ -840,15 +926,15 @@ export default function AdminProducts() {
                           </div>
                           <div className="col-md-6">
                             <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
-                            <input
-                              type="text"
+                            <select
                               name="unit"
-                              className="form-control"
-                              placeholder="e.g. pcs, pairs, bottles"
+                              className="form-select"
                               required
                               value={formData.unit}
                               onChange={handleInputChange}
-                            />
+                            >
+                              {renderUnitOptions(formData.unit)}
+                            </select>
                           </div>
                         </div>
                       </>
@@ -867,15 +953,15 @@ export default function AdminProducts() {
                         </div>
                         <div className="col-md-4">
                           <label className="form-label small fw-semibold mb-1">Unit <span className="required-asterisk">*</span></label>
-                          <input
-                            type="text"
+                          <select
                             name="unit"
-                            className="form-control"
-                            placeholder="e.g. serving, plate"
+                            className="form-select"
                             required
                             value={formData.unit}
                             onChange={handleInputChange}
-                          />
+                          >
+                            {renderUnitOptions(formData.unit)}
+                          </select>
                         </div>
                       </div>
                     )}
