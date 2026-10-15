@@ -136,18 +136,25 @@ export default function FlatDatePicker({
     emit(e.target.value);
   };
 
+  const handleInputClick = () => {
+    if (fpRef.current && !disabled) {
+      fpRef.current.open();
+    }
+  };
+
   return (
     <input
       ref={inputRef}
       id={id}
       name={name}
       className={className}
-      style={style}
+      style={{ cursor: disabled ? 'not-allowed' : 'pointer', ...style }}
       placeholder={resolvedPlaceholder}
       disabled={disabled}
       required={required}
       defaultValue={normalizeForFormat(value, dateFormat)}
       onChange={handleInputChange}
+      onClick={handleInputClick}
       autoComplete={autoComplete}
       autoCorrect="off"
       autoCapitalize="none"

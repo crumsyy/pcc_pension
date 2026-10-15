@@ -107,7 +107,6 @@ export default function Home() {
   // Search state
   const [checkIn, setCheckIn] = useState("");
   const [minCheckIn, setMinCheckIn] = useState("");
-  const [maxCheckIn, setMaxCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [roomType, setRoomType] = useState("Any room type");
   const [breakfast, setBreakfast] = useState("With Breakfast");
@@ -118,6 +117,7 @@ export default function Home() {
     totalFloors: 0,
     totalRoomTypes: 0,
     rooms: [],
+    roomTypes: [],
     promotions: []
   });
 
@@ -174,12 +174,7 @@ export default function Home() {
 
     const tomorrow = new Date(today.getTime() + (24 * 60 * 60 * 1000));
     const tomorrowStr = `${pad(tomorrow.getMonth() + 1)}/${pad(tomorrow.getDate())}/${tomorrow.getFullYear()}`;
-
-    const maxLead = new Date(today.getTime() + (2 * 24 * 60 * 60 * 1000));
-    const maxLeadStr = `${pad(maxLead.getMonth() + 1)}/${pad(maxLead.getDate())}/${maxLead.getFullYear()}`;
-
     setMinCheckIn(todayStr);
-    setMaxCheckIn(maxLeadStr);
     setCheckIn(todayStr);
     setCheckOut(tomorrowStr);
   }, []);
@@ -196,15 +191,14 @@ export default function Home() {
       return;
     }
 
-    // Reservation Rule: Today up to 2 days ahead max
+    // Disallow past dates
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selectedCheckIn = new Date(toDbDate(checkIn) + 'T00:00:00');
     selectedCheckIn.setHours(0, 0, 0, 0);
 
-    const diffDays = Math.round((selectedCheckIn.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 0 || diffDays > 2) {
-      alert("Reservations can only be made for today or up to 2 days ahead maximum.");
+    if (selectedCheckIn < today) {
+      alert("Check-in date cannot be in the past. Please choose today or a future date.");
       return;
     }
 
@@ -318,7 +312,6 @@ export default function Home() {
                       onChange={setCheckIn}
                       required
                       min={minCheckIn}
-                      max={maxCheckIn}
                     />
                   </div>
                   <div className="col-md-6">
@@ -337,12 +330,12 @@ export default function Home() {
                       value={roomType}
                       onChange={(e) => setRoomType(e.target.value)}
                     >
-                      <option>Any room type</option>
-                      <option>Standard Matrimonial</option>
-                      <option>Twin Matrimonial</option>
-                      <option>Deluxe Matrimonial</option>
-                      <option>Deluxe Twin Matrimonial</option>
-                      <option>Function Hall</option>
+                      <option value="Any room type">Any room type</option>
+                      {(landingData.roomTypes || []).map((rt) => (
+                        <option key={rt.roomTypeID} value={rt.name}>
+                          {rt.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="col-12 mt-3">
