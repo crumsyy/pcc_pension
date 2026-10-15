@@ -2509,8 +2509,22 @@ body.dark-theme .qr-payment-container h4 {
 .admin-inter .flatpickr-calendar *:not(i):not(svg):not(path):not([class*="fa-"]):not([class*="bi-"]) {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
 }
+.flatpickr-wrapper {
+  display: block !important;
+  width: 100% !important;
+  position: relative !important;
+}
 .flatpickr-calendar {
   z-index: 99999;
+}
+.flatpickr-calendar.static {
+  position: absolute;
+  top: calc(100% + 2px);
+}
+.flatpickr-calendar.static.open {
+  z-index: 1050 !important;
+  display: block;
+  pointer-events: auto !important;
 }
 .availability-bar .flatpickr-input {
   background-color: #fff;

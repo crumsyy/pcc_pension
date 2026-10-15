@@ -53,6 +53,8 @@ export default function FlatDatePicker({
   name,
   className = 'form-control',
   style,
+  isStatic,
+  autoComplete = 'off',
 }) {
   const resolvedPlaceholder = placeholder || (dateFormat === 'Y-m-d' ? 'YYYY-MM-DD' : 'MM/DD/YYYY');
   const inputRef = useRef(null);
@@ -84,6 +86,10 @@ export default function FlatDatePicker({
   useEffect(() => {
     if (!inputRef.current) return;
     formatRef.current = dateFormat;
+    const resolvedStatic = isStatic !== undefined
+      ? Boolean(isStatic)
+      : Boolean(inputRef.current.closest('.pcc-dialog, [role="dialog"], .modal'));
+
     const fp = flatpickr(inputRef.current, {
       dateFormat,
       defaultDate: normalizeForFormat(value, dateFormat) || undefined,
@@ -92,6 +98,7 @@ export default function FlatDatePicker({
       disableMobile: true,
       allowInput: true,
       clickOpens: !disabled,
+      static: resolvedStatic,
       onChange: (selectedDates, dateStr) => {
         emit(dateStr);
       },
@@ -102,7 +109,7 @@ export default function FlatDatePicker({
       fpRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isStatic]);
 
   useEffect(() => {
     const fp = fpRef.current;
@@ -141,6 +148,13 @@ export default function FlatDatePicker({
       required={required}
       defaultValue={normalizeForFormat(value, dateFormat)}
       onChange={handleInputChange}
+      autoComplete={autoComplete}
+      autoCorrect="off"
+      autoCapitalize="none"
+      spellCheck="false"
+      data-lpignore="true"
+      data-1p-ignore="true"
+      data-form-type="other"
     />
   );
 }

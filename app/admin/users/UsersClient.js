@@ -678,7 +678,7 @@ export default function UsersClient() {
                   <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
                 </div>
               </DialogHeader>
-              <form onSubmit={handleCreateSubmit}>
+              <form onSubmit={handleCreateSubmit} autoComplete="off">
                 <DialogBody>
                   <div className="row g-3">
                     <div className="col-md-4">
@@ -703,7 +703,7 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Date of Birth <span className="required-asterisk">*</span></label>
-                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" max={maxDobSlash} />
+                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" max={maxDobSlash} isStatic={true} />
                     </div>
                     <ProvinceCityInputs
                       idPrefix="create-loc"
@@ -863,7 +863,7 @@ export default function UsersClient() {
                   <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
                 </div>
               </DialogHeader>
-              <form onSubmit={handleEditSubmit}>
+              <form onSubmit={handleEditSubmit} autoComplete="off">
                 <DialogBody>
                   <div className="row g-3">
                     <div className="col-md-4">
@@ -887,7 +887,7 @@ export default function UsersClient() {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Date of Birth <span className="required-asterisk">*</span></label>
-                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" max={maxDobSlash} />
+                      <FlatDatePicker name="dob" className="form-control" required value={formData.dob} onChange={handleInputChange} dateFormat="m/d/Y" max={maxDobSlash} isStatic={true} />
                     </div>
                     <ProvinceCityInputs
                       idPrefix="edit-loc"
