@@ -24,13 +24,27 @@ function parseFloorIndex(name) {
   return 1;
 }
 
+async function resequenceFloors() {
+  const remainingFloors = await dbQuery("SELECT floorID, name FROM floor");
+  if (remainingFloors.length > 0) {
+    remainingFloors.sort((a, b) => parseFloorIndex(a.name) - parseFloorIndex(b.name));
+    for (const f of remainingFloors) {
+      await dbQuery("UPDATE floor SET name=? WHERE floorID=?", [`_t_${f.floorID}`, f.floorID]);
+    }
+    for (let i = 0; i < remainingFloors.length; i++) {
+      const newName = getFloorNameByIndex(i + 1);
+      await dbQuery("UPDATE floor SET name=? WHERE floorID=?", [newName, remainingFloors[i].floorID]);
+    }
+  }
+}
+
 export async function GET(request) {
   const auth = await verifyAdmin();
   if (!auth.authorized) return auth.response;
 
   await syncRoomStatuses();
   await ensureBreakfastRateSchema();
-  await dbQuery("UPDATE floor SET name = 'Ground Floor' WHERE LOWER(TRIM(name)) = '1st floor'").catch(() => {});
+  await resequenceFloors().catch(() => {});
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search') || '';
@@ -335,19 +349,7 @@ export async function POST(request) {
       await dbQuery("DELETE FROM floor WHERE floorID = ?", [floorID]);
 
       // Re-sequence remaining floors consecutively: Ground Floor, 2nd Floor, 3rd Floor...
-      const remainingFloors = await dbQuery("SELECT floorID, name FROM floor");
-      if (remainingFloors.length > 0) {
-        remainingFloors.sort((a, b) => parseFloorIndex(a.name) - parseFloorIndex(b.name));
-        // Step 1: Assign temp names to avoid duplicate collisions
-        for (const f of remainingFloors) {
-          await dbQuery("UPDATE floor SET name=? WHERE floorID=?", [`__temp_${f.floorID}_${Date.now()}`, f.floorID]);
-        }
-        // Step 2: Assign normalized sequential names
-        for (let i = 0; i < remainingFloors.length; i++) {
-          const newName = getFloorNameByIndex(i + 1);
-          await dbQuery("UPDATE floor SET name=? WHERE floorID=?", [newName, remainingFloors[i].floorID]);
-        }
-      }
+      await resequenceFloors();
 
       return NextResponse.json({ success: true, message: 'Floor deleted and remaining floors re-sequenced successfully.' });
     }
