@@ -64,7 +64,7 @@ export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  
+
   // Field specific invalid states
   const [fieldErrors, setFieldErrors] = useState({});
   const [maxDobSlash, setMaxDobSlash] = useState('');
@@ -82,7 +82,7 @@ export default function RegisterPage() {
       setTimeout(() => {
         try {
           e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } catch (err) {}
+        } catch (err) { }
       }, 300);
     }
   };
@@ -146,7 +146,7 @@ export default function RegisterPage() {
     if (!gender) errors.gender = true;
     if (!isKnownProvince(province)) errors.province = true;
     if (!isCityInProvince(city, province)) errors.city = true;
-    
+
     // Normalize and validate Philippine contact number
     let cleanContact = contact.replace(/[^0-9]/g, "");
     if (cleanContact.startsWith('639') && cleanContact.length === 12) {
@@ -165,7 +165,7 @@ export default function RegisterPage() {
       const selectedDob = new Date(toDbDate(dob) + 'T00:00:00');
       const todayFloor = new Date();
       todayFloor.setHours(0, 0, 0, 0);
-      
+
       let age = todayFloor.getFullYear() - selectedDob.getFullYear();
       const mDiff = todayFloor.getMonth() - selectedDob.getMonth();
       if (mDiff < 0 || (mDiff === 0 && todayFloor.getDate() < selectedDob.getDate())) {
@@ -250,7 +250,7 @@ export default function RegisterPage() {
 
       // Successful registration
       setSuccessMsg("Account registered! Sending your verification code...");
-      
+
       setTimeout(() => {
         router.push(`/auth/verify-otp?email=${encodeURIComponent(email.toLowerCase())}`);
       }, 500);
@@ -528,9 +528,9 @@ export default function RegisterPage() {
                         }}
                       >
                         {showPassword ? (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
                         ) : (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                         )}
                       </button>
                     </div>
@@ -539,17 +539,6 @@ export default function RegisterPage() {
                         Password must meet all the requirements below.
                       </div>
                     ) : null}
-                    <div className="mt-2">
-                      <div className="small fw-semibold text-dark mb-1">Password checklist</div>
-                      <ul className="list-unstyled mb-0 d-flex flex-column gap-1">
-                        {pwChecklist.map((rule) => (
-                          <li key={rule.key} className="d-flex align-items-start gap-1.5 small" style={{ fontSize: '0.82rem' }}>
-                            <i className={`bi ${rule.met ? 'bi-check-circle-fill text-success' : 'bi-check-circle text-muted'} mt-0.5`}></i>
-                            <span className={rule.met ? 'text-success' : 'text-muted'}>{rule.text}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
                   </div>
 
                   {/* Confirm Password */}
@@ -594,15 +583,28 @@ export default function RegisterPage() {
                         }}
                       >
                         {showConfirmPassword ? (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
                         ) : (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                         )}
                       </button>
                     </div>
                     {fieldErrors.confirmPassword && (
                       <div className="text-danger small mt-1 fw-semibold d-block">Passwords do not match. Please re-enter.</div>
                     )}
+                  </div>
+
+                  {/* Password Checklist (Spans full width below Password & Confirm Password) */}
+                  <div className="col-12 mt-2">
+                    <div className="small fw-semibold text-dark mb-1">Password checklist</div>
+                    <ul className="list-unstyled mb-0 d-flex flex-column gap-1">
+                      {pwChecklist.map((rule) => (
+                        <li key={rule.key} className="d-flex align-items-center gap-2 small" style={{ fontSize: '0.82rem' }}>
+                          <i className={`bi ${rule.met ? 'bi-check-circle-fill text-success' : 'bi-check-circle text-muted'}`}></i>
+                          <span className={rule.met ? 'text-success' : 'text-muted'}>{rule.text}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
 
                   {/* Agreement 1: Terms & Conditions */}
