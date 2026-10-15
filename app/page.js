@@ -13,6 +13,7 @@ import {
   Coffee,
   Bed,
   ArrowRight,
+  ArrowUpRight,
   Sparkles,
   MapPin,
   Phone,
@@ -27,7 +28,13 @@ import {
   Quote,
   CheckCircle2,
   Compass,
-  Award
+  Award,
+  Layers,
+  AirVent,
+  Car,
+  Tv,
+  X,
+  Menu
 } from "lucide-react";
 
 function parseRoomImages(imgVal) {
@@ -46,7 +53,7 @@ function parseRoomImages(imgVal) {
   return [];
 }
 
-function RoomImageCarousel({ images, fallbackImg, alt, height = "230px" }) {
+function RoomImageCarousel({ images, fallbackImg, alt, height = "240px" }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [hasError, setHasError] = useState(false);
 
@@ -101,20 +108,20 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = "230px" }) {
         />
       ))}
 
-      {/* Frosted Aurora Carousel Buttons */}
+      {/* Frosted Prev/Next Controls */}
       <button
         type="button"
         aria-label="Previous slide"
-        className="position-absolute top-50 start-0 translate-middle-y ms-2.5 border-0 rounded-circle text-white d-flex align-items-center justify-content-center"
+        className="position-absolute top-50 start-0 translate-middle-y ms-2.5 border-0 rounded-circle text-white d-flex align-items-center justify-content-center shadow-sm"
         style={{
           width: "32px",
           height: "32px",
           zIndex: 5,
-          backgroundColor: "rgba(15, 23, 42, 0.5)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
+          backgroundColor: "rgba(15, 23, 42, 0.55)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           cursor: "pointer",
-          transition: "background-color 0.2s"
+          transition: "all 0.2s ease"
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -127,16 +134,16 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = "230px" }) {
       <button
         type="button"
         aria-label="Next slide"
-        className="position-absolute top-50 end-0 translate-middle-y me-2.5 border-0 rounded-circle text-white d-flex align-items-center justify-content-center"
+        className="position-absolute top-50 end-0 translate-middle-y me-2.5 border-0 rounded-circle text-white d-flex align-items-center justify-content-center shadow-sm"
         style={{
           width: "32px",
           height: "32px",
           zIndex: 5,
-          backgroundColor: "rgba(15, 23, 42, 0.5)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
+          backgroundColor: "rgba(15, 23, 42, 0.55)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           cursor: "pointer",
-          transition: "background-color 0.2s"
+          transition: "all 0.2s ease"
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -146,13 +153,13 @@ function RoomImageCarousel({ images, fallbackImg, alt, height = "230px" }) {
         <ChevronRight size={16} />
       </button>
 
-      {/* Indicator Pills */}
+      {/* Indicator Pill Bar */}
       <div
         className="position-absolute bottom-0 start-50 translate-middle-x mb-2.5 d-flex gap-1.5 px-2 py-1 rounded-pill"
         style={{
           zIndex: 5,
-          backgroundColor: "rgba(15, 23, 42, 0.5)",
-          backdropFilter: "blur(6px)"
+          backgroundColor: "rgba(15, 23, 42, 0.55)",
+          backdropFilter: "blur(8px)"
         }}
       >
         {list.map((_, idx) => (
@@ -202,6 +209,8 @@ export default function Home() {
   const VISIBLE_COUNT = 6;
   const [showAllPromos, setShowAllPromos] = useState(false);
   const [showAllRooms, setShowAllRooms] = useState(false);
+  const [selectedFloor, setSelectedFloor] = useState("all");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setYear(new Date().getFullYear());
@@ -329,168 +338,237 @@ export default function Home() {
   const allPromos = landingData.promotions || [];
   const visiblePromos = showAllPromos ? allPromos : allPromos.slice(0, VISIBLE_COUNT);
   const allRooms = landingData.rooms || [];
-  const visibleRooms = showAllRooms ? allRooms : allRooms.slice(0, VISIBLE_COUNT);
+
+  // Filter rooms by floor if selected
+  const filteredRooms = allRooms.filter((rm) => {
+    if (selectedFloor === "ground") return rm.floorID === 1 || (rm.floorName && rm.floorName.toLowerCase().includes("ground"));
+    if (selectedFloor === "second") return rm.floorID === 2 || (rm.floorName && rm.floorName.toLowerCase().includes("second"));
+    return true;
+  });
+
+  const visibleRooms = showAllRooms ? filteredRooms : filteredRooms.slice(0, VISIBLE_COUNT);
 
   return (
-    <div className="min-vh-100 d-flex flex-column text-dark" style={{ backgroundColor: "#F6FAF7" }}>
-      {/* 1. AURORA FROSTED NAVBAR */}
-      <nav
-        className="navbar navbar-expand-lg sticky-top py-3"
+    <div className="min-vh-100 d-flex flex-column text-dark position-relative" style={{ backgroundColor: "#F6FAF7" }}>
+      {/* BACKGROUND MESH ACCENTS */}
+      <div
+        className="position-fixed top-0 start-0 w-100 pointer-events-none"
         style={{
-          backgroundColor: "rgba(246, 250, 247, 0.82)",
-          backdropFilter: "blur(18px)",
-          WebkitBackdropFilter: "blur(18px)",
-          borderBottom: "1px solid rgba(205, 235, 207, 0.6)",
-          zIndex: 1030
+          height: "100vh",
+          zIndex: 0,
+          background: `
+            radial-gradient(circle at 10% 15%, rgba(33, 85, 181, 0.08) 0%, transparent 40%),
+            radial-gradient(circle at 90% 10%, rgba(63, 163, 77, 0.09) 0%, transparent 40%),
+            radial-gradient(circle at 50% 85%, rgba(205, 235, 207, 0.3) 0%, transparent 50%)
+          `
         }}
-      >
-        <div className="container">
-          <Link href="/" className="navbar-brand d-flex align-items-center gap-2.5 text-decoration-none">
+      />
+
+      {/* 1. FLOATING GLASS ISLAND NAVBAR */}
+      <header className="sticky-top pt-3 pb-2 px-3 px-sm-4" style={{ zIndex: 1030 }}>
+        <div className="container" style={{ maxWidth: "1140px" }}>
+          <nav
+            className="navbar p-2 px-sm-3.5 rounded-pill shadow-sm d-flex align-items-center justify-content-between position-relative"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.88)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid rgba(226, 232, 240, 0.85)",
+              boxShadow: "0 10px 30px -10px rgba(15, 23, 42, 0.08)"
+            }}
+          >
+            {/* Brand Logo & Title */}
+            <Link href="/" className="navbar-brand d-flex align-items-center gap-2.5 text-decoration-none m-0 ps-1">
+              <div
+                className="p-1 rounded-circle d-flex align-items-center justify-content-center shadow-xs"
+                style={{
+                  background: "linear-gradient(135deg, rgba(33, 85, 181, 0.12) 0%, rgba(63, 163, 77, 0.2) 100%)",
+                  border: "1px solid rgba(63, 163, 77, 0.3)",
+                  width: "42px",
+                  height: "42px"
+                }}
+              >
+                <img
+                  src="/assets/images/logo.jpg"
+                  alt="PCC Home Suite Home"
+                  width="32"
+                  height="32"
+                  className="rounded-circle object-fit-cover"
+                />
+              </div>
+              <div className="d-none d-sm-block">
+                <span className="fw-bold fs-6 tracking-tight d-block lh-1 text-dark">PCC Home Suite Home</span>
+                <span className="text-secondary small font-monospace" style={{ fontSize: "0.72rem" }}>
+                  Koronadal City &bull; Pension House
+                </span>
+              </div>
+            </Link>
+
+            {/* Desktop Navigation Links */}
+            <div className="d-none d-lg-flex align-items-center gap-1">
+              <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill transition" href="#home">
+                Home
+              </a>
+              <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill transition" href="#about">
+                About
+              </a>
+              <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill transition" href="#promotions">
+                Promotions
+              </a>
+              <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill transition" href="#rooms">
+                Rooms &amp; Rates
+              </a>
+              <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill transition" href="#amenities">
+                Amenities
+              </a>
+              <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill transition" href="#testimonials">
+                Reviews
+              </a>
+            </div>
+
+            {/* Actions & Theme Toggle */}
+            <div className="d-flex align-items-center gap-2">
+              <Link
+                href="/auth/login"
+                className="btn btn-sm px-3.5 py-1.5 fw-bold rounded-pill text-dark d-none d-sm-inline-flex align-items-center"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.9)",
+                  border: "1px solid rgba(226, 232, 240, 0.9)"
+                }}
+              >
+                Log In
+              </Link>
+              <Link
+                href="/auth/register"
+                className="pcc-btn-pill px-4 py-1.5 text-white fs-6 shadow-sm"
+                style={{
+                  background: "linear-gradient(135deg, #2155B5 0%, #163E82 100%)",
+                  fontSize: "0.88rem"
+                }}
+              >
+                <span>Book Now</span>
+                <span className="pcc-btn-icon-circle" style={{ width: "1.4rem", height: "1.4rem" }}>
+                  <ArrowUpRight size={13} />
+                </span>
+              </Link>
+              <div className="ms-1">
+                <ThemeToggle />
+              </div>
+
+              {/* Mobile Menu Toggle Button */}
+              <button
+                type="button"
+                className="btn btn-sm d-lg-none p-1.5 rounded-circle border-0 text-dark ms-1"
+                onClick={() => setMobileMenuOpen((v) => !v)}
+                aria-label="Toggle navigation menu"
+              >
+                {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+            </div>
+          </nav>
+
+          {/* Mobile Collapsible Drawer */}
+          {mobileMenuOpen && (
             <div
-              className="p-1 rounded-3"
+              className="mt-2 p-3.5 rounded-4 shadow-lg d-lg-none animate__animated animate__fadeInDown position-relative"
               style={{
-                background: "linear-gradient(135deg, rgba(33, 85, 181, 0.15) 0%, rgba(63, 163, 77, 0.2) 100%)",
-                border: "1px solid rgba(63, 163, 77, 0.3)"
+                backgroundColor: "rgba(255, 255, 255, 0.96)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(226, 232, 240, 0.9)"
               }}
             >
-              <img
-                src="/assets/images/logo.jpg"
-                alt="PCC Home Suite Home logo"
-                height="40"
-                className="rounded-2"
-                style={{ objectFit: "contain" }}
-              />
-            </div>
-            <div className="d-none d-sm-block">
-              <span className="fw-bold fs-5 tracking-tight d-block lh-1 text-dark">PCC Home Suite Home</span>
-              <span className="small text-muted" style={{ fontSize: "0.75rem" }}>
-                Koronadal City &bull; Pension House
-              </span>
-            </div>
-          </Link>
-
-          <button
-            className="navbar-toggler border-0 shadow-none px-2"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#mainNav"
-            aria-controls="mainNav"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span className="navbar-toggler-icon"></span>
-          </button>
-
-          <div className="collapse navbar-collapse" id="mainNav">
-            <ul className="navbar-nav ms-auto align-items-lg-center gap-lg-1">
-              <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-dark rounded-pill" href="#home">
+              <div className="d-flex flex-column gap-2 mb-3">
+                <a
+                  className="px-3 py-2 fw-semibold text-dark text-decoration-none rounded-3 bg-light"
+                  href="#home"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   Home
                 </a>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#about">
+                <a
+                  className="px-3 py-2 fw-semibold text-dark text-decoration-none rounded-3"
+                  href="#about"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   About Us
                 </a>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#promotions">
+                <a
+                  className="px-3 py-2 fw-semibold text-dark text-decoration-none rounded-3"
+                  href="#promotions"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   Promotions
                 </a>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#rooms">
+                <a
+                  className="px-3 py-2 fw-semibold text-dark text-decoration-none rounded-3"
+                  href="#rooms"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   Rooms &amp; Rates
                 </a>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#amenities">
+                <a
+                  className="px-3 py-2 fw-semibold text-dark text-decoration-none rounded-3"
+                  href="#amenities"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   Amenities
                 </a>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link px-3 py-1.5 fw-semibold text-secondary hover:text-dark rounded-pill" href="#testimonials">
-                  Reviews
+                <a
+                  className="px-3 py-2 fw-semibold text-dark text-decoration-none rounded-3"
+                  href="#testimonials"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Guest Reviews
                 </a>
-              </li>
-
-              <li className="nav-item ms-lg-3 mt-2 mt-lg-0 d-flex align-items-center gap-2">
+              </div>
+              <div className="pt-2 border-top d-flex gap-2">
                 <Link
                   href="/auth/login"
-                  className="btn btn-sm px-3.5 py-1.5 fw-bold rounded-pill text-dark"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.8)",
-                    border: "1px solid rgba(33, 85, 181, 0.25)"
-                  }}
+                  className="btn btn-outline-secondary w-50 py-2 rounded-pill fw-bold"
+                  onClick={() => setMobileMenuOpen(false)}
                 >
                   Log In
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="btn btn-sm px-4 py-1.5 fw-bold text-white rounded-pill shadow-sm"
-                  style={{
-                    background: "linear-gradient(135deg, #2155B5 0%, #163E82 100%)",
-                    border: "none",
-                    boxShadow: "0 4px 15px rgba(33, 85, 181, 0.3)"
-                  }}
+                  className="btn btn-primary w-50 py-2 rounded-pill fw-bold text-white"
+                  style={{ background: "linear-gradient(135deg, #2155B5 0%, #163E82 100%)", border: "none" }}
+                  onClick={() => setMobileMenuOpen(false)}
                 >
-                  Book Now
+                  Register
                 </Link>
-                <div className="ms-1">
-                  <ThemeToggle />
-                </div>
-              </li>
-            </ul>
-          </div>
+              </div>
+            </div>
+          )}
         </div>
-      </nav>
+      </header>
 
-      {/* 2. AURORA HERO SECTION (PCC Royal Blue to Emerald Green Mesh) */}
-      <section
-        className="hero position-relative py-5 py-lg-6 overflow-hidden"
-        id="home"
-        style={{
-          background: `
-            radial-gradient(circle at 15% 25%, rgba(33, 85, 181, 0.16) 0%, transparent 45%),
-            radial-gradient(circle at 85% 15%, rgba(63, 163, 77, 0.20) 0%, transparent 45%),
-            radial-gradient(circle at 50% 90%, rgba(205, 235, 207, 0.45) 0%, transparent 50%),
-            linear-gradient(180deg, #F6FAF7 0%, #E5EFE6 100%)
-          `
-        }}
-      >
-        {/* Soft Aurora Light Swirl Effect */}
-        <div
-          className="position-absolute rounded-circle pointer-events-none"
-          style={{
-            top: "-120px",
-            right: "-80px",
-            width: "480px",
-            height: "480px",
-            background: "radial-gradient(circle, rgba(63, 163, 77, 0.15) 0%, rgba(33, 85, 181, 0.08) 50%, transparent 70%)",
-            filter: "blur(60px)",
-            zIndex: 1
-          }}
-        />
-
-        <div className="container position-relative py-lg-4" style={{ zIndex: 2 }}>
+      {/* 2. EDITORIAL HERO SECTION & DOUBLE-BEZEL CONSOLE */}
+      <section className="position-relative py-5 py-lg-6" id="home" style={{ zIndex: 1 }}>
+        <div className="container position-relative" style={{ maxWidth: "1140px" }}>
           <div className="row align-items-center g-5">
             {/* Left Narrative */}
             <div className="col-lg-6">
-              {/* Pill Badge */}
+              {/* Location Beacon Pill */}
               <div
-                className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill mb-3 shadow-xs"
+                className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill mb-3.5 shadow-xs"
                 style={{
-                  background: "linear-gradient(90deg, rgba(33, 85, 181, 0.1) 0%, rgba(63, 163, 77, 0.12) 100%)",
-                  border: "1px solid rgba(63, 163, 77, 0.25)",
+                  background: "rgba(255, 255, 255, 0.8)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(63, 163, 77, 0.3)",
                   color: "#163E82"
                 }}
               >
-                <Sparkles size={14} style={{ color: "#3FA34D" }} />
-                <span className="small fw-bold font-monospace" style={{ fontSize: "0.8rem", letterSpacing: "0.03em" }}>
+                <span className="position-relative d-inline-flex align-items-center justify-content-center" style={{ width: "8px", height: "8px" }}>
+                  <span className="position-absolute w-100 h-100 rounded-circle bg-success opacity-75 animate-ping" />
+                  <span className="position-relative rounded-circle bg-success" style={{ width: "6px", height: "6px" }} />
+                </span>
+                <span className="small fw-bold font-monospace tracking-wide" style={{ fontSize: "0.78rem" }}>
                   ZONE 1, OSMEÑA STREET &bull; KORONADAL CITY
                 </span>
               </div>
 
+              {/* Main Headline */}
               <h1 className="display-4 fw-bold tracking-tight mb-3.5 lh-sm text-dark">
                 Your{" "}
                 <span
@@ -499,7 +577,7 @@ export default function Home() {
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     fontStyle: "italic",
-                    fontFamily: "var(--font-display)"
+                    fontFamily: "var(--font-display, 'Fraunces', serif)"
                   }}
                 >
                   sanctuary
@@ -507,41 +585,44 @@ export default function Home() {
                 away from home.
               </h1>
 
-              <p className="lead text-secondary mb-4 fs-6" style={{ lineHeight: "1.7", maxWidth: "520px" }}>
-                PCC Home Suite Home combines the warmth of home with serene, comfortable lodging
-                in the heart of Koronadal City. Enjoy restful sleep, friendly service, and effortless direct booking.
+              <p className="lead text-secondary mb-4 fs-6" style={{ lineHeight: "1.75", maxWidth: "520px" }}>
+                PCC Home Suite Home harmonizes the warmth of home with restful, impeccably maintained rooms
+                in the heart of Koronadal City. Experience peaceful sleep, attentive service, and instant direct reservation.
               </p>
 
-              {/* Action Buttons with Aurora Glow */}
+              {/* Action Buttons */}
               <div className="d-flex flex-wrap align-items-center gap-3">
                 <a
                   href="#rooms"
-                  className="btn px-4 py-2.5 fw-bold text-white rounded-pill d-inline-flex align-items-center gap-2"
+                  className="pcc-btn-pill px-4 py-2.5 text-white"
                   style={{
                     background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
-                    boxShadow: "0 8px 24px -6px rgba(33, 85, 181, 0.4)",
+                    boxShadow: "0 10px 25px -6px rgba(33, 85, 181, 0.4)",
                     border: "none"
                   }}
                 >
                   <Bed size={18} />
                   <span>Explore Rooms &amp; Rates</span>
+                  <span className="pcc-btn-icon-circle">
+                    <ArrowDownRightIcon size={14} />
+                  </span>
                 </a>
                 <Link
                   href="/auth/register"
-                  className="btn px-4 py-2.5 fw-bold text-dark rounded-pill d-inline-flex align-items-center gap-2"
+                  className="pcc-btn-pill px-4 py-2.5 text-dark"
                   style={{
                     backgroundColor: "rgba(255, 255, 255, 0.9)",
-                    border: "1px solid rgba(33, 85, 181, 0.25)",
+                    border: "1px solid rgba(226, 232, 240, 0.9)",
                     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.04)"
                   }}
                 >
                   <span>Create Account</span>
-                  <ArrowRight size={16} />
+                  <ArrowRight size={15} />
                 </Link>
               </div>
 
               {/* Trust Badges */}
-              <div className="d-flex align-items-center gap-4 mt-4 pt-3 border-top border-slate-200">
+              <div className="d-flex flex-wrap align-items-center gap-4 mt-4 pt-3 border-top border-slate-200">
                 <div className="d-flex align-items-center gap-1.5 text-secondary small fw-medium">
                   <ShieldCheck size={18} style={{ color: "#3FA34D" }} />
                   <span>Instant Confirmation</span>
@@ -550,177 +631,169 @@ export default function Home() {
                   <Clock size={18} style={{ color: "#2155B5" }} />
                   <span>24/7 Front Desk</span>
                 </div>
+                <div className="d-flex align-items-center gap-1.5 text-secondary small fw-medium">
+                  <Wifi size={18} style={{ color: "#3FA34D" }} />
+                  <span>Free High-Speed Wi-Fi</span>
+                </div>
               </div>
             </div>
 
-            {/* Right Booking Engine Console with Frosted Aurora Card */}
+            {/* Right: Double-Bezel Real-Time Search Console */}
             <div className="col-lg-6">
-              <div
-                className="p-4 p-md-4.5 rounded-4 position-relative"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.88)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255, 255, 255, 0.9)",
-                  boxShadow: "0 20px 45px -12px rgba(33, 85, 181, 0.15), 0 0 0 1px rgba(63, 163, 77, 0.18)"
-                }}
-              >
-                {/* Header Strip */}
-                <div className="d-flex align-items-center justify-content-between mb-3.5 pb-2 border-bottom border-slate-200">
-                  <div>
+              <div className="pcc-double-bezel">
+                <div className="pcc-double-bezel-inner p-4 p-md-4.5">
+                  {/* Console Header */}
+                  <div className="d-flex align-items-center justify-content-between mb-3.5 pb-2 border-bottom border-slate-100">
+                    <div>
+                      <span
+                        className="badge px-2.5 py-1 rounded-pill small fw-bold font-monospace"
+                        style={{
+                          backgroundColor: "rgba(33, 85, 181, 0.1)",
+                          color: "#2155B5"
+                        }}
+                      >
+                        DIRECT BOOKING ENGINE
+                      </span>
+                      <h3 className="fw-bold text-dark mb-0 fs-5 mt-1.5">Check Room Vacancies</h3>
+                    </div>
                     <span
-                      className="badge px-2.5 py-1 rounded-pill small fw-bold font-monospace"
+                      className="badge rounded-pill small font-monospace px-2.5 py-1"
                       style={{
-                        backgroundColor: "rgba(33, 85, 181, 0.12)",
-                        color: "#2155B5"
+                        backgroundColor: "rgba(63, 163, 77, 0.12)",
+                        color: "#3FA34D"
                       }}
                     >
-                      Real-time Search
+                      Max 2-day lead
                     </span>
-                    <h3 className="fw-bold text-dark mb-0 fs-5 mt-1">Check Room Availability</h3>
                   </div>
-                  <span
-                    className="badge rounded-pill small font-monospace"
-                    style={{
-                      backgroundColor: "rgba(63, 163, 77, 0.12)",
-                      color: "#3FA34D"
-                    }}
-                  >
-                    Max 2-day lead
-                  </span>
+
+                  {/* Form */}
+                  <form onSubmit={handleSearchSubmit} className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
+                        <Calendar size={14} style={{ color: "#2155B5" }} />
+                        <span>Check-in Date *</span>
+                      </label>
+                      <FlatDatePicker
+                        value={checkIn}
+                        onChange={setCheckIn}
+                        required
+                        min={minCheckIn}
+                        max={maxCheckIn}
+                      />
+                    </div>
+
+                    <div className="col-md-6">
+                      <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
+                        <Calendar size={14} style={{ color: "#2155B5" }} />
+                        <span>Check-out Date *</span>
+                      </label>
+                      <FlatDatePicker
+                        value={checkOut}
+                        onChange={setCheckOut}
+                        required
+                        min={checkIn || minCheckIn}
+                      />
+                    </div>
+
+                    <div className="col-md-6">
+                      <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
+                        <Bed size={14} style={{ color: "#3FA34D" }} />
+                        <span>Room Type</span>
+                      </label>
+                      <select
+                        className="form-select rounded-3 text-dark bg-white shadow-xs"
+                        style={{ border: "1px solid rgba(205, 235, 207, 0.9)", fontSize: "0.9rem", padding: "0.6rem 0.85rem" }}
+                        value={roomType}
+                        onChange={(e) => setRoomType(e.target.value)}
+                      >
+                        <option>Any room type</option>
+                        <option>Standard Matrimonial</option>
+                        <option>Twin Matrimonial</option>
+                        <option>Deluxe Matrimonial</option>
+                      </select>
+                    </div>
+
+                    <div className="col-md-6">
+                      <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
+                        <Coffee size={14} style={{ color: "#3FA34D" }} />
+                        <span>Breakfast Option</span>
+                      </label>
+                      <select
+                        className="form-select rounded-3 text-dark bg-white shadow-xs"
+                        style={{ border: "1px solid rgba(205, 235, 207, 0.9)", fontSize: "0.9rem", padding: "0.6rem 0.85rem" }}
+                        value={breakfast}
+                        onChange={(e) => setBreakfast(e.target.value)}
+                      >
+                        <option>With Breakfast</option>
+                        <option>Without Breakfast</option>
+                      </select>
+                    </div>
+
+                    <div className="col-12 mt-4">
+                      <button
+                        type="submit"
+                        className="pcc-btn-pill w-100 py-3 text-white border-0"
+                        style={{
+                          background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                          boxShadow: "0 8px 24px -4px rgba(33, 85, 181, 0.35)"
+                        }}
+                        disabled={searching}
+                      >
+                        {searching ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                            <span>Searching Vacancies...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Check Room Availability</span>
+                            <span className="pcc-btn-icon-circle">
+                              <ArrowRight size={15} />
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 </div>
-
-                <form onSubmit={handleSearchSubmit} className="row g-3">
-                  <div className="col-md-6">
-                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
-                      <Calendar size={14} style={{ color: "#2155B5" }} />
-                      <span>Check-in Date *</span>
-                    </label>
-                    <FlatDatePicker
-                      value={checkIn}
-                      onChange={setCheckIn}
-                      required
-                      min={minCheckIn}
-                      max={maxCheckIn}
-                    />
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
-                      <Calendar size={14} style={{ color: "#2155B5" }} />
-                      <span>Check-out Date *</span>
-                    </label>
-                    <FlatDatePicker
-                      value={checkOut}
-                      onChange={setCheckOut}
-                      required
-                      min={checkIn || minCheckIn}
-                    />
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
-                      <Bed size={14} style={{ color: "#3FA34D" }} />
-                      <span>Room Type</span>
-                    </label>
-                    <select
-                      className="form-select rounded-3 text-dark bg-white"
-                      style={{ border: "1px solid rgba(205, 235, 207, 0.9)" }}
-                      value={roomType}
-                      onChange={(e) => setRoomType(e.target.value)}
-                    >
-                      <option>Any room type</option>
-                      <option>Standard Matrimonial</option>
-                      <option>Twin Matrimonial</option>
-                      <option>Deluxe Matrimonial</option>
-                    </select>
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label d-flex align-items-center gap-1.5 fw-bold text-dark small mb-1.5">
-                      <Coffee size={14} style={{ color: "#3FA34D" }} />
-                      <span>Breakfast Option</span>
-                    </label>
-                    <select
-                      className="form-select rounded-3 text-dark bg-white"
-                      style={{ border: "1px solid rgba(205, 235, 207, 0.9)" }}
-                      value={breakfast}
-                      onChange={(e) => setBreakfast(e.target.value)}
-                    >
-                      <option>With Breakfast</option>
-                      <option>Without Breakfast</option>
-                    </select>
-                  </div>
-
-                  <div className="col-12 mt-4">
-                    <button
-                      type="submit"
-                      className="btn w-100 py-2.5 fw-bold text-white rounded-pill d-flex align-items-center justify-content-center gap-2"
-                      style={{
-                        background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
-                        boxShadow: "0 8px 24px -4px rgba(33, 85, 181, 0.35)",
-                        border: "none"
-                      }}
-                      disabled={searching}
-                    >
-                      {searching ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-                          <span>Searching Vacancies...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Check Room Availability</span>
-                          <ArrowRight size={18} />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. ABOUT US & AURORA STAT TILES */}
-      <section
-        className="py-5 py-lg-6"
-        id="about"
-        style={{
-          background: "linear-gradient(180deg, #E5EFE6 0%, #F6FAF7 100%)"
-        }}
-      >
-        <div className="container">
+      {/* 3. ABOUT US & METRIC BENTO TILES */}
+      <section className="py-5 py-lg-6" id="about" style={{ zIndex: 1 }}>
+        <div className="container" style={{ maxWidth: "1140px" }}>
           <div className="row g-5 align-items-center">
-            {/* Left Quote Card with Aurora Luminous Border */}
+            {/* Left Quote Card */}
             <div className="col-lg-5">
               <div
-                className="p-4 p-md-5 rounded-4 text-white position-relative overflow-hidden"
+                className="p-4 p-md-5 rounded-4 text-white position-relative overflow-hidden shadow-lg"
                 style={{
                   background: "linear-gradient(135deg, #163E82 0%, #2155B5 60%, #3FA34D 100%)",
-                  boxShadow: "0 20px 40px -15px rgba(22, 62, 130, 0.4)",
                   border: "1px solid rgba(255, 255, 255, 0.2)"
                 }}
               >
                 <Quote size={40} className="opacity-40 mb-3" />
                 <blockquote
                   className="fs-4 fw-medium mb-3 lh-base"
-                  style={{ fontFamily: "var(--font-display)" }}
+                  style={{ fontFamily: "var(--font-display, 'Fraunces', serif)" }}
                 >
                   &ldquo;Make yourself at home &mdash; that&rsquo;s the PCC promise.&rdquo;
                 </blockquote>
-                <div className="d-flex align-items-center gap-2 small opacity-80 font-monospace">
+                <div className="d-flex align-items-center gap-2 small opacity-90 font-monospace pt-2 border-top border-white-20">
                   <div className="rounded-circle bg-white" style={{ width: "8px", height: "8px" }} />
                   <span>Zone 1, Koronadal City &bull; Authentic Hospitality</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Information & 4 Metric Tiles */}
+            {/* Right Narrative & 4 Bento Metric Cards */}
             <div className="col-lg-7">
               <div
-                className="d-inline-flex align-items-center gap-1.5 px-3 py-1 rounded-pill small fw-bold font-monospace mb-2"
+                className="d-inline-flex align-items-center gap-1.5 px-3 py-1 rounded-pill small fw-bold font-monospace mb-2.5"
                 style={{
                   backgroundColor: "rgba(63, 163, 77, 0.12)",
                   color: "#3FA34D"
@@ -732,7 +805,7 @@ export default function Home() {
               <h2 className="display-6 fw-bold text-dark mb-3">
                 A warm, peaceful retreat in Koronadal City
               </h2>
-              <p className="text-secondary mb-4" style={{ lineHeight: "1.7" }}>
+              <p className="text-secondary mb-4" style={{ lineHeight: "1.75" }}>
                 Located along Osmeña Street, Zone 1, Koronadal City, PCC Home Suite Home
                 provides clean, secure, and budget-friendly accommodations for guests
                 visiting South Cotabato for business, family occasions, or relaxing holidays.
@@ -740,64 +813,40 @@ export default function Home() {
                 available with or without freshly cooked breakfast.
               </p>
 
-              {/* 4 Frosted Aurora Metric Cards */}
+              {/* 4 Bento Metric Cards */}
               <div className="row g-3">
                 <div className="col-6 col-sm-3">
-                  <div
-                    className="p-3.5 rounded-3 text-center"
-                    style={{
-                      backgroundColor: "rgba(255, 255, 255, 0.8)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(205, 235, 207, 0.7)",
-                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
-                    }}
-                  >
-                    <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>2</div>
-                    <div className="small fw-semibold text-secondary mt-1">Floors</div>
-                  </div>
-                </div>
-                <div className="col-6 col-sm-3">
-                  <div
-                    className="p-3.5 rounded-3 text-center"
-                    style={{
-                      backgroundColor: "rgba(255, 255, 255, 0.8)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(205, 235, 207, 0.7)",
-                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
-                    }}
-                  >
-                    <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>3</div>
-                    <div className="small fw-semibold text-secondary mt-1">Room Types</div>
-                  </div>
-                </div>
-                <div className="col-6 col-sm-3">
-                  <div
-                    className="p-3.5 rounded-3 text-center"
-                    style={{
-                      backgroundColor: "rgba(255, 255, 255, 0.8)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(205, 235, 207, 0.7)",
-                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
-                    }}
-                  >
-                    <div className="fw-bold fs-2" style={{ color: "#3FA34D" }}>
-                      {landingData.totalRooms > 0 ? landingData.totalRooms : 6}
+                  <div className="pcc-double-bezel">
+                    <div className="pcc-double-bezel-inner p-3.5 text-center">
+                      <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>2</div>
+                      <div className="small fw-semibold text-secondary mt-1">Floors</div>
                     </div>
-                    <div className="small fw-semibold text-secondary mt-1">Total Rooms</div>
                   </div>
                 </div>
                 <div className="col-6 col-sm-3">
-                  <div
-                    className="p-3.5 rounded-3 text-center"
-                    style={{
-                      backgroundColor: "rgba(255, 255, 255, 0.8)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(205, 235, 207, 0.7)",
-                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
-                    }}
-                  >
-                    <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>24/7</div>
-                    <div className="small fw-semibold text-secondary mt-1">Front Desk</div>
+                  <div className="pcc-double-bezel">
+                    <div className="pcc-double-bezel-inner p-3.5 text-center">
+                      <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>3</div>
+                      <div className="small fw-semibold text-secondary mt-1">Room Types</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-6 col-sm-3">
+                  <div className="pcc-double-bezel">
+                    <div className="pcc-double-bezel-inner p-3.5 text-center">
+                      <div className="fw-bold fs-2" style={{ color: "#3FA34D" }}>
+                        {landingData.totalRooms > 0 ? landingData.totalRooms : 6}
+                      </div>
+                      <div className="small fw-semibold text-secondary mt-1">Total Rooms</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-6 col-sm-3">
+                  <div className="pcc-double-bezel">
+                    <div className="pcc-double-bezel-inner p-3.5 text-center">
+                      <div className="fw-bold fs-2" style={{ color: "#2155B5" }}>24/7</div>
+                      <div className="small fw-semibold text-secondary mt-1">Front Desk</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -806,10 +855,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4. ACTIVE PROMOTIONS (Voucher Cards with Aurora Accents) */}
+      {/* 4. ACTIVE PROMOTIONS (Luxury Voucher / Boarding-Pass Cards) */}
       {landingData.promotions && landingData.promotions.length > 0 && (
-        <section className="py-5 py-lg-6" id="promotions" style={{ backgroundColor: "#F6FAF7" }}>
-          <div className="container">
+        <section className="py-5 py-lg-6" id="promotions" style={{ zIndex: 1 }}>
+          <div className="container" style={{ maxWidth: "1140px" }}>
             <div className="text-center mb-5">
               <span
                 className="badge px-3 py-1.5 rounded-pill small fw-bold font-monospace mb-2"
@@ -829,79 +878,74 @@ export default function Home() {
             <div className="row g-4 justify-content-center">
               {visiblePromos.map((promo) => (
                 <div key={promo.promotionID} className="col-md-6 col-lg-4">
-                  <div
-                    className="rounded-4 p-4 d-flex flex-column justify-content-between h-100 position-relative overflow-hidden"
-                    style={{
-                      backgroundColor: "rgba(255, 255, 255, 0.9)",
-                      backdropFilter: "blur(14px)",
-                      border: "1px solid rgba(205, 235, 207, 0.8)",
-                      boxShadow: "0 10px 30px -10px rgba(33, 85, 181, 0.12)"
-                    }}
-                  >
-                    {/* Top Aurora Line */}
-                    <div
-                      className="position-absolute top-0 start-0 w-100"
-                      style={{
-                        height: "4px",
-                        background: "linear-gradient(90deg, #2155B5 0%, #3FA34D 100%)"
-                      }}
-                    />
-
-                    <div>
-                      <div className="d-flex justify-content-between align-items-start mb-2.5">
-                        <h4 className="fw-bold text-dark mb-0 fs-5">{promo.name}</h4>
-                        <span
-                          className="badge text-white px-2.5 py-1 rounded-pill fw-bold"
-                          style={{
-                            background: "linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)",
-                            boxShadow: "0 2px 8px rgba(225, 29, 72, 0.3)"
-                          }}
-                        >
-                          {promo.percentage}% OFF
-                        </span>
-                      </div>
-                      <p className="text-secondary small mb-3">
-                        {promo.description || "Special promotional rate for lodging bookings."}
-                      </p>
-
+                  <div className="pcc-double-bezel h-100">
+                    <div className="pcc-double-bezel-inner p-4 d-flex flex-column justify-content-between h-100 position-relative overflow-hidden">
+                      {/* Top Accent Gradient Bar */}
                       <div
-                        className="p-2.5 rounded-3 small mb-3.5"
+                        className="position-absolute top-0 start-0 w-100"
                         style={{
-                          backgroundColor: "rgba(246, 250, 247, 0.8)",
-                          border: "1px solid rgba(205, 235, 207, 0.6)"
+                          height: "4px",
+                          background: "linear-gradient(90deg, #2155B5 0%, #3FA34D 100%)"
                         }}
-                      >
-                        <div className="d-flex align-items-center gap-1.5 mb-1 text-secondary">
-                          <Calendar size={13} style={{ color: "#2155B5" }} />
-                          <span>
-                            <strong>Valid:</strong> {new Date(promo.startDate).toLocaleDateString()} &ndash;{" "}
-                            {new Date(promo.endDate).toLocaleDateString()}
+                      />
+
+                      <div>
+                        <div className="d-flex justify-content-between align-items-start mb-2.5">
+                          <h4 className="fw-bold text-dark mb-0 fs-5">{promo.name}</h4>
+                          <span
+                            className="badge text-white px-2.5 py-1 rounded-pill fw-bold"
+                            style={{
+                              background: "linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)",
+                              boxShadow: "0 2px 8px rgba(225, 29, 72, 0.3)"
+                            }}
+                          >
+                            {promo.percentage}% OFF
                           </span>
                         </div>
-                        {promo.roomTypeName && (
-                          <div className="d-flex align-items-center gap-1.5 text-secondary">
-                            <Bed size={13} style={{ color: "#3FA34D" }} />
+                        <p className="text-secondary small mb-3">
+                          {promo.description || "Special promotional rate for lodging bookings."}
+                        </p>
+
+                        <div
+                          className="p-2.5 rounded-3 small mb-3.5"
+                          style={{
+                            backgroundColor: "rgba(246, 250, 247, 0.8)",
+                            border: "1px solid rgba(205, 235, 207, 0.6)"
+                          }}
+                        >
+                          <div className="d-flex align-items-center gap-1.5 mb-1 text-secondary">
+                            <Calendar size={13} style={{ color: "#2155B5" }} />
                             <span>
-                              <strong>Applicable:</strong> {promo.roomTypeName}
+                              <strong>Valid:</strong> {new Date(promo.startDate).toLocaleDateString()} &ndash;{" "}
+                              {new Date(promo.endDate).toLocaleDateString()}
                             </span>
                           </div>
-                        )}
+                          {promo.roomTypeName && (
+                            <div className="d-flex align-items-center gap-1.5 text-secondary">
+                              <Bed size={13} style={{ color: "#3FA34D" }} />
+                              <span>
+                                <strong>Applicable:</strong> {promo.roomTypeName}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div>
-                      <Link
-                        href="/auth/register"
-                        className="btn w-100 py-2.5 fw-bold text-white rounded-pill d-flex align-items-center justify-content-center gap-2"
-                        style={{
-                          background: "linear-gradient(135deg, #2155B5 0%, #163E82 100%)",
-                          border: "none",
-                          boxShadow: "0 4px 15px rgba(33, 85, 181, 0.25)"
-                        }}
-                      >
-                        <span>Claim Promo &amp; Book</span>
-                        <ArrowRight size={14} />
-                      </Link>
+                      <div>
+                        <Link
+                          href="/auth/register"
+                          className="pcc-btn-pill w-100 py-2.5 text-white"
+                          style={{
+                            background: "linear-gradient(135deg, #2155B5 0%, #163E82 100%)",
+                            boxShadow: "0 4px 15px rgba(33, 85, 181, 0.25)"
+                          }}
+                        >
+                          <span>Claim Promo &amp; Book</span>
+                          <span className="pcc-btn-icon-circle" style={{ width: "1.5rem", height: "1.5rem" }}>
+                            <ArrowRight size={13} />
+                          </span>
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -928,20 +972,11 @@ export default function Home() {
         </section>
       )}
 
-      {/* 5. ROOMS & RATES (Aurora Accommodation Showcase) */}
-      <section
-        className="py-5 py-lg-6 position-relative"
-        id="rooms"
-        style={{
-          background: `
-            radial-gradient(circle at 90% 20%, rgba(33, 85, 181, 0.1) 0%, transparent 40%),
-            radial-gradient(circle at 10% 80%, rgba(63, 163, 77, 0.12) 0%, transparent 40%),
-            #E5EFE6
-          `
-        }}
-      >
-        <div className="container">
-          <div className="text-center mb-5">
+      {/* 5. ARCHITECTURAL ROOMS & RATES SHOWCASE */}
+      <section className="py-5 py-lg-6 position-relative" id="rooms" style={{ zIndex: 1 }}>
+        <div className="container" style={{ maxWidth: "1140px" }}>
+          {/* Header */}
+          <div className="text-center mb-4">
             <span
               className="badge px-3 py-1.5 rounded-pill small fw-bold font-monospace mb-2"
               style={{
@@ -953,203 +988,194 @@ export default function Home() {
             </span>
             <h2 className="display-6 fw-bold text-dark mb-2">Rooms &amp; Rates</h2>
             <p className="text-secondary small" style={{ maxWidth: "520px", margin: "0 auto" }}>
-              Choose your ideal space. All rooms include clean linens, toiletries, and optional fresh breakfast.
+              Choose your ideal space. All rooms include clean sanitized linens, toiletries, and optional fresh breakfast.
             </p>
           </div>
 
-          {allRooms.length > 0 ? (
+          {/* Floor Navigation Filter Tabs */}
+          <div className="d-flex justify-content-center gap-2 mb-5">
+            <button
+              type="button"
+              className={`btn btn-sm px-3.5 py-1.5 rounded-pill fw-bold transition ${
+                selectedFloor === "all" ? "btn-primary text-white shadow-xs" : "btn-light text-secondary border"
+              }`}
+              style={selectedFloor === "all" ? { background: "#2155B5", borderColor: "#2155B5" } : {}}
+              onClick={() => setSelectedFloor("all")}
+            >
+              All Rooms
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-3.5 py-1.5 rounded-pill fw-bold transition ${
+                selectedFloor === "ground" ? "btn-primary text-white shadow-xs" : "btn-light text-secondary border"
+              }`}
+              style={selectedFloor === "ground" ? { background: "#2155B5", borderColor: "#2155B5" } : {}}
+              onClick={() => setSelectedFloor("ground")}
+            >
+              Ground Floor
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm px-3.5 py-1.5 rounded-pill fw-bold transition ${
+                selectedFloor === "second" ? "btn-primary text-white shadow-xs" : "btn-light text-secondary border"
+              }`}
+              style={selectedFloor === "second" ? { background: "#2155B5", borderColor: "#2155B5" } : {}}
+              onClick={() => setSelectedFloor("second")}
+            >
+              Second Floor
+            </button>
+          </div>
+
+          {/* Room Cards Grid */}
+          {filteredRooms.length > 0 ? (
             <>
-              {(() => {
-                const roomsByFloor = visibleRooms.reduce((acc, rm) => {
-                  const floorKey = rm.floorName || (rm.floorID === 2 ? "Second Floor" : "Ground Floor");
-                  if (!acc[floorKey]) acc[floorKey] = [];
-                  acc[floorKey].push(rm);
-                  return acc;
-                }, {});
+              <div className="row g-4">
+                {visibleRooms.map((rm) => {
+                  const parsedImages = parseRoomImages(rm.image);
+                  const defaultImg = defaultRoomImages[rm.roomType] || null;
+                  const hasCustomBreakfast = rm.breakfastRate !== null && rm.breakfastRate !== undefined;
+                  const isBreakfastFree = hasCustomBreakfast && parseFloat(rm.breakfastRate) === 0;
+                  const breakfastDiff = hasCustomBreakfast
+                    ? parseFloat(rm.breakfastRate)
+                    : parseFloat(rm.rateWithBreakfast || 0) - parseFloat(rm.rateWithoutBreakfast || 0);
 
-                return Object.entries(roomsByFloor).map(([floorName, floorRooms], fIdx) => (
-                  <div key={floorName} className={`mb-5 ${fIdx === Object.keys(roomsByFloor).length - 1 ? "mb-0" : ""}`}>
-                    {/* Floor Header Bar */}
-                    <div className="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom border-slate-300">
-                      <div className="d-flex align-items-center gap-2.5">
-                        <span
-                          className="badge text-white font-monospace fw-bold px-3 py-1.5 rounded-pill"
-                          style={{
-                            background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
-                            boxShadow: "0 2px 10px rgba(33, 85, 181, 0.25)"
-                          }}
-                        >
-                          FLOOR {String(fIdx + 1).padStart(2, "0")}
-                        </span>
-                        <div>
-                          <h4 className="fw-bold text-dark mb-0 fs-5">{floorName}</h4>
-                          <span className="text-secondary small font-monospace">
-                            {floorRooms.length} room{floorRooms.length > 1 ? "s" : ""} available on this floor
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  return (
+                    <div key={rm.roomID} className="col-md-6 col-lg-4">
+                      <div className="pcc-double-bezel h-100 pcc-card-interactive">
+                        <div className="pcc-double-bezel-inner overflow-hidden h-100 d-flex flex-column justify-content-between position-relative">
+                          <div>
+                            {/* Carousel Container with Frosted Status Chips */}
+                            <div className="position-relative overflow-hidden" style={{ height: "240px" }}>
+                              <RoomImageCarousel
+                                images={parsedImages}
+                                fallbackImg={defaultImg}
+                                alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
+                                height="240px"
+                              />
+                              <span
+                                className="badge position-absolute top-0 start-0 m-2.5 px-2.5 py-1 rounded-pill text-white font-monospace small shadow-xs"
+                                style={{
+                                  backgroundColor: "rgba(15, 23, 42, 0.7)",
+                                  backdropFilter: "blur(8px)",
+                                  zIndex: 6
+                                }}
+                              >
+                                {rm.floorName || (rm.floorID === 2 ? "Second Floor" : "Ground Floor")}
+                              </span>
+                              <span
+                                className={`badge position-absolute top-0 end-0 m-2.5 px-2.5 py-1 rounded-pill font-monospace small d-flex align-items-center gap-1.5 shadow-xs ${
+                                  rm.status === "Available" ? "bg-success text-white" : "bg-warning text-dark"
+                                }`}
+                                style={{ zIndex: 6 }}
+                              >
+                                {rm.status === "Available" && (
+                                  <span className="rounded-circle bg-white" style={{ width: "6px", height: "6px" }} />
+                                )}
+                                <span>Room {rm.roomNumber} &bull; {rm.status}</span>
+                              </span>
+                            </div>
 
-                    <div className="row g-4">
-                      {floorRooms.map((rm) => {
-                        const parsedImages = parseRoomImages(rm.image);
-                        const defaultImg = defaultRoomImages[rm.roomType] || null;
-                        const hasCustomBreakfast = rm.breakfastRate !== null && rm.breakfastRate !== undefined;
-                        const isBreakfastFree = hasCustomBreakfast && parseFloat(rm.breakfastRate) === 0;
-                        const breakfastDiff = hasCustomBreakfast
-                          ? parseFloat(rm.breakfastRate)
-                          : parseFloat(rm.rateWithBreakfast || 0) - parseFloat(rm.rateWithoutBreakfast || 0);
+                            {/* Card Content */}
+                            <div className="p-4">
+                              <h4 className="fw-bold text-dark mb-1 fs-5">
+                                {rm.roomType}{" "}
+                                <span className="text-secondary fw-normal font-monospace" style={{ fontSize: "0.85rem" }}>
+                                  (Room {rm.roomNumber})
+                                </span>
+                              </h4>
 
-                        return (
-                          <div key={rm.roomID} className="col-md-6 col-lg-4">
-                            <div
-                              className="rounded-4 overflow-hidden h-100 d-flex flex-column justify-content-between position-relative"
-                              style={{
-                                backgroundColor: "rgba(255, 255, 255, 0.92)",
-                                backdropFilter: "blur(16px)",
-                                border: "1px solid rgba(255, 255, 255, 0.8)",
-                                boxShadow: "0 12px 32px -8px rgba(33, 85, 181, 0.12)"
-                              }}
-                            >
-                              <div>
-                                {/* Carousel Box with Frosted Badges */}
-                                <div className="position-relative overflow-hidden" style={{ height: "230px" }}>
-                                  <RoomImageCarousel
-                                    images={parsedImages}
-                                    fallbackImg={defaultImg}
-                                    alt={`Room ${rm.roomNumber} - ${rm.roomType}`}
-                                    height="230px"
-                                  />
-                                  <span
-                                    className="badge position-absolute top-0 start-0 m-2.5 px-2.5 py-1 rounded-pill text-white font-monospace small"
-                                    style={{
-                                      backgroundColor: "rgba(15, 23, 42, 0.65)",
-                                      backdropFilter: "blur(8px)",
-                                      zIndex: 6
-                                    }}
-                                  >
-                                    {rm.floorName || floorName}
-                                  </span>
-                                  <span
-                                    className={`badge position-absolute top-0 end-0 m-2.5 px-2.5 py-1 rounded-pill font-monospace small d-flex align-items-center gap-1.5 ${
-                                      rm.status === "Available"
-                                        ? "bg-success text-white"
-                                        : "bg-warning text-dark"
-                                    }`}
-                                    style={{ zIndex: 6 }}
-                                  >
-                                    {rm.status === "Available" && (
-                                      <span
-                                        className="rounded-circle bg-white"
-                                        style={{ width: "6px", height: "6px" }}
-                                      />
-                                    )}
-                                    <span>Room {rm.roomNumber} &bull; {rm.status}</span>
-                                  </span>
-                                </div>
-
-                                {/* Body */}
-                                <div className="p-4">
-                                  <h4 className="fw-bold text-dark mb-1 fs-5">
-                                    {rm.roomType}{" "}
-                                    <span className="text-secondary fw-normal font-monospace" style={{ fontSize: "0.85rem" }}>
-                                      (Room {rm.roomNumber})
-                                    </span>
-                                  </h4>
-
-                                  <div className="d-flex align-items-center gap-1.5 text-secondary small mb-2.5">
-                                    <Users size={14} style={{ color: "#3FA34D" }} />
-                                    <span>Max Occupancy: {rm.occupancyLimit || 4} Guests</span>
-                                  </div>
-
-                                  <p className="text-secondary small mb-3" style={{ minHeight: "38px", lineHeight: "1.5" }}>
-                                    {rm.description ||
-                                      rm.typeDescription ||
-                                      "Comfortable stay with essential amenities, fresh linens, and daily housekeeping."}
-                                  </p>
-
-                                  {/* Pricing Breakdown Box */}
-                                  <div
-                                    className="p-3 rounded-3 mb-3 small"
-                                    style={{
-                                      backgroundColor: "rgba(246, 250, 247, 0.8)",
-                                      border: "1px solid rgba(205, 235, 207, 0.8)"
-                                    }}
-                                  >
-                                    <div className="d-flex justify-content-between align-items-center mb-1.5">
-                                      <span className="text-secondary">Without Breakfast:</span>
-                                      <span className="fw-bold text-dark font-monospace">
-                                        ₱
-                                        {parseFloat(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, {
-                                          minimumFractionDigits: 2
-                                        })}
-                                      </span>
-                                    </div>
-                                    <div className="d-flex justify-content-between align-items-center mb-2">
-                                      <span className="text-secondary">With Breakfast:</span>
-                                      <span className="fw-bold font-monospace" style={{ color: "#2155B5" }}>
-                                        ₱
-                                        {parseFloat(rm.rateWithBreakfast || 0).toLocaleString(undefined, {
-                                          minimumFractionDigits: 2
-                                        })}
-                                      </span>
-                                    </div>
-                                    <div className="d-flex justify-content-between align-items-center pt-2 border-top border-slate-200">
-                                      <span className="text-secondary">Breakfast Option:</span>
-                                      {isBreakfastFree ? (
-                                        <span
-                                          className="badge px-2 py-0.5 rounded-pill font-monospace"
-                                          style={{
-                                            backgroundColor: "rgba(63, 163, 77, 0.15)",
-                                            color: "#3FA34D"
-                                          }}
-                                        >
-                                          FREE / INCLUDED
-                                        </span>
-                                      ) : (
-                                        <span className="fw-bold font-monospace" style={{ color: "#3FA34D" }}>
-                                          +₱{breakfastDiff.toFixed(2)} meal add-on
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
+                              <div className="d-flex align-items-center gap-1.5 text-secondary small mb-2.5">
+                                <Users size={14} style={{ color: "#3FA34D" }} />
+                                <span>Max Occupancy: {rm.occupancyLimit || 4} Guests</span>
                               </div>
 
-                              {/* Card Action */}
-                              <div className="p-4 pt-0">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRoomType(rm.roomType);
-                                    setCheckIn(minCheckIn);
-                                    window.scrollTo({ top: 0, behavior: "smooth" });
-                                  }}
-                                  className="btn w-100 py-2.5 fw-bold text-white rounded-pill d-flex align-items-center justify-content-center gap-2"
-                                  style={{
-                                    background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
-                                    border: "none",
-                                    boxShadow: "0 4px 15px rgba(33, 85, 181, 0.25)"
-                                  }}
-                                >
-                                  <span>Check &amp; Reserve</span>
-                                  <ArrowRight size={15} />
-                                </button>
+                              <p className="text-secondary small mb-3" style={{ minHeight: "38px", lineHeight: "1.5" }}>
+                                {rm.description ||
+                                  rm.typeDescription ||
+                                  "Comfortable stay with essential amenities, fresh linens, and daily housekeeping."}
+                              </p>
+
+                              {/* Structured Pricing Breakdown */}
+                              <div
+                                className="p-3 rounded-3 mb-3 small"
+                                style={{
+                                  backgroundColor: "rgba(246, 250, 247, 0.8)",
+                                  border: "1px solid rgba(205, 235, 207, 0.8)"
+                                }}
+                              >
+                                <div className="d-flex justify-content-between align-items-center mb-1.5">
+                                  <span className="text-secondary">Without Breakfast:</span>
+                                  <span className="fw-bold text-dark font-monospace">
+                                    ₱
+                                    {parseFloat(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, {
+                                      minimumFractionDigits: 2
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <span className="text-secondary">With Breakfast:</span>
+                                  <span className="fw-bold font-monospace" style={{ color: "#2155B5" }}>
+                                    ₱
+                                    {parseFloat(rm.rateWithBreakfast || 0).toLocaleString(undefined, {
+                                      minimumFractionDigits: 2
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="d-flex justify-content-between align-items-center pt-2 border-top border-slate-200">
+                                  <span className="text-secondary">Breakfast Option:</span>
+                                  {isBreakfastFree ? (
+                                    <span
+                                      className="badge px-2 py-0.5 rounded-pill font-monospace"
+                                      style={{
+                                        backgroundColor: "rgba(63, 163, 77, 0.15)",
+                                        color: "#3FA34D"
+                                      }}
+                                    >
+                                      FREE / INCLUDED
+                                    </span>
+                                  ) : (
+                                    <span className="fw-bold font-monospace" style={{ color: "#3FA34D" }}>
+                                      +₱{breakfastDiff.toFixed(2)} meal add-on
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ));
-              })()}
 
-              {allRooms.length > VISIBLE_COUNT && (
-                <div className="text-center mt-4 pt-2">
+                          {/* Card Action */}
+                          <div className="p-4 pt-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRoomType(rm.roomType);
+                                setCheckIn(minCheckIn);
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              className="pcc-btn-pill w-100 py-2.5 text-white"
+                              style={{
+                                background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                                boxShadow: "0 4px 15px rgba(33, 85, 181, 0.25)"
+                              }}
+                            >
+                              <span>Check &amp; Reserve</span>
+                              <span className="pcc-btn-icon-circle" style={{ width: "1.5rem", height: "1.5rem" }}>
+                                <ArrowRight size={13} />
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {filteredRooms.length > VISIBLE_COUNT && (
+                <div className="text-center mt-5 pt-2">
                   <button
                     type="button"
-                    className="btn px-4 py-2 rounded-pill fw-bold"
+                    className="btn px-4 py-2.5 rounded-pill fw-bold shadow-xs"
                     style={{
                       backgroundColor: "rgba(255, 255, 255, 0.9)",
                       border: "1px solid rgba(33, 85, 181, 0.3)",
@@ -1157,7 +1183,7 @@ export default function Home() {
                     }}
                     onClick={() => setShowAllRooms((v) => !v)}
                   >
-                    {showAllRooms ? "Show Less" : `See More (${allRooms.length - VISIBLE_COUNT} more rooms)`}
+                    {showAllRooms ? "Show Less" : `See More (${filteredRooms.length - VISIBLE_COUNT} more rooms)`}
                   </button>
                 </div>
               )}
@@ -1166,42 +1192,48 @@ export default function Home() {
             /* Fallback Cards */
             <div className="row g-4 justify-content-center">
               <div className="col-md-4">
-                <div className="rounded-4 p-4 text-center bg-white shadow-sm border border-slate-200">
-                  <img
-                    src={defaultRoomImages["Standard Matrimonial"]}
-                    alt="Standard Matrimonial"
-                    className="rounded-3 mb-3 w-100 object-fit-cover"
-                    style={{ height: "170px" }}
-                  />
-                  <h4 className="fw-bold text-dark fs-5">Standard Matrimonial</h4>
-                  <p className="text-secondary small mb-2">Sleeps 2–4 · Daily housekeeping</p>
-                  <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱1,200 / night</div>
+                <div className="pcc-double-bezel">
+                  <div className="pcc-double-bezel-inner p-4 text-center">
+                    <img
+                      src={defaultRoomImages["Standard Matrimonial"]}
+                      alt="Standard Matrimonial"
+                      className="rounded-3 mb-3 w-100 object-fit-cover"
+                      style={{ height: "180px" }}
+                    />
+                    <h4 className="fw-bold text-dark fs-5">Standard Matrimonial</h4>
+                    <p className="text-secondary small mb-2">Sleeps 2–4 · Daily housekeeping</p>
+                    <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱1,200 / night</div>
+                  </div>
                 </div>
               </div>
               <div className="col-md-4">
-                <div className="rounded-4 p-4 text-center bg-white shadow-sm border border-slate-200">
-                  <img
-                    src={defaultRoomImages["Twin Matrimonial"]}
-                    alt="Twin Matrimonial"
-                    className="rounded-3 mb-3 w-100 object-fit-cover"
-                    style={{ height: "170px" }}
-                  />
-                  <h4 className="fw-bold text-dark fs-5">Twin Matrimonial</h4>
-                  <p className="text-secondary small mb-2">Sleeps 4–5 · Ideal for families</p>
-                  <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱1,300 / night</div>
+                <div className="pcc-double-bezel">
+                  <div className="pcc-double-bezel-inner p-4 text-center">
+                    <img
+                      src={defaultRoomImages["Twin Matrimonial"]}
+                      alt="Twin Matrimonial"
+                      className="rounded-3 mb-3 w-100 object-fit-cover"
+                      style={{ height: "180px" }}
+                    />
+                    <h4 className="fw-bold text-dark fs-5">Twin Matrimonial</h4>
+                    <p className="text-secondary small mb-2">Sleeps 4–5 · Ideal for families</p>
+                    <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱1,300 / night</div>
+                  </div>
                 </div>
               </div>
               <div className="col-md-4">
-                <div className="rounded-4 p-4 text-center bg-white shadow-sm border border-slate-200">
-                  <img
-                    src={defaultRoomImages["Deluxe Matrimonial"]}
-                    alt="Deluxe Matrimonial"
-                    className="rounded-3 mb-3 w-100 object-fit-cover"
-                    style={{ height: "170px" }}
-                  />
-                  <h4 className="fw-bold text-dark fs-5">Deluxe Matrimonial</h4>
-                  <p className="text-secondary small mb-2">Sleeps 5–7 · Spacious &amp; premium</p>
-                  <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱2,100 / night</div>
+                <div className="pcc-double-bezel">
+                  <div className="pcc-double-bezel-inner p-4 text-center">
+                    <img
+                      src={defaultRoomImages["Deluxe Matrimonial"]}
+                      alt="Deluxe Matrimonial"
+                      className="rounded-3 mb-3 w-100 object-fit-cover"
+                      style={{ height: "180px" }}
+                    />
+                    <h4 className="fw-bold text-dark fs-5">Deluxe Matrimonial</h4>
+                    <p className="text-secondary small mb-2">Sleeps 5–7 · Spacious &amp; premium</p>
+                    <div className="fw-bold fs-5 font-monospace" style={{ color: "#2155B5" }}>₱2,100 / night</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1209,9 +1241,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6. AMENITIES SECTION */}
-      <section className="py-5 py-lg-6" id="amenities" style={{ backgroundColor: "#F6FAF7" }}>
-        <div className="container">
+      {/* 6. CURATED AMENITIES & FACILITIES BENTO */}
+      <section className="py-5 py-lg-6" id="amenities" style={{ zIndex: 1 }}>
+        <div className="container" style={{ maxWidth: "1140px" }}>
           <div className="text-center mb-5">
             <span
               className="badge px-3 py-1.5 rounded-pill small fw-bold font-monospace mb-2"
@@ -1224,104 +1256,116 @@ export default function Home() {
             </span>
             <h2 className="display-6 fw-bold text-dark mb-2">Amenities &amp; Facilities</h2>
             <p className="text-secondary small" style={{ maxWidth: "480px", margin: "0 auto" }}>
-              Everything provided to ensure a seamless, restful lodging experience in Koronadal.
+              Everything curated to ensure a peaceful, seamless, and restful stay in Koronadal.
             </p>
           </div>
 
           <div className="row g-4">
-            <div className="col-md-3 col-6">
-              <div
-                className="p-4 rounded-4 text-center h-100"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.8)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(205, 235, 207, 0.8)",
-                  boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.04)"
-                }}
-              >
-                <div
-                  className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(33, 85, 181, 0.12) 0%, rgba(63, 163, 77, 0.12) 100%)",
-                    color: "#2155B5"
-                  }}
-                >
-                  <Bed size={24} />
+            <div className="col-md-4 col-sm-6">
+              <div className="pcc-double-bezel h-100 pcc-card-interactive">
+                <div className="pcc-double-bezel-inner p-4 text-center h-100 d-flex flex-column align-items-center">
+                  <div
+                    className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(33, 85, 181, 0.12) 0%, rgba(63, 163, 77, 0.12) 100%)",
+                      color: "#2155B5"
+                    }}
+                  >
+                    <Bed size={26} />
+                  </div>
+                  <h4 className="fw-bold text-dark fs-6 mb-1.5">Sanitized Linens &amp; Beds</h4>
+                  <p className="text-secondary small mb-0">High-thread-count clean bedding, fresh towels, and daily housekeeping.</p>
                 </div>
-                <h4 className="fw-bold text-dark fs-6 mb-1.5">Clean Linens</h4>
-                <p className="text-secondary small mb-0">Sanitized bedding and crisp towels for each guest.</p>
               </div>
             </div>
 
-            <div className="col-md-3 col-6">
-              <div
-                className="p-4 rounded-4 text-center h-100"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.8)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(205, 235, 207, 0.8)",
-                  boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.04)"
-                }}
-              >
-                <div
-                  className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(63, 163, 77, 0.12) 0%, rgba(205, 235, 207, 0.4) 100%)",
-                    color: "#3FA34D"
-                  }}
-                >
-                  <Wifi size={24} />
+            <div className="col-md-4 col-sm-6">
+              <div className="pcc-double-bezel h-100 pcc-card-interactive">
+                <div className="pcc-double-bezel-inner p-4 text-center h-100 d-flex flex-column align-items-center">
+                  <div
+                    className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(63, 163, 77, 0.12) 0%, rgba(205, 235, 207, 0.4) 100%)",
+                      color: "#3FA34D"
+                    }}
+                  >
+                    <Wifi size={26} />
+                  </div>
+                  <h4 className="fw-bold text-dark fs-6 mb-1.5">High-Speed Fiber Wi-Fi</h4>
+                  <p className="text-secondary small mb-0">Reliable, high-speed wireless connectivity accessible across all rooms and floors.</p>
                 </div>
-                <h4 className="fw-bold text-dark fs-6 mb-1.5">Free Wi-Fi</h4>
-                <p className="text-secondary small mb-0">Fast internet connection available on all floors.</p>
               </div>
             </div>
 
-            <div className="col-md-3 col-6">
-              <div
-                className="p-4 rounded-4 text-center h-100"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.8)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(205, 235, 207, 0.8)",
-                  boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.04)"
-                }}
-              >
-                <div
-                  className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(234, 88, 12, 0.12) 0%, rgba(245, 158, 11, 0.15) 100%)",
-                    color: "#ea580c"
-                  }}
-                >
-                  <Coffee size={24} />
+            <div className="col-md-4 col-sm-6">
+              <div className="pcc-double-bezel h-100 pcc-card-interactive">
+                <div className="pcc-double-bezel-inner p-4 text-center h-100 d-flex flex-column align-items-center">
+                  <div
+                    className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(234, 88, 12, 0.12) 0%, rgba(245, 158, 11, 0.15) 100%)",
+                      color: "#ea580c"
+                    }}
+                  >
+                    <Coffee size={26} />
+                  </div>
+                  <h4 className="fw-bold text-dark fs-6 mb-1.5">Cooked Breakfast Option</h4>
+                  <p className="text-secondary small mb-0">Freshly prepared, home-style morning meals served right when you wake up.</p>
                 </div>
-                <h4 className="fw-bold text-dark fs-6 mb-1.5">Breakfast Option</h4>
-                <p className="text-secondary small mb-0">Freshly prepared morning meals cooked upon request.</p>
               </div>
             </div>
 
-            <div className="col-md-3 col-6">
-              <div
-                className="p-4 rounded-4 text-center h-100"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.8)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(205, 235, 207, 0.8)",
-                  boxShadow: "0 8px 24px -6px rgba(0, 0, 0, 0.04)"
-                }}
-              >
-                <div
-                  className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(33, 85, 181, 0.12) 0%, rgba(22, 62, 130, 0.15) 100%)",
-                    color: "#163E82"
-                  }}
-                >
-                  <Clock size={24} />
+            <div className="col-md-4 col-sm-6">
+              <div className="pcc-double-bezel h-100 pcc-card-interactive">
+                <div className="pcc-double-bezel-inner p-4 text-center h-100 d-flex flex-column align-items-center">
+                  <div
+                    className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(33, 85, 181, 0.12) 0%, rgba(22, 62, 130, 0.15) 100%)",
+                      color: "#163E82"
+                    }}
+                  >
+                    <Clock size={26} />
+                  </div>
+                  <h4 className="fw-bold text-dark fs-6 mb-1.5">24/7 Front Desk Concierge</h4>
+                  <p className="text-secondary small mb-0">Courteous, round-the-clock staff ready to accommodate check-ins at any hour.</p>
                 </div>
-                <h4 className="fw-bold text-dark fs-6 mb-1.5">24/7 Front Desk</h4>
-                <p className="text-secondary small mb-0">Friendly staff ready to assist at any hour of the day.</p>
+              </div>
+            </div>
+
+            <div className="col-md-4 col-sm-6">
+              <div className="pcc-double-bezel h-100 pcc-card-interactive">
+                <div className="pcc-double-bezel-inner p-4 text-center h-100 d-flex flex-column align-items-center">
+                  <div
+                    className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(56, 189, 248, 0.2) 100%)",
+                      color: "#0284c7"
+                    }}
+                  >
+                    <AirVent size={26} />
+                  </div>
+                  <h4 className="fw-bold text-dark fs-6 mb-1.5">Air-Conditioned Sanctuaries</h4>
+                  <p className="text-secondary small mb-0">Quiet, efficient climate control keeping your private room cool and tranquil.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-4 col-sm-6">
+              <div className="pcc-double-bezel h-100 pcc-card-interactive">
+                <div className="pcc-double-bezel-inner p-4 text-center h-100 d-flex flex-column align-items-center">
+                  <div
+                    className="rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-3"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(74, 222, 128, 0.2) 100%)",
+                      color: "#16a34a"
+                    }}
+                  >
+                    <Car size={26} />
+                  </div>
+                  <h4 className="fw-bold text-dark fs-6 mb-1.5">Secure On-Site Parking</h4>
+                  <p className="text-secondary small mb-0">Peace of mind with gated, monitored vehicle parking for registered guests.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1329,18 +1373,8 @@ export default function Home() {
       </section>
 
       {/* 7. GUEST REVIEWS & TRAVELER TESTIMONIALS */}
-      <section
-        className="py-5 py-lg-6"
-        id="testimonials"
-        style={{
-          background: `
-            radial-gradient(circle at 10% 20%, rgba(33, 85, 181, 0.08) 0%, transparent 40%),
-            radial-gradient(circle at 90% 80%, rgba(63, 163, 77, 0.1) 0%, transparent 40%),
-            #E5EFE6
-          `
-        }}
-      >
-        <div className="container">
+      <section className="py-5 py-lg-6" id="testimonials" style={{ zIndex: 1 }}>
+        <div className="container" style={{ maxWidth: "1140px" }}>
           <div className="text-center mb-5">
             <span
               className="badge px-3 py-1.5 rounded-pill small fw-bold font-monospace mb-2"
@@ -1359,129 +1393,111 @@ export default function Home() {
 
           <div className="row g-4">
             <div className="col-md-4">
-              <div
-                className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.9)",
-                  backdropFilter: "blur(14px)",
-                  border: "1px solid rgba(255, 255, 255, 0.8)",
-                  boxShadow: "0 10px 30px -10px rgba(33, 85, 181, 0.1)"
-                }}
-              >
-                <div>
-                  <div className="d-flex align-items-center gap-1 mb-3 text-warning">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={16} fill="currentColor" />
-                    ))}
-                  </div>
-                  <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
-                    &ldquo;Super clean rooms and very convenient location along Osmeña Street.
-                    The front desk staff were accommodating even with our late 10 PM check-in.&rdquo;
-                  </p>
-                </div>
-                <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-200">
-                  <div
-                    className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center"
-                    style={{
-                      width: "38px",
-                      height: "38px",
-                      background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
-                      fontSize: "0.85rem"
-                    }}
-                  >
-                    MR
-                  </div>
+              <div className="pcc-double-bezel h-100">
+                <div className="pcc-double-bezel-inner p-4 h-100 d-flex flex-column justify-content-between">
                   <div>
-                    <h6 className="fw-bold text-dark mb-0 fs-6">Maria R.</h6>
-                    <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
-                      Family Trip &bull; Deluxe Matrimonial
-                    </small>
+                    <div className="d-flex align-items-center gap-1 mb-3 text-warning">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={16} fill="currentColor" />
+                      ))}
+                    </div>
+                    <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
+                      &ldquo;Super clean rooms and very convenient location along Osmeña Street.
+                      The front desk staff were accommodating even with our late 10 PM check-in.&rdquo;
+                    </p>
+                  </div>
+                  <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-100">
+                    <div
+                      className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center shadow-xs"
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        background: "linear-gradient(135deg, #2155B5 0%, #3FA34D 100%)",
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      MR
+                    </div>
+                    <div>
+                      <h6 className="fw-bold text-dark mb-0 fs-6">Maria R.</h6>
+                      <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
+                        Family Trip &bull; Deluxe Matrimonial
+                      </small>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="col-md-4">
-              <div
-                className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.9)",
-                  backdropFilter: "blur(14px)",
-                  border: "1px solid rgba(255, 255, 255, 0.8)",
-                  boxShadow: "0 10px 30px -10px rgba(33, 85, 181, 0.1)"
-                }}
-              >
-                <div>
-                  <div className="d-flex align-items-center gap-1 mb-3 text-warning">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={16} fill="currentColor" />
-                    ))}
-                  </div>
-                  <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
-                    &ldquo;Budget-friendly rates without sacrificing bed comfort. Having the breakfast
-                    option made our early morning meetings so much easier.&rdquo;
-                  </p>
-                </div>
-                <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-200">
-                  <div
-                    className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center"
-                    style={{
-                      width: "38px",
-                      height: "38px",
-                      background: "linear-gradient(135deg, #3FA34D 0%, #163E82 100%)",
-                      fontSize: "0.85rem"
-                    }}
-                  >
-                    JD
-                  </div>
+              <div className="pcc-double-bezel h-100">
+                <div className="pcc-double-bezel-inner p-4 h-100 d-flex flex-column justify-content-between">
                   <div>
-                    <h6 className="fw-bold text-dark mb-0 fs-6">Jonathan D.</h6>
-                    <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
-                      Business Stay &bull; Standard Matrimonial
-                    </small>
+                    <div className="d-flex align-items-center gap-1 mb-3 text-warning">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={16} fill="currentColor" />
+                      ))}
+                    </div>
+                    <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
+                      &ldquo;Budget-friendly rates without sacrificing bed comfort. Having the breakfast
+                      option made our early morning meetings in Koronadal so much easier.&rdquo;
+                    </p>
+                  </div>
+                  <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-100">
+                    <div
+                      className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center shadow-xs"
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        background: "linear-gradient(135deg, #3FA34D 0%, #163E82 100%)",
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      JD
+                    </div>
+                    <div>
+                      <h6 className="fw-bold text-dark mb-0 fs-6">Jonathan D.</h6>
+                      <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
+                        Business Stay &bull; Standard Matrimonial
+                      </small>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="col-md-4">
-              <div
-                className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between"
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.9)",
-                  backdropFilter: "blur(14px)",
-                  border: "1px solid rgba(255, 255, 255, 0.8)",
-                  boxShadow: "0 10px 30px -10px rgba(33, 85, 181, 0.1)"
-                }}
-              >
-                <div>
-                  <div className="d-flex align-items-center gap-1 mb-3 text-warning">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={16} fill="currentColor" />
-                    ))}
-                  </div>
-                  <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
-                    &ldquo;Quiet and safe atmosphere. We stayed on the second floor twin room and had
-                    a wonderful restful weekend. Highly recommended in Koronadal!&rdquo;
-                  </p>
-                </div>
-                <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-200">
-                  <div
-                    className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center"
-                    style={{
-                      width: "38px",
-                      height: "38px",
-                      background: "linear-gradient(135deg, #163E82 0%, #2155B5 100%)",
-                      fontSize: "0.85rem"
-                    }}
-                  >
-                    ES
-                  </div>
+              <div className="pcc-double-bezel h-100">
+                <div className="pcc-double-bezel-inner p-4 h-100 d-flex flex-column justify-content-between">
                   <div>
-                    <h6 className="fw-bold text-dark mb-0 fs-6">Elena S.</h6>
-                    <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
-                      Weekend Vacation &bull; Twin Matrimonial
-                    </small>
+                    <div className="d-flex align-items-center gap-1 mb-3 text-warning">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={16} fill="currentColor" />
+                      ))}
+                    </div>
+                    <p className="text-secondary small mb-4" style={{ lineHeight: "1.7" }}>
+                      &ldquo;Quiet and safe atmosphere. We stayed on the second floor twin room and had
+                      a wonderful restful weekend. Highly recommended for families visiting Koronadal!&rdquo;
+                    </p>
+                  </div>
+                  <div className="d-flex align-items-center gap-3 pt-3 border-top border-slate-100">
+                    <div
+                      className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center shadow-xs"
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        background: "linear-gradient(135deg, #163E82 0%, #2155B5 100%)",
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      ES
+                    </div>
+                    <div>
+                      <h6 className="fw-bold text-dark mb-0 fs-6">Elena S.</h6>
+                      <small className="text-muted font-monospace" style={{ fontSize: "0.75rem" }}>
+                        Weekend Vacation &bull; Twin Matrimonial
+                      </small>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1490,14 +1506,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 8. STAY PLANNER / CONCIERGE CTA BANNER */}
-      <section className="py-5" style={{ backgroundColor: "#F6FAF7" }}>
-        <div className="container">
+      {/* 8. STAY PLANNER & CONCIERGE CTA BANNER */}
+      <section className="py-5" style={{ zIndex: 1 }}>
+        <div className="container" style={{ maxWidth: "1140px" }}>
           <div
-            className="p-4 p-md-5 rounded-4 text-white position-relative overflow-hidden"
+            className="p-4 p-md-5 rounded-4 text-white position-relative overflow-hidden shadow-lg"
             style={{
               background: "linear-gradient(135deg, #163E82 0%, #2155B5 50%, #3FA34D 100%)",
-              boxShadow: "0 20px 45px -12px rgba(33, 85, 181, 0.35)",
               border: "1px solid rgba(255, 255, 255, 0.25)"
             }}
           >
@@ -1509,18 +1524,17 @@ export default function Home() {
                 </div>
                 <h3 className="display-6 fw-bold mb-2">We tailor reservations to your schedule.</h3>
                 <p className="opacity-90 mb-0" style={{ maxWidth: "580px", lineHeight: "1.6" }}>
-                  Whether organizing family reunions, corporate trips, or extended lodging in Koronadal City,
-                  our concierge team ensures seamless accommodations.
+                  Whether organizing family reunions, corporate stays, or prolonged visits to South Cotabato,
+                  our front desk team ensures smooth accommodations.
                 </p>
               </div>
               <div className="col-lg-4 text-lg-end">
                 <Link
                   href="/auth/register"
-                  className="btn px-4 py-3 fw-bold text-dark rounded-pill d-inline-flex align-items-center gap-2"
+                  className="pcc-btn-pill px-4 py-3 fw-bold text-dark"
                   style={{
                     backgroundColor: "#ffffff",
-                    boxShadow: "0 8px 20px rgba(0, 0, 0, 0.15)",
-                    border: "none"
+                    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)"
                   }}
                 >
                   <span>Book Your Stay Today</span>
@@ -1532,45 +1546,52 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 9. FOOTER */}
-      <footer className="py-5 mt-auto" id="contact" style={{ backgroundColor: "#0f172a", color: "#cbd5e1" }}>
-        <div className="container">
+      {/* 9. OBSIDIAN LUXURY FOOTER */}
+      <footer className="py-5 mt-auto text-slate-300" id="contact" style={{ backgroundColor: "#0b132b", zIndex: 1 }}>
+        <div className="container" style={{ maxWidth: "1140px" }}>
           <div className="row g-4 pb-4">
             <div className="col-lg-4">
-              <div className="d-flex align-items-center gap-2 mb-3">
+              <div className="d-flex align-items-center gap-2.5 mb-3">
                 <img
                   src="/assets/images/logo.jpg"
                   alt="PCC Logo"
+                  width="36"
                   height="36"
-                  className="rounded-2"
+                  className="rounded-circle object-fit-cover shadow-xs"
                 />
                 <span className="fw-bold text-white fs-5">PCC Home Suite Home</span>
               </div>
-              <p className="text-secondary small mb-2" style={{ maxWidth: "340px", lineHeight: "1.6" }}>
+              <p className="text-secondary small mb-2" style={{ maxWidth: "340px", lineHeight: "1.65" }}>
                 Comfortable, budget-friendly pension lodging along Osmeña Street, Zone 1,
                 Koronadal City, South Cotabato.
               </p>
             </div>
 
             <div className="col-lg-4">
-              <h6 className="text-white fw-bold font-monospace text-uppercase mb-3">Navigation</h6>
+              <h6 className="text-white fw-bold font-monospace text-uppercase mb-3 small tracking-wider">Quick Navigation</h6>
               <ul className="list-unstyled d-flex flex-column gap-2 small text-secondary">
-                <li><a href="#home" className="text-secondary text-decoration-none hover:text-white">Home</a></li>
-                <li><a href="#about" className="text-secondary text-decoration-none hover:text-white">About Us</a></li>
-                <li><a href="#promotions" className="text-secondary text-decoration-none hover:text-white">Active Promotions</a></li>
-                <li><a href="#rooms" className="text-secondary text-decoration-none hover:text-white">Rooms &amp; Rates</a></li>
-                <li><a href="#amenities" className="text-secondary text-decoration-none hover:text-white">Amenities</a></li>
-                <li><a href="#testimonials" className="text-secondary text-decoration-none hover:text-white">Guest Reviews</a></li>
+                <li><a href="#home" className="text-secondary text-decoration-none hover:text-white transition">Home</a></li>
+                <li><a href="#about" className="text-secondary text-decoration-none hover:text-white transition">About Us</a></li>
+                <li><a href="#promotions" className="text-secondary text-decoration-none hover:text-white transition">Active Promotions</a></li>
+                <li><a href="#rooms" className="text-secondary text-decoration-none hover:text-white transition">Rooms &amp; Rates</a></li>
+                <li><a href="#amenities" className="text-secondary text-decoration-none hover:text-white transition">Amenities</a></li>
+                <li><a href="#testimonials" className="text-secondary text-decoration-none hover:text-white transition">Guest Reviews</a></li>
               </ul>
             </div>
 
             <div className="col-lg-4">
-              <h6 className="text-white fw-bold font-monospace text-uppercase mb-3">Contact &amp; Assistance</h6>
-              <div className="d-flex flex-column gap-2 small text-secondary">
-                <div className="d-flex align-items-center gap-2">
+              <h6 className="text-white fw-bold font-monospace text-uppercase mb-3 small tracking-wider">Location &amp; Inquiries</h6>
+              <div className="d-flex flex-column gap-2.5 small text-secondary">
+                <a
+                  href="https://maps.google.com/?q=Osmena+Street+Zone+1+Koronadal+City"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="d-flex align-items-center gap-2 text-secondary text-decoration-none hover:text-white transition"
+                >
                   <MapPin size={16} style={{ color: "#3FA34D" }} className="flex-shrink-0" />
                   <span>Osmeña Street, Zone 1, Koronadal City</span>
-                </div>
+                  <ArrowUpRight size={13} className="opacity-75" />
+                </a>
                 <div className="d-flex align-items-center gap-2">
                   <Mail size={16} style={{ color: "#2155B5" }} className="flex-shrink-0" />
                   <span>info@pccsuite.com</span>
@@ -1585,15 +1606,15 @@ export default function Home() {
 
           <div
             className="pt-4 border-top d-flex flex-wrap justify-content-between align-items-center gap-2 small font-monospace"
-            style={{ borderColor: "#1e293b", color: "#64748b" }}
+            style={{ borderColor: "rgba(255, 255, 255, 0.1)", color: "#94a3b8" }}
           >
             <span>&copy; {year} PCC Home Suite Home. All rights reserved.</span>
             <div className="d-flex align-items-center gap-3">
-              <Link href="/terms" className="text-secondary text-decoration-none">
+              <Link href="/terms" className="text-secondary text-decoration-none hover:text-white transition">
                 Terms &amp; Conditions
               </Link>
               <span>&bull;</span>
-              <Link href="/privacy" className="text-secondary text-decoration-none">
+              <Link href="/privacy" className="text-secondary text-decoration-none hover:text-white transition">
                 Privacy Policy
               </Link>
             </div>
@@ -1604,7 +1625,7 @@ export default function Home() {
       {/* CHATBOT WIDGET */}
       <GuestChatBubble />
 
-      {/* 10. FROSTED AURORA AVAILABILITY RESULTS MODAL */}
+      {/* 10. REAL-TIME VACANCY RESULTS MODAL */}
       {showResultsModal && (
         <ModalPortal>
           <div
@@ -1619,14 +1640,14 @@ export default function Home() {
           >
             <div className="modal-dialog modal-dialog-centered modal-lg">
               <div
-                className="modal-content border-0 rounded-4 overflow-hidden"
+                className="modal-content border-0 rounded-4 overflow-hidden shadow-2xl"
                 style={{
                   backgroundColor: "rgba(255, 255, 255, 0.96)",
                   boxShadow: "0 25px 60px -15px rgba(33, 85, 181, 0.35)",
                   border: "1px solid rgba(255, 255, 255, 0.8)"
                 }}
               >
-                {/* Header with Aurora Gradient */}
+                {/* Header */}
                 <div
                   className="modal-header px-4 py-3.5 border-0 text-white"
                   style={{
@@ -1684,10 +1705,9 @@ export default function Home() {
                       {availableRooms.map((rm) => (
                         <div
                           key={rm.roomID}
-                          className="p-3.5 rounded-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white gap-3"
+                          className="p-3.5 rounded-3 d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white gap-3 shadow-xs"
                           style={{
-                            border: "1px solid rgba(205, 235, 207, 0.9)",
-                            boxShadow: "0 4px 15px rgba(0, 0, 0, 0.03)"
+                            border: "1px solid rgba(205, 235, 207, 0.9)"
                           }}
                         >
                           <div>
@@ -1771,5 +1791,23 @@ export default function Home() {
         </ModalPortal>
       )}
     </div>
+  );
+}
+
+function ArrowDownRightIcon({ size = 16 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m7 7 10 10" />
+      <path d="M17 7v10H7" />
+    </svg>
   );
 }

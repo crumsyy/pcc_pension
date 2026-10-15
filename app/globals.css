@@ -3441,3 +3441,86 @@ body.dark-theme .pcc-tab[data-selected] {
 .guest-portal .display-font {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
+
+/* =====================================================================
+   Landing Page High-End Visual Design System (PCC Home Suite Home)
+   ===================================================================== */
+
+.pcc-landing-nav {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pcc-double-bezel {
+  position: relative;
+  border-radius: 1.75rem;
+  padding: 0.35rem;
+  background: rgba(33, 85, 181, 0.05);
+  border: 1px solid rgba(33, 85, 181, 0.12);
+  box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.08);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pcc-double-bezel-inner {
+  border-radius: calc(1.75rem - 0.35rem);
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.pcc-btn-pill {
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+}
+
+.pcc-btn-pill:hover {
+  transform: translateY(-2px);
+}
+
+.pcc-btn-pill:active {
+  transform: scale(0.98);
+}
+
+.pcc-btn-icon-circle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  transition: transform 0.3s ease;
+}
+
+.pcc-btn-pill:hover .pcc-btn-icon-circle {
+  transform: translateX(3px);
+}
+
+.pcc-card-interactive {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease;
+}
+
+.pcc-card-interactive:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px -12px rgba(33, 85, 181, 0.16);
+  border-color: rgba(33, 85, 181, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .pcc-double-bezel,
+body.dark-theme .pcc-double-bezel {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.45);
+}
+
+[data-bs-theme="dark"] .pcc-double-bezel-inner,
+body.dark-theme .pcc-double-bezel-inner {
+  background: #131d2e;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
