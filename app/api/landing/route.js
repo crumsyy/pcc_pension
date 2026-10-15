@@ -3,7 +3,7 @@ import { dbQuery } from '@/lib/db';
 
 export async function GET(request) {
   try {
-    const [roomCountRes, floorCountRes, roomTypeCountRes, roomsList, activePromotions] = await Promise.all([
+    const [roomCountRes, floorCountRes, roomTypeCountRes, roomsList, activePromotions, roomTypesList] = await Promise.all([
       dbQuery("SELECT COUNT(*) as totalRooms FROM room WHERE isArchived = 0"),
       dbQuery("SELECT COUNT(*) as totalFloors FROM floor"),
       dbQuery("SELECT COUNT(*) as totalRoomTypes FROM room_type"),
@@ -37,6 +37,28 @@ export async function GET(request) {
         WHERE (d.isArchived IS NULL OR d.isArchived = 0)
           AND d.name NOT IN (SELECT COALESCE(p2.name, '') FROM promotions p2)
         ORDER BY endDate ASC
+      `),
+      dbQuery(`
+        SELECT 
+          rt.roomTypeID,
+          rt.type as name,
+          rt.description,
+          rt.minOccupancy,
+          rt.maxOccupancy,
+          rt.extraFoam,
+          COALESCE(rt.price, 0) as price,
+          COUNT(DISTINCT rm.roomID) as totalRooms,
+          COUNT(DISTINCT CASE WHEN rm.status = 'Available' THEN rm.roomID END) as availableRooms,
+          (
+            SELECT rm2.image 
+            FROM room rm2 
+            WHERE rm2.roomTypeID = rt.roomTypeID AND rm2.isArchived = 0 AND rm2.image IS NOT NULL AND rm2.image != '' 
+            LIMIT 1
+          ) as roomImage
+        FROM room_type rt
+        LEFT JOIN room rm ON rm.roomTypeID = rt.roomTypeID AND rm.isArchived = 0
+        GROUP BY rt.roomTypeID, rt.type, rt.description, rt.minOccupancy, rt.maxOccupancy, rt.extraFoam, rt.price
+        ORDER BY rt.price ASC
       `)
     ]);
 
@@ -50,6 +72,7 @@ export async function GET(request) {
       totalFloors,
       totalRoomTypes,
       rooms: roomsList,
+      roomTypes: roomTypesList,
       promotions: activePromotions
     });
   } catch (error) {
