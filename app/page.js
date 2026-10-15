@@ -247,37 +247,7 @@ export default function Home() {
     }
   };
 
-  const defaultPromotions = [
-    {
-      promotionID: 'p-1',
-      name: 'Early Bird Special',
-      description: 'Book your stay in advance and enjoy exclusive discounted room rates.',
-      percentage: 10,
-      startDate: '2026-10-01',
-      endDate: '2026-12-31',
-      roomTypeName: 'All Room Types'
-    },
-    {
-      promotionID: 'p-2',
-      name: 'Extended Stay Privilege',
-      description: 'Stay 3 consecutive nights or more to unlock special prolonged accommodation savings.',
-      percentage: 15,
-      startDate: '2026-10-01',
-      endDate: '2026-12-31',
-      roomTypeName: 'Standard & Twin Matrimonial'
-    },
-    {
-      promotionID: 'p-3',
-      name: 'Weekend Getaway',
-      description: 'Treat yourself to relaxing weekend comfort with complimentary privileges and discounts.',
-      percentage: 12,
-      startDate: '2026-10-01',
-      endDate: '2026-12-31',
-      roomTypeName: 'Deluxe Twin Matrimonial'
-    }
-  ];
-
-  const allPromos = (landingData.promotions && landingData.promotions.length > 0) ? landingData.promotions : defaultPromotions;
+  const allPromos = landingData.promotions || [];
   const visiblePromos = showAllPromos ? allPromos : allPromos.slice(0, VISIBLE_COUNT);
   const allRooms = landingData.rooms || [];
   const visibleRooms = showAllRooms ? allRooms : allRooms.slice(0, VISIBLE_COUNT);
@@ -297,7 +267,9 @@ export default function Home() {
             <ul className="navbar-nav ms-auto align-items-lg-center gap-lg-2">
               <li className="nav-item"><a className="nav-link" href="#home">Home</a></li>
               <li className="nav-item"><a className="nav-link" href="#about">About Us</a></li>
-              <li className="nav-item"><a className="nav-link" href="#promotions">Promotions</a></li>
+              {allPromos.length > 0 && (
+                <li className="nav-item"><a className="nav-link" href="#promotions">Promotions</a></li>
+              )}
               <li className="nav-item"><a className="nav-link" href="#rooms">Rooms &amp; Rates</a></li>
               <li className="nav-item"><a className="nav-link" href="#amenities">Amenities</a></li>
               <li className="nav-item"><a className="nav-link" href="#contact">Contact</a></li>

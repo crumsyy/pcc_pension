@@ -548,7 +548,7 @@ h4,
    --------------------------------------------------------------- */
 .hero {
   position: relative;
-  padding: 5.5rem 0 4rem;
+  padding: 4rem 0;
   overflow: hidden;
   background: linear-gradient(180deg, var(--pcc-mist) 0%, var(--pcc-cream) 100%);
 }
@@ -561,6 +561,59 @@ body.dark-theme .hero,
 
 .hero::after {
   display: none !important;
+}
+
+/* Smooth anchor offsets for sticky navigation */
+#home,
+#about,
+#promotions,
+#rooms,
+#amenities,
+#contact {
+  scroll-margin-top: 72px;
+}
+
+/* Full-viewport section framing on desktop */
+@media (min-width: 992px) {
+  .hero {
+    min-height: calc(100vh - 72px);
+    display: flex;
+    align-items: center;
+    padding: 2.5rem 0;
+  }
+  .hero .container {
+    width: 100%;
+  }
+
+  .section#about {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 3.5rem 0;
+  }
+  .section#about .container {
+    width: 100%;
+  }
+
+  .hotel-rooms-section#rooms {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 4.5rem 0;
+  }
+  .hotel-rooms-section#rooms .container {
+    width: 100%;
+  }
+
+  .section#amenities {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    padding: 4rem 0;
+  }
+  .section#amenities .container {
+    width: 100%;
+  }
 }
 
 .hero .eyebrow {
