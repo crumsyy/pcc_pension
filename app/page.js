@@ -461,13 +461,20 @@ export default function Home() {
         </section>
       )}
 
-      {/* HOTEL ROOMS (ROOM TYPES - REFERENCE DESIGN) */}
+      {/* ROOMS */}
       <section className="hotel-rooms-section" id="rooms">
         <div className="container">
           <div className="hotel-rooms-header">
-            <h2 className="hotel-rooms-title">Hotel Rooms</h2>
-            <div className="hotel-rooms-avail">
-              {landingData.totalRooms > 0 ? `${landingData.totalRooms} ROOMS AVAILABLE` : 'ROOMS AVAILABLE'}
+            <div>
+              <div className="section-eyebrow">Accommodations</div>
+              <h2 className="display-font text-blue mb-0" style={{ fontSize: '2.25rem' }}>
+                Rooms
+              </h2>
+            </div>
+            <div>
+              <span className="hotel-rooms-avail-pill">
+                {landingData.totalRooms > 0 ? `${landingData.totalRooms} Rooms Available` : 'Rooms Available'}
+              </span>
             </div>
           </div>
 
