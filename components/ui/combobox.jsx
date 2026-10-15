@@ -1,33 +1,38 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 /**
- * Shadcn-style Combobox / Searchable Select component.
+ * Direct Searchable Dropdown (Autocomplete) Component.
+ * - The field itself is an interactive, directly typeable input.
+ * - Suggestions appear dynamically below the input as the user types.
+ * - No redundant inner search box inside the dropdown.
+ * - Full keyboard navigation (ArrowUp, ArrowDown, Enter, Escape).
  */
 export function Combobox({
   options = [],
   value = '',
   onChange,
   placeholder = 'Select option...',
-  searchPlaceholder = 'Search...',
-  emptyText = 'No results found.',
+  emptyText = 'No matches found.',
   disabled = false,
   id,
   name,
   required = false,
   className = '',
+  autoComplete = 'off',
 }) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const containerRef = useRef(null);
-  const searchInputRef = useRef(null);
+  const inputRef = useRef(null);
   const listRef = useRef(null);
 
   // Normalize options to { value, label }
-  const normalizedOptions = React.useMemo(() => {
+  const normalizedOptions = useMemo(() => {
     return (options || []).map((opt) => {
       if (typeof opt === 'string') {
         return { value: opt, label: opt };
@@ -39,74 +44,114 @@ export function Combobox({
     });
   }, [options]);
 
-  // Selected option label
-  const selectedOption = normalizedOptions.find(
-    (opt) => String(opt.value).toLowerCase() === String(value).toLowerCase()
-  );
+  // Find currently selected option
+  const selectedOption = useMemo(() => {
+    if (!value) return null;
+    return normalizedOptions.find(
+      (opt) => String(opt.value).toLowerCase() === String(value).toLowerCase()
+    ) || null;
+  }, [normalizedOptions, value]);
 
-  // Filtered options based on search query
-  const filteredOptions = React.useMemo(() => {
-    const q = search.trim().toLowerCase();
+  // Sync display text with selected value when value changes externally
+  useEffect(() => {
+    if (selectedOption) {
+      setInputValue(selectedOption.label);
+    } else if (!value) {
+      setInputValue('');
+    }
+  }, [selectedOption, value]);
+
+  // Filter options based on query
+  const filteredOptions = useMemo(() => {
+    const q = query.trim().toLowerCase();
     if (!q) return normalizedOptions;
     return normalizedOptions.filter((opt) =>
       opt.label.toLowerCase().includes(q)
     );
-  }, [normalizedOptions, search]);
+  }, [normalizedOptions, query]);
 
-  // Reset search and highlight when opening/closing
-  useEffect(() => {
-    if (open) {
-      setSearch('');
-      setHighlightedIndex(0);
-      setTimeout(() => {
-        if (searchInputRef.current) {
-          searchInputRef.current.focus();
-        }
-      }, 30);
+  // Scroll active item into view during keyboard navigation
+  const scrollHighlightedIntoView = useCallback((index) => {
+    if (!listRef.current) return;
+    const items = listRef.current.querySelectorAll('.pcc-combobox-item');
+    if (items[index]) {
+      items[index].scrollIntoView({ block: 'nearest' });
     }
-  }, [open]);
+  }, []);
 
-  // Reset highlight index if filtered options change
-  useEffect(() => {
-    setHighlightedIndex(0);
-  }, [search]);
-
-  // Click outside listener
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
+  // Handle option selection
+  const handleSelect = useCallback((val) => {
+    const match = normalizedOptions.find(
+      (opt) => String(opt.value).toLowerCase() === String(val).toLowerCase()
+    );
+    if (match) {
+      setInputValue(match.label);
     }
-    if (open) {
-      document.addEventListener('pointerdown', handleClickOutside);
-      return () => document.removeEventListener('pointerdown', handleClickOutside);
-    }
-  }, [open]);
-
-  // Handle selection
-  const handleSelect = (val) => {
+    setQuery('');
+    setOpen(false);
     if (typeof onChange === 'function') {
       onChange(val);
     }
-    setOpen(false);
-  };
+  }, [normalizedOptions, onChange]);
 
-  // Handle clear
+  // Handle clearing value
   const handleClear = (e) => {
     e.stopPropagation();
     if (disabled) return;
+    setInputValue('');
+    setQuery('');
+    setOpen(false);
     if (typeof onChange === 'function') {
       onChange('');
     }
+    inputRef.current?.focus();
   };
 
-  // Keyboard navigation inside popover search input
-  const handleKeyDown = (e) => {
+  // Toggle dropdown open/close
+  const handleToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (disabled) return;
+    if (open) {
+      setOpen(false);
+    } else {
+      setQuery('');
+      setOpen(true);
+      setHighlightedIndex(0);
+      inputRef.current?.focus();
+    }
+  };
+
+  // Input change handler (typing directly in the field)
+  const handleInputChange = (e) => {
+    if (disabled) return;
+    const text = e.target.value;
+    setInputValue(text);
+    setQuery(text);
+    setHighlightedIndex(0);
     if (!open) {
-      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+      setOpen(true);
+    }
+  };
+
+  // Input focus handler
+  const handleInputFocus = () => {
+    if (disabled) return;
+    // Open dropdown to show matching suggestions or full list
+    setOpen(true);
+    setHighlightedIndex(0);
+  };
+
+  // Keyboard navigation
+  const handleKeyDown = (e) => {
+    if (disabled) return;
+
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter') {
         e.preventDefault();
+        setQuery('');
         setOpen(true);
+        setHighlightedIndex(0);
       }
       return;
     }
@@ -114,30 +159,91 @@ export function Combobox({
     if (e.key === 'Escape') {
       e.preventDefault();
       setOpen(false);
+      // Revert display to current selected value
+      setInputValue(selectedOption ? selectedOption.label : '');
+      setQuery('');
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setHighlightedIndex((prev) =>
-        prev < filteredOptions.length - 1 ? prev + 1 : prev
-      );
-      scrollHighlightedIntoView(highlightedIndex + 1);
+      setHighlightedIndex((prev) => {
+        const next = prev < filteredOptions.length - 1 ? prev + 1 : prev;
+        scrollHighlightedIntoView(next);
+        return next;
+      });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
-      scrollHighlightedIntoView(highlightedIndex - 1);
+      setHighlightedIndex((prev) => {
+        const next = prev > 0 ? prev - 1 : 0;
+        scrollHighlightedIntoView(next);
+        return next;
+      });
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filteredOptions[highlightedIndex]) {
+      if (filteredOptions.length > 0 && filteredOptions[highlightedIndex]) {
         handleSelect(filteredOptions[highlightedIndex].value);
+      }
+    } else if (e.key === 'Tab') {
+      // Auto-select highlighted if query typed, or just close
+      if (open && query && filteredOptions[highlightedIndex]) {
+        handleSelect(filteredOptions[highlightedIndex].value);
+      } else {
+        setOpen(false);
+        setInputValue(selectedOption ? selectedOption.label : '');
+        setQuery('');
       }
     }
   };
 
-  const scrollHighlightedIntoView = (index) => {
-    if (!listRef.current) return;
-    const items = listRef.current.querySelectorAll('.pcc-combobox-item');
-    if (items[index]) {
-      items[index].scrollIntoView({ block: 'nearest' });
+  // Close when clicking outside and validate typed text
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        // Check if typed text matches an option exactly
+        const trimmed = inputValue.trim();
+        if (trimmed) {
+          const exact = normalizedOptions.find(
+            (opt) => opt.label.toLowerCase() === trimmed.toLowerCase()
+          );
+          if (exact) {
+            handleSelect(exact.value);
+            return;
+          }
+        }
+        // If empty or non-matching, revert to last valid selected option
+        if (!trimmed) {
+          if (value) {
+            if (typeof onChange === 'function') onChange('');
+          }
+          setInputValue('');
+        } else {
+          setInputValue(selectedOption ? selectedOption.label : '');
+        }
+        setQuery('');
+      }
     }
+
+    if (open) {
+      document.addEventListener('pointerdown', handleClickOutside);
+      return () => document.removeEventListener('pointerdown', handleClickOutside);
+    }
+  }, [open, inputValue, normalizedOptions, handleSelect, value, onChange, selectedOption]);
+
+  // Helper to highlight matching text in suggestions
+  const renderHighlightedLabel = (label, searchStr) => {
+    const q = searchStr.trim();
+    if (!q) return label;
+    const idx = label.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return label;
+    const before = label.slice(0, idx);
+    const match = label.slice(idx, idx + q.length);
+    const after = label.slice(idx + q.length);
+    return (
+      <>
+        {before}
+        <strong className="text-primary fw-bold">{match}</strong>
+        {after}
+      </>
+    );
   };
 
   return (
@@ -164,64 +270,65 @@ export function Combobox({
         />
       )}
 
-      {/* Combobox Trigger */}
-      <button
-        type="button"
-        id={id ? `${id}-trigger` : undefined}
-        disabled={disabled}
-        onClick={() => !disabled && setOpen(!open)}
-        onKeyDown={handleKeyDown}
-        className={`pcc-combobox-trigger ${open ? 'open' : ''}`}
-        aria-haspopup="listbox"
-        aria-expanded={open}
+      {/* Direct Interactive Input Trigger */}
+      <div
+        className={`pcc-combobox-input-wrapper ${open ? 'open' : ''} ${
+          disabled ? 'disabled' : ''
+        }`}
       >
-        <span className={selectedOption ? 'text-truncate' : 'pcc-combobox-placeholder text-muted text-truncate'}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <div className="d-flex align-items-center gap-1 ms-2 flex-shrink-0">
+        <input
+          ref={inputRef}
+          type="text"
+          id={id ? `${id}-input` : undefined}
+          disabled={disabled}
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="pcc-combobox-input"
+          autoComplete={autoComplete}
+          spellCheck="false"
+          role="combobox"
+          aria-expanded={open}
+          aria-autocomplete="list"
+          aria-controls={id ? `${id}-listbox` : undefined}
+        />
+
+        <div className="pcc-combobox-actions">
           {value && !disabled && (
-            <span
-              role="button"
-              tabIndex={0}
-              className="text-muted p-1 d-flex align-items-center hover-opacity"
+            <button
+              type="button"
+              tabIndex={-1}
+              className="pcc-combobox-action-btn pcc-combobox-clear-btn"
               onClick={handleClear}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') handleClear(e);
-              }}
               title="Clear selection"
-              style={{ fontSize: '0.75rem', cursor: 'pointer' }}
             >
               <i className="bi bi-x-lg"></i>
-            </span>
+            </button>
           )}
-          <span className="text-muted d-flex align-items-center" style={{ fontSize: '0.8rem' }}>
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            className="pcc-combobox-action-btn pcc-combobox-toggle-btn"
+            onClick={handleToggle}
+            title="Toggle options"
+          >
             <i className={`bi bi-chevron-${open ? 'up' : 'down'}`}></i>
-          </span>
+          </button>
         </div>
-      </button>
+      </div>
 
-      {/* Floating Popover Content */}
-      {open && (
+      {/* Dynamic Suggestions Dropdown (NO nested search box!) */}
+      {open && !disabled && (
         <div className="pcc-combobox-popover" role="dialog" aria-modal="false">
-          {/* Real-time search box */}
-          <div className="pcc-combobox-search-wrapper">
-            <span className="pcc-combobox-search-icon">
-              <i className="bi bi-search" style={{ fontSize: '0.8rem' }}></i>
-            </span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={searchPlaceholder}
-              className="pcc-combobox-search-input"
-              autoComplete="off"
-            />
-          </div>
-
-          {/* Options list */}
-          <ul ref={listRef} className="pcc-combobox-list" role="listbox">
+          <ul
+            ref={listRef}
+            id={id ? `${id}-listbox` : undefined}
+            className="pcc-combobox-list"
+            role="listbox"
+          >
             {filteredOptions.length === 0 ? (
               <li className="pcc-combobox-empty">{emptyText}</li>
             ) : (
@@ -242,7 +349,9 @@ export function Combobox({
                       role="option"
                       aria-selected={isSelected}
                     >
-                      <span className="text-truncate">{opt.label}</span>
+                      <span className="text-truncate">
+                        {renderHighlightedLabel(opt.label, query)}
+                      </span>
                       {isSelected && (
                         <i className="bi bi-check2 text-primary fw-bold ms-2 flex-shrink-0"></i>
                       )}
