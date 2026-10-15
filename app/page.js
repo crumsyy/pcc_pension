@@ -211,7 +211,7 @@ export default function Home() {
     setSearching(true);
     setSearchTriggered(true);
     try {
-      const res = await fetch(`/api/rooms/availability?checkIn=${toDbDate(checkIn)}&checkOut=${toDbDate(checkOut)}&roomType=${encodeURIComponent(roomType)}&breakfast=${encodeURIComponent(breakfast)}`);
+      const res = await fetch(`/api/rooms/availability?checkIn=${toDbDate(checkIn)}&checkOut=${toDbDate(checkOut)}&roomType=${encodeURIComponent(roomType)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch room availability');
       setAvailableRooms(data.rooms || []);
@@ -225,7 +225,7 @@ export default function Home() {
 
   const handleBookNow = async (roomID) => {
     if (!currentUser || currentUser.role !== 'Guest') {
-      window.location.href = `/auth/register?check_in=${toDbDate(checkIn)}&check_out=${toDbDate(checkOut)}&room_id=${roomID}&breakfast=${breakfast}`;
+      window.location.href = `/auth/register?check_in=${toDbDate(checkIn)}&check_out=${toDbDate(checkOut)}&room_id=${roomID}`;
       return;
     }
 
@@ -330,7 +330,7 @@ export default function Home() {
                       min={checkIn || minCheckIn}
                     />
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-12">
                     <label className="form-label d-block mb-1.5 fw-semibold small">Room Type</label>
                     <select
                       className="form-select"
@@ -341,17 +341,8 @@ export default function Home() {
                       <option>Standard Matrimonial</option>
                       <option>Twin Matrimonial</option>
                       <option>Deluxe Matrimonial</option>
-                    </select>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label d-block mb-1.5 fw-semibold small">Breakfast</label>
-                    <select
-                      className="form-select"
-                      value={breakfast}
-                      onChange={(e) => setBreakfast(e.target.value)}
-                    >
-                      <option>With Breakfast</option>
-                      <option>Without Breakfast</option>
+                      <option>Deluxe Twin Matrimonial</option>
+                      <option>Function Hall</option>
                     </select>
                   </div>
                   <div className="col-12 mt-3">
@@ -649,75 +640,104 @@ export default function Home() {
       <GuestChatBubble />
 
       {/* AVAILABILITY RESULTS MODAL */}
-      {showResultsModal && (
-        <ModalPortal>
-          <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
-            <div className="modal-dialog modal-dialog-centered modal-lg">
-              <div className="modal-content border-0" style={{ borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
-                <div className="modal-header px-4 py-3" style={{ background: 'var(--pcc-blue)', color: '#fff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
-                  <h5 className="modal-title fw-bold">Available Rooms</h5>
-                  <button type="button" className="btn-close btn-close-white" onClick={() => setShowResultsModal(false)}></button>
-                </div>
-                <div className="modal-body p-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                  <div className="mb-3 p-3 bg-light rounded" style={{ fontSize: '0.9rem' }}>
-                    Dates: <strong>{new Date(checkIn).toLocaleDateString()}</strong> to <strong>{new Date(checkOut).toLocaleDateString()}</strong>
-                    <span className="mx-2">|</span> Option: <strong>{breakfast}</strong>
-                  </div>
+      {showResultsModal && (() => {
+        const groupedAvailableTypes = Object.values(
+          availableRooms.reduce((acc, rm) => {
+            const key = rm.roomType || rm.roomTypeID || 'Standard';
+            if (!acc[key]) {
+              acc[key] = {
+                roomTypeID: rm.roomTypeID,
+                roomType: rm.roomType,
+                description: rm.description,
+                occupancyLimit: rm.occupancyLimit,
+                rate: rm.rate || rm.rateWithoutBreakfast,
+                floor: rm.floor,
+                availableCount: 0,
+                firstRoomID: rm.roomID
+              };
+            }
+            acc[key].availableCount += 1;
+            return acc;
+          }, {})
+        );
 
-                  {availableRooms.length === 0 ? (
-                    <div className="text-center py-5 text-muted">
-                      <h5 className="mt-3 fw-bold">No Rooms Available</h5>
-                      <p className="small mb-0">Sorry, there are no rooms of this type vacant for the selected stay dates. Please try other dates.</p>
+        return (
+          <ModalPortal>
+            <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.32)', backdropFilter: 'blur(10px) saturate(125%)', WebkitBackdropFilter: 'blur(10px) saturate(125%)', zIndex: 99999 }}>
+              <div className="modal-dialog modal-dialog-centered modal-lg">
+                <div className="modal-content border-0" style={{ borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}>
+                  <div className="modal-header px-4 py-3" style={{ background: 'var(--pcc-blue)', color: '#fff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
+                    <h5 className="modal-title fw-bold">Available Room Types</h5>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setShowResultsModal(false)}></button>
+                  </div>
+                  <div className="modal-body p-4" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                    <div className="mb-3 p-3 bg-light rounded d-flex justify-content-between align-items-center" style={{ fontSize: '0.9rem' }}>
+                      <div>
+                        Stay Dates: <strong>{new Date(checkIn).toLocaleDateString()}</strong> to <strong>{new Date(checkOut).toLocaleDateString()}</strong>
+                      </div>
+                      <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 rounded-pill">
+                        {groupedAvailableTypes.length} {groupedAvailableTypes.length === 1 ? 'Type' : 'Types'} Available
+                      </span>
                     </div>
-                  ) : (
-                    <div className="d-flex flex-column gap-3">
-                      {availableRooms.map((rm) => (
-                        <div key={rm.roomID} className="p-3 border rounded d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white shadow-sm" style={{ transition: 'all 0.2s' }}>
-                          <div>
-                            <div className="d-flex align-items-center gap-2 mb-1">
-                              <span className="fw-bold text-dark" style={{ fontSize: '1.1rem' }}>Room {rm.roomNumber}</span>
-                              <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill" style={{ fontSize: '0.75rem' }}>Available</span>
-                            </div>
-                            <h6 className="text-pcc-primary fw-semibold mb-1">{rm.roomType} · {rm.floor}</h6>
-                            <p className="text-muted small mb-0" style={{ maxWidth: '480px' }}>{rm.description}</p>
-                          </div>
-                          <div className="text-md-end mt-3 mt-md-0 d-flex flex-row flex-md-column justify-content-between align-items-center align-items-md-end gap-2">
+
+                    {groupedAvailableTypes.length === 0 ? (
+                      <div className="text-center py-5 text-muted">
+                        <h5 className="mt-3 fw-bold">No Room Types Available</h5>
+                        <p className="small mb-0">Sorry, there are no rooms of this type vacant for the selected stay dates. Please try other dates.</p>
+                      </div>
+                    ) : (
+                      <div className="d-flex flex-column gap-3">
+                        {groupedAvailableTypes.map((typeGroup) => (
+                          <div key={typeGroup.roomType} className="p-3 border rounded d-flex flex-column flex-md-row justify-content-between align-items-md-center bg-white shadow-sm" style={{ transition: 'all 0.2s', borderRadius: '10px' }}>
                             <div>
-                              <div className="text-muted small">Price per night</div>
-                              <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.35rem' }}>₱{parseFloat(rm.rate).toFixed(2)}</span>
+                              <div className="d-flex align-items-center gap-2 mb-1">
+                                <span className="fw-bold text-dark" style={{ fontSize: '1.15rem' }}>{typeGroup.roomType}</span>
+                                <span className="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill" style={{ fontSize: '0.78rem' }}>
+                                  {typeGroup.availableCount} {typeGroup.availableCount === 1 ? 'Room' : 'Rooms'} Available
+                                </span>
+                              </div>
+                              <p className="text-muted small mb-0" style={{ maxWidth: '480px' }}>
+                                {typeGroup.occupancyLimit ? `Up to ${typeGroup.occupancyLimit} Pax · ` : ''}{typeGroup.description || 'Comfortable accommodation with essential amenities.'}
+                              </p>
                             </div>
-                            {currentUser && currentUser.role === 'Guest' ? (
-                              <button
-                                onClick={() => handleBookNow(rm.roomID)}
-                                className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
-                                style={{ borderRadius: '6px' }}
-                                disabled={bookingInProgress}
-                              >
-                                {bookingInProgress ? "Booking..." : "Book Now"}
-                              </button>
-                            ) : (
-                              <Link
-                                href={`/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${rm.roomID}&breakfast=${breakfast}`}
-                                className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
-                                style={{ borderRadius: '6px' }}
-                              >
-                                Book Now
-                              </Link>
-                            )}
+                            <div className="text-md-end mt-3 mt-md-0 d-flex flex-row flex-md-column justify-content-between align-items-center align-items-md-end gap-2">
+                              <div>
+                                <div className="text-muted small">Price per night</div>
+                                <span className="fw-bold text-pcc-primary" style={{ fontSize: '1.35rem' }}>₱{parseFloat(typeGroup.rate || 0).toFixed(2)}</span>
+                              </div>
+                              {currentUser && currentUser.role === 'Guest' ? (
+                                <button
+                                  onClick={() => handleBookNow(typeGroup.firstRoomID)}
+                                  className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
+                                  style={{ borderRadius: '6px' }}
+                                  disabled={bookingInProgress}
+                                >
+                                  {bookingInProgress ? "Booking..." : "Book Now"}
+                                </button>
+                              ) : (
+                                <Link
+                                  href={`/auth/register?check_in=${checkIn}&check_out=${checkOut}&room_id=${typeGroup.firstRoomID}`}
+                                  className="btn btn-pcc-primary text-white btn-sm px-4 py-2"
+                                  style={{ borderRadius: '6px' }}
+                                >
+                                  Book Now
+                                </Link>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="modal-footer border-0 px-4 py-3">
-                  <button type="button" className="btn btn-secondary text-white px-4" onClick={() => setShowResultsModal(false)}>Close</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="modal-footer border-0 px-4 py-3">
+                    <button type="button" className="btn btn-secondary text-white px-4" onClick={() => setShowResultsModal(false)}>Close</button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </ModalPortal>
-      )}
+          </ModalPortal>
+        );
+      })()}
     </>
   );
 }
