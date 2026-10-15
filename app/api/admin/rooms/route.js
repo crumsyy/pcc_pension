@@ -42,8 +42,20 @@ export async function GET(request) {
   try {
     const [rooms, floors, roomTypes, roomRates] = await Promise.all([
       dbQuery(sql, params),
-      dbQuery("SELECT * FROM floor ORDER BY floorID"),
-      dbQuery("SELECT * FROM room_type ORDER BY type"),
+      dbQuery(`
+        SELECT fl.floorID, fl.name, COUNT(rm.roomID) as roomCount
+        FROM floor fl
+        LEFT JOIN room rm ON rm.floorID = fl.floorID AND rm.isArchived = 0
+        GROUP BY fl.floorID, fl.name
+        ORDER BY fl.floorID
+      `),
+      dbQuery(`
+        SELECT rt.roomTypeID, rt.type, rt.description, rt.minOccupancy, rt.maxOccupancy, rt.extraFoam, COUNT(rm.roomID) as roomCount
+        FROM room_type rt
+        LEFT JOIN room rm ON rm.roomTypeID = rt.roomTypeID AND rm.isArchived = 0
+        GROUP BY rt.roomTypeID, rt.type, rt.description, rt.minOccupancy, rt.maxOccupancy, rt.extraFoam
+        ORDER BY rt.type
+      `),
       dbQuery("SELECT * FROM room_rate")
     ]);
     return NextResponse.json({ rooms, floors, roomTypes, roomRates });

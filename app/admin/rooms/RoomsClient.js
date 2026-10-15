@@ -31,14 +31,27 @@ export default function RoomsClient() {
   const [searchInput, setSearchInput] = useState(readSearchParam);
   const searchTimer = useRef(null);
   const [typeFilter, setTypeFilter] = useState('');
-  const [showArchived, setShowArchived] = useState(false); // Active vs Archived rooms
+  const [activeTab, setActiveTab] = useState('rooms'); // 'rooms' | 'types' | 'floors' | 'archived'
+  const showArchived = activeTab === 'archived';
+  const [typeSearch, setTypeSearch] = useState('');
+  const [floorSearch, setFloorSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [typePage, setTypePage] = useState(1);
+  const [floorPage, setFloorPage] = useState(1);
 
   const handleSearchChange = (e) => { const v = e.target.value; setSearchInput(v); if (searchTimer.current) clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => { setSearch(v); setPage(1); }, 350); };
   const handleTypeFilterChange = (e) => { setTypeFilter(e.target.value); setPage(1); };
-  const handleShowActive = () => { setShowArchived(false); setPage(1); };
-  const handleShowArchivedTab = () => { setShowArchived(true); setPage(1); };
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    setPage(1);
+    setTypePage(1);
+    setFloorPage(1);
+  };
+  const handleShowActive = () => { setActiveTab('rooms'); setPage(1); };
+  const handleShowArchivedTab = () => { setActiveTab('archived'); setPage(1); };
   const handleClearFilters = () => { if (searchTimer.current) clearTimeout(searchTimer.current); setSearchInput(''); setSearch(''); setTypeFilter(''); setPage(1); };
+  const handleClearTypeFilters = () => { setTypeSearch(''); setTypePage(1); };
+  const handleClearFloorFilters = () => { setFloorSearch(''); setFloorPage(1); };
 
   const baseCacheKey = `admin-rooms:${search}_${typeFilter}_${showArchived}`;
   const cached = clientCache.get(baseCacheKey);
@@ -185,7 +198,7 @@ export default function RoomsClient() {
   };
 
   // Modals state
-  const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'lookups' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'createType' | 'editType' | 'createFloor' | 'editFloor' | null
   const [selectedRoom, setSelectedRoom] = useState(null);
 
   // Room type / floor lookup management
@@ -204,6 +217,7 @@ export default function RoomsClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Operation failed');
       showAlert('success', 'Success', data.message || okMsg);
+      setActiveModal(null);
       clientCache.invalidate('admin-rooms');
       await fetchRooms();
     } catch (err) {
@@ -213,23 +227,29 @@ export default function RoomsClient() {
     }
   };
 
-  const openLookupsModal = () => {
+  const openCreateTypeModal = () => {
     setTypeForm({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' });
-    setFloorForm({ floorID: '', name: '' });
-    setActiveModal('lookups');
+    setActiveModal('createType');
   };
 
-  const startEditType = (rt) => setTypeForm({
-    roomTypeID: rt.roomTypeID,
-    type: rt.type || '',
-    description: rt.description || '',
-    minOccupancy: String(rt.minOccupancy ?? 1),
-    maxOccupancy: String(rt.maxOccupancy ?? rt.minOccupancy ?? 2),
-    extraFoam: String(rt.extraFoam ?? 0)
-  });
+  const openEditTypeModal = (rt) => {
+    setTypeForm({
+      roomTypeID: rt.roomTypeID,
+      type: rt.type || '',
+      description: rt.description || '',
+      minOccupancy: String(rt.minOccupancy ?? 1),
+      maxOccupancy: String(rt.maxOccupancy ?? rt.minOccupancy ?? 2),
+      extraFoam: String(rt.extraFoam ?? 0)
+    });
+    setActiveModal('editType');
+  };
 
   const handleSaveType = (e) => {
     e.preventDefault();
+    if (!typeForm.type.trim()) {
+      showAlert('error', 'Validation Error', 'Room type name is required.');
+      return;
+    }
     if (typeForm.roomTypeID) {
       postLookup('update_room_type', { ...typeForm }, 'Room type updated.');
     } else {
@@ -243,10 +263,22 @@ export default function RoomsClient() {
     });
   };
 
-  const startEditFloor = (f) => setFloorForm({ floorID: f.floorID, name: f.name || '' });
+  const openCreateFloorModal = () => {
+    setFloorForm({ floorID: '', name: '' });
+    setActiveModal('createFloor');
+  };
+
+  const openEditFloorModal = (f) => {
+    setFloorForm({ floorID: f.floorID, name: f.name || '' });
+    setActiveModal('editFloor');
+  };
 
   const handleSaveFloor = (e) => {
     e.preventDefault();
+    if (!floorForm.name.trim()) {
+      showAlert('error', 'Validation Error', 'Floor name is required.');
+      return;
+    }
     if (floorForm.floorID) {
       postLookup('update_floor', { ...floorForm }, 'Floor updated.');
     } else {
@@ -351,6 +383,7 @@ export default function RoomsClient() {
     if (!entry) {
       fetchRooms(false);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRooms(entry.data.rooms || []);
       setFloors(entry.data.floors || []);
       setRoomTypes(entry.data.roomTypes || []);
@@ -598,6 +631,24 @@ export default function RoomsClient() {
 
   const { totalPages, safePage, rows: pagedRooms, start, end, total } = paginate(rooms, page, ADMIN_PAGE_SIZE);
 
+  const filteredRoomTypes = roomTypes.filter(rt => {
+    if (!typeSearch.trim()) return true;
+    const q = typeSearch.toLowerCase();
+    return (
+      (rt.type && rt.type.toLowerCase().includes(q)) ||
+      (rt.description && rt.description.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredFloors = floors.filter(f => {
+    if (!floorSearch.trim()) return true;
+    const q = floorSearch.toLowerCase();
+    return f.name && f.name.toLowerCase().includes(q);
+  });
+
+  const { totalPages: typeTotalPages, safePage: safeTypePage, rows: pagedRoomTypes, start: typeStart, end: typeEnd, total: typeTotal } = paginate(filteredRoomTypes, typePage, ADMIN_PAGE_SIZE);
+  const { totalPages: floorTotalPages, safePage: safeFloorPage, rows: pagedFloors, start: floorStart, end: floorEnd, total: floorTotal } = paginate(filteredFloors, floorPage, ADMIN_PAGE_SIZE);
+
   return (
     <div className="pcc-page-container table-compact pcc-content-reveal">
       {/* Custom Modal Dialog */}
@@ -612,60 +663,126 @@ export default function RoomsClient() {
         cancelText={modalConfig.cancelText}
       />
 
-      <div className="d-flex justify-content-between align-items-center mb-2">
-        {/* Tabs for Rooms vs Archived */}
-        <Tabs selectedKey={showArchived ? 'archived' : 'rooms'} onSelectionChange={(key) => { if (key === 'archived') handleShowArchivedTab(); else handleShowActive(); }}>
-          <TabList aria-label="Room lists">
-            <Tab id="rooms">Rooms</Tab>
-            <Tab id="archived">Archived Rooms</Tab>
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        {/* Tabs for Rooms, Room Types, Floors, Archived */}
+        <Tabs selectedKey={activeTab} onSelectionChange={handleTabChange}>
+          <TabList aria-label="Room management sections">
+            <Tab id="rooms">
+              Rooms <span className="badge bg-secondary-subtle text-secondary ms-1 rounded-pill">{rooms.length}</span>
+            </Tab>
+            <Tab id="types">
+              Room Types <span className="badge bg-secondary-subtle text-secondary ms-1 rounded-pill">{roomTypes.length}</span>
+            </Tab>
+            <Tab id="floors">
+              Floors <span className="badge bg-secondary-subtle text-secondary ms-1 rounded-pill">{floors.length}</span>
+            </Tab>
+            <Tab id="archived">
+              Archived Rooms
+            </Tab>
           </TabList>
         </Tabs>
         <div className="d-flex gap-2">
-          <button className="btn btn-outline-primary" onClick={openLookupsModal}>
-            Manage Types &amp; Floors
-          </button>
-          <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
-            + Create Room
-          </button>
-        </div>
-      </div>
-
-      {/* Search & Filters */}
-      <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
-        <div className="row g-2 align-items-end">
-          <div className="col-md-5">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search room number or type..."
-              value={searchInput}
-              onChange={handleSearchChange}
-            />
-          </div>
-          <div className="col-md-4">
-            <select
-              className="form-select"
-              value={typeFilter}
-              onChange={handleTypeFilterChange}
-            >
-              <option value="">All Types</option>
-              {roomTypes.map((rt) => (
-                <option key={rt.roomTypeID} value={rt.roomTypeID}>
-                  {rt.type}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-md-3 d-flex gap-2">
-            <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFilters}>
-              Clear
+          {activeTab === 'rooms' && (
+            <button className="btn btn-pcc-primary text-white fw-semibold" onClick={openCreateModal}>
+              <i className="bi bi-plus-lg me-1"></i>Create Room
             </button>
-          </div>
+          )}
+          {activeTab === 'types' && (
+            <button className="btn btn-pcc-primary text-white fw-semibold" onClick={openCreateTypeModal}>
+              <i className="bi bi-plus-lg me-1"></i>Add Room Type
+            </button>
+          )}
+          {activeTab === 'floors' && (
+            <button className="btn btn-pcc-primary text-white fw-semibold" onClick={openCreateFloorModal}>
+              <i className="bi bi-plus-lg me-1"></i>Add Floor
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Rooms Table */}
-      <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+      {/* Search & Filters for Rooms / Archived */}
+      {(activeTab === 'rooms' || activeTab === 'archived') && (
+        <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className="row g-2 align-items-end">
+            <div className="col-md-5">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search room number or type..."
+                value={searchInput}
+                onChange={handleSearchChange}
+              />
+            </div>
+            <div className="col-md-4">
+              <select
+                className="form-select"
+                value={typeFilter}
+                onChange={handleTypeFilterChange}
+              >
+                <option value="">All Types</option>
+                {roomTypes.map((rt) => (
+                  <option key={rt.roomTypeID} value={rt.roomTypeID}>
+                    {rt.type}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-3 d-flex gap-2">
+              <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFilters}>
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search & Filters for Room Types */}
+      {activeTab === 'types' && (
+        <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className="row g-2 align-items-center">
+            <div className="col-md-9">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search room type name or description..."
+                value={typeSearch}
+                onChange={(e) => { setTypeSearch(e.target.value); setTypePage(1); }}
+              />
+            </div>
+            <div className="col-md-3 d-flex gap-2">
+              <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearTypeFilters}>
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search & Filters for Floors */}
+      {activeTab === 'floors' && (
+        <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className="row g-2 align-items-center">
+            <div className="col-md-9">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search floor name (e.g. Ground Floor, Second Floor)..."
+                value={floorSearch}
+                onChange={(e) => { setFloorSearch(e.target.value); setFloorPage(1); }}
+              />
+            </div>
+            <div className="col-md-3 d-flex gap-2">
+              <button className="btn btn-pcc-primary text-white w-100" onClick={handleClearFloorFilters}>
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rooms Table (Active & Archived) */}
+      {(activeTab === 'rooms' || activeTab === 'archived') && (
+        <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
           <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
             <Table className="table align-middle mb-0">
               <TableHeader>
@@ -684,8 +801,25 @@ export default function RoomsClient() {
               <TableBody>
                 {rooms.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan="9" className="text-center text-muted py-4">
-                      No rooms found.
+                    <TableCell colSpan="9" className="text-center text-muted py-5">
+                      <div className="d-flex flex-column align-items-center justify-content-center">
+                        <div className="rounded-circle bg-light d-flex align-items-center justify-content-center mb-3" style={{ width: '56px', height: '56px' }}>
+                          <i className="bi bi-door-closed text-secondary fs-3"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-1">{showArchived ? 'No Archived Rooms' : 'No Rooms Found'}</h6>
+                        <p className="small text-muted mb-3" style={{ maxWidth: '320px' }}>
+                          {searchInput || typeFilter
+                            ? 'No rooms match your search or filter criteria.'
+                            : showArchived
+                            ? 'Rooms archived from the active catalog will appear here.'
+                            : 'Get started by creating your first guest room.'}
+                        </p>
+                        {!showArchived && !searchInput && !typeFilter && (
+                          <button className="btn btn-sm btn-pcc-primary text-white fw-semibold" onClick={openCreateModal}>
+                            <i className="bi bi-plus-lg me-1"></i> Create Room
+                          </button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -749,8 +883,178 @@ export default function RoomsClient() {
               </TableBody>
             </Table>
           </div>
-          <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label="rooms" />
-      </div>
+          <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label={showArchived ? "archived rooms" : "rooms"} />
+        </div>
+      )}
+
+      {/* Room Types Table */}
+      {activeTab === 'types' && (
+        <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
+            <Table className="table align-middle mb-0">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Room Type</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Occupancy Range</TableHead>
+                  <TableHead>Extra Foam (₱)</TableHead>
+                  <TableHead>Active Rooms</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRoomTypes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan="6" className="text-center py-5">
+                      <div className="d-flex flex-column align-items-center justify-content-center text-muted">
+                        <div className="rounded-circle bg-light d-flex align-items-center justify-content-center mb-3" style={{ width: '56px', height: '56px' }}>
+                          <i className="bi bi-tag text-secondary fs-3"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-1">No Room Types Found</h6>
+                        <p className="small text-muted mb-3" style={{ maxWidth: '320px' }}>
+                          {typeSearch ? `No room types match "${typeSearch}".` : 'Get started by creating your first room type.'}
+                        </p>
+                        {!typeSearch && (
+                          <button className="btn btn-sm btn-pcc-primary text-white fw-semibold" onClick={openCreateTypeModal}>
+                            <i className="bi bi-plus-lg me-1"></i> Add Room Type
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pagedRoomTypes.map((rt) => {
+                    const roomCount = Number(rt.roomCount ?? (rooms.filter(r => r.roomTypeID === rt.roomTypeID && !r.isArchived).length));
+                    const isUsed = roomCount > 0;
+                    return (
+                      <TableRow key={rt.roomTypeID}>
+                        <TableCell>
+                          <div className="d-flex align-items-center gap-2">
+                            <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style={{ width: '32px', height: '32px', fontSize: '0.875rem' }}>
+                              <i className="bi bi-tag-fill"></i>
+                            </span>
+                            <strong>{rt.type}</strong>
+                          </div>
+                        </TableCell>
+                        <TableCell style={{ maxWidth: '300px' }}>
+                          {rt.description ? (
+                            <span className="text-muted small text-truncate d-inline-block" style={{ maxWidth: '280px' }} title={rt.description}>
+                              {rt.description}
+                            </span>
+                          ) : (
+                            <span className="text-muted fst-italic small">No description</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="badge bg-light text-dark border px-2 py-1">
+                            <i className="bi bi-people me-1 text-muted"></i>
+                            {rt.minOccupancy ?? 1} – {rt.maxOccupancy ?? rt.minOccupancy ?? 2} Pax
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {Number(rt.extraFoam || 0) > 0 ? (
+                            <span className="fw-semibold text-dark">
+                              ₱{Number(rt.extraFoam).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`badge ${isUsed ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-light text-muted border'} px-2 py-1`}>
+                            <i className="bi bi-door-closed me-1"></i>
+                            {roomCount} {roomCount === 1 ? 'Room' : 'Rooms'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <ActionButtons
+                            onEdit={() => openEditTypeModal(rt)}
+                            onDelete={() => handleDeleteType(rt)}
+                            disabledDelete={isUsed}
+                            deleteTooltip={isUsed ? `Cannot delete: ${roomCount} active room(s) use this type.` : 'Delete Room Type'}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <AdminPagination page={safeTypePage} totalPages={typeTotalPages} onPage={setTypePage} start={typeStart} end={typeEnd} total={typeTotal} label="room types" />
+        </div>
+      )}
+
+      {/* Floors Table */}
+      {activeTab === 'floors' && (
+        <div className="card-module pcc-table-card" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+          <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
+            <Table className="table align-middle mb-0">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Floor Name</TableHead>
+                  <TableHead>Active Rooms</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredFloors.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan="3" className="text-center py-5">
+                      <div className="d-flex flex-column align-items-center justify-content-center text-muted">
+                        <div className="rounded-circle bg-light d-flex align-items-center justify-content-center mb-3" style={{ width: '56px', height: '56px' }}>
+                          <i className="bi bi-layers text-secondary fs-3"></i>
+                        </div>
+                        <h6 className="fw-bold text-dark mb-1">No Floors Found</h6>
+                        <p className="small text-muted mb-3" style={{ maxWidth: '320px' }}>
+                          {floorSearch ? `No floors match "${floorSearch}".` : 'Get started by creating your first building floor.'}
+                        </p>
+                        {!floorSearch && (
+                          <button className="btn btn-sm btn-pcc-primary text-white fw-semibold" onClick={openCreateFloorModal}>
+                            <i className="bi bi-plus-lg me-1"></i> Add Floor
+                          </button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pagedFloors.map((f) => {
+                    const roomCount = Number(f.roomCount ?? (rooms.filter(r => r.floorID === f.floorID && !r.isArchived).length));
+                    const isUsed = roomCount > 0;
+                    return (
+                      <TableRow key={f.floorID}>
+                        <TableCell>
+                          <div className="d-flex align-items-center gap-2">
+                            <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success" style={{ width: '32px', height: '32px', fontSize: '0.875rem' }}>
+                              <i className="bi bi-layers-fill"></i>
+                            </span>
+                            <strong>{f.name}</strong>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`badge ${isUsed ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-light text-muted border'} px-2 py-1`}>
+                            <i className="bi bi-door-closed me-1"></i>
+                            {roomCount} {roomCount === 1 ? 'Room' : 'Rooms'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <ActionButtons
+                            onEdit={() => openEditFloorModal(f)}
+                            onDelete={() => handleDeleteFloor(f)}
+                            disabledDelete={isUsed}
+                            deleteTooltip={isUsed ? `Cannot delete: ${roomCount} active room(s) use this floor.` : 'Delete Floor'}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <AdminPagination page={safeFloorPage} totalPages={floorTotalPages} onPage={setFloorPage} start={floorStart} end={floorEnd} total={floorTotal} label="floors" />
+        </div>
+      )}
 
       {/* ==========================================
           MODALS
@@ -1151,136 +1455,119 @@ export default function RoomsClient() {
             </Dialog>
           </DialogTrigger>
       )}
-          {/* MANAGE TYPES & FLOORS MODAL */}
-          {activeModal === 'lookups' && (
-          <DialogTrigger isOpen={true}>
-            <Dialog isDismissable={false} showCloseButton={false} aria-label="Manage Types and Floors" style={{ maxWidth: '880px' }}>
-              <DialogHeader>
-                <div className="d-flex justify-content-between align-items-center w-100">
-                  <DialogTitle>Manage Room Types &amp; Floors</DialogTitle>
-                  <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
-                </div>
-              </DialogHeader>
-              <DialogBody>
-                <div className="row g-3">
-                  <div className="col-md-7">
-                    <div className="d-flex align-items-center gap-2 mb-2.5">
-                      <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style={{ width: '30px', height: '30px' }}>
-                        <i className="bi bi-door-open-fill"></i>
-                      </span>
-                      <h6 className="fw-bold text-dark mb-0">Room Types</h6>
-                      <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">{roomTypes.length}</span>
-                    </div>
-                    <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                      {roomTypes.length === 0 && <div className="text-muted small text-center py-3 border rounded-3 bg-light">No room types yet.</div>}
-                      {roomTypes.map((rt) => (
-                        <div key={rt.roomTypeID} className="d-flex justify-content-between align-items-center gap-2 p-2.5 bg-white border rounded-3 shadow-xs">
-                          <div className="d-flex align-items-center gap-2.5" style={{ minWidth: 0 }}>
-                            <span className="d-inline-flex align-items-center justify-content-center rounded-3 bg-light border flex-shrink-0" style={{ width: '38px', height: '38px' }}>
-                              <i className="bi bi-bed text-primary fs-6"></i>
-                            </span>
-                            <div className="small" style={{ minWidth: 0 }}>
-                              <div className="fw-bold text-dark text-truncate">{rt.type}</div>
-                              <div className="d-flex gap-1 mt-0.5 flex-wrap">
-                                <span className="badge bg-light text-dark border fw-normal" style={{ fontSize: '0.68rem' }}>Pax {rt.minOccupancy ?? 1}–{rt.maxOccupancy ?? 2}</span>
-                                {(rt.extraFoam > 0) && <span className="badge bg-light text-dark border fw-normal" style={{ fontSize: '0.68rem' }}>+{rt.extraFoam} foam</span>}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="d-flex gap-1.5 flex-shrink-0">
-                            <button type="button" className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px', borderRadius: '8px' }} title={`Edit ${rt.type}`} aria-label={`Edit ${rt.type}`} onClick={() => startEditType(rt)}>
-                              <i className="bi bi-pencil-fill text-primary"></i>
-                            </button>
-                            <button type="button" className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px', borderRadius: '8px' }} title={`Delete ${rt.type}`} aria-label={`Delete ${rt.type}`} onClick={() => handleDeleteType(rt)}>
-                              <i className="bi bi-trash3-fill text-danger"></i>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <form onSubmit={handleSaveType} className="border-0 rounded-3 p-3 shadow-xs" style={{ background: 'var(--bs-light, #f8f9fa)' }}>
-                      <div className="fw-bold small text-dark mb-2 d-flex align-items-center gap-1.5">
-                        <i className="bi bi-plus-circle-fill text-primary"></i>
-                        {typeForm.roomTypeID ? 'Edit Room Type' : 'New Room Type'}
-                      </div>
-                      <div className="row g-2">
-                        <div className="col-12">
-                          <input type="text" className="form-control" required placeholder="Type name (e.g. Family Suite)" value={typeForm.type} onChange={(e) => setTypeForm(prev => ({ ...prev, type: e.target.value }))} style={{ borderRadius: '8px' }} />
-                        </div>
-                        <div className="col-12">
-                          <input type="text" className="form-control" placeholder="Description (optional)" value={typeForm.description} onChange={(e) => setTypeForm(prev => ({ ...prev, description: e.target.value }))} style={{ borderRadius: '8px' }} />
-                        </div>
-                        <div className="col-4">
-                          <label className="form-label small text-muted mb-1">Min Pax</label>
-                          <input type="number" min="1" className="form-control" value={typeForm.minOccupancy} onChange={(e) => setTypeForm(prev => ({ ...prev, minOccupancy: e.target.value }))} style={{ borderRadius: '8px' }} />
-                        </div>
-                        <div className="col-4">
-                          <label className="form-label small text-muted mb-1">Max Pax</label>
-                          <input type="number" min="1" className="form-control" value={typeForm.maxOccupancy} onChange={(e) => setTypeForm(prev => ({ ...prev, maxOccupancy: e.target.value }))} style={{ borderRadius: '8px' }} />
-                        </div>
-                        <div className="col-4">
-                          <label className="form-label small text-muted mb-1">Foam</label>
-                          <input type="number" min="0" className="form-control" value={typeForm.extraFoam} onChange={(e) => setTypeForm(prev => ({ ...prev, extraFoam: e.target.value }))} style={{ borderRadius: '8px' }} />
-                        </div>
-                      </div>
-                      <div className="d-flex gap-2 mt-2.5">
-                        <button type="submit" className="btn btn-pcc-primary text-white fw-bold flex-grow-1" disabled={savingLookup} style={{ borderRadius: '10px' }}>{typeForm.roomTypeID ? 'Save Changes' : 'Add Type'}</button>
-                        {typeForm.roomTypeID && (
-                          <button type="button" className="btn btn-light border fw-semibold" onClick={() => setTypeForm({ roomTypeID: '', type: '', description: '', minOccupancy: '1', maxOccupancy: '2', extraFoam: '0' })}>Cancel</button>
-                        )}
-                      </div>
-                    </form>
+          {/* ROOM TYPE MODAL */}
+          {(activeModal === 'createType' || activeModal === 'editType') && (
+            <DialogTrigger isOpen={true}>
+              <Dialog isDismissable={false} showCloseButton={false} aria-label={activeModal === 'editType' ? 'Edit Room Type' : 'Add Room Type'} style={{ maxWidth: '520px' }}>
+                <DialogHeader>
+                  <div className="d-flex justify-content-between align-items-center w-100">
+                    <DialogTitle>{activeModal === 'editType' ? 'Edit Room Type' : 'Add Room Type'}</DialogTitle>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
                   </div>
-                  <div className="col-md-5">
-                    <div className="d-flex align-items-center gap-2 mb-2.5">
-                      <span className="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success" style={{ width: '30px', height: '30px' }}>
-                        <i className="bi bi-layers-fill"></i>
-                      </span>
-                      <h6 className="fw-bold text-dark mb-0">Floors</h6>
-                      <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill">{floors.length}</span>
+                </DialogHeader>
+                <form onSubmit={handleSaveType}>
+                  <DialogBody>
+                    <div className="mb-3">
+                      <label className="form-label small fw-semibold mb-1">Room Type Name <span className="required-asterisk">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        required
+                        placeholder="e.g. Deluxe Matrimonial"
+                        value={typeForm.type}
+                        onChange={(e) => setTypeForm(prev => ({ ...prev, type: e.target.value }))}
+                      />
                     </div>
-                    <div className="d-flex flex-column gap-2 mb-3" style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                      {floors.length === 0 && <div className="text-muted small text-center py-3 border rounded-3 bg-light">No floors yet.</div>}
-                      {floors.map((f) => (
-                        <div key={f.floorID} className="d-flex justify-content-between align-items-center gap-2 p-2.5 bg-white border rounded-3 shadow-xs">
-                          <span className="fw-semibold text-dark small text-truncate">{f.name}</span>
-                          <div className="d-flex gap-1.5 flex-shrink-0">
-                            <button type="button" className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px', borderRadius: '8px' }} title={`Edit ${f.name}`} aria-label={`Edit ${f.name}`} onClick={() => startEditFloor(f)}>
-                              <i className="bi bi-pencil-fill text-primary"></i>
-                            </button>
-                            <button type="button" className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px', borderRadius: '8px' }} title={`Delete ${f.name}`} aria-label={`Delete ${f.name}`} onClick={() => handleDeleteFloor(f)}>
-                              <i className="bi bi-trash3-fill text-danger"></i>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="mb-3">
+                      <label className="form-label small fw-semibold mb-1">Description <span className="text-muted fw-normal">(Optional)</span></label>
+                      <textarea
+                        className="form-control"
+                        rows={2}
+                        placeholder="Brief description of the room type..."
+                        value={typeForm.description}
+                        onChange={(e) => setTypeForm(prev => ({ ...prev, description: e.target.value }))}
+                      />
                     </div>
-                    <form onSubmit={handleSaveFloor} className="border-0 rounded-3 p-3 shadow-xs" style={{ background: 'var(--bs-light, #f8f9fa)' }}>
-                      <div className="fw-bold small text-dark mb-2 d-flex align-items-center gap-1.5">
-                        <i className="bi bi-plus-circle-fill text-success"></i>
-                        {floorForm.floorID ? 'Rename Floor' : 'New Floor'}
+                    <div className="row g-2 mb-2">
+                      <div className="col-4">
+                        <label className="form-label small fw-semibold mb-1">Min Pax <span className="required-asterisk">*</span></label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="form-control"
+                          required
+                          value={typeForm.minOccupancy}
+                          onChange={(e) => setTypeForm(prev => ({ ...prev, minOccupancy: e.target.value }))}
+                        />
                       </div>
-                      <input type="text" className="form-control mb-2" required placeholder="Floor name (e.g. Third Floor)" value={floorForm.name} onChange={(e) => setFloorForm(prev => ({ ...prev, name: e.target.value }))} style={{ borderRadius: '8px' }} />
-                      <div className="d-flex gap-2">
-                        <button type="submit" className="btn btn-pcc-primary text-white fw-bold flex-grow-1" disabled={savingLookup} style={{ borderRadius: '10px' }}>{floorForm.floorID ? 'Save Changes' : 'Add Floor'}</button>
-                        {floorForm.floorID && (
-                          <button type="button" className="btn btn-light border fw-semibold" onClick={() => setFloorForm({ floorID: '', name: '' })}>Cancel</button>
-                        )}
+                      <div className="col-4">
+                        <label className="form-label small fw-semibold mb-1">Max Pax <span className="required-asterisk">*</span></label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="form-control"
+                          required
+                          value={typeForm.maxOccupancy}
+                          onChange={(e) => setTypeForm(prev => ({ ...prev, maxOccupancy: e.target.value }))}
+                        />
                       </div>
-                    </form>
+                      <div className="col-4">
+                        <label className="form-label small fw-semibold mb-1">Extra Foam</label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-control"
+                          value={typeForm.extraFoam}
+                          onChange={(e) => setTypeForm(prev => ({ ...prev, extraFoam: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  </DialogBody>
+                  <DialogFooter>
+                    <button type="button" className="btn btn-light border fw-semibold" onClick={() => setActiveModal(null)}>Cancel</button>
+                    <button type="submit" className="btn btn-pcc-primary text-white fw-bold px-4" disabled={savingLookup}>
+                      {savingLookup ? 'Saving...' : (activeModal === 'editType' ? 'Save Changes' : 'Create Room Type')}
+                    </button>
+                  </DialogFooter>
+                </form>
+              </Dialog>
+            </DialogTrigger>
+          )}
+
+          {/* FLOOR MODAL */}
+          {(activeModal === 'createFloor' || activeModal === 'editFloor') && (
+            <DialogTrigger isOpen={true}>
+              <Dialog isDismissable={false} showCloseButton={false} aria-label={activeModal === 'editFloor' ? 'Rename Floor' : 'Add Floor'} style={{ maxWidth: '440px' }}>
+                <DialogHeader>
+                  <div className="d-flex justify-content-between align-items-center w-100">
+                    <DialogTitle>{activeModal === 'editFloor' ? 'Rename Floor' : 'Add Floor'}</DialogTitle>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
                   </div>
-                </div>
-                <div className="d-flex align-items-start gap-1.5 text-muted small mt-2.5">
-                  <i className="bi bi-info-circle-fill text-primary mt-0.5"></i>
-                  <span>Deletes are blocked while any room uses the type or floor. New entries appear in the room form dropdowns immediately.</span>
-                </div>
-              </DialogBody>
-              <DialogFooter>
-                <button type="button" className="btn btn-light border fw-semibold px-4" onClick={() => setActiveModal(null)}>Close</button>
-              </DialogFooter>
-            </Dialog>
-          </DialogTrigger>
-      )}
+                </DialogHeader>
+                <form onSubmit={handleSaveFloor}>
+                  <DialogBody>
+                    <div className="mb-2">
+                      <label className="form-label small fw-semibold mb-1">Floor Name <span className="required-asterisk">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        required
+                        placeholder="e.g. Third Floor"
+                        value={floorForm.name}
+                        onChange={(e) => setFloorForm(prev => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                  </DialogBody>
+                  <DialogFooter>
+                    <button type="button" className="btn btn-light border fw-semibold" onClick={() => setActiveModal(null)}>Cancel</button>
+                    <button type="submit" className="btn btn-pcc-primary text-white fw-bold px-4" disabled={savingLookup}>
+                      {savingLookup ? 'Saving...' : (activeModal === 'editFloor' ? 'Save Changes' : 'Add Floor')}
+                    </button>
+                  </DialogFooter>
+                </form>
+              </Dialog>
+            </DialogTrigger>
+          )}
         </ModalPortal>
       )}
     </div>

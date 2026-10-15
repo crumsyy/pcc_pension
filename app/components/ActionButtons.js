@@ -20,6 +20,7 @@ export default function ActionButtons({
   isSelf,
   disabledEdit,
   editTooltip,
+  disabledDelete,
   archiveTooltip,
   deleteTooltip,
   deleteIcon,
@@ -233,10 +234,12 @@ export default function ActionButtons({
           type="button"
           className={`action-btn ${deleteIcon === 'archive' ? 'action-btn-archive' : 'action-btn-delete'}`}
           onClick={onDelete}
+          disabled={disabledDelete}
           data-bs-toggle="tooltip"
           data-bs-placement="top"
-          title={deleteTooltip || (deleteIcon === 'archive' ? 'Archive' : 'Delete')}
+          title={disabledDelete ? (deleteTooltip || "Cannot be deleted") : (deleteTooltip || (deleteIcon === 'archive' ? 'Archive' : 'Delete'))}
           aria-label={deleteTooltip || (deleteIcon === 'archive' ? 'Archive' : 'Delete')}
+          style={{ opacity: disabledDelete ? 0.5 : 1 }}
         >
           <i className={`fa-solid ${deleteIcon === 'archive' ? 'fa-box-archive' : 'fa-trash'}`}></i>
         </button>
