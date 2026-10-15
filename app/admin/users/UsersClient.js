@@ -161,6 +161,7 @@ export default function UsersClient() {
   useEffect(() => {
     const entry = clientCache.get(baseCacheKey);
     if (!entry) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchUsers(false);
     } else {
       setUsers(entry.data.users || []);
@@ -315,9 +316,16 @@ export default function UsersClient() {
       return;
     }
     const editRole = roles.find((r) => String(r.roleID) === String(formData.roleID));
-    if (!editRole || editRole.role === 'Guest') {
-      showAlert('error', 'Validation Error', 'Only Administrator or Receptionist roles are allowed here.');
-      return;
+    if (selectedUser.role === 'Guest') {
+      if (!editRole || editRole.role !== 'Guest') {
+        showAlert('error', 'Validation Error', 'Guest accounts must retain the Guest role.');
+        return;
+      }
+    } else {
+      if (!editRole || editRole.role === 'Guest') {
+        showAlert('error', 'Validation Error', 'Only Administrator or Receptionist roles are allowed for staff.');
+        return;
+      }
     }
 
     showConfirm('Update Account', 'Save changes to this user account?', async () => {

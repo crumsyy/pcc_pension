@@ -215,16 +215,40 @@ export async function POST(request) {
           );
         }
 
-        if (staffID > 0) {
-          await conn.execute(
-            "UPDATE staff SET firstName=?,middleName=?,lastName=?,gender=?,dateOfBirth=?,city=?,province=?,contact=? WHERE staffID=?",
-            [fname, mname, lname, gender, dob, city, province, contact, staffID]
-          );
-        } else if (guestID > 0) {
-          await conn.execute(
-            "UPDATE guest SET firstName=?,middleName=?,lastName=?,gender=?,dateOfBirth=?,city=?,province=?,contact=? WHERE guestID=?",
-            [fname, mname, lname, gender, dob, city, province, contact, guestID]
-          );
+        // Determine user role to see whether staff or guest should be updated/upserted
+        const [roleRows] = await conn.execute("SELECT role FROM role WHERE roleID = ?", [roleID]);
+        const roleName = roleRows[0]?.role || '';
+
+        const [userRow] = await conn.execute("SELECT email FROM user WHERE userID = ?", [uid]);
+        const userEmail = userRow[0]?.email || '';
+
+        if (roleName === 'Guest') {
+          const [guestRows] = await conn.execute("SELECT guestID FROM guest WHERE userID = ?", [uid]);
+          if (guestRows.length > 0) {
+            await conn.execute(
+              "UPDATE guest SET firstName=?,middleName=?,lastName=?,gender=?,dateOfBirth=?,city=?,province=?,contact=? WHERE userID=?",
+              [fname, mname, lname, gender, dob, city, province, contact, uid]
+            );
+          } else {
+            await conn.execute(
+              "INSERT INTO guest(firstName,middleName,lastName,gender,dateOfBirth,city,province,contact,email,userID) VALUES(?,?,?,?,?,?,?,?,?,?)",
+              [fname, mname, lname, gender, dob, city, province, contact, userEmail, uid]
+            );
+          }
+        } else {
+          // Administrator or Receptionist
+          const [staffRows] = await conn.execute("SELECT staffID FROM staff WHERE userID = ?", [uid]);
+          if (staffRows.length > 0) {
+            await conn.execute(
+              "UPDATE staff SET firstName=?,middleName=?,lastName=?,gender=?,dateOfBirth=?,city=?,province=?,contact=? WHERE userID=?",
+              [fname, mname, lname, gender, dob, city, province, contact, uid]
+            );
+          } else {
+            await conn.execute(
+              "INSERT INTO staff(firstName,middleName,lastName,gender,dateOfBirth,city,province,contact,email,userID) VALUES(?,?,?,?,?,?,?,?,?,?)",
+              [fname, mname, lname, gender, dob, city, province, contact, userEmail, uid]
+            );
+          }
         }
 
         if (body.newPassword && body.newPassword.trim() !== '') {

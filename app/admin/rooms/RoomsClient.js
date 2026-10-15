@@ -263,9 +263,51 @@ export default function RoomsClient() {
     });
   };
 
+  const getNextFloorName = (existingFloors = []) => {
+    const regex = /(\d+)(?:st|nd|rd|th)?\s*floor/i;
+    const wordMap = {
+      ground: 1,
+      first: 1,
+      second: 2,
+      third: 3,
+      fourth: 4,
+      fifth: 5,
+      sixth: 6,
+      seventh: 7,
+      eighth: 8,
+      ninth: 9,
+      tenth: 10
+    };
+    
+    let maxNum = 0;
+    for (const f of existingFloors) {
+      const name = (f.name || '').trim().toLowerCase();
+      const match = name.match(regex);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      } else {
+        for (const [word, val] of Object.entries(wordMap)) {
+          if (name.includes(word)) {
+            if (val > maxNum) maxNum = val;
+            break;
+          }
+        }
+      }
+    }
+
+    const nextNum = Math.max(maxNum + 1, existingFloors.length + 1);
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = nextNum % 100;
+    const ordinal = nextNum + (s[(v - 20) % 10] || s[v] || s[0]);
+    return `${ordinal} Floor`;
+  };
+
   const openCreateFloorModal = () => {
-    setFloorForm({ floorID: '', name: '' });
-    setActiveModal('createFloor');
+    const nextName = getNextFloorName(floors);
+    showConfirm('Add Floor', `Add "${nextName}" to building floors?`, async () => {
+      await postLookup('create_floor', { name: nextName }, `Floor "${nextName}" added successfully.`);
+    });
   };
 
   const openEditFloorModal = (f) => {
@@ -1534,13 +1576,13 @@ export default function RoomsClient() {
             </DialogTrigger>
           )}
 
-          {/* FLOOR MODAL */}
-          {(activeModal === 'createFloor' || activeModal === 'editFloor') && (
+          {/* RENAME FLOOR MODAL */}
+          {activeModal === 'editFloor' && (
             <DialogTrigger isOpen={true}>
-              <Dialog isDismissable={false} showCloseButton={false} aria-label={activeModal === 'editFloor' ? 'Rename Floor' : 'Add Floor'} style={{ maxWidth: '440px' }}>
+              <Dialog isDismissable={false} showCloseButton={false} aria-label="Rename Floor" style={{ maxWidth: '440px' }}>
                 <DialogHeader>
                   <div className="d-flex justify-content-between align-items-center w-100">
-                    <DialogTitle>{activeModal === 'editFloor' ? 'Rename Floor' : 'Add Floor'}</DialogTitle>
+                    <DialogTitle>Rename Floor</DialogTitle>
                     <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
                   </div>
                 </DialogHeader>
@@ -1552,7 +1594,7 @@ export default function RoomsClient() {
                         type="text"
                         className="form-control"
                         required
-                        placeholder="e.g. Third Floor"
+                        placeholder="e.g. Ground Floor"
                         value={floorForm.name}
                         onChange={(e) => setFloorForm(prev => ({ ...prev, name: e.target.value }))}
                       />
@@ -1561,7 +1603,7 @@ export default function RoomsClient() {
                   <DialogFooter>
                     <button type="button" className="btn btn-light border fw-semibold" onClick={() => setActiveModal(null)}>Cancel</button>
                     <button type="submit" className="btn btn-pcc-primary text-white fw-bold px-4" disabled={savingLookup}>
-                      {savingLookup ? 'Saving...' : (activeModal === 'editFloor' ? 'Save Changes' : 'Add Floor')}
+                      {savingLookup ? 'Saving...' : 'Save Changes'}
                     </button>
                   </DialogFooter>
                 </form>

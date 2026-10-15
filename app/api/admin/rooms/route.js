@@ -264,8 +264,33 @@ export async function POST(request) {
     }
 
     if (action === 'create_floor') {
-      const name = (body.name || '').trim();
-      if (!name) return NextResponse.json({ error: 'Floor name is required.' }, { status: 400 });
+      let name = (body.name || '').trim();
+      if (!name) {
+        const existingFloors = await dbQuery("SELECT name FROM floor ORDER BY floorID");
+        const regex = /(\d+)(?:st|nd|rd|th)?\s*floor/i;
+        const wordMap = { ground: 1, first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10 };
+        let maxNum = 0;
+        for (const f of existingFloors) {
+          const fn = (f.name || '').trim().toLowerCase();
+          const match = fn.match(regex);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) maxNum = num;
+          } else {
+            for (const [w, val] of Object.entries(wordMap)) {
+              if (fn.includes(w)) {
+                if (val > maxNum) maxNum = val;
+                break;
+              }
+            }
+          }
+        }
+        const nextNum = Math.max(maxNum + 1, existingFloors.length + 1);
+        const s = ['th', 'st', 'nd', 'rd'];
+        const val = nextNum % 100;
+        const ordinal = nextNum + (s[(val - 20) % 10] || s[val] || s[0]);
+        name = `${ordinal} Floor`;
+      }
       const dup = await dbQuery("SELECT floorID FROM floor WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))", [name]);
       if (dup.length > 0) return NextResponse.json({ error: 'A floor with this name already exists.' }, { status: 400 });
       await dbQuery("INSERT INTO floor(name) VALUES(?)", [name]);
