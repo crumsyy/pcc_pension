@@ -340,8 +340,7 @@ export default function RoomsClient() {
     floorID: '',
     roomTypeID: '',
     status: 'Available',
-    rateWithoutBreakfast: '',
-    rateWithBreakfast: '',
+    rate: '',
     description: '',
     occupancyLimit: '4',
     image: '',
@@ -438,15 +437,11 @@ export default function RoomsClient() {
 
   const getSelectedRates = (floorID, roomTypeID) => {
     if (!floorID || !roomTypeID) return null;
-    const withoutBreakfast = roomRates.find(
+    const match = roomRates.find(
       r => r.floorID === parseInt(floorID) && r.roomTypeID === parseInt(roomTypeID) && r.breakfastID === 1
     );
-    const withBreakfast = roomRates.find(
-      r => r.floorID === parseInt(floorID) && r.roomTypeID === parseInt(roomTypeID) && r.breakfastID === 2
-    );
     return {
-      withoutBreakfast: withoutBreakfast ? withoutBreakfast.rate : 0,
-      withBreakfast: withBreakfast ? withBreakfast.rate : 0
+      rate: match ? match.rate : 0
     };
   };
 
@@ -461,11 +456,9 @@ export default function RoomsClient() {
       if (name === 'floorID' || name === 'roomTypeID') {
         const rates = getSelectedRates(next.floorID, next.roomTypeID);
         if (rates) {
-          next.rateWithoutBreakfast = rates.withoutBreakfast;
-          next.rateWithBreakfast = rates.withBreakfast;
+          next.rate = rates.rate;
         } else {
-          next.rateWithoutBreakfast = '';
-          next.rateWithBreakfast = '';
+          next.rate = '';
         }
       }
       return next;
@@ -482,12 +475,12 @@ export default function RoomsClient() {
       showAlert('error', 'Validation Error', 'Room Number must contain numbers only (no letters).');
       return;
     }
-    if (parseFloat(formData.rateWithoutBreakfast) < 0 || parseFloat(formData.rateWithBreakfast) < 0) {
-      showAlert('error', 'Validation Error', 'Room rates cannot be negative.');
+    if (isNaN(parseFloat(formData.rate)) || parseFloat(formData.rate) < 0) {
+      showAlert('error', 'Validation Error', 'Room rate must be a valid non-negative number.');
       return;
     }
 
-    showConfirm('Create Room', 'Are you sure you want to create this room and set these rates?', async () => {
+    showConfirm('Create Room', 'Are you sure you want to create this room and set this rate?', async () => {
       try {
         const res = await fetch('/api/admin/rooms', {
           method: 'POST',
@@ -522,12 +515,12 @@ export default function RoomsClient() {
       showAlert('error', 'Validation Error', 'Room Number must contain numbers only (no letters).');
       return;
     }
-    if (parseFloat(formData.rateWithoutBreakfast) < 0 || parseFloat(formData.rateWithBreakfast) < 0) {
-      showAlert('error', 'Validation Error', 'Room rates cannot be negative.');
+    if (isNaN(parseFloat(formData.rate)) || parseFloat(formData.rate) < 0) {
+      showAlert('error', 'Validation Error', 'Room rate must be a valid non-negative number.');
       return;
     }
 
-    showConfirm('Update Room', `Save changes to Room ${selectedRoom.roomNumber} and update rates?`, async () => {
+    showConfirm('Update Room', `Save changes to Room ${selectedRoom.roomNumber} and update rate?`, async () => {
       try {
         const res = await fetch('/api/admin/rooms', {
           method: 'POST',
@@ -622,8 +615,7 @@ export default function RoomsClient() {
       floorID,
       roomTypeID,
       status: 'Available',
-      rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
-      rateWithBreakfast: rates ? rates.withBreakfast : '',
+      rate: rates ? rates.rate : '',
       description: '',
       occupancyLimit: '4',
       image: '',
@@ -643,8 +635,7 @@ export default function RoomsClient() {
       floorID: room.floorID,
       roomTypeID: room.roomTypeID,
       status: room.status,
-      rateWithoutBreakfast: rates ? rates.withoutBreakfast : '',
-      rateWithBreakfast: rates ? rates.withBreakfast : '',
+      rate: rates ? rates.rate : (room.rate || room.rateWithoutBreakfast || ''),
       description: room.description || '',
       occupancyLimit: room.occupancyLimit ? room.occupancyLimit.toString() : '4',
       image: room.image || '',
@@ -833,9 +824,7 @@ export default function RoomsClient() {
                   <TableHead>Floor</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Occupancy Limit</TableHead>
-                  <TableHead>Price (w/o Breakfast)</TableHead>
-                  <TableHead>Price (w/ Breakfast)</TableHead>
-                  <TableHead>Breakfast Fee</TableHead>
+                  <TableHead>Price (₱)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -843,7 +832,7 @@ export default function RoomsClient() {
               <TableBody>
                 {rooms.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan="9" className="text-center text-muted py-5">
+                    <TableCell colSpan="7" className="text-center text-muted py-5">
                       <div className="d-flex flex-column align-items-center justify-content-center">
                         <div className="rounded-circle bg-light d-flex align-items-center justify-content-center mb-3" style={{ width: '56px', height: '56px' }}>
                           <i className="bi bi-door-closed text-secondary fs-3"></i>
@@ -875,26 +864,8 @@ export default function RoomsClient() {
                         <TableCell>{rm.floorName}</TableCell>
                         <TableCell>{rm.typeName}</TableCell>
                         <TableCell>{rm.occupancyLimit || 4} Pax</TableCell>
-                        <TableCell>₱{Number(rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell>₱{Number(rm.rateWithBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell>
-                          {(() => {
-                            const withoutBk = parseFloat(rm.rateWithoutBreakfast) || 0;
-                            const withBk = parseFloat(rm.rateWithBreakfast) || 0;
-                            const diff = Math.max(0, withBk - withoutBk);
-                            if (diff <= 0) {
-                              return (
-                                <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                  <i className="bi bi-cup-hot me-1"></i>Included
-                                </span>
-                              );
-                            }
-                            return (
-                              <span className="fw-semibold text-dark">
-                                +₱{diff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            );
-                          })()}
+                          <strong>₱{Number(rm.rate || rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                         </TableCell>
                         <TableCell>
                           <span
@@ -1178,34 +1149,19 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Rate W/O Breakfast (₱) <span className="required-asterisk">*</span></label>
+                      <label className="form-label small fw-semibold mb-1">Standard Rate (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
-                        name="rateWithoutBreakfast"
+                        name="rate"
                         className="form-control"
                         required
                         step="0.01"
                         min="0"
-                        value={formData.rateWithoutBreakfast}
+                        placeholder="e.g. 1500.00"
+                        value={formData.rate}
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Rate W/ Breakfast (₱) <span className="required-asterisk">*</span></label>
-                      <input
-                        type="number"
-                        name="rateWithBreakfast"
-                        className="form-control"
-                        required
-                        step="0.01"
-                        min="0"
-                        value={formData.rateWithBreakfast}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="row g-2 mb-2">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Status</label>
                       <select
@@ -1219,7 +1175,10 @@ export default function RoomsClient() {
                         ))}
                       </select>
                     </div>
-                    <div className="col-md-6">
+                  </div>
+
+                  <div className="row g-2 mb-2">
+                    <div className="col-12">
                       <label className="form-label small fw-semibold mb-1">Room Photos</label>
                       <input
                         type="file"
@@ -1374,34 +1333,19 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Rate W/O Breakfast (₱) <span className="required-asterisk">*</span></label>
+                      <label className="form-label small fw-semibold mb-1">Standard Rate (₱) <span className="required-asterisk">*</span></label>
                       <input
                         type="number"
-                        name="rateWithoutBreakfast"
+                        name="rate"
                         className="form-control"
                         required
                         step="0.01"
                         min="0"
-                        value={formData.rateWithoutBreakfast}
+                        placeholder="e.g. 1500.00"
+                        value={formData.rate}
                         onChange={handleInputChange}
                       />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Rate W/ Breakfast (₱) <span className="required-asterisk">*</span></label>
-                      <input
-                        type="number"
-                        name="rateWithBreakfast"
-                        className="form-control"
-                        required
-                        step="0.01"
-                        min="0"
-                        value={formData.rateWithBreakfast}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="row g-2 mb-2">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold mb-1">Status</label>
                       <select
@@ -1415,7 +1359,10 @@ export default function RoomsClient() {
                         ))}
                       </select>
                     </div>
-                    <div className="col-md-6">
+                  </div>
+
+                  <div className="row g-2 mb-2">
+                    <div className="col-12">
                       <label className="form-label small fw-semibold mb-1">Room Photos</label>
                       <input
                         type="file"
