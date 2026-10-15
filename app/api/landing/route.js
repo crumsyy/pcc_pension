@@ -3,8 +3,10 @@ import { dbQuery } from '@/lib/db';
 
 export async function GET(request) {
   try {
-    const [roomCountRes, roomsList, activePromotions] = await Promise.all([
+    const [roomCountRes, floorCountRes, roomTypeCountRes, roomsList, activePromotions] = await Promise.all([
       dbQuery("SELECT COUNT(*) as totalRooms FROM room WHERE isArchived = 0"),
+      dbQuery("SELECT COUNT(*) as totalFloors FROM floor"),
+      dbQuery("SELECT COUNT(*) as totalRoomTypes FROM room_type"),
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, r.description, r.image, r.occupancyLimit, r.breakfastRate,
                rt.roomTypeID, COALESCE(rt.type, 'Standard Room') as roomType, rt.description as typeDescription,
@@ -39,10 +41,14 @@ export async function GET(request) {
     ]);
 
     const totalRooms = roomCountRes[0]?.totalRooms || 0;
+    const totalFloors = floorCountRes[0]?.totalFloors || 0;
+    const totalRoomTypes = roomTypeCountRes[0]?.totalRoomTypes || 0;
 
     return NextResponse.json({
       success: true,
       totalRooms,
+      totalFloors,
+      totalRoomTypes,
       rooms: roomsList,
       promotions: activePromotions
     });

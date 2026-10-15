@@ -115,6 +115,8 @@ export default function Home() {
   const [year, setYear] = useState(2026);
   const [landingData, setLandingData] = useState({
     totalRooms: 0,
+    totalFloors: 0,
+    totalRoomTypes: 0,
     rooms: [],
     promotions: []
   });
@@ -382,22 +384,21 @@ export default function Home() {
               <p className="text-muted">
                 Located along Osmeña Street, Zone 1, Koronadal City, PCC Home Suite Home
                 provides clean, secure, and budget-friendly accommodations for guests
-                visiting the city for work, leisure, or family matters. Our two-floor
-                property offers Standard, Twin, and Deluxe Matrimonial rooms, each
+                visiting the city for work, leisure, or family matters. Our {landingData.totalFloors > 0 ? `${landingData.totalFloors}-floor` : 'two-floor'} property offers Standard, Twin, and Deluxe Matrimonial rooms, each
                 available with or without breakfast — so you can choose what fits
                 your stay best.
               </p>
               <div className="stat-row d-flex flex-wrap gap-4 mt-4">
                 <div>
-                  <div className="stat-number">2</div>
+                  <div className="stat-number">{landingData.totalFloors || 0}</div>
                   <div className="stat-label">Floors</div>
                 </div>
                 <div>
-                  <div className="stat-number">3</div>
+                  <div className="stat-number">{landingData.totalRoomTypes || 0}</div>
                   <div className="stat-label">Room Types</div>
                 </div>
                 <div>
-                  <div className="stat-number text-pcc-blue fw-bold">{landingData.totalRooms > 0 ? landingData.totalRooms : 6}</div>
+                  <div className="stat-number text-pcc-blue fw-bold">{landingData.totalRooms || 0}</div>
                   <div className="stat-label">Total Rooms</div>
                 </div>
                 <div>
