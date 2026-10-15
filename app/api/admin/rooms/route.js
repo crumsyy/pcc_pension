@@ -259,6 +259,7 @@ export async function POST(request) {
       if (!roomTypeID) return NextResponse.json({ error: 'Room type ID is required.' }, { status: 400 });
       const used = await dbQuery("SELECT roomID FROM room WHERE roomTypeID = ? LIMIT 1", [roomTypeID]);
       if (used.length > 0) return NextResponse.json({ error: 'Cannot delete: rooms (including history) still use this room type.' }, { status: 400 });
+      await dbQuery("DELETE FROM room_rate WHERE roomTypeID = ?", [roomTypeID]);
       await dbQuery("DELETE FROM room_type WHERE roomTypeID = ?", [roomTypeID]);
       return NextResponse.json({ success: true, message: 'Room type deleted successfully.' });
     }
@@ -312,6 +313,7 @@ export async function POST(request) {
       if (!floorID) return NextResponse.json({ error: 'Floor ID is required.' }, { status: 400 });
       const used = await dbQuery("SELECT roomID FROM room WHERE floorID = ? LIMIT 1", [floorID]);
       if (used.length > 0) return NextResponse.json({ error: 'Cannot delete: rooms (including history) still use this floor.' }, { status: 400 });
+      await dbQuery("DELETE FROM room_rate WHERE floorID = ?", [floorID]);
       await dbQuery("DELETE FROM floor WHERE floorID = ?", [floorID]);
       return NextResponse.json({ success: true, message: 'Floor deleted successfully.' });
     }
