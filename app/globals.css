@@ -1539,34 +1539,39 @@ body.dark-theme #promotions .card .bg-light {
   transform: scale(0.97);
 }
 
-/* Polished Chatbot Input & Send Button */
+/* Capsule Pill Chatbot Input & Send Button */
 .chatbot-input-field {
-  border-radius: 8px !important;
-  border: 1px solid #cbd5e1 !important;
+  border-radius: 9999px !important;
+  border: 1.5px solid #cbd5e1 !important;
   background-color: #f8fafc !important;
   color: #0f172a !important;
-  padding: 0.45rem 0.75rem !important;
+  padding: 0.55rem 1.25rem !important;
+  height: 42px !important;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .chatbot-input-field:focus {
   background-color: #ffffff !important;
   border-color: var(--pcc-blue) !important;
-  box-shadow: 0 0 0 2px rgba(33, 85, 181, 0.15) !important;
+  box-shadow: 0 0 0 2px rgba(33, 85, 181, 0.18) !important;
   outline: none !important;
 }
 
 .chatbot-send-btn {
-  border-radius: 8px !important;
+  border-radius: 9999px !important;
   background-color: var(--pcc-blue) !important;
   border: none !important;
+  font-weight: 700 !important;
+  padding: 0.55rem 1.4rem !important;
+  height: 42px !important;
   transition: all 0.18s ease;
+  flex-shrink: 0;
 }
 
 .chatbot-send-btn:hover:not(:disabled) {
   background-color: var(--pcc-blue-dark) !important;
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(33, 85, 181, 0.3) !important;
+  box-shadow: 0 3px 8px rgba(33, 85, 181, 0.35) !important;
 }
 
 .chatbot-send-btn:active:not(:disabled) {
@@ -2540,16 +2545,36 @@ body.dark-theme .chatbot-bot-controls {
 
 [data-bs-theme="dark"] .chatbot-input-field,
 body.dark-theme .chatbot-input-field {
-  background-color: #1e293b !important;
+  background-color: #0b1120 !important;
   color: #f8fafc !important;
-  border-color: #334155 !important;
+  border-color: #475569 !important;
+  border-width: 1.5px !important;
+}
+
+[data-bs-theme="dark"] .chatbot-input-field::placeholder,
+body.dark-theme .chatbot-input-field::placeholder {
+  color: #64748b !important;
 }
 
 [data-bs-theme="dark"] .chatbot-input-field:focus,
 body.dark-theme .chatbot-input-field:focus {
-  background-color: #1e293b !important;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+  background-color: #0f172a !important;
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25) !important;
+}
+
+[data-bs-theme="dark"] .chatbot-send-btn,
+body.dark-theme .chatbot-send-btn {
+  background-color: #1d70e8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(29, 112, 232, 0.35) !important;
+}
+
+[data-bs-theme="dark"] .chatbot-send-btn:hover:not(:disabled),
+body.dark-theme .chatbot-send-btn:hover:not(:disabled) {
+  background-color: #2563eb !important;
+  filter: brightness(1.1);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45) !important;
 }
 
 /* =====================================================================

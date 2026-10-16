@@ -828,30 +828,27 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                 e.preventDefault();
                 handleSendBotMessage(input);
               }}
-              className="p-2.5 d-flex align-items-center"
-              style={{ gap: '0.75rem' }}
+              className="d-flex align-items-center"
+              style={{ padding: '0.85rem 1rem 0.95rem', gap: '1.25rem' }}
             >
               <input
                 type="text"
-                className="form-control form-control-sm flex-grow-1 chatbot-input-field"
-                placeholder={activeTabMode === 'live' ? "Type message to Receptionist..." : "Type your inquiry..."}
+                className="form-control flex-grow-1 chatbot-input-field rounded-pill"
+                placeholder={activeTabMode === 'live' ? "Type message to Receptionist..." : "Type your question..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                style={{ fontSize: '0.82rem' }}
+                style={{ fontSize: '0.85rem' }}
               />
               <button
                 type="submit"
-                className="btn btn-sm btn-pcc-primary px-3 text-white fw-semibold d-inline-flex align-items-center justify-content-center chatbot-send-btn shadow-sm"
+                className="btn btn-pcc-primary text-white rounded-pill d-inline-flex align-items-center justify-content-center chatbot-send-btn shadow-sm"
                 disabled={isSendingMessage || !input.trim()}
-                style={{ gap: '0.5rem', fontSize: '0.82rem', minWidth: '76px', height: '36px' }}
+                style={{ fontSize: '0.88rem', fontWeight: 700, minWidth: '78px', height: '42px', padding: '0.5rem 1.4rem' }}
               >
                 {isSendingMessage ? (
                   <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 ) : (
-                  <>
-                    <span>Send</span>
-                    <i className="bi bi-send-fill" style={{ fontSize: '0.78rem' }} aria-hidden="true"></i>
-                  </>
+                  <span>Send</span>
                 )}
               </button>
             </form>
