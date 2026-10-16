@@ -1409,6 +1409,128 @@ body.dark-theme #promotions .card .bg-light {
   color: var(--pcc-cream);
 }
 
+/* Single-Line Horizontally Scrollable Pills Track */
+.chatbot-quick-pills-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.chatbot-quick-pills-row::-webkit-scrollbar {
+  display: none;
+}
+
+.chatbot-quick-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  line-height: 1.25;
+}
+
+.chatbot-quick-pill i {
+  font-size: 0.72rem;
+  opacity: 0.9;
+  color: var(--pcc-blue);
+}
+
+.chatbot-quick-pill:hover:not(:disabled) {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
+}
+
+.chatbot-quick-pill:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.chatbot-quick-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Receptionist Action Bar */
+.chatbot-receptionist-bar {
+  background-color: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.chatbot-receptionist-btn {
+  background: linear-gradient(135deg, var(--pcc-blue) 0%, var(--pcc-blue-dark) 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 6px rgba(33, 85, 181, 0.25);
+}
+
+.chatbot-receptionist-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(33, 85, 181, 0.35);
+}
+
+.chatbot-receptionist-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Polished Chatbot Input & Send Button */
+.chatbot-input-field {
+  border-radius: 8px !important;
+  border: 1px solid #cbd5e1 !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  padding: 0.45rem 0.75rem !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.chatbot-input-field:focus {
+  background-color: #ffffff !important;
+  border-color: var(--pcc-blue) !important;
+  box-shadow: 0 0 0 2px rgba(33, 85, 181, 0.15) !important;
+  outline: none !important;
+}
+
+.chatbot-send-btn {
+  border-radius: 8px !important;
+  background-color: var(--pcc-blue) !important;
+  border: none !important;
+  transition: all 0.18s ease;
+}
+
+.chatbot-send-btn:hover:not(:disabled) {
+  background-color: var(--pcc-blue-dark) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(33, 85, 181, 0.3) !important;
+}
+
+.chatbot-send-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
 .chatbot-input {
   display: flex;
   border-top: 1px solid var(--pcc-mist);
@@ -2300,6 +2422,65 @@ body.dark-theme .chatbot-window .btn-outline-secondary {
 body.dark-theme .chatbot-window .btn-outline-secondary:hover {
   background-color: #2563eb !important;
   color: #ffffff !important;
+}
+
+/* Chatbot Quick Pills Row & Pills (Dark Mode) */
+[data-bs-theme="dark"] .chatbot-quick-pills-row,
+body.dark-theme .chatbot-quick-pills-row {
+  background-color: #0b1120 !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+[data-bs-theme="dark"] .chatbot-quick-pill,
+body.dark-theme .chatbot-quick-pill {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .chatbot-quick-pill i,
+body.dark-theme .chatbot-quick-pill i {
+  color: #60a5fa !important;
+}
+
+[data-bs-theme="dark"] .chatbot-quick-pill:hover:not(:disabled),
+body.dark-theme .chatbot-quick-pill:hover:not(:disabled) {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35) !important;
+}
+
+[data-bs-theme="dark"] .chatbot-receptionist-bar,
+body.dark-theme .chatbot-receptionist-bar {
+  background-color: #0f172a !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+[data-bs-theme="dark"] .chatbot-footer,
+body.dark-theme .chatbot-footer {
+  background-color: #0f172a !important;
+  border-top-color: #1e293b !important;
+}
+
+[data-bs-theme="dark"] .chatbot-bot-controls,
+body.dark-theme .chatbot-bot-controls {
+  border-bottom-color: #1e293b !important;
+}
+
+[data-bs-theme="dark"] .chatbot-input-field,
+body.dark-theme .chatbot-input-field {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .chatbot-input-field:focus,
+body.dark-theme .chatbot-input-field:focus {
+  background-color: #1e293b !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
 }
 
 /* =====================================================================

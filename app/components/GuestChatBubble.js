@@ -185,11 +185,21 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
     return "I can help with room rates, check-in times, amenities, location, or reservations. For food and room service, please visit the Orders tab. You can also click 'Request Receptionist' to chat directly with our staff!";
   };
 
+  const QUICK_ACTIONS = [
+    { key: 'rates', label: 'Room Rates', icon: 'bi bi-cash-stack' },
+    { key: 'checkin', label: 'Check-In Times', icon: 'bi bi-clock-history' },
+    { key: 'amenities', label: 'Amenities', icon: 'bi bi-stars' },
+    { key: 'location', label: 'Location', icon: 'bi bi-geo-alt-fill' },
+    { key: 'reservation', label: 'Reservations', icon: 'bi bi-calendar-check-fill' },
+    { key: 'orders', label: 'Room Service', icon: 'bi bi-bell-fill' },
+  ];
+
   const QUICK_OPTION_QUERIES = {
     rates: 'room rates price',
     checkin: 'check-in checkout time',
     amenities: 'amenities wifi',
     location: 'location address contact',
+    reservation: 'reservation book reserve',
     orders: 'order food breakfast'
   };
 
@@ -673,66 +683,55 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
 
         {/* BOTTOM AREA */}
         {!showRequestForm && (
-          <div className="bg-white border-top">
+          <div className="chatbot-footer bg-white border-top">
             {activeTabMode === 'bot' && (
-              /* CHATBOT QUICK REPLIES AND REQUEST RECEPTIONIST BUTTON */
-              <div className="p-2 bg-light border-bottom d-flex flex-wrap gap-1" style={{ fontSize: '0.72rem' }}>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
-                  onClick={() => handleQuickOption('rates', 'Room Rates')}
-                  style={{ fontSize: '0.72rem' }}
+              <div className="chatbot-bot-controls border-bottom">
+                {/* 1-LINE HORIZONTALLY SCROLLABLE QUICK QUESTIONS TRACK */}
+                <div
+                  className="chatbot-quick-pills-row"
+                  role="region"
+                  aria-label="Quick questions"
                 >
-                  Room Rates
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
-                  onClick={() => handleQuickOption('checkin', 'Check-In Times')}
-                  style={{ fontSize: '0.72rem' }}
-                >
-                  Check-In Times
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
-                  onClick={() => handleQuickOption('amenities', 'Amenities')}
-                  style={{ fontSize: '0.72rem' }}
-                >
-                  Amenities
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
-                  onClick={() => handleQuickOption('location', 'Location')}
-                  style={{ fontSize: '0.72rem' }}
-                >
-                  Location
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill"
-                  onClick={() => handleQuickOption('orders', 'Room Service Info')}
-                  style={{ fontSize: '0.72rem' }}
-                >
-                  Room Service
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-pcc-primary py-1 px-2 rounded-pill text-white fw-bold w-100 mt-1 d-flex align-items-center justify-content-center gap-1.5"
-                  onClick={handleOpenRequestForm}
-                  disabled={submittingRequest}
-                  style={{ fontSize: '0.75rem' }}
-                >
-                  {submittingRequest ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      Connecting to Receptionist...
-                    </>
-                  ) : (
-                    'Request Receptionist'
-                  )}
-                </button>
+                  {QUICK_ACTIONS.map((action) => (
+                    <button
+                      key={action.key}
+                      type="button"
+                      className="chatbot-quick-pill"
+                      onClick={() => handleQuickOption(action.key, action.label)}
+                      disabled={isSendingMessage || submittingRequest}
+                    >
+                      <i className={action.icon} aria-hidden="true"></i>
+                      <span>{action.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* REFINED REQUEST RECEPTIONIST BAR */}
+                <div className="chatbot-receptionist-bar px-3 py-1.5 d-flex align-items-center justify-content-between">
+                  <span className="text-muted small d-inline-flex align-items-center gap-1.5" style={{ fontSize: '0.72rem' }}>
+                    <i className="bi bi-chat-dots-fill text-primary"></i>
+                    <span>Need staff help?</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-xs chatbot-receptionist-btn rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-none"
+                    onClick={handleOpenRequestForm}
+                    disabled={submittingRequest}
+                    style={{ fontSize: '0.74rem' }}
+                  >
+                    {submittingRequest ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-headset" aria-hidden="true"></i>
+                        <span>Request Receptionist</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -742,26 +741,29 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                 e.preventDefault();
                 handleSendBotMessage(input);
               }}
-              className="p-2 d-flex gap-1"
+              className="p-2.5 d-flex gap-2 align-items-center"
             >
               <input
                 type="text"
-                className="form-control form-control-sm flex-grow-1"
+                className="form-control form-control-sm flex-grow-1 chatbot-input-field"
                 placeholder={activeTabMode === 'live' ? "Type message to Receptionist..." : "Type your inquiry..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                style={{ fontSize: '0.8rem' }}
+                style={{ fontSize: '0.82rem' }}
               />
               <button
                 type="submit"
-                className="btn btn-sm btn-pcc-primary px-3 text-white fw-semibold d-flex align-items-center justify-content-center"
-                disabled={isSendingMessage}
-                style={{ fontSize: '0.8rem', minWidth: '60px' }}
+                className="btn btn-sm btn-pcc-primary px-3 text-white fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 chatbot-send-btn shadow-sm"
+                disabled={isSendingMessage || !input.trim()}
+                style={{ fontSize: '0.82rem', minWidth: '70px', height: '34px' }}
               >
                 {isSendingMessage ? (
                   <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 ) : (
-                  'Send'
+                  <>
+                    <span>Send</span>
+                    <i className="bi bi-send-fill" style={{ fontSize: '0.75rem' }} aria-hidden="true"></i>
+                  </>
                 )}
               </button>
             </form>
