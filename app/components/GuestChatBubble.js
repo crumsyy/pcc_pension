@@ -16,6 +16,60 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
   const [liveMessages, setLiveMessages] = useState([]);
   const [dbInquiry, setDbInquiry] = useState(null);
   const chatBodyRef = useRef(null);
+  const quickPillsRef = useRef(null);
+  const isDraggingPillsRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragScrollLeftRef = useRef(0);
+  const hasMovedPillsRef = useRef(false);
+
+  const handleQuickPillsWheel = (e) => {
+    if (quickPillsRef.current) {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        quickPillsRef.current.scrollLeft += e.deltaY;
+      }
+    }
+  };
+
+  const handlePillsMouseDown = (e) => {
+    if (!quickPillsRef.current) return;
+    isDraggingPillsRef.current = true;
+    hasMovedPillsRef.current = false;
+    dragStartXRef.current = e.pageX - quickPillsRef.current.offsetLeft;
+    dragScrollLeftRef.current = quickPillsRef.current.scrollLeft;
+  };
+
+  const handlePillsMouseMove = (e) => {
+    if (!isDraggingPillsRef.current || !quickPillsRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - quickPillsRef.current.offsetLeft;
+    const walk = (x - dragStartXRef.current) * 1.5;
+    if (Math.abs(walk) > 4) {
+      hasMovedPillsRef.current = true;
+    }
+    quickPillsRef.current.scrollLeft = dragScrollLeftRef.current - walk;
+  };
+
+  const handlePillsMouseUp = () => {
+    isDraggingPillsRef.current = false;
+  };
+
+  const scrollQuickPills = (direction) => {
+    if (quickPillsRef.current) {
+      quickPillsRef.current.scrollBy({
+        left: direction === 'left' ? -120 : 120,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handlePillClick = (key, label) => {
+    if (hasMovedPillsRef.current) {
+      hasMovedPillsRef.current = false;
+      return;
+    }
+    handleQuickOption(key, label);
+  };
 
 
 
@@ -503,7 +557,7 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
             backgroundColor: '#f8fafc',
             display: 'flex',
             flexDirection: 'column',
-            gap: '10px'
+            gap: '1.25rem'
           }}
         >
           {showRequestForm ? (
@@ -606,30 +660,32 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                 <div
                   key={m.messageID}
                   className={`d-flex flex-column ${m.senderType === 'Guest' ? 'align-items-end' : 'align-items-start'}`}
+                  style={{ width: '100%' }}
                 >
-                  <div className="text-muted small mb-0.5 px-1" style={{ fontSize: '0.65rem' }}>
+                  <div className="text-muted small mb-1 px-1" style={{ fontSize: '0.67rem' }}>
                     {m.senderName} • {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                   <div
-                    className={`p-2.5 px-3 rounded shadow-sm ${m.senderType !== 'Guest' ? 'chat-bubble-received' : 'chat-bubble-sent'}`}
+                    className={`shadow-sm ${m.senderType !== 'Guest' ? 'chat-bubble-received' : 'chat-bubble-sent'}`}
                     style={{
                       maxWidth: '85%',
+                      padding: '0.8rem 1.05rem',
                       fontSize: '0.82rem',
-                      lineHeight: '1.4',
+                      lineHeight: '1.55',
                       whiteSpace: 'pre-line',
-                      borderRadius: m.senderType === 'Guest' ? '12px 12px 2px 12px' : '12px 12px 12px 2px'
+                      borderRadius: m.senderType === 'Guest' ? '14px 14px 3px 14px' : '14px 14px 14px 3px'
                     }}
                   >
                     {m.message}
                   </div>
                   {m.senderType === 'Guest' && (
-                    <div className="text-end px-1 mt-0.5" style={{ fontSize: '0.65rem' }}>
+                    <div className="text-end px-1" style={{ fontSize: '0.67rem', marginTop: '5px' }}>
                       {m.status === 'Read' || m.isRead === 1 ? (
-                        <span className="text-primary fw-semibold d-inline-flex align-items-center gap-1" title="Read by Receptionist">
+                        <span className="text-primary fw-semibold d-inline-flex align-items-center" style={{ gap: '0.35rem' }} title="Read by Receptionist">
                           <i className="bi bi-check2-all text-primary"></i> Read {m.readAt ? new Date(m.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       ) : (
-                        <span className="text-muted d-inline-flex align-items-center gap-1" title="Delivered to Receptionist">
+                        <span className="text-muted d-inline-flex align-items-center" style={{ gap: '0.35rem' }} title="Delivered to Receptionist">
                           <i className="bi bi-check2"></i> Delivered
                         </span>
                       )}
@@ -644,22 +700,24 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               <div
                 key={idx}
                 className={`d-flex flex-column ${m.sender === 'user' ? 'align-items-end' : 'align-items-start'}`}
+                style={{ width: '100%' }}
               >
                 <div
-                  className={`p-2.5 px-3 rounded shadow-sm ${m.sender !== 'user' ? 'chat-bubble-received' : 'chat-bubble-sent'}`}
+                  className={`shadow-sm ${m.sender !== 'user' ? 'chat-bubble-received' : 'chat-bubble-sent'}`}
                   style={{
                     maxWidth: '85%',
+                    padding: '0.8rem 1.05rem',
                     fontSize: '0.82rem',
-                    lineHeight: '1.4',
+                    lineHeight: '1.55',
                     whiteSpace: 'pre-line',
-                    borderRadius: m.sender === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px'
+                    borderRadius: m.sender === 'user' ? '14px 14px 3px 14px' : '14px 14px 14px 3px'
                   }}
                 >
                   {m.text}
                 </div>
                 {m.sender === 'user' && (
-                  <div className="text-end px-1 mt-0.5" style={{ fontSize: '0.65rem' }}>
-                    <span className="text-muted">✓ Delivered</span>
+                  <div className="text-end px-1" style={{ fontSize: '0.67rem', marginTop: '5px' }}>
+                    <span className="text-muted d-inline-flex align-items-center" style={{ gap: '0.35rem' }}>✓ Delivered</span>
                   </div>
                 )}
               </div>
@@ -686,47 +744,76 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
           <div className="chatbot-footer bg-white border-top">
             {activeTabMode === 'bot' && (
               <div className="chatbot-bot-controls border-bottom">
-                {/* 1-LINE HORIZONTALLY SCROLLABLE QUICK QUESTIONS TRACK */}
-                <div
-                  className="chatbot-quick-pills-row"
-                  role="region"
-                  aria-label="Quick questions"
-                >
-                  {QUICK_ACTIONS.map((action) => (
-                    <button
-                      key={action.key}
-                      type="button"
-                      className="chatbot-quick-pill"
-                      onClick={() => handleQuickOption(action.key, action.label)}
-                      disabled={isSendingMessage || submittingRequest}
-                    >
-                      <i className={action.icon} aria-hidden="true"></i>
-                      <span>{action.label}</span>
-                    </button>
-                  ))}
+                {/* 1-LINE HORIZONTALLY SCROLLABLE QUICK QUESTIONS TRACK WITH CHEVRONS */}
+                <div className="chatbot-quick-pills-wrapper position-relative d-flex align-items-center px-1">
+                  <button
+                    type="button"
+                    className="btn btn-sm chatbot-scroll-arrow chatbot-scroll-left"
+                    onClick={() => scrollQuickPills('left')}
+                    aria-label="Scroll left"
+                    title="Previous options"
+                  >
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
+
+                  <div
+                    ref={quickPillsRef}
+                    className="chatbot-quick-pills-row flex-grow-1"
+                    role="region"
+                    aria-label="Quick questions"
+                    onWheel={handleQuickPillsWheel}
+                    onMouseDown={handlePillsMouseDown}
+                    onMouseMove={handlePillsMouseMove}
+                    onMouseUp={handlePillsMouseUp}
+                    onMouseLeave={handlePillsMouseUp}
+                  >
+                    {QUICK_ACTIONS.map((action) => (
+                      <button
+                        key={action.key}
+                        type="button"
+                        className="chatbot-quick-pill"
+                        onClick={() => handlePillClick(action.key, action.label)}
+                        disabled={isSendingMessage || submittingRequest}
+                        style={{ gap: '0.5rem' }}
+                      >
+                        <i className={action.icon} aria-hidden="true"></i>
+                        <span>{action.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm chatbot-scroll-arrow chatbot-scroll-right"
+                    onClick={() => scrollQuickPills('right')}
+                    aria-label="Scroll right"
+                    title="Next options"
+                  >
+                    <i className="bi bi-chevron-right"></i>
+                  </button>
                 </div>
 
                 {/* REFINED REQUEST RECEPTIONIST BAR */}
-                <div className="chatbot-receptionist-bar px-3 py-1.5 d-flex align-items-center justify-content-between">
-                  <span className="text-muted small d-inline-flex align-items-center gap-1.5" style={{ fontSize: '0.72rem' }}>
-                    <i className="bi bi-chat-dots-fill text-primary"></i>
+                <div className="chatbot-receptionist-bar px-3 py-2 d-flex align-items-center justify-content-between">
+                  <span className="text-muted small d-inline-flex align-items-center" style={{ gap: '0.5rem', fontSize: '0.74rem' }}>
+                    <i className="bi bi-chat-dots-fill text-primary" style={{ fontSize: '0.85rem' }}></i>
                     <span>Need staff help?</span>
                   </span>
                   <button
                     type="button"
-                    className="btn btn-xs chatbot-receptionist-btn rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-none"
+                    className="btn btn-xs chatbot-receptionist-btn rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center shadow-none"
                     onClick={handleOpenRequestForm}
                     disabled={submittingRequest}
-                    style={{ fontSize: '0.74rem' }}
+                    style={{ gap: '0.55rem', fontSize: '0.74rem' }}
                   >
                     {submittingRequest ? (
                       <>
                         <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        Connecting...
+                        <span>Connecting...</span>
                       </>
                     ) : (
                       <>
-                        <i className="bi bi-headset" aria-hidden="true"></i>
+                        <i className="bi bi-headset" style={{ fontSize: '0.82rem' }} aria-hidden="true"></i>
                         <span>Request Receptionist</span>
                       </>
                     )}
@@ -741,7 +828,8 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
                 e.preventDefault();
                 handleSendBotMessage(input);
               }}
-              className="p-2.5 d-flex gap-2 align-items-center"
+              className="p-2.5 d-flex align-items-center"
+              style={{ gap: '0.75rem' }}
             >
               <input
                 type="text"
@@ -753,16 +841,16 @@ export default function GuestChatBubble({ inlineView = false, hideFloating = fal
               />
               <button
                 type="submit"
-                className="btn btn-sm btn-pcc-primary px-3 text-white fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 chatbot-send-btn shadow-sm"
+                className="btn btn-sm btn-pcc-primary px-3 text-white fw-semibold d-inline-flex align-items-center justify-content-center chatbot-send-btn shadow-sm"
                 disabled={isSendingMessage || !input.trim()}
-                style={{ fontSize: '0.82rem', minWidth: '70px', height: '34px' }}
+                style={{ gap: '0.5rem', fontSize: '0.82rem', minWidth: '76px', height: '36px' }}
               >
                 {isSendingMessage ? (
                   <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 ) : (
                   <>
                     <span>Send</span>
-                    <i className="bi bi-send-fill" style={{ fontSize: '0.75rem' }} aria-hidden="true"></i>
+                    <i className="bi bi-send-fill" style={{ fontSize: '0.78rem' }} aria-hidden="true"></i>
                   </>
                 )}
               </button>
