@@ -72,7 +72,9 @@ export async function GET(request) {
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, r.occupancyLimit, r.image, COALESCE(rt.type, 'Standard Room') as roomType,
                r.breakfastRate,
+               r.price,
                COALESCE(
+                 r.price + COALESCE(r.breakfastRate, 0),
                  (
                    SELECT rr2.rate 
                    FROM room_rate rr2 
@@ -81,6 +83,7 @@ export async function GET(request) {
                  ), 1400.00
                ) as rateWithBreakfast,
                COALESCE(
+                 r.price,
                  (
                    SELECT rr1.rate 
                    FROM room_rate rr1 
@@ -89,6 +92,7 @@ export async function GET(request) {
                  ), 1200.00
                ) as rateWithoutBreakfast,
                COALESCE(
+                 r.price,
                  (
                    SELECT rr1.rate 
                    FROM room_rate rr1 
@@ -344,11 +348,13 @@ export async function POST(request) {
         const breakfastID = (breakfastOption === 'with' && !hasCustomBreakfast) ? 2 : 1;
 
         const [roomData] = await conn.execute(
-          "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, r.breakfastRate, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
+          "SELECT r.floorID, r.roomTypeID, r.occupancyLimit, r.breakfastRate, r.price, rr.rate FROM room r LEFT JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1 WHERE r.roomID = ?",
           [roomID]
         );
         let baseRoomRate = 0;
-        if (roomData.length > 0 && roomData[0].rate != null) {
+        if (roomData.length > 0 && roomData[0].price != null && parseFloat(roomData[0].price) > 0) {
+          baseRoomRate = parseFloat(roomData[0].price);
+        } else if (roomData.length > 0 && roomData[0].rate != null) {
           baseRoomRate = parseFloat(roomData[0].rate);
         } else {
           const [defData] = await conn.execute(

@@ -410,35 +410,38 @@ export async function POST(request) {
         const downPaymentPercentage = parseInt(body.downPaymentPercentage || body.paymentOption || 50, 10);
         const downPaymentRate = downPaymentPercentage / 100;
 
-        const [rateRows] = await connection.execute(`
-          SELECT rr.rate
-          FROM room r
-          JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
-          WHERE r.roomID = ?
-          LIMIT 1
-        `, [roomID]);
+        const [roomDataRows] = await connection.execute("SELECT price, occupancyLimit, breakfastRate FROM room WHERE roomID = ?", [roomID]);
+        let roomPrice = (roomDataRows.length > 0 && roomDataRows[0].price != null && parseFloat(roomDataRows[0].price) > 0)
+          ? parseFloat(roomDataRows[0].price)
+          : null;
 
-        let dbRate = 0;
-        if (rateRows && rateRows.length > 0 && rateRows[0]?.rate != null) {
-          dbRate = parseFloat(rateRows[0].rate);
-        } else {
-          const [catRate] = await connection.execute(`
+        if (roomPrice === null) {
+          const [rateRows] = await connection.execute(`
             SELECT rr.rate
             FROM room r
-            JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID
+            JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = 1
             WHERE r.roomID = ?
-            ORDER BY rr.rate ASC
             LIMIT 1
           `, [roomID]);
-          dbRate = catRate[0]?.rate ? parseFloat(catRate[0].rate) : 0;
+
+          if (rateRows && rateRows.length > 0 && rateRows[0]?.rate != null) {
+            roomPrice = parseFloat(rateRows[0].rate);
+          } else {
+            const [catRate] = await connection.execute(`
+              SELECT rr.rate
+              FROM room r
+              JOIN room_rate rr ON rr.roomTypeID = r.roomTypeID AND rr.floorID = r.floorID
+              WHERE r.roomID = ?
+              ORDER BY rr.rate ASC
+              LIMIT 1
+            `, [roomID]);
+            roomPrice = catRate[0]?.rate ? parseFloat(catRate[0].rate) : 0;
+          }
         }
 
-        const roomPrice = dbRate;
         const dIn = new Date(checkInDate);
         const dOut = new Date(checkOutDate);
         const nights = Math.max(1, Math.round((dOut - dIn) / (1000 * 60 * 60 * 24)));
-
-        const [roomDataRows] = await connection.execute("SELECT occupancyLimit, breakfastRate FROM room WHERE roomID = ?", [roomID]);
         const basePax = parseInt(roomDataRows[0]?.occupancyLimit || 4);
         let customBfastRate = BREAKFAST_RATE;
         if (body.breakfastRate !== undefined && body.breakfastRate !== null && !isNaN(parseFloat(body.breakfastRate))) {

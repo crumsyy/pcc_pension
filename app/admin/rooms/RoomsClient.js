@@ -251,7 +251,7 @@ export default function RoomsClient() {
       showAlert('error', 'Validation Error', 'Room type name is required.');
       return;
     }
-    if (isNaN(parseFloat(typeForm.price)) || parseFloat(typeForm.price) < 0) {
+    if (typeForm.price && (isNaN(parseFloat(typeForm.price)) || parseFloat(typeForm.price) < 0)) {
       showAlert('error', 'Validation Error', 'Room type price must be a valid non-negative number.');
       return;
     }
@@ -358,6 +358,7 @@ export default function RoomsClient() {
     roomTypeID: '',
     status: 'Available',
     rate: '',
+    price: '',
     description: '',
     image: '',
   });
@@ -471,18 +472,13 @@ export default function RoomsClient() {
       const next = { ...prev, [name]: value };
       if (name === 'floorID') {
         next.roomNumber = getNextRoomNumber(value, rooms, floors);
-        const rates = getSelectedRates(next.floorID, next.roomTypeID);
-        if (rates) {
-          next.rate = rates.rate;
-        } else {
-          next.rate = '';
-        }
       } else if (name === 'roomTypeID') {
-        const rates = getSelectedRates(next.floorID, next.roomTypeID);
-        if (rates) {
-          next.rate = rates.rate;
-        } else {
-          next.rate = '';
+        if (!prev.price || prev.price === '0' || prev.price === '') {
+          const sel = roomTypes.find(rt => String(rt.roomTypeID) === String(value));
+          if (sel && sel.price) {
+            next.price = String(sel.price);
+            next.rate = String(sel.price);
+          }
         }
       }
       return next;
@@ -497,6 +493,10 @@ export default function RoomsClient() {
     }
     if (!/^\d+$/.test(formData.roomNumber.trim())) {
       showAlert('error', 'Validation Error', 'Room Number must contain numbers only (no letters).');
+      return;
+    }
+    if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
+      showAlert('error', 'Validation Error', 'Room price must be a valid non-negative number.');
       return;
     }
 
@@ -533,6 +533,10 @@ export default function RoomsClient() {
     }
     if (!/^\d+$/.test(formData.roomNumber.trim())) {
       showAlert('error', 'Validation Error', 'Room Number must contain numbers only (no letters).');
+      return;
+    }
+    if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
+      showAlert('error', 'Validation Error', 'Room price must be a valid non-negative number.');
       return;
     }
 
@@ -625,13 +629,15 @@ export default function RoomsClient() {
   const openCreateModal = () => {
     const floorID = floors[0]?.floorID || '';
     const roomTypeID = roomTypes[0]?.roomTypeID || '';
-    const rates = getSelectedRates(floorID, roomTypeID);
+    const selRt = roomTypes.find(rt => String(rt.roomTypeID) === String(roomTypeID));
+    const initialPrice = selRt?.price ? String(selRt.price) : '';
     setFormData({
       roomNumber: getNextRoomNumber(floorID, rooms, floors),
       floorID,
       roomTypeID,
       status: 'Available',
-      rate: rates ? rates.rate : '',
+      rate: initialPrice,
+      price: initialPrice,
       description: '',
       image: '',
     });
@@ -644,13 +650,14 @@ export default function RoomsClient() {
       return;
     }
     setSelectedRoom(room);
-    const rates = getSelectedRates(room.floorID, room.roomTypeID);
+    const roomPrice = room.price ?? room.rate ?? room.rateWithoutBreakfast ?? '';
     setFormData({
       roomNumber: room.roomNumber,
       floorID: room.floorID,
       roomTypeID: room.roomTypeID,
       status: room.status,
-      rate: rates ? rates.rate : (room.rate || room.rateWithoutBreakfast || ''),
+      rate: String(roomPrice),
+      price: String(roomPrice),
       description: room.description || '',
       image: room.image || '',
     });
@@ -883,7 +890,7 @@ export default function RoomsClient() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <strong>₱{Number(rm.rate || rm.rateWithoutBreakfast || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                          <strong>₱{Number(rm.price ?? rm.rate ?? rm.rateWithoutBreakfast ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                         </TableCell>
                         <TableCell>
                           <span
@@ -1190,26 +1197,23 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Standard Price (₱)</label>
-                      {(() => {
-                        const selType = roomTypes.find(rt => String(rt.roomTypeID) === String(formData.roomTypeID));
-                        return (
-                          <div className="input-group">
-                            <span className="input-group-text bg-light text-muted">₱</span>
-                            <input
-                              type="text"
-                              className="form-control bg-light fw-bold text-dark"
-                              readOnly
-                              value={Number(selType?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            />
-                            <span className="input-group-text bg-light text-success small fw-semibold">
-                              <i className="bi bi-tag me-1"></i> Inherited
-                            </span>
-                          </div>
-                        );
-                      })()}
+                      <label className="form-label small fw-semibold mb-1">Nightly Price (₱) <span className="required-asterisk">*</span></label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-light text-muted">₱</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          name="price"
+                          className="form-control fw-bold text-dark"
+                          required
+                          placeholder="e.g. 1500.00"
+                          value={formData.price}
+                          onChange={handleInputChange}
+                        />
+                      </div>
                       <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                        Inherited from selected room type.
+                        Set the individual base price for this room.
                       </small>
                     </div>
                     <div className="col-md-6">
@@ -1393,26 +1397,23 @@ export default function RoomsClient() {
 
                   <div className="row g-2 mb-2">
                     <div className="col-md-6">
-                      <label className="form-label small fw-semibold mb-1">Standard Price (₱)</label>
-                      {(() => {
-                        const selType = roomTypes.find(rt => String(rt.roomTypeID) === String(formData.roomTypeID));
-                        return (
-                          <div className="input-group">
-                            <span className="input-group-text bg-light text-muted">₱</span>
-                            <input
-                              type="text"
-                              className="form-control bg-light fw-bold text-dark"
-                              readOnly
-                              value={Number(selType?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            />
-                            <span className="input-group-text bg-light text-success small fw-semibold">
-                              <i className="bi bi-tag me-1"></i> Inherited
-                            </span>
-                          </div>
-                        );
-                      })()}
+                      <label className="form-label small fw-semibold mb-1">Nightly Price (₱) <span className="required-asterisk">*</span></label>
+                      <div className="input-group">
+                        <span className="input-group-text bg-light text-muted">₱</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          name="price"
+                          className="form-control fw-bold text-dark"
+                          required
+                          placeholder="e.g. 1500.00"
+                          value={formData.price}
+                          onChange={handleInputChange}
+                        />
+                      </div>
                       <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                        Inherited from selected room type.
+                        Set the individual base price for this room.
                       </small>
                     </div>
                     <div className="col-md-6">
@@ -1547,7 +1548,7 @@ export default function RoomsClient() {
                       />
                     </div>
                     <div className="mb-3">
-                      <label className="form-label small fw-semibold mb-1">Standard Nightly Price (₱) <span className="required-asterisk">*</span></label>
+                      <label className="form-label small fw-semibold mb-1">Default / Suggested Price (₱) <span className="text-muted fw-normal">(Optional)</span></label>
                       <div className="input-group">
                         <span className="input-group-text bg-light text-muted">₱</span>
                         <input
@@ -1555,14 +1556,13 @@ export default function RoomsClient() {
                           step="0.01"
                           min="0"
                           className="form-control"
-                          required
                           placeholder="e.g. 1500.00"
                           value={typeForm.price}
                           onChange={(e) => setTypeForm(prev => ({ ...prev, price: e.target.value }))}
                         />
                       </div>
                       <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
-                        All rooms under this room type will automatically inherit this base nightly rate.
+                        Optional default price suggested when creating new rooms of this type.
                       </small>
                     </div>
                     <div className="row g-2 mb-2">

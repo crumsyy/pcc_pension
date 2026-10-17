@@ -48,26 +48,27 @@ export async function GET(request) {
     const allRooms = await dbQuery(`
       SELECT r.roomID, r.roomNumber, r.floorID, r.status, r.occupancyLimit, r.image, r.description,
              r.breakfastRate,
+             r.price,
              COALESCE(rt.type, 'Standard Room') as roomType,
              COALESCE(fl.name, 'Ground Floor') as floorName,
-             (
+             COALESCE(r.price, (
                SELECT rr1.rate
                FROM room_rate rr1
                WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1
                LIMIT 1
-             ) as rate,
-             (
+             ), 0) as rate,
+             COALESCE(r.price, (
                SELECT rr1.rate
                FROM room_rate rr1
                WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1
                LIMIT 1
-             ) as rateWithoutBreakfast,
-             (
+             ), 0) as rateWithoutBreakfast,
+             COALESCE(r.price + COALESCE(r.breakfastRate, 0), (
                SELECT rr2.rate
                FROM room_rate rr2
                WHERE rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2
                LIMIT 1
-             ) as rateWithBreakfast
+             ), 0) as rateWithBreakfast
       FROM room r
       LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
       LEFT JOIN floor fl ON fl.floorID = r.floorID

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
-import { dbQuery, getDbConnection, ensureBreakfastRateSchema, syncRoomStatuses } from '@/lib/db';
+import { dbQuery, getDbConnection, ensureBreakfastRateSchema, ensureRoomPriceSchema, syncRoomStatuses } from '@/lib/db';
 
 function getFloorNameByIndex(index) {
   if (index === 1) return 'Ground Floor';
@@ -44,6 +44,7 @@ export async function GET(request) {
 
   await syncRoomStatuses();
   await ensureBreakfastRateSchema();
+  await ensureRoomPriceSchema();
   await resequenceFloors().catch(() => {});
 
   const { searchParams } = new URL(request.url);
@@ -53,10 +54,11 @@ export async function GET(request) {
 
   let sql = `
     SELECT rm.*, rt.type as typeName, fl.name as floorName,
-           rt.minOccupancy, rt.maxOccupancy, rt.extraFoam, rt.price,
-           COALESCE(rt.price, rr1.rate, rr2.rate, 0) as rate,
-           COALESCE(rt.price, rr1.rate, 0) as rateWithoutBreakfast,
-           COALESCE(rt.price, rr2.rate, 0) as rateWithBreakfast
+           rt.minOccupancy, rt.maxOccupancy, rt.extraFoam,
+           rm.price as price,
+           COALESCE(rm.price, rt.price, rr1.rate, rr2.rate, 0) as rate,
+           COALESCE(rm.price, rt.price, rr1.rate, 0) as rateWithoutBreakfast,
+           COALESCE(rm.price + COALESCE(rm.breakfastRate, 0), rt.price, rr2.rate, 0) as rateWithBreakfast
     FROM room rm
     JOIN room_type rt ON rt.roomTypeID = rm.roomTypeID
     JOIN floor fl ON fl.floorID = rm.floorID
@@ -134,7 +136,11 @@ export async function POST(request) {
       const status = body.status || 'Available';
       const roomTypeID = parseInt(body.roomTypeID);
       const rtInfo = await dbQuery("SELECT minOccupancy, maxOccupancy, price FROM room_type WHERE roomTypeID=?", [roomTypeID]);
-      const rate = rtInfo.length > 0 ? parseFloat(rtInfo[0].price || 0) : parseFloat(body.rate ?? body.price ?? 0);
+      const price = parseFloat(body.price ?? body.rate ?? (rtInfo.length > 0 ? rtInfo[0].price : 0) ?? 0);
+      if (isNaN(price) || price < 0) {
+        return NextResponse.json({ error: 'Room price must be a valid non-negative number.' }, { status: 400 });
+      }
+      const rate = price;
       const description = (body.description || '').trim();
       const occupancyLimit = rtInfo.length > 0 ? parseInt(rtInfo[0].minOccupancy || 2, 10) : 4;
       const image = (body.image || '').trim() || null;
@@ -154,8 +160,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "INSERT INTO room(roomNumber,status,floorID,roomTypeID,description,occupancyLimit,image,breakfastRate) VALUES(?,?,?,?,?,?,?,?)",
-        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image, breakfastRate]
+        "INSERT INTO room(roomNumber,status,floorID,roomTypeID,description,occupancyLimit,image,breakfastRate,price) VALUES(?,?,?,?,?,?,?,?,?)",
+        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image, breakfastRate, price]
       );
 
       // Upsert rates
@@ -187,7 +193,11 @@ export async function POST(request) {
       const floorID = parseInt(body.floorID);
       const roomTypeID = parseInt(body.roomTypeID);
       const rtInfo = await dbQuery("SELECT minOccupancy, maxOccupancy, price FROM room_type WHERE roomTypeID=?", [roomTypeID]);
-      const rate = rtInfo.length > 0 ? parseFloat(rtInfo[0].price || 0) : parseFloat(body.rate ?? body.price ?? 0);
+      const price = parseFloat(body.price ?? body.rate ?? (rtInfo.length > 0 ? rtInfo[0].price : 0) ?? 0);
+      if (isNaN(price) || price < 0) {
+        return NextResponse.json({ error: 'Room price must be a valid non-negative number.' }, { status: 400 });
+      }
+      const rate = price;
       const description = (body.description || '').trim();
       const occupancyLimit = rtInfo.length > 0 ? parseInt(rtInfo[0].minOccupancy || 2, 10) : 4;
       const image = (body.image || '').trim() || null;
@@ -213,8 +223,8 @@ export async function POST(request) {
       }
 
       await dbQuery(
-        "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=?, description=?, occupancyLimit=?, image=?, breakfastRate=? WHERE roomID=?",
-        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image, breakfastRate, roomID]
+        "UPDATE room SET roomNumber=?, status=?, floorID=?, roomTypeID=?, description=?, occupancyLimit=?, image=?, breakfastRate=?, price=? WHERE roomID=?",
+        [roomNumber, status, floorID, roomTypeID, description, occupancyLimit, image, breakfastRate, price, roomID]
       );
 
       // Upsert rates

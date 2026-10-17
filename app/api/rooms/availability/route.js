@@ -32,24 +32,30 @@ export async function GET(request) {
     const breakfastID = breakfast === 'With Breakfast' ? 2 : 1;
 
     let query = `
-      SELECT r.roomID, r.roomNumber, rt.type as roomType, rt.description, rr.rate, fl.name as floor,
-             r.breakfastRate, r.image, r.occupancyLimit,
-             (
+      SELECT r.roomID, r.roomNumber, rt.type as roomType, rt.description,
+             COALESCE(
+               CASE WHEN ? = 2 THEN (r.price + COALESCE(r.breakfastRate, 0)) ELSE r.price END,
+               rr.rate,
+               0
+             ) as rate,
+             fl.name as floor,
+             r.breakfastRate, r.image, r.occupancyLimit, r.price,
+             COALESCE(r.price, (
                SELECT rr1.rate
                FROM room_rate rr1
                WHERE rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 1
                LIMIT 1
-             ) as rateWithoutBreakfast,
-             (
+             ), 0) as rateWithoutBreakfast,
+             COALESCE((r.price + COALESCE(r.breakfastRate, 0)), (
                SELECT rr2.rate
                FROM room_rate rr2
                WHERE rr2.roomTypeID = r.roomTypeID AND rr2.floorID = r.floorID AND rr2.breakfastID = 2
                LIMIT 1
-             ) as rateWithBreakfast
+             ), 0) as rateWithBreakfast
       FROM room r
       JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
       JOIN floor fl ON fl.floorID = r.floorID
-      JOIN room_rate rr ON rr.roomTypeID = rt.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ?
+      LEFT JOIN room_rate rr ON rr.roomTypeID = rt.roomTypeID AND rr.floorID = r.floorID AND rr.breakfastID = ?
       WHERE r.isArchived = 0
         AND r.status != 'Under Maintenance'
         AND r.roomID NOT IN (
@@ -73,7 +79,7 @@ export async function GET(request) {
         )
     `;
 
-    const params = [breakfastID, checkOutDateTime, checkInDateTime, checkOutDateTime, checkInDateTime];
+    const params = [breakfastID, breakfastID, checkOutDateTime, checkInDateTime, checkOutDateTime, checkInDateTime];
 
     if (roomType !== 'Any room type') {
       query += " AND rt.type = ?";

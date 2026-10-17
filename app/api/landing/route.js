@@ -9,10 +9,11 @@ export async function GET(request) {
       dbQuery("SELECT COUNT(*) as totalRoomTypes FROM room_type"),
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, r.description, r.image, r.occupancyLimit, r.breakfastRate,
+               r.price,
                rt.roomTypeID, COALESCE(rt.type, 'Standard Room') as roomType, rt.description as typeDescription,
                fl.floorID, COALESCE(fl.name, 'Ground Floor') as floorName,
-               COALESCE(rr1.rate, 0) as rateWithoutBreakfast,
-               COALESCE(rr2.rate, 0) as rateWithBreakfast
+               COALESCE(r.price, rr1.rate, 0) as rateWithoutBreakfast,
+               COALESCE(r.price + COALESCE(r.breakfastRate, 0), rr2.rate, 0) as rateWithBreakfast
         FROM room r
         LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID
         LEFT JOIN floor fl ON fl.floorID = r.floorID
@@ -23,16 +24,16 @@ export async function GET(request) {
       `),
       dbQuery(`
         SELECT p.promotionID, COALESCE(p.name, 'Special Discount') as name, 
-               p.description, COALESCE(p.percentage, 10) as percentage, 
-               p.startDate, p.endDate, rt.type as roomTypeName
+                p.description, COALESCE(p.percentage, 10) as percentage, 
+                p.startDate, p.endDate, rt.type as roomTypeName
         FROM promotions p
         LEFT JOIN room_type rt ON rt.roomTypeID = p.roomTypeID
         WHERE (p.isArchived IS NULL OR p.isArchived = 0)
           AND (p.endDate IS NULL OR p.endDate >= CURDATE())
         UNION ALL
         SELECT d.discountID as promotionID, d.name, 
-               d.description, COALESCE(d.percentage, 10) as percentage,
-               CURDATE() as startDate, CURDATE() as endDate, 'All Room Types' as roomTypeName
+                d.description, COALESCE(d.percentage, 10) as percentage,
+                CURDATE() as startDate, CURDATE() as endDate, 'All Room Types' as roomTypeName
         FROM discounts d
         WHERE (d.isArchived IS NULL OR d.isArchived = 0)
           AND d.name NOT IN (SELECT COALESCE(p2.name, '') FROM promotions p2)
@@ -46,7 +47,7 @@ export async function GET(request) {
           rt.minOccupancy,
           rt.maxOccupancy,
           rt.extraFoam,
-          COALESCE(rt.price, 0) as price,
+          COALESCE(MIN(rm.price), rt.price, 0) as price,
           COUNT(DISTINCT rm.roomID) as totalRooms,
           COUNT(DISTINCT CASE WHEN rm.status = 'Available' THEN rm.roomID END) as availableRooms,
           (
@@ -58,7 +59,7 @@ export async function GET(request) {
         FROM room_type rt
         LEFT JOIN room rm ON rm.roomTypeID = rt.roomTypeID AND rm.isArchived = 0
         GROUP BY rt.roomTypeID, rt.type, rt.description, rt.minOccupancy, rt.maxOccupancy, rt.extraFoam, rt.price
-        ORDER BY rt.price ASC
+        ORDER BY price ASC
       `)
     ]);
 

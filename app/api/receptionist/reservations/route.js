@@ -129,9 +129,10 @@ export async function GET(request) {
       dbQuery(`
         SELECT r.roomID, r.roomNumber, r.status, COALESCE(rt.type, 'Standard Room') as roomType, r.occupancyLimit, r.image,
                r.breakfastRate,
-               COALESCE(rr1.rate, 1400.00) as rateWithBreakfast,
-               COALESCE(rr2.rate, 1200.00) as rateWithoutBreakfast,
-               COALESCE(rr2.rate, rr1.rate, 1200.00) as rate
+               r.price,
+               COALESCE(r.price + COALESCE(r.breakfastRate, 0), rr1.rate, 1400.00) as rateWithBreakfast,
+               COALESCE(r.price, rr2.rate, 1200.00) as rateWithoutBreakfast,
+               COALESCE(r.price, rr2.rate, rr1.rate, 1200.00) as rate
         FROM room r 
         LEFT JOIN room_type rt ON rt.roomTypeID = r.roomTypeID 
         LEFT JOIN room_rate rr1 ON rr1.roomTypeID = r.roomTypeID AND rr1.floorID = r.floorID AND rr1.breakfastID = 2
@@ -624,7 +625,7 @@ export async function POST(request) {
         const isWithBk = (res[0].breakfastOption || 'with') === 'with';
         const breakfastID = hasCustomBreakfastDates ? 1 : (isWithBk ? 2 : 1);
         const [rateRows] = await conn.execute(`
-          SELECT rr.rate, rm.roomNumber, rm.occupancyLimit, rm.roomTypeID, rm.floorID
+          SELECT rr.rate, rm.roomNumber, rm.occupancyLimit, rm.roomTypeID, rm.floorID, rm.price, rm.breakfastRate
           FROM room rm
           LEFT JOIN room_rate rr ON rr.roomTypeID = rm.roomTypeID AND rr.floorID = rm.floorID AND rr.breakfastID = ?
           WHERE rm.roomID = ?
@@ -634,7 +635,13 @@ export async function POST(request) {
         let roomRate = 0;
         let roomCapacity = 4;
         if (rateRows && rateRows.length > 0) {
-          roomRate = parseFloat(rateRows[0].rate) || 0;
+          if (rateRows[0].price != null && parseFloat(rateRows[0].price) > 0) {
+            roomRate = breakfastID === 2
+              ? parseFloat(rateRows[0].price) + parseFloat(rateRows[0].breakfastRate || 0)
+              : parseFloat(rateRows[0].price);
+          } else {
+            roomRate = parseFloat(rateRows[0].rate) || 0;
+          }
           roomCapacity = Math.max(1, parseInt(rateRows[0].occupancyLimit || 4, 10));
         }
         if (!roomRate) {
