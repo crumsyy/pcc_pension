@@ -110,8 +110,10 @@ export default function AdminProducts() {
   const searchTimer = useRef(null);
   const [catFilter, setCatFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [activeTab, setActiveTab] = useState('products'); // 'products' | 'meals' | 'archived'
+  const [activeTab, setActiveTab] = useState('products'); // 'products' | 'meals' | 'categories' | 'archived'
   const [page, setPage] = useState(1);
+  const [catPage, setCatPage] = useState(1);
+  const [catSearch, setCatSearch] = useState('');
 
   const baseCacheKey = `admin-products:${search}_${catFilter}_${typeFilter}_${activeTab}`;
   const cached = clientCache.get(baseCacheKey);
@@ -120,8 +122,12 @@ export default function AdminProducts() {
   const [shouldAnimate, setShouldAnimate] = useState(!cached);
 
   // Modals state
-  const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | null
+  const [activeModal, setActiveModal] = useState(null); // 'create' | 'edit' | 'createCategory' | 'editCategory' | null
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // Category form state
+  const [categoryForm, setCategoryForm] = useState({ productCategoryID: '', name: '' });
+  const [savingCategory, setSavingCategory] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -445,12 +451,86 @@ export default function AdminProducts() {
     setActiveModal('edit');
   };
 
+  const openCreateCategoryModal = () => {
+    setCategoryForm({ productCategoryID: '', name: '' });
+    setActiveModal('createCategory');
+  };
+
+  const openEditCategoryModal = (cat) => {
+    setCategoryForm({ productCategoryID: cat.productCategoryID, name: cat.name || '' });
+    setActiveModal('editCategory');
+  };
+
+  const handleSaveCategory = async (e) => {
+    e.preventDefault();
+    if (!categoryForm.name.trim()) {
+      showAlert('error', 'Validation Error', 'Category name is required.');
+      return;
+    }
+    setSavingCategory(true);
+    try {
+      const action = categoryForm.productCategoryID ? 'update_category' : 'create_category';
+      const res = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...categoryForm })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Operation failed');
+      showAlert('success', 'Success', data.message || 'Category saved successfully.');
+      setActiveModal(null);
+      clientCache.invalidate('admin-products');
+      await fetchProducts();
+    } catch (err) {
+      showAlert('error', 'Error', err.message);
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = (cat) => {
+    if (cat.productCategoryID === 3) {
+      showAlert('error', 'Cannot Delete', 'Cooked Meals is a core system category and cannot be deleted.');
+      return;
+    }
+    const isUsed = Number(cat.itemCount || 0) > 0;
+    if (isUsed) {
+      showAlert('error', 'Cannot Delete', `Category "${cat.name}" is assigned to ${cat.itemCount} product(s). Reassign them first.`);
+      return;
+    }
+    showConfirm('Delete Category', `Delete category "${cat.name}"? This action cannot be undone.`, async () => {
+      try {
+        const res = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete_category', productCategoryID: cat.productCategoryID })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Delete failed');
+        showAlert('success', 'Success', data.message || 'Category deleted.');
+        clientCache.invalidate('admin-products');
+        await fetchProducts();
+      } catch (err) {
+        showAlert('error', 'Error', err.message);
+      }
+    });
+  };
+
+  const activeProductsCount = products.filter(p => p.productCategoryID !== 3).length;
+  const cookedMealsCount = products.filter(p => p.productCategoryID === 3).length;
+
   const filteredProducts = products.filter(p => {
     if (activeTab === 'products') return p.productCategoryID !== 3;
     if (activeTab === 'meals') return p.productCategoryID === 3;
     return true;
   });
   const { totalPages, safePage, rows: pagedProducts, start, end, total } = paginate(filteredProducts, page, ADMIN_PAGE_SIZE);
+
+  const filteredCategories = categories.filter(c => {
+    if (!catSearch.trim()) return true;
+    return (c.name || '').toLowerCase().includes(catSearch.trim().toLowerCase());
+  });
+  const { totalPages: catTotalPages, safePage: safeCatPage, rows: pagedCategories, start: catStart, end: catEnd, total: catTotal } = paginate(filteredCategories, catPage, ADMIN_PAGE_SIZE);
 
   const handleSearchChange = (e) => {
     const val = e.target.value;
@@ -473,6 +553,7 @@ export default function AdminProducts() {
     setActiveTab(tab);
     setCatFilter(tab === 'meals' ? '3' : '');
     setPage(1);
+    setCatPage(1);
   };
 
   const handleClearFilters = () => {
@@ -482,6 +563,11 @@ export default function AdminProducts() {
     setCatFilter(activeTab === 'meals' ? '3' : '');
     setTypeFilter('');
     setPage(1);
+  };
+
+  const handleClearCatFilters = () => {
+    setCatSearch('');
+    setCatPage(1);
   };
 
   return (
@@ -499,20 +585,43 @@ export default function AdminProducts() {
       />
 
       <div className="d-flex justify-content-between align-items-center mb-2">
-        {/* Tabs for Products, Cooked Meals, and Archived */}
+        {/* Tabs for Products, Cooked Meals, Categories, and Archived */}
         <Tabs selectedKey={activeTab} onSelectionChange={(key) => handleTabChange(key)}>
           <TabList aria-label="Product lists">
-            <Tab id="products">Active Products</Tab>
-            <Tab id="meals">Cooked Meals</Tab>
+            <Tab id="products">
+              Active Products <span className="badge bg-secondary-subtle text-secondary ms-1 rounded-pill">{activeProductsCount}</span>
+            </Tab>
+            <Tab id="meals">
+              Cooked Meals <span className="badge bg-secondary-subtle text-secondary ms-1 rounded-pill">{cookedMealsCount}</span>
+            </Tab>
+            <Tab id="categories">
+              Categories <span className="badge bg-secondary-subtle text-secondary ms-1 rounded-pill">{categories.length}</span>
+            </Tab>
             <Tab id="archived">Archived Items</Tab>
           </TabList>
         </Tabs>
-        {activeTab !== 'archived' && (
-          <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
-            {activeTab === 'meals' ? '+ Create Meal' : '+ Create Product'}
-          </button>
-        )}
+        <div className="d-flex gap-2">
+          {activeTab === 'products' && (
+            <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
+              <i className="bi bi-plus-lg me-1"></i>Create Product
+            </button>
+          )}
+          {activeTab === 'meals' && (
+            <button className="btn btn-pcc-primary text-white" onClick={openCreateModal}>
+              <i className="bi bi-plus-lg me-1"></i>Create Meal
+            </button>
+          )}
+          {activeTab === 'categories' && (
+            <button className="btn btn-pcc-primary text-white" onClick={openCreateCategoryModal}>
+              <i className="bi bi-plus-lg me-1"></i>Add Category
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* View for Products / Meals / Archived */}
+      {activeTab !== 'categories' && (
+        <>
 
       {/* Search & Filters */}
       <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
@@ -670,6 +779,137 @@ export default function AdminProducts() {
           </div>
           <AdminPagination page={safePage} totalPages={totalPages} onPage={setPage} start={start} end={end} total={total} label={activeTab === 'meals' ? 'meals' : 'products'} />
       </div>
+      </>
+      )}
+
+      {/* View for Categories */}
+      {activeTab === 'categories' && (
+        <>
+          {/* Category Search & Filter */}
+          <div className="card-module mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <div className="row g-2 align-items-end">
+              <div className="col-md-10">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search categories by name..."
+                  value={catSearch}
+                  onChange={(e) => { setCatSearch(e.target.value); setCatPage(1); }}
+                />
+              </div>
+              <div className="col-md-2">
+                <button
+                  className="btn btn-pcc-primary text-white w-100"
+                  onClick={handleClearCatFilters}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Categories Table */}
+          <div className="card-module pcc-table-card mb-3" style={{ backgroundColor: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid var(--pcc-mist)" }}>
+            <div className={`table-responsive ${shouldAnimate ? 'pcc-content-reveal' : ''}`} style={{ maxHeight: 'max(200px, calc(100vh - 300px))', overflowY: 'auto' }}>
+              <Table className="table align-middle mb-0">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead style={{ width: '80px' }}>#</TableHead>
+                    <TableHead>Category Name</TableHead>
+                    <TableHead style={{ width: '220px' }}>Role / Type</TableHead>
+                    <TableHead style={{ width: '200px' }}>Assigned Products</TableHead>
+                    <TableHead style={{ width: '120px' }} className="text-end pe-3">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCategories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan="5" className="text-center text-muted py-5">
+                        <div className="d-flex flex-column align-items-center">
+                          <div className="p-3 bg-light rounded-circle mb-2">
+                            <i className="bi bi-tag text-secondary fs-3"></i>
+                          </div>
+                          <h6 className="fw-bold text-dark mb-1">No Categories Found</h6>
+                          <p className="small text-muted mb-3" style={{ maxWidth: '320px' }}>
+                            {catSearch ? `No categories match "${catSearch}".` : 'Get started by creating your first product category.'}
+                          </p>
+                          {!catSearch && (
+                            <button className="btn btn-sm btn-pcc-primary text-white fw-semibold" onClick={openCreateCategoryModal}>
+                              <i className="bi bi-plus-lg me-1"></i> Add Category
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    pagedCategories.map((c, idx) => {
+                      const count = Number(c.itemCount ?? 0);
+                      const isUsed = count > 0;
+                      const isCore = c.productCategoryID === 3;
+                      return (
+                        <TableRow key={c.productCategoryID}>
+                          <TableCell className="text-muted small">{catStart + idx}</TableCell>
+                          <TableCell>
+                            <div className="d-flex align-items-center gap-2">
+                              <span
+                                className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary"
+                                style={{ width: '32px', height: '32px', fontSize: '0.875rem' }}
+                              >
+                                <i className="bi bi-tag-fill"></i>
+                              </span>
+                              <strong className="text-dark">{c.name}</strong>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {isCore ? (
+                              <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                                <i className="bi bi-lock-fill me-1"></i>Core System Category
+                              </span>
+                            ) : (
+                              <span className="badge bg-light text-muted border px-2 py-1">
+                                Standard Category
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`badge ${isUsed ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-light text-muted border'} px-2 py-1`}>
+                              <i className="bi bi-box-seam me-1"></i>
+                              {count} {count === 1 ? 'Product' : 'Products'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-end pe-3">
+                            <ActionButtons
+                              onEdit={() => openEditCategoryModal(c)}
+                              onDelete={() => handleDeleteCategory(c)}
+                              disabledDelete={isCore || isUsed}
+                              deleteTooltip={
+                                isCore
+                                  ? 'Cooked Meals is a core system category and cannot be deleted.'
+                                  : isUsed
+                                  ? `Cannot delete: ${count} product(s) are assigned to this category.`
+                                  : 'Delete Category'
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <AdminPagination
+              page={safeCatPage}
+              totalPages={catTotalPages}
+              onPage={setCatPage}
+              start={catStart}
+              end={catEnd}
+              total={catTotal}
+              label="categories"
+            />
+          </div>
+        </>
+      )}
 
       {/* ==========================================
           MODALS
@@ -1058,6 +1298,80 @@ export default function AdminProducts() {
           </DialogTrigger>
         );
       })()}
+
+          {/* CREATE CATEGORY MODAL */}
+          {activeModal === 'createCategory' && (
+            <DialogTrigger isOpen={true}>
+              <Dialog isDismissable={false} showCloseButton={false} aria-label="Add Product Category" style={{ maxWidth: '440px' }}>
+                <DialogHeader>
+                  <div className="d-flex justify-content-between align-items-center w-100">
+                    <DialogTitle>Add Product Category</DialogTitle>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                  </div>
+                </DialogHeader>
+                <form onSubmit={handleSaveCategory}>
+                  <DialogBody>
+                    <div className="mb-2">
+                      <label className="form-label small fw-semibold mb-1">Category Name <span className="required-asterisk">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. Snacks, Beverages, Merch"
+                        required
+                        value={categoryForm.name}
+                        onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
+                        autoFocus
+                      />
+                      <div className="form-text small text-muted">
+                        Used to categorize products in inventory and guest store orders.
+                      </div>
+                    </div>
+                  </DialogBody>
+                  <DialogFooter>
+                    <button type="submit" className="btn btn-pcc-primary" disabled={savingCategory}>
+                      {savingCategory ? 'Creating...' : 'Create Category'}
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                  </DialogFooter>
+                </form>
+              </Dialog>
+            </DialogTrigger>
+          )}
+
+          {/* EDIT CATEGORY MODAL */}
+          {activeModal === 'editCategory' && (
+            <DialogTrigger isOpen={true}>
+              <Dialog isDismissable={false} showCloseButton={false} aria-label="Edit Product Category" style={{ maxWidth: '440px' }}>
+                <DialogHeader>
+                  <div className="d-flex justify-content-between align-items-center w-100">
+                    <DialogTitle>Edit Product Category</DialogTitle>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setActiveModal(null)} aria-label="Close"></button>
+                  </div>
+                </DialogHeader>
+                <form onSubmit={handleSaveCategory}>
+                  <DialogBody>
+                    <div className="mb-2">
+                      <label className="form-label small fw-semibold mb-1">Category Name <span className="required-asterisk">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        required
+                        value={categoryForm.name}
+                        onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
+                        autoFocus
+                      />
+                    </div>
+                  </DialogBody>
+                  <DialogFooter>
+                    <button type="submit" className="btn btn-pcc-primary" disabled={savingCategory}>
+                      {savingCategory ? 'Saving...' : 'Save Changes'}
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                  </DialogFooter>
+                </form>
+              </Dialog>
+            </DialogTrigger>
+          )}
         </ModalPortal>
       )}
     </div>

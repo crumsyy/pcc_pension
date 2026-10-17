@@ -40,7 +40,13 @@ export async function GET(request) {
 
   try {
     const products = await dbQuery(sql, params);
-    const categories = await dbQuery("SELECT * FROM product_category ORDER BY name");
+    const categories = await dbQuery(`
+      SELECT pc.*, COUNT(p.productID) as itemCount
+      FROM product_category pc
+      LEFT JOIN products p ON p.productCategoryID = pc.productCategoryID AND p.isArchived = 0
+      GROUP BY pc.productCategoryID, pc.name
+      ORDER BY pc.name ASC
+    `);
     return NextResponse.json({ products, categories });
   } catch (error) {
     console.error("Failed to fetch products:", error);
@@ -133,6 +139,54 @@ export async function POST(request) {
         [isAvailable, productID]
       );
       return NextResponse.json({ success: true, message: 'Product availability updated.' });
+    }
+
+    if (action === 'create_category') {
+      const name = (body.name || '').trim();
+      if (!name) {
+        return NextResponse.json({ error: 'Category name is required.' }, { status: 400 });
+      }
+      const existing = await dbQuery("SELECT productCategoryID FROM product_category WHERE LOWER(TRIM(name)) = LOWER(?)", [name]);
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'A category with this name already exists.' }, { status: 400 });
+      }
+      await dbQuery("INSERT INTO product_category(name) VALUES(?)", [name]);
+      return NextResponse.json({ success: true, message: `Category "${name}" created successfully.` });
+    }
+
+    if (action === 'update_category') {
+      const productCategoryID = parseInt(body.productCategoryID);
+      const name = (body.name || '').trim();
+      if (!productCategoryID || !name) {
+        return NextResponse.json({ error: 'Category ID and name are required.' }, { status: 400 });
+      }
+      const existing = await dbQuery(
+        "SELECT productCategoryID FROM product_category WHERE LOWER(TRIM(name)) = LOWER(?) AND productCategoryID != ?",
+        [name, productCategoryID]
+      );
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'A category with this name already exists.' }, { status: 400 });
+      }
+      await dbQuery("UPDATE product_category SET name=? WHERE productCategoryID=?", [name, productCategoryID]);
+      return NextResponse.json({ success: true, message: `Category updated to "${name}" successfully.` });
+    }
+
+    if (action === 'delete_category') {
+      const productCategoryID = parseInt(body.productCategoryID);
+      if (!productCategoryID) {
+        return NextResponse.json({ error: 'Category ID is required.' }, { status: 400 });
+      }
+      if (productCategoryID === 3) {
+        return NextResponse.json({ error: 'Cooked Meals is a core system category and cannot be deleted.' }, { status: 400 });
+      }
+      const used = await dbQuery("SELECT productID FROM products WHERE productCategoryID = ? LIMIT 1", [productCategoryID]);
+      if (used.length > 0) {
+        return NextResponse.json({
+          error: 'Cannot delete category: it is currently assigned to one or more products. Please reassign or delete those products first.'
+        }, { status: 400 });
+      }
+      await dbQuery("DELETE FROM product_category WHERE productCategoryID=?", [productCategoryID]);
+      return NextResponse.json({ success: true, message: 'Category deleted successfully.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

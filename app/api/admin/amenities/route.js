@@ -40,7 +40,13 @@ export async function GET(request) {
 
   try {
     const items = await dbQuery(sql, params);
-    const categories = await dbQuery("SELECT * FROM amenities_category ORDER BY name");
+    const categories = await dbQuery(`
+      SELECT ac.*, COUNT(a.amenityID) as itemCount
+      FROM amenities_category ac
+      LEFT JOIN amenities a ON a.amenityCategoryID = ac.amenityCategoryID AND a.isArchived = 0
+      GROUP BY ac.amenityCategoryID, ac.name
+      ORDER BY ac.name ASC
+    `);
     return NextResponse.json({ items, categories });
   } catch (error) {
     console.error("Failed to fetch amenities:", error);
@@ -123,6 +129,51 @@ export async function POST(request) {
         [amenityID]
       );
       return NextResponse.json({ success: true, message: 'Amenity restored successfully.' });
+    }
+
+    if (action === 'create_category') {
+      const name = (body.name || '').trim();
+      if (!name) {
+        return NextResponse.json({ error: 'Category name is required.' }, { status: 400 });
+      }
+      const existing = await dbQuery("SELECT amenityCategoryID FROM amenities_category WHERE LOWER(TRIM(name)) = LOWER(?)", [name]);
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'A category with this name already exists.' }, { status: 400 });
+      }
+      await dbQuery("INSERT INTO amenities_category(name) VALUES(?)", [name]);
+      return NextResponse.json({ success: true, message: `Category "${name}" created successfully.` });
+    }
+
+    if (action === 'update_category') {
+      const amenityCategoryID = parseInt(body.amenityCategoryID);
+      const name = (body.name || '').trim();
+      if (!amenityCategoryID || !name) {
+        return NextResponse.json({ error: 'Category ID and name are required.' }, { status: 400 });
+      }
+      const existing = await dbQuery(
+        "SELECT amenityCategoryID FROM amenities_category WHERE LOWER(TRIM(name)) = LOWER(?) AND amenityCategoryID != ?",
+        [name, amenityCategoryID]
+      );
+      if (existing.length > 0) {
+        return NextResponse.json({ error: 'A category with this name already exists.' }, { status: 400 });
+      }
+      await dbQuery("UPDATE amenities_category SET name=? WHERE amenityCategoryID=?", [name, amenityCategoryID]);
+      return NextResponse.json({ success: true, message: `Category updated to "${name}" successfully.` });
+    }
+
+    if (action === 'delete_category') {
+      const amenityCategoryID = parseInt(body.amenityCategoryID);
+      if (!amenityCategoryID) {
+        return NextResponse.json({ error: 'Category ID is required.' }, { status: 400 });
+      }
+      const used = await dbQuery("SELECT amenityID FROM amenities WHERE amenityCategoryID = ? LIMIT 1", [amenityCategoryID]);
+      if (used.length > 0) {
+        return NextResponse.json({
+          error: 'Cannot delete category: it is currently assigned to one or more amenities. Please reassign or delete those amenities first.'
+        }, { status: 400 });
+      }
+      await dbQuery("DELETE FROM amenities_category WHERE amenityCategoryID=?", [amenityCategoryID]);
+      return NextResponse.json({ success: true, message: 'Category deleted successfully.' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
